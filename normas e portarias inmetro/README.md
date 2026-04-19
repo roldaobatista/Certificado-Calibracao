@@ -4,17 +4,17 @@ Pasta destinada a reunir referências, índices e materiais de apoio sobre norma
 
 > **Aviso:** Os textos oficiais de portarias, resoluções e RTACs são públicos e podem ser obtidos diretamente nos portais do Inmetro e da Imprensa Nacional. Esta pasta serve como **índice organizado** e material de apoio — sempre confirme a versão vigente na fonte oficial antes de aplicar.
 
-## Estrutura sugerida
+## Estrutura
 
 | Pasta | Conteúdo |
 |-------|----------|
-| `portarias/` | Índice de portarias Inmetro relevantes (por ano e tema) |
-| `rtac/` | Regulamentos Técnicos da Avaliação da Conformidade |
-| `rtm/` | Regulamentos Técnicos Metrológicos |
-| `doq-cgcre/` | Documentos orientativos da Cgcre |
-| `nit-dicla/` | Normas para a área de laboratórios |
-| `resolucoes-conmetro/` | Resoluções do Conmetro |
-| `referencias/` | Links oficiais e formas de busca |
+| [`portarias/`](portarias/) | Índice de portarias Inmetro — inclui Portaria 157/2022 |
+| [`rtac/`](rtac/) | Regulamentos Técnicos da Avaliação da Conformidade |
+| [`rtm/`](rtm/) | Regulamentos Técnicos Metrológicos |
+| [`doq-cgcre/`](doq-cgcre/) | Documentos orientativos da Cgcre |
+| [`nit-dicla/`](nit-dicla/) | Normas para a área de laboratórios |
+| [`resolucoes-conmetro/`](resolucoes-conmetro/) | Resoluções do Conmetro |
+| [`referencias/`](referencias/) | Como pesquisar e validar vigência |
 
 ## Fontes oficiais
 
