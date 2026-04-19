@@ -8,9 +8,10 @@
 
 | Instrumento | Portaria de aprovação do RTM | Observação |
 |-------------|------------------------------|------------|
-| Balanças não automáticas | Portaria Inmetro nº 236/1994, atualizada por Portarias posteriores (233/2010 etc.) | Classes I, II, III, IIII (OIML R 76) |
-| Balanças automáticas | Portarias específicas por tipo (ensacadeiras, seletoras, rodoviárias) | |
-| Pesos padrão (massas) | Portaria Inmetro nº 248/2008 | Classes E1, E2, F1, F2, M1, M2, M3 (OIML R 111) |
+| **Balanças não automáticas (IPNA)** | **Portaria Inmetro nº 157/2022** — vigente desde 02/01/2023. Revogou a Portaria 236/1994 | Classes I, II, III, IIII (base OIML R 76). Ver [ficha](../portarias/portaria-157-2022.md) |
+| Balanças automáticas | Portarias específicas por tipo (ensacadeiras, seletoras, rodoviárias, ferroviárias) | Verificar portaria vigente por tipo |
+| **Pesos padrão (massas)** | **Portaria Inmetro nº 289/2021** | 1 mg a 50 kg; classes E1, E2, F1, F2, M1, M2, M3 (base OIML R 111). Ver [ficha](../portarias/portaria-289-2021.md) |
+| Pré-medidos por massa/volume | Portaria Inmetro nº 248/2008 + Portaria 350/2012 (Portaria 93/2022 que as substituiria foi suspensa pela 70/2024) | Ver [ficha 248/2008](../portarias/portaria-248-2008.md) |
 
 ## Pressão
 

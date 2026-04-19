@@ -37,10 +37,12 @@
 ## Portarias específicas por área de calibração
 
 ### Massa
-| Portaria | Instrumento |
-|----------|-------------|
-| Portaria Inmetro nº 233/2010 | Balanças não automáticas |
-| Portaria Inmetro nº 248/2008 | Pesos padrão (massas) |
+| Portaria | Instrumento | Status |
+|----------|-------------|--------|
+| [**Portaria Inmetro nº 157/2022**](portaria-157-2022.md) | **Balanças não automáticas (RTM atual)** | **Vigente desde 02/01/2023** — revogou a 236/1994 |
+| Portaria Inmetro nº 236/1994 | RTM anterior de balanças | **Revogada pela 157/2022** |
+| [**Portaria Inmetro nº 289/2021**](portaria-289-2021.md) | **Pesos padrão (classes E1 a M3)** | **Vigente** — base OIML R 111 |
+| [Portaria Inmetro nº 248/2008](portaria-248-2008.md) | Pré-medidos por massa/volume | Vigente (Portaria 93/2022 que a substituiria foi suspensa) |
 
 ### Pressão
 | Portaria | Instrumento |
@@ -75,12 +77,14 @@
 |----------|-------------|
 | Portaria Inmetro nº 115/1998 / atualizações | Medidores de velocidade veicular (radares) |
 
-## Portarias 2020–2024
+## Portarias recentes (2020–2024) com ficha confirmada
 
-| Portaria | Tema |
-|----------|------|
-| [Portaria Inmetro nº 157/2022](portaria-157-2022.md) | Ver ficha individual |
-| Portarias Cgcre recentes | Atualização periódica de DOQs |
+| Portaria | Tema | Status |
+|----------|------|--------|
+| [Portaria Inmetro nº 289/2021](portaria-289-2021.md) | RTM para pesos padrão (1 mg a 50 kg; classes E1 a M3) | Vigente |
+| [Portaria Inmetro nº 157/2022](portaria-157-2022.md) | RTM para balanças não automáticas | Vigente desde 02/01/2023 |
+| Portaria Inmetro nº 93/2022 | Novo RTM de pré-medidos | **Suspensa pela 70/2024** |
+| Portaria Inmetro nº 70/2024 | Suspendeu a 93/2022 | Vigente |
 
 > *"Verificar"* significa: confirmar no portal Inmetro se a portaria continua vigente, foi revogada, alterada ou consolidada.
 

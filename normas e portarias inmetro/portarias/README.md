@@ -13,7 +13,10 @@
 
 | Arquivo | Portaria | Tema |
 |---------|----------|------|
-| [`portaria-157-2022.md`](portaria-157-2022.md) | Portaria Inmetro nº 157/2022 | A confirmar |
+| [`portaria-157-2022.md`](portaria-157-2022.md) | Portaria Inmetro nº 157/2022 | **RTM de balanças não automáticas** (vigente desde 02/01/2023) |
+| [`portaria-289-2021.md`](portaria-289-2021.md) | Portaria Inmetro nº 289/2021 | **RTM de pesos padrão** (classes E1 a M3; base OIML R 111) |
+| [`portaria-248-2008.md`](portaria-248-2008.md) | Portaria Inmetro nº 248/2008 | RTM de pré-medidos por massa/volume |
+| [`calibracao-laboratorios.md`](calibracao-laboratorios.md) | Índice por tema | Portarias organizadas por área de calibração |
 
 ## Portarias historicamente relevantes para laboratórios de calibração
 
@@ -30,18 +33,18 @@
 ### Calibração e padrões
 | Portaria/Ato | Tema |
 |--------------|------|
-| Portaria Inmetro nº 590/2013 | Aprova RTAC para serviços de calibração |
+| Portaria Inmetro nº 590/2013 | RTAC para serviços de calibração — verificar vigência |
 | Portaria Inmetro nº 102/1988 | Adota o Sistema Internacional de Unidades (SI) |
 | Resolução Conmetro nº 12/1988 | Quadro Geral de Unidades de Medida |
 
-### Metrologia legal — instrumentos
+### Metrologia legal — instrumentos (verificar vigência no Inmetro)
 | Portaria/Ato | Tema |
 |--------------|------|
+| **Portaria Inmetro nº 157/2022** | **Balanças não automáticas — vigente (revogou a 236/1994)** |
+| **Portaria Inmetro nº 289/2021** | **Pesos padrão (1 mg a 50 kg, classes E1 a M3)** |
+| Portaria Inmetro nº 248/2008 | Pré-medidos por massa/volume |
 | Portaria Inmetro nº 154/2005 | Termômetros clínicos |
 | Portaria Inmetro nº 30/2007 | Termo-higrômetros |
-| Portaria Inmetro nº 233/2010 | Balanças não automáticas |
-| Portaria Inmetro nº 248/2008 | Pesos padrão / massas |
-| Portaria Inmetro nº 470/2008 | Manômetros |
 | Portaria Inmetro nº 222/2009 | Cronotacógrafos |
 | Portaria Inmetro nº 587/2012 | Bafômetros / etilômetros |
 
