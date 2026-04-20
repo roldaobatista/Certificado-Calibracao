@@ -29,6 +29,7 @@
 - `roadmap-check`
 - `sync-simulator-check`
 - `cloud-agents-policy-check`
+- `compliance-structure-check`
 - `agent-frontmatter-check`
 - `slash-commands-check`
 - `harness-design-tier3-check`
@@ -57,7 +58,7 @@
 - P0-13 (P0): Operação dual Claude Code + Codex CLI com AGENTS.md canônico — [~] Em implementação (.claude/ + .codex/ espelhados; git hooks canônicos via .githooks/ + tools/install-hooks.sh; tools/install-mcp.sh; tools/sync-agents.ts gera .codex/agents/*.toml a partir de .claude/agents/*.md; pnpm check:all valida sync + drift)
 - P1-1 (P1): Simulador determinístico de sync/conflito + fila de revisão humana — [~] Em implementação (evals/sync-simulator executa C1-C8 com 100 seeds determinísticos; tools/sync-simulator-check.ts valida cenários, seeds, propriedades e reports; entrou em check:all e pre-commit)
 - P1-2 (P1): Política de Tier 3 com provenance/attestation (SLSA/sigstore) — [~] Em implementação (compliance/cloud-agents/policy.yaml vira fonte executável; tools/cloud-agents-policy-check.ts valida allowlist/blocklist, SLSA/Sigstore/GitHub Attestations e bloqueio fail-closed para branch cloud-agent/* sem attestation)
-- P1-3 (P1): Diretório /compliance/ canônico — [~] Em implementação (árvore canônica criada no bootstrap; scaffolds de approved-claims.md, guardrails.md, cloud-agents-policy.md em v0.1.0-draft)
+- P1-3 (P1): Diretório /compliance/ canônico — [~] Em implementação (árvore canônica criada no bootstrap; tools/compliance-structure-check.ts valida 44 artefatos e 13 referências no README; pnpm compliance-structure-check entrou em check:all e pre-commit; conteúdo semântico segue nos gates especializados)
 - P1-4 (P1): Roadmap em fatias verticais V1–V5 — [~] Em implementação (compliance/roadmap/v1-v5.yaml virou fonte operacional; tools/roadmap-check.ts valida ordem V1-V5, dependências e gates de saída; entrou em check:all e pre-commit)
 - P2-1 (P2): Nomenclatura de agentes (frontmatter padrão) — [~] Em implementação (schema_version: 1 nos 13 agentes; tools/agent-frontmatter-check.ts valida nome canônico, role, model, tools, owner_paths, blocked_write_paths e handoff_targets; gate entrou em check:all e pre-commit)
 - P2-2 (P2): Slash-commands regulatórios (/spec-norm-diff, /ac-evidence, /claim-check, /tenant-fuzz, /emit-cert-dry) — [~] Em implementação (.claude/commands/ contém os 5 comandos canônicos; tools/slash-commands-check.ts valida frontmatter, owner, risco, seções e bloco executável; gate entrou em check:all e pre-commit)

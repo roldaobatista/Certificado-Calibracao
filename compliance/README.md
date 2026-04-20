@@ -14,3 +14,4 @@ Camada regulatória de 1ª classe (P1-3). Estrutura canônica:
 - `cloud-agents-policy.md` — política de Tier 3 (P1-2).
 - `budget-log/` — consumo de tokens/custo por sessão (P0-7).
 - `sessions-log/` — handoff de sessões para `/resume` e continuidade entre agentes (P0-13).
+- `roadmap/` — roadmap V1-V5 com fatias verticais e gates de saída (P1-4).
