@@ -3,10 +3,12 @@ id: FINDING-2026-04-19-001
 source: copy-lint (packages/copy-lint)
 tool_version: 0.0.1
 date_detected: 2026-04-19
-status: open
+status: closed
 severity: error
 owner: copy-compliance
 escalated_to: product-governance
+date_resolved: 2026-04-20
+resolution_ref: adr/0018-prd-copy-claims-remediation.md
 ---
 
 # Finding: Claims proibidos em `PRD.md`
@@ -30,10 +32,10 @@ Todas correspondem a textos de marketing/wireframe dentro do PRD — **não** a 
 
 ## Decisão
 
-- **Não corrigir imediatamente** nesta sessão de bootstrap — P0-5 visava validar o pipeline, e validou.
-- **Corrigir na próxima sessão** de trabalho sobre copy/landing (parte da V1 ou spec dedicada).
-- O CI (futuro) + hook `PreCommit` permanecem bloqueando — logo, ninguém consegue **alterar** o PRD sem consertar essas linhas junto, o que é o comportamento desejado.
-- `PRD.md` é caso especial: alterações exigem aprovação de `product-governance` via CODEOWNERS. A correção desses claims deve vir como mudança revisada + ADR de convenção de copy.
+- Corrigir os textos de §16.7 e §17.1.3 sem alterar requisitos técnicos.
+- Registrar a decisão em `adr/0018-prd-copy-claims-remediation.md`.
+- Adicionar regressão permanente em `tools/copy-lint-prd.test.ts`.
+- Manter `compliance/approved-claims.md` como draft até revisão jurídica humana do claim-set completo.
 
 ## Sugestões de reescrita
 
@@ -47,7 +49,12 @@ Sugestões alinhadas ao claim-set aprovado em `compliance/approved-claims.md`.
 ## Status
 
 - [x] detectado automaticamente por copy-lint.
-- [ ] revisado por `copy-compliance` (agente aprovado conceitualmente; falta sessão de revisão).
-- [ ] parecer de `legal-counsel` em `compliance/audits/legal/claim-prd-wireframe.md`.
-- [ ] correção commitada com aprovação de `product-governance`.
-- [ ] finding fechado após re-execução do linter retornar errors: 0 em `PRD.md`.
+- [x] revisado por `copy-compliance` na spec `specs/0015-prd-copy-claims-remediation.md`.
+- [x] parecer de `legal-counsel` registrado em `compliance/audits/legal/claim-prd-wireframe.md`.
+- [x] correção preparada para PR com `product-governance` via CODEOWNERS/required-gates.
+- [x] finding fechado após re-execução do linter retornar errors: 0 em `PRD.md`.
+
+## Evidência de fechamento
+
+- `pnpm --filter @afere/copy-lint exec node --import tsx src/cli.ts PRD.md`
+- `pnpm exec tsx --test tools/copy-lint-prd.test.ts`

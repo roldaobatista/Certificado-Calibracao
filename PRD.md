@@ -1306,11 +1306,11 @@ normative_package_v_2026.04 = {
 - **Atualização normativa:** compromisso de SLA definido em §16.4; depende da governança normativa com owner nominal, RACI e orçamento em vigor antes do go-live.
 - **Cobertura de instrumentos:** o MVP cobre apenas balanças não automáticas (NAWI/IPNA, Portaria 157/2022). Demais instrumentos seguem o roadmap (§12). A cobertura vigente é declarada explicitamente em §16.3 e no próprio certificado — sem promessa implícita.
 
-> **Redação comercial controlada:** o site de vendas (§17.1), materiais comerciais, contratos e comunicação pública NÃO devem afirmar "100% conforme", "passa em qualquer auditoria", "conformidade garantida" nem "impossível errar". Claims permitidos:
+> **Redação comercial controlada:** o site de vendas (§17.1), materiais comerciais, contratos e comunicação pública NÃO devem usar claims absolutos bloqueados pelas regras CL-001, CL-002 e CL-006 do `copy-lint`. Claims permitidos:
 > - *"Bloqueia as não conformidades listadas em §9 do PRD."*
 > - *"Suporta a operação ISO/IEC 17025 com trilha, evidência e rastreabilidade por arquitetura."*
 > - *"Impede violação das regras automatizadas de emissão declaradas."*
-> - *"Reduz classes específicas de erro (padrão vencido, uso indevido de selo, omissão de incerteza, revisor = executor, etc.)."*
+> - *"Reduz classes específicas de erro, como padrão vencido, uso indevido de selo, omissão de incerteza e revisor igual ao executor."*
 
 ---
 
@@ -1351,13 +1351,13 @@ normative_package_v_2026.04 = {
 ├────────────────────────────────────────────────────────────────────────┤
 │                                                                        │
 │   HERO                                                                 │
-│   "Emita certificados de calibração que passam em qualquer auditoria"  │
+│   "Emita certificados com bloqueios normativos e trilha rastreável"    │
 │   Plataforma metrológica web + Android para laboratórios e empresas    │
 │   acreditadas RBC, com padrões RBC ou padrões Inmetro.                 │
 │                                                                        │
 │   [Comece grátis — 14 dias]   [Ver demo de 2 minutos ▶]               │
 │                                                                        │
-│   ★★★★★  "Reduzimos retrabalho a zero" — Lab. Acme                    │
+│   ★★★★★  "Reduzimos retrabalho na revisão" — Lab. Acme                │
 │                                                                        │
 ├────────────────────────────────────────────────────────────────────────┤
 │   SOCIAL PROOF                                                         │
