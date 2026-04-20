@@ -8,6 +8,7 @@
 - `traceability-matrix.yaml` — gerado por `pnpm validation-dossier:write`; não editar manualmente.
 - `coverage-report.md` — relatório humano de cobertura do PRD §13.
 - `evidence/<REQ-id>/` — destino dos artefatos de execução por requisito.
+- `snapshots/` — manifesto, baseline e current do Gate 7 para snapshot-diff canônico.
 
 ## Comandos
 

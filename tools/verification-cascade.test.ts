@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 
-import { buildCascadePlan, checkReleaseAudits } from "./verification-cascade";
+import { buildCascadePlan, checkReleaseAudits, checkVerificationCascade } from "./verification-cascade";
 
 function makeWorkspace() {
   const root = join(tmpdir(), `afere-cascade-${Date.now()}-${Math.random().toString(16).slice(2)}`);
@@ -12,6 +13,8 @@ function makeWorkspace() {
   mkdirSync(join(root, "evals", "audit"), { recursive: true });
   mkdirSync(join(root, "evals", "emission"), { recursive: true });
   mkdirSync(join(root, "evals", "docs"), { recursive: true });
+  mkdirSync(join(root, "compliance", "verification-log"), { recursive: true });
+  writeFileSync(join(root, "compliance", "verification-log", "README.md"), "# Verification log\n");
   writeFileSync(join(root, "evals", "audit", "hash-chain.test.ts"), "test('audit', () => {});\n");
   writeFileSync(join(root, "evals", "emission", "certificate.test.ts"), "test('emission', () => {});\n");
   writeFileSync(join(root, "evals", "docs", "readme.test.ts"), "test('docs', () => {});\n");
@@ -53,6 +56,73 @@ function makeWorkspace() {
   };
 }
 
+function writeSnapshotDossier(root: string, options: { diffCurrentId?: string } = {}) {
+  const baselineDir = join(root, "compliance", "validation-dossier", "snapshots", "baseline");
+  const currentDir = join(root, "compliance", "validation-dossier", "snapshots", "current");
+  mkdirSync(baselineDir, { recursive: true });
+  mkdirSync(currentDir, { recursive: true });
+
+  const snapshots = [
+    { id: "profile-a-minimal", profile: "A" },
+    { id: "profile-b-minimal", profile: "B" },
+    { id: "profile-c-minimal", profile: "C" },
+  ];
+
+  const manifestEntries: string[] = [];
+  for (const snapshot of snapshots) {
+    const baseline = snapshotText(snapshot.profile, snapshot.id);
+    const current =
+      options.diffCurrentId === snapshot.id
+        ? baseline.replace("status: approved", "status: changed")
+        : baseline;
+    const baselinePath = `compliance/validation-dossier/snapshots/baseline/${snapshot.id}.txt`;
+    const currentPath = `compliance/validation-dossier/snapshots/current/${snapshot.id}.txt`;
+    writeFileSync(join(root, ...baselinePath.split("/")), baseline);
+    writeFileSync(join(root, ...currentPath.split("/")), current);
+    manifestEntries.push(
+      [
+        `  - id: ${snapshot.id}`,
+        `    profile: ${snapshot.profile}`,
+        `    baseline_path: ${baselinePath}`,
+        `    current_path: ${currentPath}`,
+        `    sha256: ${sha256(baseline)}`,
+        "    renderer: dogfood-text-v1",
+        "    requirement_refs: [REQ-EMISSION]",
+      ].join("\n"),
+    );
+  }
+
+  writeFileSync(
+    join(root, "compliance", "validation-dossier", "snapshots", "manifest.yaml"),
+    [
+      "version: 1",
+      "source: harness/05-guardrails.md",
+      "policy:",
+      "  profiles_required: [A, B, C]",
+      "  snapshots_per_profile: 1",
+      "  fail_on_diff: true",
+      "  approval_required_for_baseline_update: [regulator, product-governance]",
+      "snapshots:",
+      ...manifestEntries,
+      "",
+    ].join("\n"),
+  );
+}
+
+function snapshotText(profile: string, id: string) {
+  return [
+    `snapshot: ${id}`,
+    `profile: ${profile}`,
+    "certificate: canonical calibration certificate",
+    "status: approved",
+    "",
+  ].join("\n");
+}
+
+function sha256(text: string) {
+  return createHash("sha256").update(text).digest("hex");
+}
+
 test("critical area changes require L4 full regression and snapshot diff", () => {
   const { root, cleanup } = makeWorkspace();
   try {
@@ -82,6 +152,49 @@ test("non-critical changes keep L4 full regression and snapshot diff off", () =>
   }
 });
 
+test("verification cascade fails when snapshot manifest is absent", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    const result = checkVerificationCascade(root);
+
+    assert.match(result.errors.join("\n"), /CASCADE-002/);
+    assert.match(result.errors.join("\n"), /compliance\/validation-dossier\/snapshots\/manifest\.yaml/);
+    assert.equal(result.checkedSnapshots, 0);
+  } finally {
+    cleanup();
+  }
+});
+
+test("verification cascade fails when current snapshot differs from baseline", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeSnapshotDossier(root, { diffCurrentId: "profile-b-minimal" });
+
+    const result = checkVerificationCascade(root);
+
+    assert.match(result.errors.join("\n"), /CASCADE-003/);
+    assert.match(result.errors.join("\n"), /profile-b-minimal/);
+    assert.equal(result.checkedSnapshots, 3);
+  } finally {
+    cleanup();
+  }
+});
+
+test("verification cascade passes with canonical snapshot hashes for profiles A, B and C", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeSnapshotDossier(root);
+
+    const result = checkVerificationCascade(root);
+
+    assert.deepEqual(result.errors, []);
+    assert.equal(result.checkedSnapshots, 3);
+    assert.deepEqual(result.checkedProfiles, ["A", "B", "C"]);
+  } finally {
+    cleanup();
+  }
+});
+
 test("release audit check requires the three L5 auditor opinions", () => {
   const { root, cleanup } = makeWorkspace();
   try {
@@ -104,4 +217,13 @@ test("release audit check requires the three L5 auditor opinions", () => {
   } finally {
     cleanup();
   }
+});
+
+test("wires snapshot diff into the root pipeline and pre-commit", () => {
+  const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8"));
+  const preCommit = readFileSync(resolve(process.cwd(), ".githooks/pre-commit"), "utf8");
+
+  assert.equal(packageJson.scripts["snapshot-diff-check"], "tsx tools/verification-cascade.ts check");
+  assert.match(packageJson.scripts["check:all"], /pnpm snapshot-diff-check/);
+  assert.match(preCommit, /snapshot-diff-check/);
 });

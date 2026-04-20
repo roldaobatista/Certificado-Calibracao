@@ -1,0 +1,29 @@
+version: 1
+source: harness/05-guardrails.md
+policy:
+  profiles_required: [A, B, C]
+  snapshots_per_profile: 1
+  fail_on_diff: true
+  approval_required_for_baseline_update: [regulator, product-governance]
+snapshots:
+  - id: profile-a-minimal
+    profile: A
+    baseline_path: compliance/validation-dossier/snapshots/baseline/profile-a-minimal.txt
+    current_path: compliance/validation-dossier/snapshots/current/profile-a-minimal.txt
+    sha256: 391201e518eb566325e368662510abf896dfcf057da9cf3f3423cb7961caaecb
+    renderer: dogfood-text-v1
+    requirement_refs: [REQ-EMISSION]
+  - id: profile-b-minimal
+    profile: B
+    baseline_path: compliance/validation-dossier/snapshots/baseline/profile-b-minimal.txt
+    current_path: compliance/validation-dossier/snapshots/current/profile-b-minimal.txt
+    sha256: e8a64537039707ca10c1ded52b99f5fb5c6399e867b0480d7a7210619eaa1362
+    renderer: dogfood-text-v1
+    requirement_refs: [REQ-EMISSION]
+  - id: profile-c-minimal
+    profile: C
+    baseline_path: compliance/validation-dossier/snapshots/baseline/profile-c-minimal.txt
+    current_path: compliance/validation-dossier/snapshots/current/profile-c-minimal.txt
+    sha256: 898c3f671f84167ced062d6ff58f490242426345d564cedc3fa4907627fe58b1
+    renderer: dogfood-text-v1
+    requirement_refs: [REQ-EMISSION]

@@ -1,0 +1,8 @@
+snapshot: profile-a-minimal
+profile: A
+certificate: canonical calibration certificate
+instrument: digital caliper
+decision_rule: simple_acceptance
+uncertainty_k: 2
+status: approved
+
