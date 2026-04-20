@@ -1,0 +1,20 @@
+# .codex/agents/android.toml
+# Espelho gerado a partir de .claude/agents/android.md (fonte canônica por AGENTS.md).
+# Editar AGENTS.md + .claude/agents/android.md → re-sincronizar (tools/sync-agents.ts).
+
+name = "android"
+description = "Kotlin offline-first, SQLCipher, sync idempotente cliente"
+model = "sonnet"
+reference = ".claude/agents/android.md"
+
+[paths]
+allowed_write = ["apps/android/**"]
+blocked_write = ["apps/api/**","apps/web/**","apps/portal/**","packages/**","compliance/**"]
+
+[tools]
+read = true
+edit = true
+write = true
+grep = true
+glob = true
+bash = true

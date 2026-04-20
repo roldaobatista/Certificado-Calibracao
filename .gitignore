@@ -1,0 +1,30 @@
+# Kalibrium — .gitignore
+
+# Claude Code — arquivos locais do usuário
+.claude/settings.local.json
+.claude/worktrees/
+
+# Codex CLI — arquivos locais
+.codex/settings.local.toml
+
+# Node/pnpm
+node_modules/
+.pnpm-store/
+.turbo/
+dist/
+build/
+.next/
+coverage/
+
+# Logs e temporários
+*.log
+.DS_Store
+Thumbs.db
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.*.local
+
+# Budget log (diário, pode inchar rápido — revisar política em P0-7)
+# compliance/budget-log/  # mantém versionado por enquanto; reavaliar se crescer

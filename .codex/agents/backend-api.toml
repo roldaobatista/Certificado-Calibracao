@@ -1,0 +1,20 @@
+# .codex/agents/backend-api.toml
+# Espelho gerado a partir de .claude/agents/backend-api.md (fonte canônica por AGENTS.md).
+# Editar AGENTS.md + .claude/agents/backend-api.md → re-sincronizar (tools/sync-agents.ts).
+
+name = "backend-api"
+description = "Backend técnico — auth, RBAC, workflows OS, emissão oficial, assinatura/QR, reemissão, sync server-side"
+model = "sonnet"
+reference = ".claude/agents/backend-api.md"
+
+[paths]
+allowed_write = ["apps/api/**"]
+blocked_write = ["apps/web/**","apps/portal/**","apps/android/**","packages/**","compliance/**","evals/**"]
+
+[tools]
+read = true
+edit = true
+write = true
+grep = true
+glob = true
+bash = true

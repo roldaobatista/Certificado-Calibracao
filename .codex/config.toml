@@ -1,0 +1,118 @@
+# .codex/config.toml — Kalibrium
+#
+# Espelho do harness. Fonte canônica: AGENTS.md (raiz).
+# Veja harness/17-multi-tooling.md para estratégia dual Claude Code + Codex CLI.
+# Os 13 agentes estão em .codex/agents/. Hooks em .codex/hooks/.
+
+[project]
+name = "kalibrium"
+description = "Plataforma metrológica de certificação de calibração (ISO/IEC 17025, Inmetro/Cgcre)"
+canonical_context = "AGENTS.md"
+
+[agents]
+max_depth = 1
+allowlist = [
+  "backend-api",
+  "regulator",
+  "metrology-calc",
+  "web-ui",
+  "android",
+  "db-schema",
+  "qa-acceptance",
+  "lgpd-security",
+  "copy-compliance",
+  "product-governance",
+  "metrology-auditor",
+  "legal-counsel",
+  "senior-reviewer",
+]
+deny_spawn_outside_allowlist = true
+
+[hooks]
+session_start = ".codex/hooks/session_start.sh"
+pre_tool = ".codex/hooks/pre_tool.sh"
+post_tool = ".codex/hooks/post_tool.sh"
+pre_commit = ".codex/hooks/pre_commit.sh"
+
+[sandbox]
+# Seatbelt/Landlock ativo em macOS/Linux. Em Windows WSL, usar WSL2.
+mode = "strict"
+deny_destructive = [
+  "git push --force",
+  "git push -f",
+  "--no-verify",
+  "rm -rf /",
+  "rm -rf ~",
+]
+
+[mcp_servers.context-mode]
+description = "Gestão de context window (batch execute, search, execute em sandbox)."
+
+[mcp_servers.github]
+description = "PRs, issues, CODEOWNERS, releases."
+
+[mcp_servers.postgres]
+description = "Schema introspection, RLS policies."
+env_vars = ["POSTGRES_URL"]
+
+[mcp_servers.context7]
+description = "Docs atualizados de Next.js, Prisma, Kotlin."
+
+[mcp_servers.playwright]
+description = "E2E de apps/web e apps/portal."
+
+[mcp_servers.vitest]
+description = "Execução e cobertura de testes."
+
+# Codex CLI pode atuar como MCP server para Claude Code (codex-mcp).
+# Padrão avançado: Claude Code orquestra raciocínio regulatório; Codex executa task sandbox/paralela.
+
+[budgets.tokens]
+per_tool_call_soft = 20000
+per_tool_call_hard = 50000
+per_task_soft = 100000
+per_task_hard = 200000
+per_pr_soft = 350000
+per_pr_hard = 500000
+context_rot_soft = 300000
+context_rot_hard = 400000
+
+[budgets.cost_usd]
+per_dev_per_day_soft = 15
+per_dev_per_day_hard = 30
+per_dev_per_week_soft = 60
+per_dev_per_week_hard = 120
+per_pr_soft = 8
+per_pr_hard = 15
+per_cloud_task_soft = 3
+per_cloud_task_hard = 5
+
+[budgets.timeouts_ms]
+tool_call = 120000
+bash_long_run = 600000
+subagent_task = 1800000
+cloud_task = 7200000
+
+[routing]
+# Regra simples de roteamento por tipo de tarefa. Ver AGENTS.md §7 e harness/17-multi-tooling.md.
+prefer_claude_code = [
+  "reasoning_regulatorio",
+  "epico_novo",
+  "release_fatia",
+  "arquitetura",
+  "agent_teams",
+]
+prefer_codex_cli = [
+  "refactor_mecanico",
+  "teste_em_lote",
+  "devops",
+  "backlog_autonomo",
+  "cloud_exec",
+]
+dual_check = ["code_review_area_blocker"]
+
+[sync]
+# CI detecta drift entre AGENTS.md e .codex/agents/*.toml + .claude/agents/*.md.
+# Editar AGENTS.md primeiro, re-sincronizar via tools/sync-agents.ts (P1-3 bootstrap).
+canonical_source = "AGENTS.md"
+drift_detection = true

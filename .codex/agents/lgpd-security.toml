@@ -1,0 +1,20 @@
+# .codex/agents/lgpd-security.toml
+# Espelho gerado a partir de .claude/agents/lgpd-security.md (fonte canônica por AGENTS.md).
+# Editar AGENTS.md + .claude/agents/lgpd-security.md → re-sincronizar (tools/sync-agents.ts).
+
+name = "lgpd-security"
+description = "Base jurídica LGPD, assinatura eletrônica, retenção, hardening, DSAR"
+model = "opus"
+reference = ".claude/agents/lgpd-security.md"
+
+[paths]
+allowed_write = ["packages/audit-log/**","compliance/legal-opinions/**","infra/**"]
+blocked_write = ["apps/api/src/domain/**","compliance/audits/**","compliance/release-norm/**"]
+
+[tools]
+read = true
+edit = true
+write = true
+grep = true
+glob = true
+bash = true
