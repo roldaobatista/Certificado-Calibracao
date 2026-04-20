@@ -1,0 +1,3 @@
+{"req":"REQ-HARNESS-P1-1-SYNC-SIMULATOR","seed":3735928559,"test":"evals/sync-simulator/sync-simulator.test.ts","command":"pnpm test:sync-simulator","report_path":"evals/sync-simulator/reports/","generated_by":"tools/redundancy-check.ts trace"}
+{"req":"REQ-HARNESS-P1-1-SYNC-SIMULATOR","seed":3405691582,"test":"evals/sync-simulator/sync-simulator.test.ts","command":"pnpm test:sync-simulator","report_path":"evals/sync-simulator/reports/","generated_by":"tools/redundancy-check.ts trace"}
+{"req":"REQ-HARNESS-P1-1-SYNC-SIMULATOR","seed":324508639,"test":"evals/sync-simulator/sync-simulator.test.ts","command":"pnpm test:sync-simulator","report_path":"evals/sync-simulator/reports/","generated_by":"tools/redundancy-check.ts trace"}

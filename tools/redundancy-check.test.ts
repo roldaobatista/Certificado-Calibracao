@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -42,7 +42,18 @@ function writeCompleteRedundancySet(root: string) {
     "  test: evals/tenancy/fuzz/cross-tenant-fuzz.test.ts",
     "  command: pnpm test:fuzz",
     "  report_path: evals/tenancy/fuzz/reports/",
+    "  trace_path: compliance/validation-dossier/evidence/property-traces/REQ-PRD-13-13-RLS-ISOLATION.jsonl",
   ].join("\n"));
+  mkdirSync(join(root, "compliance", "validation-dossier", "evidence", "property-traces"), { recursive: true });
+  writeFileSync(
+    join(root, "compliance", "validation-dossier", "evidence", "property-traces", "REQ-PRD-13-13-RLS-ISOLATION.jsonl"),
+    [
+      "{\"req\":\"REQ-PRD-13-13-RLS-ISOLATION\",\"seed\":3735928559,\"test\":\"evals/tenancy/fuzz/cross-tenant-fuzz.test.ts\",\"command\":\"pnpm test:fuzz\",\"report_path\":\"evals/tenancy/fuzz/reports/\",\"generated_by\":\"tools/redundancy-check.ts trace\"}",
+      "{\"req\":\"REQ-PRD-13-13-RLS-ISOLATION\",\"seed\":3405691582,\"test\":\"evals/tenancy/fuzz/cross-tenant-fuzz.test.ts\",\"command\":\"pnpm test:fuzz\",\"report_path\":\"evals/tenancy/fuzz/reports/\",\"generated_by\":\"tools/redundancy-check.ts trace\"}",
+      "{\"req\":\"REQ-PRD-13-13-RLS-ISOLATION\",\"seed\":324508639,\"test\":\"evals/tenancy/fuzz/cross-tenant-fuzz.test.ts\",\"command\":\"pnpm test:fuzz\",\"report_path\":\"evals/tenancy/fuzz/reports/\",\"generated_by\":\"tools/redundancy-check.ts trace\"}",
+      "",
+    ].join("\n"),
+  );
   mkdirSync(join(root, "compliance", "validation-dossier", "flake-log"), { recursive: true });
   writeFileSync(join(root, "compliance", "validation-dossier", "flake-log", "README.md"), "# Flake log\n");
   mkdirSync(join(root, "compliance", "regulator-decisions"), { recursive: true });
@@ -87,6 +98,7 @@ test("fails when property seed policy is weaker than criticality floor", () => {
       "  test: evals/tenancy/fuzz/cross-tenant-fuzz.test.ts",
       "  command: pnpm test:fuzz",
       "  report_path: evals/tenancy/fuzz/reports/",
+      "  trace_path: compliance/validation-dossier/evidence/property-traces/REQ-PRD-13-13-RLS-ISOLATION.jsonl",
     ].join("\n"));
 
     const result = checkRedundancy(root);
@@ -95,6 +107,49 @@ test("fails when property seed policy is weaker than criticality floor", () => {
     assert.match(result.errors.join("\n"), /REQ-PRD-13-13-RLS-ISOLATION/);
     assert.match(result.errors.join("\n"), /N minimo 500/);
     assert.match(result.errors.join("\n"), /REDUNDANCY-004/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("fails when property traces are not declared or are stale", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeCompleteRedundancySet(root);
+    writeFileSync(join(root, "evals", "property-config.yaml"), [
+      "- req: REQ-PRD-13-13-RLS-ISOLATION",
+      "  criticality: blocker",
+      "  N: 500",
+      "  canonical_seeds: [3735928559]",
+      "  test: evals/tenancy/fuzz/cross-tenant-fuzz.test.ts",
+      "  command: pnpm test:fuzz",
+      "  report_path: evals/tenancy/fuzz/reports/",
+    ].join("\n"));
+
+    const missingTracePath = checkRedundancy(root);
+
+    assert.match(missingTracePath.errors.join("\n"), /REDUNDANCY-008/);
+    assert.match(missingTracePath.errors.join("\n"), /trace_path/);
+
+    writeFileSync(join(root, "evals", "property-config.yaml"), [
+      "- req: REQ-PRD-13-13-RLS-ISOLATION",
+      "  criticality: blocker",
+      "  N: 500",
+      "  canonical_seeds: [3735928559]",
+      "  test: evals/tenancy/fuzz/cross-tenant-fuzz.test.ts",
+      "  command: pnpm test:fuzz",
+      "  report_path: evals/tenancy/fuzz/reports/",
+      "  trace_path: compliance/validation-dossier/evidence/property-traces/REQ-PRD-13-13-RLS-ISOLATION.jsonl",
+    ].join("\n"));
+    writeFileSync(
+      join(root, "compliance", "validation-dossier", "evidence", "property-traces", "REQ-PRD-13-13-RLS-ISOLATION.jsonl"),
+      "{\"req\":\"REQ-PRD-13-13-RLS-ISOLATION\",\"seed\":1}\n",
+    );
+
+    const staleTrace = checkRedundancy(root);
+
+    assert.match(staleTrace.errors.join("\n"), /REDUNDANCY-009/);
+    assert.match(staleTrace.errors.join("\n"), /property trace desatualizado/);
   } finally {
     cleanup();
   }
@@ -109,11 +164,18 @@ test("passes for a complete P0-11 redundancy baseline", () => {
 
     assert.deepEqual(result.errors, []);
     assert.equal(result.checkedProperties, 1);
+    assert.equal(result.checkedSeedTraces, 1);
     assert.equal(result.checkedFlakeGate, true);
     assert.equal(result.checkedRegulatoryRecords, true);
   } finally {
     cleanup();
   }
+});
+
+test("wires deterministic property trace generation as a root script", () => {
+  const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
+
+  assert.equal(packageJson.scripts["redundancy-check:trace"], "tsx tools/redundancy-check.ts trace");
 });
 
 test("plans double regulatory checks and adjacent reviews for critical paths", () => {

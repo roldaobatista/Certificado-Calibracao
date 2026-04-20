@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { load as yamlLoad } from "js-yaml";
@@ -60,11 +60,13 @@ type PropertyConfigEntry = {
   test?: string;
   command?: string;
   report_path?: string;
+  trace_path?: string;
 };
 
 export type RedundancyCheckResult = {
   errors: string[];
   checkedProperties: number;
+  checkedSeedTraces: number;
   checkedFlakeGate: boolean;
   checkedRegulatoryRecords: boolean;
 };
@@ -80,9 +82,10 @@ export function checkRedundancy(root = process.cwd()): RedundancyCheckResult {
   const errors: string[] = [];
   const properties = loadPropertyConfig(root, errors);
   const requirementsById = new Map(loadRequirements(root).map((requirement) => [requirement.id, requirement]));
+  let checkedSeedTraces = 0;
 
   for (const [index, property] of properties.entries()) {
-    validatePropertyConfigEntry(root, property, index, requirementsById, errors);
+    checkedSeedTraces += validatePropertyConfigEntry(root, property, index, requirementsById, errors);
   }
 
   const checkedFlakeGate = checkFlakeGate(root, errors);
@@ -94,9 +97,32 @@ export function checkRedundancy(root = process.cwd()): RedundancyCheckResult {
   return {
     errors,
     checkedProperties: properties.length,
+    checkedSeedTraces,
     checkedFlakeGate,
     checkedRegulatoryRecords,
   };
+}
+
+export function writeSeedTraceArtifacts(root = process.cwd()) {
+  const errors: string[] = [];
+  const properties = loadPropertyConfig(root, errors);
+  if (errors.length > 0) return { errors, writtenTraces: 0 };
+
+  let writtenTraces = 0;
+  for (const [index, property] of properties.entries()) {
+    const label = property.req ?? `<property #${index + 1}>`;
+    if (!property.trace_path) {
+      errors.push(`REDUNDANCY-008: ${label} sem campo obrigatorio trace_path.`);
+      continue;
+    }
+
+    const tracePath = resolve(root, property.trace_path);
+    mkdirSync(dirname(tracePath), { recursive: true });
+    writeFileSync(tracePath, renderSeedTraceJsonl(property));
+    writtenTraces += 1;
+  }
+
+  return { errors, writtenTraces };
 }
 
 export function buildRedundancyPlan(changedFiles: string[]): RedundancyPlan {
@@ -144,6 +170,7 @@ function validatePropertyConfigEntry(
   errors: string[],
 ) {
   const label = property.req ?? `<property #${index + 1}>`;
+  let checkedSeedTraces = 0;
   if (!property.req) errors.push(`REDUNDANCY-002: ${label} sem campo obrigatorio req.`);
   if (!property.criticality || !isCriticality(property.criticality)) {
     errors.push(`REDUNDANCY-002: ${label} tem criticality invalida: ${property.criticality}.`);
@@ -169,6 +196,7 @@ function validatePropertyConfigEntry(
 
   if (!property.command) errors.push(`REDUNDANCY-002: ${label} sem campo obrigatorio command.`);
   if (!property.report_path) errors.push(`REDUNDANCY-002: ${label} sem campo obrigatorio report_path.`);
+  checkedSeedTraces += validateSeedTrace(root, property, label, errors);
 
   if (property.req) {
     const requirement = requirementsById.get(property.req);
@@ -180,6 +208,54 @@ function validatePropertyConfigEntry(
       );
     }
   }
+
+  return checkedSeedTraces;
+}
+
+function validateSeedTrace(root: string, property: PropertyConfigEntry, label: string, errors: string[]) {
+  if (!property.trace_path) {
+    errors.push(`REDUNDANCY-008: ${label} sem campo obrigatorio trace_path.`);
+    return 0;
+  }
+
+  const normalizedTracePath = normalizePath(property.trace_path);
+  if (!normalizedTracePath.startsWith("compliance/validation-dossier/evidence/property-traces/")) {
+    errors.push(`REDUNDANCY-008: ${label} trace_path deve ficar em compliance/validation-dossier/evidence/property-traces/.`);
+    return 0;
+  }
+  if (!normalizedTracePath.endsWith(".jsonl")) {
+    errors.push(`REDUNDANCY-008: ${label} trace_path deve ser JSONL.`);
+    return 0;
+  }
+
+  const traceFile = resolve(root, property.trace_path);
+  if (!existsSync(traceFile)) {
+    errors.push(`REDUNDANCY-008: ${label} property trace ausente: ${property.trace_path}. Rode pnpm redundancy-check:trace.`);
+    return 1;
+  }
+
+  const current = normalizeGeneratedText(readFileSync(traceFile, "utf8"));
+  const expected = renderSeedTraceJsonl(property);
+  if (current.trimEnd() !== expected.trimEnd()) {
+    errors.push(`REDUNDANCY-009: ${label} property trace desatualizado: ${property.trace_path}. Rode pnpm redundancy-check:trace.`);
+  }
+
+  return 1;
+}
+
+function renderSeedTraceJsonl(property: PropertyConfigEntry) {
+  return `${(property.canonical_seeds ?? [])
+    .map((seed) =>
+      JSON.stringify({
+        req: property.req,
+        seed,
+        test: property.test,
+        command: property.command,
+        report_path: property.report_path,
+        generated_by: "tools/redundancy-check.ts trace",
+      }),
+    )
+    .join("\n")}\n`;
 }
 
 function checkFlakeGate(root: string, errors: string[]) {
@@ -228,6 +304,10 @@ function normalizePath(path: string) {
   return path.replace(/\\/g, "/").replace(/^\.\//, "");
 }
 
+function normalizeGeneratedText(text: string) {
+  return text.replace(/\r\n/g, "\n");
+}
+
 function uniqueSorted(values: string[]) {
   return [...new Set(values)].sort();
 }
@@ -271,14 +351,21 @@ function runCli() {
     return 0;
   }
 
+  if (command === "trace") {
+    const result = writeSeedTraceArtifacts();
+    console.log(`redundancy-check: ${result.writtenTraces} property trace(s) escrito(s).`);
+    for (const error of result.errors) console.error(`ERROR ${error}`);
+    return result.errors.length > 0 ? 1 : 0;
+  }
+
   if (command !== "check") {
-    console.error("Uso: redundancy-check [check|plan] [--changed <arquivo>] [--json]");
+    console.error("Uso: redundancy-check [check|plan|trace] [--changed <arquivo>] [--json]");
     return 2;
   }
 
   const result = checkRedundancy();
   console.log(
-    `redundancy-check: ${result.checkedProperties} propriedade(s), flake-gate ${result.checkedFlakeGate ? "ok" : "faltando"}, decisoes regulatorias ${result.checkedRegulatoryRecords ? "ok" : "faltando"}.`,
+    `redundancy-check: ${result.checkedProperties} propriedade(s), ${result.checkedSeedTraces} trace(s), flake-gate ${result.checkedFlakeGate ? "ok" : "faltando"}, decisoes regulatorias ${result.checkedRegulatoryRecords ? "ok" : "faltando"}.`,
   );
   for (const error of result.errors) console.error(`ERROR ${error}`);
   return result.errors.length > 0 ? 1 : 0;
