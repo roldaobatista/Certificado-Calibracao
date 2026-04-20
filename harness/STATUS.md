@@ -6,7 +6,7 @@
 
 | ID | Correção | Arquivo | Status |
 |----|----------|---------|--------|
-| P0-1 | Backend `apps/api` como peça de 1ª classe + agente `backend-api` | [02-arquitetura.md](./02-arquitetura.md), [03-agentes.md](./03-agentes.md) | [ ] Proposto |
+| P0-1 | Backend `apps/api` como peça de 1ª classe + agente `backend-api` | [02-arquitetura.md](./02-arquitetura.md), [03-agentes.md](./03-agentes.md) | [~] Em implementação (scaffold Fastify + tRPC + Prisma + Docker Compose; /healthz + /trpc/health.ping verdes; lógica de domínio pendente para fatias V1+) |
 | P0-2 | Pipeline de normative package assinado e versionado | [04-compliance-pipeline.md](./04-compliance-pipeline.md) | [ ] Proposto |
 | P0-3 | Dossiê formal de validação contínua | [04-compliance-pipeline.md](./04-compliance-pipeline.md) | [ ] Proposto |
 | P0-4 | Hard gates de multitenancy e trilha imutável | [05-guardrails.md](./05-guardrails.md) | [ ] Proposto |
@@ -78,6 +78,7 @@ P1-4 — deve ser aprovado antes de qualquer V1 começar
 - `2026-04-19` — emendas P0-10 (cascata L0→L5) e P0-11 (redundância/loops) adicionadas após 3ª rodada; D8 adicionado a P0-8; Gate 7 adicionado a P0-4.
 - `2026-04-19` — emenda P0-12 adicionada após decisão de operar sem especialistas humanos contratados: 3 agentes auditores (metrology-auditor, legal-counsel, senior-reviewer) substituem humanos em 1ª linha; D9 adicionado a P0-8; L5 em P0-10 atualizado; checklist de P0-6 inclui 3 pareceres.
 - `2026-04-19` — emenda P0-13 adicionada: operação dual Claude Code + Codex CLI com `AGENTS.md` canônico na raiz; `.claude/` e `.codex/` são espelhos gerados; roteamento por tipo de tarefa documentado.
+- `2026-04-19` — **P0-1 scaffold implementado e validado**: pnpm workspace + turbo; `packages/db` Prisma 5 scaffold; `packages/contracts` tRPC 11 + zod; `apps/api` Fastify 5 + dotenv + CORS + pino; `docker-compose.yml` (postgres 16-alpine :5433, redis 7-alpine :6380); Dockerfile multi-stage. Typecheck global e E2E (`/healthz`, `/readyz`, `/trpc/health.ping`) verdes.
 - `2026-04-19` — **ADRs 0001, 0002, 0003 aprovados** pelo usuário: Fastify + TS; sync event-log + idempotency + fila humana; Hostinger VPS KVM 4 + Backblaze B2 Object Lock + AWS KMS sa-east-1 + Grafana/Axiom. Camada 2 (scaffold `apps/api`) destravada.
 - `2026-04-19` — produto renomeado **Kalibrium → Aferê** (placeholder virou nome oficial; slug técnico `afere`).
 - `2026-04-19` — **bootstrap Camada 1 executado**: `CLAUDE.md` raiz; árvore do monorepo (`apps/`, `packages/`, `evals/`, `compliance/`, `specs/`, `adr/`, `infra/`) com 34 READMEs; 13 subagentes em `.claude/agents/*.md` + espelho em `.codex/agents/*.toml`; `.claude/settings.json` + `.codex/config.toml` com hooks, allowlist, MCPs e budgets; 6 slash-commands (`spec-new`, `ac-check`, `claim-check`, `emit-cert-dry`, `release-norm`, `tenant-fuzz`); 9 hooks Claude + 4 hooks Codex (stubs); scaffolds `compliance/approved-claims.md`, `compliance/guardrails.md`, `compliance/cloud-agents-policy.md`. P0-13 e P1-3 marcados `[~] Em implementação`; demais P0 continuam `[ ] Proposto` (exigem código de aplicação — Camadas seguintes).
