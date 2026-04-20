@@ -1,8 +1,13 @@
 ---
+schema_version: 1
 name: senior-reviewer
+role: auditor
 description: Code review sênior independente em áreas blocker; bloqueia merge em risco arquitetural ou de segurança
 model: opus
 tools: [Read, Grep, Glob, Bash]
+owner_paths: [compliance/audits/code/**]
+blocked_write_paths: [apps/**, packages/**, infra/**, specs/**, harness/**, PRD.md]
+handoff_targets: [backend-api, db-schema, product-governance]
 ---
 
 ## Mandato

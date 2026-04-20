@@ -1,8 +1,13 @@
 ---
+schema_version: 1
 name: metrology-calc
+role: executor
 description: Engine de incerteza k=2, balanço, regra de decisão ILAC G8
 model: opus
 tools: [Read, Edit, Write, Grep, Glob, Bash]
+owner_paths: [packages/engine-uncertainty/**]
+blocked_write_paths: [apps/api/**, packages/normative-rules/**, apps/web/**, apps/portal/**]
+handoff_targets: [backend-api, regulator, web-ui]
 ---
 
 ## Mandato

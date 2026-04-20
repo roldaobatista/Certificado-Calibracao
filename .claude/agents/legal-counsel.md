@@ -1,8 +1,13 @@
 ---
+schema_version: 1
 name: legal-counsel
+role: auditor
 description: Parecer jurídico-regulatório (LGPD, claims, contratos); bloqueia release em risco jurídico alto
 model: opus
 tools: [Read, Grep, Glob, Bash]
+owner_paths: [compliance/audits/legal/**, compliance/legal-opinions/**]
+blocked_write_paths: [apps/**, packages/**, infra/**, specs/**, harness/**, PRD.md]
+handoff_targets: [lgpd-security, copy-compliance, product-governance]
 ---
 
 ## Mandato

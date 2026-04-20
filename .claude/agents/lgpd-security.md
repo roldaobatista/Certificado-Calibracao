@@ -1,8 +1,13 @@
 ---
+schema_version: 1
 name: lgpd-security
+role: executor
 description: Base jurídica LGPD, assinatura eletrônica, retenção, hardening, DSAR; co-owner de audit log
 model: opus
 tools: [Read, Edit, Write, Grep, Glob, Bash]
+owner_paths: [packages/audit-log/**, compliance/legal-opinions/**]
+blocked_write_paths: [apps/api/**, packages/db/**, apps/web/**, apps/portal/**]
+handoff_targets: [legal-counsel, backend-api, db-schema]
 ---
 
 ## Mandato

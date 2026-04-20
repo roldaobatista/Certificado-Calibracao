@@ -35,10 +35,15 @@ Ver detalhamento completo em [`16-agentes-auditores-externos.md`](./16-agentes-a
 
 ```yaml
 ---
+schema_version: 1
 name: <agente>
+role: executor | auditor
 description: <uma linha>
 model: sonnet | opus | haiku
 tools: [Read, Edit, Write, Grep, Glob, Bash, ...]
+owner_paths: [<glob>, ...]
+blocked_write_paths: [<glob>, ...]
+handoff_targets: [<agente>, ...]
 ---
 
 ## Mandato
@@ -58,6 +63,20 @@ tools: [Read, Edit, Write, Grep, Glob, Bash, ...]
 - Quando precisar de X → delegar para agente Y
 - Quando descobrir Z → escalar para product-governance
 ```
+
+### Semântica do frontmatter v1
+
+- `schema_version`: versão do contrato lido por `tools/agent-frontmatter-check.ts`; valor atual obrigatório: `1`.
+- `name`: kebab-case, igual ao nome do arquivo e membro da lista canônica de 13 agentes.
+- `role`: `executor` para agentes que implementam ou governam; `auditor` apenas para `metrology-auditor`, `legal-counsel` e `senior-reviewer`.
+- `description`: uma linha curta, usada nos espelhos Codex.
+- `model`: `haiku`, `sonnet` ou `opus`; auditores externos usam `opus`.
+- `tools`: lista de ferramentas permitidas. Auditores externos não podem declarar `Edit`, `Write` ou `MultiEdit`.
+- `owner_paths`: paths de escrita ou produção de artefatos sob responsabilidade direta do agente.
+- `blocked_write_paths`: paths que o agente pode ler, mas não pode editar.
+- `handoff_targets`: agentes canônicos para delegação ou escalonamento.
+
+O schema é validado por `pnpm agent-frontmatter-check`, por `pnpm check:all` e pelo hook canônico de pre-commit.
 
 ## Regras de colaboração
 

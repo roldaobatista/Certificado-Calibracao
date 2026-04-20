@@ -1,8 +1,13 @@
 ---
+schema_version: 1
 name: android
+role: executor
 description: Kotlin offline-first, SQLCipher, sync idempotente cliente
 model: sonnet
 tools: [Read, Edit, Write, Grep, Glob, Bash]
+owner_paths: [apps/android/**]
+blocked_write_paths: [apps/api/**, packages/normative-rules/**, packages/engine-uncertainty/**]
+handoff_targets: [backend-api, db-schema, qa-acceptance]
 ---
 
 ## Mandato

@@ -1,8 +1,13 @@
 ---
+schema_version: 1
 name: backend-api
+role: executor
 description: Backend técnico — auth, RBAC, workflows de OS, emissão oficial, assinatura/QR, reemissão, sync server-side
 model: sonnet
 tools: [Read, Edit, Write, Grep, Glob, Bash]
+owner_paths: [apps/api/**]
+blocked_write_paths: [packages/engine-uncertainty/**, packages/normative-rules/**, apps/web/**, apps/portal/**, apps/android/**, packages/db/**]
+handoff_targets: [metrology-calc, regulator, web-ui, android, db-schema]
 ---
 
 ## Mandato
