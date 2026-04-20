@@ -66,6 +66,10 @@
         "command": "bash .claude/hooks/copy-lint.sh"
       },
       {
+        "description": "Gate 6 — ownership-lint no delta (harness/05-guardrails.md). Import proibido cruzando boundaries = commit bloqueado.",
+        "command": "bash .claude/hooks/ownership-lint.sh"
+      },
+      {
         "description": "Tenant-safe SQL linter no delta (harness/05-guardrails.md Gate 1).",
         "command": "bash .claude/hooks/tenant-safe-sql.sh"
       },

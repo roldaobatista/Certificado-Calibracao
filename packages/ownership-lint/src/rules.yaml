@@ -1,0 +1,65 @@
+# Regras de ownership-lint — Gate 6 (harness/05-guardrails.md)
+# Owner: backend-api (orquestração); auditado por senior-reviewer.
+#
+# Cada regra declara:
+# - id: OWN-NNN
+# - scope: globs de ARQUIVOS que a regra cobre (onde o import acontece).
+# - forbidden_imports: lista de specifiers/prefixos que NÃO podem aparecer em scope.
+# - reason / severity / suggestion.
+
+rules:
+  - id: OWN-001
+    scope:
+      - "apps/web/**/*.{ts,tsx,js,jsx,mts,cts}"
+      - "apps/portal/**/*.{ts,tsx,js,jsx,mts,cts}"
+    forbidden_imports:
+      - "@afere/normative-rules"
+      - "packages/normative-rules"
+      - "../../packages/normative-rules"
+    severity: error
+    reason: "Regra normativa só é consumida pelo backend (apps/api). Violação de ownership — PRD §6.2 e harness/02-arquitetura.md."
+    suggestion: "Chame a regra via tRPC/contracts expostos por apps/api em @afere/contracts."
+
+  - id: OWN-002
+    scope:
+      - "apps/web/**/*.{ts,tsx,js,jsx,mts,cts}"
+      - "apps/portal/**/*.{ts,tsx,js,jsx,mts,cts}"
+    forbidden_imports:
+      - "@afere/engine-uncertainty"
+      - "packages/engine-uncertainty"
+      - "../../packages/engine-uncertainty"
+    severity: error
+    reason: "Engine de incerteza só roda no backend. Cálculo no cliente é risco regulatório e de segurança (DoS, tamper)."
+    suggestion: "Consuma resultado já calculado via tRPC em @afere/contracts."
+
+  - id: OWN-003
+    scope:
+      - "apps/android/**/*.{kt,kts,java}"
+    forbidden_imports:
+      - "@afere/normative-rules"
+      - "@afere/engine-uncertainty"
+    severity: error
+    reason: "Android offline-first nunca interpreta norma nem calcula incerteza localmente — só coleta dados e envia ao backend."
+    suggestion: "Use os DTOs de @afere/contracts (serializados como JSON) no client HTTP."
+
+  - id: OWN-004
+    scope:
+      - "apps/web/**/*.{ts,tsx}"
+      - "apps/portal/**/*.{ts,tsx}"
+      - "apps/android/**/*.{kt,kts}"
+    forbidden_imports:
+      - "@afere/db"
+      - "packages/db"
+    severity: error
+    reason: "Prisma client / schema só no backend. Clientes acessam dados via contratos tRPC."
+    suggestion: "Acesse via tRPC procedures em @afere/contracts."
+
+coverage:
+  # Globais — paths onde esta ferramenta procura violações.
+  # Scoped por regra.rules[].scope, mas mantidos aqui como cache de uso futuro.
+  exclude:
+    - "**/node_modules/**"
+    - "**/dist/**"
+    - "**/.turbo/**"
+    - "**/.next/**"
+    - "**/build/**"
