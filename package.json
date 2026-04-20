@@ -40,6 +40,7 @@
     "verification-cascade:plan": "tsx tools/verification-cascade.ts plan",
     "redundancy-check": "tsx tools/redundancy-check.ts check",
     "redundancy-check:plan": "tsx tools/redundancy-check.ts plan",
+    "redundancy-check:trace": "tsx tools/redundancy-check.ts trace",
     "budget:check": "tsx tools/budget-tracker.ts check",
     "budget:record": "tsx tools/budget-tracker.ts record",
     "budget:control": "tsx tools/budget-tracker.ts control",

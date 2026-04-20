@@ -8,6 +8,7 @@
   test: evals/tenancy/fuzz/cross-tenant-fuzz.test.ts
   command: pnpm test:fuzz
   report_path: evals/tenancy/fuzz/reports/
+  trace_path: compliance/validation-dossier/evidence/property-traces/REQ-PRD-13-13-RLS-ISOLATION.jsonl
 - req: REQ-HARNESS-P1-1-SYNC-SIMULATOR
   criticality: high
   N: 100
@@ -18,3 +19,4 @@
   test: evals/sync-simulator/sync-simulator.test.ts
   command: pnpm test:sync-simulator
   report_path: evals/sync-simulator/reports/
+  trace_path: compliance/validation-dossier/evidence/property-traces/REQ-HARNESS-P1-1-SYNC-SIMULATOR.jsonl
