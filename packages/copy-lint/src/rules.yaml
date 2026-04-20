@@ -1,0 +1,95 @@
+# Regras de copy-lint regulatório — Aferê
+# Owner: copy-compliance | Aprovação jurídica: legal-counsel + product-governance
+# Referência: harness/06-copy-lint.md
+#
+# severity: error   → bloqueia commit/CI
+# severity: warning → exige revisão jurídica documentada
+# severity: info    → alerta sem bloqueio
+#
+# Padrões são regex JavaScript (sabor ECMAScript). Flags: i (case-insensitive) + u (unicode).
+
+forbidden:
+  - id: CL-001
+    pattern: '\bpassa(?:m)? em qualquer auditoria\b'
+    severity: error
+    reason: "Promessa de conformidade absoluta (PRD §2.3, §14; análise consolidada C2)"
+    suggestion: "Use: 'o sistema bloqueia as não conformidades listadas em §9 e impossibilita violação das regras declaradas'."
+
+  - id: CL-002
+    pattern: '100\s*%\s*conforme'
+    severity: error
+    reason: "Promessa de conformidade absoluta — §16.2 do PRD reconhece dependências humanas"
+    suggestion: "Use: 'conformidade sistêmica depende da operação; o sistema sustenta os requisitos automatizáveis'."
+
+  - id: CL-003
+    pattern: '\bgarantimos?\b.{0,40}\b(ISO|acredita[cç][aã]o|Inmetro|Cgcre|17025)\b'
+    severity: error
+    reason: "Garantia indevida de acreditação/certificação por terceiro"
+    suggestion: "Substitua 'garantimos' por 'apoiamos' ou 'sustentamos'; acreditação é da organização emissora."
+
+  - id: CL-004
+    pattern: '\baprovado (pelo|pela) (Inmetro|Cgcre)\b'
+    severity: error
+    reason: "Claim falso de aprovação oficial por órgão regulador"
+    suggestion: "Remova. Ferramenta de software não recebe aprovação formal de Inmetro/Cgcre."
+
+  - id: CL-005
+    pattern: '\bsubstitui (o|a) auditori[ao]\b'
+    severity: error
+    reason: "Claim de substituição de auditoria humana (harness/16 — 5 casos-limite)"
+    suggestion: "Use: 'apoia a pré-auditoria automatizada antes da auditoria humana'."
+
+  - id: CL-006
+    pattern: '\bimpossível\b.{0,40}\b(errar|erro|não\s*conformidade)\b'
+    severity: error
+    reason: "Absolutismo de 'impossível errar' conflita com §16.2 e princípio fail-closed"
+    suggestion: "Use: 'bloqueia as classes de erro listadas em [§9 do PRD]'."
+
+  - id: CL-007
+    pattern: '\bconformidade\s+total\b'
+    severity: warning
+    reason: "Revisar com jurídico — conformidade é escopo, não estado binário"
+    suggestion: "Prefira escopo verificável: 'conformidade com [norma X cláusula Y]'."
+
+  - id: CL-008
+    pattern: '\bgarantia\s+de\s+acredita[cç][aã]o\b'
+    severity: error
+    reason: "Acreditação é concedida pela Cgcre ao laboratório; Aferê não garante."
+    suggestion: "Use: 'apoiamos o laboratório no processo de acreditação junto à Cgcre'."
+
+# Cobertura padrão quando nenhum path é passado.
+coverage:
+  include:
+    - "apps/web/**/*.{tsx,ts,md,mdx,html}"
+    - "apps/portal/**/*.{tsx,ts,md,mdx,html}"
+    - "apps/api/templates/**/*.{html,hbs,mjml}"
+    - "compliance/**/*.md"
+    - "specs/**/*.md"
+    - "adr/**/*.md"
+    - "README.md"
+    - "PRD.md"
+    - "ideia.md"
+    - "AGENTS.md"
+    - "CLAUDE.md"
+  exclude:
+    - "**/node_modules/**"
+    - "**/dist/**"
+    - "**/.turbo/**"
+    - "**/.git/**"
+    # meta-docs do harness citam os termos proibidos para defini-los — self-match esperado
+    - "harness/**"
+    - "AGENTS.md"
+    - "CLAUDE.md"
+    - "HARNESS_DESIGN.md"
+    - "HARNESS_PATCHPLAN.md"
+    - "ANALISE_CONSOLIDADA_PRD.md"
+    - "PROMPT_ANALISE_PRD.md"
+    - "compliance/audits/**"
+    # dossier de findings e approved-claims citam termos proibidos textualmente
+    - "compliance/validation-dossier/findings/**"
+    - "compliance/approved-claims.md"
+    # o próprio pacote copy-lint
+    - "packages/copy-lint/**"
+    # dos agentes/commands do Claude também podem citar
+    - ".claude/**"
+    - ".codex/**"

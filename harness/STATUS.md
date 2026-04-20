@@ -10,7 +10,7 @@
 | P0-2 | Pipeline de normative package assinado e versionado | [04-compliance-pipeline.md](./04-compliance-pipeline.md) | [ ] Proposto |
 | P0-3 | Dossiê formal de validação contínua | [04-compliance-pipeline.md](./04-compliance-pipeline.md) | [ ] Proposto |
 | P0-4 | Hard gates de multitenancy e trilha imutável | [05-guardrails.md](./05-guardrails.md) | [ ] Proposto |
-| P0-5 | Copy-lint regulatório | [06-copy-lint.md](./06-copy-lint.md) | [ ] Proposto |
+| P0-5 | Copy-lint regulatório | [06-copy-lint.md](./06-copy-lint.md) | [~] Em implementação (packages/copy-lint funcional com 8 regras, CLI, hook PreCommit fail-closed, slash /claim-check; teste-de-fogo detectou 4 claims proibidos em PRD.md — finding aberto em compliance/validation-dossier/findings/) |
 | P0-6 | Agente `product-governance` + CODEOWNERS | [07-governance-gate.md](./07-governance-gate.md) | [ ] Proposto |
 | P0-7 | Budgets mensuráveis (tokens, custo, paralelismo, retries) | [11-budgets.md](./11-budgets.md) | [ ] Proposto |
 | P0-8 | Matriz de escalonamento e rito de desempate | [12-escalation-matrix.md](./12-escalation-matrix.md) | [ ] Proposto (revisado, +D8) |
@@ -78,6 +78,7 @@ P1-4 — deve ser aprovado antes de qualquer V1 começar
 - `2026-04-19` — emendas P0-10 (cascata L0→L5) e P0-11 (redundância/loops) adicionadas após 3ª rodada; D8 adicionado a P0-8; Gate 7 adicionado a P0-4.
 - `2026-04-19` — emenda P0-12 adicionada após decisão de operar sem especialistas humanos contratados: 3 agentes auditores (metrology-auditor, legal-counsel, senior-reviewer) substituem humanos em 1ª linha; D9 adicionado a P0-8; L5 em P0-10 atualizado; checklist de P0-6 inclui 3 pareceres.
 - `2026-04-19` — emenda P0-13 adicionada: operação dual Claude Code + Codex CLI com `AGENTS.md` canônico na raiz; `.claude/` e `.codex/` são espelhos gerados; roteamento por tipo de tarefa documentado.
+- `2026-04-19` — **P0-5 implementação inicial**: `packages/copy-lint` com 8 regras regex (CL-001..CL-008), CLI com resolução de workspace root, hook PreCommit fail-closed real, slash-command `/claim-check`. Teste-de-fogo detectou os claims proibidos no wireframe do `PRD.md`; finding rastreado em `compliance/validation-dossier/findings/2026-04-19-prd-claims-proibidos.md`.
 - `2026-04-19` — **P0-1 scaffold implementado e validado**: pnpm workspace + turbo; `packages/db` Prisma 5 scaffold; `packages/contracts` tRPC 11 + zod; `apps/api` Fastify 5 + dotenv + CORS + pino; `docker-compose.yml` (postgres 16-alpine :5433, redis 7-alpine :6380); Dockerfile multi-stage. Typecheck global e E2E (`/healthz`, `/readyz`, `/trpc/health.ping`) verdes.
 - `2026-04-19` — **ADRs 0001, 0002, 0003 aprovados** pelo usuário: Fastify + TS; sync event-log + idempotency + fila humana; Hostinger VPS KVM 4 + Backblaze B2 Object Lock + AWS KMS sa-east-1 + Grafana/Axiom. Camada 2 (scaffold `apps/api`) destravada.
 - `2026-04-19` — produto renomeado **Kalibrium → Aferê** (placeholder virou nome oficial; slug técnico `afere`).

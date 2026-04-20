@@ -1,0 +1,36 @@
+{
+  "name": "@afere/copy-lint",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Lint de claims regulatórios (owner: copy-compliance). Bloqueia termos proibidos em apps/web, apps/portal, e-mails, docs e PRD.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "copy-lint": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && node -e \"require('fs').cpSync('src/rules.yaml','dist/rules.yaml');require('fs').chmodSync('dist/cli.js',0o755)\"",
+    "dev": "tsx watch src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsx src/cli.ts",
+    "test": "tsx --test src/*.test.ts",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "fast-glob": "^3.3.2",
+    "js-yaml": "^4.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "tsx": "^4.19.2",
+    "typescript": "^5.5.4"
+  }
+}
