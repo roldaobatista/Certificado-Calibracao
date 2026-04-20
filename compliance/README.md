@@ -10,6 +10,7 @@ Camada regulatória de 1ª classe (P1-3). Estrutura canônica:
 - `approved-claims.md` — claims aprovados para copy (P0-5).
 - `guardrails.md` — 7 gates de `harness/05-guardrails.md` (P0-4).
 - `runbooks/` — runbooks de recuperação regulatória e calendário de drills (P0-9).
+- `verification-log/` — registros de propagação L0-L5 e re-auditorias (P0-10).
 - `cloud-agents-policy.md` — política de Tier 3 (P1-2).
 - `budget-log/` — consumo de tokens/custo por sessão (P0-7).
 - `sessions-log/` — handoff de sessões para `/resume` e continuidade entre agentes (P0-13).
