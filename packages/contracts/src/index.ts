@@ -1,0 +1,11 @@
+import { router } from "./trpc.js";
+import { healthRouter } from "./routers/health.js";
+
+export const appRouter = router({
+  health: healthRouter,
+});
+
+export type AppRouter = typeof appRouter;
+
+export { createCallerFactory, type AppContext } from "./trpc.js";
+export { HealthStatus } from "./routers/health.js";
