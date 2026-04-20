@@ -337,6 +337,23 @@ requirements:
       - evals/sync-simulator/**
       - tools/sync-simulator-check.ts
       - harness/08-sync-simulator.md
+  - id: REQ-HARNESS-P1-2-CLOUD-AGENT-ATTESTATION
+    source: harness/09-cloud-agents-policy.md P1-2
+    criticality: high
+    owner: product-governance
+    linked_specs:
+      - specs/0010-cloud-agent-attestation.md
+    linked_tests:
+      - tools/cloud-agents-policy-check.test.ts
+    planned_tests: []
+    evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P1-2-CLOUD-AGENT-ATTESTATION/
+    critical_paths:
+      - compliance/cloud-agents-policy.md
+      - compliance/cloud-agents/**
+      - compliance/cloud-agents-log.md
+      - compliance/incidents/cloud-agent-attestation-failure-template.md
+      - tools/cloud-agents-policy-check.ts
+      - harness/09-cloud-agents-policy.md
   - id: REQ-HARNESS-P1-4-VERTICAL-ROADMAP
     source: harness/10-roadmap.md P1-4
     criticality: high

@@ -83,3 +83,16 @@ Esta política é versionada em `compliance/cloud-agents-policy.md`. Alteração
 - PR em `compliance/`.
 - Aprovação de `product-governance` + `lgpd-security`.
 - ADR em `adr/` explicando motivação e impacto.
+
+## Gate executável
+
+`tools/cloud-agents-policy-check.ts` materializa a primeira fatia P1-2:
+
+- valida `compliance/cloud-agents/policy.yaml` como fonte canônica executável;
+- exige allowlist/blocklist compatíveis com este harness;
+- exige `slsa-build-level-2-plus`, `sigstore-cosign` e `github-artifact-attestations`;
+- bloqueia mecanismo fraco como user-agent, metadado de commit ou nome de branch;
+- falha fechado para branch `cloud-agent/*` sem manifesto de attestation;
+- bloqueia qualquer arquivo fora da allowlist ou dentro da blocklist.
+
+O gate local valida a estrutura e o registro de verificação. A verificação criptográfica real deve ocorrer no CI com `gh attestation verify` ou `cosign verify-blob`; sem esse comando bem-sucedido, a plataforma Tier 3 permanece proibida.
