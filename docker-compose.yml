@@ -1,0 +1,81 @@
+name: afere-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: afere-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: afere
+      POSTGRES_PASSWORD: afere
+      POSTGRES_DB: afere
+    ports:
+      # Host:5433 → Container:5432 (evita colisão com Postgres local do dev)
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U afere -d afere"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - afere
+
+  redis:
+    image: redis:7-alpine
+    container_name: afere-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      # Host:6380 → Container:6379 (evita colisão com Redis local do dev)
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - afere
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    image: afere/api:dev
+    container_name: afere-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+      HOST: 0.0.0.0
+      PORT: 3000
+      CORS_ORIGINS: http://localhost:3001,http://localhost:3002
+      DATABASE_URL: postgresql://afere:afere@postgres:5432/afere?schema=public
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - afere
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  afere:
+    driver: bridge
