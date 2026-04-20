@@ -41,6 +41,22 @@ jobs:
       - name: Start Postgres for tenancy gates
         run: docker compose up -d postgres
 
+      - name: Wait for Postgres health
+        shell: bash
+        run: |
+          for attempt in {1..30}; do
+            status="$(docker inspect -f '{{.State.Health.Status}}' afere-postgres 2>/dev/null || true)"
+            if [ "$status" = "healthy" ]; then
+              echo "Postgres is healthy."
+              exit 0
+            fi
+            echo "Waiting for Postgres health (${attempt}/30): ${status:-unknown}"
+            sleep 2
+          done
+          docker compose ps postgres
+          docker logs afere-postgres
+          exit 1
+
       - name: Show Postgres status
         run: docker compose ps postgres
 
