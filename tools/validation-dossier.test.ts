@@ -84,6 +84,57 @@ test("validates requirements and reports PRD coverage gaps without failing non-s
   }
 });
 
+test("tracks planned requirements separately from validated PRD coverage", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeFileSync(join(root, "specs", "0002-segundo.md"), "# Spec\n");
+    writeFileSync(join(root, "compliance", "validation-dossier", "requirements.yaml"), [
+      "- id: REQ-PRD-13-01",
+      "  source:",
+      "    doc: PRD.md",
+      "    section: \"§13.1\"",
+      "  description: Primeiro critério validado",
+      "  validation_status: validated",
+      "  linked_specs:",
+      "    - specs/0001-primeiro.md",
+      "  linked_tests:",
+      "    - evals/primeiro.test.ts",
+      "  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-01/",
+      "  owner: qa-acceptance",
+      "  criticality: blocker",
+      "- id: REQ-PRD-13-02",
+      "  source:",
+      "    doc: PRD.md",
+      "    section: \"§13.2\"",
+      "  description: Segundo critério rastreado, mas ainda sem teste implementado",
+      "  validation_status: planned",
+      "  linked_specs:",
+      "    - specs/0002-segundo.md",
+      "  linked_tests: []",
+      "  planned_tests:",
+      "    - evals/segundo.test.ts",
+      "  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-02/",
+      "  owner: qa-acceptance",
+      "  criticality: high",
+    ].join("\n"));
+
+    const result = validateDossier({ root, checkTraceability: false, strictPrdCoverage: true });
+    const artifacts = buildDossierArtifacts(root);
+    const summary = (artifacts.traceabilityMatrix as any).prd_section_13;
+
+    assert.deepEqual(result.errors, []);
+    assert.equal(summary.mapped, 2);
+    assert.equal(summary.validated, 1);
+    assert.equal(summary.missing, 0);
+    assert.deepEqual(
+      (artifacts.traceabilityMatrix as any).criteria.map((criterion: { status: string }) => criterion.status),
+      ["validated", "mapped"],
+    );
+  } finally {
+    cleanup();
+  }
+});
+
 test("strict PRD coverage fails when section 13 acceptance criteria are not mapped", () => {
   const { root, cleanup } = makeWorkspace();
   try {

@@ -1,8 +1,229 @@
+- id: REQ-PRD-13-01-MOBILE-OFFLINE-CALIBRATION
+  source:
+    doc: PRD.md
+    section: "§13.1"
+  description: Calibração de balança IPNA deve poder ser executada do início ao certificado exclusivamente pelo Android, inclusive offline.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/ac/prd-13-01-mobile-offline-calibration.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-01-MOBILE-OFFLINE-CALIBRATION/
+  owner: android
+  criticality: blocker
+  critical_paths:
+    - apps/android/**
+    - apps/api/src/domain/work-orders/**
+    - apps/api/src/domain/emission/**
+    - packages/contracts/**
+
+- id: REQ-PRD-13-02-STANDARD-ELIGIBILITY-BLOCK
+  source:
+    doc: PRD.md
+    section: "§13.2"
+  description: Sistema deve bloquear uso de padrão vencido, sem certificado válido ou fora da faixa aplicável.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/ac/prd-13-02-standard-eligibility-block.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-02-STANDARD-ELIGIBILITY-BLOCK/
+  owner: backend-api
+  criticality: blocker
+  critical_paths:
+    - apps/api/src/domain/standards/**
+    - apps/api/src/domain/emission/**
+    - packages/normative-rules/**
+
+- id: REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS
+  source:
+    doc: PRD.md
+    section: "§13.3"
+  description: Certificado emitido deve declarar resultado, incerteza expandida e fator k.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/ac/prd-13-03-certificate-measurement-declarations.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS/
+  owner: metrology-calc
+  criticality: blocker
+  critical_paths:
+    - packages/engine-uncertainty/**
+    - apps/api/src/domain/emission/**
+
+- id: REQ-PRD-13-04-TECHNICAL-REVIEW-SIGNATURE-AUDIT
+  source:
+    doc: PRD.md
+    section: "§13.4"
+  description: Revisão técnica e assinatura devem registrar identidade, timestamp e dispositivo.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/ac/prd-13-04-technical-review-signature-audit.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-04-TECHNICAL-REVIEW-SIGNATURE-AUDIT/
+  owner: backend-api
+  criticality: blocker
+  critical_paths:
+    - apps/api/src/domain/emission/**
+    - packages/audit-log/**
+
+- id: REQ-PRD-13-05-PUBLIC-QR-AUTHENTICITY
+  source:
+    doc: PRD.md
+    section: "§13.5"
+  description: QR code do certificado deve validar autenticidade publicamente.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/ac/prd-13-05-public-qr-authenticity.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-05-PUBLIC-QR-AUTHENTICITY/
+  owner: backend-api
+  criticality: blocker
+  critical_paths:
+    - apps/api/src/domain/certificates/**
+    - apps/portal/**
+
+- id: REQ-PRD-13-06-CRITICAL-EVENT-AUDIT-TRAIL
+  source:
+    doc: PRD.md
+    section: "§13.6"
+  description: Todo evento crítico do ciclo de calibração, revisão, assinatura, emissão e reemissão deve aparecer na trilha de auditoria imutável.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/ac/prd-13-06-critical-event-audit-trail.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-06-CRITICAL-EVENT-AUDIT-TRAIL/
+  owner: db-schema
+  criticality: blocker
+  critical_paths:
+    - packages/audit-log/**
+    - apps/api/src/domain/**
+
+- id: REQ-PRD-13-07-ANDROID-SYNC-IDEMPOTENCY
+  source:
+    doc: PRD.md
+    section: "§13.7"
+  description: Sincronização Android para backend deve ser idempotente e resiliente a perda de rede.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/sync-simulator/prd-13-07-android-sync-idempotency.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-07-ANDROID-SYNC-IDEMPOTENCY/
+  owner: android
+  criticality: blocker
+  critical_paths:
+    - apps/android/**
+    - apps/api/src/domain/sync/**
+    - evals/sync-simulator/**
+
+- id: REQ-PRD-13-08-EQUIPMENT-CUSTOMER-ADDRESS
+  source:
+    doc: PRD.md
+    section: "§13.8"
+  description: Cadastro de equipamento deve exigir vínculo obrigatório com cliente e endereço.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/ac/prd-13-08-equipment-customer-address.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-08-EQUIPMENT-CUSTOMER-ADDRESS/
+  owner: backend-api
+  criticality: high
+  critical_paths:
+    - apps/api/src/domain/equipment/**
+    - packages/db/**
+
+- id: REQ-PRD-13-09-SIGNATORY-COMPETENCE-BLOCK
+  source:
+    doc: PRD.md
+    section: "§13.9"
+  description: Signatário sem competência vigente para o tipo de instrumento não pode assinar.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/ac/prd-13-09-signatory-competence-block.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-09-SIGNATORY-COMPETENCE-BLOCK/
+  owner: backend-api
+  criticality: blocker
+  critical_paths:
+    - apps/api/src/domain/competencies/**
+    - apps/api/src/domain/emission/**
+
+- id: REQ-PRD-13-10-SCOPE-CMC-BLOCK
+  source:
+    doc: PRD.md
+    section: "§13.10"
+  description: Certificado emitido por laboratório acreditado deve respeitar escopo e CMC.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/regulatory/prd-13-10-scope-cmc-block.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-10-SCOPE-CMC-BLOCK/
+  owner: regulator
+  criticality: blocker
+  critical_paths:
+    - packages/normative-rules/**
+    - apps/api/src/domain/emission/**
+
+- id: REQ-PRD-13-11-AUTH-SSO-MFA
+  source:
+    doc: PRD.md
+    section: "§13.11"
+  description: Auto-cadastro deve funcionar com e-mail/senha e SSO Google, Microsoft e Apple; MFA deve ser obrigatório para signatários e admins.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/ac/prd-13-11-auth-sso-mfa.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-11-AUTH-SSO-MFA/
+  owner: lgpd-security
+  criticality: blocker
+  critical_paths:
+    - apps/api/src/domain/auth/**
+    - apps/web/**
+
+- id: REQ-PRD-13-12-ONBOARDING-WIZARD-BLOCKS
+  source:
+    doc: PRD.md
+    section: "§13.12"
+  description: Wizard de onboarding deve ser completável em até 1 hora pelo administrador inicial e bloquear emissão do primeiro certificado até pré-requisitos obrigatórios.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/ac/prd-13-12-onboarding-wizard-blocks.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-12-ONBOARDING-WIZARD-BLOCKS/
+  owner: web-ui
+  criticality: high
+  critical_paths:
+    - apps/web/**
+    - apps/api/src/domain/onboarding/**
+
 - id: REQ-PRD-13-13-RLS-ISOLATION
   source:
     doc: PRD.md
     section: "§13.13"
   description: Multitenancy isolada por RLS deve ter testes automatizados de cross-tenant leak com zero vazamentos.
+  validation_status: validated
   linked_specs:
     - specs/0001-harness-compliance-gates.md
   linked_tests:
@@ -17,13 +238,90 @@
     - apps/api/src/domain/emission/**
     - evals/tenancy/**
 
+- id: REQ-PRD-13-14-SEQUENTIAL-NUMBERING
+  source:
+    doc: PRD.md
+    section: "§13.14"
+  description: Numeração sequencial de certificados deve ser isolada por organização e sem colisão entre tenants.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/ac/prd-13-14-sequential-numbering.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-14-SEQUENTIAL-NUMBERING/
+  owner: db-schema
+  criticality: blocker
+  critical_paths:
+    - packages/db/**
+    - apps/api/src/domain/emission/**
+
+- id: REQ-PRD-13-15-REGULATORY-PROFILES-PDF
+  source:
+    doc: PRD.md
+    section: "§13.15"
+  description: Sistema deve reconhecer perfis regulatórios Tipo A, B e C, selecionar template de PDF correspondente e bloquear uso indevido de selo Cgcre/RBC.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/regulatory/prd-13-15-regulatory-profiles-pdf.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-15-REGULATORY-PROFILES-PDF/
+  owner: regulator
+  criticality: blocker
+  critical_paths:
+    - packages/normative-rules/**
+    - apps/api/src/domain/emission/**
+    - apps/api/src/interfaces/pdf/**
+
+- id: REQ-PRD-13-16-CONTROLLED-REISSUE
+  source:
+    doc: PRD.md
+    section: "§13.16"
+  description: Reemissão controlada deve exigir dupla aprovação, versionamento R1/R2, hash anterior preservado e notificação automática ao cliente.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/ac/prd-13-16-controlled-reissue.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-16-CONTROLLED-REISSUE/
+  owner: backend-api
+  criticality: blocker
+  critical_paths:
+    - apps/api/src/domain/reissue/**
+    - apps/api/src/domain/emission/**
+    - packages/audit-log/**
+
+- id: REQ-PRD-13-17-PUBLIC-QR-MINIMAL-METADATA
+  source:
+    doc: PRD.md
+    section: "§13.17"
+  description: Página pública de QR deve responder para certificado autêntico, reemitido e não localizado, expondo apenas metadados mínimos.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/ac/prd-13-17-public-qr-minimal-metadata.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-17-PUBLIC-QR-MINIMAL-METADATA/
+  owner: lgpd-security
+  criticality: blocker
+  critical_paths:
+    - apps/portal/**
+    - apps/api/src/domain/certificates/**
+    - packages/audit-log/**
+
 - id: REQ-PRD-13-18-VALIDATION-DOSSIER
   source:
     doc: PRD.md
     section: "§13.18"
   description: Plano de validação do software deve manter rastreabilidade requisito-teste, registro de evidências e procedimento de revalidação.
+  validation_status: validated
   linked_specs:
     - specs/0001-harness-compliance-gates.md
+    - specs/0002-mvp-acceptance-traceability.md
   linked_tests:
     - tools/validation-dossier.test.ts
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-18-VALIDATION-DOSSIER/
@@ -39,6 +337,7 @@
     doc: PRD.md
     section: "§13.19"
   description: "Linter de PR deve rejeitar SQL e policies RLS que toquem dados multitenant sem `organization_id`."
+  validation_status: validated
   linked_specs:
     - specs/0001-harness-compliance-gates.md
   linked_tests:
@@ -56,6 +355,7 @@
     doc: PRD.md
     section: "§13.19"
   description: Audit log deve ser verificável por hash-chain append-only e detectar adulteração de payload ou encadeamento.
+  validation_status: validated
   linked_specs:
     - specs/0001-harness-compliance-gates.md
   linked_tests:
@@ -73,6 +373,7 @@
     doc: PRD.md
     section: "§13.19"
   description: Object storage de certificados e checkpoints deve bloquear buckets regulatórios sem retenção imutável.
+  validation_status: validated
   linked_specs:
     - specs/0001-harness-compliance-gates.md
   linked_tests:
@@ -84,11 +385,69 @@
     - infra/**
     - tools/worm-check.ts
 
+- id: REQ-PRD-13-20-OFFLINE-SYNC-CHAOS
+  source:
+    doc: PRD.md
+    section: "§13.20"
+  description: Modelo de sincronização offline deve documentar event sourcing por OS, idempotência, optimistic locking, lock exclusivo após início de assinatura e matriz de conflitos, com caos de 1.000 OS em pelo menos 5 dispositivos.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/sync-simulator/prd-13-20-offline-sync-chaos.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-20-OFFLINE-SYNC-CHAOS/
+  owner: android
+  criticality: blocker
+  critical_paths:
+    - apps/android/**
+    - apps/api/src/domain/sync/**
+    - evals/sync-simulator/**
+
+- id: REQ-PRD-13-21-LEGAL-OPINION-DPA
+  source:
+    doc: PRD.md
+    section: "§13.21"
+  description: Parecer jurídico formal sobre assinatura eletrônica auditável deve estar anexado ao dossiê, com DPA e matriz controlador/operador revisadas por advogado LGPD.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/regulatory/prd-13-21-legal-opinion-dpa.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-21-LEGAL-OPINION-DPA/
+  owner: legal-counsel
+  criticality: blocker
+  critical_paths:
+    - compliance/legal-opinions/**
+    - compliance/validation-dossier/**
+    - packages/audit-log/**
+
+- id: REQ-PRD-13-22-NORMATIVE-GOVERNANCE-OWNER
+  source:
+    doc: PRD.md
+    section: "§13.22"
+  description: Owner de governança normativa deve estar nomeado com RACI e orçamento antes do go-live.
+  validation_status: planned
+  linked_specs:
+    - specs/0002-mvp-acceptance-traceability.md
+  linked_tests: []
+  planned_tests:
+    - evals/regulatory/prd-13-22-normative-governance-owner.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-22-NORMATIVE-GOVERNANCE-OWNER/
+  owner: product-governance
+  criticality: blocker
+  critical_paths:
+    - compliance/release-norm/**
+    - compliance/normative-packages/**
+    - harness/04-compliance-pipeline.md
+
 - id: REQ-HARNESS-P0-13-AGENT-SYNC
   source:
     doc: harness/17-multi-tooling.md
     section: "P0-13"
   description: "`.codex/agents/*.toml` deve ser gerado a partir de `.claude/agents/*.md` sem drift manual."
+  validation_status: validated
   linked_specs:
     - specs/0001-harness-compliance-gates.md
   linked_tests:
@@ -106,6 +465,7 @@
     doc: harness/04-compliance-pipeline.md
     section: "P0-2"
   description: Pacote normativo versionado deve ter hash canônico e assinatura verificável; pacote unsigned falha fechado.
+  validation_status: validated
   linked_specs:
     - specs/0001-harness-compliance-gates.md
   linked_tests:

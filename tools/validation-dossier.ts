@@ -9,8 +9,10 @@ const TRACEABILITY_PATH = "compliance/validation-dossier/traceability-matrix.yam
 const COVERAGE_REPORT_PATH = "compliance/validation-dossier/coverage-report.md";
 
 const CRITICALITIES = new Set(["blocker", "high", "medium", "low"]);
+const VALIDATION_STATUSES = new Set(["planned", "validated"]);
 
 export type Criticality = "blocker" | "high" | "medium" | "low";
+export type ValidationStatus = "planned" | "validated";
 
 export type Requirement = {
   id: string;
@@ -19,8 +21,10 @@ export type Requirement = {
     section: string;
   };
   description: string;
+  validation_status?: ValidationStatus;
   linked_specs: string[];
   linked_tests: string[];
+  planned_tests?: string[];
   evidence_path: string;
   owner: string;
   criticality: Criticality;
@@ -41,6 +45,8 @@ type ValidateOptions = {
 
 type CoverageSummary = {
   totalPrdCriteria: number;
+  mappedPrdCriteria: number;
+  validatedPrdCriteria: number;
   coveredPrdCriteria: number;
   missingPrdSections: string[];
 };
@@ -54,9 +60,10 @@ export type ValidationResult = {
 type TraceabilityCriterion = {
   section: string;
   text: string;
-  status: "covered" | "missing";
+  status: "validated" | "mapped" | "missing";
   requirement_ids: string[];
   linked_tests: string[];
+  planned_tests: string[];
 };
 
 type TraceabilityMatrix = {
@@ -67,7 +74,8 @@ type TraceabilityMatrix = {
   };
   prd_section_13: {
     total: number;
-    covered: number;
+    mapped: number;
+    validated: number;
     missing: number;
   };
   criteria: TraceabilityCriterion[];
@@ -78,6 +86,7 @@ type TraceabilityMatrix = {
     owner: string;
     linked_specs: string[];
     linked_tests: string[];
+    planned_tests: string[];
     evidence_path: string;
     critical_paths: string[];
   }>;
@@ -181,8 +190,22 @@ export function validateDossier(options: ValidateOptions = {}): ValidationResult
     if (!Array.isArray(requirement?.linked_specs) || requirement.linked_specs.length === 0) {
       errors.push(`REQ-003: ${label} sem linked_specs.`);
     }
-    if (!Array.isArray(requirement?.linked_tests) || requirement.linked_tests.length === 0) {
+    const validationStatus = getValidationStatus(requirement);
+    if (requirement?.validation_status && !VALIDATION_STATUSES.has(requirement.validation_status)) {
+      errors.push(`REQ-004: ${label} tem validation_status inválido: ${requirement.validation_status}.`);
+    }
+    if (
+      validationStatus === "validated" &&
+      (!Array.isArray(requirement?.linked_tests) || requirement.linked_tests.length === 0)
+    ) {
       errors.push(`REQ-003: ${label} sem linked_tests.`);
+    }
+    if (
+      validationStatus === "planned" &&
+      (!Array.isArray(requirement?.linked_tests) || requirement.linked_tests.length === 0) &&
+      (!Array.isArray(requirement?.planned_tests) || requirement.planned_tests.length === 0)
+    ) {
+      errors.push(`REQ-003: ${label} sem linked_tests ou planned_tests.`);
     }
     if (!requirement?.evidence_path) errors.push(`REQ-003: ${label} sem evidence_path.`);
     if (!requirement?.owner) errors.push(`REQ-003: ${label} sem owner.`);
@@ -246,13 +269,23 @@ export function buildTraceabilityMatrix(
 
   const criteria = prdCriteria.map((criterion) => {
     const linkedRequirements = requirementsBySection.get(criterion.section) ?? [];
-    const linkedTests = uniqueSorted(linkedRequirements.flatMap((requirement) => requirement.linked_tests ?? []));
+    const validatedRequirements = linkedRequirements.filter(
+      (requirement) => getValidationStatus(requirement) === "validated",
+    );
+    const linkedTests = uniqueSorted(validatedRequirements.flatMap((requirement) => requirement.linked_tests ?? []));
+    const plannedTests = uniqueSorted(linkedRequirements.flatMap((requirement) => requirement.planned_tests ?? []));
+    const status = linkedRequirements.length === 0
+      ? "missing"
+      : validatedRequirements.length > 0
+        ? "validated"
+        : "mapped";
     return {
       section: criterion.section,
       text: criterion.text,
-      status: linkedRequirements.length > 0 ? "covered" : "missing",
+      status,
       requirement_ids: linkedRequirements.map((requirement) => requirement.id).sort(),
       linked_tests: linkedTests,
+      planned_tests: plannedTests,
     } satisfies TraceabilityCriterion;
   });
 
@@ -264,7 +297,8 @@ export function buildTraceabilityMatrix(
     },
     prd_section_13: {
       total: criteria.length,
-      covered: criteria.filter((criterion) => criterion.status === "covered").length,
+      mapped: criteria.filter((criterion) => criterion.status !== "missing").length,
+      validated: criteria.filter((criterion) => criterion.status === "validated").length,
       missing: criteria.filter((criterion) => criterion.status === "missing").length,
     },
     criteria,
@@ -276,6 +310,7 @@ export function buildTraceabilityMatrix(
         owner: requirement.owner,
         linked_specs: requirement.linked_specs ?? [],
         linked_tests: requirement.linked_tests ?? [],
+        planned_tests: requirement.planned_tests ?? [],
         evidence_path: requirement.evidence_path,
         critical_paths: requirement.critical_paths ?? [],
       }))
@@ -293,7 +328,8 @@ export function renderTraceabilityMatrix(matrix: TraceabilityMatrix): string {
 
 export function renderCoverageReport(matrix: TraceabilityMatrix): string {
   const missing = matrix.criteria.filter((criterion) => criterion.status === "missing");
-  const covered = matrix.criteria.filter((criterion) => criterion.status === "covered");
+  const mapped = matrix.criteria.filter((criterion) => criterion.status === "mapped");
+  const validated = matrix.criteria.filter((criterion) => criterion.status === "validated");
 
   return [
     "# Coverage Report",
@@ -303,14 +339,19 @@ export function renderCoverageReport(matrix: TraceabilityMatrix): string {
     "## PRD §13",
     "",
     `- Total de critérios: ${matrix.prd_section_13.total}`,
-    `- Critérios com requisito mapeado: ${matrix.prd_section_13.covered}`,
-    `- Critérios pendentes: ${matrix.prd_section_13.missing}`,
+    `- Critérios com requisito mapeado: ${matrix.prd_section_13.mapped}`,
+    `- Critérios validados por teste ativo: ${matrix.prd_section_13.validated}`,
+    `- Critérios sem requisito mapeado: ${matrix.prd_section_13.missing}`,
     "",
-    "## Cobertos",
+    "## Validados",
     "",
-    ...renderCriterionLines(covered),
+    ...renderCriterionLines(validated),
     "",
-    "## Pendentes",
+    "## Mapeados sem validação ativa",
+    "",
+    ...renderCriterionLines(mapped),
+    "",
+    "## Sem Requisito Mapeado",
     "",
     ...renderCriterionLines(missing),
     "",
@@ -351,7 +392,9 @@ function assertPathExists(root: string, path: string, label: string, errors: str
 function summarizeCoverage(matrix: TraceabilityMatrix): CoverageSummary {
   return {
     totalPrdCriteria: matrix.prd_section_13.total,
-    coveredPrdCriteria: matrix.prd_section_13.covered,
+    mappedPrdCriteria: matrix.prd_section_13.mapped,
+    validatedPrdCriteria: matrix.prd_section_13.validated,
+    coveredPrdCriteria: matrix.prd_section_13.validated,
     missingPrdSections: matrix.criteria
       .filter((criterion) => criterion.status === "missing")
       .map((criterion) => criterion.section),
@@ -382,6 +425,10 @@ function matchesPathPattern(path: string, pattern: string) {
 
 function normalizePath(path: string) {
   return path.replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
+function getValidationStatus(requirement: Requirement | undefined): ValidationStatus {
+  return requirement?.validation_status ?? "validated";
 }
 
 function normalizeGeneratedText(text: string) {
@@ -466,7 +513,11 @@ function runCli() {
     console.log(JSON.stringify(result, null, 2));
   } else {
     console.log(
-      `validation-dossier: ${result.coverage.coveredPrdCriteria}/${result.coverage.totalPrdCriteria} critérios do PRD §13 mapeados.`,
+      [
+        `validation-dossier: ${result.coverage.mappedPrdCriteria}/${result.coverage.totalPrdCriteria}`,
+        `critérios do PRD §13 mapeados; ${result.coverage.validatedPrdCriteria}/${result.coverage.totalPrdCriteria}`,
+        "validados por teste ativo.",
+      ].join(" "),
     );
     if (!quiet) {
       for (const warning of result.warnings) console.warn(`WARN ${warning}`);
