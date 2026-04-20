@@ -1,0 +1,33 @@
+// Schema Aferê — Postgres + Prisma
+//
+// Owner: db-schema (co-owner audit_log: lgpd-security)
+// Governed by: harness/05-guardrails.md (Gates 1, 2, 3, 4)
+// Referências: PRD §6.5, §7.10, §11
+//
+// Scaffold inicial P0-1. Modelos reais de domínio (organizations, users,
+// equipment, certificates, audit_log hash-chain, sync events) entram em
+// migrations numeradas conforme a fatia vertical V1.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  output          = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["public"]
+}
+
+// Placeholder — valida wiring Prisma + Postgres no healthcheck.
+// Substituído por modelos de domínio na V1 (ver harness/10-roadmap.md).
+model HealthCheck {
+  id        String   @id @default(uuid()) @db.Uuid
+  component String   @db.VarChar(64)
+  ok        Boolean
+  checkedAt DateTime @default(now()) @map("checked_at") @db.Timestamptz(6)
+
+  @@map("health_check")
+  @@schema("public")
+}
