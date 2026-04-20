@@ -220,8 +220,8 @@ export function validateDossier(options: ValidateOptions = {}): ValidationResult
     if (!existsSync(traceabilityFile)) {
       errors.push(`TRACE-001: ${TRACEABILITY_PATH} não encontrado. Rode pnpm validation-dossier:write.`);
     } else {
-      const current = readFileSync(traceabilityFile, "utf8").trimEnd();
-      const expected = artifacts.traceabilityMatrixYaml.trimEnd();
+      const current = normalizeGeneratedText(readFileSync(traceabilityFile, "utf8")).trimEnd();
+      const expected = normalizeGeneratedText(artifacts.traceabilityMatrixYaml).trimEnd();
       if (current !== expected) {
         errors.push(`TRACE-001: ${TRACEABILITY_PATH} está desatualizado. Rode pnpm validation-dossier:write.`);
       }
@@ -382,6 +382,10 @@ function matchesPathPattern(path: string, pattern: string) {
 
 function normalizePath(path: string) {
   return path.replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
+function normalizeGeneratedText(text: string) {
+  return text.replace(/\r\n/g, "\n");
 }
 
 function uniqueSorted(values: string[]) {

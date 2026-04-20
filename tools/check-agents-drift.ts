@@ -25,7 +25,7 @@ const CLAUDE_DIR = join(WORKSPACE, ".claude/agents");
 const CODEX_DIR = join(WORKSPACE, ".codex/agents");
 
 function parseClaudeMd(path: string): AgentFields | null {
-  const text = readFileSync(path, "utf8");
+  const text = readFileSync(path, "utf8").replace(/\r\n/g, "\n");
   const fmMatch = text.match(/^---\n([\s\S]*?)\n---/);
   if (!fmMatch || fmMatch[1] === undefined) return null;
   const frontmatter: Record<string, string> = {};

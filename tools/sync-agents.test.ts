@@ -88,3 +88,22 @@ test("write mode regenerates Codex agents from Claude agents using supported fie
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("check mode accepts generated Codex agent with CRLF line endings", () => {
+  const root = makeWorkspace();
+  try {
+    const writeResult = runSync(root);
+    assert.equal(writeResult.status, 0, writeResult.stderr);
+
+    const codexAgentPath = join(root, ".codex", "agents", "backend-api.toml");
+    const generated = readFileSync(codexAgentPath, "utf8");
+    writeFileSync(codexAgentPath, generated.replace(/\n/g, "\r\n"));
+
+    const checkResult = runSync(root, ["--check"]);
+
+    assert.equal(checkResult.status, 0, checkResult.stdout + checkResult.stderr);
+    assert.match(checkResult.stdout, /sync-agents: 1 agente\(s\) sincronizados/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

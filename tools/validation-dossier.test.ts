@@ -136,6 +136,36 @@ test("detects stale traceability matrix", () => {
   }
 });
 
+test("accepts current traceability matrix with CRLF line endings", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeFileSync(join(root, "compliance", "validation-dossier", "requirements.yaml"), [
+      "- id: REQ-PRD-13-01",
+      "  source:",
+      "    doc: PRD.md",
+      "    section: \"§13.1\"",
+      "  description: Primeiro critério coberto",
+      "  linked_specs:",
+      "    - specs/0001-primeiro.md",
+      "  linked_tests:",
+      "    - evals/primeiro.test.ts",
+      "  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-01/",
+      "  owner: qa-acceptance",
+      "  criticality: blocker",
+    ].join("\n"));
+
+    const artifacts = buildDossierArtifacts(root);
+    writeFileSync(
+      join(root, "compliance", "validation-dossier", "traceability-matrix.yaml"),
+      artifacts.traceabilityMatrixYaml.replace(/\n/g, "\r\n"),
+    );
+
+    assert.equal(validateDossier({ root, checkTraceability: true }).errors.length, 0);
+  } finally {
+    cleanup();
+  }
+});
+
 test("flags duplicate requirements and missing linked test files", () => {
   const { root, cleanup } = makeWorkspace();
   try {

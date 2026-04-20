@@ -153,11 +153,17 @@ function buildPlan(workspace: string): { expected: PlannedFile[]; extraCodexFile
   return { expected, extraCodexFiles };
 }
 
+function normalizeGeneratedText(text: string): string {
+  return text.replace(/\r\n/g, "\n");
+}
+
 function main(): void {
   try {
     const options = parseArgs(process.argv.slice(2));
     const { expected, extraCodexFiles } = buildPlan(options.workspace);
-    const stale = expected.filter((file) => !existsSync(file.path) || readFileSync(file.path, "utf8") !== file.content);
+    const stale = expected.filter(
+      (file) => !existsSync(file.path) || normalizeGeneratedText(readFileSync(file.path, "utf8")) !== file.content,
+    );
 
     if (options.check) {
       for (const file of stale) console.log(`desatualizado: ${toDisplayPath(options.workspace, file.path)}`);

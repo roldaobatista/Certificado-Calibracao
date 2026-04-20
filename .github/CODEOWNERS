@@ -1,0 +1,8 @@
+# Areas que exigem aprovacao do product-governance
+apps/api/src/domain/emission/**       @product-governance
+apps/api/src/domain/audit/**          @product-governance @lgpd-security
+packages/engine-uncertainty/**        @product-governance @metrology-calc
+packages/normative-rules/**           @product-governance @regulator
+packages/audit-log/**                 @product-governance @db-schema @lgpd-security
+compliance/**                         @product-governance
+PRD.md                                @product-governance
