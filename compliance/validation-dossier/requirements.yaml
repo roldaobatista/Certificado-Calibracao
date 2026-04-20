@@ -496,6 +496,28 @@
     - compliance/verification-log/**
     - harness/14-verification-cascade.md
 
+- id: REQ-HARNESS-P0-11-REDUNDANCY-LOOPS
+  source:
+    doc: harness/15-redundancy-and-loops.md
+    section: "P0-11"
+  description: Redundancia regulatoria deve exigir N por criticidade em property tests, flake gate noturno, dupla checagem regulatoria e precedentes de self-consistency.
+  validation_status: validated
+  linked_specs:
+    - specs/0005-redundancy-loops.md
+  linked_tests:
+    - tools/redundancy-check.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P0-11-REDUNDANCY-LOOPS/
+  owner: qa-acceptance
+  criticality: blocker
+  critical_paths:
+    - tools/redundancy-check.ts
+    - .claude/hooks/redundancy-check.sh
+    - .githooks/pre-commit
+    - evals/property-config.yaml
+    - compliance/validation-dossier/flake-log/**
+    - compliance/regulator-decisions/**
+    - harness/15-redundancy-and-loops.md
+
 - id: REQ-HARNESS-P0-2-NORMATIVE-PACKAGE
   source:
     doc: harness/04-compliance-pipeline.md

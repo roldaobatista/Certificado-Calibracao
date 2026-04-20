@@ -1,0 +1,10 @@
+- req: REQ-PRD-13-13-RLS-ISOLATION
+  criticality: blocker
+  N: 500
+  canonical_seeds:
+    - 3735928559
+    - 3405691582
+    - 324508639
+  test: evals/tenancy/fuzz/cross-tenant-fuzz.test.ts
+  command: pnpm test:fuzz
+  report_path: evals/tenancy/fuzz/reports/

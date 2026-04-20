@@ -1,0 +1,9 @@
+date: "2026-04-20"
+suite: evals/tenancy
+run: 1
+command: pnpm test:tenancy
+classification: flake
+owner: qa-acceptance
+issue: ""
+evidence_path: compliance/validation-dossier/evidence/<REQ-id>/
+resolution: pending
