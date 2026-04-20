@@ -12,14 +12,34 @@ interface Finding {
   message: string;
 }
 
-const REQUIRED_CODEOWNERS: Array<{ pattern: string; owners: string[] }> = [
-  { pattern: "apps/api/src/domain/emission/**", owners: ["@product-governance"] },
-  { pattern: "apps/api/src/domain/audit/**", owners: ["@product-governance", "@lgpd-security"] },
-  { pattern: "packages/engine-uncertainty/**", owners: ["@product-governance", "@metrology-calc"] },
-  { pattern: "packages/normative-rules/**", owners: ["@product-governance", "@regulator"] },
-  { pattern: "packages/audit-log/**", owners: ["@product-governance", "@db-schema", "@lgpd-security"] },
-  { pattern: "compliance/**", owners: ["@product-governance"] },
-  { pattern: "PRD.md", owners: ["@product-governance"] },
+const REQUIRED_CODEOWNERS: Array<{ pattern: string; githubOwners: string[]; agentOwners: string[] }> = [
+  {
+    pattern: "apps/api/src/domain/emission/**",
+    githubOwners: ["@roldaobatista"],
+    agentOwners: ["@product-governance"],
+  },
+  {
+    pattern: "apps/api/src/domain/audit/**",
+    githubOwners: ["@roldaobatista"],
+    agentOwners: ["@product-governance", "@lgpd-security"],
+  },
+  {
+    pattern: "packages/engine-uncertainty/**",
+    githubOwners: ["@roldaobatista"],
+    agentOwners: ["@product-governance", "@metrology-calc"],
+  },
+  {
+    pattern: "packages/normative-rules/**",
+    githubOwners: ["@roldaobatista"],
+    agentOwners: ["@product-governance", "@regulator"],
+  },
+  {
+    pattern: "packages/audit-log/**",
+    githubOwners: ["@roldaobatista"],
+    agentOwners: ["@product-governance", "@db-schema", "@lgpd-security"],
+  },
+  { pattern: "compliance/**", githubOwners: ["@roldaobatista"], agentOwners: ["@product-governance"] },
+  { pattern: "PRD.md", githubOwners: ["@roldaobatista"], agentOwners: ["@product-governance"] },
 ];
 
 const REQUIRED_PR_TEMPLATE_PHRASES = [
@@ -75,16 +95,28 @@ function checkCodeowners(workspace: string): Finding[] {
     return [{ code: "GOV-001", path: displayPath(workspace, path), message: ".github/CODEOWNERS ausente" }];
   }
 
-  const entries = parseCodeowners(readFileSync(path, "utf8"));
+  const text = readFileSync(path, "utf8");
+  const entries = parseCodeowners(text);
+  const agentEntries = parseAgentOwnerMetadata(text);
   const findings: Finding[] = [];
   for (const required of REQUIRED_CODEOWNERS) {
     const owners = entries.get(required.pattern);
-    const missing = required.owners.filter((owner) => !owners?.includes(owner));
-    if (missing.length > 0) {
+    const missingGithubOwners = required.githubOwners.filter((owner) => !owners?.includes(owner));
+    if (missingGithubOwners.length > 0) {
       findings.push({
         code: "GOV-001",
         path: ".github/CODEOWNERS",
-        message: `${required.pattern} deve exigir ${missing.join(", ")}`,
+        message: `${required.pattern} deve exigir GitHub owner real ${missingGithubOwners.join(", ")}`,
+      });
+    }
+
+    const agentOwners = agentEntries.get(required.pattern);
+    const missingAgentOwners = required.agentOwners.filter((owner) => !agentOwners?.includes(owner));
+    if (missingAgentOwners.length > 0) {
+      findings.push({
+        code: "GOV-001",
+        path: ".github/CODEOWNERS",
+        message: `${required.pattern} deve declarar agent-owners ${missingAgentOwners.join(", ")}`,
       });
     }
   }
@@ -98,6 +130,17 @@ function parseCodeowners(text: string): Map<string, string[]> {
     if (!trimmed || trimmed.startsWith("#")) continue;
     const [pattern, ...owners] = trimmed.split(/\s+/);
     if (pattern) entries.set(pattern, owners);
+  }
+  return entries;
+}
+
+function parseAgentOwnerMetadata(text: string): Map<string, string[]> {
+  const entries = new Map<string, string[]>();
+  for (const line of text.replace(/\r\n/g, "\n").split("\n")) {
+    const match = line.trim().match(/^#\s*agent-owners\s+(\S+)\s+(.+)$/);
+    if (!match) continue;
+    const [, pattern, ownerList] = match;
+    entries.set(pattern, ownerList.split(/\s+/).filter(Boolean));
   }
   return entries;
 }
