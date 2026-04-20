@@ -34,7 +34,7 @@ compliance/**                         @roldaobatista
 PRD.md                                @roldaobatista
 ```
 
-Branch protection exige aprovação dos CODEOWNERS antes do merge. O GitHub valida usuários/times reais; os papéis de agente continuam sendo validados por `pnpm governance-gate` via metadados `agent-owners`.
+Branch protection exige `required-gates` antes do merge e deve exigir aprovação dos CODEOWNERS quando houver usuário/time GitHub independente com write access. Em repositório pessoal sem segundo revisor, exigir review bloqueia qualquer PR próprio; nesse caso, o GitHub mantém CODEOWNERS válido e `pnpm governance-gate` valida os papéis regulatórios por metadados `agent-owners` até a criação de organização/time real.
 
 ## Checklist de PR (gerado automaticamente)
 
