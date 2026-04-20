@@ -29,6 +29,7 @@
     "sync-simulator-check": "tsx tools/sync-simulator-check.ts",
     "cloud-agents-policy-check": "tsx tools/cloud-agents-policy-check.ts",
     "agent-frontmatter-check": "tsx tools/agent-frontmatter-check.ts",
+    "slash-commands-check": "tsx tools/slash-commands-check.ts",
     "runbook-check": "tsx tools/runbook-check.ts",
     "verification-cascade:check": "tsx tools/verification-cascade.ts check",
     "verification-cascade:plan": "tsx tools/verification-cascade.ts plan",
@@ -44,7 +45,7 @@
     "sync:agents:check": "tsx tools/sync-agents.ts --check",
     "clean": "turbo run clean && rm -rf node_modules",
     "check:drift": "tsx tools/check-agents-drift.ts",
-    "check:all": "pnpm typecheck && pnpm test:tools && pnpm test:sync-simulator && pnpm worm-check && pnpm governance-gate && pnpm escalation-check && pnpm external-auditors-gate && pnpm roadmap-check && pnpm sync-simulator-check && pnpm cloud-agents-policy-check && pnpm agent-frontmatter-check && pnpm runbook-check && pnpm verification-cascade:check && pnpm redundancy-check && pnpm budget:check && tsx tools/validation-dossier.ts check --quiet && pnpm sync:agents:check && pnpm check:drift"
+    "check:all": "pnpm typecheck && pnpm test:tools && pnpm test:sync-simulator && pnpm worm-check && pnpm governance-gate && pnpm escalation-check && pnpm external-auditors-gate && pnpm roadmap-check && pnpm sync-simulator-check && pnpm cloud-agents-policy-check && pnpm agent-frontmatter-check && pnpm slash-commands-check && pnpm runbook-check && pnpm verification-cascade:check && pnpm redundancy-check && pnpm budget:check && tsx tools/validation-dossier.ts check --quiet && pnpm sync:agents:check && pnpm check:drift"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

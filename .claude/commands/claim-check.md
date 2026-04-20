@@ -1,30 +1,38 @@
 ---
-description: Roda copy-lint regulatório contra arquivo/glob; sugere reescrita via copy-compliance para cada match
+description: Roda copy-lint regulatório contra arquivo ou glob e orienta correção de claims
+owner: copy-compliance
+risk_level: high
+required_commands: ["pnpm --filter @afere/copy-lint exec node --import tsx src/cli.ts $ARGUMENTS"]
 ---
 
-Executa `@afere/copy-lint` contra `$ARGUMENTS` (paths relativos ou globs).
+# /claim-check
+
+## Objetivo
+
+Detectar claims regulatórios proibidos ou arriscados antes de merge, release ou publicação de copy comercial.
 
 ## Execução
-
-Rode este comando no terminal e me mostre o resultado:
 
 ```bash
 pnpm --filter @afere/copy-lint exec node --import tsx src/cli.ts $ARGUMENTS
 ```
 
-Se `$ARGUMENTS` estiver vazio, o CLI varre a cobertura padrão declarada em `packages/copy-lint/src/rules.yaml` (apps/web, apps/portal, e-mails, compliance, specs, adr, README.md, PRD.md, ideia.md, AGENTS.md, CLAUDE.md).
+Se `$ARGUMENTS` estiver vazio, o CLI usa a cobertura padrão de `packages/copy-lint/src/rules.yaml`.
 
-## Interpretação
+## Evidência
 
-- Exit 0 + `errors: 0` → sem claims proibidos; warnings podem existir sem bloqueio.
-- Exit 1 → pelo menos um claim proibido (severity=error). **Delegar `copy-compliance`** para propor alternativa dentro do claim-set aprovado em `compliance/approved-claims.md`.
-- Cada finding traz `sugestão:` com redação defensável já pensada.
+- Registrar saída completa do comando.
+- Para cada finding `error`, anexar path, linha, regra `CL-*` e sugestão.
+- Se houver claim novo aprovado, registrar parecer em `compliance/legal-opinions/` e atualizar `compliance/approved-claims.md`.
 
-## Fluxo após detecção
+## Escalonamento
 
-1. Para cada finding: verificar se a sugestão cabe no contexto ou se é caso novo.
-2. Se caso **novo** (categoria de claim não listada): escalar para `legal-counsel` (parecer em `compliance/audits/legal/claim-<slug>.md`) + `product-governance` antes de aprovar.
-3. Se claim é **aprovado pós-revisão**: adicionar a `compliance/approved-claims.md` + registrar parecer datado em `compliance/legal-opinions/`.
-4. Commit: PreCommit hook `.claude/hooks/copy-lint.sh` roda automaticamente contra delta e bloqueia se algum error sobrou.
+- `error` bloqueia commit, PR e release.
+- Claim novo ou ambíguo escala para `legal-counsel` e `product-governance`.
+- Correção textual em UI ou e-mail volta para `web-ui` após parecer.
 
-Referências: `harness/06-copy-lint.md`, `compliance/approved-claims.md`, `packages/copy-lint/src/rules.yaml`.
+## Referências
+
+- `harness/06-copy-lint.md`
+- `compliance/approved-claims.md`
+- `packages/copy-lint/src/rules.yaml`
