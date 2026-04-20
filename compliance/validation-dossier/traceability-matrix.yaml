@@ -322,6 +322,20 @@ requirements:
       - compliance/runbooks/**
       - tools/runbook-check.ts
       - harness/13-runbooks-recovery.md
+  - id: REQ-HARNESS-P1-4-VERTICAL-ROADMAP
+    source: harness/10-roadmap.md P1-4
+    criticality: high
+    owner: product-governance
+    linked_specs:
+      - specs/0008-vertical-roadmap.md
+    linked_tests:
+      - tools/roadmap-check.test.ts
+    planned_tests: []
+    evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P1-4-VERTICAL-ROADMAP/
+    critical_paths:
+      - compliance/roadmap/**
+      - tools/roadmap-check.ts
+      - harness/10-roadmap.md
   - id: REQ-PRD-13-01-MOBILE-OFFLINE-CALIBRATION
     source: PRD.md §13.1
     criticality: blocker

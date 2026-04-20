@@ -105,6 +105,18 @@ Compara com o roadmap original de 4 semanas do `HARNESS_DESIGN.md` — que era, 
 3. Regressão em fatia anterior (teste que era verde fica vermelho) = release da nova fatia bloqueado.
 4. Fatia pode ser **dividida** se escopo crescer, mas nunca **mesclada** (cada uma mantém gate próprio).
 
+## Gate executável
+
+`pnpm roadmap-check` valida `compliance/roadmap/v1-v5.yaml` como fonte canônica operacional:
+
+- ordem estrita V1 → V5;
+- dependência sequencial entre fatias;
+- exigência de gate anterior antes da próxima fatia;
+- release-norm, dossiê e pacote normativo por fatia;
+- escopo, agentes primários e gates de saída por fatia.
+
+O gate entra em `pnpm check:all` e no pre-commit quando arquivos P1-4 mudam.
+
 ## Paralelização possível
 
 Dentro de uma fatia, agentes podem trabalhar em paralelo (Tier 2) em áreas não conflitantes:

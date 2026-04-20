@@ -558,6 +558,24 @@
     - tools/external-auditors-gate.ts
     - harness/16-agentes-auditores-externos.md
 
+- id: REQ-HARNESS-P1-4-VERTICAL-ROADMAP
+  source:
+    doc: harness/10-roadmap.md
+    section: P1-4
+  description: Roadmap deve ser dividido em fatias verticais V1-V5, com dependência sequencial, gates de saída, release-norm e dossiê por fatia.
+  validation_status: validated
+  linked_specs:
+    - specs/0008-vertical-roadmap.md
+  linked_tests:
+    - tools/roadmap-check.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P1-4-VERTICAL-ROADMAP/
+  owner: product-governance
+  criticality: high
+  critical_paths:
+    - compliance/roadmap/**
+    - tools/roadmap-check.ts
+    - harness/10-roadmap.md
+
 - id: REQ-HARNESS-P0-2-NORMATIVE-PACKAGE
   source:
     doc: harness/04-compliance-pipeline.md

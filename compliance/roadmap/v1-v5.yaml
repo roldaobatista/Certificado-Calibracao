@@ -1,0 +1,106 @@
+version: 1
+source: harness/10-roadmap.md
+policy:
+  no_slice_starts_without_previous_gate: true
+  release_norm_required: true
+  validation_dossier_required: true
+  normative_package_required: true
+slices:
+  - id: V1
+    title: Emissão Tipo B ou C em ambiente controlado
+    depends_on: []
+    estimated_duration_weeks: "6-8"
+    release_norm_path: compliance/release-norm/v1.md
+    validation_dossier_path: compliance/validation-dossier/releases/v1.md
+    primary_agents:
+      - backend-api
+      - web-ui
+      - db-schema
+      - product-governance
+    scope:
+      - Organização Tipo B ou Tipo C, sem acreditação Tipo A.
+      - Emissão online com wizard, auth, RBAC básico, assinatura, QR e audit log.
+      - Hash-chain e WORM ativos para eventos e artefatos regulatórios.
+    exit_gates:
+      - 100% dos AC PRD §13 aplicáveis ao escopo Tipo B/C verdes.
+      - Dossiê V1 fechado em compliance/validation-dossier/releases/v1.md.
+      - Release-norm V1 aprovado por product-governance.
+      - Pacote normativo v1.0.0 assinado e em uso.
+  - id: V2
+    title: Sync offline-first robusto
+    depends_on:
+      - V1
+    estimated_duration_weeks: "4-6"
+    release_norm_path: compliance/release-norm/v2.md
+    validation_dossier_path: compliance/validation-dossier/releases/v2.md
+    primary_agents:
+      - android
+      - backend-api
+      - qa-acceptance
+    scope:
+      - Android em campo 100% offline com SQLCipher e chave derivada por device.
+      - Simulador determinístico de conflitos C1-C8.
+      - Reconciliação server-side com fila de revisão humana.
+    exit_gates:
+      - Matriz de conflitos 100% coberta com seeds canônicos.
+      - Seed weekly rodou sem falha.
+      - Dossiê V2 inclui trace de cada cenário.
+  - id: V3
+    title: Tipo A acreditado com escopo CMC e símbolo Cgcre/RBC
+    depends_on:
+      - V2
+    estimated_duration_weeks: "6-8"
+    release_norm_path: compliance/release-norm/v3.md
+    validation_dossier_path: compliance/validation-dossier/releases/v3.md
+    primary_agents:
+      - regulator
+      - backend-api
+      - web-ui
+      - legal-counsel
+    scope:
+      - Perfil A habilitado com escopo acreditado e CMC formal.
+      - Template A com selo Cgcre/RBC aplicado por regra de arquitetura.
+      - Bloqueio absoluto para Tipo B/C tentar emitir com selo.
+    exit_gates:
+      - Testes anti-deriva rejeitam tentativa semântica de Tipo B inserir selo.
+      - Regulator aprova escopo/CMC implementados.
+      - Product-governance libera release V3.
+      - Parecer jurídico datado em compliance/legal-opinions/.
+  - id: V4
+    title: Reemissão controlada
+    depends_on:
+      - V3
+    estimated_duration_weeks: "4"
+    release_norm_path: compliance/release-norm/v4.md
+    validation_dossier_path: compliance/validation-dossier/releases/v4.md
+    primary_agents:
+      - backend-api
+      - db-schema
+      - lgpd-security
+    scope:
+      - Fluxo completo de reemissão com justificativa e dupla aprovação.
+      - Hash-chain preservada e certificado original verificável.
+      - Novo certificado referencia o anterior.
+    exit_gates:
+      - Certificado original permanece imutável após reemissão.
+      - QR continua funcional para certificado antigo.
+      - Fuzz cross-tenant verde.
+  - id: V5
+    title: Módulo Qualidade completo
+    depends_on:
+      - V4
+    estimated_duration_weeks: "6-8"
+    release_norm_path: compliance/release-norm/v5.md
+    validation_dossier_path: compliance/validation-dossier/releases/v5.md
+    primary_agents:
+      - product-governance
+      - metrology-auditor
+      - qa-acceptance
+    scope:
+      - Gestão de não-conformidades, competências e auditorias internas.
+      - Indicadores e análise crítica.
+      - Dry-run de auditoria interna ISO/IEC 17025.
+    exit_gates:
+      - Auditoria interna dry-run executada com auditor convidado.
+      - Relatório em compliance/release-norm/v5-dry-run.md.
+      - Módulo Qualidade passa em auditoria simulada ISO/IEC 17025.
