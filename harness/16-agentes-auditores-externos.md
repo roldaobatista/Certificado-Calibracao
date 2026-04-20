@@ -166,6 +166,27 @@ date: <ISO>
 
 ---
 
+## Gate executável
+
+`pnpm external-auditors-gate` valida:
+
+- existência dos três agentes auditores externos;
+- ausência de ferramentas de edição direta nos auditores;
+- paths de escrita restritos aos diretórios de parecer permitidos;
+- templates em `compliance/audits/{metrology,legal,code}/_template.md`;
+- briefing dos 5 casos-limite em `compliance/audits/escalations/_template.md`;
+- integração com `pnpm check:all` e pre-commit.
+
+Para uma release específica, `pnpm external-auditors-gate release --release <versao>` exige:
+
+- `compliance/audits/metrology/<versao>.md`;
+- `compliance/audits/legal/<versao>.md`;
+- `compliance/audits/code/<versao>.md`;
+- `verdict` diferente de `FAIL`;
+- `blockers: []`.
+
+---
+
 ## Quando os 3 auditores NÃO bastam
 
 Os 5 casos-limite listados acima. Em qualquer um deles, mesmo com os 3 auditores verdes, sistema escala ao usuário com recomendação explícita:

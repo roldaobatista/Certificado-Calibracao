@@ -249,6 +249,23 @@ requirements:
       - compliance/validation-dossier/flake-log/**
       - compliance/regulator-decisions/**
       - harness/15-redundancy-and-loops.md
+  - id: REQ-HARNESS-P0-12-EXTERNAL-AUDITORS
+    source: harness/16-agentes-auditores-externos.md P0-12
+    criticality: blocker
+    owner: product-governance
+    linked_specs:
+      - specs/0007-external-auditors.md
+    linked_tests:
+      - tools/external-auditors-gate.test.ts
+    planned_tests: []
+    evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P0-12-EXTERNAL-AUDITORS/
+    critical_paths:
+      - .claude/agents/metrology-auditor.md
+      - .claude/agents/legal-counsel.md
+      - .claude/agents/senior-reviewer.md
+      - compliance/audits/**
+      - tools/external-auditors-gate.ts
+      - harness/16-agentes-auditores-externos.md
   - id: REQ-HARNESS-P0-13-AGENT-SYNC
     source: harness/17-multi-tooling.md P0-13
     criticality: high
