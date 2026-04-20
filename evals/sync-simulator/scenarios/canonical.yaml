@@ -1,0 +1,17 @@
+scenarios:
+  - id: C1
+    expected: human_review_required
+  - id: C2
+    expected: OS_LOCKED_FOR_SIGNATURE
+  - id: C3
+    expected: single_signature
+  - id: C4
+    expected: reissue_preserves_hash_chain
+  - id: C5
+    expected: deterministic_convergence
+  - id: C6
+    expected: idempotent_replay
+  - id: C7
+    expected: lamport_reorder
+  - id: C8
+    expected: server_clock_normalization

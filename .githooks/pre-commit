@@ -44,6 +44,7 @@ run_gate "governance-gate" ".claude/hooks/governance-gate.sh"
 run_gate "escalation-check" ".claude/hooks/escalation-check.sh"
 run_gate "external-auditors-gate" ".claude/hooks/external-auditors-gate.sh"
 run_gate "roadmap-check" ".claude/hooks/roadmap-check.sh"
+run_gate "sync-simulator-check" ".claude/hooks/sync-simulator-check.sh"
 
 if [ "$fail" -ne 0 ]; then
   echo ""

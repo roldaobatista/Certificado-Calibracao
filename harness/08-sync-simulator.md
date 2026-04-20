@@ -67,6 +67,18 @@ Para cada scenario, as 4 propriedades são verificadas:
 - **Seeds canônicos**: todos (100%) devem passar sempre.
 - **Seeds weekly**: gerados por job agendado com seed da semana; falha = incident ticket automático com trace em `reports/`.
 
+## Gate executável
+
+`pnpm sync-simulator-check` valida a estrutura canônica do P1-1:
+
+- motor em `evals/sync-simulator/engine/simulator.ts`;
+- cenários C1-C8 em `evals/sync-simulator/scenarios/canonical.yaml`;
+- seeds canônicos em `evals/sync-simulator/seeds/canonical/seeds.yaml`;
+- propriedades documentadas em `evals/sync-simulator/properties/`;
+- área de traces em `evals/sync-simulator/reports/`.
+
+`pnpm test:sync-simulator` executa C1-C8 com 100 seeds determinísticos e entra em `pnpm check:all`.
+
 ## Reprodutibilidade
 
 Todo teste registra `seed` + `scenario` + `event trace`. Falha local reproduz com:

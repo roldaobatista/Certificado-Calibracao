@@ -576,6 +576,25 @@
     - tools/roadmap-check.ts
     - harness/10-roadmap.md
 
+- id: REQ-HARNESS-P1-1-SYNC-SIMULATOR
+  source:
+    doc: harness/08-sync-simulator.md
+    section: P1-1
+  description: Simulador determinístico de sync deve cobrir C1-C8, fila humana de conflitos, idempotência, ordenação Lamport, lock de assinatura e hash-chain simulada.
+  validation_status: validated
+  linked_specs:
+    - specs/0009-sync-simulator.md
+  linked_tests:
+    - evals/sync-simulator/sync-simulator.test.ts
+    - tools/sync-simulator-check.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P1-1-SYNC-SIMULATOR/
+  owner: qa-acceptance
+  criticality: high
+  critical_paths:
+    - evals/sync-simulator/**
+    - tools/sync-simulator-check.ts
+    - harness/08-sync-simulator.md
+
 - id: REQ-HARNESS-P0-2-NORMATIVE-PACKAGE
   source:
     doc: harness/04-compliance-pipeline.md
