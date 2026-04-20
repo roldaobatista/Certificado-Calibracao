@@ -51,6 +51,9 @@ function writeCompleteComplianceTree(root: string) {
     "compliance/validation-dossier/findings",
     "compliance/validation-dossier/flake-log",
     "compliance/validation-dossier/releases",
+    "compliance/validation-dossier/snapshots",
+    "compliance/validation-dossier/snapshots/baseline",
+    "compliance/validation-dossier/snapshots/current",
     "compliance/verification-log",
   ];
   for (const dir of dirs) writeDir(root, dir);
@@ -77,6 +80,8 @@ function writeCompleteComplianceTree(root: string) {
     "compliance/validation-dossier/README.md",
     "compliance/validation-dossier/coverage-report.md",
     "compliance/validation-dossier/requirements.yaml",
+    "compliance/validation-dossier/snapshots/README.md",
+    "compliance/validation-dossier/snapshots/manifest.yaml",
     "compliance/validation-dossier/traceability-matrix.yaml",
     "compliance/verification-log/README.md",
   ];
@@ -147,7 +152,7 @@ test("passes when the canonical compliance tree and README references are presen
     const result = checkComplianceStructure(root);
 
     assert.deepEqual(result.errors, []);
-    assert.equal(result.checkedArtifacts, 44);
+    assert.equal(result.checkedArtifacts, 49);
     assert.equal(result.checkedReadmeReferences, 13);
   } finally {
     cleanup();

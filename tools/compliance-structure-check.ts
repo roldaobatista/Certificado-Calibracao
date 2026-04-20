@@ -27,6 +27,9 @@ const REQUIRED_ARTIFACTS: RequiredArtifact[] = [
   { path: "compliance/validation-dossier/findings", type: "dir" },
   { path: "compliance/validation-dossier/flake-log", type: "dir" },
   { path: "compliance/validation-dossier/releases", type: "dir" },
+  { path: "compliance/validation-dossier/snapshots", type: "dir" },
+  { path: "compliance/validation-dossier/snapshots/baseline", type: "dir" },
+  { path: "compliance/validation-dossier/snapshots/current", type: "dir" },
   { path: "compliance/verification-log", type: "dir" },
   { path: "compliance/README.md", type: "file" },
   { path: "compliance/approved-claims.md", type: "file" },
@@ -50,6 +53,8 @@ const REQUIRED_ARTIFACTS: RequiredArtifact[] = [
   { path: "compliance/validation-dossier/README.md", type: "file" },
   { path: "compliance/validation-dossier/coverage-report.md", type: "file" },
   { path: "compliance/validation-dossier/requirements.yaml", type: "file" },
+  { path: "compliance/validation-dossier/snapshots/README.md", type: "file" },
+  { path: "compliance/validation-dossier/snapshots/manifest.yaml", type: "file" },
   { path: "compliance/validation-dossier/traceability-matrix.yaml", type: "file" },
   { path: "compliance/verification-log/README.md", type: "file" },
 ];

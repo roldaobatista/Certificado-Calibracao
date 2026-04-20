@@ -1,10 +1,17 @@
-import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { load as yamlLoad } from "js-yaml";
 
 import { loadRequirements, type Requirement } from "./validation-dossier";
 
 const VERIFICATION_LOG_README = "compliance/verification-log/README.md";
+const SNAPSHOT_MANIFEST = "compliance/validation-dossier/snapshots/manifest.yaml";
+const REQUIRED_SNAPSHOT_SOURCE = "harness/05-guardrails.md";
+const REQUIRED_SNAPSHOT_PROFILES = ["A", "B", "C"] as const;
+const REQUIRED_BASELINE_APPROVERS = ["regulator", "product-governance"] as const;
 
 export const CRITICAL_AREAS = [
   "apps/api/src/domain/emission/**",
@@ -44,6 +51,30 @@ export type ReleaseAuditCheck = {
 
 export type VerificationCascadeCheck = {
   errors: string[];
+  checkedSnapshots: number;
+  checkedProfiles: string[];
+};
+
+type SnapshotManifest = {
+  version?: number;
+  source?: string;
+  policy?: {
+    profiles_required?: unknown;
+    snapshots_per_profile?: unknown;
+    fail_on_diff?: unknown;
+    approval_required_for_baseline_update?: unknown;
+  };
+  snapshots?: unknown;
+};
+
+type SnapshotManifestEntry = {
+  id?: unknown;
+  profile?: unknown;
+  baseline_path?: unknown;
+  current_path?: unknown;
+  sha256?: unknown;
+  renderer?: unknown;
+  requirement_refs?: unknown;
 };
 
 export function buildCascadePlan(root: string, changedFiles: string[]): CascadePlan {
@@ -80,7 +111,161 @@ export function checkVerificationCascade(root = process.cwd()): VerificationCasc
   if (!existsSync(resolve(root, VERIFICATION_LOG_README))) {
     errors.push(`CASCADE-001: ${VERIFICATION_LOG_README} não encontrado.`);
   }
-  return { errors };
+  const snapshotCheck = checkSnapshotDiff(root);
+  errors.push(...snapshotCheck.errors);
+  return {
+    errors,
+    checkedSnapshots: snapshotCheck.checkedSnapshots,
+    checkedProfiles: snapshotCheck.checkedProfiles,
+  };
+}
+
+function checkSnapshotDiff(root: string) {
+  const errors: string[] = [];
+  const manifestPath = resolve(root, SNAPSHOT_MANIFEST);
+  if (!existsSync(manifestPath)) {
+    errors.push(`CASCADE-002: ${SNAPSHOT_MANIFEST} não encontrado.`);
+    return { errors, checkedSnapshots: 0, checkedProfiles: [] };
+  }
+
+  const manifest = loadSnapshotManifest(manifestPath, errors);
+  if (!manifest) return { errors, checkedSnapshots: 0, checkedProfiles: [] };
+
+  validateSnapshotPolicy(manifest, errors);
+
+  const snapshots = Array.isArray(manifest.snapshots) ? (manifest.snapshots as SnapshotManifestEntry[]) : [];
+  if (snapshots.length === 0) {
+    errors.push(`CASCADE-002: ${SNAPSHOT_MANIFEST} deve declarar snapshots.`);
+  }
+
+  const checkedProfiles: string[] = [];
+  let checkedSnapshots = 0;
+  for (const [index, snapshot] of snapshots.entries()) {
+    if (!isRecord(snapshot)) {
+      errors.push(`CASCADE-002: snapshot #${index + 1} deve ser objeto.`);
+      continue;
+    }
+
+    const id = asNonEmptyString(snapshot.id);
+    const profile = asNonEmptyString(snapshot.profile);
+    const baselinePath = asNonEmptyString(snapshot.baseline_path);
+    const currentPath = asNonEmptyString(snapshot.current_path);
+    const expectedHash = asNonEmptyString(snapshot.sha256);
+    const renderer = asNonEmptyString(snapshot.renderer);
+    const label = id ?? `snapshot #${index + 1}`;
+
+    if (!id) errors.push(`CASCADE-002: ${label} deve declarar id.`);
+    if (!profile) errors.push(`CASCADE-002: ${label} deve declarar profile.`);
+    if (!baselinePath) errors.push(`CASCADE-002: ${label} deve declarar baseline_path.`);
+    if (!currentPath) errors.push(`CASCADE-002: ${label} deve declarar current_path.`);
+    if (!expectedHash) errors.push(`CASCADE-002: ${label} deve declarar sha256.`);
+    if (!renderer) errors.push(`CASCADE-002: ${label} deve declarar renderer.`);
+    if (!Array.isArray(snapshot.requirement_refs) || snapshot.requirement_refs.length === 0) {
+      errors.push(`CASCADE-002: ${label} deve declarar requirement_refs.`);
+    }
+    if (profile && !REQUIRED_SNAPSHOT_PROFILES.includes(profile as (typeof REQUIRED_SNAPSHOT_PROFILES)[number])) {
+      errors.push(`CASCADE-002: ${label} usa perfil inválido: ${profile}.`);
+    }
+    if (!id || !profile || !baselinePath || !currentPath || !expectedHash) continue;
+
+    const baselineFullPath = resolveSafePath(root, baselinePath);
+    const currentFullPath = resolveSafePath(root, currentPath);
+    if (!baselineFullPath) {
+      errors.push(`CASCADE-002: ${label} baseline_path deve ser relativo ao repositório.`);
+      continue;
+    }
+    if (!currentFullPath) {
+      errors.push(`CASCADE-002: ${label} current_path deve ser relativo ao repositório.`);
+      continue;
+    }
+    if (!existsSync(baselineFullPath)) {
+      errors.push(`CASCADE-002: ${label} baseline ausente: ${normalizePath(baselinePath)}.`);
+      continue;
+    }
+    if (!existsSync(currentFullPath)) {
+      errors.push(`CASCADE-002: ${label} snapshot atual ausente: ${normalizePath(currentPath)}.`);
+      continue;
+    }
+
+    const baselineHash = sha256File(baselineFullPath);
+    const currentHash = sha256File(currentFullPath);
+    checkedSnapshots += 1;
+    checkedProfiles.push(profile);
+
+    if (baselineHash !== expectedHash.toLowerCase()) {
+      errors.push(
+        `CASCADE-003: ${label} baseline diverge do sha256 do manifest (${baselineHash} != ${expectedHash.toLowerCase()}).`,
+      );
+    }
+    if (currentHash !== baselineHash) {
+      errors.push(`CASCADE-003: ${label} snapshot atual diverge do baseline (${currentHash} != ${baselineHash}).`);
+    }
+  }
+
+  const snapshotsPerProfile = snapshotCountPolicy(manifest);
+  for (const profile of REQUIRED_SNAPSHOT_PROFILES) {
+    const count = checkedProfiles.filter((checkedProfile) => checkedProfile === profile).length;
+    if (count < snapshotsPerProfile) {
+      errors.push(`CASCADE-002: perfil ${profile} tem ${count}/${snapshotsPerProfile} snapshot(s) canônico(s).`);
+    }
+  }
+
+  return {
+    errors,
+    checkedSnapshots,
+    checkedProfiles: uniqueSorted(checkedProfiles),
+  };
+}
+
+function loadSnapshotManifest(path: string, errors: string[]) {
+  try {
+    const parsed = yamlLoad(readFileSync(path, "utf8"));
+    if (!isRecord(parsed)) {
+      errors.push(`CASCADE-002: ${SNAPSHOT_MANIFEST} deve conter objeto YAML.`);
+      return undefined;
+    }
+    return parsed as SnapshotManifest;
+  } catch (error) {
+    errors.push(`CASCADE-002: ${SNAPSHOT_MANIFEST} inválido: ${(error as Error).message}`);
+    return undefined;
+  }
+}
+
+function validateSnapshotPolicy(manifest: SnapshotManifest, errors: string[]) {
+  if (manifest.version !== 1) {
+    errors.push(`CASCADE-002: ${SNAPSHOT_MANIFEST} deve declarar version: 1.`);
+  }
+  if (manifest.source !== REQUIRED_SNAPSHOT_SOURCE) {
+    errors.push(`CASCADE-002: ${SNAPSHOT_MANIFEST} deve apontar source: ${REQUIRED_SNAPSHOT_SOURCE}.`);
+  }
+
+  const policy = manifest.policy;
+  if (!isRecord(policy)) {
+    errors.push(`CASCADE-002: ${SNAPSHOT_MANIFEST} deve declarar policy.`);
+    return;
+  }
+
+  const profiles = Array.isArray(policy.profiles_required) ? policy.profiles_required : [];
+  for (const profile of REQUIRED_SNAPSHOT_PROFILES) {
+    if (!profiles.includes(profile)) {
+      errors.push(`CASCADE-002: policy.profiles_required deve incluir ${profile}.`);
+    }
+  }
+  if (snapshotCountPolicy(manifest) < 1) {
+    errors.push("CASCADE-002: policy.snapshots_per_profile deve ser >= 1.");
+  }
+  if (policy.fail_on_diff !== true) {
+    errors.push("CASCADE-002: policy.fail_on_diff deve ser true.");
+  }
+
+  const approvers = Array.isArray(policy.approval_required_for_baseline_update)
+    ? policy.approval_required_for_baseline_update
+    : [];
+  for (const approver of REQUIRED_BASELINE_APPROVERS) {
+    if (!approvers.includes(approver)) {
+      errors.push(`CASCADE-002: baseline update deve exigir aprovação de ${approver}.`);
+    }
+  }
 }
 
 function buildGates(requiresFullRegression: boolean): CascadeGate[] {
@@ -167,6 +352,33 @@ function uniqueSorted(values: string[]) {
   return [...new Set(values)].sort();
 }
 
+function snapshotCountPolicy(manifest: SnapshotManifest) {
+  const value = manifest.policy?.snapshots_per_profile;
+  return typeof value === "number" && Number.isInteger(value) ? value : 0;
+}
+
+function sha256File(path: string) {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function resolveSafePath(root: string, path: string) {
+  const normalized = normalizePath(path);
+  if (normalized.startsWith("/") || normalized.startsWith("../") || normalized.includes("/../")) return undefined;
+  if (/^[a-zA-Z]:\//.test(normalized)) return undefined;
+
+  const fullPath = resolve(root, normalized);
+  const rootPath = resolve(root);
+  return fullPath.startsWith(rootPath) ? fullPath : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function asNonEmptyString(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
 function escapeRegex(value: string) {
   return value.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -228,7 +440,7 @@ function runCli() {
   }
 
   const result = checkVerificationCascade();
-  console.log("verification-cascade: check estrutural.");
+  console.log(`verification-cascade: check estrutural + snapshot-diff (${result.checkedSnapshots} snapshot(s)).`);
   for (const error of result.errors) console.error(`ERROR ${error}`);
   return result.errors.length > 0 ? 1 : 0;
 }

@@ -1,0 +1,8 @@
+snapshot: profile-c-minimal
+profile: C
+certificate: canonical calibration certificate
+instrument: mass standard
+decision_rule: inconclusive_zone
+uncertainty_k: 2
+status: approved
+
