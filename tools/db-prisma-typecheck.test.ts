@@ -1,8 +1,18 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 const repoRoot = process.cwd();
+
+test("turbo typecheck waits for package build to avoid concurrent Prisma generate", () => {
+  const turboConfig = JSON.parse(readFileSync("turbo.json", "utf8")) as {
+    tasks?: { typecheck?: { dependsOn?: string[] } };
+  };
+
+  assert.equal(turboConfig.tasks?.typecheck?.dependsOn?.includes("build"), true);
+});
+
 test("db package typecheck generates and resolves Prisma Client", { timeout: 30_000 }, () => {
   const command = process.platform === "win32" ? (process.env.ComSpec ?? "cmd.exe") : "pnpm";
   const args =
