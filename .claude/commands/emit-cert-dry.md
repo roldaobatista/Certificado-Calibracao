@@ -1,21 +1,40 @@
 ---
-description: Simula emissão de certificado (dry-run) por perfil A/B/C sem persistir nem assinar
+description: Planeja dry-run de emissão de certificado e falha fechado enquanto o pipeline real não existir
+owner: backend-api
+risk_level: blocker
+required_commands: ["pnpm verification-cascade:plan -- --changed apps/api/src/domain/emission/dry-run.ts", "pnpm test:tools"]
 ---
 
-Executa o pipeline de emissão contra o perfil `$ARGUMENTS` (`A`, `B` ou `C`) em modo dry-run.
+# /emit-cert-dry
 
-Passos:
+## Objetivo
 
-1. Carrega fixtures canônicos em `evals/snapshots/<perfil>/input.json`.
-2. Chama `apps/api` em modo dry-run (sem persistência, sem assinatura real, sem QR).
-3. Gera PDF em memória e compara byte-a-byte com snapshot de referência.
-4. Reporta:
-   - Diff de conteúdo (qualquer byte diferente = bloqueio).
-   - Violações de §9 detectadas pelo `regulator`.
-   - Incerteza/decisão do `metrology-calc`.
-   - Normative package vigente.
-5. Se tudo verde, marca execução em `compliance/validation-dossier/evidence/<timestamp>.json`.
+Preparar a simulação de emissão por perfil A/B/C sem persistência, assinatura real ou QR, mantendo fail-closed até o pipeline de emissão existir.
 
-Uso típico: antes de mudar template, engine ou norma, rodar dry para garantir que nada regrediu.
+## Execução
 
-Ver `harness/05-guardrails.md` Gate 7 (full regression) e `harness/14-verification-cascade.md` L4.
+```bash
+pnpm verification-cascade:plan -- --changed apps/api/src/domain/emission/dry-run.ts
+pnpm test:tools
+```
+
+Quando o dry-run real for implementado em V1+, substituir a segunda linha pelo CLI de emissão em modo `--dry-run --profile $ARGUMENTS` e manter o plano L4.
+
+## Evidência
+
+- Registrar plano de verificação gerado pela cascata.
+- Registrar que o dry-run real está indisponível quando não houver endpoint/CLI de emissão.
+- Quando existir implementação, arquivar saída e artefatos em `compliance/validation-dossier/evidence/`.
+
+## Escalonamento
+
+- Tentativa de emissão real fora do pipeline assinado bloqueia release.
+- Divergência de norma escala para `regulator`.
+- Divergência de incerteza escala para `metrology-calc`.
+- Divergência de template ou PDF escala para `web-ui` e `qa-acceptance`.
+
+## Referências
+
+- `harness/05-guardrails.md`
+- `harness/14-verification-cascade.md`
+- `PRD.md` §7.8, §7.9, §13

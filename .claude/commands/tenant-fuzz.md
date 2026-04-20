@@ -1,17 +1,39 @@
 ---
-description: Dispara fuzz cross-tenant para detectar vazamento entre tenants (Gate 5)
+description: Executa fuzz cross-tenant para detectar vazamento entre organizações
+owner: qa-acceptance
+risk_level: blocker
+required_commands: ["pnpm test:tenancy"]
 ---
 
-Roda a suíte de fuzz em `evals/tenancy/` para garantir que não há leak cross-tenant.
+# /tenant-fuzz
 
-Passos:
+## Objetivo
 
-1. Cria 2 tenants sintéticos com dados distintos.
-2. Gera N=500 payloads aleatórios combinando: queries, IDs, tokens, headers.
-3. Para cada payload, tenta ler/escrever no tenant errado via todas as rotas públicas.
-4. Sucesso = 100% das tentativas bloqueadas por RLS + RBAC.
-5. Falha = issue blocker aberta + release suspenso; escala para `db-schema` + `backend-api`.
+Validar Gate 5 de multitenancy com smoke RLS e fuzz determinístico contra leituras e escritas cross-tenant.
 
-Se `$ARGUMENTS` for fornecido, limitar a uma área (`emission`, `audit`, `sync`). Sem argumento, rodar full.
+## Execução
 
-Ver `harness/05-guardrails.md` Gate 5.
+```bash
+pnpm test:tenancy
+```
+
+Se `$ARGUMENTS` indicar uma área (`emission`, `audit` ou `sync`), registrar o filtro na evidência mesmo quando a suíte atual ainda roda completa.
+
+## Evidência
+
+- Registrar saída de `pnpm test:rls` e `pnpm test:fuzz`.
+- Confirmar quantidade de seeds executados.
+- Arquivar finding em `compliance/validation-dossier/findings/` se qualquer payload atravessar tenant.
+
+## Escalonamento
+
+- Qualquer falha bloqueia emissão e release.
+- Vazamento RLS escala para `db-schema`.
+- Vazamento por rota/API escala para `backend-api`.
+- Regressão de cobertura escala para `qa-acceptance` e `product-governance`.
+
+## Referências
+
+- `harness/05-guardrails.md`
+- `evals/tenancy/rls/rls-smoke.test.ts`
+- `evals/tenancy/fuzz/cross-tenant-fuzz.test.ts`

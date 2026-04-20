@@ -47,6 +47,7 @@ run_gate "roadmap-check" ".claude/hooks/roadmap-check.sh"
 run_gate "sync-simulator-check" ".claude/hooks/sync-simulator-check.sh"
 run_gate "cloud-agents-policy-check" ".claude/hooks/cloud-agents-policy-check.sh"
 run_gate "agent-frontmatter-check" ".claude/hooks/agent-frontmatter-check.sh"
+run_gate "slash-commands-check" ".claude/hooks/slash-commands-check.sh"
 
 if [ "$fail" -ne 0 ]; then
   echo ""
