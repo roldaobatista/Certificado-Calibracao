@@ -41,6 +41,7 @@ run_gate "audit-hash-chain" ".claude/hooks/audit-hash-chain.sh"
 run_gate "validation-dossier" ".claude/hooks/validation-dossier.sh"
 run_gate "redundancy-check" ".claude/hooks/redundancy-check.sh"
 run_gate "governance-gate" ".claude/hooks/governance-gate.sh"
+run_gate "escalation-check" ".claude/hooks/escalation-check.sh"
 
 if [ "$fail" -ne 0 ]; then
   echo ""

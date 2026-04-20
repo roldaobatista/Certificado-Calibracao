@@ -67,7 +67,7 @@ Qualquer agente que identifique divergência com outro autoritativo abre entrada
 
 ### Passo 4 — Tiebreaker humano
 Se quorum também empatar:
-- **Tiebreaker designado**: papel humano único — "Responsável Técnico do Produto" — documentado em `adr/0002-tiebreaker-designation.md`.
+- **Tiebreaker designado**: papel humano único — "Responsável Técnico do Produto" — documentado em `adr/0009-tiebreaker-designation.md`.
 - Decisão do tiebreaker é final para aquela escalation.
 - Prazo total (passos 1–4): **48h úteis**.
 
@@ -106,7 +106,19 @@ Em incidente de segurança/LGPD: SLAs reduzidos a **1h / 4h / 24h** respectivame
 - Não substitui pareceres jurídicos — apenas formaliza como decidir quando o parecer não basta.
 - Não bypassa CODEOWNERS — os dois mecanismos se somam.
 
-## 7. Exemplo resolvido (caso de uso)
+## 7. Gate executável
+
+`pnpm escalation-check` valida:
+
+- `compliance/escalations/README.md` e `_template.md`;
+- ADR de tiebreaker em `adr/0009-tiebreaker-designation.md`;
+- frontmatter mínimo para divergências D1-D9;
+- seções obrigatórias de posições, impacto, resolução, assinaturas e aprendizado;
+- bloqueio fail-closed para qualquer escalation versionada com `status: open`.
+
+O gate entra em `pnpm check:all` e no pre-commit quando arquivos P0-8 mudam.
+
+## 8. Exemplo resolvido (caso de uso)
 
 `regulator` diz que OS com padrão fora da faixa bloqueia emissão; `backend-api` propõe cache de 24h da decisão normativa para performance.
 - D2 aberta.

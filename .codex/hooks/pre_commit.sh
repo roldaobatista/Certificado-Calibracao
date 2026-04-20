@@ -3,7 +3,7 @@
 set -e
 # Espelha .claude/hooks/*. Gates duros rodam também pelo git hook canônico.
 # Gates duros em git hooks rodam independentes da CLI escolhida.
-for h in copy-lint ownership-lint tenant-safe-sql audit-hash-chain validation-dossier; do
+for h in copy-lint ownership-lint tenant-safe-sql audit-hash-chain validation-dossier redundancy-check governance-gate escalation-check; do
   if [ -f ".claude/hooks/${h}.sh" ]; then
     bash ".claude/hooks/${h}.sh" || exit 1
   fi

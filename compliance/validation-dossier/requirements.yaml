@@ -518,6 +518,25 @@
     - compliance/regulator-decisions/**
     - harness/15-redundancy-and-loops.md
 
+- id: REQ-HARNESS-P0-8-ESCALATION-MATRIX
+  source:
+    doc: harness/12-escalation-matrix.md
+    section: P0-8
+  description: Matriz de escalonamento deve ter registro canônico, tiebreaker designado, template versionado e gate fail-closed para divergências abertas.
+  validation_status: validated
+  linked_specs:
+    - specs/0006-escalation-matrix.md
+  linked_tests:
+    - tools/escalation-check.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P0-8-ESCALATION-MATRIX/
+  owner: product-governance
+  criticality: blocker
+  critical_paths:
+    - compliance/escalations/**
+    - tools/escalation-check.ts
+    - harness/12-escalation-matrix.md
+    - adr/0009-tiebreaker-designation.md
+
 - id: REQ-HARNESS-P0-2-NORMATIVE-PACKAGE
   source:
     doc: harness/04-compliance-pipeline.md
