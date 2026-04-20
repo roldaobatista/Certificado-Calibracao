@@ -16,17 +16,25 @@ Atua como gate final de qualquer merge que toque áreas regulatoriamente sensív
 Arquivo `.github/CODEOWNERS` (ou equivalente):
 
 ```
-# Áreas que exigem aprovação do product-governance
-apps/api/src/domain/emission/**       @product-governance
-apps/api/src/domain/audit/**          @product-governance @lgpd-security
-packages/engine-uncertainty/**        @product-governance @metrology-calc
-packages/normative-rules/**           @product-governance @regulator
-packages/audit-log/**                 @product-governance @db-schema @lgpd-security
-compliance/**                         @product-governance
-PRD.md                                @product-governance
+# Áreas que exigem aprovação regulatória.
+# O owner GitHub precisa existir; os papéis de agente ficam em agent-owners.
+# agent-owners apps/api/src/domain/emission/** @product-governance
+apps/api/src/domain/emission/**       @roldaobatista
+# agent-owners apps/api/src/domain/audit/** @product-governance @lgpd-security
+apps/api/src/domain/audit/**          @roldaobatista
+# agent-owners packages/engine-uncertainty/** @product-governance @metrology-calc
+packages/engine-uncertainty/**        @roldaobatista
+# agent-owners packages/normative-rules/** @product-governance @regulator
+packages/normative-rules/**           @roldaobatista
+# agent-owners packages/audit-log/** @product-governance @db-schema @lgpd-security
+packages/audit-log/**                 @roldaobatista
+# agent-owners compliance/** @product-governance
+compliance/**                         @roldaobatista
+# agent-owners PRD.md @product-governance
+PRD.md                                @roldaobatista
 ```
 
-Branch protection exige aprovação dos CODEOWNERS antes do merge.
+Branch protection exige aprovação dos CODEOWNERS antes do merge. O GitHub valida usuários/times reais; os papéis de agente continuam sendo validados por `pnpm governance-gate` via metadados `agent-owners`.
 
 ## Checklist de PR (gerado automaticamente)
 

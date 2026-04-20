@@ -10,14 +10,22 @@ const repoRoot = process.cwd();
 const scriptPath = join(repoRoot, "tools", "governance-gate.ts");
 const tsxLoaderUrl = pathToFileURL(join(repoRoot, "node_modules", "tsx", "dist", "loader.mjs")).href;
 
-const validCodeowners = `# Areas que exigem aprovacao do product-governance
-apps/api/src/domain/emission/**       @product-governance
-apps/api/src/domain/audit/**          @product-governance @lgpd-security
-packages/engine-uncertainty/**        @product-governance @metrology-calc
-packages/normative-rules/**           @product-governance @regulator
-packages/audit-log/**                 @product-governance @db-schema @lgpd-security
-compliance/**                         @product-governance
-PRD.md                                @product-governance
+const validCodeowners = `# Areas que exigem aprovacao regulatoria.
+# O owner GitHub precisa existir; os papeis de agente ficam em agent-owners.
+# agent-owners apps/api/src/domain/emission/** @product-governance
+apps/api/src/domain/emission/**       @roldaobatista
+# agent-owners apps/api/src/domain/audit/** @product-governance @lgpd-security
+apps/api/src/domain/audit/**          @roldaobatista
+# agent-owners packages/engine-uncertainty/** @product-governance @metrology-calc
+packages/engine-uncertainty/**        @roldaobatista
+# agent-owners packages/normative-rules/** @product-governance @regulator
+packages/normative-rules/**           @roldaobatista
+# agent-owners packages/audit-log/** @product-governance @db-schema @lgpd-security
+packages/audit-log/**                 @roldaobatista
+# agent-owners compliance/** @product-governance
+compliance/**                         @roldaobatista
+# agent-owners PRD.md @product-governance
+PRD.md                                @roldaobatista
 `;
 
 const validPullRequestTemplate = `## Governance checklist (product-governance only)
@@ -105,8 +113,8 @@ test("passes when CODEOWNERS, PR checklist and product-governance paths match po
 test("fails when a critical CODEOWNERS rule is missing a required owner", () => {
   const root = makeWorkspace({
     codeowners: validCodeowners.replace(
-      "packages/audit-log/**                 @product-governance @db-schema @lgpd-security",
-      "packages/audit-log/**                 @db-schema @lgpd-security",
+      "# agent-owners packages/audit-log/** @product-governance @db-schema @lgpd-security",
+      "# agent-owners packages/audit-log/** @db-schema @lgpd-security",
     ),
   });
   try {
@@ -116,6 +124,24 @@ test("fails when a critical CODEOWNERS rule is missing a required owner", () => 
     assert.match(result.stdout + result.stderr, /GOV-001/);
     assert.match(result.stdout + result.stderr, /packages\/audit-log\/\*\*/);
     assert.match(result.stdout + result.stderr, /@product-governance/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("fails when a critical CODEOWNERS rule is missing the real GitHub owner", () => {
+  const root = makeWorkspace({
+    codeowners: validCodeowners.replace(
+      "packages/normative-rules/**           @roldaobatista",
+      "packages/normative-rules/**           @unknown-owner",
+    ),
+  });
+  try {
+    const result = runGovernanceGate(root);
+
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stdout + result.stderr, /GOV-001/);
+    assert.match(result.stdout + result.stderr, /GitHub owner real @roldaobatista/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
