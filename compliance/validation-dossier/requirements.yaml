@@ -537,6 +537,27 @@
     - harness/12-escalation-matrix.md
     - adr/0009-tiebreaker-designation.md
 
+- id: REQ-HARNESS-P0-12-EXTERNAL-AUDITORS
+  source:
+    doc: harness/16-agentes-auditores-externos.md
+    section: P0-12
+  description: Três auditores externos devem ter separação de funções, templates de parecer e gate fail-closed para pareceres L5 de release.
+  validation_status: validated
+  linked_specs:
+    - specs/0007-external-auditors.md
+  linked_tests:
+    - tools/external-auditors-gate.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P0-12-EXTERNAL-AUDITORS/
+  owner: product-governance
+  criticality: blocker
+  critical_paths:
+    - .claude/agents/metrology-auditor.md
+    - .claude/agents/legal-counsel.md
+    - .claude/agents/senior-reviewer.md
+    - compliance/audits/**
+    - tools/external-auditors-gate.ts
+    - harness/16-agentes-auditores-externos.md
+
 - id: REQ-HARNESS-P0-2-NORMATIVE-PACKAGE
   source:
     doc: harness/04-compliance-pipeline.md
