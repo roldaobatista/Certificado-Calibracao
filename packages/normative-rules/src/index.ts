@@ -14,3 +14,16 @@
 // - Verificações de §16 (conformidade sistêmica ISO/IEC 17025).
 
 export const NORMATIVE_RULES_VERSION = "0.0.1-scaffold";
+
+export {
+  assertSignedNormativePackage,
+  hashNormativePackage,
+  loadSignedNormativePackageFromDirectory,
+  parseNormativePackageYaml,
+  signNormativePackage,
+  verifySignedNormativePackage,
+  type NormativePackage,
+  type NormativePackageVerification,
+  type NormativeRuleSeverity,
+  type SignedNormativePackageInput,
+} from "./package.js";

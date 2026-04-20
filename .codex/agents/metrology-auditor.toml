@@ -1,7 +1,7 @@
 # .codex/agents/metrology-auditor.toml
-# Espelho do agente canônico em .claude/agents/metrology-auditor.md.
-# Editar AGENTS.md + .claude/agents/metrology-auditor.md primeiro; re-sincronizar aqui.
-# Ownership (paths permitidos/bloqueados) está em .claude/agents/metrology-auditor.md.
+# Gerado por tools/sync-agents.ts a partir de .claude/agents/metrology-auditor.md.
+# Não editar manualmente; edite o agente Claude e rode pnpm sync:agents.
+# Ownership (paths permitidos/bloqueados) está em .claude/agents/*.md.
 
 name = "metrology-auditor"
 description = "Pré-auditoria ISO/IEC 17025 e CGCRE; simula auditor real; bloqueia release se encontra não-conformidade"

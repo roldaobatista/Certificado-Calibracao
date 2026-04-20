@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # Codex CLI hook — espelho de .claude/hooks/. Mesmos gates duros.
-# Implementação completa nas camadas P0 dos runbooks.
 set -e
-# Espelha .claude/hooks/copy-lint.sh, tenant-safe-sql.sh, audit-hash-chain.sh
+# Espelha .claude/hooks/*. Gates duros rodam também pelo git hook canônico.
 # Gates duros em git hooks rodam independentes da CLI escolhida.
-for h in copy-lint tenant-safe-sql audit-hash-chain; do
-  if [ -x ".claude/hooks/${h}.sh" ]; then
+for h in copy-lint ownership-lint tenant-safe-sql audit-hash-chain validation-dossier; do
+  if [ -f ".claude/hooks/${h}.sh" ]; then
     bash ".claude/hooks/${h}.sh" || exit 1
   fi
 done

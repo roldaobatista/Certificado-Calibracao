@@ -1,7 +1,7 @@
 # .codex/agents/qa-acceptance.toml
-# Espelho do agente canônico em .claude/agents/qa-acceptance.md.
-# Editar AGENTS.md + .claude/agents/qa-acceptance.md primeiro; re-sincronizar aqui.
-# Ownership (paths permitidos/bloqueados) está em .claude/agents/qa-acceptance.md.
+# Gerado por tools/sync-agents.ts a partir de .claude/agents/qa-acceptance.md.
+# Não editar manualmente; edite o agente Claude e rode pnpm sync:agents.
+# Ownership (paths permitidos/bloqueados) está em .claude/agents/*.md.
 
 name = "qa-acceptance"
 description = "Testes por AC do PRD §13, fixtures, property tests, evidência assinada no dossiê"

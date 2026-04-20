@@ -5,22 +5,24 @@
 
 ## Status
 
-- **Versão:** 0.1.0-bootstrap (2026-04-19)
-- **P0-4:** `[ ] Proposto` — implementação dos 7 gates pendente.
+- **Versão:** 0.2.0-bootstrap (2026-04-20)
+- **P0-4:** `[~] Em implementação` — Gates 1, 2, 3, 4, 5, 6 funcionais em primeiras fatias; Gate 7 tem dossiê e seleção de regressão, mas snapshot-diff e flake gate ainda pendem.
 
 ## Gate 1 — Tenant-safe SQL linter
 
 **Regra:** nenhum SQL cru em `packages/db` ou `apps/api` pode faltar filtro de tenant.
 
-- **Implementação:** lint customizado em `packages/db/lint/tenant-safe-sql.ts` + hook PreCommit (`.claude/hooks/tenant-safe-sql.sh`) + CI job.
+- **Implementação:** lint customizado em `packages/db/tools/tenant-lint/src/cli.ts` + hook PreCommit (`.claude/hooks/tenant-safe-sql.sh`) + CI job futuro.
+- **Como rodar local:** `pnpm tenant-lint` ou `pnpm tenant-lint apps/api/src/foo.ts packages/db/prisma/migrations/001/migration.sql`.
 - **Owner:** `db-schema`.
-- **Falha:** commit bloqueado.
+- **Falha:** commit bloqueado com `TENANT-LINT: query em <tabela> não filtra por organization_id`.
 
 ## Gate 2 — RLS policy tests
 
 **Regra:** cada tabela multitenant tem policy RLS testada em `evals/tenancy/rls/`.
 
-- **Implementação:** vitest roda queries com sessão de tenant A tentando ler dados do tenant B.
+- **Implementação:** smoke executável em `evals/tenancy/rls/rls-smoke.sql` + `evals/tenancy/rls/rls-smoke.test.ts`.
+- **Como rodar local:** `docker compose up -d postgres && pnpm test:rls`.
 - **Owner:** `db-schema` + `qa-acceptance`.
 - **Falha:** release bloqueado.
 
@@ -28,7 +30,7 @@
 
 **Regra:** `audit_log` é append-only com `hash = hash(prev_hash || payload)`.
 
-- **Implementação:** job diário recomputa a cadeia + compara com checkpoint assinado em KMS.
+- **Implementação:** verificador determinístico em `packages/audit-log/src/verify.ts` + CLI `pnpm audit-chain:verify <audit.jsonl>` + hook PreCommit (`.claude/hooks/audit-hash-chain.sh`) para artefatos JSONL.
 - **Owner:** `db-schema` + `lgpd-security`.
 - **Falha:** incidente automático + runbook `harness/13-runbooks-recovery.md`.
 
@@ -36,7 +38,7 @@
 
 **Regra:** bucket de certificados emitidos e de audit checkpoints tem *object lock* / retenção imutável.
 
-- **Implementação:** validação em `terraform plan` + smoke test pós-deploy.
+- **Implementação:** scanner estático de Terraform em `tools/worm-check.ts` (`pnpm worm-check`) para S3 Object Lock, Backblaze B2 File Lock e GCS retention lock + smoke test pós-deploy futuro.
 - **Owner:** `lgpd-security` + `product-governance`.
 - **Falha:** deploy bloqueado (*fail-closed*).
 
@@ -44,7 +46,7 @@
 
 **Regra:** suíte de fuzz gera 500 payloads cross-tenant; 100% bloqueados por RLS + RBAC.
 
-- **Implementação:** `evals/tenancy/fuzz/` + slash-command `/tenant-fuzz`.
+- **Implementação:** fuzz RLS determinístico em `evals/tenancy/fuzz/cross-tenant-fuzz.sql` + `pnpm test:fuzz`; RBAC aplicacional pendente até auth/RBAC existir em `apps/api`.
 - **Owner:** `qa-acceptance`.
 - **Frequência:** semanal + antes de release.
 
@@ -54,7 +56,7 @@
 - Regra de emissão só em `apps/api/src/domain/emission/**`.
 - `apps/web`, `apps/portal`, `apps/android` não importam `packages/normative-rules` ou `packages/engine-uncertainty`.
 
-- **Implementação:** lint customizado em `packages/db/lint/ownership.ts`.
+- **Implementação:** lint customizado em `packages/ownership-lint/src/cli.ts` + hook PreCommit (`.claude/hooks/ownership-lint.sh`).
 - **Owner:** `backend-api`.
 - **Falha:** build bloqueado com mensagem de ownership violado.
 
@@ -70,10 +72,11 @@
 - `packages/audit-log/**`
 
 **Componentes:**
-- Full regression suite (REQs `blocker` + `high`).
-- Snapshot-diff de 30 certificados canônicos (10 por perfil A/B/C).
+- Full regression suite (REQs `blocker` + `high`) selecionada por `tools/validation-dossier.ts critical-tests`.
+- Dossiê formal em `compliance/validation-dossier/requirements.yaml` + `traceability-matrix.yaml`.
+- Snapshot-diff de 30 certificados canônicos (10 por perfil A/B/C) — pendente até renderer de certificado existir.
 - Property tests com N por criticidade (`blocker=500 seeds`).
-- Flake gate noturno (10× por noite; flake > 0% em blocker = issue SLA 48h).
+- Flake gate noturno (10× por noite; flake > 0% em blocker = issue SLA 48h) — pendente de CI agendado.
 
 **Owner:** `qa-acceptance` + `product-governance`.
 **Falha:** release bloqueado.
@@ -93,7 +96,7 @@ Gate 7 (full regression) — consome todos os anteriores como sinal
 
 ## Prioridade de implementação
 
-1. **Gate 6** — imediato, lint estático, hook PreToolUse.
+1. **Gate 6** — imediato, lint estático, hook PreCommit.
 2. **Gate 1** — imediato após Prisma scaffold (P0-1).
 3. **Gates 2, 3** — com primeira migration de audit log.
 4. **Gate 5** — com primeira área blocker implementada.

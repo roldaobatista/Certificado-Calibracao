@@ -1,7 +1,7 @@
 # .codex/agents/android.toml
-# Espelho do agente canônico em .claude/agents/android.md.
-# Editar AGENTS.md + .claude/agents/android.md primeiro; re-sincronizar aqui.
-# Ownership (paths permitidos/bloqueados) está em .claude/agents/android.md.
+# Gerado por tools/sync-agents.ts a partir de .claude/agents/android.md.
+# Não editar manualmente; edite o agente Claude e rode pnpm sync:agents.
+# Ownership (paths permitidos/bloqueados) está em .claude/agents/*.md.
 
 name = "android"
 description = "Kotlin offline-first, SQLCipher, sync idempotente cliente"

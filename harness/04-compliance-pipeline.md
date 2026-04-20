@@ -34,6 +34,13 @@ compliance/normative-packages/
 ### Reprodutibilidade histórica
 - Rerender de certificado antigo **reaplica o pacote da época** (não o atual). Isso é *invariant*; teste de regressão em `evals/ac/`.
 
+### Implementação bootstrap
+
+- `packages/normative-rules/src/package.ts` calcula hash canônico SHA-256 do pacote e verifica assinatura Ed25519.
+- `loadSignedNormativePackageFromDirectory()` consome `package.yaml`, `package.sha256` e `package.sig`.
+- Pacote sem hash, assinatura ou chave pública falha fechado.
+- KMS real e publicação de pacote baseline aprovado entram na próxima fatia; nenhuma chave privada é versionada.
+
 ---
 
 ## Parte B — Validation dossier
@@ -67,7 +74,14 @@ compliance/validation-dossier/
   evidence_path: compliance/validation-dossier/evidence/REQ-§9.3-BLOCK-PADRAO-VENCIDO/
   owner: regulator
   criticality: blocker
+  critical_paths: [packages/normative-rules/**]
 ```
+
+Implementação bootstrap:
+
+- `pnpm validation-dossier:write` gera `traceability-matrix.yaml` e `coverage-report.md`.
+- `pnpm validation-dossier:check` valida schema, links para specs/testes e divergência manual da matriz.
+- `tsx tools/validation-dossier.ts critical-tests <paths...>` retorna os testes de regressão para REQs `blocker`/`high` quando uma área crítica muda.
 
 ### Regras de gate
 

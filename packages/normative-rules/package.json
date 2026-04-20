@@ -16,9 +16,16 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/*.test.ts",
     "clean": "rm -rf dist .turbo"
   },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.14.2",
+    "tsx": "^4.19.2",
     "typescript": "^5.5.4"
   }
 }

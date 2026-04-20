@@ -1,7 +1,7 @@
 # .codex/agents/copy-compliance.toml
-# Espelho do agente canônico em .claude/agents/copy-compliance.md.
-# Editar AGENTS.md + .claude/agents/copy-compliance.md primeiro; re-sincronizar aqui.
-# Ownership (paths permitidos/bloqueados) está em .claude/agents/copy-compliance.md.
+# Gerado por tools/sync-agents.ts a partir de .claude/agents/copy-compliance.md.
+# Não editar manualmente; edite o agente Claude e rode pnpm sync:agents.
+# Ownership (paths permitidos/bloqueados) está em .claude/agents/*.md.
 
 name = "copy-compliance"
 description = "Lint de claims regulatórios em site, portal, e-mails, docs comerciais; mantém claim-set aprovado"

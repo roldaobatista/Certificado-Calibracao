@@ -1,7 +1,7 @@
 # .codex/agents/metrology-calc.toml
-# Espelho do agente canônico em .claude/agents/metrology-calc.md.
-# Editar AGENTS.md + .claude/agents/metrology-calc.md primeiro; re-sincronizar aqui.
-# Ownership (paths permitidos/bloqueados) está em .claude/agents/metrology-calc.md.
+# Gerado por tools/sync-agents.ts a partir de .claude/agents/metrology-calc.md.
+# Não editar manualmente; edite o agente Claude e rode pnpm sync:agents.
+# Ownership (paths permitidos/bloqueados) está em .claude/agents/*.md.
 
 name = "metrology-calc"
 description = "Engine de incerteza k=2, balanço, regra de decisão ILAC G8"

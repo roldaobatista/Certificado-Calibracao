@@ -38,6 +38,7 @@ run_gate "copy-lint"        ".claude/hooks/copy-lint.sh"
 run_gate "ownership-lint"   ".claude/hooks/ownership-lint.sh"
 run_gate "tenant-safe-sql"  ".claude/hooks/tenant-safe-sql.sh"
 run_gate "audit-hash-chain" ".claude/hooks/audit-hash-chain.sh"
+run_gate "validation-dossier" ".claude/hooks/validation-dossier.sh"
 
 if [ "$fail" -ne 0 ]; then
   echo ""

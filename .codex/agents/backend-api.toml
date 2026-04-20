@@ -1,7 +1,7 @@
 # .codex/agents/backend-api.toml
-# Espelho do agente canônico em .claude/agents/backend-api.md.
-# Editar AGENTS.md + .claude/agents/backend-api.md primeiro; re-sincronizar aqui.
-# Ownership (paths permitidos/bloqueados) está em .claude/agents/backend-api.md.
+# Gerado por tools/sync-agents.ts a partir de .claude/agents/backend-api.md.
+# Não editar manualmente; edite o agente Claude e rode pnpm sync:agents.
+# Ownership (paths permitidos/bloqueados) está em .claude/agents/*.md.
 
 name = "backend-api"
 description = "Backend técnico — auth, RBAC, workflows de OS, emissão oficial, assinatura/QR, reemissão, sync server-side"

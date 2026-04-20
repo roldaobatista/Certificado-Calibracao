@@ -1,7 +1,7 @@
 # .codex/agents/web-ui.toml
-# Espelho do agente canônico em .claude/agents/web-ui.md.
-# Editar AGENTS.md + .claude/agents/web-ui.md primeiro; re-sincronizar aqui.
-# Ownership (paths permitidos/bloqueados) está em .claude/agents/web-ui.md.
+# Gerado por tools/sync-agents.ts a partir de .claude/agents/web-ui.md.
+# Não editar manualmente; edite o agente Claude e rode pnpm sync:agents.
+# Ownership (paths permitidos/bloqueados) está em .claude/agents/*.md.
 
 name = "web-ui"
 description = "Next.js SSR/SSG — wizard de revisão, back-office, portal do cliente, e-mails transacionais"

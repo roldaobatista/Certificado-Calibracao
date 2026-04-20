@@ -8,8 +8,8 @@
 //   pnpm exec tsx tools/check-agents-drift.ts
 //   pnpm exec tsx tools/check-agents-drift.ts --json
 //
-// Geração automática a partir de spec canônica fica para sessão futura
-// (tools/sync-agents.ts). Este script só detecta — não corrige.
+// Geração automática dos espelhos Codex: tools/sync-agents.ts.
+// Este script só detecta drift — não corrige.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";

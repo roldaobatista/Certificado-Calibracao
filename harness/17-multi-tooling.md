@@ -45,12 +45,12 @@ AGENTS.md                    ← FONTE DE VERDADE (universal)
 
 ## Sincronização automática
 
-Script `tools/sync-agents.ts` (a ser implementado como parte do bootstrap):
-- Lê a matriz de agentes em `harness/03-agentes.md` + definições em `harness/16-*.md`.
-- Gera `.claude/agents/<nome>.md` com frontmatter Claude.
-- Gera `.codex/agents/<nome>.toml` com frontmatter Codex (`name`, `model`, `model_reasoning_effort`, `sandbox_mode`, `mcp_servers`).
-- Compara diff; se humano editou manualmente, falha com aviso.
-- Rodado em CI e em hook `PreCommit`.
+Script `tools/sync-agents.ts`:
+- Lê `.claude/agents/<nome>.md` como spec operacional canônica do papel.
+- Gera `.codex/agents/<nome>.toml` com o schema suportado pelo Codex CLI 0.121+ (`name`, `description`, `developer_instructions`).
+- Não gera campos rejeitados pelo Codex CLI atual (`paths`, `model`, `sandbox_mode`, `mcp_servers` por agente).
+- `--check` compara diff e falha se o espelho Codex estiver desatualizado ou se houver TOML órfão.
+- `pnpm check:all` roda `sync:agents:check` + drift check.
 
 ## MCP servers compartilhados
 

@@ -1,7 +1,7 @@
 # .codex/agents/regulator.toml
-# Espelho do agente canônico em .claude/agents/regulator.md.
-# Editar AGENTS.md + .claude/agents/regulator.md primeiro; re-sincronizar aqui.
-# Ownership (paths permitidos/bloqueados) está em .claude/agents/regulator.md.
+# Gerado por tools/sync-agents.ts a partir de .claude/agents/regulator.md.
+# Não editar manualmente; edite o agente Claude e rode pnpm sync:agents.
+# Ownership (paths permitidos/bloqueados) está em .claude/agents/*.md.
 
 name = "regulator"
 description = "Interpreta DOQ-CGCRE, NIT-DICLA, Portaria Inmetro 157/2022, ILAC P10/G8, RTM; valida PRD §9 e §16"

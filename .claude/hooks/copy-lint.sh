@@ -3,6 +3,8 @@
 # Claim de severity=error bloqueia commit (fail-closed).
 # Owner: copy-compliance. Referência: packages/copy-lint + compliance/approved-claims.md.
 set -e
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$HOOK_DIR/lib.sh"
 
 # Paths cobertos. Se não houver delta relevante, passa silencioso.
 STAGED=$(git diff --cached --name-only --diff-filter=AM 2>/dev/null || true)
@@ -21,4 +23,4 @@ fi
 
 echo "[copy-lint] varrendo delta..."
 # shellcheck disable=SC2086
-pnpm --filter @afere/copy-lint exec node --import tsx src/cli.ts $FILES
+run_pnpm --filter @afere/copy-lint exec node --import tsx src/cli.ts $FILES

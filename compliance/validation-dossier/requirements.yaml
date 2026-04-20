@@ -1,0 +1,118 @@
+- id: REQ-PRD-13-13-RLS-ISOLATION
+  source:
+    doc: PRD.md
+    section: "§13.13"
+  description: Multitenancy isolada por RLS deve ter testes automatizados de cross-tenant leak com zero vazamentos.
+  linked_specs:
+    - specs/0001-harness-compliance-gates.md
+  linked_tests:
+    - evals/tenancy/rls/rls-smoke.test.ts
+    - evals/tenancy/fuzz/cross-tenant-fuzz.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-13-RLS-ISOLATION/
+  owner: db-schema
+  criticality: blocker
+  critical_paths:
+    - packages/db/**
+    - apps/api/src/domain/auth/**
+    - apps/api/src/domain/emission/**
+    - evals/tenancy/**
+
+- id: REQ-PRD-13-18-VALIDATION-DOSSIER
+  source:
+    doc: PRD.md
+    section: "§13.18"
+  description: Plano de validação do software deve manter rastreabilidade requisito-teste, registro de evidências e procedimento de revalidação.
+  linked_specs:
+    - specs/0001-harness-compliance-gates.md
+  linked_tests:
+    - tools/validation-dossier.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-18-VALIDATION-DOSSIER/
+  owner: qa-acceptance
+  criticality: blocker
+  critical_paths:
+    - compliance/validation-dossier/**
+    - tools/validation-dossier.ts
+    - specs/**
+
+- id: REQ-PRD-13-19-TENANT-SQL-LINTER
+  source:
+    doc: PRD.md
+    section: "§13.19"
+  description: "Linter de PR deve rejeitar SQL e policies RLS que toquem dados multitenant sem `organization_id`."
+  linked_specs:
+    - specs/0001-harness-compliance-gates.md
+  linked_tests:
+    - packages/db/tools/tenant-lint/src/lint.test.ts
+    - packages/db/tools/tenant-lint/src/cli.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-19-TENANT-SQL-LINTER/
+  owner: db-schema
+  criticality: blocker
+  critical_paths:
+    - packages/db/**
+    - apps/api/src/**
+
+- id: REQ-PRD-13-19-AUDIT-HASH-CHAIN
+  source:
+    doc: PRD.md
+    section: "§13.19"
+  description: Audit log deve ser verificável por hash-chain append-only e detectar adulteração de payload ou encadeamento.
+  linked_specs:
+    - specs/0001-harness-compliance-gates.md
+  linked_tests:
+    - packages/audit-log/src/verify.test.ts
+    - packages/audit-log/src/cli.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-19-AUDIT-HASH-CHAIN/
+  owner: db-schema
+  criticality: blocker
+  critical_paths:
+    - packages/audit-log/**
+    - apps/api/src/domain/audit/**
+
+- id: REQ-PRD-13-19-WORM-STORAGE-CHECK
+  source:
+    doc: PRD.md
+    section: "§13.19"
+  description: Object storage de certificados e checkpoints deve bloquear buckets regulatórios sem retenção imutável.
+  linked_specs:
+    - specs/0001-harness-compliance-gates.md
+  linked_tests:
+    - tools/worm-check.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-19-WORM-STORAGE-CHECK/
+  owner: lgpd-security
+  criticality: high
+  critical_paths:
+    - infra/**
+    - tools/worm-check.ts
+
+- id: REQ-HARNESS-P0-13-AGENT-SYNC
+  source:
+    doc: harness/17-multi-tooling.md
+    section: "P0-13"
+  description: "`.codex/agents/*.toml` deve ser gerado a partir de `.claude/agents/*.md` sem drift manual."
+  linked_specs:
+    - specs/0001-harness-compliance-gates.md
+  linked_tests:
+    - tools/sync-agents.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P0-13-AGENT-SYNC/
+  owner: product-governance
+  criticality: high
+  critical_paths:
+    - .claude/agents/**
+    - .codex/agents/**
+    - tools/sync-agents.ts
+
+- id: REQ-HARNESS-P0-2-NORMATIVE-PACKAGE
+  source:
+    doc: harness/04-compliance-pipeline.md
+    section: "P0-2"
+  description: Pacote normativo versionado deve ter hash canônico e assinatura verificável; pacote unsigned falha fechado.
+  linked_specs:
+    - specs/0001-harness-compliance-gates.md
+  linked_tests:
+    - packages/normative-rules/src/package.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P0-2-NORMATIVE-PACKAGE/
+  owner: regulator
+  criticality: blocker
+  critical_paths:
+    - packages/normative-rules/**
+    - compliance/normative-packages/**
