@@ -322,6 +322,21 @@ requirements:
       - compliance/runbooks/**
       - tools/runbook-check.ts
       - harness/13-runbooks-recovery.md
+  - id: REQ-HARNESS-P1-1-SYNC-SIMULATOR
+    source: harness/08-sync-simulator.md P1-1
+    criticality: high
+    owner: qa-acceptance
+    linked_specs:
+      - specs/0009-sync-simulator.md
+    linked_tests:
+      - evals/sync-simulator/sync-simulator.test.ts
+      - tools/sync-simulator-check.test.ts
+    planned_tests: []
+    evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P1-1-SYNC-SIMULATOR/
+    critical_paths:
+      - evals/sync-simulator/**
+      - tools/sync-simulator-check.ts
+      - harness/08-sync-simulator.md
   - id: REQ-HARNESS-P1-4-VERTICAL-ROADMAP
     source: harness/10-roadmap.md P1-4
     criticality: high

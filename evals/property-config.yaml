@@ -8,3 +8,13 @@
   test: evals/tenancy/fuzz/cross-tenant-fuzz.test.ts
   command: pnpm test:fuzz
   report_path: evals/tenancy/fuzz/reports/
+- req: REQ-HARNESS-P1-1-SYNC-SIMULATOR
+  criticality: high
+  N: 100
+  canonical_seeds:
+    - 3735928559
+    - 3405691582
+    - 324508639
+  test: evals/sync-simulator/sync-simulator.test.ts
+  command: pnpm test:sync-simulator
+  report_path: evals/sync-simulator/reports/
