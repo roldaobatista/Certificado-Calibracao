@@ -478,6 +478,24 @@
     - tools/runbook-check.ts
     - harness/13-runbooks-recovery.md
 
+- id: REQ-HARNESS-P0-10-VERIFICATION-CASCADE
+  source:
+    doc: harness/14-verification-cascade.md
+    section: "P0-10"
+  description: Cascata L0-L5 deve planejar full regression por área crítica, exigir snapshot-diff em L4, validar pareceres L5 e registrar propagação bidirecional.
+  validation_status: validated
+  linked_specs:
+    - specs/0004-verification-cascade.md
+  linked_tests:
+    - tools/verification-cascade.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P0-10-VERIFICATION-CASCADE/
+  owner: qa-acceptance
+  criticality: blocker
+  critical_paths:
+    - tools/verification-cascade.ts
+    - compliance/verification-log/**
+    - harness/14-verification-cascade.md
+
 - id: REQ-HARNESS-P0-2-NORMATIVE-PACKAGE
   source:
     doc: harness/04-compliance-pipeline.md

@@ -118,6 +118,16 @@ Cada propagação vira entrada em `compliance/verification-log/<REQ-id>.yaml`:
 
 ---
 
+## Implementação bootstrap
+
+- `tools/verification-cascade.ts` gera plano determinístico para arquivos alterados.
+- `pnpm verification-cascade:plan -- --changed <arquivo>` identifica áreas críticas, full regression e snapshot-diff obrigatório.
+- `pnpm exec tsx tools/verification-cascade.ts release-audits --release <versao>` valida os 3 pareceres L5 em `compliance/audits/metrology|legal|code/`.
+- `compliance/verification-log/` é o diretório canônico para registros de propagação e re-auditoria.
+- `pnpm verification-cascade:check` valida a presença do registro canônico e entra em `pnpm check:all`.
+
+---
+
 ## Matriz resumida
 
 | Nível | Auditor humano | Auditor automático | Bloqueia merge? |
