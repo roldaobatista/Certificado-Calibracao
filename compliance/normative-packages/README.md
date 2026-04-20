@@ -9,7 +9,23 @@ approved/<versao>/
 ├─ package.yaml
 ├─ package.sha256
 ├─ package.sig
+├─ package.public-key.pem
+├─ package.signature.yaml
 └─ CHANGELOG.md
 ```
 
-O verificador em `@afere/normative-rules` exige `package.sha256` e `package.sig`; pacote unsigned falha fechado. A assinatura real por KMS ainda é pendente e não deve armazenar chave privada neste repositório.
+O índice histórico vive em:
+
+```text
+releases/manifest.yaml
+```
+
+O verificador em `@afere/normative-rules` exige `package.sha256`, `package.sig`, `package.public-key.pem` e `package.signature.yaml`; pacote unsigned ou sem chave pública falha fechado. `pnpm test:tools` valida o baseline aprovado contra `releases/manifest.yaml`.
+
+## Baseline atual
+
+- `approved/2026-04-20-baseline-v0.1.0/`
+- Hash publicado: `b8a3f72a16bb9e7e70f4d52f084b384f830d2af3c0a7ad80f6ef3225d7aaa531`
+- Chave: `bootstrap-ed25519-2026-04-20-v1`
+
+A assinatura real por KMS ainda é pendente e não deve armazenar chave privada neste repositório. Este baseline usa chave Ed25519 bootstrap offline, com apenas chave pública e metadados versionados.

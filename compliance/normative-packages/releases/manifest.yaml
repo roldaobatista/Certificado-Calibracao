@@ -1,0 +1,8 @@
+generated_at: "2026-04-20T00:00:00.000Z"
+packages:
+  - version: "0.1.0"
+    effective_date: "2026-04-20"
+    path: compliance/normative-packages/approved/2026-04-20-baseline-v0.1.0
+    sha256: b8a3f72a16bb9e7e70f4d52f084b384f830d2af3c0a7ad80f6ef3225d7aaa531
+    key_id: bootstrap-ed25519-2026-04-20-v1
+    status: approved

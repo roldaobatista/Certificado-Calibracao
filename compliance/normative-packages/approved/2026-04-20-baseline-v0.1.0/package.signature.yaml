@@ -1,0 +1,4 @@
+algorithm: ed25519
+key_id: bootstrap-ed25519-2026-04-20-v1
+signer: regulator-bootstrap-offline
+signed_at: "2026-04-20T00:00:00.000Z"

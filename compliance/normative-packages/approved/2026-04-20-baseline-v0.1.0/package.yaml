@@ -1,0 +1,87 @@
+version: '0.1.0'
+effective_date: '2026-04-20'
+sources:
+  - id: PRD-1.8
+    title: 'PRD Aferê'
+    version: '1.8'
+    reference: 'PRD.md#16.3'
+  - id: ISO-17025-CERTIFICATE-TEMPLATE
+    title: 'Modelo de Certificado de Calibração'
+    version: 'ISO/IEC 17025:2017 item 7.8'
+    reference: 'iso 17025/04-templates/certificado-calibracao.md'
+  - id: PORTARIA-INMETRO-157-2022
+    title: 'Portaria Inmetro nº 157/2022'
+    version: '2022'
+    reference: 'normas e portarias inmetro/portarias/portaria-157-2022.md'
+  - id: PORTARIA-INMETRO-289-2021
+    title: 'Portaria Inmetro nº 289/2021'
+    version: '2021'
+    reference: 'normas e portarias inmetro/portarias/portaria-289-2021.md'
+  - id: DOQ-CGCRE-LABORATORIOS
+    title: 'Principais DOQ-CGCRE para Laboratórios de Calibração'
+    version: 'watchlist 2026-04-19'
+    reference: 'normas e portarias inmetro/doq-cgcre/principais-laboratorios.md'
+  - id: NIT-DICLA-LABORATORIOS
+    title: 'Principais NIT-DICLA para Laboratórios'
+    version: 'watchlist 2026-04-19'
+    reference: 'normas e portarias inmetro/nit-dicla/principais-laboratorios.md'
+  - id: ILAC-WATCHLIST
+    title: 'ILAC P10/P14/G8/G24 declarados no PRD'
+    version: 'watchlist PRD 1.8'
+    reference: 'PRD.md#16.3'
+rules:
+  - id: RULE-STANDARD-TRACEABILITY-DOCUMENTED
+    description: 'Padrão usado na emissão precisa ter cadeia documental válida para o perfil regulatório antes da assinatura.'
+    severity: blocker
+    applies_to:
+      - certificate-emission
+      - standards
+      - traceability
+  - id: RULE-CERTIFICATE-CONTENT-ISO17025-7-8
+    description: 'Certificado de calibração precisa conter identificação do laboratório, cliente, item calibrado, datas, método, padrões usados, condições ambientais, resultados, incerteza e autorizações.'
+    severity: blocker
+    applies_to:
+      - certificate-template
+      - certificate-emission
+  - id: RULE-UNCERTAINTY-EXPANDED-DECLARED
+    description: 'Resultado de calibração precisa declarar incerteza expandida, fator de abrangência e base de cálculo aplicável.'
+    severity: blocker
+    applies_to:
+      - uncertainty-engine
+      - certificate-results
+  - id: RULE-DECISION-RULE-AGREED
+    description: 'Declaração de conformidade só pode ser emitida quando a regra de decisão estiver acordada e registrada na ordem de serviço.'
+    severity: blocker
+    applies_to:
+      - conformity-statement
+      - work-order
+  - id: RULE-IPNA-EMA-PORTARIA-157
+    description: 'Instrumentos de pesagem não automáticos usam critérios de aceitação compatíveis com classe I, II, III ou IIII quando o critério regulatório da Portaria 157/2022 for selecionado.'
+    severity: blocker
+    applies_to:
+      - nawi-calibration
+      - acceptance-criteria
+  - id: RULE-WEIGHT-CLASS-PORTARIA-289
+    description: 'Pesos padrão usados como padrão de trabalho precisam declarar classe E1, E2, F1, F2, M1, M2 ou M3 e documentação de rastreabilidade.'
+    severity: blocker
+    applies_to:
+      - standards
+      - mass-calibration
+  - id: RULE-CGCRE-SYMBOL-SCOPE
+    description: 'Símbolo Cgcre/RBC só pode ser usado em certificado emitido por perfil acreditado, dentro do escopo e da CMC cadastrados.'
+    severity: blocker
+    applies_to:
+      - certificate-template
+      - accreditation-scope
+  - id: RULE-NORMATIVE-PACKAGE-RECORDED
+    description: 'Cada certificado emitido precisa registrar versão, hash e data efetiva do pacote normativo usado na emissão.'
+    severity: blocker
+    applies_to:
+      - certificate-emission
+      - audit-log
+  - id: RULE-OUTDATED-DOCUMENTS-BLOCKED
+    description: 'Procedimentos, modelos e documentos normativos marcados como não vigentes não podem ser selecionados para nova emissão.'
+    severity: high
+    applies_to:
+      - document-control
+      - certificate-emission

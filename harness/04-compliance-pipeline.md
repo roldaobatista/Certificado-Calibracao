@@ -14,6 +14,8 @@ compliance/normative-packages/
 │     ├─ package.yaml            # conteúdo consolidado
 │     ├─ package.sig             # assinatura KMS
 │     ├─ package.sha256          # hash publicado
+│     ├─ package.public-key.pem  # chave pública usada para validação
+│     ├─ package.signature.yaml  # algoritmo, key_id, signer, signed_at
 │     └─ CHANGELOG.md
 └─ releases/
    └─ manifest.yaml              # índice histórico de todos os packages assinados
@@ -38,8 +40,11 @@ compliance/normative-packages/
 
 - `packages/normative-rules/src/package.ts` calcula hash canônico SHA-256 do pacote e verifica assinatura Ed25519.
 - `loadSignedNormativePackageFromDirectory()` consome `package.yaml`, `package.sha256` e `package.sig`.
-- Pacote sem hash, assinatura ou chave pública falha fechado.
-- KMS real e publicação de pacote baseline aprovado entram na próxima fatia; nenhuma chave privada é versionada.
+- `loadApprovedNormativePackageFromDirectory()` consome também `package.public-key.pem` e `package.signature.yaml`.
+- `verifyApprovedNormativePackageRepository()` valida `releases/manifest.yaml` contra todos os pacotes aprovados apontados no índice.
+- Pacote sem hash, assinatura, chave pública ou metadados de assinatura falha fechado.
+- O baseline `2026-04-20-baseline-v0.1.0` está publicado em `compliance/normative-packages/approved/` e validado por `pnpm test:tools`.
+- KMS real entra na próxima fatia; nenhuma chave privada é versionada. O baseline atual usa chave Ed25519 bootstrap offline.
 
 ---
 
@@ -107,7 +112,7 @@ Implementação bootstrap:
 
 ## ADR obrigatório
 
-`adr/0001-normative-package-governance.md` documenta:
+`adr/0004-normative-package-governance.md` documenta:
 - Política de versionamento (semver do pacote).
 - SLA de atualização após publicação de nova norma.
 - Composição do comitê revisor.
