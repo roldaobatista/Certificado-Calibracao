@@ -22,6 +22,7 @@
     "audit-chain:verify": "tsx packages/audit-log/src/cli.ts",
     "worm-check": "tsx tools/worm-check.ts",
     "governance-gate": "tsx tools/governance-gate.ts",
+    "escalation-check": "tsx tools/escalation-check.ts",
     "runbook-check": "tsx tools/runbook-check.ts",
     "verification-cascade:check": "tsx tools/verification-cascade.ts check",
     "verification-cascade:plan": "tsx tools/verification-cascade.ts plan",
@@ -37,7 +38,7 @@
     "sync:agents:check": "tsx tools/sync-agents.ts --check",
     "clean": "turbo run clean && rm -rf node_modules",
     "check:drift": "tsx tools/check-agents-drift.ts",
-    "check:all": "pnpm typecheck && pnpm test:tools && pnpm worm-check && pnpm governance-gate && pnpm runbook-check && pnpm verification-cascade:check && pnpm redundancy-check && pnpm budget:check && tsx tools/validation-dossier.ts check --quiet && pnpm sync:agents:check && pnpm check:drift"
+    "check:all": "pnpm typecheck && pnpm test:tools && pnpm worm-check && pnpm governance-gate && pnpm escalation-check && pnpm runbook-check && pnpm verification-cascade:check && pnpm redundancy-check && pnpm budget:check && tsx tools/validation-dossier.ts check --quiet && pnpm sync:agents:check && pnpm check:drift"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
