@@ -213,7 +213,28 @@ git status -sb
 
 Responder ao usuário com commit, branch, verificações executadas e qualquer limitação honesta.
 
-## 11. Referências
+## 11. Handoff para `/resume`
+
+Ao encerrar uma sessão relevante, o agente deve deixar um registro em:
+
+```text
+compliance/sessions-log/<YYYY-MM-DD>/<tool>-<session-id>.jsonl
+```
+
+Esse handoff é obrigatório quando houver commit, push, mudança em `compliance/**`, mudança de harness ou decisão arquitetural.
+
+O registro deve conter:
+
+- branch local/remota e último commit;
+- comandos de verificação executados;
+- resumo do que foi feito;
+- limitações honestas;
+- próximos passos em ordem;
+- instrução explícita para o próximo agente ler `AGENTS.md`, `harness/STATUS.md` e o handoff antes de alterar código.
+
+Se não houver ID real de sessão, usar `codex-handoff` ou `claude-handoff`. O objetivo é que `/resume` tenha contexto suficiente sem depender da memória efêmera do agente.
+
+## 12. Referências
 
 - [`PRD.md`](./PRD.md) — requisitos do produto
 - [`harness/README.md`](./harness/README.md) — índice do design do harness (16 arquivos)
