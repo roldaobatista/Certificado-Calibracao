@@ -1,0 +1,39 @@
+version: 1
+source: harness/09-cloud-agents-policy.md
+status: enforced
+allowlist:
+  - apps/web/ui/components/**
+  - apps/portal/ui/**
+  - docs/**
+  - evals/fixtures/synthetic/**
+  - tests/unit/**
+blocklist:
+  - apps/api/**
+  - apps/android/**
+  - packages/engine-uncertainty/**
+  - packages/normative-rules/**
+  - packages/db/**
+  - packages/audit-log/**
+  - compliance/**
+  - specs/**
+  - .claude/agents/**
+  - infra/**
+provenance:
+  require_verified_attestation: true
+  deny_without_attestation: true
+  accepted_mechanisms:
+    - slsa-build-level-2-plus
+    - sigstore-cosign
+    - github-artifact-attestations
+  allowed_issuers:
+    - https://token.actions.githubusercontent.com
+  required_verifier_commands:
+    - gh attestation verify
+    - cosign verify-blob
+fixture_scanner:
+  synthetic_only: true
+  allowed_email_domain: example.afere.test
+  synthetic_name_prefix: TEST_
+incident:
+  failure_template: compliance/incidents/cloud-agent-attestation-failure-template.md
+  audit_log: compliance/cloud-agents-log.md

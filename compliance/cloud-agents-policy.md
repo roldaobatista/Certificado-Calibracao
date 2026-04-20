@@ -1,12 +1,14 @@
 # compliance/cloud-agents-policy.md — Política de Tier 3 (cloud agents)
 
 > **Owner:** `product-governance` + `lgpd-security`. Ratificação: `legal-counsel`.
-> Espelha `harness/09-cloud-agents-policy.md`. Status P1-2 — `[ ] Proposto`.
+> Espelha `harness/09-cloud-agents-policy.md`. Status P1-2 — `[~] Em implementação`.
 
 ## Status
 
-- **Versão:** 0.1.0-bootstrap (2026-04-19).
-- Implementação: cloud execution (Tier 3) só após V1 estabilizar.
+- **Versão:** 0.2.0-enforced (2026-04-20).
+- **Fonte executável:** `compliance/cloud-agents/policy.yaml`.
+- **Gate:** `pnpm cloud-agents-policy-check`.
+- Implementação: cloud execution (Tier 3) continua proibida fora da allowlist e sem attestation verificável.
 
 ## Princípios
 
@@ -14,6 +16,7 @@
 2. **Blocklist dura** — nunca rodar em cloud: emissão oficial, assinatura, DB de produção, KMS.
 3. **Fixtures sanitizadas** — dados reais nunca vão para cloud; apenas fixtures sintéticos com `organization_id` de teste.
 4. **Provenance attestation** — cada execução cloud produz artefato assinado com SHA do repo + hash do prompt + output.
+5. **Fail-closed sem attestation** — user-agent, autor de commit, nome de branch ou metadata fraca não liberam PR.
 
 ## Tarefas permitidas em cloud
 
@@ -36,9 +39,19 @@
 
 ## Enforcement
 
-- `.claude/settings.json` e `.codex/config.toml` negam spawn de cloud task fora da allowlist.
-- CI valida que PR gerado por cloud agent tem `provenance.json` assinado.
+- `compliance/cloud-agents/policy.yaml` declara allowlist, blocklist, mecanismos aceitos e issuers permitidos.
+- `pnpm cloud-agents-policy-check` valida a política, templates, log e fallback fail-closed.
+- `cloud-agents-policy-check pr --branch cloud-agent/<slug> --attestation <manifest>` bloqueia PR sem attestation ou com path fora da allowlist.
+- CI deve executar `gh attestation verify` ou `cosign verify-blob` antes de registrar o manifesto em `compliance/cloud-agents/attestations/`.
 - `product-governance` revisa todo PR com flag `cloud-generated` antes de merge.
+
+## Attestation aceita
+
+- `slsa-build-level-2-plus`
+- `sigstore-cosign`
+- `github-artifact-attestations`
+
+O manifesto de attestation deve registrar `subject_commit`, `issuer`, `identity`, `predicate_type`, `verified_at` e o comando verificador executado. O gate local valida o manifesto; a prova criptográfica continua sendo o retorno bem-sucedido de `gh attestation verify` ou `cosign verify-blob` no CI.
 
 ## Budgets (Tier 3)
 

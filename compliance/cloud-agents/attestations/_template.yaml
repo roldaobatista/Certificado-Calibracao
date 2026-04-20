@@ -1,0 +1,8 @@
+schema_version: 1
+mechanism: github-artifact-attestations
+subject_commit: <commit-sha>
+issuer: https://token.actions.githubusercontent.com
+identity: <oidc-subject>
+predicate_type: https://slsa.dev/provenance/v1
+verified_at: <iso-8601>
+verifier_command: gh attestation verify --repo roldaobatista/Certificado-Calibracao <artifact-or-commit>

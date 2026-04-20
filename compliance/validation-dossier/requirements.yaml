@@ -595,6 +595,27 @@
     - tools/sync-simulator-check.ts
     - harness/08-sync-simulator.md
 
+- id: REQ-HARNESS-P1-2-CLOUD-AGENT-ATTESTATION
+  source:
+    doc: harness/09-cloud-agents-policy.md
+    section: P1-2
+  description: Política Tier 3 deve restringir cloud agents por allowlist/blocklist e exigir provenance/attestation forte, falhando fechado sem attestation verificável.
+  validation_status: validated
+  linked_specs:
+    - specs/0010-cloud-agent-attestation.md
+  linked_tests:
+    - tools/cloud-agents-policy-check.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P1-2-CLOUD-AGENT-ATTESTATION/
+  owner: product-governance
+  criticality: high
+  critical_paths:
+    - compliance/cloud-agents-policy.md
+    - compliance/cloud-agents/**
+    - compliance/cloud-agents-log.md
+    - compliance/incidents/cloud-agent-attestation-failure-template.md
+    - tools/cloud-agents-policy-check.ts
+    - harness/09-cloud-agents-policy.md
+
 - id: REQ-HARNESS-P0-2-NORMATIVE-PACKAGE
   source:
     doc: harness/04-compliance-pipeline.md
