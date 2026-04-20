@@ -14,7 +14,7 @@
 | Por sessão de orquestrador | `/compact` forçado aos 50% | `/clear` obrigatório aos 70% |
 | Context rot threshold (modelo 1M) | 300k | 400k |
 
-**Enforcement:** hook `PreToolUse` consulta contador de tokens acumulado; ao ultrapassar hard cap, bloqueia a chamada e exige `/compact` ou `/clear`.
+**Enforcement:** hook `PreToolUse` consulta contador de tokens acumulado via `tools/budget-tracker.ts`; ao ultrapassar hard cap, bloqueia a chamada e exige `/compact` ou `/clear`.
 
 ## 2. Tetos de custo (USD)
 
@@ -26,7 +26,7 @@
 | Por tenant (dogfood) / mês | $50 | $100 |
 | Por cloud agent task (Tier 3) | $3 | $5 |
 
-**Enforcement:** cost tracker em `.claude/hooks/cost-tracker.ts` lê metadata da API Anthropic e escreve em `compliance/budget-log/`; bloqueio é *fail-closed*.
+**Enforcement:** hooks `.claude/hooks/cost-tracker.sh` e `.codex/hooks/post_tool.sh` chamam `tools/budget-tracker.ts`, leem metadata de tokens/custo quando a CLI fornece e escrevem em `compliance/budget-log/`; bloqueio é *fail-closed* em hard cap.
 
 ## 3. Paralelismo
 

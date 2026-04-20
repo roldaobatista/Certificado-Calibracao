@@ -1,3 +1,4 @@
 # Bash hooks must stay LF-only; CRLF breaks execution on Windows/Git Bash.
 .githooks/* text eol=lf
 .claude/hooks/*.sh text eol=lf
+.codex/hooks/*.sh text eol=lf

@@ -22,13 +22,15 @@
     "audit-chain:verify": "tsx packages/audit-log/src/cli.ts",
     "worm-check": "tsx tools/worm-check.ts",
     "governance-gate": "tsx tools/governance-gate.ts",
+    "budget:check": "tsx tools/budget-tracker.ts check",
+    "budget:record": "tsx tools/budget-tracker.ts record",
     "validation-dossier:check": "tsx tools/validation-dossier.ts check",
     "validation-dossier:write": "tsx tools/validation-dossier.ts generate",
     "sync:agents": "tsx tools/sync-agents.ts",
     "sync:agents:check": "tsx tools/sync-agents.ts --check",
     "clean": "turbo run clean && rm -rf node_modules",
     "check:drift": "tsx tools/check-agents-drift.ts",
-    "check:all": "pnpm typecheck && pnpm test:tools && pnpm worm-check && pnpm governance-gate && tsx tools/validation-dossier.ts check --quiet && pnpm sync:agents:check && pnpm check:drift"
+    "check:all": "pnpm typecheck && pnpm test:tools && pnpm worm-check && pnpm governance-gate && pnpm budget:check && tsx tools/validation-dossier.ts check --quiet && pnpm sync:agents:check && pnpm check:drift"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
