@@ -146,6 +146,20 @@
       "perCloudTaskSoft": 3,
       "perCloudTaskHard": 5
     },
+    "concurrency": {
+      "tier1Subagents": 5,
+      "tier2Worktrees": 3,
+      "tier3CloudAgents": 2
+    },
+    "circuitBreakers": {
+      "consecutiveToolErrors": 3,
+      "sameFileEdits": 5,
+      "sameFileEditWindowMinutes": 10,
+      "regulatoryFailures": 2,
+      "tenancyFailures": 1,
+      "hashChainDivergences": 1,
+      "worktreeHeartbeatHours": 4
+    },
     "timeouts": {
       "toolCallMs": 120000,
       "bashLongRunMs": 600000,

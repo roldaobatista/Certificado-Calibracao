@@ -24,6 +24,8 @@
     "governance-gate": "tsx tools/governance-gate.ts",
     "budget:check": "tsx tools/budget-tracker.ts check",
     "budget:record": "tsx tools/budget-tracker.ts record",
+    "budget:control": "tsx tools/budget-tracker.ts control",
+    "budget:weekly": "tsx tools/budget-tracker.ts weekly-report",
     "validation-dossier:check": "tsx tools/validation-dossier.ts check",
     "validation-dossier:write": "tsx tools/validation-dossier.ts generate",
     "sync:agents": "tsx tools/sync-agents.ts",

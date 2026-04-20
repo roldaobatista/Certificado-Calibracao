@@ -1,0 +1,55 @@
+name: Weekly budget report
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 10 * * 1"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  budget-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate weekly budget report
+        run: pnpm budget:weekly
+
+      - name: Open report PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$(git status --porcelain -- compliance/budget-log/weekly)" ]; then
+            echo "No weekly budget report changes."
+            exit 0
+          fi
+          branch="automation/weekly-budget-report-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add compliance/budget-log/weekly
+          git commit -m "docs: add weekly budget report"
+          git push --set-upstream origin "$branch"
+          gh pr create \
+            --title "docs: add weekly budget report" \
+            --body "Relatorio semanal de budget gerado por CI. Requer review de product-governance por alterar compliance/**." \
+            --base main \
+            --head "$branch"

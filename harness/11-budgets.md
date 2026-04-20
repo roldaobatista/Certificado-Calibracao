@@ -36,7 +36,13 @@
 | Tier 2 — worktrees concorrentes | 3 | Evita contenção de CI e revisão humana |
 | Tier 3 — cloud agents concorrentes | 2 | Superfície de exposição reduzida |
 
-**Enforcement:** gate no orquestrador bloqueia `Agent(...)` além do limite; worktrees coordenados por Conductor/Claude Squad.
+**Enforcement:** `tools/budget-tracker.ts control` registra eventos `controlKind=concurrency` em `compliance/budget-log/` e bloqueia novas entradas acima do limite configurado em `.claude/settings.json`.
+
+Exemplo:
+
+```bash
+pnpm budget:control -- --control-kind concurrency --tier tier1 --resource-id agent-123 --status start
+```
 
 ## 4. Retries e circuit breakers
 
@@ -48,6 +54,15 @@
 | 1 falha em `evals/tenancy/` | Freeze imediato; incidente aberto |
 | 1 divergência de hash-chain | Freeze **global** de releases |
 | Worktree sem heartbeat por 4h | Sinaliza humano e persiste trace |
+
+**Enforcement:** `tools/budget-tracker.ts control` registra e avalia eventos de circuito:
+
+- `tool_error`: bloqueia no 3º erro consecutivo na mesma task.
+- `file_edit`: bloqueia no 5º edit do mesmo arquivo dentro da janela de 10 min.
+- `regulatory_failure`: bloqueia na 2ª falha regulatória da mesma branch.
+- `tenancy_failure`: bloqueia na 1ª falha de tenancy.
+- `hash_chain_divergence`: bloqueia na 1ª divergência global.
+- `worktree_heartbeat`: alerta quando o heartbeat mais recente excede 4h.
 
 ## 5. Política de `/compact`
 
@@ -78,7 +93,8 @@
 ## 8. Registro e auditoria
 
 - `compliance/budget-log/YYYY-MM-DD.jsonl` — linha por evento de budget (consumo, alerta, bloqueio).
-- Relatório semanal gerado por CI em `compliance/budget-log/weekly/<semana>.md`.
+- Relatório semanal gerado por `pnpm budget:weekly` em `compliance/budget-log/weekly/<semana>.md`.
+- CI `.github/workflows/weekly-budget-report.yml` roda semanalmente e abre PR para o relatório, preservando review de `product-governance` em `compliance/**`.
 - Revisão mensal pelo `product-governance` com ajuste dos caps se necessário (ADR obrigatória).
 
 ## 9. Revisão dos valores
