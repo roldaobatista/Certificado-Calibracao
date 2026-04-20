@@ -26,7 +26,9 @@
 |--------|-----|-------------|
 | **Tier 1 — Built-in** (90% do trabalho) | Orquestrador + subagentes dentro de uma sessão Claude Code. Exploração, edição, TDD rápido. | Claude Code CLI, Task tool, Agent Teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) |
 | **Tier 2 — Orquestrador externo** | 3–10 agentes em *worktrees* paralelos em sprints conhecidos (ex.: gerar 8 módulos em paralelo após specs aprovadas). | Conductor, Claude Squad, Vibe Kanban, `EnterWorktree` |
-| **Tier 3 — Cloud agents** | Drain de *backlog* overnight (bugs Sev-3, refactors mecânicos). | Claude Code Web, Copilot Coding Agent, Jules |
+| **Tier 3 — Cloud agents** | Somente tarefas *low-risk* aprovadas pela política P1-2: docs, UI puro em allowlist e fixtures sintéticas. Exige *attestation* verificável, revisão humana e `product-governance`. | Claude Code Web, Copilot Coding Agent, Jules |
+
+Tier 3 não é fila geral de backlog. Sem diff restrito à allowlist, sem fixtures sintéticas e sem *attestation* válida por SLSA/Sigstore/GitHub Artifact Attestations, o uso falha fechado. Política canônica: `harness/09-cloud-agents-policy.md`; fonte executável: `compliance/cloud-agents/policy.yaml`.
 
 ### 2.2 Orquestrador (a "brain")
 

@@ -8,7 +8,7 @@
 |------------|-------|------------------|--------------|------------------------|-----------|
 | P0 | 13 | 12 | 1 | 0 | 0 |
 | P1 | 4 | 4 | 0 | 0 | 0 |
-| P2 | 4 | 3 | 0 | 1 | 0 |
+| P2 | 4 | 4 | 0 | 0 | 0 |
 
 ## Cobertura PRD §13
 
@@ -30,6 +30,7 @@
 - `cloud-agents-policy-check`
 - `agent-frontmatter-check`
 - `slash-commands-check`
+- `harness-design-tier3-check`
 - `harness-dashboard:check`
 - `runbook-check`
 - `verification-cascade:check`
@@ -60,4 +61,4 @@
 - P2-1 (P2): Nomenclatura de agentes (frontmatter padrão) — [~] Em implementação (schema_version: 1 nos 13 agentes; tools/agent-frontmatter-check.ts valida nome canônico, role, model, tools, owner_paths, blocked_write_paths e handoff_targets; gate entrou em check:all e pre-commit)
 - P2-2 (P2): Slash-commands regulatórios (/spec-norm-diff, /ac-evidence, /claim-check, /tenant-fuzz, /emit-cert-dry) — [~] Em implementação (.claude/commands/ contém os 5 comandos canônicos; tools/slash-commands-check.ts valida frontmatter, owner, risco, seções e bloco executável; gate entrou em check:all e pre-commit)
 - P2-3 (P2): Dashboard de observabilidade do harness — [~] Em implementação (compliance/harness-dashboard.md gerado por tools/harness-dashboard.ts; resume P0/P1/P2, cobertura PRD §13 e gates do check:all; gate entrou em check:all e pre-commit)
-- P2-4 (P2): Reescrever texto do Tier 3 no HARNESS_DESIGN.md raiz — [ ] Não iniciado
+- P2-4 (P2): Reescrever texto do Tier 3 no HARNESS_DESIGN.md raiz — [~] Em implementação (HARNESS_DESIGN.md §2.1 restringe Tier 3 a tarefas low-risk aprovadas pela política P1-2, com attestation verificável, revisão humana e product-governance; tools/harness-design-tier3-check.ts bloqueia regressão para backlog overnight sem qualificação)
