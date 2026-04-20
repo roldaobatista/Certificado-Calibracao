@@ -1,9 +1,10 @@
 # ADR 0001 — Framework do backend `apps/api`
 
-- **Status:** proposto
+- **Status:** aceito
 - **Data:** 2026-04-19
+- **Aprovado em:** 2026-04-19 pelo usuário (product owner)
 - **Autor:** bootstrap (Claude Code)
-- **Revisores:** `product-governance` + `senior-reviewer` (pendentes)
+- **Revisores:** `product-governance` + `senior-reviewer` (revisão formal pós-MVP, quando agentes estiverem operacionais)
 - **Relacionado:** `harness/02-arquitetura.md`, P0-1 em `harness/STATUS.md`, `adr/0003-hosting-and-security-services.md`
 
 ## Contexto

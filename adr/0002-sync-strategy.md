@@ -1,9 +1,10 @@
 # ADR 0002 — Estratégia de sync offline-first
 
-- **Status:** proposto
+- **Status:** aceito
 - **Data:** 2026-04-19
+- **Aprovado em:** 2026-04-19 pelo usuário (product owner)
 - **Autor:** bootstrap (Claude Code)
-- **Revisores:** `android` + `backend-api` + `metrology-auditor` + `product-governance` (pendentes)
+- **Revisores:** `android` + `backend-api` + `metrology-auditor` + `product-governance` (revisão formal pós-MVP, quando agentes estiverem operacionais)
 - **Relacionado:** `harness/08-sync-simulator.md`, P1-1 em `harness/STATUS.md`, `adr/0001-backend-framework.md`
 
 ## Contexto

@@ -1,9 +1,11 @@
 # ADR 0003 — Topologia de hosting e serviços de segurança
 
-- **Status:** proposto
+- **Status:** aceito
 - **Data:** 2026-04-19
+- **Aprovado em:** 2026-04-19 pelo usuário (product owner)
 - **Autor:** bootstrap (Claude Code)
-- **Revisores:** `product-governance` + `lgpd-security` + `legal-counsel` (pendentes)
+- **Revisores:** `product-governance` + `lgpd-security` + `legal-counsel` (revisão formal pós-MVP, quando agentes estiverem operacionais)
+- **Nota:** pendências operacionais (registro de domínio, conta AWS, conta Backblaze, parecer LGPD formal) continuam válidas — não bloqueiam scaffold, mas são pré-requisito de deploy.
 - **Relacionado:** `harness/05-guardrails.md` (Gates 3, 4), `harness/09-cloud-agents-policy.md`, `compliance/cloud-agents-policy.md`
 
 ## Contexto
