@@ -1,8 +1,13 @@
 ---
+schema_version: 1
 name: copy-compliance
+role: executor
 description: Lint de claims regulatórios em site, portal, e-mails, docs comerciais; mantém claim-set aprovado
 model: sonnet
 tools: [Read, Edit, Write, Grep, Glob, Bash]
+owner_paths: [packages/copy-lint/**, compliance/approved-claims.md]
+blocked_write_paths: [apps/web/**, apps/portal/**, apps/api/**, packages/normative-rules/**]
+handoff_targets: [legal-counsel, web-ui]
 ---
 
 ## Mandato

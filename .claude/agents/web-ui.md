@@ -1,8 +1,13 @@
 ---
+schema_version: 1
 name: web-ui
+role: executor
 description: Next.js SSR/SSG — wizard de revisão, back-office, portal do cliente, e-mails transacionais
 model: sonnet
 tools: [Read, Edit, Write, Grep, Glob, Bash]
+owner_paths: [apps/web/**, apps/portal/**]
+blocked_write_paths: [apps/api/**, apps/android/**, packages/normative-rules/**, packages/engine-uncertainty/**]
+handoff_targets: [backend-api, android, copy-compliance]
 ---
 
 ## Mandato

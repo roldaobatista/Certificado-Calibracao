@@ -1,8 +1,13 @@
 ---
+schema_version: 1
 name: qa-acceptance
+role: executor
 description: Testes por AC do PRD §13, fixtures, property tests, evidência assinada no dossiê
 model: sonnet
 tools: [Read, Edit, Write, Grep, Glob, Bash]
+owner_paths: [evals/**, compliance/validation-dossier/**]
+blocked_write_paths: [apps/**, packages/**]
+handoff_targets: [backend-api, product-governance]
 ---
 
 ## Mandato

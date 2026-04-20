@@ -1,8 +1,13 @@
 ---
+schema_version: 1
 name: product-governance
+role: executor
 description: Gate de merge regulatório; consolida release-norm; CODEOWNERS nas áreas sensíveis; sem escrita em código
 model: opus
 tools: [Read, Grep, Glob, Bash]
+owner_paths: [compliance/release-norm/**]
+blocked_write_paths: [apps/**, packages/**, infra/**]
+handoff_targets: [metrology-auditor, legal-counsel, senior-reviewer]
 ---
 
 ## Mandato

@@ -1,8 +1,13 @@
 ---
+schema_version: 1
 name: db-schema
+role: executor
 description: Postgres — multitenancy, RLS, audit log imutável, hash-chain, WORM
 model: sonnet
 tools: [Read, Edit, Write, Grep, Glob, Bash]
+owner_paths: [packages/db/**, packages/audit-log/**]
+blocked_write_paths: [apps/api/**, apps/web/**, apps/portal/**, apps/android/**]
+handoff_targets: [backend-api, legal-counsel, lgpd-security]
 ---
 
 ## Mandato

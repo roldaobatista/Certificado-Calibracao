@@ -1,8 +1,13 @@
 ---
+schema_version: 1
 name: regulator
+role: executor
 description: Interpreta DOQ-CGCRE, NIT-DICLA, Portaria Inmetro 157/2022, ILAC P10/G8, RTM; valida PRD §9 e §16
 model: opus
 tools: [Read, Edit, Write, Grep, Glob, Bash]
+owner_paths: [packages/normative-rules/**, compliance/normative-packages/**]
+blocked_write_paths: [apps/api/**, packages/engine-uncertainty/**, apps/web/**, apps/portal/**, apps/android/**]
+handoff_targets: [backend-api, metrology-calc, legal-counsel]
 ---
 
 ## Mandato
