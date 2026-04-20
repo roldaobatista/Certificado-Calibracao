@@ -2,121 +2,99 @@
 
 > Requer: **Claude Code** e/ou **Codex CLI** já instalados e autenticados.
 >
-> MCP servers são registrados na ferramenta (Claude / Codex), não no repo. Rode os comandos abaixo **uma vez por máquina**.
+> MCP servers são registrados na ferramenta (Claude / Codex), não no repo.
 
 ## MCP servers canônicos do Aferê
 
-Declarados em `AGENTS.md` §2.2 e `harness/02-arquitetura.md`:
+| Server | Pacote | Requer credencial? |
+|--------|--------|---------------------|
+| `context-mode` | plugin Claude Code (marketplace) | não |
+| `github` | `@modelcontextprotocol/server-github` | `GITHUB_PERSONAL_ACCESS_TOKEN` |
+| `postgres` | `@modelcontextprotocol/server-postgres` | `POSTGRES_URL` |
+| `context7` | `@upstash/context7-mcp` | não |
+| `playwright` | `@playwright/mcp` | não |
+| `vitest` | *sem MCP oficial (2026-04)* | — |
 
-| Server | Finalidade | Requer autenticação externa? |
-|--------|-----------|------------------------------|
-| `context-mode` | Gestão de context window | não (plugin local) |
-| `github` | PRs, issues, CODEOWNERS | sim — token GitHub |
-| `postgres` | Schema introspection + RLS | sim — `POSTGRES_URL` |
-| `context7` | Docs Next.js, Prisma, Kotlin | não |
-| `playwright` | E2E web/portal | não |
-| `vitest` | Execução e cobertura de testes | não |
-
-## Claude Code
-
-### Claude-como-plugin marketplace (recomendado para os oficiais)
+## Atalho
 
 ```bash
-# context-mode (gestão de contexto)
-claude mcp add context-mode
+# Escolha: claude | codex | both
+bash tools/install-mcp.sh both
 
-# github
-claude mcp add github
-# vai pedir seu personal access token
-
-# context7 (docs de libs)
-claude mcp add context7
-
-# playwright
-claude mcp add playwright
-
-# vitest
-claude mcp add vitest
+# Com credenciais:
+GITHUB_TOKEN=ghp_... bash tools/install-mcp.sh both
 ```
 
-### Postgres (requer URL local de dev)
+## Sintaxe manual
+
+### Codex CLI (2026+)
+
+Sintaxe obrigatória: `codex mcp add <NAME> -- <command...>` (o `--` separa o comando que o Codex vai executar).
 
 ```bash
+# GitHub
+codex mcp add github \
+  --env GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxx \
+  -- npx -y @modelcontextprotocol/server-github
+
+# Postgres
+codex mcp add postgres \
+  --env POSTGRES_URL="postgresql://afere:afere@localhost:5433/afere?schema=public" \
+  -- npx -y @modelcontextprotocol/server-postgres \
+     "postgresql://afere:afere@localhost:5433/afere?schema=public"
+
+# Playwright
+codex mcp add playwright -- npx -y @playwright/mcp@latest
+
+# Context7 (docs)
+codex mcp add context7 -- npx -y @upstash/context7-mcp
+```
+
+Verificação: `codex mcp list`. Remoção: `codex mcp remove <NAME>`.
+
+### Claude Code
+
+Aceita forma explícita (como Codex) ou marketplace:
+
+```bash
+# Marketplace (interativo)
+claude /plugin install context-mode
+
+# Explícito — mesmo comando de Codex, mas via claude:
+claude mcp add playwright -- npx -y @playwright/mcp@latest
 claude mcp add postgres \
-  -e POSTGRES_URL="postgresql://afere:afere@localhost:5433/afere?schema=public"
+  --env POSTGRES_URL="postgresql://afere:afere@localhost:5433/afere?schema=public" \
+  -- npx -y @modelcontextprotocol/server-postgres \
+     "postgresql://afere:afere@localhost:5433/afere?schema=public"
 ```
 
-Essa URL bate com o `docker-compose.yml` desta branch. Se for apontar para outro DB, ajuste.
+Verificação: `claude mcp list`.
 
-### Listar e testar
+### Codex como MCP server do Claude (avançado)
 
-```bash
-claude mcp list
-claude /mcp           # abre o picker interativo dentro de uma sessão
-```
-
-## Codex CLI
-
-### Comandos equivalentes
-
-```bash
-# context-mode
-codex mcp add context-mode
-
-# github
-codex mcp add github
-
-# postgres
-codex mcp add postgres --env POSTGRES_URL="postgresql://afere:afere@localhost:5433/afere?schema=public"
-
-# context7
-codex mcp add context7
-
-# playwright
-codex mcp add playwright
-
-# vitest
-codex mcp add vitest
-```
-
-### Verificação
-
-```bash
-codex mcp list
-```
-
-### Codex como MCP para Claude Code (avançado)
-
-Conforme `harness/17-multi-tooling.md`, o Codex pode atuar **como** MCP server para o Claude Code, habilitando um padrão de orquestração onde Claude raciocina e Codex executa sandbox/paralelo.
-
-Se quiser esse modo:
+Segundo `harness/17-multi-tooling.md`, Codex pode atuar como MCP server do Claude, permitindo Claude orquestrar raciocínio regulatório enquanto Codex executa sandbox/paralelo.
 
 ```bash
 claude mcp add codex-mcp -- codex mcp-serve
 ```
 
-Isso não é necessário para o uso básico.
+Não necessário para uso básico.
 
-## Tudo-de-uma-vez (opcional)
+## Pacotes sem MCP público (workarounds)
 
-Script `tools/install-mcp.sh` roda todos os comandos de uma só vez. Edite o bloco `POSTGRES_URL` se seu dev postgres estiver em outro endpoint.
+- **vitest** — sem MCP oficial. Use `pnpm test` direto, ou em Codex `codex exec -- pnpm test`.
+- **context-mode** — plugin **específico do Claude Code** (marketplace). Codex não tem versão nativa; use o modo "Codex-como-MCP-do-Claude" se quiser contexto compartilhado.
 
-```bash
-bash tools/install-mcp.sh claude   # só Claude
-bash tools/install-mcp.sh codex    # só Codex
-bash tools/install-mcp.sh both     # ambos
-```
+## Problemas comuns
 
-## Solução de problemas
-
-- **`command not found: claude` ou `codex`** — instale a CLI antes (`npm i -g @anthropic-ai/claude-code` ou `npm i -g @openai/codex`).
-- **`MCP server failed to connect`** — execute o servidor standalone primeiro para ver o erro (`npx @modelcontextprotocol/server-postgres`).
-- **postgres: `connection refused`** — seu `docker compose up -d postgres` não está rodando.
-- **github: `Bad credentials`** — gere novo PAT em github.com/settings/tokens (scope mínimo: `repo`, `read:org`).
+- **`command not found: claude|codex`** — instale: `npm i -g @anthropic-ai/claude-code` ou `npm i -g @openai/codex`.
+- **`error: --env with stdio only`** — você passou `--env` mas usou `--url`. `--env` é só para stdio servers (os que usam `--`).
+- **Postgres: `connection refused`** — seu `docker compose up -d postgres` não está rodando.
+- **GitHub: `Bad credentials`** — gere novo PAT em github.com/settings/tokens (scopes: `repo`, `read:org`).
+- **`codex` exige formato `<NAME> -- <cmd>`** — se rodar `codex mcp add github` sem `--`, recebe "required args not provided".
 
 ## Referências
 
-- `.claude/settings.json` — declaração dos MCP servers.
-- `.codex/config.toml` — declaração equivalente.
+- `.claude/settings.json` e `.codex/config.toml` — declaração dos servers.
 - `harness/17-multi-tooling.md` — estratégia dual.
 - `AGENTS.md` §2.2 — lista canônica.
