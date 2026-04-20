@@ -3,7 +3,7 @@
 # Editar AGENTS.md + .claude/agents/web-ui.md → re-sincronizar (tools/sync-agents.ts).
 
 name = "web-ui"
-description = "Next.js SSR/SSG — wizard, back-office, portal, e-mails transacionais"
+description = "Next.js SSR/SSG — wizard de revisão, back-office, portal do cliente, e-mails transacionais"
 model = "sonnet"
 reference = ".claude/agents/web-ui.md"
 

@@ -3,7 +3,7 @@
 # Editar AGENTS.md + .claude/agents/senior-reviewer.md → re-sincronizar (tools/sync-agents.ts).
 
 name = "senior-reviewer"
-description = "Code review sênior independente em áreas blocker; bloqueia merge em risco arquitetural/segurança"
+description = "Code review sênior independente em áreas blocker; bloqueia merge em risco arquitetural ou de segurança"
 model = "opus"
 reference = ".claude/agents/senior-reviewer.md"
 

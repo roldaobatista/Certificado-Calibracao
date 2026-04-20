@@ -22,9 +22,9 @@ Gate final de qualquer merge que toque área regulatoriamente sensível. Consoli
 
 ## Paths permitidos (escrita)
 
+- `adr/**`
 - `compliance/release-norm/**`
 - Comentários e approvals de PR
-- ADRs de governança em `adr/**`
 
 ## Paths bloqueados (leitura ok, escrita não)
 

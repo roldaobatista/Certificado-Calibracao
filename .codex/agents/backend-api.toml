@@ -3,7 +3,7 @@
 # Editar AGENTS.md + .claude/agents/backend-api.md → re-sincronizar (tools/sync-agents.ts).
 
 name = "backend-api"
-description = "Backend técnico — auth, RBAC, workflows OS, emissão oficial, assinatura/QR, reemissão, sync server-side"
+description = "Backend técnico — auth, RBAC, workflows de OS, emissão oficial, assinatura/QR, reemissão, sync server-side"
 model = "sonnet"
 reference = ".claude/agents/backend-api.md"
 

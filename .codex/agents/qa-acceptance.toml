@@ -3,7 +3,7 @@
 # Editar AGENTS.md + .claude/agents/qa-acceptance.md → re-sincronizar (tools/sync-agents.ts).
 
 name = "qa-acceptance"
-description = "Testes por AC, fixtures, property tests, evidência no dossiê"
+description = "Testes por AC do PRD §13, fixtures, property tests, evidência assinada no dossiê"
 model = "sonnet"
 reference = ".claude/agents/qa-acceptance.md"
 

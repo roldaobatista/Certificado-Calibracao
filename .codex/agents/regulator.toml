@@ -3,7 +3,7 @@
 # Editar AGENTS.md + .claude/agents/regulator.md → re-sincronizar (tools/sync-agents.ts).
 
 name = "regulator"
-description = "Interpreta DOQ-CGCRE, NIT-DICLA, Portaria 157/2022, ILAC P10/G8, RTM; valida PRD §9 e §16"
+description = "Interpreta DOQ-CGCRE, NIT-DICLA, Portaria Inmetro 157/2022, ILAC P10/G8, RTM; valida PRD §9 e §16"
 model = "opus"
 reference = ".claude/agents/regulator.md"
 

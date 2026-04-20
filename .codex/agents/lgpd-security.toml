@@ -3,7 +3,7 @@
 # Editar AGENTS.md + .claude/agents/lgpd-security.md → re-sincronizar (tools/sync-agents.ts).
 
 name = "lgpd-security"
-description = "Base jurídica LGPD, assinatura eletrônica, retenção, hardening, DSAR"
+description = "Base jurídica LGPD, assinatura eletrônica, retenção, hardening, DSAR; co-owner de audit log"
 model = "opus"
 reference = ".claude/agents/lgpd-security.md"
 

@@ -53,11 +53,38 @@ Gates duros em git hooks + CI rodam independentes da ferramenta de IA usada. Ver
 | Refactor mecânico, teste em lote, DevOps, backlog autônomo, cloud exec | **Codex CLI** |
 | Code review crítico em área blocker | **Ambos** (dupla checagem) |
 
-## Como iniciar
+## Primeira execução após clone
 
 ```bash
-cd afere
+# 1. Instala dependências do workspace
+pnpm install
+
+# 2. Instala git hooks canônicos (core.hooksPath → .githooks/)
+#    Ativa PreCommit para copy-lint + ownership-lint em QUALQUER CLI
+bash tools/install-hooks.sh
+
+# 3. Registra MCP servers (só Claude, ou só Codex, ou ambos)
+bash tools/install-mcp.sh both      # ver tools/setup-mcp.md para detalhes
+
+# 4. Sobe dev stack (Postgres + Redis) se for trabalhar em apps/api
+docker compose up -d postgres redis
+
+# 5. Valida:
+pnpm check:all                      # typecheck + agents drift
+```
+
+## Como iniciar sessão
+
+```bash
+cd "Certificado de calibracao"
 claude
 ```
 
-Ao abrir sessão, Claude Code carrega este arquivo → `AGENTS.md` → `.claude/agents/*.md` → `.claude/settings.json`.
+Claude Code carrega CLAUDE.md → `AGENTS.md` → `.claude/agents/*.md` → `.claude/settings.json`.
+
+## Sanidade contínua
+
+- `pnpm check:drift` — garante que `.claude/agents/*.md` e `.codex/agents/*.toml` estão em sincronia após edições manuais.
+- `pnpm --filter @afere/copy-lint exec node --import tsx src/cli.ts` — roda copy-lint em toda a cobertura.
+- `pnpm --filter @afere/ownership-lint exec node --import tsx src/cli.ts` — roda Gate 6.
+- `SKIP_GATES=1 git commit ...` — emergência apenas; justifique na commit message.

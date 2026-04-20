@@ -103,21 +103,40 @@ Qualquer uma das ferramentas segue o harness. Configs em `.claude/` e `.codex/` 
 
 ## 9. Como começar uma sessão
 
-### Em Claude Code
+### Primeira vez após clone
+
+```bash
+pnpm install
+bash tools/install-hooks.sh            # git hooks canônicos (copy-lint + ownership-lint)
+bash tools/install-mcp.sh both         # MCP servers em Claude e Codex
 ```
-cd afere
+
+Detalhe de MCP servers em [`tools/setup-mcp.md`](./tools/setup-mcp.md).
+
+### Em Claude Code
+
+```bash
 claude
 ```
+
 Claude Code lê `CLAUDE.md` → este `AGENTS.md` → `.claude/agents/*.md` → `.claude/settings.json`.
 
 ### Em Codex CLI
-```
-cd afere
+
+```bash
 codex
 ```
+
 Codex lê `AGENTS.md` diretamente → `.codex/config.toml` → `.codex/agents/*`.
 
-Ambas sessões operam sobre o mesmo repo, mesmos guardrails, mesmos gates.
+Ambas sessões operam sobre o mesmo repo, mesmos guardrails, mesmos gates — `.githooks/pre-commit` é acionado pelo git **independente** da CLI (fail-closed em copy-lint, ownership-lint e demais gates).
+
+### Sanidade entre sessões
+
+```bash
+pnpm check:drift       # valida .claude/agents ↔ .codex/agents em sincronia
+pnpm check:all         # typecheck + check:drift
+```
 
 ## 10. Referências
 

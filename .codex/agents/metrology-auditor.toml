@@ -3,7 +3,7 @@
 # Editar AGENTS.md + .claude/agents/metrology-auditor.md → re-sincronizar (tools/sync-agents.ts).
 
 name = "metrology-auditor"
-description = "Pré-auditoria ISO 17025/CGCRE; bloqueia release em não-conformidade"
+description = "Pré-auditoria ISO/IEC 17025 e CGCRE; simula auditor real; bloqueia release se encontra não-conformidade"
 model = "opus"
 reference = ".claude/agents/metrology-auditor.md"
 

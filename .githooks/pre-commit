@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Pre-commit hook canônico do Aferê — roda INDEPENDENTE da CLI usada
+# (Claude Code, Codex CLI, git puro, editor IDE).
+#
+# Ativado por `git config core.hooksPath .githooks` (ver tools/install-hooks.sh).
+# Os gates rodam fail-closed. Para pular em emergência absoluta, use
+# SKIP_GATES=1 git commit ... (desencorajado; todo skip precisa justificativa
+# em commit message + review extra de product-governance).
+set -e
+
+if [ "${SKIP_GATES:-0}" = "1" ]; then
+  echo "⚠️  SKIP_GATES=1 ativo — hook pulado. Justifique na commit message."
+  exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+fail=0
+
+run_gate() {
+  local name="$1"; shift
+  local script="$1"; shift
+  if [ ! -x "$script" ] && [ ! -f "$script" ]; then
+    echo "[$name] script $script não encontrado — pulando (corrigir antes de release)"
+    return 0
+  fi
+  if bash "$script"; then
+    echo "[$name] ✓"
+  else
+    echo "[$name] ✗ bloqueou commit"
+    fail=1
+  fi
+}
+
+echo "── pre-commit gates ──"
+run_gate "copy-lint"        ".claude/hooks/copy-lint.sh"
+run_gate "ownership-lint"   ".claude/hooks/ownership-lint.sh"
+run_gate "tenant-safe-sql"  ".claude/hooks/tenant-safe-sql.sh"
+run_gate "audit-hash-chain" ".claude/hooks/audit-hash-chain.sh"
+
+if [ "$fail" -ne 0 ]; then
+  echo ""
+  echo "✗ commit bloqueado — corrija os findings acima."
+  echo "  (Em emergência, SKIP_GATES=1 git commit... — justifique na mensagem.)"
+  exit 1
+fi
+
+echo ""
+echo "✓ todos os gates passaram"
+exit 0

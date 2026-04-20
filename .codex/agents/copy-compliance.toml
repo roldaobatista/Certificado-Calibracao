@@ -3,7 +3,7 @@
 # Editar AGENTS.md + .claude/agents/copy-compliance.md → re-sincronizar (tools/sync-agents.ts).
 
 name = "copy-compliance"
-description = "Lint de claims regulatórios; mantém claim-set aprovado"
+description = "Lint de claims regulatórios em site, portal, e-mails, docs comerciais; mantém claim-set aprovado"
 model = "sonnet"
 reference = ".claude/agents/copy-compliance.md"
 

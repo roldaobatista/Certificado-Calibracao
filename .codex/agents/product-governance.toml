@@ -3,7 +3,7 @@
 # Editar AGENTS.md + .claude/agents/product-governance.md → re-sincronizar (tools/sync-agents.ts).
 
 name = "product-governance"
-description = "Gate de merge regulatório; consolida release-norm; sem escrita em código"
+description = "Gate de merge regulatório; consolida release-norm; CODEOWNERS nas áreas sensíveis; sem escrita em código"
 model = "opus"
 reference = ".claude/agents/product-governance.md"
 

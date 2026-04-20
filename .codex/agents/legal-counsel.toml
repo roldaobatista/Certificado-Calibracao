@@ -3,7 +3,7 @@
 # Editar AGENTS.md + .claude/agents/legal-counsel.md → re-sincronizar (tools/sync-agents.ts).
 
 name = "legal-counsel"
-description = "Parecer jurídico-regulatório (LGPD, claims, contratos); bloqueia release em risco alto"
+description = "Parecer jurídico-regulatório (LGPD, claims, contratos); bloqueia release em risco jurídico alto"
 model = "opus"
 reference = ".claude/agents/legal-counsel.md"
 
