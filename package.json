@@ -19,6 +19,7 @@
     "test:fuzz": "tsx --test evals/tenancy/fuzz/*.test.ts",
     "test:sync-simulator": "tsx --test evals/sync-simulator/*.test.ts",
     "test:tenancy": "pnpm test:rls && pnpm test:fuzz",
+    "copy-lint:check": "pnpm --filter @afere/copy-lint exec node --import tsx src/cli.ts",
     "tenant-lint": "tsx packages/db/tools/tenant-lint/src/cli.ts",
     "audit-chain:verify": "tsx packages/audit-log/src/cli.ts",
     "worm-check": "tsx tools/worm-check.ts",
@@ -48,7 +49,7 @@
     "sync:agents:check": "tsx tools/sync-agents.ts --check",
     "clean": "turbo run clean && rm -rf node_modules",
     "check:drift": "tsx tools/check-agents-drift.ts",
-    "check:all": "pnpm typecheck && pnpm test:tools && pnpm test:sync-simulator && pnpm worm-check && pnpm governance-gate && pnpm escalation-check && pnpm external-auditors-gate && pnpm roadmap-check && pnpm sync-simulator-check && pnpm cloud-agents-policy-check && pnpm agent-frontmatter-check && pnpm slash-commands-check && pnpm harness-design-tier3-check && pnpm harness-dashboard:check && pnpm runbook-check && pnpm verification-cascade:check && pnpm redundancy-check && pnpm budget:check && tsx tools/validation-dossier.ts check --quiet && pnpm sync:agents:check && pnpm check:drift"
+    "check:all": "pnpm typecheck && pnpm test:tools && pnpm copy-lint:check && pnpm test:sync-simulator && pnpm worm-check && pnpm governance-gate && pnpm escalation-check && pnpm external-auditors-gate && pnpm roadmap-check && pnpm sync-simulator-check && pnpm cloud-agents-policy-check && pnpm agent-frontmatter-check && pnpm slash-commands-check && pnpm harness-design-tier3-check && pnpm harness-dashboard:check && pnpm runbook-check && pnpm verification-cascade:check && pnpm redundancy-check && pnpm budget:check && tsx tools/validation-dossier.ts check --quiet && pnpm sync:agents:check && pnpm check:drift"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
