@@ -1,0 +1,31 @@
+- id: R1
+  runbook: compliance/runbooks/r1-kms-key-rotation.md
+  cadence: quarterly
+  next_due: 2026-07-20
+  owner: lgpd-security
+  evidence_path: compliance/runbooks/executions/
+  scenario: Rotacionar chave KMS em staging, reassinar pacote normativo de teste e emitir checkpoint novo.
+
+- id: R2
+  runbook: compliance/runbooks/r2-audit-hash-chain-divergence.md
+  cadence: semiannual
+  next_due: 2026-10-20
+  owner: lgpd-security
+  evidence_path: compliance/runbooks/executions/
+  scenario: Injetar divergência controlada no audit log de staging e medir freeze, quarentena e reconstrução.
+
+- id: R3
+  runbook: compliance/runbooks/r3-worm-object-lock-violation.md
+  cadence: semiannual
+  next_due: 2026-10-20
+  owner: product-governance
+  evidence_path: compliance/runbooks/executions/
+  scenario: Provisionar bucket regulatório sem object lock em staging e validar detecção mais restauração da política.
+
+- id: R4
+  runbook: compliance/runbooks/r4-normative-package-disaster-recovery.md
+  cadence: semiannual
+  next_due: 2026-10-20
+  owner: regulator
+  evidence_path: compliance/runbooks/executions/
+  scenario: Corromper pacote normativo de staging e restaurar a partir do storage imutável ou backup secundário.

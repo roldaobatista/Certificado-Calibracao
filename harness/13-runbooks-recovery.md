@@ -211,6 +211,17 @@
 - **Revisão**: anual completa; após incidente real, revisão imediata do runbook aplicável.
 - **Propriedade**: `product-governance` coordena; `lgpd-security` co-assina R1 e R2.
 
+## Implementação bootstrap
+
+- `compliance/runbooks/r1-kms-key-rotation.md`
+- `compliance/runbooks/r2-audit-hash-chain-divergence.md`
+- `compliance/runbooks/r3-worm-object-lock-violation.md`
+- `compliance/runbooks/r4-normative-package-disaster-recovery.md`
+- `compliance/runbooks/drill-schedule.yaml`
+- `tools/runbook-check.ts`
+- `pnpm runbook-check` valida presença, frontmatter, seções obrigatórias e cobertura do calendário.
+- `pnpm check:all` executa `pnpm runbook-check`.
+
 ## Não-objetivos
 
 - Runbooks **não** cobrem BCP/DR de infra genérica (rede, VPC, banco primário) — isso fica em `infra/runbooks/`.

@@ -460,6 +460,24 @@
     - .codex/agents/**
     - tools/sync-agents.ts
 
+- id: REQ-HARNESS-P0-9-RUNBOOKS
+  source:
+    doc: harness/13-runbooks-recovery.md
+    section: "P0-9"
+  description: Runbooks de recuperação para KMS, hash-chain, WORM e pacote normativo devem ser versionados, ter calendário de drill e validar estrutura mínima em gate.
+  validation_status: validated
+  linked_specs:
+    - specs/0003-recovery-runbooks.md
+  linked_tests:
+    - tools/runbook-check.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P0-9-RUNBOOKS/
+  owner: product-governance
+  criticality: blocker
+  critical_paths:
+    - compliance/runbooks/**
+    - tools/runbook-check.ts
+    - harness/13-runbooks-recovery.md
+
 - id: REQ-HARNESS-P0-2-NORMATIVE-PACKAGE
   source:
     doc: harness/04-compliance-pipeline.md

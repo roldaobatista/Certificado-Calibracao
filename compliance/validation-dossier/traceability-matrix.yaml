@@ -244,6 +244,20 @@ requirements:
     critical_paths:
       - packages/normative-rules/**
       - compliance/normative-packages/**
+  - id: REQ-HARNESS-P0-9-RUNBOOKS
+    source: harness/13-runbooks-recovery.md P0-9
+    criticality: blocker
+    owner: product-governance
+    linked_specs:
+      - specs/0003-recovery-runbooks.md
+    linked_tests:
+      - tools/runbook-check.test.ts
+    planned_tests: []
+    evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P0-9-RUNBOOKS/
+    critical_paths:
+      - compliance/runbooks/**
+      - tools/runbook-check.ts
+      - harness/13-runbooks-recovery.md
   - id: REQ-PRD-13-01-MOBILE-OFFLINE-CALIBRATION
     source: PRD.md §13.1
     criticality: blocker
