@@ -1,0 +1,38 @@
+name: Nightly flake gate
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+
+jobs:
+  flake-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate redundancy policy
+        run: pnpm redundancy-check
+
+      - name: Run sentinel suites 10x
+        shell: bash
+        run: |
+          for run in 1 2 3 4 5 6 7 8 9 10; do
+            echo "flake-gate run ${run}/10"
+            pnpm test:tenancy
+          done

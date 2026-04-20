@@ -148,3 +148,22 @@ Revisão trimestral em `adr/<n>-redundancy-budget.md` ajusta Ns com base em dado
 - Property tests e flake gate entram no L4 (integração).
 - Dupla checagem regulatória entra no L1 (spec review) e L4.
 - Self-consistency entra no L0 (épico) quando o épico cita norma nova.
+
+## 10. Implementação bootstrap
+
+Primeira fatia funcional em 2026-04-20:
+
+- `evals/property-config.yaml` declara a propriedade RLS atual com `N: 500` e seeds canônicos.
+- `tools/redundancy-check.ts` valida N mínimo por criticidade, seeds canônicos, vínculo com o dossiê e artefatos de flake/regulator decisions.
+- `.github/workflows/nightly-flake-gate.yml` roda a suite sentinela de tenancy 10x em pipeline noturno.
+- `compliance/validation-dossier/flake-log/` é o registro canônico de flakes.
+- `compliance/regulator-decisions/` é o registro canônico de precedentes e self-consistency.
+- `pnpm redundancy-check:plan` lista dupla checagem regulatória e reviews adjacentes por path alterado.
+- `.claude/hooks/redundancy-check.sh` roda o gate no pre-commit canônico quando arquivos P0-11 entram no delta.
+
+Pendências honestas:
+
+- Classificação automática `flake` vs `infra`.
+- Traces automáticos por seed em `evals/**/reports/`.
+- Branch protection real para exigir os reviews adjacentes no GitHub.
+- Execução automatizada da self-consistency 3x pelo agente `regulator`.
