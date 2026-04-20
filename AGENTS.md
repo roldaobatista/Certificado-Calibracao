@@ -138,7 +138,82 @@ pnpm check:drift       # valida .claude/agents ↔ .codex/agents em sincronia
 pnpm check:all         # typecheck + check:drift
 ```
 
-## 10. Referências
+## 10. Como finalizar, commitar e publicar
+
+O usuário principal não programa. Quando ele disser "pode fazer tudo", "continua", "finaliza", "faz o commit", "manda para main" ou equivalente, o agente deve levar a tarefa até Git/GitHub, desde que os gates estejam verdes.
+
+### Antes do commit
+
+```bash
+git status --short
+pnpm check:all
+pnpm test:tenancy              # obrigatório quando tocar db, tenancy, audit, compliance ou área crítica
+bash .githooks/pre-commit
+```
+
+Regras:
+
+- Nunca usar `--no-verify`.
+- Nunca usar `git push --force` ou `git push --force-with-lease` em `main`.
+- Se teste ou hook falhar, corrigir antes de commitar. Não empurrar falha para o usuário.
+- Se o hook falhar no Windows/WSL por `node` ausente, corrigir o hook/ambiente; não pular gate. Os hooks usam `.claude/hooks/lib.sh` para cair para `pnpm.cmd` quando necessário.
+- Mensagem de commit deve ser curta e convencional, por exemplo `feat: implement compliance guardrail tooling`, `fix: enforce tenant sql lint`, `docs: document agent workflow`.
+
+### Commit padrão
+
+```bash
+git add -A
+git commit -m "<tipo>: <resumo>"
+```
+
+Após commitar, confirmar:
+
+```bash
+git status --short
+git log --oneline -1
+```
+
+### Publicação padrão deste repositório
+
+A branch padrão do GitHub é `main`. Se o usuário pedir para "mandar para main", "subir", "publicar" ou "fazer push", usar push direto sem force:
+
+```bash
+git checkout main
+git pull --ff-only origin main
+git push origin main
+```
+
+Se o trabalho foi feito em outra branch e o usuário pediu explicitamente push para `main`, publicar o `HEAD` atual em `main` sem force:
+
+```bash
+git push origin HEAD:main
+git checkout -B main origin/main
+```
+
+Se houver divergência remota, não resolver com force. Fazer `git fetch origin`, inspecionar o histórico e preferir merge/rebase normal com nova verificação completa.
+
+### Pull Request
+
+Usar PR quando o usuário pedir revisão, quando houver exigência explícita de PR/ADR, ou quando a mudança alterar `compliance/**` de forma regulatória sensível sem autorização direta para push em `main`.
+
+```bash
+git push -u origin <branch>
+gh pr create --title "<titulo>" --body "<resumo e testes>"
+```
+
+### Depois do push
+
+Confirmar remoto e branch padrão:
+
+```bash
+git ls-remote --heads origin main
+git ls-remote --symref origin HEAD
+git status -sb
+```
+
+Responder ao usuário com commit, branch, verificações executadas e qualquer limitação honesta.
+
+## 11. Referências
 
 - [`PRD.md`](./PRD.md) — requisitos do produto
 - [`harness/README.md`](./harness/README.md) — índice do design do harness (16 arquivos)
