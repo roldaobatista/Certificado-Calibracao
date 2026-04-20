@@ -15,6 +15,7 @@ dist/
 build/
 .next/
 coverage/
+*.tsbuildinfo
 
 # Logs e temporários
 *.log

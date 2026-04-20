@@ -1,0 +1,24 @@
+{
+  "name": "afere",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Aferê — plataforma metrológica de certificação de calibração (ISO/IEC 17025, Inmetro/Cgcre)",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "turbo": "^2.3.0",
+    "typescript": "^5.5.4"
+  }
+}
