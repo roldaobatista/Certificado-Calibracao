@@ -1,11 +1,11 @@
-# .codex/config.toml — Kalibrium
+# .codex/config.toml — Aferê
 #
 # Espelho do harness. Fonte canônica: AGENTS.md (raiz).
 # Veja harness/17-multi-tooling.md para estratégia dual Claude Code + Codex CLI.
 # Os 13 agentes estão em .codex/agents/. Hooks em .codex/hooks/.
 
 [project]
-name = "kalibrium"
+name = "afere"
 description = "Plataforma metrológica de certificação de calibração (ISO/IEC 17025, Inmetro/Cgcre)"
 canonical_context = "AGENTS.md"
 

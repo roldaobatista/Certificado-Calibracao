@@ -1,17 +1,17 @@
-# PRD — Plataforma Kalibrium de Certificação de Calibração
+# PRD — Plataforma Aferê de Certificação de Calibração
 
 > **Documento:** Product Requirements Document (PRD)
 > **Versão:** 1.8
 > **Data:** 2026-04-19
 > **Status:** Especificação em revisão — correções cirúrgicas aplicadas a partir da consolidação de duas análises críticas multidisciplinares (ver [ANALISE_CONSOLIDADA_PRD.md](./ANALISE_CONSOLIDADA_PRD.md))
-> **Autor consolidador:** Equipe Kalibrium
+> **Autor consolidador:** Equipe Aferê
 > **Base documental:** [`ideia.md`](./ideia.md), [`iso 17025/`](./iso%2017025), [`normas e portarias inmetro/`](./normas%20e%20portarias%20inmetro)
 
 ---
 
 ## Sumário executivo
 
-A **Plataforma Kalibrium de Certificação de Calibração** é uma solução metrológica composta por **aplicativo web** (gestão, revisão, emissão, portal do cliente) e **aplicativo Android** (execução em campo/laboratório, offline-first), conectados por um backend único que centraliza regras de negócio, cálculos, trilha de auditoria e a fonte oficial dos certificados.
+A **Plataforma Aferê de Certificação de Calibração** é uma solução metrológica composta por **aplicativo web** (gestão, revisão, emissão, portal do cliente) e **aplicativo Android** (execução em campo/laboratório, offline-first), conectados por um backend único que centraliza regras de negócio, cálculos, trilha de auditoria e a fonte oficial dos certificados.
 
 Diferente de um simples gerador de PDF, o produto opera simultaneamente como **sistema metrológico**, **sistema da qualidade** e **sistema documental**, sustentando a **ABNT NBR ISO/IEC 17025:2017** e o ecossistema regulatório brasileiro (Inmetro / Cgcre / DOQ-CGCRE / NIT-DICLA / Portaria 157/2022 — IPNA, Portaria 289/2021 — pesos padrão, RTAC, RTM, ILAC P10/P14/G8).
 
@@ -118,7 +118,7 @@ Tornar a emissão de certificados de calibração de balanças (e, em fases segu
 
 ### 4.2 Mapeamento norma → módulo do produto
 
-| Cláusula ISO/IEC 17025 | Módulo Kalibrium |
+| Cláusula ISO/IEC 17025 | Módulo Aferê |
 |------------------------|------------------|
 | 4.1 Imparcialidade | Cadastro de declarações de conflito + matriz de risco no módulo Qualidade |
 | 4.2 Confidencialidade | RBAC, criptografia, termos de confidencialidade no Onboarding |
@@ -674,7 +674,7 @@ Antes do técnico fechar a execução, o app renderiza **prévia integral** do c
 - Signatário autorizado revisa o certificado renderizado.
 - Re-autenticação + assinatura eletrônica.
 - Sistema gera **PDF/A imutável**, hash SHA-256, número sequencial irrevogável.
-- QR code aponta para `https://verifica.kalibrium.com.br/c/{hash}`.
+- QR code aponta para `https://verifica.afere.com.br/c/{hash}`.
 - Distribuição: download na plataforma + envio ao e-mail do cliente.
 
 ### 7.8 Engine de cálculo e incerteza
@@ -787,7 +787,7 @@ Convite → Aceito → Ativo → (Suspenso ↔ Ativo) → Desligado
 
 ### 7.15 Site de vendas e auto-cadastro
 
-#### Site de vendas público (`kalibrium.com.br`)
+#### Site de vendas público (`afere.com.br`)
 - **Objetivo:** captação de leads e auto-cadastro qualificado (PLG — product-led growth).
 - **Páginas previstas:**
   - **Home** — proposta de valor por persona (laboratório / técnico / cliente final).
@@ -1032,13 +1032,13 @@ organizations  (regulatory_profile: A | B | C; cgcre_number; accreditation_valid
 - **Armazenamento em território nacional** — dados hospedados em região brasileira (AWS sa-east-1 ou equivalente); DR e backups também em território nacional. **Sem transferência internacional no MVP.**
 - **Matriz de tratamento** (anexo ao DPA, referência contratual):
 
-| Classe de dado | Papel Kalibrium | Base legal (LGPD) | Retenção |
+| Classe de dado | Papel Aferê | Base legal (LGPD) | Retenção |
 |----------------|-----------------|-------------------|----------|
 | Usuários da plataforma (nome, e-mail, credenciais) | Controlador | Execução de contrato (art. 7 V) | Ativa + 5 anos pós-desligamento |
 | Clientes finais do laboratório (cadastros, contatos) | Operador | Sob instrução do controlador (laboratório) | Conforme instrução do lab; mín. 5 anos para registros técnicos |
 | Leituras, evidências, certificados | Operador | Obrigação legal do lab (art. 7 II) + Execução de contrato (art. 7 V) | Mín. 5 anos; configurável no plano (5/10 anos) |
 | Audit logs (identidade do ator + ação) | Controlador | Legítimo interesse (art. 7 IX) + obrigação legal | Mín. 10 anos; PII pseudonimizável sem quebra de hash chain |
-| Biometria Android (2º fator local) | **Não coletada** | — | Template permanece no dispositivo via Android Keystore; Kalibrium não recebe o template |
+| Biometria Android (2º fator local) | **Não coletada** | — | Template permanece no dispositivo via Android Keystore; Aferê não recebe o template |
 
 - **Retenção — hierarquia:** matriz acima é o piso normativo/contratual; configuração de plano só parametriza **acima** desse piso.
 - **Direitos do titular (art. 18 LGPD):** fluxo self-service no perfil do usuário para acesso, retificação, portabilidade e eliminação — SLA ≤ 15 dias. Dados sob obrigação legal ou retenção contratual são preservados com justificativa documentada; PII do ator em audit logs é pseudonimizada (mapping table separada e deletável) **sem quebrar a cadeia de hashes**.
@@ -1132,7 +1132,7 @@ O MVP é considerado pronto para produção quando, simultaneamente:
 15. ✅ Sistema reconhece os **3 perfis regulatórios** (Tipo A/B/C) e seleciona automaticamente o template de PDF correspondente; tentativa de uso indevido de selo Cgcre/RBC é bloqueada.
 16. ✅ **Reemissão controlada (§17.8)** funciona com dupla aprovação, versionamento R1/R2, hash anterior preservado e notificação automática ao cliente.
 17. ✅ Página pública de verificação por QR responde corretamente para certificado autêntico, reemitido e não localizado (§17.5.6) e **expõe apenas metadados mínimos** (sem dados de cliente final, sem PDF completo sem autenticação).
-18. ✅ **Plano de Validação do Software Kalibrium** aprovado e executado: protocolo formal, casos-teste normativos (incluindo ≥10 cenários-referência EURAMET cg-18 rodados em CI para a engine de incerteza — release bloqueado se qualquer divergir além de ε declarado), rastreabilidade requisito→teste, registro de evidências e procedimento de revalidação após mudança relevante (ISO/IEC 17025 §7.11).
+18. ✅ **Plano de Validação do Software Aferê** aprovado e executado: protocolo formal, casos-teste normativos (incluindo ≥10 cenários-referência EURAMET cg-18 rodados em CI para a engine de incerteza — release bloqueado se qualquer divergir além de ε declarado), rastreabilidade requisito→teste, registro de evidências e procedimento de revalidação após mudança relevante (ISO/IEC 17025 §7.11).
 19. ✅ **Hardening de multitenancy e audit log**: pool de conexões fail-closed sem `tenant_id`; linter de PR rejeita SQL sem `organization_id`; fuzz cross-tenant semanal em CI; audit log em object storage WORM (object lock) com checkpoints assinados periodicamente.
 20. ✅ **Modelo de sincronização offline documentado e testado**: event sourcing por OS, idempotência por `(device_id, client_event_id)`, optimistic locking por agregado, lock exclusivo por OS após início da assinatura, matriz de conflitos com política de merge/rejeição por tipo. Teste de caos: 1.000 OS geradas offline por ≥ 5 dispositivos com sync randomizado — zero perdas, zero duplicatas.
 21. ✅ **Parecer jurídico formal** sobre assinatura eletrônica auditável (MP 2.200-2 §10 II) anexado ao dossiê; minuta de DPA e matriz controlador/operador (§11.4) revisadas por advogado LGPD.
@@ -1179,14 +1179,14 @@ O MVP é considerado pronto para produção quando, simultaneamente:
 | **Multitenant** | Arquitetura SaaS em que múltiplas organizações compartilham a mesma instância com isolamento lógico de dados |
 | **RLS** | Row Level Security — mecanismo do PostgreSQL que filtra linhas por critério de tenant a cada consulta |
 | **OAuth 2.0 / OIDC** | Padrão aberto de autorização e autenticação delegada (usado para login com Google, Microsoft, Apple) |
-| **SAML 2.0** | Padrão de federação de identidade para SSO corporativo entre organização cliente e Kalibrium |
+| **SAML 2.0** | Padrão de federação de identidade para SSO corporativo entre organização cliente e Aferê |
 | **SCIM** | System for Cross-domain Identity Management — provisionamento automático de usuários a partir de IdP corporativo |
 | **MFA** | Multi-Factor Authentication — exige fator adicional além de senha (TOTP, biometria) |
 | **TOTP** | Time-based One-Time Password — código numérico gerado por app (Google/Microsoft Authenticator) |
 | **SSO** | Single Sign-On — autenticação única que permite login com identidade já estabelecida (Google, IdP corporativo) |
 | **PDF/A** | Subconjunto do PDF para arquivamento de longo prazo, sem dependências externas e com fontes embutidas |
 | **LGPD** | Lei Geral de Proteção de Dados (Brasil, Lei 13.709/2018) |
-| **DPA** | Data Processing Agreement — acordo contratual que define como o Kalibrium processa dados pessoais em nome da organização |
+| **DPA** | Data Processing Agreement — acordo contratual que define como o Aferê processa dados pessoais em nome da organização |
 | **DPO** | Data Protection Officer — encarregado pelo tratamento de dados pessoais |
 | **MRR / ARPU / CAC** | Monthly Recurring Revenue / Average Revenue per Account / Customer Acquisition Cost — métricas SaaS (§6.7.4) |
 | **NPS** | Net Promoter Score — métrica de satisfação |
@@ -1318,12 +1318,12 @@ normative_package_v_2026.04 = {
 
 > **Convenção:** os wireframes são representações **textuais e indicativas** — descrevem hierarquia, elementos e CTAs, não estilo visual final. Servem como base para o time de design produzir os layouts em ferramenta de UI (Figma/Penpot).
 
-### 17.1 Site de vendas público (`kalibrium.com.br`)
+### 17.1 Site de vendas público (`afere.com.br`)
 
 #### 17.1.1 Header (presente em todas as páginas)
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│ [LOGO Kalibrium]  Como funciona · Conformidade · Preços · Recursos ·   │
+│ [LOGO Aferê]  Como funciona · Conformidade · Preços · Recursos ·   │
 │                   Casos · Contato            [Entrar] [Comece grátis →]│
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -1340,7 +1340,7 @@ normative_package_v_2026.04 = {
 │ Recursos       Inmetro         Blog          DPA (LGPD)                │
 │ Status         Auditoria       Contato       Cookies                   │
 │                                                                        │
-│ © Kalibrium · CNPJ XX.XXX.XXX/0001-XX · DPO: dpo@kalibrium.com.br     │
+│ © Aferê · CNPJ XX.XXX.XXX/0001-XX · DPO: dpo@afere.com.br     │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1364,7 +1364,7 @@ normative_package_v_2026.04 = {
 │   [Logo cliente 1] [Logo 2] [Logo 3] [Logo 4] [Logo 5] [Logo 6]       │
 ├────────────────────────────────────────────────────────────────────────┤
 │   PROBLEMA → SOLUÇÃO                                                   │
-│   Certificado errado custa caro. O Kalibrium impede por arquitetura.   │
+│   Certificado errado custa caro. O Aferê impede por arquitetura.   │
 │   ┌─────────────┬─────────────┬─────────────┐                          │
 │   │ Padrão      │ Cálculo     │ Selo Cgcre  │                          │
 │   │ vencido?    │ de incerteza│ usado fora  │                          │
@@ -1393,7 +1393,7 @@ normative_package_v_2026.04 = {
 │   [Ver matriz completa de conformidade →]                              │
 ├────────────────────────────────────────────────────────────────────────┤
 │   DEPOIMENTO EM DESTAQUE                                               │
-│   "Antes do Kalibrium tinha 12% de reemissão. Hoje, zero."            │
+│   "Antes do Aferê tinha 12% de reemissão. Hoje, zero."            │
 │   — João Silva, Gerente da Qualidade, Lab. Acme                       │
 ├────────────────────────────────────────────────────────────────────────┤
 │   CTA FINAL                                                            │
@@ -1448,7 +1448,7 @@ normative_package_v_2026.04 = {
 │ [HEADER]                                                               │
 ├────────────────────────────────────────────────────────────────────────┤
 │   "Conformidade não é promessa, é arquitetura"                         │
-│   Como o Kalibrium garante ISO 17025 e portarias Inmetro a cada        │
+│   Como o Aferê garante ISO 17025 e portarias Inmetro a cada        │
 │   certificado emitido.                                                 │
 ├────────────────────────────────────────────────────────────────────────┤
 │   3 PERFIS REGULATÓRIOS                                                │
@@ -1500,7 +1500,7 @@ SEÇÕES:
 #### 17.2.1 Layout-base
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│ [LOGO Kalibrium]                          Olá, João  · [Sair]          │
+│ [LOGO Aferê]                          Olá, João  · [Sair]          │
 ├──────────────────┬─────────────────────────────────────────────────────┤
 │                  │  Passo 4 de 10 · ▰▰▰▱▱▱▱▱▱▱  40%                    │
 │ ✓ 1 Identidade   ├─────────────────────────────────────────────────────┤
@@ -1742,7 +1742,7 @@ PLANO ATUAL:                          [Comparar planos →]
 ```
 ┌──────────────────────────┐
 │        [LOGO]            │
-│      Kalibrium           │
+│      Aferê           │
 │                          │
 │  Bem-vindo de volta      │
 │                          │
@@ -2993,7 +2993,7 @@ PLANO ATUAL:                          [Comparar planos →]
 │                                                                        │
 │ ─── COMO VERIFICAR ESTE CERTIFICADO ─────────────────────────          │
 │ • Aponte a câmera para o QR code da última página                      │
-│ • Ou acesse: verifica.kalibrium.com.br/c/a3f9c12d                      │
+│ • Ou acesse: verifica.afere.com.br/c/a3f9c12d                      │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -3003,7 +3003,7 @@ PLANO ATUAL:                          [Comparar planos →]
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│ [LOGO Kalibrium]                Verificação de Certificado              │
+│ [LOGO Aferê]                Verificação de Certificado              │
 ├────────────────────────────────────────────────────────────────────────┤
 │                                                                        │
 │  Código do certificado:                                                │
@@ -3023,7 +3023,7 @@ PLANO ATUAL:                          [Comparar planos →]
 │                                                                        │
 │  ───────────────────────────────────────────────────                   │
 │  Quer também emitir certificados como o Lab. Acme?                     │
-│  [Conheça o Kalibrium →]                                               │
+│  [Conheça o Aferê →]                                               │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -3050,7 +3050,7 @@ PLANO ATUAL:                          [Comparar planos →]
 
 ### 17.6 Componentes reutilizáveis (web)
 
-> **Princípio:** todo padrão visual abaixo é centralizado no design system `kalibrium-ds`. Times não criam variantes locais.
+> **Princípio:** todo padrão visual abaixo é centralizado no design system `afere-ds`. Times não criam variantes locais.
 
 #### 17.6.1 Modal de bloqueio (versão web do §17.3.10)
 
@@ -3198,34 +3198,34 @@ PLANO ATUAL:                          [Comparar planos →]
 #### 17.7.1 Verificação de e-mail (signup)
 
 ```
-Assunto: Confirme seu e-mail no Kalibrium
+Assunto: Confirme seu e-mail no Aferê
 ─────────────────────────────────────────────────────────────
 
-[LOGO Kalibrium]
+[LOGO Aferê]
 
 Olá!
 
-Você (ou alguém) criou uma conta no Kalibrium com este e-mail.
+Você (ou alguém) criou uma conta no Aferê com este e-mail.
 Para concluir, confirme seu endereço:
 
       [ Confirmar e-mail ]   ← botão
 
 Ou copie este link:
-https://app.kalibrium.com.br/verify?token=...
+https://app.afere.com.br/verify?token=...
 
 O link expira em 30 minutos.
 
 Se não foi você, ignore este e-mail — nenhuma conta será criada.
 
 —
-Kalibrium · CNPJ XX.XXX.XXX/0001-XX
-DPO: dpo@kalibrium.com.br
+Aferê · CNPJ XX.XXX.XXX/0001-XX
+DPO: dpo@afere.com.br
 ```
 
 #### 17.7.2 Convite de usuário (organização)
 
 ```
-Assunto: Maria, você foi convidada para o Kalibrium do Lab. Acme
+Assunto: Maria, você foi convidada para o Aferê do Lab. Acme
 ─────────────────────────────────────────────────────────────
 
 [LOGO Lab. Acme]
@@ -3233,14 +3233,14 @@ Assunto: Maria, você foi convidada para o Kalibrium do Lab. Acme
 Olá, Maria,
 
 Carlos Lima (Administrador do Lab. Acme) convidou você para
-participar do Kalibrium como **Signatária Autorizada**.
+participar do Aferê como **Signatária Autorizada**.
 
       [ Aceitar convite ]
 
 O convite expira em 72 horas. Você poderá entrar com seu Google,
 Microsoft ou criar uma senha.
 
-Sobre o Kalibrium: plataforma metrológica para emissão de
+Sobre o Aferê: plataforma metrológica para emissão de
 certificados de calibração conforme ISO/IEC 17025.
 
 —
@@ -3250,7 +3250,7 @@ Lab. Acme · contato@lab-acme.com.br
 #### 17.7.3 Reset de senha
 
 ```
-Assunto: Redefinir sua senha — Kalibrium
+Assunto: Redefinir sua senha — Aferê
 ─────────────────────────────────────────────────────────────
 
 Recebemos um pedido para redefinir sua senha.
@@ -3283,7 +3283,7 @@ está disponível para download.
       [ Baixar certificado (PDF) ]
 
 Verificação pública:
-https://verifica.kalibrium.com.br/c/a3f9c12d
+https://verifica.afere.com.br/c/a3f9c12d
 
 Histórico completo no Portal do Cliente:
 https://portal.lab-acme.com.br/equipamentos/BAL-007
@@ -3337,7 +3337,7 @@ bloqueado para uso em novas OS.
       [ Ver padrão ]   [ Solicitar renovação ]
 
 —
-Kalibrium · Sistema de notificações
+Aferê · Sistema de notificações
 ```
 
 #### 17.7.7 NC aberta (responsável)
@@ -3357,7 +3357,7 @@ Uma não conformidade foi atribuída a você:
       [ Abrir NC ]
 
 —
-Kalibrium · Módulo Qualidade
+Aferê · Módulo Qualidade
 ```
 
 #### 17.7.8 Reemissão de certificado (cliente)
@@ -3395,7 +3395,7 @@ Assunto: Seu trial Pro acaba em 3 dias
 
 Olá, Carlos,
 
-Seu trial Pro do Kalibrium termina em 3 dias (22/04/2026).
+Seu trial Pro do Aferê termina em 3 dias (22/04/2026).
 Continue com tudo o que está usando:
 
   ✓ 8 usuários ativos
@@ -3409,7 +3409,7 @@ Sem ação, a organização entra em modo somente leitura por 7 dias
 e depois em congelamento (dados preservados por 90 dias).
 
 —
-Kalibrium · Sucesso do Cliente
+Aferê · Sucesso do Cliente
 ```
 
 ### 17.8 Fluxo de reemissão controlada (web) — ISO 17025 §7.8.8
@@ -3547,7 +3547,7 @@ Kalibrium · Sucesso do Cliente
 │  • Cliente (CC): qualidade@lab-acme.com.br                             │
 │                                                                        │
 │  Página pública de verificação atualiza imediatamente:                 │
-│  https://verifica.kalibrium.com.br/c/a3f9c12d → mostra aviso de        │
+│  https://verifica.afere.com.br/c/a3f9c12d → mostra aviso de        │
 │  reemissão e link para R1                                              │
 │                                                                        │
 │  [Ver certificado R1]   [Voltar à OS]                                  │

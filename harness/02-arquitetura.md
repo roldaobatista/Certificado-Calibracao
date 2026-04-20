@@ -13,7 +13,7 @@
 ## Estrutura do monorepo
 
 ```
-kalibrium/
+afere/
 ├─ AGENTS.md                    # contexto canônico (espelha CLAUDE.md)
 ├─ CLAUDE.md                    # instruções globais do harness
 ├─ .claude/

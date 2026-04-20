@@ -1,4 +1,4 @@
-# CLAUDE.md — Kalibrium
+# CLAUDE.md — Aferê
 
 > Thin wrapper para Claude Code. Fonte de verdade: [`AGENTS.md`](./AGENTS.md) (padrão aberto multi-tool).
 > Em `.codex/` há espelho equivalente para Codex CLI.
@@ -56,7 +56,7 @@ Gates duros em git hooks + CI rodam independentes da ferramenta de IA usada. Ver
 ## Como iniciar
 
 ```bash
-cd kalibrium
+cd afere
 claude
 ```
 

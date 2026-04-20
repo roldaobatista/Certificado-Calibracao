@@ -61,7 +61,7 @@ Mecanismos aceitos:
 Cloud agent só opera com fixtures sintéticas geradas por `evals/fixtures/synthetic/generate.ts`:
 - CPF/CNPJ: gerados com dígitos verificadores válidos mas sem correspondência real (prefixo 000.000.000-XX convencionado).
 - Nomes: pool controlado com prefixo `TEST_`.
-- E-mails: domínio `@example.kalibrium.test`.
+- E-mails: domínio `@example.afere.test`.
 
 Scanner em CI bloqueia qualquer padrão que não seja sintético.
 

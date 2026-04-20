@@ -1,4 +1,4 @@
-# AGENTS.md — Kalibrium
+# AGENTS.md — Aferê
 
 > Arquivo canônico, lido por **Claude Code, OpenAI Codex CLI, Cursor, GitHub Copilot, Amp, Windsurf, Gemini CLI** (padrão aberto AGENTS.md — Linux Foundation).
 >
@@ -6,7 +6,7 @@
 
 ## 1. Produto
 
-**Kalibrium** — plataforma metrológica de certificação de calibração (ISO/IEC 17025, Inmetro/Cgcre). Web (Next.js) + Android (Kotlin, offline-first) + backend único (Postgres). Multitenant. Emissão regulada com trilha imutável. Ver [`PRD.md`](./PRD.md) v1.8.
+**Aferê** — plataforma metrológica de certificação de calibração (ISO/IEC 17025, Inmetro/Cgcre). Web (Next.js) + Android (Kotlin, offline-first) + backend único (Postgres). Multitenant. Emissão regulada com trilha imutável. Ver [`PRD.md`](./PRD.md) v1.8.
 
 ## 2. Princípios não-negociáveis
 
@@ -22,7 +22,7 @@ Detalhamento em [`harness/01-principios.md`](./harness/01-principios.md).
 ## 3. Estrutura do repositório
 
 ```
-kalibrium/
+afere/
 ├─ AGENTS.md                     ← este arquivo
 ├─ PRD.md                        ← requisitos (v1.8)
 ├─ harness/                      ← decisão arquitetural (16 arquivos)
@@ -105,14 +105,14 @@ Qualquer uma das ferramentas segue o harness. Configs em `.claude/` e `.codex/` 
 
 ### Em Claude Code
 ```
-cd kalibrium
+cd afere
 claude
 ```
 Claude Code lê `CLAUDE.md` → este `AGENTS.md` → `.claude/agents/*.md` → `.claude/settings.json`.
 
 ### Em Codex CLI
 ```
-cd kalibrium
+cd afere
 codex
 ```
 Codex lê `AGENTS.md` diretamente → `.codex/config.toml` → `.codex/agents/*`.

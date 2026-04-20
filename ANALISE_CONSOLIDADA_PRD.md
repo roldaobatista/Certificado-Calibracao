@@ -1,4 +1,4 @@
-# Consolidação das Análises Críticas do PRD Kalibrium
+# Consolidação das Análises Críticas do PRD Aferê
 
 **Base:** [PRD.md](./PRD.md) (3.814 linhas, 18 seções) · prompt em [PROMPT_ANALISE_PRD.md](./PROMPT_ANALISE_PRD.md)
 **Entradas:** duas análises por LLMs distintos seguindo o mesmo prompt (6 papéis: Auditor Cgcre, CTO SaaS, PM sênior, UX/UI, LGPD, Comercial/Founder). Referenciadas aqui como **A1** e **A2**.
@@ -36,7 +36,7 @@ Para cada achado: (1) verifiquei no PRD real a citação/linha referenciada; (2)
 - **A2**: papel controlador/operador não documentado; retenção inconsistente (L328 planos vs. L1025 política); direitos do titular vs. imutabilidade não resolvidos.
 - **✅ Confirmado.** §11.4 (L1022–1026) tem 5 bullets sem matriz de tratamento; §6.7.1 L354 só lista DPA como item de plano; L364 trata ICP-Brasil como add-on pago de Fase 2.
 - **Risco:** cliente corporativo regulado (ANVISA, MAPA, órgão público) não assina; documento probatório questionável em disputa.
-- **Ação:** (a) parecer jurídico formal MP 2.200-2 §10 II para assinatura eletrônica; (b) minuta de DPA anexa; (c) matriz `tipo de dado × papel Kalibrium × base legal × retenção × sub-operadores`; (d) declarar região de armazenamento (sa-east-1 ou equivalente BR); (e) fluxo self-service de portabilidade por titular; (f) oferecer ICP-Brasil como add-on opt-in **desde o MVP**.
+- **Ação:** (a) parecer jurídico formal MP 2.200-2 §10 II para assinatura eletrônica; (b) minuta de DPA anexa; (c) matriz `tipo de dado × papel Aferê × base legal × retenção × sub-operadores`; (d) declarar região de armazenamento (sa-east-1 ou equivalente BR); (e) fluxo self-service de portabilidade por titular; (f) oferecer ICP-Brasil como add-on opt-in **desde o MVP**.
 
 ---
 
@@ -71,7 +71,7 @@ Para cada achado: (1) verifiquei no PRD real a citação/linha referenciada; (2)
 ### C10. Dossiê de validação do software ausente
 - **A2** crítico: §4.2 L136 mapeia "7.11 Sistemas | Validação interna do próprio sistema", mas §12–§13 não definem protocolo de validação, casos-teste, rastreabilidade requisito→teste, revalidação pós-mudança.
 - **✅ Confirmado.** §13 critérios são binários de saída; nenhum entregável "plano de validação".
-- **Ação:** criar entregável explícito no MVP — "Plano de Validação do Software Kalibrium", com casos-teste normativos, evidências de execução, aprovação formal e procedimento de revalidação ao mudar a engine.
+- **Ação:** criar entregável explícito no MVP — "Plano de Validação do Software Aferê", com casos-teste normativos, evidências de execução, aprovação formal e procedimento de revalidação ao mudar a engine.
 
 ---
 
@@ -170,7 +170,7 @@ Para cada achado: (1) verifiquei no PRD real a citação/linha referenciada; (2)
 - [ ] Suavizar wording de promessa em §1, §2.3 princípio 7, §16.7, §17.1
 - [ ] Escolher beachhead (Tipo B recomendado) e reescrever §6.5 ativação por fase
 - [ ] Documento técnico "Modelo de sincronização offline" com event sourcing
-- [ ] "Plano de Validação do Software Kalibrium" com casos-teste normativos
+- [ ] "Plano de Validação do Software Aferê" com casos-teste normativos
 - [ ] Conjunto de cenários-gabarito EURAMET cg-18 versionado no repositório
 - [ ] Reconciliar §3 com §6.7.4; reajustar meta 18% → 8–10%
 - [ ] Fechar contradição §6.5 × §7.14 (Tipo A = passos 1,4,5,6,8 duros)

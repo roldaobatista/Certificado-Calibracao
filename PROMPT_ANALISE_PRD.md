@@ -1,4 +1,4 @@
-# Prompt — Análise crítica do PRD Kalibrium
+# Prompt — Análise crítica do PRD Aferê
 
 > Cole o conteúdo abaixo em uma nova sessão do Claude (Claude Code, Claude.ai, ou outra). Se estiver no Claude Code com acesso ao arquivo, ele lerá `PRD.md` direto. Se estiver no Claude.ai, anexe ou cole o PRD completo após o prompt.
 
@@ -57,7 +57,7 @@ Para cada papel, produza:
 ### Formato de saída
 
 ```
-# Análise crítica do PRD Kalibrium
+# Análise crítica do PRD Aferê
 
 ## Pontos fortes (1 parágrafo)
 [...]

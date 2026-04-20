@@ -1,4 +1,4 @@
-# Harness de Desenvolvimento — Plataforma Kalibrium
+# Harness de Desenvolvimento — Plataforma Aferê
 
 > **Objetivo:** montar um ambiente multi-agente de alto nível para desenvolver o produto descrito no PRD v1.8 do zero, com orquestrador + agentes especializados, spec-driven development e *guardrails* compatíveis com um domínio regulado (ISO/IEC 17025, Inmetro/Cgcre).
 >
@@ -56,7 +56,7 @@ Cada subagente tem `.claude/agents/<nome>.md` com *description*, *allowed_tools*
 ### 2.4 Estrutura de repositório (monorepo)
 
 ```
-kalibrium/
+afere/
 ├─ AGENTS.md                 # contexto canônico (espelha CLAUDE.md)
 ├─ CLAUDE.md                 # instruções globais de harness
 ├─ .claude/

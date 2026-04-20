@@ -1,4 +1,4 @@
-# harness/ — Design operacional do ambiente de desenvolvimento Kalibrium
+# harness/ — Design operacional do ambiente de desenvolvimento Aferê
 
 > Pasta de trabalho para conferência e correção do harness multi-agente proposto.
 > Cada arquivo aqui é **estratégico**: aborda uma decisão que, se errada, compromete o produto regulado.
