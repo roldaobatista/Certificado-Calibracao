@@ -17,7 +17,6 @@ import { join } from "node:path";
 interface AgentFields {
   name: string;
   description: string;
-  allowedWrite: string[];
   source: "claude" | "codex";
 }
 
@@ -34,18 +33,9 @@ function parseClaudeMd(path: string): AgentFields | null {
     const m = line.match(/^([a-zA-Z_]+):\s*(.+)$/);
     if (m) frontmatter[m[1]!] = m[2]!.trim();
   }
-  const allowedWrite: string[] = [];
-  const allowedSection = text.match(/##\s*Paths permitidos \(escrita\)\s*\n([\s\S]*?)(?=\n##|\Z)/);
-  if (allowedSection && allowedSection[1] !== undefined) {
-    for (const line of allowedSection[1].split("\n")) {
-      const m = line.match(/^-\s*`([^`]+)`/);
-      if (m && m[1]) allowedWrite.push(m[1]);
-    }
-  }
   return {
     name: frontmatter.name ?? "",
     description: frontmatter.description ?? "",
-    allowedWrite,
     source: "claude",
   };
 }
@@ -54,8 +44,7 @@ function parseCodexToml(path: string): AgentFields | null {
   const text = readFileSync(path, "utf8");
   const name = getTomlString(text, "name") ?? "";
   const description = getTomlString(text, "description") ?? "";
-  const allowedWrite = getTomlStringArray(text, "allowed_write") ?? [];
-  return { name, description, allowedWrite, source: "codex" };
+  return { name, description, source: "codex" };
 }
 
 function getTomlString(text: string, key: string): string | null {
@@ -63,19 +52,6 @@ function getTomlString(text: string, key: string): string | null {
   const m = text.match(re);
   if (!m || m[1] === undefined) return null;
   return m[1].replace(/\\"/g, '"');
-}
-
-function getTomlStringArray(text: string, key: string): string[] | null {
-  const re = new RegExp(`^${key}\\s*=\\s*\\[([\\s\\S]*?)\\]`, "m");
-  const m = text.match(re);
-  if (!m || m[1] === undefined) return null;
-  const items: string[] = [];
-  const itemRe = /"((?:[^"\\]|\\.)*)"/g;
-  let sub: RegExpExecArray | null;
-  while ((sub = itemRe.exec(m[1])) !== null) {
-    if (sub[1] !== undefined) items.push(sub[1]);
-  }
-  return items;
 }
 
 interface Drift {
@@ -91,11 +67,9 @@ function diff(a: AgentFields, b: AgentFields): Drift[] {
   if (a.description !== b.description) {
     drifts.push({ agent: a.name, field: "description", claude: a.description, codex: b.description });
   }
-  const sortedA = [...a.allowedWrite].sort();
-  const sortedB = [...b.allowedWrite].sort();
-  if (JSON.stringify(sortedA) !== JSON.stringify(sortedB)) {
-    drifts.push({ agent: a.name, field: "allowed_write", claude: sortedA, codex: sortedB });
-  }
+  // NOTE: Codex 0.121+ não aceita campo `paths` em agent role TOML — ownership
+  // fica apenas em .claude/agents/*.md (fonte canônica). Drift check compara
+  // só name + description.
   return drifts;
 }
 
