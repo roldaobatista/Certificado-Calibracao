@@ -6,11 +6,12 @@
 
 - Total de critérios: 22
 - Critérios com requisito mapeado: 22
-- Critérios validados por teste ativo: 21
+- Critérios validados por teste ativo: 22
 - Critérios sem requisito mapeado: 0
 
 ## Validados
 
+- §13.1: REQ-PRD-13-01-MOBILE-OFFLINE-CALIBRATION — Uma calibração de balança IPNA pode ser executada do início ao certificado **exclusivamente pelo celular**, offline.
 - §13.2: REQ-PRD-13-02-STANDARD-ELIGIBILITY-BLOCK — O sistema **bloqueia** uso de padrão vencido, sem certificado, fora de faixa.
 - §13.3: REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS — O certificado é emitido com **resultado, incerteza expandida e fator k declarado**.
 - §13.4: REQ-PRD-13-04-TECHNICAL-REVIEW-SIGNATURE-AUDIT — A revisão técnica e a assinatura ficam **registradas com identidade, timestamp e dispositivo**.
@@ -35,7 +36,7 @@
 
 ## Mapeados sem validação ativa
 
-- §13.1: REQ-PRD-13-01-MOBILE-OFFLINE-CALIBRATION — Uma calibração de balança IPNA pode ser executada do início ao certificado **exclusivamente pelo celular**, offline.
+- Nenhum.
 
 ## Sem Requisito Mapeado
 
