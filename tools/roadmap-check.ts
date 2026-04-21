@@ -22,7 +22,13 @@ type RoadmapDocument = {
   version?: number;
   source?: string;
   policy?: Record<string, unknown>;
+  coverage?: RoadmapCoverage;
   slices?: RoadmapSlice[];
+};
+
+type RoadmapCoverage = {
+  tracked_requirement_prefixes?: string[];
+  excluded_requirements?: string[];
 };
 
 type RoadmapSlice = {
@@ -57,6 +63,7 @@ export function checkRoadmap(root = process.cwd()): RoadmapCheckResult {
   if (roadmap) {
     checkRoadmapDocument(roadmap, errors);
     checkRequirementLinks(root, roadmap, errors);
+    checkRequirementCoverage(root, roadmap, errors);
   }
 
   if (existsSync(resolve(root, HARNESS_ROADMAP))) {
@@ -210,6 +217,70 @@ function checkRequirementLinks(root: string, roadmap: RoadmapDocument, errors: s
     }
   } catch (error) {
     errors.push(`ROADMAP-006: falha ao carregar ${REQUIREMENTS_PATH}: ${(error as Error).message}`);
+  }
+}
+
+function checkRequirementCoverage(root: string, roadmap: RoadmapDocument, errors: string[]) {
+  const coverage = roadmap.coverage;
+  const trackedPrefixes = Array.isArray(coverage?.tracked_requirement_prefixes)
+    ? coverage.tracked_requirement_prefixes.filter((value) => typeof value === "string" && value.trim().length > 0)
+    : [];
+  const excludedRequirements = Array.isArray(coverage?.excluded_requirements)
+    ? coverage.excluded_requirements.filter((value) => typeof value === "string" && value.trim().length > 0)
+    : [];
+
+  if (trackedPrefixes.length === 0) {
+    errors.push("ROADMAP-007: coverage.tracked_requirement_prefixes deve declarar ao menos um prefixo monitorado.");
+    return;
+  }
+  if (!Array.isArray(coverage?.excluded_requirements)) {
+    errors.push("ROADMAP-007: coverage.excluded_requirements deve existir, mesmo quando vazio.");
+    return;
+  }
+
+  try {
+    const requirements = loadRequirements(root);
+    if (requirements.length === 0) {
+      errors.push(`ROADMAP-007: ${REQUIREMENTS_PATH} deve existir e conter requisitos para validar coverage.`);
+      return;
+    }
+
+    const knownRequirementIds = new Set(requirements.map((requirement) => requirement.id));
+    const linkedRequirements = new Set(
+      (roadmap.slices ?? [])
+        .flatMap((slice) => (Array.isArray(slice.linked_requirements) ? slice.linked_requirements : []))
+        .filter((value): value is string => typeof value === "string" && value.trim().length > 0),
+    );
+    const excludedRequirementSet = new Set<string>();
+
+    for (const requirementId of excludedRequirements) {
+      if (!knownRequirementIds.has(requirementId)) {
+        errors.push(`ROADMAP-007: coverage.excluded_requirements referencia REQ desconhecido: ${requirementId}.`);
+        continue;
+      }
+      if (excludedRequirementSet.has(requirementId)) {
+        errors.push(`ROADMAP-007: coverage.excluded_requirements repete REQ: ${requirementId}.`);
+        continue;
+      }
+      excludedRequirementSet.add(requirementId);
+
+      if (linkedRequirements.has(requirementId)) {
+        errors.push(`ROADMAP-007: ${requirementId} não pode estar excluido e ligado a uma fatia ao mesmo tempo.`);
+      }
+    }
+
+    const trackedRequirementIds = requirements
+      .map((requirement) => requirement.id)
+      .filter((requirementId) => trackedPrefixes.some((prefix) => requirementId.startsWith(prefix)))
+      .sort();
+
+    for (const requirementId of trackedRequirementIds) {
+      if (!linkedRequirements.has(requirementId) && !excludedRequirementSet.has(requirementId)) {
+        errors.push(`ROADMAP-007: ${requirementId} não está coberto por nenhuma fatia nem listado em coverage.excluded_requirements.`);
+      }
+    }
+  } catch (error) {
+    errors.push(`ROADMAP-007: falha ao carregar ${REQUIREMENTS_PATH}: ${(error as Error).message}`);
   }
 }
 
