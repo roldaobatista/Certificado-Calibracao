@@ -6,7 +6,7 @@
 
 - Total de critérios: 22
 - Critérios com requisito mapeado: 22
-- Critérios validados por teste ativo: 19
+- Critérios validados por teste ativo: 21
 - Critérios sem requisito mapeado: 0
 
 ## Validados
@@ -20,6 +20,8 @@
 - §13.8: REQ-PRD-13-08-EQUIPMENT-CUSTOMER-ADDRESS — O cadastro de equipamento exige obrigatoriamente vínculo com cliente e endereço.
 - §13.9: REQ-PRD-13-09-SIGNATORY-COMPETENCE-BLOCK — Signatário sem competência para o tipo de instrumento **não consegue assinar**.
 - §13.10: REQ-PRD-13-10-SCOPE-CMC-BLOCK — Certificado emitido por laboratório acreditado respeita **escopo e CMC**.
+- §13.11: REQ-PRD-13-11-AUTH-SSO-MFA — Auto-cadastro funciona com e-mail/senha **e** SSO (Google/Microsoft/Apple); MFA obrigatório para signatários e admins.
+- §13.12: REQ-PRD-13-12-ONBOARDING-WIZARD-BLOCKS — **Wizard de Onboarding (§7.14)** completável em ≤ 1 hora pelo Administrador inicial, com bloqueios duros para emitir o 1º certificado.
 - §13.13: REQ-PRD-13-13-RLS-ISOLATION — **Multitenancy isolada por RLS** verificada por testes automatizados de cross-tenant leak (zero vazamentos).
 - §13.14: REQ-PRD-13-14-SEQUENTIAL-NUMBERING — Numeração sequencial por organização sem colisão entre tenants.
 - §13.15: REQ-PRD-13-15-REGULATORY-PROFILES-PDF — Sistema reconhece os **3 perfis regulatórios** (Tipo A/B/C) e seleciona automaticamente o template de PDF correspondente; tentativa de uso indevido de selo Cgcre/RBC é bloqueada.
@@ -34,8 +36,6 @@
 ## Mapeados sem validação ativa
 
 - §13.1: REQ-PRD-13-01-MOBILE-OFFLINE-CALIBRATION — Uma calibração de balança IPNA pode ser executada do início ao certificado **exclusivamente pelo celular**, offline.
-- §13.11: REQ-PRD-13-11-AUTH-SSO-MFA — Auto-cadastro funciona com e-mail/senha **e** SSO (Google/Microsoft/Apple); MFA obrigatório para signatários e admins.
-- §13.12: REQ-PRD-13-12-ONBOARDING-WIZARD-BLOCKS — **Wizard de Onboarding (§7.14)** completável em ≤ 1 hora pelo Administrador inicial, com bloqueios duros para emitir o 1º certificado.
 
 ## Sem Requisito Mapeado
 
