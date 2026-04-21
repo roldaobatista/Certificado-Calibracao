@@ -16,3 +16,5 @@ Cada fatia também declara:
 
 - `epic_id`: identificador canônico do épico L0 usado pela cascata de verificação;
 - `linked_requirements`: lista de REQs cuja re-auditoria pode ser agregada por esse épico.
+
+`linked_requirements` é validado contra `compliance/validation-dossier/requirements.yaml`: cada ID precisa existir e não pode ser compartilhado por mais de uma fatia.

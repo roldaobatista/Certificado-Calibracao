@@ -4,8 +4,11 @@ import { fileURLToPath } from "node:url";
 
 import { load as yamlLoad } from "js-yaml";
 
+import { loadRequirements } from "./validation-dossier";
+
 const ROADMAP_README = "compliance/roadmap/README.md";
 const ROADMAP_YAML = "compliance/roadmap/v1-v5.yaml";
+const REQUIREMENTS_PATH = "compliance/validation-dossier/requirements.yaml";
 const HARNESS_ROADMAP = "harness/10-roadmap.md";
 const EXPECTED_SLICES = ["V1", "V2", "V3", "V4", "V5"] as const;
 const REQUIRED_POLICY_FLAGS = [
@@ -53,6 +56,7 @@ export function checkRoadmap(root = process.cwd()): RoadmapCheckResult {
   const roadmap = loadRoadmap(root, errors);
   if (roadmap) {
     checkRoadmapDocument(roadmap, errors);
+    checkRequirementLinks(root, roadmap, errors);
   }
 
   if (existsSync(resolve(root, HARNESS_ROADMAP))) {
@@ -165,6 +169,47 @@ function checkHarnessCoverage(root: string, errors: string[]) {
     if (!new RegExp(`^###\\s+${id}\\b`, "im").test(text)) {
       errors.push(`ROADMAP-005: ${HARNESS_ROADMAP} não descreve ${id}.`);
     }
+  }
+}
+
+function checkRequirementLinks(root: string, roadmap: RoadmapDocument, errors: string[]) {
+  if (!Array.isArray(roadmap.slices)) return;
+
+  try {
+    const requirements = loadRequirements(root);
+    if (requirements.length === 0) {
+      errors.push(`ROADMAP-006: ${REQUIREMENTS_PATH} deve existir e conter requisitos para validar linked_requirements.`);
+      return;
+    }
+
+    const knownRequirementIds = new Set(requirements.map((requirement) => requirement.id));
+    const requirementLinks = new Map<string, string[]>();
+
+    roadmap.slices.forEach((slice, index) => {
+      const label = slice.id ?? `slice[${index}]`;
+      const linkedRequirements = Array.isArray(slice.linked_requirements) ? slice.linked_requirements : [];
+
+      for (const requirementId of linkedRequirements) {
+        if (!knownRequirementIds.has(requirementId)) {
+          errors.push(`ROADMAP-006: ${label} referencia linked_requirements desconhecido: ${requirementId}.`);
+          continue;
+        }
+
+        const existing = requirementLinks.get(requirementId);
+        if (existing) existing.push(label);
+        else requirementLinks.set(requirementId, [label]);
+      }
+    });
+
+    for (const [requirementId, linkedSlices] of requirementLinks.entries()) {
+      if (linkedSlices.length > 1) {
+        errors.push(
+          `ROADMAP-006: ${requirementId} não pode aparecer em mais de uma fatia; encontrado em ${linkedSlices.join(", ")}.`,
+        );
+      }
+    }
+  } catch (error) {
+    errors.push(`ROADMAP-006: falha ao carregar ${REQUIREMENTS_PATH}: ${(error as Error).message}`);
   }
 }
 
