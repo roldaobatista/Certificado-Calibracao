@@ -60,11 +60,11 @@
     doc: PRD.md
     section: "§13.4"
   description: Revisão técnica e assinatura devem registrar identidade, timestamp e dispositivo.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+    - specs/0035-prd-13-04-technical-review-signature-audit.md
+  linked_tests:
     - evals/ac/prd-13-04-technical-review-signature-audit.test.ts
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-04-TECHNICAL-REVIEW-SIGNATURE-AUDIT/
   owner: backend-api
