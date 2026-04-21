@@ -15,3 +15,8 @@
 // - Property tests cobrindo casos-limite (negativos, zero, infinito, NaN).
 
 export const UNCERTAINTY_ENGINE_VERSION = "0.0.1-scaffold";
+
+export {
+  buildCertificateMeasurementDeclaration,
+  type CertificateMeasurementDeclaration,
+} from "./measurement-declarations.js";
