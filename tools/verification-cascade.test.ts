@@ -202,6 +202,49 @@ function writeVerificationLog(
   );
 }
 
+function writeRoadmapEpicMap(
+  root: string,
+  slices: Array<{
+    id: string;
+    epic_id: string;
+    linked_requirements: string[];
+  }>,
+) {
+  mkdirSync(join(root, "compliance", "roadmap"), { recursive: true });
+  writeFileSync(
+    join(root, "compliance", "roadmap", "v1-v5.yaml"),
+    [
+      "version: 1",
+      "source: harness/10-roadmap.md",
+      "policy:",
+      "  no_slice_starts_without_previous_gate: true",
+      "  release_norm_required: true",
+      "  validation_dossier_required: true",
+      "  normative_package_required: true",
+      "slices:",
+      ...slices.flatMap((slice) => [
+        `  - id: ${slice.id}`,
+        `    epic_id: ${slice.epic_id}`,
+        `    title: Slice ${slice.id}`,
+        "    depends_on: []",
+        "    estimated_duration_weeks: '1'",
+        `    release_norm_path: compliance/release-norm/${slice.id.toLowerCase()}.md`,
+        `    validation_dossier_path: compliance/validation-dossier/releases/${slice.id.toLowerCase()}.md`,
+        "    primary_agents: [product-governance]",
+        `    linked_requirements: [${slice.linked_requirements.join(", ")}]`,
+        "    scope:",
+        "      - Placeholder",
+        "      - Placeholder 2",
+        "    exit_gates:",
+        "      - Gate 1",
+        "      - Gate 2",
+        "      - Gate 3",
+      ]),
+      "",
+    ].join("\n"),
+  );
+}
+
 function snapshotText(profile: string, id: string) {
   return [
     `snapshot: ${id}`,
@@ -665,6 +708,53 @@ test("verification cascade writes deterministic issue drafts for epic-review-fla
     assert.match(draft.body, /REQ-DOC/);
   } finally {
     delete process.env.AFERE_CASCADE_TODAY;
+    cleanup();
+  }
+});
+
+test("verification cascade infers epic from roadmap mapping when verification log omits L0 references", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeSnapshotDossier(root);
+    writeIssueDraftArtifacts(root);
+    writeVerificationLogTemplate(root);
+    writeRoadmapEpicMap(root, [
+      { id: "V1", epic_id: "EPIC-EMISSION", linked_requirements: ["REQ-EMISSION", "REQ-DOC"] },
+    ]);
+    writeVerificationLog(root, "REQ-EMISSION", [
+      {
+        date: "2026-04-18",
+        trigger: "L3 correction in emission flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-18 via pnpm check:all"],
+      },
+      {
+        date: "2026-04-19",
+        trigger: "L3 correction in emission flow",
+        reqs_changed: true,
+        propagated_up: ["L1/REQ-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-19 via pnpm check:all"],
+      },
+    ]);
+    writeVerificationLog(root, "REQ-DOC", [
+      {
+        date: "2026-04-20",
+        trigger: "L3 correction in portal flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-DOC"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-20 via pnpm check:all"],
+      },
+    ]);
+
+    const result = checkVerificationCascade(root);
+
+    assert.match(result.errors.join("\n"), /CASCADE-008/);
+    assert.match(result.errors.join("\n"), /EPIC-EMISSION/);
+  } finally {
     cleanup();
   }
 });

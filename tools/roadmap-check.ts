@@ -24,12 +24,14 @@ type RoadmapDocument = {
 
 type RoadmapSlice = {
   id?: string;
+  epic_id?: string;
   title?: string;
   depends_on?: string[];
   estimated_duration_weeks?: string | number;
   release_norm_path?: string;
   validation_dossier_path?: string;
   primary_agents?: string[];
+  linked_requirements?: string[];
   scope?: string[];
   exit_gates?: string[];
 };
@@ -121,6 +123,7 @@ function checkSlice(slice: RoadmapSlice, index: number, errors: string[]) {
   }
 
   for (const field of [
+    "epic_id",
     "title",
     "estimated_duration_weeks",
     "release_norm_path",
@@ -145,6 +148,7 @@ function checkSlice(slice: RoadmapSlice, index: number, errors: string[]) {
 
   for (const [field, min] of [
     ["primary_agents", 1],
+    ["linked_requirements", 0],
     ["scope", 2],
     ["exit_gates", 3],
   ] as const) {
