@@ -408,11 +408,11 @@
     doc: PRD.md
     section: "§13.21"
   description: Parecer jurídico formal sobre assinatura eletrônica auditável deve estar anexado ao dossiê, com DPA e matriz controlador/operador revisadas por advogado LGPD.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+    - specs/0029-prd-13-21-legal-opinion-dpa.md
+  linked_tests:
     - evals/regulatory/prd-13-21-legal-opinion-dpa.test.ts
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-21-LEGAL-OPINION-DPA/
   owner: legal-counsel

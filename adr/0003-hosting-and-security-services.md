@@ -131,7 +131,7 @@ Adotar topologia **híbrida** com **Hostinger VPS como núcleo + serviços exter
 1. Usuário registrar domínio (sugestão: via Hostinger para simplificar DNS).
 2. Usuário criar conta AWS (ou delegar para mim via IaC depois que ele aceitar) com credencial para `sa-east-1`.
 3. Usuário criar conta Backblaze com application key de escrita.
-4. `legal-counsel` emite parecer sobre sub-operadores em `compliance/legal-opinions/lgpd-matrix.md`.
+4. Fechado em `2026-04-21`: `legal-counsel` emitiu parecer sobre sub-operadores em `compliance/legal-opinions/lgpd-matrix.md`.
 
 ## Revisão
 
