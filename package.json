@@ -38,6 +38,7 @@
     "runbook-check": "tsx tools/runbook-check.ts",
     "verification-cascade:check": "tsx tools/verification-cascade.ts check",
     "verification-cascade:plan": "tsx tools/verification-cascade.ts plan",
+    "verification-cascade:issue-drafts": "tsx tools/verification-cascade.ts issue-drafts",
     "snapshot-diff-check": "tsx tools/verification-cascade.ts check",
     "redundancy-check": "tsx tools/redundancy-check.ts check",
     "redundancy-check:plan": "tsx tools/redundancy-check.ts plan",

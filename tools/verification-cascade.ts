@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,10 +8,15 @@ import { load as yamlLoad } from "js-yaml";
 import { loadRequirements, type Requirement } from "./validation-dossier";
 
 const VERIFICATION_LOG_README = "compliance/verification-log/README.md";
+const VERIFICATION_ISSUES_ROOT = "compliance/verification-log/issues";
+const VERIFICATION_ISSUES_README = `${VERIFICATION_ISSUES_ROOT}/README.md`;
+const VERIFICATION_ISSUE_TEMPLATE = `${VERIFICATION_ISSUES_ROOT}/_template.md`;
+const VERIFICATION_ISSUE_DRAFTS_DIR = `${VERIFICATION_ISSUES_ROOT}/drafts`;
 const SNAPSHOT_MANIFEST = "compliance/validation-dossier/snapshots/manifest.yaml";
 const REQUIRED_SNAPSHOT_SOURCE = "harness/05-guardrails.md";
 const REQUIRED_SNAPSHOT_PROFILES = ["A", "B", "C"] as const;
 const REQUIRED_BASELINE_APPROVERS = ["regulator", "product-governance"] as const;
+const SNAPSHOT_DIFF_ISSUE_LABELS = ["compliance", "verification-cascade", "snapshot-diff", "blocker"] as const;
 
 export const CRITICAL_AREAS = [
   "apps/api/src/domain/emission/**",
@@ -53,6 +58,28 @@ export type VerificationCascadeCheck = {
   errors: string[];
   checkedSnapshots: number;
   checkedProfiles: string[];
+  findings: VerificationCascadeFinding[];
+};
+
+export type VerificationCascadeFinding = {
+  code: "CASCADE-003";
+  issueKind: "snapshot-diff";
+  message: string;
+  snapshotId: string;
+  profile: string;
+  baselinePath: string;
+  currentPath: string;
+  expectedHash?: string;
+  baselineHash?: string;
+  currentHash?: string;
+};
+
+export type VerificationIssueDraft = {
+  slug: string;
+  path: string;
+  title: string;
+  body: string;
+  labels: string[];
 };
 
 type SnapshotManifest = {
@@ -117,25 +144,96 @@ export function checkVerificationCascade(root = process.cwd()): VerificationCasc
     errors,
     checkedSnapshots: snapshotCheck.checkedSnapshots,
     checkedProfiles: snapshotCheck.checkedProfiles,
+    findings: snapshotCheck.findings,
   };
+}
+
+export function buildVerificationIssueDrafts(
+  root = process.cwd(),
+  result = checkVerificationCascade(root),
+): VerificationIssueDraft[] {
+  const findings = result.findings.filter((finding) => finding.issueKind === "snapshot-diff");
+  if (findings.length === 0) return [];
+
+  const template = readVerificationIssueTemplate(root);
+  const groups = new Map<string, VerificationCascadeFinding[]>();
+  for (const finding of findings) {
+    const existing = groups.get(finding.snapshotId);
+    if (existing) existing.push(finding);
+    else groups.set(finding.snapshotId, [finding]);
+  }
+
+  return [...groups.entries()].map(([snapshotId, groupedFindings]) => {
+    const first = groupedFindings[0];
+    const slug = `snapshot-diff-${slugify(snapshotId)}`;
+    const path = `${VERIFICATION_ISSUE_DRAFTS_DIR}/${issueDraftDate()}-${slug}.md`;
+    const title = `P0-10 snapshot-diff blocker: ${snapshotId}`;
+    const issueContext = verificationIssueContext();
+    const baselineHash = groupedFindings.map((finding) => finding.baselineHash).find(Boolean) ?? "n/a";
+    const currentHash = groupedFindings.map((finding) => finding.currentHash).find(Boolean) ?? "n/a";
+    const expectedHash = groupedFindings.map((finding) => finding.expectedHash).find(Boolean) ?? "n/a";
+    const findingsList = groupedFindings.map((finding) => `- ${finding.message}`).join("\n");
+    const body = renderTemplate(template, {
+      issue_title: title,
+      finding_code: first.code,
+      snapshot_id: first.snapshotId,
+      profile: first.profile,
+      manifest_path: SNAPSHOT_MANIFEST,
+      baseline_path: first.baselinePath,
+      current_path: first.currentPath,
+      baseline_hash: baselineHash,
+      current_hash: currentHash,
+      expected_hash: expectedHash,
+      findings_list: findingsList,
+      branch: issueContext.branch,
+      commit_sha: issueContext.commitSha,
+      workflow_run: issueContext.workflowRun,
+    });
+
+    return {
+      slug,
+      path,
+      title,
+      body,
+      labels: [...SNAPSHOT_DIFF_ISSUE_LABELS],
+    };
+  });
+}
+
+export function writeVerificationIssueDrafts(
+  root = process.cwd(),
+  drafts = buildVerificationIssueDrafts(root),
+) {
+  const writtenPaths: string[] = [];
+  if (drafts.length === 0) return writtenPaths;
+
+  const draftsDir = resolve(root, VERIFICATION_ISSUE_DRAFTS_DIR);
+  mkdirSync(draftsDir, { recursive: true });
+  for (const draft of drafts) {
+    const fullPath = resolve(root, draft.path);
+    writeFileSync(fullPath, draft.body);
+    writtenPaths.push(draft.path);
+  }
+  return writtenPaths;
 }
 
 function checkSnapshotDiff(root: string) {
   const errors: string[] = [];
+  const findings: VerificationCascadeFinding[] = [];
   const manifestPath = resolve(root, SNAPSHOT_MANIFEST);
   if (!existsSync(manifestPath)) {
     errors.push(`CASCADE-002: ${SNAPSHOT_MANIFEST} não encontrado.`);
-    return { errors, checkedSnapshots: 0, checkedProfiles: [] };
+    return { errors, checkedSnapshots: 0, checkedProfiles: [], findings };
   }
 
   const manifest = loadSnapshotManifest(manifestPath, errors);
-  if (!manifest) return { errors, checkedSnapshots: 0, checkedProfiles: [] };
+  if (!manifest) return { errors, checkedSnapshots: 0, checkedProfiles: [], findings };
 
   validateSnapshotPolicy(manifest, errors);
 
   const snapshots = Array.isArray(manifest.snapshots) ? (manifest.snapshots as SnapshotManifestEntry[]) : [];
   if (snapshots.length === 0) {
-    errors.push(`CASCADE-002: ${SNAPSHOT_MANIFEST} deve declarar snapshots.`);
+      errors.push(`CASCADE-002: ${SNAPSHOT_MANIFEST} deve declarar snapshots.`);
   }
 
   const checkedProfiles: string[] = [];
@@ -193,12 +291,36 @@ function checkSnapshotDiff(root: string) {
     checkedProfiles.push(profile);
 
     if (baselineHash !== expectedHash.toLowerCase()) {
-      errors.push(
-        `CASCADE-003: ${label} baseline diverge do sha256 do manifest (${baselineHash} != ${expectedHash.toLowerCase()}).`,
-      );
+      const message = `CASCADE-003: ${label} baseline diverge do sha256 do manifest (${baselineHash} != ${expectedHash.toLowerCase()}).`;
+      errors.push(message);
+      findings.push({
+        code: "CASCADE-003",
+        issueKind: "snapshot-diff",
+        message,
+        snapshotId: id,
+        profile,
+        baselinePath: normalizePath(baselinePath),
+        currentPath: normalizePath(currentPath),
+        expectedHash: expectedHash.toLowerCase(),
+        baselineHash,
+        currentHash,
+      });
     }
     if (currentHash !== baselineHash) {
-      errors.push(`CASCADE-003: ${label} snapshot atual diverge do baseline (${currentHash} != ${baselineHash}).`);
+      const message = `CASCADE-003: ${label} snapshot atual diverge do baseline (${currentHash} != ${baselineHash}).`;
+      errors.push(message);
+      findings.push({
+        code: "CASCADE-003",
+        issueKind: "snapshot-diff",
+        message,
+        snapshotId: id,
+        profile,
+        baselinePath: normalizePath(baselinePath),
+        currentPath: normalizePath(currentPath),
+        expectedHash: expectedHash.toLowerCase(),
+        baselineHash,
+        currentHash,
+      });
     }
   }
 
@@ -214,7 +336,32 @@ function checkSnapshotDiff(root: string) {
     errors,
     checkedSnapshots,
     checkedProfiles: uniqueSorted(checkedProfiles),
+    findings,
   };
+}
+
+function readVerificationIssueTemplate(root: string) {
+  const requiredPaths = [VERIFICATION_ISSUES_README, VERIFICATION_ISSUE_TEMPLATE, VERIFICATION_ISSUE_DRAFTS_DIR];
+  for (const path of requiredPaths) {
+    if (!existsSync(resolve(root, path))) {
+      throw new Error(`CASCADE-004: artefato canônico ausente para issue draft: ${path}.`);
+    }
+  }
+  return readFileSync(resolve(root, VERIFICATION_ISSUE_TEMPLATE), "utf8");
+}
+
+function verificationIssueContext() {
+  const repository = process.env.GITHUB_REPOSITORY || "n/a";
+  const branch = process.env.GITHUB_REF_NAME || "n/a";
+  const commitSha = process.env.GITHUB_SHA || "n/a";
+  const runId = process.env.GITHUB_RUN_ID;
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const workflowRun = runId && repository !== "n/a" ? `${serverUrl}/${repository}/actions/runs/${runId}` : "n/a";
+  return { repository, branch, commitSha, workflowRun };
+}
+
+function renderTemplate(template: string, replacements: Record<string, string>) {
+  return template.replace(/{{\s*([a-z_]+)\s*}}/g, (_match, key: string) => replacements[key] ?? "n/a");
 }
 
 function loadSnapshotManifest(path: string, errors: string[]) {
@@ -357,6 +504,10 @@ function snapshotCountPolicy(manifest: SnapshotManifest) {
   return typeof value === "number" && Number.isInteger(value) ? value : 0;
 }
 
+function issueDraftDate() {
+  return process.env.AFERE_CASCADE_TODAY || new Date().toISOString().slice(0, 10);
+}
+
 function sha256File(path: string) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
@@ -379,6 +530,13 @@ function asNonEmptyString(value: unknown) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
+function slugify(value: string) {
+  return normalizePath(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function escapeRegex(value: string) {
   return value.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -389,6 +547,7 @@ function parseCliArgs(argv: string[]) {
   const changedFiles: string[] = [];
   let release = "";
   let json = false;
+  let write = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -398,16 +557,18 @@ function parseCliArgs(argv: string[]) {
       release = args[++index];
     } else if (arg === "--json") {
       json = true;
+    } else if (arg === "--write") {
+      write = true;
     } else {
       changedFiles.push(arg);
     }
   }
 
-  return { command, changedFiles, release, json };
+  return { command, changedFiles, release, json, write };
 }
 
 function runCli() {
-  const { command, changedFiles, release, json } = parseCliArgs(process.argv.slice(2));
+  const { command, changedFiles, release, json, write } = parseCliArgs(process.argv.slice(2));
   if (command === "plan") {
     const plan = buildCascadePlan(process.cwd(), changedFiles);
     if (json) console.log(JSON.stringify(plan, null, 2));
@@ -434,8 +595,31 @@ function runCli() {
     return auditCheck.missing.length > 0 ? 1 : 0;
   }
 
+  if (command === "issue-drafts") {
+    try {
+      const result = checkVerificationCascade();
+      const drafts = buildVerificationIssueDrafts(process.cwd(), result);
+      const writtenPaths = write ? writeVerificationIssueDrafts(process.cwd(), drafts) : [];
+      if (json) {
+        console.log(JSON.stringify(drafts, null, 2));
+      } else {
+        console.log(`verification-cascade: ${drafts.length} issue draft(s) gerado(s).`);
+        for (const draft of drafts) console.log(`${draft.title} -> ${draft.path}`);
+        if (write) {
+          for (const path of writtenPaths) console.log(`written: ${path}`);
+        }
+      }
+      return 0;
+    } catch (error) {
+      console.error(`ERROR ${(error as Error).message}`);
+      return 1;
+    }
+  }
+
   if (command !== "check") {
-    console.error("Uso: verification-cascade [check|plan|release-audits] [--changed <arquivo>] [--release <versao>] [--json]");
+    console.error(
+      "Uso: verification-cascade [check|plan|release-audits|issue-drafts] [--changed <arquivo>] [--release <versao>] [--json] [--write]",
+    );
     return 2;
   }
 

@@ -12,6 +12,10 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   required-gates:
     runs-on: ubuntu-latest
@@ -62,3 +66,60 @@ jobs:
 
       - name: Run tenancy gates
         run: pnpm test:tenancy
+
+      - name: Generate verification issue drafts
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          mkdir -p .github-artifacts
+          if ! pnpm verification-cascade:issue-drafts -- --write --json > .github-artifacts/verification-issue-drafts.json; then
+            echo "[]" > .github-artifacts/verification-issue-drafts.json
+          fi
+          cat .github-artifacts/verification-issue-drafts.json
+
+      - name: Create or update verification issues
+        if: ${{ failure() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const path = '.github-artifacts/verification-issue-drafts.json';
+
+            if (!fs.existsSync(path)) {
+              core.info('No verification issue draft artifact found.');
+              return;
+            }
+
+            const drafts = JSON.parse(fs.readFileSync(path, 'utf8'));
+            if (!Array.isArray(drafts) || drafts.length === 0) {
+              core.info('No verification issue drafts to publish.');
+              return;
+            }
+
+            for (const draft of drafts) {
+              const existing = await github.paginate(
+                github.rest.issues.listForRepo,
+                {
+                  ...context.repo,
+                  state: 'open',
+                  labels: Array.isArray(draft.labels) ? draft.labels.join(',') : '',
+                  per_page: 100,
+                },
+                (response) => response.data,
+              );
+
+              const duplicate = existing.find((issue) => issue.title === draft.title);
+              if (duplicate) {
+                core.info(`Verification issue already open: #${duplicate.number} ${duplicate.title}`);
+                continue;
+              }
+
+              const created = await github.rest.issues.create({
+                ...context.repo,
+                title: draft.title,
+                body: draft.body,
+                labels: Array.isArray(draft.labels) ? draft.labels : [],
+              });
+
+              core.info(`Created verification issue #${created.data.number}: ${created.data.title}`);
+            }
