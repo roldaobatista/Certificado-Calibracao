@@ -63,6 +63,46 @@ function writeRequirements(root: string) {
       "  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-16-CONTROLLED-REISSUE/",
       "  owner: product-governance",
       "  criticality: high",
+      "- id: REQ-PRD-13-18-VALIDATION-DOSSIER",
+      "  source: { doc: PRD.md, section: '§13.18' }",
+      "  description: Dossiê de validação contínua.",
+      "  validation_status: planned",
+      "  linked_specs: [specs/0008-vertical-roadmap.md]",
+      "  planned_tests: [tools/roadmap-check.test.ts]",
+      "  linked_tests: []",
+      "  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-18-VALIDATION-DOSSIER/",
+      "  owner: qa-acceptance",
+      "  criticality: blocker",
+      "- id: REQ-PRD-13-19-TENANT-SQL-LINTER",
+      "  source: { doc: PRD.md, section: '§13.19' }",
+      "  description: Tenant SQL linter.",
+      "  validation_status: planned",
+      "  linked_specs: [specs/0008-vertical-roadmap.md]",
+      "  planned_tests: [tools/roadmap-check.test.ts]",
+      "  linked_tests: []",
+      "  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-19-TENANT-SQL-LINTER/",
+      "  owner: db-schema",
+      "  criticality: blocker",
+      "- id: REQ-PRD-13-19-AUDIT-HASH-CHAIN",
+      "  source: { doc: PRD.md, section: '§13.19' }",
+      "  description: Audit hash-chain.",
+      "  validation_status: planned",
+      "  linked_specs: [specs/0008-vertical-roadmap.md]",
+      "  planned_tests: [tools/roadmap-check.test.ts]",
+      "  linked_tests: []",
+      "  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-19-AUDIT-HASH-CHAIN/",
+      "  owner: db-schema",
+      "  criticality: blocker",
+      "- id: REQ-PRD-13-19-WORM-STORAGE-CHECK",
+      "  source: { doc: PRD.md, section: '§13.19' }",
+      "  description: WORM storage check.",
+      "  validation_status: planned",
+      "  linked_specs: [specs/0008-vertical-roadmap.md]",
+      "  planned_tests: [tools/roadmap-check.test.ts]",
+      "  linked_tests: []",
+      "  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-19-WORM-STORAGE-CHECK/",
+      "  owner: lgpd-security",
+      "  criticality: high",
       "- id: REQ-PRD-13-22-NORMATIVE-GOVERNANCE-OWNER",
       "  source: { doc: harness/10-roadmap.md, section: '§13.22' }",
       "  description: Owner de governança normativa deve estar nomeado.",
@@ -110,6 +150,22 @@ function writeCompleteRoadmap(root: string) {
   writeHarnessRoadmap(root);
   writeRequirements(root);
   writeFileSync(
+    join(root, "package.json"),
+    JSON.stringify(
+      {
+        scripts: {
+          "validation-dossier:check": "tsx tools/validation-dossier.ts check",
+          "tenant-lint": "tsx packages/db/tools/tenant-lint/src/cli.ts",
+          "test:tenancy": "pnpm test:rls && pnpm test:fuzz",
+          "audit-chain:verify": "tsx packages/audit-log/src/cli.ts",
+          "worm-check": "tsx tools/worm-check.ts",
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  writeFileSync(
     join(root, "compliance", "roadmap", "v1-v5.yaml"),
     [
       "version: 1",
@@ -121,7 +177,11 @@ function writeCompleteRoadmap(root: string) {
       "  normative_package_required: true",
       "coverage:",
       "  tracked_requirement_prefixes: [REQ-PRD-]",
-      "  excluded_requirements: []",
+      "  excluded_requirements:",
+      "    - REQ-PRD-13-18-VALIDATION-DOSSIER",
+      "    - REQ-PRD-13-19-TENANT-SQL-LINTER",
+      "    - REQ-PRD-13-19-AUDIT-HASH-CHAIN",
+      "    - REQ-PRD-13-19-WORM-STORAGE-CHECK",
       "slices:",
       "  - id: V1",
       "    epic_id: EPIC-V1-EMISSAO-CONTROLADA",
@@ -206,6 +266,41 @@ function writeCompleteRoadmap(root: string) {
       "      - Auditoria simulada ISO 17025 verde",
     ].join("\n"),
   );
+  writeFileSync(
+    join(root, "compliance", "roadmap", "transversal-tracks.yaml"),
+    [
+      "version: 1",
+      "source: harness/10-roadmap.md",
+      "tracks:",
+      "  - id: T1-VALIDATION-DOSSIER",
+      "    title: Validation dossier contínuo",
+      "    owner: qa-acceptance",
+      "    harness_refs: [harness/04-compliance-pipeline.md]",
+      "    gate_commands: [pnpm validation-dossier:check]",
+      "    linked_requirements: [REQ-PRD-13-18-VALIDATION-DOSSIER]",
+      "  - id: T2-TENANCY-GATE",
+      "    title: Guardrails de tenancy",
+      "    owner: db-schema",
+      "    harness_refs: [harness/05-guardrails.md]",
+      "    gate_commands: [pnpm tenant-lint, pnpm test:tenancy]",
+      "    linked_requirements: [REQ-PRD-13-19-TENANT-SQL-LINTER]",
+      "  - id: T3-AUDIT-IMMUTABILITY",
+      "    title: Trilha imutável de auditoria",
+      "    owner: db-schema",
+      "    harness_refs: [harness/05-guardrails.md]",
+      "    gate_commands: [pnpm audit-chain:verify]",
+      "    linked_requirements: [REQ-PRD-13-19-AUDIT-HASH-CHAIN]",
+      "  - id: T4-WORM-RETENTION",
+      "    title: Retenção WORM",
+      "    owner: lgpd-security",
+      "    harness_refs: [harness/05-guardrails.md]",
+      "    gate_commands: [pnpm worm-check]",
+      "    linked_requirements: [REQ-PRD-13-19-WORM-STORAGE-CHECK]",
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(join(root, "harness", "04-compliance-pipeline.md"), "# 04 — Compliance pipeline\n");
+  writeFileSync(join(root, "harness", "05-guardrails.md"), "# 05 — Guardrails\n");
 }
 
 test("fails when the canonical vertical roadmap artifacts are missing", () => {
@@ -287,7 +382,11 @@ test("fails when a slice omits epic mapping metadata", () => {
         "  normative_package_required: true",
         "coverage:",
         "  tracked_requirement_prefixes: [REQ-PRD-]",
-        "  excluded_requirements: []",
+        "  excluded_requirements:",
+        "    - REQ-PRD-13-18-VALIDATION-DOSSIER",
+        "    - REQ-PRD-13-19-TENANT-SQL-LINTER",
+        "    - REQ-PRD-13-19-AUDIT-HASH-CHAIN",
+        "    - REQ-PRD-13-19-WORM-STORAGE-CHECK",
         "slices:",
         "  - id: V1",
         "    title: Emissão Tipo B ou C em ambiente controlado",
@@ -342,13 +441,31 @@ test("fails when roadmap omits explicit coverage metadata", () => {
     writeFileSync(
       join(root, "compliance", "roadmap", "v1-v5.yaml"),
       readRoadmap(root)
-        .replace("coverage:\n  tracked_requirement_prefixes: [REQ-PRD-]\n  excluded_requirements: []\n", ""),
+        .replace(
+          "coverage:\n  tracked_requirement_prefixes: [REQ-PRD-]\n  excluded_requirements:\n    - REQ-PRD-13-18-VALIDATION-DOSSIER\n    - REQ-PRD-13-19-TENANT-SQL-LINTER\n    - REQ-PRD-13-19-AUDIT-HASH-CHAIN\n    - REQ-PRD-13-19-WORM-STORAGE-CHECK\n",
+          "",
+        ),
     );
 
     const result = checkRoadmap(root);
 
     assert.match(result.errors.join("\n"), /ROADMAP-007/);
     assert.match(result.errors.join("\n"), /tracked_requirement_prefixes/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("fails when excluded requirements exist but transversal tracks artifact is missing", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeCompleteRoadmap(root);
+    rmSync(join(root, "compliance", "roadmap", "transversal-tracks.yaml"));
+
+    const result = checkRoadmap(root);
+
+    assert.match(result.errors.join("\n"), /ROADMAP-008/);
+    assert.match(result.errors.join("\n"), /transversal-tracks\.yaml/);
   } finally {
     cleanup();
   }
@@ -375,6 +492,27 @@ test("fails when roadmap does not explicitly cover all tracked product requireme
   }
 });
 
+test("fails when an excluded requirement is not mapped by any transversal track", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeCompleteRoadmap(root);
+    writeFileSync(
+      join(root, "compliance", "roadmap", "transversal-tracks.yaml"),
+      readTransversalTracks(root).replace(
+        "    linked_requirements: [REQ-PRD-13-19-AUDIT-HASH-CHAIN]",
+        "    linked_requirements: []",
+      ),
+    );
+
+    const result = checkRoadmap(root);
+
+    assert.match(result.errors.join("\n"), /ROADMAP-008/);
+    assert.match(result.errors.join("\n"), /REQ-PRD-13-19-AUDIT-HASH-CHAIN/);
+  } finally {
+    cleanup();
+  }
+});
+
 test("fails when excluded coverage requirement is also linked in a slice", () => {
   const { root, cleanup } = makeWorkspace();
   try {
@@ -382,8 +520,8 @@ test("fails when excluded coverage requirement is also linked in a slice", () =>
     writeFileSync(
       join(root, "compliance", "roadmap", "v1-v5.yaml"),
       readRoadmap(root).replace(
-        "  excluded_requirements: []",
-        "  excluded_requirements: [REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS]",
+        "    - REQ-PRD-13-19-WORM-STORAGE-CHECK",
+        "    - REQ-PRD-13-19-WORM-STORAGE-CHECK\n    - REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS",
       ),
     );
 
@@ -392,6 +530,28 @@ test("fails when excluded coverage requirement is also linked in a slice", () =>
     assert.match(result.errors.join("\n"), /ROADMAP-007/);
     assert.match(result.errors.join("\n"), /REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS/);
     assert.match(result.errors.join("\n"), /excluido/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("fails when a transversal track references a requirement that is not excluded from the roadmap", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeCompleteRoadmap(root);
+    writeFileSync(
+      join(root, "compliance", "roadmap", "transversal-tracks.yaml"),
+      readTransversalTracks(root).replace(
+        "    linked_requirements: [REQ-PRD-13-18-VALIDATION-DOSSIER]",
+        "    linked_requirements: [REQ-PRD-13-18-VALIDATION-DOSSIER, REQ-PRD-13-22-NORMATIVE-GOVERNANCE-OWNER]",
+      ),
+    );
+
+    const result = checkRoadmap(root);
+
+    assert.match(result.errors.join("\n"), /ROADMAP-008/);
+    assert.match(result.errors.join("\n"), /REQ-PRD-13-22-NORMATIVE-GOVERNANCE-OWNER/);
+    assert.match(result.errors.join("\n"), /excluded_requirements/);
   } finally {
     cleanup();
   }
@@ -457,4 +617,8 @@ test("passes for a complete V1-V5 vertical roadmap", () => {
 
 function readRoadmap(root: string) {
   return readFileSync(join(root, "compliance", "roadmap", "v1-v5.yaml"), "utf8");
+}
+
+function readTransversalTracks(root: string) {
+  return readFileSync(join(root, "compliance", "roadmap", "transversal-tracks.yaml"), "utf8");
 }

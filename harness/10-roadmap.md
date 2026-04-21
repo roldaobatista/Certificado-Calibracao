@@ -115,6 +115,7 @@ Compara com o roadmap original de 4 semanas do `HARNESS_DESIGN.md` — que era, 
 - `epic_id` e `linked_requirements` por fatia para agregação L0 na cascata;
 - integridade de `linked_requirements` contra `requirements.yaml`, sem REQ inexistente ou duplicado entre fatias;
 - bloco `coverage` explicitando quais `REQ-PRD-*` o roadmap cobre e quais ficam excluídos por serem gates transversais;
+- `compliance/roadmap/transversal-tracks.yaml` mapeando cada exclusão para uma trilha transversal com owner, referência de harness e comandos de gate canônicos;
 - release-norm, dossiê e pacote normativo por fatia;
 - escopo, agentes primários e gates de saída por fatia.
 

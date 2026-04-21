@@ -1,0 +1,40 @@
+version: 1
+source: harness/10-roadmap.md
+tracks:
+  - id: T1-VALIDATION-DOSSIER
+    title: Validation dossier contínuo
+    owner: qa-acceptance
+    harness_refs:
+      - harness/04-compliance-pipeline.md
+    gate_commands:
+      - pnpm validation-dossier:check
+    linked_requirements:
+      - REQ-PRD-13-18-VALIDATION-DOSSIER
+  - id: T2-TENANCY-GATE
+    title: Guardrails de tenancy
+    owner: db-schema
+    harness_refs:
+      - harness/05-guardrails.md
+    gate_commands:
+      - pnpm tenant-lint
+      - pnpm test:tenancy
+    linked_requirements:
+      - REQ-PRD-13-19-TENANT-SQL-LINTER
+  - id: T3-AUDIT-IMMUTABILITY
+    title: Trilha imutável de auditoria
+    owner: db-schema
+    harness_refs:
+      - harness/05-guardrails.md
+    gate_commands:
+      - pnpm audit-chain:verify
+    linked_requirements:
+      - REQ-PRD-13-19-AUDIT-HASH-CHAIN
+  - id: T4-WORM-RETENTION
+    title: Retenção WORM
+    owner: lgpd-security
+    harness_refs:
+      - harness/05-guardrails.md
+    gate_commands:
+      - pnpm worm-check
+    linked_requirements:
+      - REQ-PRD-13-19-WORM-STORAGE-CHECK
