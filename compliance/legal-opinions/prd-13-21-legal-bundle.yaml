@@ -1,0 +1,21 @@
+version: 1
+status: approved
+reviewed_by_role: legal-counsel
+reviewed_by_qualification: advogado-lgpd
+review_date: "2026-04-21"
+formal_opinion_path: compliance/legal-opinions/2026-04-21-signature-auditability-opinion.md
+dpa_template_path: compliance/legal-opinions/dpa-template.md
+controller_processor_matrix_path: compliance/legal-opinions/lgpd-matrix.md
+legal_sources:
+  - mp-2200-2-art-10-par-2
+  - lei-14063-art-4
+  - lgpd-art-7-e-art-18
+subprocessors:
+  - hostinger
+  - backblaze-b2
+  - aws-kms-sa-east-1
+  - grafana-cloud
+  - axiom
+notes:
+  - bundle minimo para go-live do MVP
+  - contratos enterprise customizados exigem revisao juridica adicional
