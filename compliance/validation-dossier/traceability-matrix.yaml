@@ -5,7 +5,7 @@ sources:
 prd_section_13:
   total: 22
   mapped: 22
-  validated: 8
+  validated: 9
   missing: 0
 criteria:
   - section: §13.1
@@ -84,12 +84,12 @@ criteria:
       - evals/ac/prd-13-09-signatory-competence-block.test.ts
   - section: §13.10
     text: Certificado emitido por laboratório acreditado respeita **escopo e CMC**.
-    status: mapped
+    status: validated
     requirement_ids:
       - REQ-PRD-13-10-SCOPE-CMC-BLOCK
-    linked_tests: []
-    planned_tests:
+    linked_tests:
       - evals/regulatory/prd-13-10-scope-cmc-block.test.ts
+    planned_tests: []
   - section: §13.11
     text: >-
       Auto-cadastro funciona com e-mail/senha **e** SSO (Google/Microsoft/Apple); MFA obrigatório para signatários e
@@ -495,9 +495,10 @@ requirements:
     owner: regulator
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
-    linked_tests: []
-    planned_tests:
+      - specs/0031-prd-13-10-scope-cmc-block.md
+    linked_tests:
       - evals/regulatory/prd-13-10-scope-cmc-block.test.ts
+    planned_tests: []
     evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-10-SCOPE-CMC-BLOCK/
     critical_paths:
       - packages/normative-rules/**

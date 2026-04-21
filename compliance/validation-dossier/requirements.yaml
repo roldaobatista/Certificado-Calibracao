@@ -168,11 +168,11 @@
     doc: PRD.md
     section: "§13.10"
   description: Certificado emitido por laboratório acreditado deve respeitar escopo e CMC.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+    - specs/0031-prd-13-10-scope-cmc-block.md
+  linked_tests:
     - evals/regulatory/prd-13-10-scope-cmc-block.test.ts
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-10-SCOPE-CMC-BLOCK/
   owner: regulator

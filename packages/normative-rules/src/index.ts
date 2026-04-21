@@ -42,3 +42,8 @@ export {
   type RegulatoryPdfPolicy,
   type RegulatoryProfileId,
 } from "./regulatory-profiles.js";
+
+export {
+  evaluateAccreditedScopeCmc,
+  type AccreditedScopeCmcEvaluation,
+} from "./scope-cmc.js";
