@@ -1,45 +1,21 @@
 ---
-issue_type: verification-cascade-snapshot-diff
+issue_type: {{issue_type}}
 status: open
-severity: blocker
+severity: {{severity}}
 labels:
-  - compliance
-  - verification-cascade
-  - snapshot-diff
-  - blocker
+{{labels_yaml}}
 ---
 
 # {{issue_title}}
 
 ## Contexto
-
-- Código: {{finding_code}}
-- Snapshot: {{snapshot_id}}
-- Perfil: {{profile}}
-- Manifesto: {{manifest_path}}
-- Baseline: {{baseline_path}}
-- Current: {{current_path}}
-- Branch: {{branch}}
-- Commit: {{commit_sha}}
-- Workflow run: {{workflow_run}}
+{{context_list}}
 
 ## Evidencia
-
-- Baseline SHA-256: {{baseline_hash}}
-- Current SHA-256: {{current_hash}}
-- Hash esperado no manifesto: {{expected_hash}}
-- Findings:
-{{findings_list}}
-- Comando local: `pnpm snapshot-diff-check`
+{{evidence_list}}
 
 ## Reauditoria obrigatoria
-
-- regulator
-- product-governance
-- qa-acceptance
+{{reaudit_list}}
 
 ## Fechamento
-
-- ADR/PR de correção:
-- Novo baseline aprovado:
-- Issue GitHub vinculada:
+{{closing_list}}

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { load as yamlLoad } from "js-yaml";
@@ -8,6 +8,7 @@ import { load as yamlLoad } from "js-yaml";
 import { loadRequirements, type Requirement } from "./validation-dossier";
 
 const VERIFICATION_LOG_README = "compliance/verification-log/README.md";
+const VERIFICATION_LOG_TEMPLATE = "compliance/verification-log/_template.yaml";
 const VERIFICATION_ISSUES_ROOT = "compliance/verification-log/issues";
 const VERIFICATION_ISSUES_README = `${VERIFICATION_ISSUES_ROOT}/README.md`;
 const VERIFICATION_ISSUE_TEMPLATE = `${VERIFICATION_ISSUES_ROOT}/_template.md`;
@@ -17,6 +18,7 @@ const REQUIRED_SNAPSHOT_SOURCE = "harness/05-guardrails.md";
 const REQUIRED_SNAPSHOT_PROFILES = ["A", "B", "C"] as const;
 const REQUIRED_BASELINE_APPROVERS = ["regulator", "product-governance"] as const;
 const SNAPSHOT_DIFF_ISSUE_LABELS = ["compliance", "verification-cascade", "snapshot-diff", "blocker"] as const;
+const SPEC_REVIEW_FLAG_LABELS = ["compliance", "verification-cascade", "spec-review-flag", "l1-reaudit"] as const;
 
 export const CRITICAL_AREAS = [
   "apps/api/src/domain/emission/**",
@@ -61,7 +63,7 @@ export type VerificationCascadeCheck = {
   findings: VerificationCascadeFinding[];
 };
 
-export type VerificationCascadeFinding = {
+export type SnapshotDiffFinding = {
   code: "CASCADE-003";
   issueKind: "snapshot-diff";
   message: string;
@@ -73,6 +75,20 @@ export type VerificationCascadeFinding = {
   baselineHash?: string;
   currentHash?: string;
 };
+
+export type SpecReviewFlagFinding = {
+  code: "CASCADE-007";
+  issueKind: "spec-review-flag";
+  message: string;
+  reqId: string;
+  logPath: string;
+  correctionCount: number;
+  latestDate: string;
+  propagatedUp: string[];
+  reAuditsCompleted: string[];
+};
+
+export type VerificationCascadeFinding = SnapshotDiffFinding | SpecReviewFlagFinding;
 
 export type VerificationIssueDraft = {
   slug: string;
@@ -102,6 +118,16 @@ type SnapshotManifestEntry = {
   sha256?: unknown;
   renderer?: unknown;
   requirement_refs?: unknown;
+};
+
+type VerificationLogEntry = {
+  date?: unknown;
+  trigger?: unknown;
+  ac_changed?: unknown;
+  reqs_changed?: unknown;
+  propagated_up?: unknown;
+  propagated_down?: unknown;
+  re_audits_completed?: unknown;
 };
 
 export function buildCascadePlan(root: string, changedFiles: string[]): CascadePlan {
@@ -139,12 +165,14 @@ export function checkVerificationCascade(root = process.cwd()): VerificationCasc
     errors.push(`CASCADE-001: ${VERIFICATION_LOG_README} não encontrado.`);
   }
   const snapshotCheck = checkSnapshotDiff(root);
+  const verificationLogCheck = checkVerificationLogs(root);
   errors.push(...snapshotCheck.errors);
+  errors.push(...verificationLogCheck.errors);
   return {
     errors,
     checkedSnapshots: snapshotCheck.checkedSnapshots,
     checkedProfiles: snapshotCheck.checkedProfiles,
-    findings: snapshotCheck.findings,
+    findings: [...snapshotCheck.findings, ...verificationLogCheck.findings],
   };
 }
 
@@ -152,42 +180,109 @@ export function buildVerificationIssueDrafts(
   root = process.cwd(),
   result = checkVerificationCascade(root),
 ): VerificationIssueDraft[] {
-  const findings = result.findings.filter((finding) => finding.issueKind === "snapshot-diff");
+  const findings = result.findings.filter(
+    (finding) => finding.issueKind === "snapshot-diff" || finding.issueKind === "spec-review-flag",
+  );
   if (findings.length === 0) return [];
 
   const template = readVerificationIssueTemplate(root);
   const groups = new Map<string, VerificationCascadeFinding[]>();
   for (const finding of findings) {
-    const existing = groups.get(finding.snapshotId);
+    const entityId = finding.issueKind === "snapshot-diff" ? finding.snapshotId : finding.reqId;
+    const groupKey = `${finding.issueKind}:${entityId}`;
+    const existing = groups.get(groupKey);
     if (existing) existing.push(finding);
-    else groups.set(finding.snapshotId, [finding]);
+    else groups.set(groupKey, [finding]);
   }
 
-  return [...groups.entries()].map(([snapshotId, groupedFindings]) => {
+  return [...groups.entries()].map(([groupKey, groupedFindings]) => {
     const first = groupedFindings[0];
-    const slug = `snapshot-diff-${slugify(snapshotId)}`;
+    if (first.issueKind === "snapshot-diff") {
+      const snapshotId = first.snapshotId;
+      const slug = `snapshot-diff-${slugify(snapshotId)}`;
+      const path = `${VERIFICATION_ISSUE_DRAFTS_DIR}/${issueDraftDate()}-${slug}.md`;
+      const title = `P0-10 snapshot-diff blocker: ${snapshotId}`;
+      const issueContext = verificationIssueContext();
+      const baselineHash = groupedFindings
+        .filter(isSnapshotDiffFinding)
+        .map((finding) => finding.baselineHash)
+        .find(Boolean) ?? "n/a";
+      const currentHash = groupedFindings
+        .filter(isSnapshotDiffFinding)
+        .map((finding) => finding.currentHash)
+        .find(Boolean) ?? "n/a";
+      const expectedHash = groupedFindings
+        .filter(isSnapshotDiffFinding)
+        .map((finding) => finding.expectedHash)
+        .find(Boolean) ?? "n/a";
+      const body = renderIssueDraft(template, {
+        issueType: "verification-cascade-snapshot-diff",
+        severity: "blocker",
+        labels: [...SNAPSHOT_DIFF_ISSUE_LABELS],
+        title,
+        context: [
+          `Código: ${first.code}`,
+          `Snapshot: ${first.snapshotId}`,
+          `Perfil: ${first.profile}`,
+          `Manifesto: ${SNAPSHOT_MANIFEST}`,
+          `Baseline: ${first.baselinePath}`,
+          `Current: ${first.currentPath}`,
+          `Branch: ${issueContext.branch}`,
+          `Commit: ${issueContext.commitSha}`,
+          `Workflow run: ${issueContext.workflowRun}`,
+        ],
+        evidence: [
+          `Baseline SHA-256: ${baselineHash}`,
+          `Current SHA-256: ${currentHash}`,
+          `Hash esperado no manifesto: ${expectedHash}`,
+          "Findings:",
+          ...groupedFindings.map((finding) => `  - ${finding.message}`),
+          "Comando local: `pnpm snapshot-diff-check`",
+        ],
+        reaudits: ["regulator", "product-governance", "qa-acceptance"],
+        closing: ["ADR/PR de correção:", "Novo baseline aprovado:", "Issue GitHub vinculada:"],
+      });
+
+      return {
+        slug,
+        path,
+        title,
+        body,
+        labels: [...SNAPSHOT_DIFF_ISSUE_LABELS],
+      };
+    }
+
+    const specFinding = groupedFindings.find(isSpecReviewFlagFinding);
+    if (!specFinding) {
+      throw new Error(`CASCADE-004: finding sem suporte para issue draft: ${groupKey}.`);
+    }
+    const reqId = specFinding.reqId;
+    const slug = `spec-review-flag-${slugify(reqId)}`;
     const path = `${VERIFICATION_ISSUE_DRAFTS_DIR}/${issueDraftDate()}-${slug}.md`;
-    const title = `P0-10 snapshot-diff blocker: ${snapshotId}`;
-    const issueContext = verificationIssueContext();
-    const baselineHash = groupedFindings.map((finding) => finding.baselineHash).find(Boolean) ?? "n/a";
-    const currentHash = groupedFindings.map((finding) => finding.currentHash).find(Boolean) ?? "n/a";
-    const expectedHash = groupedFindings.map((finding) => finding.expectedHash).find(Boolean) ?? "n/a";
-    const findingsList = groupedFindings.map((finding) => `- ${finding.message}`).join("\n");
-    const body = renderTemplate(template, {
-      issue_title: title,
-      finding_code: first.code,
-      snapshot_id: first.snapshotId,
-      profile: first.profile,
-      manifest_path: SNAPSHOT_MANIFEST,
-      baseline_path: first.baselinePath,
-      current_path: first.currentPath,
-      baseline_hash: baselineHash,
-      current_hash: currentHash,
-      expected_hash: expectedHash,
-      findings_list: findingsList,
-      branch: issueContext.branch,
-      commit_sha: issueContext.commitSha,
-      workflow_run: issueContext.workflowRun,
+    const title = `P0-10 spec-review-flag: ${reqId} precisa re-auditoria L1`;
+    const body = renderIssueDraft(template, {
+      issueType: "verification-cascade-spec-review-flag",
+      severity: "high",
+      labels: [...SPEC_REVIEW_FLAG_LABELS],
+      title,
+      context: [
+        `Código: ${specFinding.code}`,
+        `REQ-ID: ${specFinding.reqId}`,
+        `Log: ${specFinding.logPath}`,
+        `Última correção observada: ${specFinding.latestDate}`,
+      ],
+      evidence: [
+        `${specFinding.correctionCount} correcoes consecutivas alteraram AC/REQ sem evidência de reauditoria L1 concluída.`,
+        "Propagated up:",
+        ...specFinding.propagatedUp.map((value) => `  - ${value}`),
+        "Reaudits completed registrados:",
+        ...(specFinding.reAuditsCompleted.length > 0
+          ? specFinding.reAuditsCompleted.map((value) => `  - ${value}`)
+          : ["  - <ausente>"]),
+        "Comando local: `pnpm verification-cascade:check`",
+      ],
+      reaudits: ["regulator", "qa-acceptance", `L1/${specFinding.reqId}`],
+      closing: ["Spec reaberta:", "Evidência de reauditoria L1:", "Issue GitHub vinculada:"],
     });
 
     return {
@@ -195,7 +290,7 @@ export function buildVerificationIssueDrafts(
       path,
       title,
       body,
-      labels: [...SNAPSHOT_DIFF_ISSUE_LABELS],
+      labels: [...SPEC_REVIEW_FLAG_LABELS],
     };
   });
 }
@@ -340,6 +435,81 @@ function checkSnapshotDiff(root: string) {
   };
 }
 
+function checkVerificationLogs(root: string) {
+  const errors: string[] = [];
+  const findings: VerificationCascadeFinding[] = [];
+  if (!existsSync(resolve(root, VERIFICATION_LOG_TEMPLATE))) {
+    errors.push(`CASCADE-006: ${VERIFICATION_LOG_TEMPLATE} não encontrado.`);
+    return { errors, findings };
+  }
+
+  for (const relativePath of listVerificationLogFiles(root)) {
+    const path = resolve(root, relativePath);
+    let parsed: unknown;
+    try {
+      parsed = yamlLoad(readFileSync(path, "utf8"));
+    } catch (error) {
+      errors.push(`CASCADE-006: ${relativePath} inválido: ${(error as Error).message}`);
+      continue;
+    }
+
+    if (!Array.isArray(parsed)) {
+      errors.push(`CASCADE-006: ${relativePath} deve conter lista YAML de propagacoes.`);
+      continue;
+    }
+
+    const entries = parsed.filter(isRecord) as VerificationLogEntry[];
+    if (entries.length !== parsed.length || entries.length === 0) {
+      errors.push(`CASCADE-006: ${relativePath} deve conter pelo menos uma propagacao estruturada.`);
+      continue;
+    }
+
+    const reqId = basename(relativePath, ".yaml");
+    for (const [index, entry] of entries.entries()) {
+      if (!stringValue(entry.date)) {
+        errors.push(`CASCADE-006: ${relativePath} entrada #${index + 1} sem date.`);
+      }
+      if (!stringValue(entry.trigger)) {
+        errors.push(`CASCADE-006: ${relativePath} entrada #${index + 1} sem trigger.`);
+      }
+      if (!Array.isArray(entry.propagated_up)) {
+        errors.push(`CASCADE-006: ${relativePath} entrada #${index + 1} sem propagated_up.`);
+      }
+      if (!Array.isArray(entry.propagated_down)) {
+        errors.push(`CASCADE-006: ${relativePath} entrada #${index + 1} sem propagated_down.`);
+      }
+      if (!Array.isArray(entry.re_audits_completed)) {
+        errors.push(`CASCADE-006: ${relativePath} entrada #${index + 1} sem re_audits_completed.`);
+      }
+    }
+
+    const correctionStreak = trailingSpecCorrectionStreak(entries);
+    const l1ReauditRecorded = correctionStreak.some((entry) =>
+      arrayValue(entry.re_audits_completed).some((value) => value.startsWith("L1/") || value.startsWith("L1:")),
+    );
+
+    if (correctionStreak.length >= 3 && !l1ReauditRecorded) {
+      const latestEntry = correctionStreak[correctionStreak.length - 1];
+      const latestDate = stringValue(latestEntry.date) || "n/a";
+      const message = `CASCADE-007: ${reqId} precisa re-auditoria L1; ${correctionStreak.length} correcoes consecutivas alteraram AC/REQ sem evidência de L1.`;
+      errors.push(message);
+      findings.push({
+        code: "CASCADE-007",
+        issueKind: "spec-review-flag",
+        message,
+        reqId,
+        logPath: relativePath,
+        correctionCount: correctionStreak.length,
+        latestDate,
+        propagatedUp: arrayValue(latestEntry.propagated_up),
+        reAuditsCompleted: arrayValue(latestEntry.re_audits_completed),
+      });
+    }
+  }
+
+  return { errors, findings };
+}
+
 function readVerificationIssueTemplate(root: string) {
   const requiredPaths = [VERIFICATION_ISSUES_README, VERIFICATION_ISSUE_TEMPLATE, VERIFICATION_ISSUE_DRAFTS_DIR];
   for (const path of requiredPaths) {
@@ -362,6 +532,85 @@ function verificationIssueContext() {
 
 function renderTemplate(template: string, replacements: Record<string, string>) {
   return template.replace(/{{\s*([a-z_]+)\s*}}/g, (_match, key: string) => replacements[key] ?? "n/a");
+}
+
+function renderIssueDraft(
+  template: string,
+  options: {
+    issueType: string;
+    severity: string;
+    labels: string[];
+    title: string;
+    context: string[];
+    evidence: string[];
+    reaudits: string[];
+    closing: string[];
+  },
+) {
+  return renderTemplate(template, {
+    issue_type: options.issueType,
+    severity: options.severity,
+    labels_yaml: options.labels.map((label) => `  - ${label}`).join("\n"),
+    issue_title: options.title,
+    context_list: formatBullets(options.context),
+    evidence_list: formatBullets(options.evidence),
+    reaudit_list: formatBullets(options.reaudits),
+    closing_list: formatBullets(options.closing),
+  });
+}
+
+function formatBullets(values: string[]) {
+  if (values.length === 0) return "- n/a";
+  return values.map((value) => (value.startsWith("- ") ? value : `- ${value}`)).join("\n");
+}
+
+function listVerificationLogFiles(root: string) {
+  const directory = resolve(root, "compliance", "verification-log");
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .filter((name) => name.endsWith(".yaml"))
+    .filter((name) => name !== "_template.yaml")
+    .sort()
+    .map((name) => `compliance/verification-log/${name}`);
+}
+
+function trailingSpecCorrectionStreak(entries: VerificationLogEntry[]) {
+  const streak: VerificationLogEntry[] = [];
+  for (const entry of [...entries].reverse()) {
+    if (entry.ac_changed === true || entry.reqs_changed === true) streak.unshift(entry);
+    else break;
+  }
+  return streak;
+}
+
+function arrayValue(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.map(yamlScalarValue).filter(Boolean);
+}
+
+function isSnapshotDiffFinding(finding: VerificationCascadeFinding): finding is SnapshotDiffFinding {
+  return finding.issueKind === "snapshot-diff";
+}
+
+function isSpecReviewFlagFinding(finding: VerificationCascadeFinding): finding is SpecReviewFlagFinding {
+  return finding.issueKind === "spec-review-flag";
+}
+
+function yamlScalarValue(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (isRecord(value)) {
+    const pairs = Object.entries(value).map(([key, nestedValue]) => `${key}: ${yamlScalarValue(nestedValue)}`);
+    return pairs.join("; ").trim();
+  }
+  return "";
+}
+
+function stringValue(value: unknown) {
+  return yamlScalarValue(value);
 }
 
 function loadSnapshotManifest(path: string, errors: string[]) {

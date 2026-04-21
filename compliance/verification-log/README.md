@@ -19,6 +19,8 @@ Criar ou atualizar `compliance/verification-log/<REQ-id>.yaml` quando:
 ```yaml
 - date: 2026-04-22
   trigger: L3 bug in emission flow
+  ac_changed: true
+  reqs_changed: false
   propagated_up:
     - L1/REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS
   propagated_down:
@@ -26,6 +28,8 @@ Criar ou atualizar `compliance/verification-log/<REQ-id>.yaml` quando:
   re_audits_completed:
     - L4: 2026-04-23 via pnpm check:all
 ```
+
+Copiar a base canônica de `compliance/verification-log/_template.yaml` ao abrir um novo registro.
 
 ## Comandos
 
@@ -46,4 +50,9 @@ Quando um finding de cascata é elegível para issue automática, o draft canôn
 - `pnpm verification-cascade:issue-drafts -- --write` grava os drafts locais.
 - O workflow `required-gates` usa o JSON desses drafts para abrir issue real no GitHub quando o token do Actions tem permissão.
 
-O fluxo atual cobre bootstrap de snapshot-diff (`CASCADE-003`). Outros gatilhos de propagação podem ampliar essa automação sem mudar o contrato do diretório.
+O fluxo atual cobre:
+
+- `CASCADE-003` para `snapshot-diff`;
+- `CASCADE-007` para `spec-review-flag`, quando 3 correções consecutivas na mesma spec alteram AC/REQ sem evidência de re-auditoria L1.
+
+Outros gatilhos de propagação podem ampliar essa automação sem mudar o contrato do diretório.

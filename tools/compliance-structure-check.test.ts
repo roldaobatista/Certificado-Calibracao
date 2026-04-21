@@ -86,6 +86,7 @@ function writeCompleteComplianceTree(root: string) {
     "compliance/validation-dossier/snapshots/manifest.yaml",
     "compliance/validation-dossier/traceability-matrix.yaml",
     "compliance/verification-log/README.md",
+    "compliance/verification-log/_template.yaml",
     "compliance/verification-log/issues/README.md",
     "compliance/verification-log/issues/_template.md",
     "compliance/verification-log/issues/drafts/.gitkeep",
@@ -157,7 +158,7 @@ test("passes when the canonical compliance tree and README references are presen
     const result = checkComplianceStructure(root);
 
     assert.deepEqual(result.errors, []);
-    assert.equal(result.checkedArtifacts, 54);
+    assert.equal(result.checkedArtifacts, 55);
     assert.equal(result.checkedReadmeReferences, 13);
   } finally {
     cleanup();
