@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -11,11 +11,71 @@ const SLICE_IDS = ["V1", "V2", "V3", "V4", "V5"] as const;
 function makeWorkspace() {
   const root = join(tmpdir(), `afere-roadmap-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   mkdirSync(join(root, "compliance", "roadmap"), { recursive: true });
+  mkdirSync(join(root, "compliance", "validation-dossier"), { recursive: true });
   mkdirSync(join(root, "harness"), { recursive: true });
   return {
     root,
     cleanup: () => rmSync(root, { recursive: true, force: true }),
   };
+}
+
+function writeRequirements(root: string) {
+  writeFileSync(
+    join(root, "compliance", "validation-dossier", "requirements.yaml"),
+    [
+      "- id: REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS",
+      "  source: { doc: harness/10-roadmap.md, section: '§13.3' }",
+      "  description: Certificado deve declarar resultado, incerteza expandida e fator k.",
+      "  validation_status: planned",
+      "  linked_specs: [specs/0008-vertical-roadmap.md]",
+      "  planned_tests: [tools/roadmap-check.test.ts]",
+      "  linked_tests: []",
+      "  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS/",
+      "  owner: product-governance",
+      "  criticality: high",
+      "- id: REQ-PRD-13-07-ANDROID-SYNC-IDEMPOTENCY",
+      "  source: { doc: harness/10-roadmap.md, section: '§13.7' }",
+      "  description: Sync Android deve ser idempotente.",
+      "  validation_status: planned",
+      "  linked_specs: [specs/0008-vertical-roadmap.md]",
+      "  planned_tests: [tools/roadmap-check.test.ts]",
+      "  linked_tests: []",
+      "  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-07-ANDROID-SYNC-IDEMPOTENCY/",
+      "  owner: product-governance",
+      "  criticality: high",
+      "- id: REQ-PRD-13-10-SCOPE-CMC-BLOCK",
+      "  source: { doc: harness/10-roadmap.md, section: '§13.10' }",
+      "  description: Tipo A deve respeitar escopo e CMC.",
+      "  validation_status: planned",
+      "  linked_specs: [specs/0008-vertical-roadmap.md]",
+      "  planned_tests: [tools/roadmap-check.test.ts]",
+      "  linked_tests: []",
+      "  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-10-SCOPE-CMC-BLOCK/",
+      "  owner: product-governance",
+      "  criticality: high",
+      "- id: REQ-PRD-13-16-CONTROLLED-REISSUE",
+      "  source: { doc: harness/10-roadmap.md, section: '§13.16' }",
+      "  description: Reemissão controlada.",
+      "  validation_status: planned",
+      "  linked_specs: [specs/0008-vertical-roadmap.md]",
+      "  planned_tests: [tools/roadmap-check.test.ts]",
+      "  linked_tests: []",
+      "  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-16-CONTROLLED-REISSUE/",
+      "  owner: product-governance",
+      "  criticality: high",
+      "- id: REQ-PRD-13-22-NORMATIVE-GOVERNANCE-OWNER",
+      "  source: { doc: harness/10-roadmap.md, section: '§13.22' }",
+      "  description: Owner de governança normativa deve estar nomeado.",
+      "  validation_status: planned",
+      "  linked_specs: [specs/0008-vertical-roadmap.md]",
+      "  planned_tests: [tools/roadmap-check.test.ts]",
+      "  linked_tests: []",
+      "  evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-22-NORMATIVE-GOVERNANCE-OWNER/",
+      "  owner: product-governance",
+      "  criticality: high",
+      "",
+    ].join("\n"),
+  );
 }
 
 function writeHarnessRoadmap(root: string) {
@@ -48,6 +108,7 @@ function writeReadme(root: string) {
 function writeCompleteRoadmap(root: string) {
   writeReadme(root);
   writeHarnessRoadmap(root);
+  writeRequirements(root);
   writeFileSync(
     join(root, "compliance", "roadmap", "v1-v5.yaml"),
     [
@@ -268,6 +329,50 @@ test("fails when a slice lacks mandatory release gates", () => {
   }
 });
 
+test("fails when linked_requirements references an unknown requirement id", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeCompleteRoadmap(root);
+    writeFileSync(
+      join(root, "compliance", "roadmap", "v1-v5.yaml"),
+      readRoadmap(root).replace(
+        "linked_requirements: [REQ-PRD-13-07-ANDROID-SYNC-IDEMPOTENCY]",
+        "linked_requirements: [REQ-PRD-13-07-ANDROID-SYNC-IDEMPOTENCY, REQ-INEXISTENTE]",
+      ),
+    );
+
+    const result = checkRoadmap(root);
+
+    assert.match(result.errors.join("\n"), /ROADMAP-006/);
+    assert.match(result.errors.join("\n"), /REQ-INEXISTENTE/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("fails when the same requirement is linked by more than one slice", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeCompleteRoadmap(root);
+    writeFileSync(
+      join(root, "compliance", "roadmap", "v1-v5.yaml"),
+      readRoadmap(root).replace(
+        "linked_requirements: [REQ-PRD-13-10-SCOPE-CMC-BLOCK]",
+        "linked_requirements: [REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS]",
+      ),
+    );
+
+    const result = checkRoadmap(root);
+
+    assert.match(result.errors.join("\n"), /ROADMAP-006/);
+    assert.match(result.errors.join("\n"), /REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS/);
+    assert.match(result.errors.join("\n"), /V1/);
+    assert.match(result.errors.join("\n"), /V3/);
+  } finally {
+    cleanup();
+  }
+});
+
 test("passes for a complete V1-V5 vertical roadmap", () => {
   const { root, cleanup } = makeWorkspace();
   try {
@@ -281,3 +386,7 @@ test("passes for a complete V1-V5 vertical roadmap", () => {
     cleanup();
   }
 });
+
+function readRoadmap(root: string) {
+  return readFileSync(join(root, "compliance", "roadmap", "v1-v5.yaml"), "utf8");
+}
