@@ -96,11 +96,11 @@
     doc: PRD.md
     section: "§13.6"
   description: Todo evento crítico do ciclo de calibração, revisão, assinatura, emissão e reemissão deve aparecer na trilha de auditoria imutável.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+    - specs/0034-prd-13-06-critical-event-audit-trail.md
+  linked_tests:
     - evals/ac/prd-13-06-critical-event-audit-trail.test.ts
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-06-CRITICAL-EVENT-AUDIT-TRAIL/
   owner: db-schema

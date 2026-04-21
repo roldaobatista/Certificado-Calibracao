@@ -6,13 +6,14 @@
 
 - Total de critérios: 22
 - Critérios com requisito mapeado: 22
-- Critérios validados por teste ativo: 11
+- Critérios validados por teste ativo: 12
 - Critérios sem requisito mapeado: 0
 
 ## Validados
 
 - §13.2: REQ-PRD-13-02-STANDARD-ELIGIBILITY-BLOCK — O sistema **bloqueia** uso de padrão vencido, sem certificado, fora de faixa.
 - §13.3: REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS — O certificado é emitido com **resultado, incerteza expandida e fator k declarado**.
+- §13.6: REQ-PRD-13-06-CRITICAL-EVENT-AUDIT-TRAIL — Todo evento crítico aparece na **trilha de auditoria imutável**.
 - §13.7: REQ-PRD-13-07-ANDROID-SYNC-IDEMPOTENCY — A sincronização Android → backend é **idempotente e resiliente** a perda de rede.
 - §13.10: REQ-PRD-13-10-SCOPE-CMC-BLOCK — Certificado emitido por laboratório acreditado respeita **escopo e CMC**.
 - §13.13: REQ-PRD-13-13-RLS-ISOLATION — **Multitenancy isolada por RLS** verificada por testes automatizados de cross-tenant leak (zero vazamentos).
@@ -28,7 +29,6 @@
 - §13.1: REQ-PRD-13-01-MOBILE-OFFLINE-CALIBRATION — Uma calibração de balança IPNA pode ser executada do início ao certificado **exclusivamente pelo celular**, offline.
 - §13.4: REQ-PRD-13-04-TECHNICAL-REVIEW-SIGNATURE-AUDIT — A revisão técnica e a assinatura ficam **registradas com identidade, timestamp e dispositivo**.
 - §13.5: REQ-PRD-13-05-PUBLIC-QR-AUTHENTICITY — O QR code do certificado **valida autenticidade publicamente**.
-- §13.6: REQ-PRD-13-06-CRITICAL-EVENT-AUDIT-TRAIL — Todo evento crítico aparece na **trilha de auditoria imutável**.
 - §13.8: REQ-PRD-13-08-EQUIPMENT-CUSTOMER-ADDRESS — O cadastro de equipamento exige obrigatoriamente vínculo com cliente e endereço.
 - §13.9: REQ-PRD-13-09-SIGNATORY-COMPETENCE-BLOCK — Signatário sem competência para o tipo de instrumento **não consegue assinar**.
 - §13.11: REQ-PRD-13-11-AUTH-SSO-MFA — Auto-cadastro funciona com e-mail/senha **e** SSO (Google/Microsoft/Apple); MFA obrigatório para signatários e admins.

@@ -5,7 +5,7 @@ sources:
 prd_section_13:
   total: 22
   mapped: 22
-  validated: 11
+  validated: 12
   missing: 0
 criteria:
   - section: §13.1
@@ -52,12 +52,12 @@ criteria:
       - evals/ac/prd-13-05-public-qr-authenticity.test.ts
   - section: §13.6
     text: Todo evento crítico aparece na **trilha de auditoria imutável**.
-    status: mapped
+    status: validated
     requirement_ids:
       - REQ-PRD-13-06-CRITICAL-EVENT-AUDIT-TRAIL
-    linked_tests: []
-    planned_tests:
+    linked_tests:
       - evals/ac/prd-13-06-critical-event-audit-trail.test.ts
+    planned_tests: []
   - section: §13.7
     text: A sincronização Android → backend é **idempotente e resiliente** a perda de rede.
     status: validated
@@ -444,9 +444,10 @@ requirements:
     owner: db-schema
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
-    linked_tests: []
-    planned_tests:
+      - specs/0034-prd-13-06-critical-event-audit-trail.md
+    linked_tests:
       - evals/ac/prd-13-06-critical-event-audit-trail.test.ts
+    planned_tests: []
     evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-06-CRITICAL-EVENT-AUDIT-TRAIL/
     critical_paths:
       - packages/audit-log/**
