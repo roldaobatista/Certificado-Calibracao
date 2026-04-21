@@ -13,6 +13,7 @@ const VERIFICATION_ISSUES_ROOT = "compliance/verification-log/issues";
 const VERIFICATION_ISSUES_README = `${VERIFICATION_ISSUES_ROOT}/README.md`;
 const VERIFICATION_ISSUE_TEMPLATE = `${VERIFICATION_ISSUES_ROOT}/_template.md`;
 const VERIFICATION_ISSUE_DRAFTS_DIR = `${VERIFICATION_ISSUES_ROOT}/drafts`;
+const ROADMAP_YAML = "compliance/roadmap/v1-v5.yaml";
 const SNAPSHOT_MANIFEST = "compliance/validation-dossier/snapshots/manifest.yaml";
 const REQUIRED_SNAPSHOT_SOURCE = "harness/05-guardrails.md";
 const REQUIRED_SNAPSHOT_PROFILES = ["A", "B", "C"] as const;
@@ -163,6 +164,15 @@ type VerificationLogRecord = {
   logPath: string;
   entry: VerificationLogEntry;
   index: number;
+};
+
+type RoadmapEpicMapDocument = {
+  slices?: unknown;
+};
+
+type RoadmapEpicMapSlice = {
+  epic_id?: unknown;
+  linked_requirements?: unknown;
 };
 
 export function buildCascadePlan(root: string, changedFiles: string[]): CascadePlan {
@@ -626,20 +636,22 @@ function checkVerificationLogs(root: string) {
     }
   }
 
-  const epicErrors = checkEpicReviewFlags(records);
+  const epicErrors = checkEpicReviewFlags(root, records);
   errors.push(...epicErrors.errors);
   findings.push(...epicErrors.findings);
 
   return { errors, findings };
 }
 
-function checkEpicReviewFlags(records: VerificationLogRecord[]) {
+function checkEpicReviewFlags(root: string, records: VerificationLogRecord[]) {
   const errors: string[] = [];
   const findings: VerificationCascadeFinding[] = [];
   const epicEvents = new Map<string, VerificationLogRecord[]>();
+  const roadmapEpicMap = loadRoadmapEpicMap(root);
 
   for (const record of records) {
-    const epicIds = extractLevelIds(record.entry, "L0");
+    const explicitEpicIds = extractLevelIds(record.entry, "L0");
+    const epicIds = explicitEpicIds.length > 0 ? explicitEpicIds : fallbackEpicIdsForRequirement(roadmapEpicMap, record.reqId);
     for (const epicId of epicIds) {
       const existing = epicEvents.get(epicId);
       if (existing) existing.push(record);
@@ -741,6 +753,47 @@ function listVerificationLogFiles(root: string) {
     .filter((name) => name !== "_template.yaml")
     .sort()
     .map((name) => `compliance/verification-log/${name}`);
+}
+
+function loadRoadmapEpicMap(root: string) {
+  const roadmapPath = resolve(root, ROADMAP_YAML);
+  if (!existsSync(roadmapPath)) return new Map<string, string[]>();
+
+  try {
+    const parsed = yamlLoad(readFileSync(roadmapPath, "utf8")) as RoadmapEpicMapDocument;
+    if (!isRecord(parsed) || !Array.isArray(parsed.slices)) {
+      return new Map<string, string[]>();
+    }
+
+    const requirementToEpics = new Map<string, Set<string>>();
+    for (const slice of parsed.slices) {
+      if (!isRecord(slice)) continue;
+
+      const epicId = asNonEmptyString((slice as RoadmapEpicMapSlice).epic_id);
+      const linkedRequirements = Array.isArray((slice as RoadmapEpicMapSlice).linked_requirements)
+        ? ((slice as RoadmapEpicMapSlice).linked_requirements as unknown[])
+            .map(asNonEmptyString)
+            .filter(Boolean) as string[]
+        : [];
+
+      if (!epicId || linkedRequirements.length === 0) continue;
+      for (const requirementId of linkedRequirements) {
+        const existing = requirementToEpics.get(requirementId);
+        if (existing) existing.add(epicId);
+        else requirementToEpics.set(requirementId, new Set([epicId]));
+      }
+    }
+
+    return new Map(
+      [...requirementToEpics.entries()].map(([requirementId, epicIds]) => [requirementId, [...epicIds].sort()]),
+    );
+  } catch {
+    return new Map<string, string[]>();
+  }
+}
+
+function fallbackEpicIdsForRequirement(roadmapEpicMap: Map<string, string[]>, reqId: string) {
+  return roadmapEpicMap.get(reqId) ?? [];
 }
 
 function trailingSpecCorrectionStreak(entries: VerificationLogEntry[]) {

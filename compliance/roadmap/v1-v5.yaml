@@ -7,6 +7,7 @@ policy:
   normative_package_required: true
 slices:
   - id: V1
+    epic_id: EPIC-V1-EMISSAO-CONTROLADA
     title: Emissão Tipo B ou C em ambiente controlado
     depends_on: []
     estimated_duration_weeks: "6-8"
@@ -17,6 +18,18 @@ slices:
       - web-ui
       - db-schema
       - product-governance
+    linked_requirements:
+      - REQ-PRD-13-02-STANDARD-ELIGIBILITY-BLOCK
+      - REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS
+      - REQ-PRD-13-04-TECHNICAL-REVIEW-SIGNATURE-AUDIT
+      - REQ-PRD-13-05-PUBLIC-QR-AUTHENTICITY
+      - REQ-PRD-13-06-CRITICAL-EVENT-AUDIT-TRAIL
+      - REQ-PRD-13-08-EQUIPMENT-CUSTOMER-ADDRESS
+      - REQ-PRD-13-09-SIGNATORY-COMPETENCE-BLOCK
+      - REQ-PRD-13-11-AUTH-SSO-MFA
+      - REQ-PRD-13-12-ONBOARDING-WIZARD-BLOCKS
+      - REQ-PRD-13-13-RLS-ISOLATION
+      - REQ-PRD-13-14-SEQUENTIAL-NUMBERING
     scope:
       - Organização Tipo B ou Tipo C, sem acreditação Tipo A.
       - Emissão online com wizard, auth, RBAC básico, assinatura, QR e audit log.
@@ -27,6 +40,7 @@ slices:
       - Release-norm V1 aprovado por product-governance.
       - Pacote normativo v1.0.0 assinado e em uso.
   - id: V2
+    epic_id: EPIC-V2-SYNC-OFFLINE
     title: Sync offline-first robusto
     depends_on:
       - V1
@@ -37,6 +51,11 @@ slices:
       - android
       - backend-api
       - qa-acceptance
+    linked_requirements:
+      - REQ-PRD-13-01-MOBILE-OFFLINE-CALIBRATION
+      - REQ-PRD-13-07-ANDROID-SYNC-IDEMPOTENCY
+      - REQ-PRD-13-20-OFFLINE-SYNC-CHAOS
+      - REQ-HARNESS-P1-1-SYNC-SIMULATOR
     scope:
       - Android em campo 100% offline com SQLCipher e chave derivada por device.
       - Simulador determinístico de conflitos C1-C8.
@@ -46,6 +65,7 @@ slices:
       - Seed weekly rodou sem falha.
       - Dossiê V2 inclui trace de cada cenário.
   - id: V3
+    epic_id: EPIC-V3-TIPO-A
     title: Tipo A acreditado com escopo CMC e símbolo Cgcre/RBC
     depends_on:
       - V2
@@ -57,6 +77,10 @@ slices:
       - backend-api
       - web-ui
       - legal-counsel
+    linked_requirements:
+      - REQ-PRD-13-10-SCOPE-CMC-BLOCK
+      - REQ-PRD-13-15-REGULATORY-PROFILES-PDF
+      - REQ-PRD-13-21-LEGAL-OPINION-DPA
     scope:
       - Perfil A habilitado com escopo acreditado e CMC formal.
       - Template A com selo Cgcre/RBC aplicado por regra de arquitetura.
@@ -67,6 +91,7 @@ slices:
       - Product-governance libera release V3.
       - Parecer jurídico datado em compliance/legal-opinions/.
   - id: V4
+    epic_id: EPIC-V4-REEMISSAO
     title: Reemissão controlada
     depends_on:
       - V3
@@ -77,6 +102,9 @@ slices:
       - backend-api
       - db-schema
       - lgpd-security
+    linked_requirements:
+      - REQ-PRD-13-16-CONTROLLED-REISSUE
+      - REQ-PRD-13-17-PUBLIC-QR-MINIMAL-METADATA
     scope:
       - Fluxo completo de reemissão com justificativa e dupla aprovação.
       - Hash-chain preservada e certificado original verificável.
@@ -86,6 +114,7 @@ slices:
       - QR continua funcional para certificado antigo.
       - Fuzz cross-tenant verde.
   - id: V5
+    epic_id: EPIC-V5-QUALIDADE
     title: Módulo Qualidade completo
     depends_on:
       - V4
@@ -96,6 +125,8 @@ slices:
       - product-governance
       - metrology-auditor
       - qa-acceptance
+    linked_requirements:
+      - REQ-PRD-13-22-NORMATIVE-GOVERNANCE-OWNER
     scope:
       - Gestão de não-conformidades, competências e auditorias internas.
       - Indicadores e análise crítica.

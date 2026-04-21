@@ -11,3 +11,8 @@ pnpm roadmap-check
 ```
 
 O gate exige ordem estrita V1-V5, dependência sequencial, release-norm, dossiê de validação, pacote normativo e gates de saída por fatia.
+
+Cada fatia também declara:
+
+- `epic_id`: identificador canônico do épico L0 usado pela cascata de verificação;
+- `linked_requirements`: lista de REQs cuja re-auditoria pode ser agregada por esse épico.

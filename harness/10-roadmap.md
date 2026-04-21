@@ -112,6 +112,7 @@ Compara com o roadmap original de 4 semanas do `HARNESS_DESIGN.md` — que era, 
 - ordem estrita V1 → V5;
 - dependência sequencial entre fatias;
 - exigência de gate anterior antes da próxima fatia;
+- `epic_id` e `linked_requirements` por fatia para agregação L0 na cascata;
 - release-norm, dossiê e pacote normativo por fatia;
 - escopo, agentes primários e gates de saída por fatia.
 
