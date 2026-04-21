@@ -123,48 +123,81 @@ function writeIssueDraftArtifacts(root: string) {
     join(issuesRoot, "_template.md"),
     [
       "---",
-      "issue_type: verification-cascade-snapshot-diff",
+      "issue_type: {{issue_type}}",
       "status: open",
-      "severity: blocker",
+      "severity: {{severity}}",
       "labels:",
-      "  - compliance",
-      "  - verification-cascade",
-      "  - snapshot-diff",
-      "  - blocker",
+      "{{labels_yaml}}",
       "---",
       "",
       "# {{issue_title}}",
       "",
       "## Contexto",
-      "- Código: {{finding_code}}",
-      "- Snapshot: {{snapshot_id}}",
-      "- Perfil: {{profile}}",
-      "- Manifesto: {{manifest_path}}",
-      "- Baseline: {{baseline_path}}",
-      "- Current: {{current_path}}",
-      "- Branch: {{branch}}",
-      "- Commit: {{commit_sha}}",
-      "- Workflow run: {{workflow_run}}",
+      "{{context_list}}",
       "",
       "## Evidencia",
-      "- Baseline SHA-256: {{baseline_hash}}",
-      "- Current SHA-256: {{current_hash}}",
-      "- Hash esperado no manifesto: {{expected_hash}}",
-      "- Findings:",
-      "{{findings_list}}",
-      "- Comando local: `pnpm snapshot-diff-check`",
+      "{{evidence_list}}",
       "",
       "## Reauditoria obrigatoria",
-      "- regulator",
-      "- product-governance",
-      "- qa-acceptance",
+      "{{reaudit_list}}",
       "",
       "## Fechamento",
-      "- ADR/PR de correção:",
-      "- Novo baseline aprovado:",
-      "- Issue GitHub vinculada:",
+      "{{closing_list}}",
       "",
     ].join("\n"),
+  );
+}
+
+function writeVerificationLogTemplate(root: string) {
+  writeFileSync(
+    join(root, "compliance", "verification-log", "_template.yaml"),
+    [
+      "- date: 2026-04-22",
+      "  trigger: L3 correction in critical flow",
+      "  ac_changed: false",
+      "  reqs_changed: false",
+      "  propagated_up:",
+      "    - L1/REQ-EXAMPLE",
+      "  propagated_down:",
+      "    - L4/full-regression",
+      "  re_audits_completed:",
+      "    - L4: 2026-04-23 via pnpm check:all",
+      "",
+    ].join("\n"),
+  );
+}
+
+function writeVerificationLog(
+  root: string,
+  reqId: string,
+  entries: Array<{
+    date: string;
+    trigger: string;
+    ac_changed?: boolean;
+    reqs_changed?: boolean;
+    propagated_up?: string[];
+    propagated_down?: string[];
+    re_audits_completed?: string[];
+  }>,
+) {
+  writeFileSync(
+    join(root, "compliance", "verification-log", `${reqId}.yaml`),
+    entries
+      .map((entry) =>
+        [
+          `- date: "${entry.date}"`,
+          `  trigger: "${entry.trigger}"`,
+          `  ac_changed: ${entry.ac_changed ? "true" : "false"}`,
+          `  reqs_changed: ${entry.reqs_changed ? "true" : "false"}`,
+          "  propagated_up:",
+          ...(entry.propagated_up ?? []).map((value) => `    - "${value}"`),
+          "  propagated_down:",
+          ...(entry.propagated_down ?? []).map((value) => `    - "${value}"`),
+          "  re_audits_completed:",
+          ...(entry.re_audits_completed ?? []).map((value) => `    - "${value}"`),
+        ].join("\n"),
+      )
+      .join("\n"),
   );
 }
 
@@ -243,6 +276,7 @@ test("verification cascade passes with canonical snapshot hashes for profiles A,
   const { root, cleanup } = makeWorkspace();
   try {
     writeSnapshotDossier(root);
+    writeVerificationLogTemplate(root);
 
     const result = checkVerificationCascade(root);
 
@@ -276,6 +310,7 @@ test("verification cascade writes deterministic issue drafts for snapshot diffs"
     process.env.AFERE_CASCADE_TODAY = "2026-04-20";
     writeSnapshotDossier(root, { diffCurrentId: "profile-b-minimal" });
     writeIssueDraftArtifacts(root);
+    writeVerificationLogTemplate(root);
 
     const result = checkVerificationCascade(root);
     const drafts = buildVerificationIssueDrafts(root, result);
@@ -294,6 +329,192 @@ test("verification cascade writes deterministic issue drafts for snapshot diffs"
     assert.match(draftBody, /profile-b-minimal/);
     assert.match(draftBody, /status: open/);
     assert.match(draftBody, /regulator/);
+  } finally {
+    delete process.env.AFERE_CASCADE_TODAY;
+    cleanup();
+  }
+});
+
+test("verification cascade flags spec review after three consecutive AC or REQ corrections", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeSnapshotDossier(root);
+    writeIssueDraftArtifacts(root);
+    writeVerificationLogTemplate(root);
+    writeVerificationLog(root, "REQ-EMISSION", [
+      {
+        date: "2026-04-18",
+        trigger: "L3 correction in emission flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-18 via pnpm check:all"],
+      },
+      {
+        date: "2026-04-19",
+        trigger: "L3 correction in emission flow",
+        reqs_changed: true,
+        propagated_up: ["L1/REQ-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-19 via pnpm check:all"],
+      },
+      {
+        date: "2026-04-20",
+        trigger: "L3 correction in emission flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-20 via pnpm check:all"],
+      },
+    ]);
+
+    const result = checkVerificationCascade(root);
+
+    assert.match(result.errors.join("\n"), /CASCADE-007/);
+    assert.match(result.errors.join("\n"), /REQ-EMISSION/);
+    assert.match(result.findings.map((finding) => finding.code).join(","), /CASCADE-007/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("verification cascade accepts repeated corrections once L1 reauditoria is registered", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeSnapshotDossier(root);
+    writeIssueDraftArtifacts(root);
+    writeVerificationLogTemplate(root);
+    writeVerificationLog(root, "REQ-EMISSION", [
+      {
+        date: "2026-04-18",
+        trigger: "L3 correction in emission flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-18 via pnpm check:all"],
+      },
+      {
+        date: "2026-04-19",
+        trigger: "L3 correction in emission flow",
+        reqs_changed: true,
+        propagated_up: ["L1/REQ-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-19 via pnpm check:all"],
+      },
+      {
+        date: "2026-04-20",
+        trigger: "L3 correction in emission flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: [
+          "L1/REQ-EMISSION: 2026-04-20 by regulator + qa-acceptance",
+          "L4: 2026-04-20 via pnpm check:all",
+        ],
+      },
+    ]);
+
+    const result = checkVerificationCascade(root);
+
+    assert.doesNotMatch(result.errors.join("\n"), /CASCADE-007/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("verification cascade writes deterministic issue drafts for spec-review-flag", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    process.env.AFERE_CASCADE_TODAY = "2026-04-20";
+    writeSnapshotDossier(root);
+    writeIssueDraftArtifacts(root);
+    writeVerificationLogTemplate(root);
+    writeVerificationLog(root, "REQ-EMISSION", [
+      {
+        date: "2026-04-18",
+        trigger: "L3 correction in emission flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-18 via pnpm check:all"],
+      },
+      {
+        date: "2026-04-19",
+        trigger: "L3 correction in emission flow",
+        reqs_changed: true,
+        propagated_up: ["L1/REQ-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-19 via pnpm check:all"],
+      },
+      {
+        date: "2026-04-20",
+        trigger: "L3 correction in emission flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-20 via pnpm check:all"],
+      },
+    ]);
+
+    const result = checkVerificationCascade(root);
+    const drafts = buildVerificationIssueDrafts(root, result);
+    const draft = drafts.find((entry) => entry.slug === "spec-review-flag-req-emission");
+
+    assert.ok(draft);
+    assert.equal(
+      draft.path,
+      "compliance/verification-log/issues/drafts/2026-04-20-spec-review-flag-req-emission.md",
+    );
+    assert.match(draft.title, /REQ-EMISSION/);
+    assert.match(draft.body, /CASCADE-007/);
+    assert.match(draft.body, /3 correcoes consecutivas/);
+    assert.match(draft.body, /L1\/REQ-EMISSION/);
+  } finally {
+    delete process.env.AFERE_CASCADE_TODAY;
+    cleanup();
+  }
+});
+
+test("verification cascade emits independent drafts for snapshot diff and spec-review-flag in the same run", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    process.env.AFERE_CASCADE_TODAY = "2026-04-20";
+    writeSnapshotDossier(root, { diffCurrentId: "profile-b-minimal" });
+    writeIssueDraftArtifacts(root);
+    writeVerificationLogTemplate(root);
+    writeVerificationLog(root, "REQ-EMISSION", [
+      {
+        date: "2026-04-18",
+        trigger: "L3 correction in emission flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-18 via pnpm check:all"],
+      },
+      {
+        date: "2026-04-19",
+        trigger: "L3 correction in emission flow",
+        reqs_changed: true,
+        propagated_up: ["L1/REQ-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-19 via pnpm check:all"],
+      },
+      {
+        date: "2026-04-20",
+        trigger: "L3 correction in emission flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-20 via pnpm check:all"],
+      },
+    ]);
+
+    const drafts = buildVerificationIssueDrafts(root, checkVerificationCascade(root));
+
+    assert.deepEqual(
+      drafts.map((draft) => draft.slug).sort(),
+      ["snapshot-diff-profile-b-minimal", "spec-review-flag-req-emission"],
+    );
   } finally {
     delete process.env.AFERE_CASCADE_TODAY;
     cleanup();

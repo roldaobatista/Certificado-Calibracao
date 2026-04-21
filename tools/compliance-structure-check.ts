@@ -59,6 +59,7 @@ const REQUIRED_ARTIFACTS: RequiredArtifact[] = [
   { path: "compliance/validation-dossier/snapshots/manifest.yaml", type: "file" },
   { path: "compliance/validation-dossier/traceability-matrix.yaml", type: "file" },
   { path: "compliance/verification-log/README.md", type: "file" },
+  { path: "compliance/verification-log/_template.yaml", type: "file" },
   { path: "compliance/verification-log/issues/README.md", type: "file" },
   { path: "compliance/verification-log/issues/_template.md", type: "file" },
   { path: "compliance/verification-log/issues/drafts/.gitkeep", type: "file" },

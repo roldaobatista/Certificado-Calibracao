@@ -1,0 +1,10 @@
+- date: 2026-04-22
+  trigger: L3 correction in critical flow
+  ac_changed: false
+  reqs_changed: false
+  propagated_up:
+    - L1/REQ-EXAMPLE
+  propagated_down:
+    - L4/full-regression
+  re_audits_completed:
+    - L4: 2026-04-23 via pnpm check:all
