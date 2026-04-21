@@ -5,19 +5,19 @@ sources:
 prd_section_13:
   total: 22
   mapped: 22
-  validated: 21
+  validated: 22
   missing: 0
 criteria:
   - section: §13.1
     text: >-
       Uma calibração de balança IPNA pode ser executada do início ao certificado **exclusivamente pelo celular**,
       offline.
-    status: mapped
+    status: validated
     requirement_ids:
       - REQ-PRD-13-01-MOBILE-OFFLINE-CALIBRATION
-    linked_tests: []
-    planned_tests:
+    linked_tests:
       - evals/ac/prd-13-01-mobile-offline-calibration.test.ts
+    planned_tests: []
   - section: §13.2
     text: O sistema **bloqueia** uso de padrão vencido, sem certificado, fora de faixa.
     status: validated
@@ -374,9 +374,10 @@ requirements:
     owner: android
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
-    linked_tests: []
-    planned_tests:
+      - specs/0044-prd-13-01-mobile-offline-calibration.md
+    linked_tests:
       - evals/ac/prd-13-01-mobile-offline-calibration.test.ts
+    planned_tests: []
     evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-01-MOBILE-OFFLINE-CALIBRATION/
     critical_paths:
       - apps/android/**
