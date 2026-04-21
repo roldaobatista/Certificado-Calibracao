@@ -5,7 +5,7 @@ sources:
 prd_section_13:
   total: 22
   mapped: 22
-  validated: 9
+  validated: 10
   missing: 0
 criteria:
   - section: §13.1
@@ -28,12 +28,12 @@ criteria:
       - evals/ac/prd-13-02-standard-eligibility-block.test.ts
   - section: §13.3
     text: O certificado é emitido com **resultado, incerteza expandida e fator k declarado**.
-    status: mapped
+    status: validated
     requirement_ids:
       - REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS
-    linked_tests: []
-    planned_tests:
+    linked_tests:
       - evals/ac/prd-13-03-certificate-measurement-declarations.test.ts
+    planned_tests: []
   - section: §13.4
     text: A revisão técnica e a assinatura ficam **registradas com identidade, timestamp e dispositivo**.
     status: mapped
@@ -403,9 +403,10 @@ requirements:
     owner: metrology-calc
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
-    linked_tests: []
-    planned_tests:
+      - specs/0032-prd-13-03-measurement-declarations.md
+    linked_tests:
       - evals/ac/prd-13-03-certificate-measurement-declarations.test.ts
+    planned_tests: []
     evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS/
     critical_paths:
       - packages/engine-uncertainty/**

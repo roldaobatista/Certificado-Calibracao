@@ -14,7 +14,8 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "test:tools": "tsx --test tools/*.test.ts packages/db/tools/tenant-lint/src/*.test.ts packages/audit-log/src/*.test.ts packages/normative-rules/src/*.test.ts",
+    "test:tools": "tsx --test tools/*.test.ts packages/db/tools/tenant-lint/src/*.test.ts packages/audit-log/src/*.test.ts packages/normative-rules/src/*.test.ts packages/engine-uncertainty/src/*.test.ts",
+    "test:ac": "tsx --test evals/ac/*.test.ts",
     "test:regulatory": "tsx --test evals/regulatory/*.test.ts",
     "test:rls": "tsx --test evals/tenancy/rls/*.test.ts",
     "test:fuzz": "tsx --test evals/tenancy/fuzz/*.test.ts",
@@ -54,7 +55,7 @@
     "sync:agents:check": "tsx tools/sync-agents.ts --check",
     "clean": "turbo run clean && rm -rf node_modules",
     "check:drift": "tsx tools/check-agents-drift.ts",
-    "check:all": "pnpm typecheck && pnpm test:tools && pnpm test:regulatory && pnpm copy-lint:check && pnpm test:sync-simulator && pnpm worm-check && pnpm governance-gate && pnpm escalation-check && pnpm external-auditors-gate && pnpm roadmap-check && pnpm sync-simulator-check && pnpm cloud-agents-policy-check && pnpm compliance-structure-check && pnpm agent-frontmatter-check && pnpm slash-commands-check && pnpm harness-design-tier3-check && pnpm harness-dashboard:check && pnpm runbook-check && pnpm snapshot-diff-check && pnpm redundancy-check && pnpm budget:check && tsx tools/validation-dossier.ts check --quiet && pnpm sync:agents:check && pnpm check:drift"
+    "check:all": "pnpm typecheck && pnpm test:tools && pnpm test:ac && pnpm test:regulatory && pnpm copy-lint:check && pnpm test:sync-simulator && pnpm worm-check && pnpm governance-gate && pnpm escalation-check && pnpm external-auditors-gate && pnpm roadmap-check && pnpm sync-simulator-check && pnpm cloud-agents-policy-check && pnpm compliance-structure-check && pnpm agent-frontmatter-check && pnpm slash-commands-check && pnpm harness-design-tier3-check && pnpm harness-dashboard:check && pnpm runbook-check && pnpm snapshot-diff-check && pnpm redundancy-check && pnpm budget:check && tsx tools/validation-dossier.ts check --quiet && pnpm sync:agents:check && pnpm check:drift"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
