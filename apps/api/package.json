@@ -13,6 +13,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
+    "@afere/audit-log": "workspace:*",
     "@afere/contracts": "workspace:*",
     "@afere/db": "workspace:*",
     "@fastify/cors": "^10.0.1",

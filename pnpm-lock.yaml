@@ -29,6 +29,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@afere/audit-log':
+        specifier: workspace:*
+        version: link:../../packages/audit-log
       '@afere/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
