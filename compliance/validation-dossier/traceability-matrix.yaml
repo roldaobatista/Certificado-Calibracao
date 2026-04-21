@@ -5,7 +5,7 @@ sources:
 prd_section_13:
   total: 22
   mapped: 22
-  validated: 14
+  validated: 17
   missing: 0
 criteria:
   - section: §13.1
@@ -68,20 +68,20 @@ criteria:
     planned_tests: []
   - section: §13.8
     text: O cadastro de equipamento exige obrigatoriamente vínculo com cliente e endereço.
-    status: mapped
+    status: validated
     requirement_ids:
       - REQ-PRD-13-08-EQUIPMENT-CUSTOMER-ADDRESS
-    linked_tests: []
-    planned_tests:
+    linked_tests:
       - evals/ac/prd-13-08-equipment-customer-address.test.ts
+    planned_tests: []
   - section: §13.9
     text: Signatário sem competência para o tipo de instrumento **não consegue assinar**.
-    status: mapped
+    status: validated
     requirement_ids:
       - REQ-PRD-13-09-SIGNATORY-COMPETENCE-BLOCK
-    linked_tests: []
-    planned_tests:
+    linked_tests:
       - evals/ac/prd-13-09-signatory-competence-block.test.ts
+    planned_tests: []
   - section: §13.10
     text: Certificado emitido por laboratório acreditado respeita **escopo e CMC**.
     status: validated
@@ -121,12 +121,12 @@ criteria:
     planned_tests: []
   - section: §13.14
     text: Numeração sequencial por organização sem colisão entre tenants.
-    status: mapped
+    status: validated
     requirement_ids:
       - REQ-PRD-13-14-SEQUENTIAL-NUMBERING
-    linked_tests: []
-    planned_tests:
+    linked_tests:
       - evals/ac/prd-13-14-sequential-numbering.test.ts
+    planned_tests: []
   - section: §13.15
     text: >-
       Sistema reconhece os **3 perfis regulatórios** (Tipo A/B/C) e seleciona automaticamente o template de PDF
@@ -473,9 +473,10 @@ requirements:
     owner: backend-api
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
-    linked_tests: []
-    planned_tests:
+      - specs/0039-prd-13-08-equipment-customer-address.md
+    linked_tests:
       - evals/ac/prd-13-08-equipment-customer-address.test.ts
+    planned_tests: []
     evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-08-EQUIPMENT-CUSTOMER-ADDRESS/
     critical_paths:
       - apps/api/src/domain/equipment/**
@@ -486,9 +487,10 @@ requirements:
     owner: backend-api
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
-    linked_tests: []
-    planned_tests:
+      - specs/0038-prd-13-09-signatory-competence-block.md
+    linked_tests:
       - evals/ac/prd-13-09-signatory-competence-block.test.ts
+    planned_tests: []
     evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-09-SIGNATORY-COMPETENCE-BLOCK/
     critical_paths:
       - apps/api/src/domain/competencies/**
@@ -555,9 +557,10 @@ requirements:
     owner: db-schema
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
-    linked_tests: []
-    planned_tests:
+      - specs/0037-prd-13-14-sequential-numbering.md
+    linked_tests:
       - evals/ac/prd-13-14-sequential-numbering.test.ts
+    planned_tests: []
     evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-14-SEQUENTIAL-NUMBERING/
     critical_paths:
       - packages/db/**

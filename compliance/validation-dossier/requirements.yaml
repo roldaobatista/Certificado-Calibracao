@@ -132,11 +132,11 @@
     doc: PRD.md
     section: "§13.8"
   description: Cadastro de equipamento deve exigir vínculo obrigatório com cliente e endereço.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+    - specs/0039-prd-13-08-equipment-customer-address.md
+  linked_tests:
     - evals/ac/prd-13-08-equipment-customer-address.test.ts
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-08-EQUIPMENT-CUSTOMER-ADDRESS/
   owner: backend-api
@@ -150,11 +150,11 @@
     doc: PRD.md
     section: "§13.9"
   description: Signatário sem competência vigente para o tipo de instrumento não pode assinar.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+    - specs/0038-prd-13-09-signatory-competence-block.md
+  linked_tests:
     - evals/ac/prd-13-09-signatory-competence-block.test.ts
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-09-SIGNATORY-COMPETENCE-BLOCK/
   owner: backend-api
@@ -242,11 +242,11 @@
     doc: PRD.md
     section: "§13.14"
   description: Numeração sequencial de certificados deve ser isolada por organização e sem colisão entre tenants.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+    - specs/0037-prd-13-14-sequential-numbering.md
+  linked_tests:
     - evals/ac/prd-13-14-sequential-numbering.test.ts
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-14-SEQUENTIAL-NUMBERING/
   owner: db-schema
