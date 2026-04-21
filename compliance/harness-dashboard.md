@@ -13,7 +13,7 @@
 ## Cobertura PRD §13
 
 - 22/22 mapeados
-- 3/22 validados por teste ativo
+- 4/22 validados por teste ativo
 - 0/22 sem requisito mapeado
 
 ## Gates em check:all
@@ -46,7 +46,7 @@
 
 - P0-1 (P0): Backend apps/api como peça de 1ª classe + agente backend-api — [~] Em implementação (scaffold Fastify + tRPC + Prisma + Docker Compose; /healthz + /trpc/health.ping verdes; lógica de domínio pendente para fatias V1+)
 - P0-2 (P0): Pipeline de normative package assinado e versionado — [~] Em implementação (@afere/normative-rules valida pacote normativo com hash canônico SHA-256, assinatura Ed25519, sidecars de chave pública/metadados e releases/manifest.yaml; baseline 2026-04-20-baseline-v0.1.0 aprovado por bootstrap offline; KMS real ainda pendente)
-- P0-3 (P0): Dossiê formal de validação contínua — [~] Em implementação (requirements.yaml, traceability-matrix.yaml, coverage-report.md e tools/validation-dossier.ts; 22/22 critérios do PRD §13 mapeados, 3/22 validados por teste ativo, demais seguem validation_status: planned)
+- P0-3 (P0): Dossiê formal de validação contínua — [~] Em implementação (requirements.yaml, traceability-matrix.yaml, coverage-report.md e tools/validation-dossier.ts; 22/22 critérios do PRD §13 mapeados, 4/22 validados por teste ativo, demais seguem validation_status: planned)
 - P0-4 (P0): Hard gates de multitenancy e trilha imutável — [~] Em implementação (Gates 1, 2, 3, 4, 5 e 6 funcionais em primeiras fatias; Gate 7 agora valida manifesto/hashes de snapshot-diff para perfis A/B/C, gera drafts automáticos de issue para CASCADE-003 no required-gates e mantém flake gate estrutural, enquanto a bateria final de 30 certificados canonicos em PDF/A ainda depende do renderer de emissao; Gate 5 cobre RLS, RBAC depende de auth real em apps/api)
 - P0-5 (P0): Copy-lint regulatório — [~] Em implementação (packages/copy-lint funcional com 8 regras, CLI, hook PreCommit fail-closed, slash /claim-check; finding de 4 claims proibidos em PRD.md fechado por correção de copy + tools/copy-lint-prd.test.ts; pnpm copy-lint:check varre o repo em check:all; claim-set completo segue draft até revisão jurídica humana)
 - P0-6 (P0): Agente product-governance + CODEOWNERS — [~] Em implementação (.github/CODEOWNERS, template de PR e pnpm governance-gate funcionais; pre-commit aciona o gate no delta; branch protection configurado em main exigindo required-gates; CODEOWNERS usa owner GitHub real e metadados agent-owners para papéis regulatórios; review obrigatório por CODEOWNERS depende de segundo colaborador/time GitHub real)

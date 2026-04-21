@@ -114,11 +114,10 @@
     doc: PRD.md
     section: "§13.7"
   description: Sincronização Android para backend deve ser idempotente e resiliente a perda de rede.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+  linked_tests:
     - evals/sync-simulator/prd-13-07-android-sync-idempotency.test.ts
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-07-ANDROID-SYNC-IDEMPOTENCY/
   owner: android

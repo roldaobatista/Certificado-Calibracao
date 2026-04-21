@@ -5,7 +5,7 @@ sources:
 prd_section_13:
   total: 22
   mapped: 22
-  validated: 3
+  validated: 4
   missing: 0
 criteria:
   - section: §13.1
@@ -60,12 +60,12 @@ criteria:
       - evals/ac/prd-13-06-critical-event-audit-trail.test.ts
   - section: §13.7
     text: A sincronização Android → backend é **idempotente e resiliente** a perda de rede.
-    status: mapped
+    status: validated
     requirement_ids:
       - REQ-PRD-13-07-ANDROID-SYNC-IDEMPOTENCY
-    linked_tests: []
-    planned_tests:
+    linked_tests:
       - evals/sync-simulator/prd-13-07-android-sync-idempotency.test.ts
+    planned_tests: []
   - section: §13.8
     text: O cadastro de equipamento exige obrigatoriamente vínculo com cliente e endereço.
     status: mapped
@@ -455,9 +455,9 @@ requirements:
     owner: android
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
-    linked_tests: []
-    planned_tests:
+    linked_tests:
       - evals/sync-simulator/prd-13-07-android-sync-idempotency.test.ts
+    planned_tests: []
     evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-07-ANDROID-SYNC-IDEMPOTENCY/
     critical_paths:
       - apps/android/**
