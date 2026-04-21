@@ -13,6 +13,11 @@ Simulador determinístico de conflito. Ver `harness/08-sync-simulator.md` (P1-1)
 - C7: evento fora de ordem é aplicado por Lamport.
 - C8: clock adulterado é normalizado pelo servidor e auditado.
 
+## Validação PRD
+
+- `prd-13-07-android-sync-idempotency.test.ts`: valida resiliência à perda de rede e replay idempotente.
+- `prd-13-20-offline-sync-chaos.test.ts`: valida `1.000` OS em `5` dispositivos com sync randomizado, zero perdas e zero duplicatas aceitas.
+
 ## Execução
 
 ```bash

@@ -77,7 +77,7 @@ Para cada scenario, as 4 propriedades são verificadas:
 - propriedades documentadas em `evals/sync-simulator/properties/`;
 - área de traces em `evals/sync-simulator/reports/`.
 
-`pnpm test:sync-simulator` executa C1-C8 com 100 seeds determinísticos e entra em `pnpm check:all`.
+`pnpm test:sync-simulator` executa C1-C8 com 100 seeds determinísticos e o teste volumétrico do PRD §13.20 (`1.000` OS em `5` dispositivos), e entra em `pnpm check:all`.
 
 ## Reprodutibilidade
 

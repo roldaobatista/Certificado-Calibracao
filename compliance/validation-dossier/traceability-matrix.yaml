@@ -5,7 +5,7 @@ sources:
 prd_section_13:
   total: 22
   mapped: 22
-  validated: 4
+  validated: 5
   missing: 0
 criteria:
   - section: §13.1
@@ -192,12 +192,12 @@ criteria:
       client_event_id)`, optimistic locking por agregado, lock exclusivo por OS após início da assinatura, matriz de
       conflitos com política de merge/rejeição por tipo. Teste de caos: 1.000 OS geradas offline por ≥ 5 dispositivos
       com sync randomizado — zero perdas, zero duplicatas.
-    status: mapped
+    status: validated
     requirement_ids:
       - REQ-PRD-13-20-OFFLINE-SYNC-CHAOS
-    linked_tests: []
-    planned_tests:
+    linked_tests:
       - evals/sync-simulator/prd-13-20-offline-sync-chaos.test.ts
+    planned_tests: []
   - section: §13.21
     text: >-
       **Parecer jurídico formal** sobre assinatura eletrônica auditável (MP 2.200-2 §10 II) anexado ao dossiê; minuta de
@@ -661,9 +661,10 @@ requirements:
     owner: android
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
-    linked_tests: []
-    planned_tests:
+      - specs/0027-prd-13-20-sync-chaos-validation.md
+    linked_tests:
       - evals/sync-simulator/prd-13-20-offline-sync-chaos.test.ts
+    planned_tests: []
     evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-20-OFFLINE-SYNC-CHAOS/
     critical_paths:
       - apps/android/**
