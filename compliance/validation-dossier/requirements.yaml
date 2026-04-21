@@ -389,11 +389,11 @@
     doc: PRD.md
     section: "§13.20"
   description: Modelo de sincronização offline deve documentar event sourcing por OS, idempotência, optimistic locking, lock exclusivo após início de assinatura e matriz de conflitos, com caos de 1.000 OS em pelo menos 5 dispositivos.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+    - specs/0027-prd-13-20-sync-chaos-validation.md
+  linked_tests:
     - evals/sync-simulator/prd-13-20-offline-sync-chaos.test.ts
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-20-OFFLINE-SYNC-CHAOS/
   owner: android

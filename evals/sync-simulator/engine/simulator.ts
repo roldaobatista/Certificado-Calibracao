@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 export type ScenarioId = "C1" | "C2" | "C3" | "C4" | "C5" | "C6" | "C7" | "C8";
+type SimulationId = ScenarioId | "CHAOS";
 
 type EventKind = "edit" | "sign" | "reissue" | "emit";
 
@@ -61,6 +62,29 @@ export type ScenarioResult = {
   };
 };
 
+export type OfflineSyncChaosOptions = {
+  seed: number;
+  workOrderCount: number;
+  deviceCount: number;
+};
+
+export type OfflineSyncChaosReport = {
+  seed: number;
+  workOrderCount: number;
+  deviceCount: number;
+  expectedAcceptedEvents: number;
+  acceptedEvents: number;
+  replayEventsInjected: number;
+  duplicateReplaysDetected: number;
+  auditLogLength: number;
+  missingWorkOrders: string[];
+  properties: {
+    converged: boolean;
+    hashChainValid: boolean;
+    idempotentReplay: boolean;
+  };
+};
+
 export const CANONICAL_SCENARIOS: Array<{ id: ScenarioId; title: string }> = [
   { id: "C1", title: "Mesma OS editada em 2 dispositivos offline" },
   { id: "C2", title: "Assinatura durante edição offline" },
@@ -83,6 +107,34 @@ export function runCanonicalScenario(scenarioId: ScenarioId, seed: number): Scen
   return server.result();
 }
 
+export function runOfflineSyncChaos(options: OfflineSyncChaosOptions): OfflineSyncChaosReport {
+  const { seed, workOrderCount, deviceCount } = options;
+  const { events, replayEventsInjected } = buildOfflineSyncChaosEvents(options);
+  const server = new SyncServer("CHAOS", seed);
+  server.apply(events);
+  const result = server.result();
+  const missingWorkOrders = Array.from({ length: workOrderCount }, (_, index) =>
+    `OS_${String(index + 1).padStart(4, "0")}`
+  ).filter((workOrderId) => result.canonicalState.workOrders[workOrderId]?.fields.mass === undefined);
+
+  return {
+    seed,
+    workOrderCount,
+    deviceCount,
+    expectedAcceptedEvents: workOrderCount,
+    acceptedEvents: result.auditLog.length,
+    replayEventsInjected,
+    duplicateReplaysDetected: result.deduplicatedEvents,
+    auditLogLength: result.auditLog.length,
+    missingWorkOrders,
+    properties: {
+      converged: result.properties.converged,
+      hashChainValid: result.properties.hashChainValid,
+      idempotentReplay: result.properties.idempotentReplay,
+    },
+  };
+}
+
 class SyncServer {
   private readonly acceptedKeys = new Set<string>();
   private readonly state: Record<string, WorkOrderState> = {};
@@ -94,7 +146,7 @@ class SyncServer {
   private serverClock = 0;
 
   constructor(
-    private readonly scenarioId: ScenarioId,
+    private readonly scenarioId: SimulationId,
     private readonly seed: number,
   ) {}
 
@@ -268,6 +320,46 @@ function buildScenarioEvents(scenarioId: ScenarioId, seed: number): SyncEvent[] 
   }
 }
 
+function buildOfflineSyncChaosEvents(options: OfflineSyncChaosOptions) {
+  const { seed, workOrderCount, deviceCount } = options;
+  const deviceIds = Array.from({ length: deviceCount }, (_, index) => `device-${String.fromCharCode(97 + index)}`);
+  const events: SyncEvent[] = [];
+  let replayEventsInjected = 0;
+  const random = createDeterministicRng(seed);
+
+  for (let index = 0; index < workOrderCount; index += 1) {
+    const workOrderId = `OS_${String(index + 1).padStart(4, "0")}`;
+    const deviceId = deviceIds[index % deviceIds.length] ?? "device-a";
+    const lamport = 1 + Math.floor(random() * 5);
+    const clientTime = 1_000 + Math.floor(random() * 10_000);
+    const measurement = (10 + index / 100).toFixed(2);
+    const baseEvent = event(
+      `CHAOS-${index + 1}`,
+      deviceId,
+      workOrderId,
+      lamport,
+      clientTime,
+      "edit",
+      "mass",
+      measurement,
+    );
+    events.push(baseEvent);
+
+    if ((index + 1) % 10 === 0) {
+      replayEventsInjected += 1;
+      events.push({
+        ...baseEvent,
+        id: `${baseEvent.id}-replay`,
+      });
+    }
+  }
+
+  return {
+    events: shuffleDeterministically(events, random),
+    replayEventsInjected,
+  };
+}
+
 function event(
   id: string,
   deviceId: string,
@@ -295,6 +387,15 @@ function compareEvents(left: SyncEvent, right: SyncEvent) {
   return left.lamport - right.lamport || left.deviceId.localeCompare(right.deviceId) || left.id.localeCompare(right.id);
 }
 
+function shuffleDeterministically<T>(values: T[], random: () => number) {
+  const shuffled = [...values];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex]!, shuffled[index]!];
+  }
+  return shuffled;
+}
+
 function hashAuditPayload(prevHash: string, payload: Record<string, unknown>) {
   return createHash("sha256").update(JSON.stringify({ prevHash, payload: sortKeys(payload) })).digest("hex");
 }
@@ -314,4 +415,12 @@ function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeys);
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(Object.entries(value).sort(([left], [right]) => left.localeCompare(right)));
+}
+
+function createDeterministicRng(seed: number) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 0x1_0000_0000;
+  };
 }
