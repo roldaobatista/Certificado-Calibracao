@@ -5,6 +5,14 @@ policy:
   release_norm_required: true
   validation_dossier_required: true
   normative_package_required: true
+coverage:
+  tracked_requirement_prefixes:
+    - REQ-PRD-
+  excluded_requirements:
+    - REQ-PRD-13-18-VALIDATION-DOSSIER
+    - REQ-PRD-13-19-AUDIT-HASH-CHAIN
+    - REQ-PRD-13-19-TENANT-SQL-LINTER
+    - REQ-PRD-13-19-WORM-STORAGE-CHECK
 slices:
   - id: V1
     epic_id: EPIC-V1-EMISSAO-CONTROLADA

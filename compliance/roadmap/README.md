@@ -18,3 +18,8 @@ Cada fatia também declara:
 - `linked_requirements`: lista de REQs cuja re-auditoria pode ser agregada por esse épico.
 
 `linked_requirements` é validado contra `compliance/validation-dossier/requirements.yaml`: cada ID precisa existir e não pode ser compartilhado por mais de uma fatia.
+
+O bloco `coverage` torna a cobertura do roadmap explícita:
+
+- `tracked_requirement_prefixes` define quais famílias de requisito o V1-V5 deve cobrir;
+- `excluded_requirements` lista os requisitos rastreados que ficam fora das fatias por pertencerem a gates transversais.

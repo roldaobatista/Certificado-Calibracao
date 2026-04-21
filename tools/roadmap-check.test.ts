@@ -119,6 +119,9 @@ function writeCompleteRoadmap(root: string) {
       "  release_norm_required: true",
       "  validation_dossier_required: true",
       "  normative_package_required: true",
+      "coverage:",
+      "  tracked_requirement_prefixes: [REQ-PRD-]",
+      "  excluded_requirements: []",
       "slices:",
       "  - id: V1",
       "    epic_id: EPIC-V1-EMISSAO-CONTROLADA",
@@ -193,7 +196,7 @@ function writeCompleteRoadmap(root: string) {
       "    release_norm_path: compliance/release-norm/v5.md",
       "    validation_dossier_path: compliance/validation-dossier/releases/v5.md",
       "    primary_agents: [product-governance, metrology-auditor, qa-acceptance]",
-      "    linked_requirements: []",
+      "    linked_requirements: [REQ-PRD-13-22-NORMATIVE-GOVERNANCE-OWNER]",
       "    scope:",
       "      - Não-conformidades, competências e auditorias internas",
       "      - Indicadores e análise crítica",
@@ -282,6 +285,9 @@ test("fails when a slice omits epic mapping metadata", () => {
         "  release_norm_required: true",
         "  validation_dossier_required: true",
         "  normative_package_required: true",
+        "coverage:",
+        "  tracked_requirement_prefixes: [REQ-PRD-]",
+        "  excluded_requirements: []",
         "slices:",
         "  - id: V1",
         "    title: Emissão Tipo B ou C em ambiente controlado",
@@ -324,6 +330,68 @@ test("fails when a slice lacks mandatory release gates", () => {
     assert.match(result.errors.join("\n"), /ROADMAP-002/);
     assert.match(result.errors.join("\n"), /no_slice_starts_without_previous_gate/);
     assert.match(result.errors.join("\n"), /release_norm_required/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("fails when roadmap omits explicit coverage metadata", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeCompleteRoadmap(root);
+    writeFileSync(
+      join(root, "compliance", "roadmap", "v1-v5.yaml"),
+      readRoadmap(root)
+        .replace("coverage:\n  tracked_requirement_prefixes: [REQ-PRD-]\n  excluded_requirements: []\n", ""),
+    );
+
+    const result = checkRoadmap(root);
+
+    assert.match(result.errors.join("\n"), /ROADMAP-007/);
+    assert.match(result.errors.join("\n"), /tracked_requirement_prefixes/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("fails when roadmap does not explicitly cover all tracked product requirements", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeCompleteRoadmap(root);
+    writeFileSync(
+      join(root, "compliance", "roadmap", "v1-v5.yaml"),
+      readRoadmap(root).replace(
+        "    linked_requirements: [REQ-PRD-13-22-NORMATIVE-GOVERNANCE-OWNER]",
+        "    linked_requirements: []",
+      ),
+    );
+
+    const result = checkRoadmap(root);
+
+    assert.match(result.errors.join("\n"), /ROADMAP-007/);
+    assert.match(result.errors.join("\n"), /REQ-PRD-13-22-NORMATIVE-GOVERNANCE-OWNER/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("fails when excluded coverage requirement is also linked in a slice", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeCompleteRoadmap(root);
+    writeFileSync(
+      join(root, "compliance", "roadmap", "v1-v5.yaml"),
+      readRoadmap(root).replace(
+        "  excluded_requirements: []",
+        "  excluded_requirements: [REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS]",
+      ),
+    );
+
+    const result = checkRoadmap(root);
+
+    assert.match(result.errors.join("\n"), /ROADMAP-007/);
+    assert.match(result.errors.join("\n"), /REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS/);
+    assert.match(result.errors.join("\n"), /excluido/);
   } finally {
     cleanup();
   }
