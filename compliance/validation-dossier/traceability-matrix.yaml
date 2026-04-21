@@ -5,7 +5,7 @@ sources:
 prd_section_13:
   total: 22
   mapped: 22
-  validated: 7
+  validated: 8
   missing: 0
 criteria:
   - section: §13.1
@@ -131,12 +131,12 @@ criteria:
     text: >-
       Sistema reconhece os **3 perfis regulatórios** (Tipo A/B/C) e seleciona automaticamente o template de PDF
       correspondente; tentativa de uso indevido de selo Cgcre/RBC é bloqueada.
-    status: mapped
+    status: validated
     requirement_ids:
       - REQ-PRD-13-15-REGULATORY-PROFILES-PDF
-    linked_tests: []
-    planned_tests:
+    linked_tests:
       - evals/regulatory/prd-13-15-regulatory-profiles-pdf.test.ts
+    planned_tests: []
   - section: §13.16
     text: >-
       **Reemissão controlada (§17.8)** funciona com dupla aprovação, versionamento R1/R2, hash anterior preservado e
@@ -563,9 +563,10 @@ requirements:
     owner: regulator
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
-    linked_tests: []
-    planned_tests:
+      - specs/0030-prd-13-15-regulatory-profiles-pdf.md
+    linked_tests:
       - evals/regulatory/prd-13-15-regulatory-profiles-pdf.test.ts
+    planned_tests: []
     evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-15-REGULATORY-PROFILES-PDF/
     critical_paths:
       - packages/normative-rules/**

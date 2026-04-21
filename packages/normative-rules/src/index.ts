@@ -35,3 +35,10 @@ export {
   type NormativeRuleSeverity,
   type SignedNormativePackageInput,
 } from "./package.js";
+
+export {
+  resolveRegulatoryPdfPolicy,
+  validateRegulatoryFreeText,
+  type RegulatoryPdfPolicy,
+  type RegulatoryProfileId,
+} from "./regulatory-profiles.js";
