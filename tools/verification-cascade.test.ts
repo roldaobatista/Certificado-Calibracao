@@ -10,6 +10,7 @@ import {
   buildVerificationIssueDrafts,
   checkReleaseAudits,
   checkVerificationCascade,
+  planVerificationIssueReconciliation,
   writeVerificationIssueDrafts,
 } from "./verification-cascade";
 
@@ -521,6 +522,218 @@ test("verification cascade emits independent drafts for snapshot diff and spec-r
   }
 });
 
+test("verification cascade flags epic review after three consecutive corrections across specs in the same epic", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeSnapshotDossier(root);
+    writeIssueDraftArtifacts(root);
+    writeVerificationLogTemplate(root);
+    writeVerificationLog(root, "REQ-EMISSION", [
+      {
+        date: "2026-04-18",
+        trigger: "L3 correction in emission flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-EMISSION", "L0/EPIC-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-18 via pnpm check:all"],
+      },
+      {
+        date: "2026-04-19",
+        trigger: "L3 correction in emission flow",
+        reqs_changed: true,
+        propagated_up: ["L1/REQ-EMISSION", "L0/EPIC-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-19 via pnpm check:all"],
+      },
+    ]);
+    writeVerificationLog(root, "REQ-DOC", [
+      {
+        date: "2026-04-20",
+        trigger: "L3 correction in portal flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-DOC", "L0/EPIC-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-20 via pnpm check:all"],
+      },
+    ]);
+
+    const result = checkVerificationCascade(root);
+
+    assert.match(result.errors.join("\n"), /CASCADE-008/);
+    assert.match(result.errors.join("\n"), /EPIC-EMISSION/);
+    assert.match(result.findings.map((finding) => finding.code).join(","), /CASCADE-008/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("verification cascade accepts epic corrections once L0 reauditoria is registered", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    writeSnapshotDossier(root);
+    writeIssueDraftArtifacts(root);
+    writeVerificationLogTemplate(root);
+    writeVerificationLog(root, "REQ-EMISSION", [
+      {
+        date: "2026-04-18",
+        trigger: "L3 correction in emission flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-EMISSION", "L0/EPIC-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-18 via pnpm check:all"],
+      },
+      {
+        date: "2026-04-19",
+        trigger: "L3 correction in emission flow",
+        reqs_changed: true,
+        propagated_up: ["L1/REQ-EMISSION", "L0/EPIC-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-19 via pnpm check:all"],
+      },
+    ]);
+    writeVerificationLog(root, "REQ-DOC", [
+      {
+        date: "2026-04-20",
+        trigger: "L3 correction in portal flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-DOC", "L0/EPIC-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: [
+          "L0/EPIC-EMISSION: 2026-04-20 by regulator + product-governance",
+          "L4: 2026-04-20 via pnpm check:all",
+        ],
+      },
+    ]);
+
+    const result = checkVerificationCascade(root);
+
+    assert.doesNotMatch(result.errors.join("\n"), /CASCADE-008/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("verification cascade writes deterministic issue drafts for epic-review-flag", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    process.env.AFERE_CASCADE_TODAY = "2026-04-20";
+    writeSnapshotDossier(root);
+    writeIssueDraftArtifacts(root);
+    writeVerificationLogTemplate(root);
+    writeVerificationLog(root, "REQ-EMISSION", [
+      {
+        date: "2026-04-18",
+        trigger: "L3 correction in emission flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-EMISSION", "L0/EPIC-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-18 via pnpm check:all"],
+      },
+      {
+        date: "2026-04-19",
+        trigger: "L3 correction in emission flow",
+        reqs_changed: true,
+        propagated_up: ["L1/REQ-EMISSION", "L0/EPIC-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-19 via pnpm check:all"],
+      },
+    ]);
+    writeVerificationLog(root, "REQ-DOC", [
+      {
+        date: "2026-04-20",
+        trigger: "L3 correction in portal flow",
+        ac_changed: true,
+        propagated_up: ["L1/REQ-DOC", "L0/EPIC-EMISSION"],
+        propagated_down: ["L4/full-regression"],
+        re_audits_completed: ["L4: 2026-04-20 via pnpm check:all"],
+      },
+    ]);
+
+    const result = checkVerificationCascade(root);
+    const drafts = buildVerificationIssueDrafts(root, result);
+    const draft = drafts.find((entry) => entry.slug === "epic-review-flag-epic-emission");
+
+    assert.ok(draft);
+    assert.equal(
+      draft.path,
+      "compliance/verification-log/issues/drafts/2026-04-20-epic-review-flag-epic-emission.md",
+    );
+    assert.match(draft.title, /EPIC-EMISSION/);
+    assert.match(draft.body, /CASCADE-008/);
+    assert.match(draft.body, /2 spec/);
+    assert.match(draft.body, /REQ-EMISSION/);
+    assert.match(draft.body, /REQ-DOC/);
+  } finally {
+    delete process.env.AFERE_CASCADE_TODAY;
+    cleanup();
+  }
+});
+
+test("verification issue reconciliation plans create reopen keep and close actions", () => {
+  const plan = planVerificationIssueReconciliation(
+    [
+      {
+        slug: "snapshot-diff-profile-b-minimal",
+        path: "compliance/verification-log/issues/drafts/2026-04-20-snapshot-diff-profile-b-minimal.md",
+        title: "P0-10 snapshot-diff blocker: profile-b-minimal",
+        body: "---\nissue_type: verification-cascade-snapshot-diff\n---",
+        labels: ["compliance", "verification-cascade", "snapshot-diff", "blocker"],
+      },
+      {
+        slug: "epic-review-flag-epic-emission",
+        path: "compliance/verification-log/issues/drafts/2026-04-20-epic-review-flag-epic-emission.md",
+        title: "P0-10 epic-review-flag: EPIC-EMISSION precisa re-auditoria L0",
+        body: "---\nissue_type: verification-cascade-epic-review-flag\n---",
+        labels: ["compliance", "verification-cascade", "epic-review-flag", "l0-reaudit"],
+      },
+      {
+        slug: "spec-review-flag-req-emission",
+        path: "compliance/verification-log/issues/drafts/2026-04-20-spec-review-flag-req-emission.md",
+        title: "P0-10 spec-review-flag: REQ-EMISSION precisa re-auditoria L1",
+        body: "---\nissue_type: verification-cascade-spec-review-flag\n---",
+        labels: ["compliance", "verification-cascade", "spec-review-flag", "l1-reaudit"],
+      },
+    ],
+    [
+      {
+        number: 10,
+        title: "P0-10 snapshot-diff blocker: profile-b-minimal",
+        body: "---\nissue_type: verification-cascade-snapshot-diff\n---",
+        labels: ["verification-cascade", "snapshot-diff"],
+        state: "open",
+      },
+      {
+        number: 11,
+        title: "P0-10 spec-review-flag: REQ-EMISSION precisa re-auditoria L1",
+        body: "---\nissue_type: verification-cascade-spec-review-flag\n---",
+        labels: ["verification-cascade", "spec-review-flag"],
+        state: "closed",
+      },
+      {
+        number: 12,
+        title: "P0-10 spec-review-flag: REQ-DOC precisa re-auditoria L1",
+        body: "---\nissue_type: verification-cascade-spec-review-flag\n---",
+        labels: ["verification-cascade", "spec-review-flag"],
+        state: "open",
+      },
+      {
+        number: 13,
+        title: "Discussão manual fora da automação",
+        body: "sem frontmatter canônico",
+        labels: ["verification-cascade"],
+        state: "open",
+      },
+    ],
+  );
+
+  assert.deepEqual(plan.keepOpen.map((issue) => issue.number), [10]);
+  assert.deepEqual(plan.reopen.map((issue) => issue.number), [11]);
+  assert.deepEqual(plan.create.map((draft) => draft.title), [
+    "P0-10 epic-review-flag: EPIC-EMISSION precisa re-auditoria L0",
+  ]);
+  assert.deepEqual(plan.close.map((issue) => issue.number), [12]);
+});
+
 test("release audit check requires the three L5 auditor opinions", () => {
   const { root, cleanup } = makeWorkspace();
   try {
@@ -548,9 +761,15 @@ test("release audit check requires the three L5 auditor opinions", () => {
 test("wires snapshot diff into the root pipeline and pre-commit", () => {
   const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8"));
   const preCommit = readFileSync(resolve(process.cwd(), ".githooks/pre-commit"), "utf8");
+  const workflow = readFileSync(resolve(process.cwd(), ".github", "workflows", "required-gates.yml"), "utf8");
 
   assert.equal(packageJson.scripts["snapshot-diff-check"], "tsx tools/verification-cascade.ts check");
   assert.equal(packageJson.scripts["verification-cascade:issue-drafts"], "tsx tools/verification-cascade.ts issue-drafts");
   assert.match(packageJson.scripts["check:all"], /pnpm snapshot-diff-check/);
   assert.match(preCommit, /snapshot-diff-check/);
+  assert.match(workflow, /Generate verification issue drafts/);
+  assert.match(workflow, /if: \$\{\{ always\(\) \}\}/);
+  assert.match(workflow, /planVerificationIssueReconciliation/);
+  assert.match(workflow, /Closed verification issue/);
+  assert.match(workflow, /Reopened verification issue/);
 });

@@ -54,5 +54,8 @@ O fluxo atual cobre:
 
 - `CASCADE-003` para `snapshot-diff`;
 - `CASCADE-007` para `spec-review-flag`, quando 3 correções consecutivas na mesma spec alteram AC/REQ sem evidência de re-auditoria L1.
+- `CASCADE-008` para `epic-review-flag`, quando 3 correções consecutivas em múltiplas specs do mesmo épico alteram AC/REQ sem evidência de re-auditoria L0.
+
+No `push` para `main`, o workflow `required-gates` também reconcilia as issues gerenciadas: reabre quando o finding volta e fecha quando o finding deixa de existir em `main`.
 
 Outros gatilhos de propagação podem ampliar essa automação sem mudar o contrato do diretório.

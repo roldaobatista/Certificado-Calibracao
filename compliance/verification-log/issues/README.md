@@ -19,5 +19,8 @@ Findings suportados hoje:
 
 - `CASCADE-003` para snapshot diff;
 - `CASCADE-007` para `spec-review-flag` em re-auditoria L1.
+- `CASCADE-008` para `epic-review-flag` em re-auditoria L0.
+
+No `push` para `main`, o workflow também reconcilia issues gerenciadas já existentes: cria, reabre, atualiza ou fecha conforme o conjunto atual de drafts.
 
 Outros gatilhos podem ser adicionados sem mudar o path canônico.

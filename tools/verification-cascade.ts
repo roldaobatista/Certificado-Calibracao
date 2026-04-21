@@ -19,6 +19,7 @@ const REQUIRED_SNAPSHOT_PROFILES = ["A", "B", "C"] as const;
 const REQUIRED_BASELINE_APPROVERS = ["regulator", "product-governance"] as const;
 const SNAPSHOT_DIFF_ISSUE_LABELS = ["compliance", "verification-cascade", "snapshot-diff", "blocker"] as const;
 const SPEC_REVIEW_FLAG_LABELS = ["compliance", "verification-cascade", "spec-review-flag", "l1-reaudit"] as const;
+const EPIC_REVIEW_FLAG_LABELS = ["compliance", "verification-cascade", "epic-review-flag", "l0-reaudit"] as const;
 
 export const CRITICAL_AREAS = [
   "apps/api/src/domain/emission/**",
@@ -88,7 +89,19 @@ export type SpecReviewFlagFinding = {
   reAuditsCompleted: string[];
 };
 
-export type VerificationCascadeFinding = SnapshotDiffFinding | SpecReviewFlagFinding;
+export type EpicReviewFlagFinding = {
+  code: "CASCADE-008";
+  issueKind: "epic-review-flag";
+  message: string;
+  epicId: string;
+  correctionCount: number;
+  latestDate: string;
+  reqIds: string[];
+  logPaths: string[];
+  reAuditsCompleted: string[];
+};
+
+export type VerificationCascadeFinding = SnapshotDiffFinding | SpecReviewFlagFinding | EpicReviewFlagFinding;
 
 export type VerificationIssueDraft = {
   slug: string;
@@ -96,6 +109,21 @@ export type VerificationIssueDraft = {
   title: string;
   body: string;
   labels: string[];
+};
+
+export type VerificationManagedIssue = {
+  number: number;
+  title: string;
+  body?: string;
+  labels: string[];
+  state: "open" | "closed";
+};
+
+export type VerificationIssueReconciliationPlan = {
+  create: VerificationIssueDraft[];
+  reopen: VerificationManagedIssue[];
+  keepOpen: VerificationManagedIssue[];
+  close: VerificationManagedIssue[];
 };
 
 type SnapshotManifest = {
@@ -128,6 +156,13 @@ type VerificationLogEntry = {
   propagated_up?: unknown;
   propagated_down?: unknown;
   re_audits_completed?: unknown;
+};
+
+type VerificationLogRecord = {
+  reqId: string;
+  logPath: string;
+  entry: VerificationLogEntry;
+  index: number;
 };
 
 export function buildCascadePlan(root: string, changedFiles: string[]): CascadePlan {
@@ -181,14 +216,22 @@ export function buildVerificationIssueDrafts(
   result = checkVerificationCascade(root),
 ): VerificationIssueDraft[] {
   const findings = result.findings.filter(
-    (finding) => finding.issueKind === "snapshot-diff" || finding.issueKind === "spec-review-flag",
+    (finding) =>
+      finding.issueKind === "snapshot-diff" ||
+      finding.issueKind === "spec-review-flag" ||
+      finding.issueKind === "epic-review-flag",
   );
   if (findings.length === 0) return [];
 
   const template = readVerificationIssueTemplate(root);
   const groups = new Map<string, VerificationCascadeFinding[]>();
   for (const finding of findings) {
-    const entityId = finding.issueKind === "snapshot-diff" ? finding.snapshotId : finding.reqId;
+    const entityId =
+      finding.issueKind === "snapshot-diff"
+        ? finding.snapshotId
+        : finding.issueKind === "spec-review-flag"
+          ? finding.reqId
+          : finding.epicId;
     const groupKey = `${finding.issueKind}:${entityId}`;
     const existing = groups.get(groupKey);
     if (existing) existing.push(finding);
@@ -252,37 +295,81 @@ export function buildVerificationIssueDrafts(
       };
     }
 
-    const specFinding = groupedFindings.find(isSpecReviewFlagFinding);
-    if (!specFinding) {
+    if (first.issueKind === "spec-review-flag") {
+      const specFinding = groupedFindings.find(isSpecReviewFlagFinding);
+      if (!specFinding) {
+        throw new Error(`CASCADE-004: finding sem suporte para issue draft: ${groupKey}.`);
+      }
+      const reqId = specFinding.reqId;
+      const slug = `spec-review-flag-${slugify(reqId)}`;
+      const path = `${VERIFICATION_ISSUE_DRAFTS_DIR}/${issueDraftDate()}-${slug}.md`;
+      const title = `P0-10 spec-review-flag: ${reqId} precisa re-auditoria L1`;
+      const body = renderIssueDraft(template, {
+        issueType: "verification-cascade-spec-review-flag",
+        severity: "high",
+        labels: [...SPEC_REVIEW_FLAG_LABELS],
+        title,
+        context: [
+          `Código: ${specFinding.code}`,
+          `REQ-ID: ${specFinding.reqId}`,
+          `Log: ${specFinding.logPath}`,
+          `Última correção observada: ${specFinding.latestDate}`,
+        ],
+        evidence: [
+          `${specFinding.correctionCount} correcoes consecutivas alteraram AC/REQ sem evidência de reauditoria L1 concluída.`,
+          "Propagated up:",
+          ...specFinding.propagatedUp.map((value) => `  - ${value}`),
+          "Reaudits completed registrados:",
+          ...(specFinding.reAuditsCompleted.length > 0
+            ? specFinding.reAuditsCompleted.map((value) => `  - ${value}`)
+            : ["  - <ausente>"]),
+          "Comando local: `pnpm verification-cascade:check`",
+        ],
+        reaudits: ["regulator", "qa-acceptance", `L1/${specFinding.reqId}`],
+        closing: ["Spec reaberta:", "Evidência de reauditoria L1:", "Issue GitHub vinculada:"],
+      });
+
+      return {
+        slug,
+        path,
+        title,
+        body,
+        labels: [...SPEC_REVIEW_FLAG_LABELS],
+      };
+    }
+
+    const epicFinding = groupedFindings.find(isEpicReviewFlagFinding);
+    if (!epicFinding) {
       throw new Error(`CASCADE-004: finding sem suporte para issue draft: ${groupKey}.`);
     }
-    const reqId = specFinding.reqId;
-    const slug = `spec-review-flag-${slugify(reqId)}`;
+    const epicId = epicFinding.epicId;
+    const slug = `epic-review-flag-${slugify(epicId)}`;
     const path = `${VERIFICATION_ISSUE_DRAFTS_DIR}/${issueDraftDate()}-${slug}.md`;
-    const title = `P0-10 spec-review-flag: ${reqId} precisa re-auditoria L1`;
+    const title = `P0-10 epic-review-flag: ${epicId} precisa re-auditoria L0`;
     const body = renderIssueDraft(template, {
-      issueType: "verification-cascade-spec-review-flag",
+      issueType: "verification-cascade-epic-review-flag",
       severity: "high",
-      labels: [...SPEC_REVIEW_FLAG_LABELS],
+      labels: [...EPIC_REVIEW_FLAG_LABELS],
       title,
       context: [
-        `Código: ${specFinding.code}`,
-        `REQ-ID: ${specFinding.reqId}`,
-        `Log: ${specFinding.logPath}`,
-        `Última correção observada: ${specFinding.latestDate}`,
+        `Código: ${epicFinding.code}`,
+        `EPIC-ID: ${epicFinding.epicId}`,
+        `Última correção observada: ${epicFinding.latestDate}`,
       ],
       evidence: [
-        `${specFinding.correctionCount} correcoes consecutivas alteraram AC/REQ sem evidência de reauditoria L1 concluída.`,
-        "Propagated up:",
-        ...specFinding.propagatedUp.map((value) => `  - ${value}`),
+        `${epicFinding.correctionCount} correcoes consecutivas em ${epicFinding.reqIds.length} specs do épico alteraram AC/REQ sem evidência de reauditoria L0 concluída.`,
+        "REQs afetados:",
+        ...epicFinding.reqIds.map((value) => `  - ${value}`),
+        "Logs envolvidos:",
+        ...epicFinding.logPaths.map((value) => `  - ${value}`),
         "Reaudits completed registrados:",
-        ...(specFinding.reAuditsCompleted.length > 0
-          ? specFinding.reAuditsCompleted.map((value) => `  - ${value}`)
+        ...(epicFinding.reAuditsCompleted.length > 0
+          ? epicFinding.reAuditsCompleted.map((value) => `  - ${value}`)
           : ["  - <ausente>"]),
         "Comando local: `pnpm verification-cascade:check`",
       ],
-      reaudits: ["regulator", "qa-acceptance", `L1/${specFinding.reqId}`],
-      closing: ["Spec reaberta:", "Evidência de reauditoria L1:", "Issue GitHub vinculada:"],
+      reaudits: ["regulator", "product-governance", `L0/${epicFinding.epicId}`],
+      closing: ["Épico reaberto:", "Evidência de reauditoria L0:", "Issue GitHub vinculada:"],
     });
 
     return {
@@ -290,9 +377,39 @@ export function buildVerificationIssueDrafts(
       path,
       title,
       body,
-      labels: [...SPEC_REVIEW_FLAG_LABELS],
+      labels: [...EPIC_REVIEW_FLAG_LABELS],
     };
   });
+}
+
+export function planVerificationIssueReconciliation(
+  drafts: VerificationIssueDraft[],
+  issues: VerificationManagedIssue[],
+): VerificationIssueReconciliationPlan {
+  const managedIssues = issues.filter(isManagedVerificationIssue);
+  const draftTitles = new Set(drafts.map((draft) => draft.title));
+  const create: VerificationIssueDraft[] = [];
+  const reopen: VerificationManagedIssue[] = [];
+  const keepOpen: VerificationManagedIssue[] = [];
+
+  for (const draft of drafts) {
+    const matchingOpenIssue = managedIssues.find((issue) => issue.state === "open" && issue.title === draft.title);
+    if (matchingOpenIssue) {
+      keepOpen.push(matchingOpenIssue);
+      continue;
+    }
+
+    const matchingClosedIssue = managedIssues.find((issue) => issue.state === "closed" && issue.title === draft.title);
+    if (matchingClosedIssue) {
+      reopen.push(matchingClosedIssue);
+      continue;
+    }
+
+    create.push(draft);
+  }
+
+  const close = managedIssues.filter((issue) => issue.state === "open" && !draftTitles.has(issue.title));
+  return { create, reopen, keepOpen, close };
 }
 
 export function writeVerificationIssueDrafts(
@@ -438,6 +555,7 @@ function checkSnapshotDiff(root: string) {
 function checkVerificationLogs(root: string) {
   const errors: string[] = [];
   const findings: VerificationCascadeFinding[] = [];
+  const records: VerificationLogRecord[] = [];
   if (!existsSync(resolve(root, VERIFICATION_LOG_TEMPLATE))) {
     errors.push(`CASCADE-006: ${VERIFICATION_LOG_TEMPLATE} não encontrado.`);
     return { errors, findings };
@@ -466,6 +584,7 @@ function checkVerificationLogs(root: string) {
 
     const reqId = basename(relativePath, ".yaml");
     for (const [index, entry] of entries.entries()) {
+      records.push({ reqId, logPath: relativePath, entry, index });
       if (!stringValue(entry.date)) {
         errors.push(`CASCADE-006: ${relativePath} entrada #${index + 1} sem date.`);
       }
@@ -503,6 +622,54 @@ function checkVerificationLogs(root: string) {
         latestDate,
         propagatedUp: arrayValue(latestEntry.propagated_up),
         reAuditsCompleted: arrayValue(latestEntry.re_audits_completed),
+      });
+    }
+  }
+
+  const epicErrors = checkEpicReviewFlags(records);
+  errors.push(...epicErrors.errors);
+  findings.push(...epicErrors.findings);
+
+  return { errors, findings };
+}
+
+function checkEpicReviewFlags(records: VerificationLogRecord[]) {
+  const errors: string[] = [];
+  const findings: VerificationCascadeFinding[] = [];
+  const epicEvents = new Map<string, VerificationLogRecord[]>();
+
+  for (const record of records) {
+    const epicIds = extractLevelIds(record.entry, "L0");
+    for (const epicId of epicIds) {
+      const existing = epicEvents.get(epicId);
+      if (existing) existing.push(record);
+      else epicEvents.set(epicId, [record]);
+    }
+  }
+
+  for (const [epicId, events] of epicEvents.entries()) {
+    const timeline = [...events].sort(compareVerificationRecords);
+    const correctionStreak = trailingEpicCorrectionStreak(timeline);
+    const reqIds = uniqueSorted(correctionStreak.map((record) => record.reqId));
+    const l0ReauditRecorded = correctionStreak.some((record) =>
+      arrayValue(record.entry.re_audits_completed).some((value) => referencesLevelId(value, "L0", epicId)),
+    );
+
+    if (correctionStreak.length >= 3 && reqIds.length >= 2 && !l0ReauditRecorded) {
+      const latestRecord = correctionStreak[correctionStreak.length - 1];
+      const latestDate = stringValue(latestRecord.entry.date) || "n/a";
+      const message = `CASCADE-008: ${epicId} precisa re-auditoria L0; ${correctionStreak.length} correcoes consecutivas em ${reqIds.length} specs alteraram AC/REQ sem evidência de L0.`;
+      errors.push(message);
+      findings.push({
+        code: "CASCADE-008",
+        issueKind: "epic-review-flag",
+        message,
+        epicId,
+        correctionCount: correctionStreak.length,
+        latestDate,
+        reqIds,
+        logPaths: uniqueSorted(correctionStreak.map((record) => record.logPath)),
+        reAuditsCompleted: arrayValue(latestRecord.entry.re_audits_completed),
       });
     }
   }
@@ -585,6 +752,15 @@ function trailingSpecCorrectionStreak(entries: VerificationLogEntry[]) {
   return streak;
 }
 
+function trailingEpicCorrectionStreak(records: VerificationLogRecord[]) {
+  const streak: VerificationLogRecord[] = [];
+  for (const record of [...records].reverse()) {
+    if (record.entry.ac_changed === true || record.entry.reqs_changed === true) streak.unshift(record);
+    else break;
+  }
+  return streak;
+}
+
 function arrayValue(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value.map(yamlScalarValue).filter(Boolean);
@@ -596,6 +772,50 @@ function isSnapshotDiffFinding(finding: VerificationCascadeFinding): finding is 
 
 function isSpecReviewFlagFinding(finding: VerificationCascadeFinding): finding is SpecReviewFlagFinding {
   return finding.issueKind === "spec-review-flag";
+}
+
+function isEpicReviewFlagFinding(finding: VerificationCascadeFinding): finding is EpicReviewFlagFinding {
+  return finding.issueKind === "epic-review-flag";
+}
+
+function isManagedVerificationIssue(issue: VerificationManagedIssue) {
+  const labels = issue.labels.map((label) => label.trim());
+  if (!labels.includes("verification-cascade")) return false;
+  const body = issue.body ?? "";
+  if (/^issue_type:\s*verification-cascade-/m.test(body)) return true;
+  return (
+    issue.title.startsWith("P0-10 snapshot-diff blocker:") ||
+    issue.title.startsWith("P0-10 spec-review-flag:") ||
+    issue.title.startsWith("P0-10 epic-review-flag:")
+  );
+}
+
+function compareVerificationRecords(left: VerificationLogRecord, right: VerificationLogRecord) {
+  return verificationRecordKey(left).localeCompare(verificationRecordKey(right));
+}
+
+function verificationRecordKey(record: VerificationLogRecord) {
+  return `${stringValue(record.entry.date)}|${record.logPath}|${record.index.toString().padStart(6, "0")}`;
+}
+
+function extractLevelIds(entry: VerificationLogEntry, level: "L0" | "L1") {
+  const values = [...arrayValue(entry.propagated_up), ...arrayValue(entry.re_audits_completed)];
+  const ids = values
+    .map((value) => parseLevelId(value, level))
+    .filter(Boolean) as string[];
+  return uniqueSorted(ids);
+}
+
+function parseLevelId(value: string, level: "L0" | "L1") {
+  const slashMatch = value.match(new RegExp(`^${level}/([^:\\s]+)`));
+  if (slashMatch) return slashMatch[1]?.trim();
+  const colonMatch = value.match(new RegExp(`^${level}:\\s*([^:\\s]+)`));
+  if (colonMatch) return colonMatch[1]?.trim();
+  return undefined;
+}
+
+function referencesLevelId(value: string, level: "L0" | "L1", id: string) {
+  return value.startsWith(`${level}/${id}`) || value.startsWith(`${level}:${id}`) || value.startsWith(`${level}: ${id}`);
 }
 
 function yamlScalarValue(value: unknown): string {
