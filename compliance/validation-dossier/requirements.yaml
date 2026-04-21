@@ -260,11 +260,11 @@
     doc: PRD.md
     section: "§13.15"
   description: Sistema deve reconhecer perfis regulatórios Tipo A, B e C, selecionar template de PDF correspondente e bloquear uso indevido de selo Cgcre/RBC.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+    - specs/0030-prd-13-15-regulatory-profiles-pdf.md
+  linked_tests:
     - evals/regulatory/prd-13-15-regulatory-profiles-pdf.test.ts
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-15-REGULATORY-PROFILES-PDF/
   owner: regulator
