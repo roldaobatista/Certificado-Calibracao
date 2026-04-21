@@ -68,7 +68,7 @@ jobs:
         run: pnpm test:tenancy
 
       - name: Generate verification issue drafts
-        if: ${{ failure() }}
+        if: ${{ always() }}
         shell: bash
         run: |
           mkdir -p .github-artifacts
@@ -77,43 +77,64 @@ jobs:
           fi
           cat .github-artifacts/verification-issue-drafts.json
 
-      - name: Create or update verification issues
-        if: ${{ failure() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
+      - name: Fetch managed verification issues
+        if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh issue list \
+            --repo "$GITHUB_REPOSITORY" \
+            --label verification-cascade \
+            --state all \
+            --limit 200 \
+            --json number,title,body,state,labels > .github-artifacts/verification-managed-issues.json
+          cat .github-artifacts/verification-managed-issues.json
+
+      - name: Plan verification issue reconciliation
+        if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
+        shell: bash
+        run: |
+          pnpm exec tsx --eval "
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import { planVerificationIssueReconciliation } from './tools/verification-cascade.ts';
+
+          const drafts = JSON.parse(readFileSync('.github-artifacts/verification-issue-drafts.json', 'utf8'));
+          const issues = JSON.parse(readFileSync('.github-artifacts/verification-managed-issues.json', 'utf8')).map((issue) => ({
+            number: issue.number,
+            title: issue.title,
+            body: issue.body ?? '',
+            labels: Array.isArray(issue.labels)
+              ? issue.labels.map((label) => typeof label === 'string' ? label : label.name).filter(Boolean)
+              : [],
+            state: issue.state === 'closed' ? 'closed' : 'open',
+          }));
+
+          const plan = planVerificationIssueReconciliation(drafts, issues);
+          writeFileSync('.github-artifacts/verification-issue-plan.json', JSON.stringify(plan, null, 2));
+          console.log(JSON.stringify(plan, null, 2));
+          "
+
+      - name: Reconcile verification issues
+        if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
         uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
-            const path = '.github-artifacts/verification-issue-drafts.json';
+            const draftsPath = '.github-artifacts/verification-issue-drafts.json';
+            const planPath = '.github-artifacts/verification-issue-plan.json';
 
-            if (!fs.existsSync(path)) {
+            if (!fs.existsSync(draftsPath) || !fs.existsSync(planPath)) {
               core.info('No verification issue draft artifact found.');
               return;
             }
 
-            const drafts = JSON.parse(fs.readFileSync(path, 'utf8'));
-            if (!Array.isArray(drafts) || drafts.length === 0) {
-              core.info('No verification issue drafts to publish.');
-              return;
-            }
+            const drafts = JSON.parse(fs.readFileSync(draftsPath, 'utf8'));
+            const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
+            const draftsByTitle = new Map(drafts.map((draft) => [draft.title, draft]));
+            const shouldClose = context.eventName === 'push' && context.ref === 'refs/heads/main';
 
-            for (const draft of drafts) {
-              const existing = await github.paginate(
-                github.rest.issues.listForRepo,
-                {
-                  ...context.repo,
-                  state: 'open',
-                  labels: Array.isArray(draft.labels) ? draft.labels.join(',') : '',
-                  per_page: 100,
-                },
-                (response) => response.data,
-              );
-
-              const duplicate = existing.find((issue) => issue.title === draft.title);
-              if (duplicate) {
-                core.info(`Verification issue already open: #${duplicate.number} ${duplicate.title}`);
-                continue;
-              }
-
+            for (const draft of plan.create || []) {
               const created = await github.rest.issues.create({
                 ...context.repo,
                 title: draft.title,
@@ -122,4 +143,64 @@ jobs:
               });
 
               core.info(`Created verification issue #${created.data.number}: ${created.data.title}`);
+            }
+
+            for (const issue of plan.reopen || []) {
+              const draft = draftsByTitle.get(issue.title);
+              if (!draft) continue;
+
+              await github.rest.issues.update({
+                ...context.repo,
+                issue_number: issue.number,
+                title: draft.title,
+                body: draft.body,
+                labels: Array.isArray(draft.labels) ? draft.labels : [],
+                state: 'open',
+              });
+
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: issue.number,
+                body: 'Reopened verification issue after the current cascade run reproduced the same managed finding.',
+              });
+
+              core.info(`Reopened verification issue #${issue.number}: ${issue.title}`);
+            }
+
+            for (const issue of plan.keepOpen || []) {
+              const draft = draftsByTitle.get(issue.title);
+              if (!draft) continue;
+
+              await github.rest.issues.update({
+                ...context.repo,
+                issue_number: issue.number,
+                title: draft.title,
+                body: draft.body,
+                labels: Array.isArray(draft.labels) ? draft.labels : [],
+                state: 'open',
+              });
+
+              core.info(`Updated verification issue #${issue.number}: ${issue.title}`);
+            }
+
+            if (!shouldClose) {
+              core.info('Skipping verification issue closure outside push to main.');
+              return;
+            }
+
+            for (const issue of plan.close || []) {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: issue.number,
+                body: 'Closed verification issue automatically because the current `main` no longer reproduces this managed finding.',
+              });
+
+              await github.rest.issues.update({
+                ...context.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'completed',
+              });
+
+              core.info(`Closed verification issue #${issue.number}: ${issue.title}`);
             }
