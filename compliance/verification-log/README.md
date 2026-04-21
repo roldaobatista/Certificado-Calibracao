@@ -32,7 +32,18 @@ Criar ou atualizar `compliance/verification-log/<REQ-id>.yaml` quando:
 ```bash
 pnpm verification-cascade:check
 pnpm verification-cascade:plan -- --changed packages/audit-log/src/verify.ts
+pnpm verification-cascade:issue-drafts -- --write
 pnpm exec tsx tools/verification-cascade.ts release-audits --release v1.0.0
 ```
 
 O comando `plan` não substitui revisão humana: ele explicita os gates automáticos mínimos para o delta.
+
+## Issues automáticas
+
+Quando um finding de cascata é elegível para issue automática, o draft canônico é renderizado em `compliance/verification-log/issues/drafts/`.
+
+- `compliance/verification-log/issues/_template.md` define o formato do corpo.
+- `pnpm verification-cascade:issue-drafts -- --write` grava os drafts locais.
+- O workflow `required-gates` usa o JSON desses drafts para abrir issue real no GitHub quando o token do Actions tem permissão.
+
+O fluxo atual cobre bootstrap de snapshot-diff (`CASCADE-003`). Outros gatilhos de propagação podem ampliar essa automação sem mudar o contrato do diretório.

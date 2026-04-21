@@ -31,6 +31,8 @@ const REQUIRED_ARTIFACTS: RequiredArtifact[] = [
   { path: "compliance/validation-dossier/snapshots/baseline", type: "dir" },
   { path: "compliance/validation-dossier/snapshots/current", type: "dir" },
   { path: "compliance/verification-log", type: "dir" },
+  { path: "compliance/verification-log/issues", type: "dir" },
+  { path: "compliance/verification-log/issues/drafts", type: "dir" },
   { path: "compliance/README.md", type: "file" },
   { path: "compliance/approved-claims.md", type: "file" },
   { path: "compliance/audits/README.md", type: "file" },
@@ -57,6 +59,9 @@ const REQUIRED_ARTIFACTS: RequiredArtifact[] = [
   { path: "compliance/validation-dossier/snapshots/manifest.yaml", type: "file" },
   { path: "compliance/validation-dossier/traceability-matrix.yaml", type: "file" },
   { path: "compliance/verification-log/README.md", type: "file" },
+  { path: "compliance/verification-log/issues/README.md", type: "file" },
+  { path: "compliance/verification-log/issues/_template.md", type: "file" },
+  { path: "compliance/verification-log/issues/drafts/.gitkeep", type: "file" },
 ];
 
 const REQUIRED_README_REFERENCES = [

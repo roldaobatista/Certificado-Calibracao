@@ -5,7 +5,13 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 
-import { buildCascadePlan, checkReleaseAudits, checkVerificationCascade } from "./verification-cascade";
+import {
+  buildCascadePlan,
+  buildVerificationIssueDrafts,
+  checkReleaseAudits,
+  checkVerificationCascade,
+  writeVerificationIssueDrafts,
+} from "./verification-cascade";
 
 function makeWorkspace() {
   const root = join(tmpdir(), `afere-cascade-${Date.now()}-${Math.random().toString(16).slice(2)}`);
@@ -109,6 +115,59 @@ function writeSnapshotDossier(root: string, options: { diffCurrentId?: string } 
   );
 }
 
+function writeIssueDraftArtifacts(root: string) {
+  const issuesRoot = join(root, "compliance", "verification-log", "issues");
+  mkdirSync(join(issuesRoot, "drafts"), { recursive: true });
+  writeFileSync(join(issuesRoot, "README.md"), "# Verification issues\n");
+  writeFileSync(
+    join(issuesRoot, "_template.md"),
+    [
+      "---",
+      "issue_type: verification-cascade-snapshot-diff",
+      "status: open",
+      "severity: blocker",
+      "labels:",
+      "  - compliance",
+      "  - verification-cascade",
+      "  - snapshot-diff",
+      "  - blocker",
+      "---",
+      "",
+      "# {{issue_title}}",
+      "",
+      "## Contexto",
+      "- Código: {{finding_code}}",
+      "- Snapshot: {{snapshot_id}}",
+      "- Perfil: {{profile}}",
+      "- Manifesto: {{manifest_path}}",
+      "- Baseline: {{baseline_path}}",
+      "- Current: {{current_path}}",
+      "- Branch: {{branch}}",
+      "- Commit: {{commit_sha}}",
+      "- Workflow run: {{workflow_run}}",
+      "",
+      "## Evidencia",
+      "- Baseline SHA-256: {{baseline_hash}}",
+      "- Current SHA-256: {{current_hash}}",
+      "- Hash esperado no manifesto: {{expected_hash}}",
+      "- Findings:",
+      "{{findings_list}}",
+      "- Comando local: `pnpm snapshot-diff-check`",
+      "",
+      "## Reauditoria obrigatoria",
+      "- regulator",
+      "- product-governance",
+      "- qa-acceptance",
+      "",
+      "## Fechamento",
+      "- ADR/PR de correção:",
+      "- Novo baseline aprovado:",
+      "- Issue GitHub vinculada:",
+      "",
+    ].join("\n"),
+  );
+}
+
 function snapshotText(profile: string, id: string) {
   return [
     `snapshot: ${id}`,
@@ -195,6 +254,52 @@ test("verification cascade passes with canonical snapshot hashes for profiles A,
   }
 });
 
+test("verification cascade produces no issue drafts when there are no issue-worthy findings", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    process.env.AFERE_CASCADE_TODAY = "2026-04-20";
+    writeSnapshotDossier(root);
+    writeIssueDraftArtifacts(root);
+
+    const drafts = buildVerificationIssueDrafts(root, checkVerificationCascade(root));
+
+    assert.deepEqual(drafts, []);
+  } finally {
+    delete process.env.AFERE_CASCADE_TODAY;
+    cleanup();
+  }
+});
+
+test("verification cascade writes deterministic issue drafts for snapshot diffs", () => {
+  const { root, cleanup } = makeWorkspace();
+  try {
+    process.env.AFERE_CASCADE_TODAY = "2026-04-20";
+    writeSnapshotDossier(root, { diffCurrentId: "profile-b-minimal" });
+    writeIssueDraftArtifacts(root);
+
+    const result = checkVerificationCascade(root);
+    const drafts = buildVerificationIssueDrafts(root, result);
+    const written = writeVerificationIssueDrafts(root, drafts);
+
+    assert.equal(drafts.length, 1);
+    assert.match(drafts[0].title, /profile-b-minimal/);
+    assert.match(drafts[0].body, /CASCADE-003/);
+    assert.match(drafts[0].body, /baseline/);
+    assert.equal(
+      drafts[0].path,
+      "compliance/verification-log/issues/drafts/2026-04-20-snapshot-diff-profile-b-minimal.md",
+    );
+    assert.deepEqual(written, [drafts[0].path]);
+    const draftBody = readFileSync(resolve(root, drafts[0].path), "utf8");
+    assert.match(draftBody, /profile-b-minimal/);
+    assert.match(draftBody, /status: open/);
+    assert.match(draftBody, /regulator/);
+  } finally {
+    delete process.env.AFERE_CASCADE_TODAY;
+    cleanup();
+  }
+});
+
 test("release audit check requires the three L5 auditor opinions", () => {
   const { root, cleanup } = makeWorkspace();
   try {
@@ -224,6 +329,7 @@ test("wires snapshot diff into the root pipeline and pre-commit", () => {
   const preCommit = readFileSync(resolve(process.cwd(), ".githooks/pre-commit"), "utf8");
 
   assert.equal(packageJson.scripts["snapshot-diff-check"], "tsx tools/verification-cascade.ts check");
+  assert.equal(packageJson.scripts["verification-cascade:issue-drafts"], "tsx tools/verification-cascade.ts issue-drafts");
   assert.match(packageJson.scripts["check:all"], /pnpm snapshot-diff-check/);
   assert.match(preCommit, /snapshot-diff-check/);
 });
