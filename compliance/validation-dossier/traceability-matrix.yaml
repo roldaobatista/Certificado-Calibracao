@@ -5,7 +5,7 @@ sources:
 prd_section_13:
   total: 22
   mapped: 22
-  validated: 17
+  validated: 19
   missing: 0
 criteria:
   - section: §13.1
@@ -44,12 +44,12 @@ criteria:
     planned_tests: []
   - section: §13.5
     text: O QR code do certificado **valida autenticidade publicamente**.
-    status: mapped
+    status: validated
     requirement_ids:
       - REQ-PRD-13-05-PUBLIC-QR-AUTHENTICITY
-    linked_tests: []
-    planned_tests:
+    linked_tests:
       - evals/ac/prd-13-05-public-qr-authenticity.test.ts
+    planned_tests: []
   - section: §13.6
     text: Todo evento crítico aparece na **trilha de auditoria imutável**.
     status: validated
@@ -151,12 +151,12 @@ criteria:
     text: >-
       Página pública de verificação por QR responde corretamente para certificado autêntico, reemitido e não localizado
       (§17.5.6) e **expõe apenas metadados mínimos** (sem dados de cliente final, sem PDF completo sem autenticação).
-    status: mapped
+    status: validated
     requirement_ids:
       - REQ-PRD-13-17-PUBLIC-QR-MINIMAL-METADATA
-    linked_tests: []
-    planned_tests:
+    linked_tests:
       - evals/ac/prd-13-17-public-qr-minimal-metadata.test.ts
+    planned_tests: []
   - section: §13.18
     text: >-
       **Plano de Validação do Software Aferê** aprovado e executado: protocolo formal, casos-teste normativos (incluindo
@@ -432,9 +432,10 @@ requirements:
     owner: backend-api
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
-    linked_tests: []
-    planned_tests:
+      - specs/0040-prd-13-05-public-qr-authenticity.md
+    linked_tests:
       - evals/ac/prd-13-05-public-qr-authenticity.test.ts
+    planned_tests: []
     evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-05-PUBLIC-QR-AUTHENTICITY/
     critical_paths:
       - apps/api/src/domain/certificates/**
@@ -601,9 +602,10 @@ requirements:
     owner: lgpd-security
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
-    linked_tests: []
-    planned_tests:
+      - specs/0041-prd-13-17-public-qr-minimal-metadata.md
+    linked_tests:
       - evals/ac/prd-13-17-public-qr-minimal-metadata.test.ts
+    planned_tests: []
     evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-17-PUBLIC-QR-MINIMAL-METADATA/
     critical_paths:
       - apps/portal/**

@@ -78,12 +78,13 @@
     doc: PRD.md
     section: "§13.5"
   description: QR code do certificado deve validar autenticidade publicamente.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+    - specs/0040-prd-13-05-public-qr-authenticity.md
+  linked_tests:
     - evals/ac/prd-13-05-public-qr-authenticity.test.ts
+  planned_tests: []
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-05-PUBLIC-QR-AUTHENTICITY/
   owner: backend-api
   criticality: blocker
@@ -298,12 +299,13 @@
     doc: PRD.md
     section: "§13.17"
   description: Página pública de QR deve responder para certificado autêntico, reemitido e não localizado, expondo apenas metadados mínimos.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+    - specs/0041-prd-13-17-public-qr-minimal-metadata.md
+  linked_tests:
     - evals/ac/prd-13-17-public-qr-minimal-metadata.test.ts
+  planned_tests: []
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-17-PUBLIC-QR-MINIMAL-METADATA/
   owner: lgpd-security
   criticality: blocker
