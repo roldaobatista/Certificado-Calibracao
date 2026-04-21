@@ -217,6 +217,22 @@ criteria:
       - evals/regulatory/prd-13-22-normative-governance-owner.test.ts
     planned_tests: []
 requirements:
+  - id: REQ-HARNESS-P0-1-BACKEND-READINESS
+    source: harness/02-arquitetura.md P0-1
+    criticality: blocker
+    owner: backend-api
+    linked_specs:
+      - specs/0045-backend-runtime-readiness.md
+    linked_tests:
+      - apps/api/src/app.test.ts
+      - apps/api/src/infra/runtime-readiness.test.ts
+    planned_tests: []
+    evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P0-1-BACKEND-READINESS/
+    critical_paths:
+      - apps/api/src/**
+      - packages/db/**
+      - docker-compose.yml
+      - apps/api/Dockerfile
   - id: REQ-HARNESS-P0-10-VERIFICATION-CASCADE
     source: harness/14-verification-cascade.md P0-10
     criticality: blocker
