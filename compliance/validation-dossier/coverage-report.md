@@ -6,11 +6,12 @@
 
 - Total de critérios: 22
 - Critérios com requisito mapeado: 22
-- Critérios validados por teste ativo: 3
+- Critérios validados por teste ativo: 4
 - Critérios sem requisito mapeado: 0
 
 ## Validados
 
+- §13.7: REQ-PRD-13-07-ANDROID-SYNC-IDEMPOTENCY — A sincronização Android → backend é **idempotente e resiliente** a perda de rede.
 - §13.13: REQ-PRD-13-13-RLS-ISOLATION — **Multitenancy isolada por RLS** verificada por testes automatizados de cross-tenant leak (zero vazamentos).
 - §13.18: REQ-PRD-13-18-VALIDATION-DOSSIER — **Plano de Validação do Software Aferê** aprovado e executado: protocolo formal, casos-teste normativos (incluindo ≥10 cenários-referência EURAMET cg-18 rodados em CI para a engine de incerteza — release bloqueado se qualquer divergir além de ε declarado), rastreabilidade requisito→teste, registro de evidências e procedimento de revalidação após mudança relevante (ISO/IEC 17025 §7.11).
 - §13.19: REQ-PRD-13-19-AUDIT-HASH-CHAIN, REQ-PRD-13-19-TENANT-SQL-LINTER, REQ-PRD-13-19-WORM-STORAGE-CHECK — **Hardening de multitenancy e audit log**: pool de conexões fail-closed sem `tenant_id`; linter de PR rejeita SQL sem `organization_id`; fuzz cross-tenant semanal em CI; audit log em object storage WORM (object lock) com checkpoints assinados periodicamente.
@@ -23,7 +24,6 @@
 - §13.4: REQ-PRD-13-04-TECHNICAL-REVIEW-SIGNATURE-AUDIT — A revisão técnica e a assinatura ficam **registradas com identidade, timestamp e dispositivo**.
 - §13.5: REQ-PRD-13-05-PUBLIC-QR-AUTHENTICITY — O QR code do certificado **valida autenticidade publicamente**.
 - §13.6: REQ-PRD-13-06-CRITICAL-EVENT-AUDIT-TRAIL — Todo evento crítico aparece na **trilha de auditoria imutável**.
-- §13.7: REQ-PRD-13-07-ANDROID-SYNC-IDEMPOTENCY — A sincronização Android → backend é **idempotente e resiliente** a perda de rede.
 - §13.8: REQ-PRD-13-08-EQUIPMENT-CUSTOMER-ADDRESS — O cadastro de equipamento exige obrigatoriamente vínculo com cliente e endereço.
 - §13.9: REQ-PRD-13-09-SIGNATORY-COMPETENCE-BLOCK — Signatário sem competência para o tipo de instrumento **não consegue assinar**.
 - §13.10: REQ-PRD-13-10-SCOPE-CMC-BLOCK — Certificado emitido por laboratório acreditado respeita **escopo e CMC**.
