@@ -47,3 +47,8 @@ export {
   evaluateAccreditedScopeCmc,
   type AccreditedScopeCmcEvaluation,
 } from "./scope-cmc.js";
+
+export {
+  evaluateStandardEligibility,
+  type StandardEligibilityDecision,
+} from "./standard-eligibility.js";
