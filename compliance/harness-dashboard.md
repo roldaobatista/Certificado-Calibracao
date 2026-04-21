@@ -46,7 +46,7 @@
 
 ## Itens Abertos
 
-- P0-1 (P0): Backend apps/api como peça de 1ª classe + agente backend-api — [~] Em implementação (scaffold Fastify + tRPC + Prisma + Docker Compose; /healthz + /trpc/health.ping verdes; lógica de domínio pendente para fatias V1+)
+- P0-1 (P0): Backend apps/api como peça de 1ª classe + agente backend-api — [~] Em implementação (scaffold Fastify + tRPC + Prisma + Docker Compose; /healthz cobre liveness do processo, /readyz agora valida Postgres + Redis com 503 fail-closed e o container usa readiness real; lógica de domínio pendente para fatias V1+)
 - P0-2 (P0): Pipeline de normative package assinado e versionado — [~] Em implementação (@afere/normative-rules valida pacote normativo com hash canônico SHA-256, assinatura Ed25519, sidecars de chave pública/metadados e releases/manifest.yaml; baseline 2026-04-20-baseline-v0.1.0 aprovado por bootstrap offline; KMS real ainda pendente)
 - P0-3 (P0): Dossiê formal de validação contínua — [~] Em implementação (requirements.yaml, traceability-matrix.yaml, coverage-report.md e tools/validation-dossier.ts; 22/22 critérios do PRD §13 mapeados, 22/22 validados por teste ativo, demais seguem validation_status: planned)
 - P0-4 (P0): Hard gates de multitenancy e trilha imutável — [~] Em implementação (Gates 1, 2, 3, 4, 5 e 6 funcionais em primeiras fatias; Gate 7 agora valida manifesto/hashes de snapshot-diff para perfis A/B/C, gera drafts automáticos de issue para CASCADE-003 no required-gates e mantém flake gate estrutural, enquanto a bateria final de 30 certificados canonicos em PDF/A ainda depende do renderer de emissao; Gate 5 cobre RLS, RBAC depende de auth real em apps/api)

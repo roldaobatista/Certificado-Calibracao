@@ -464,6 +464,26 @@
     - .codex/agents/**
     - tools/sync-agents.ts
 
+- id: REQ-HARNESS-P0-1-BACKEND-READINESS
+  source:
+    doc: harness/02-arquitetura.md
+    section: "P0-1"
+  description: Backend técnico deve distinguir liveness de readiness e só declarar pronto quando Postgres e Redis responderem no runtime.
+  validation_status: validated
+  linked_specs:
+    - specs/0045-backend-runtime-readiness.md
+  linked_tests:
+    - apps/api/src/app.test.ts
+    - apps/api/src/infra/runtime-readiness.test.ts
+  evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P0-1-BACKEND-READINESS/
+  owner: backend-api
+  criticality: blocker
+  critical_paths:
+    - apps/api/src/**
+    - packages/db/**
+    - docker-compose.yml
+    - apps/api/Dockerfile
+
 - id: REQ-HARNESS-P0-9-RUNBOOKS
   source:
     doc: harness/13-runbooks-recovery.md

@@ -14,7 +14,7 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "test:tools": "tsx --test tools/*.test.ts packages/db/tools/tenant-lint/src/*.test.ts packages/audit-log/src/*.test.ts packages/normative-rules/src/*.test.ts packages/engine-uncertainty/src/*.test.ts",
+    "test:tools": "tsx --test apps/api/src/*.test.ts apps/api/src/infra/*.test.ts tools/*.test.ts packages/db/tools/tenant-lint/src/*.test.ts packages/audit-log/src/*.test.ts packages/normative-rules/src/*.test.ts packages/engine-uncertainty/src/*.test.ts",
     "test:ac": "tsx --test evals/ac/*.test.ts",
     "test:regulatory": "tsx --test evals/regulatory/*.test.ts",
     "test:rls": "tsx --test evals/tenancy/rls/*.test.ts",
