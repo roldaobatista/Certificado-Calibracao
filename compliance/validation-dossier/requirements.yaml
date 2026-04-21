@@ -23,11 +23,11 @@
     doc: PRD.md
     section: "§13.2"
   description: Sistema deve bloquear uso de padrão vencido, sem certificado válido ou fora da faixa aplicável.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+    - specs/0033-prd-13-02-standard-eligibility-block.md
+  linked_tests:
     - evals/ac/prd-13-02-standard-eligibility-block.test.ts
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-02-STANDARD-ELIGIBILITY-BLOCK/
   owner: backend-api
