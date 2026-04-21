@@ -279,11 +279,11 @@
     doc: PRD.md
     section: "§13.16"
   description: Reemissão controlada deve exigir dupla aprovação, versionamento R1/R2, hash anterior preservado e notificação automática ao cliente.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+    - specs/0036-prd-13-16-controlled-reissue.md
+  linked_tests:
     - evals/ac/prd-13-16-controlled-reissue.test.ts
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-16-CONTROLLED-REISSUE/
   owner: backend-api

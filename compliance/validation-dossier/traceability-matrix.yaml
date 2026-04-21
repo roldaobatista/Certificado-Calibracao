@@ -5,7 +5,7 @@ sources:
 prd_section_13:
   total: 22
   mapped: 22
-  validated: 13
+  validated: 14
   missing: 0
 criteria:
   - section: §13.1
@@ -141,12 +141,12 @@ criteria:
     text: >-
       **Reemissão controlada (§17.8)** funciona com dupla aprovação, versionamento R1/R2, hash anterior preservado e
       notificação automática ao cliente.
-    status: mapped
+    status: validated
     requirement_ids:
       - REQ-PRD-13-16-CONTROLLED-REISSUE
-    linked_tests: []
-    planned_tests:
+    linked_tests:
       - evals/ac/prd-13-16-controlled-reissue.test.ts
+    planned_tests: []
   - section: §13.17
     text: >-
       Página pública de verificação por QR responde corretamente para certificado autêntico, reemitido e não localizado
@@ -583,9 +583,10 @@ requirements:
     owner: backend-api
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
-    linked_tests: []
-    planned_tests:
+      - specs/0036-prd-13-16-controlled-reissue.md
+    linked_tests:
       - evals/ac/prd-13-16-controlled-reissue.test.ts
+    planned_tests: []
     evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-16-CONTROLLED-REISSUE/
     critical_paths:
       - apps/api/src/domain/reissue/**
