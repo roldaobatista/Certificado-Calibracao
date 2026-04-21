@@ -427,11 +427,11 @@
     doc: PRD.md
     section: "§13.22"
   description: Owner de governança normativa deve estar nomeado com RACI e orçamento antes do go-live.
-  validation_status: planned
+  validation_status: validated
   linked_specs:
     - specs/0002-mvp-acceptance-traceability.md
-  linked_tests: []
-  planned_tests:
+    - specs/0028-prd-13-22-normative-governance-owner.md
+  linked_tests:
     - evals/regulatory/prd-13-22-normative-governance-owner.test.ts
   evidence_path: compliance/validation-dossier/evidence/REQ-PRD-13-22-NORMATIVE-GOVERNANCE-OWNER/
   owner: product-governance

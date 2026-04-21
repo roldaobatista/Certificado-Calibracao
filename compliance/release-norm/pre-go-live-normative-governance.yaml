@@ -1,0 +1,117 @@
+version: 1
+status: approved
+go_live_gate: required_before_first_production_certificate
+owner:
+  role: product-governance
+  nominee_title: Responsavel Tecnico do Produto
+  designation_source: adr/0009-tiebreaker-designation.md
+package_content_owner:
+  role: regulator
+  source: adr/0004-normative-package-governance.md
+committee:
+  cadence: monthly
+  members:
+    - gestor-da-qualidade-do-laboratorio-piloto
+    - metrologista-interno-do-produto
+    - product-manager
+package_repository:
+  approved_root: compliance/normative-packages/approved/
+  manifest_path: compliance/normative-packages/releases/manifest.yaml
+watchlist:
+  - portal-inmetro-dou-metrologia-legal-cgcre
+  - publicacoes-ilac-p-series-g-series
+  - atualizacoes-abnt
+  - newsletters-doq-cgcre-nit-dicla
+  - plano-estrategico-inmetro-dcc-modernizacao
+budget:
+  currency: BRL
+  approved_by: product-governance
+  effective_until: 2026-12-31
+  line_items:
+    - id: watchlist-monitoring
+      description: Monitoracao semanal e triagem do backlog normativo
+      amount_brl: 2400
+      cadence: monthly
+    - id: external-specialist-review
+      description: Revisao especializada externa para mudancas normativas relevantes
+      amount_brl: 7500
+      cadence: quarterly
+    - id: critical-change-contingency
+      description: Reserva para mitigacao e release normativa critica
+      amount_brl: 12000
+      cadence: quarterly
+raci:
+  - activity: monitoracao-semanal
+    responsible:
+      - regulator
+    accountable:
+      - product-governance
+    consulted:
+      - metrology-auditor
+    informed:
+      - product-manager
+  - activity: analise-de-impacto
+    responsible:
+      - regulator
+      - product-governance
+    accountable:
+      - product-governance
+    consulted:
+      - metrology-auditor
+      - legal-counsel
+      - senior-reviewer
+    informed:
+      - backend-api
+      - web-ui
+      - android
+  - activity: planejamento-release-norm
+    responsible:
+      - product-governance
+    accountable:
+      - product-governance
+    consulted:
+      - regulator
+      - qa-acceptance
+    informed:
+      - backend-api
+      - web-ui
+      - android
+  - activity: implementacao
+    responsible:
+      - regulator
+      - backend-api
+    accountable:
+      - product-governance
+    consulted:
+      - senior-reviewer
+      - metrology-calc
+    informed:
+      - qa-acceptance
+  - activity: validacao
+    responsible:
+      - qa-acceptance
+    accountable:
+      - product-governance
+    consulted:
+      - metrology-auditor
+      - legal-counsel
+      - senior-reviewer
+    informed:
+      - regulator
+      - backend-api
+  - activity: comunicacao
+    responsible:
+      - product-governance
+    accountable:
+      - product-governance
+    consulted:
+      - copy-compliance
+      - legal-counsel
+    informed:
+      - organizacoes-clientes
+      - support
+references:
+  - PRD.md#16.4
+  - adr/0004-normative-package-governance.md
+  - adr/0009-tiebreaker-designation.md
+  - compliance/normative-packages/releases/manifest.yaml
