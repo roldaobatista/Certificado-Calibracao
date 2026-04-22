@@ -7,6 +7,7 @@ import {
   onboardingCatalogSchema,
   reviewSignatureCatalogSchema,
   selfSignupCatalogSchema,
+  signatureQueueCatalogSchema,
   userDirectoryCatalogSchema,
 } from "@afere/contracts";
 
@@ -184,6 +185,81 @@ const REVIEW_SIGNATURE_CATALOG = reviewSignatureCatalogSchema.parse({
   ],
 });
 
+const SIGNATURE_QUEUE_CATALOG = signatureQueueCatalogSchema.parse({
+  selectedScenarioId: "approved-ready",
+  scenarios: [
+    {
+      id: "approved-ready",
+      label: "Fila pronta para assinatura",
+      description: "Itens verdes para assinar.",
+      summary: {
+        status: "ready",
+        headline: "Fila pronta para assinatura controlada",
+        pendingCount: 2,
+        readyCount: 2,
+        attentionCount: 0,
+        blockedCount: 0,
+        batchReadyCount: 2,
+        oldestPendingLabel: "2h 12min",
+        recommendedAction: "Assinar os itens prontos.",
+        blockers: [],
+        warnings: [],
+      },
+      selectedItemId: "os-2026-00142",
+      items: [
+        {
+          itemId: "os-2026-00142",
+          workOrderNumber: "OS-2026-00142",
+          customerName: "Lab. Acme",
+          equipmentLabel: "Toledo Prix 3",
+          instrumentType: "Balanca",
+          waitingSinceLabel: "18 min",
+          certificateNumber: "AFR-000124",
+          status: "ready",
+          previewScenarioId: "type-b-ready",
+          reviewSignatureScenarioId: "approved-ready",
+          validations: [
+            {
+              label: "Revisao tecnica",
+              status: "passed",
+              detail: "Revisao concluida.",
+            },
+          ],
+          blockers: [],
+          warnings: [],
+        },
+      ],
+      approval: {
+        itemId: "os-2026-00142",
+        title: "OS-2026-00142 - assinatura final",
+        status: "ready",
+        signatoryDisplayName: "Carlos Signatario",
+        authorizationLabel: "Signatario autorizado",
+        statement: "Confirmo a emissao.",
+        documentHash: "a3f9",
+        canSign: true,
+        actionLabel: "Assinar e emitir",
+        blockers: [],
+        warnings: [],
+        authRequirements: [
+          {
+            factor: "password",
+            label: "Senha",
+            status: "configured",
+            detail: "Obrigatoria.",
+          },
+        ],
+        compactPreview: [
+          {
+            label: "Cliente",
+            value: "Lab. Acme",
+          },
+        ],
+      },
+    },
+  ],
+});
+
 const USER_DIRECTORY_CATALOG = userDirectoryCatalogSchema.parse({
   selectedScenarioId: "operational-team",
   scenarios: [
@@ -222,10 +298,11 @@ test("summarizes the canonical readiness across auth, onboarding and emission", 
     onboardingCatalog: ONBOARDING_CATALOG,
     emissionCatalog: EMISSION_CATALOG,
     reviewSignatureCatalog: REVIEW_SIGNATURE_CATALOG,
+    signatureQueueCatalog: SIGNATURE_QUEUE_CATALOG,
     userDirectoryCatalog: USER_DIRECTORY_CATALOG,
   });
 
-  assert.equal(model.readyCount, 4);
+  assert.equal(model.readyCount, 5);
   assert.equal(model.blockedCount, 2);
   assert.equal(model.allSourcesAvailable, true);
   assert.equal(model.heroStatusTone, "warn");
@@ -235,7 +312,8 @@ test("summarizes the canonical readiness across auth, onboarding and emission", 
   assert.equal(model.cards[2]?.statusLabel, "Emissao bloqueada");
   assert.equal(model.cards[3]?.statusLabel, "Emissao pronta");
   assert.equal(model.cards[4]?.statusLabel, "Workflow liberado");
-  assert.equal(model.cards[5]?.statusLabel, "Equipe saudavel");
+  assert.equal(model.cards[5]?.statusLabel, "Fila pronta");
+  assert.equal(model.cards[6]?.statusLabel, "Equipe saudavel");
 });
 
 test("fails closed when one or more canonical sources are unavailable", () => {
@@ -245,14 +323,15 @@ test("fails closed when one or more canonical sources are unavailable", () => {
     onboardingCatalog: null,
     emissionCatalog: null,
     reviewSignatureCatalog: null,
+    signatureQueueCatalog: null,
     userDirectoryCatalog: null,
   });
 
   assert.equal(model.readyCount, 0);
-  assert.equal(model.blockedCount, 6);
+  assert.equal(model.blockedCount, 7);
   assert.equal(model.allSourcesAvailable, false);
   assert.equal(model.heroStatusTone, "warn");
   assert.equal(model.heroStatusLabel, "Revisao operacional necessaria");
-  assert.equal(model.cards.length, 6);
+  assert.equal(model.cards.length, 7);
   assert.equal(model.cards.every((card) => card.statusLabel === "Sem carga canonica"), true);
 });

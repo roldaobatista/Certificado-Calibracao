@@ -101,6 +101,7 @@ export const reviewSignatureWorkflowResultSchema = z.object({
 export type ReviewSignatureWorkflowResult = z.infer<typeof reviewSignatureWorkflowResultSchema>;
 
 export const reviewSignatureScenarioIdSchema = z.enum([
+  "approved-ready",
   "segregated-ready",
   "reviewer-conflict",
   "signatory-mfa-blocked",

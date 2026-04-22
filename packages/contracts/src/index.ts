@@ -8,6 +8,7 @@ export const appRouter = router({
 export type AppRouter = typeof appRouter;
 
 export { createCallerFactory, type AppContext } from "./trpc.js";
+export * from "./certificate-preview.js";
 export { HealthStatus } from "./routers/health.js";
 export * from "./emission-workspace.js";
 export * from "./emission-dry-run.js";
@@ -16,4 +17,5 @@ export * from "./onboarding.js";
 export * from "./public-certificate.js";
 export * from "./review-signature.js";
 export * from "./self-signup.js";
+export * from "./signature-queue.js";
 export * from "./user-directory.js";

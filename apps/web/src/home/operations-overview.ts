@@ -4,6 +4,7 @@ import type {
   OnboardingCatalog,
   ReviewSignatureCatalog,
   SelfSignupCatalog,
+  SignatureQueueCatalog,
   UserDirectoryCatalog,
 } from "@afere/contracts";
 
@@ -12,6 +13,7 @@ import { buildUserDirectoryCatalogView } from "../auth/user-directory-scenarios"
 import { buildEmissionDryRunCatalogView } from "../emission/emission-dry-run-scenarios";
 import { buildEmissionWorkspaceCatalogView } from "../emission/emission-workspace-scenarios";
 import { buildReviewSignatureCatalogView } from "../emission/review-signature-scenarios";
+import { buildSignatureQueueCatalogView } from "../emission/signature-queue-scenarios";
 import { buildOnboardingCatalogView } from "../onboarding/onboarding-scenarios";
 
 export interface OperationsOverviewCard {
@@ -40,6 +42,7 @@ export function buildOperationsOverviewModel(input: {
   emissionCatalog: EmissionDryRunCatalog | null;
   emissionWorkspaceCatalog: EmissionWorkspaceCatalog | null;
   reviewSignatureCatalog: ReviewSignatureCatalog | null;
+  signatureQueueCatalog: SignatureQueueCatalog | null;
   userDirectoryCatalog: UserDirectoryCatalog | null;
 }): OperationsOverviewModel {
   const cards: OperationsOverviewCard[] = [];
@@ -60,6 +63,9 @@ export function buildOperationsOverviewModel(input: {
     : null;
   const reviewSignatureView = input.reviewSignatureCatalog
     ? buildReviewSignatureCatalogView(input.reviewSignatureCatalog)
+    : null;
+  const signatureQueueView = input.signatureQueueCatalog
+    ? buildSignatureQueueCatalogView(input.signatureQueueCatalog)
     : null;
   const userDirectoryView = input.userDirectoryCatalog
     ? buildUserDirectoryCatalogView(input.userDirectoryCatalog)
@@ -187,6 +193,26 @@ export function buildOperationsOverviewModel(input: {
   );
 
   cards.push(
+    signatureQueueView
+      ? {
+          href: `/emission/signature-queue?scenario=${signatureQueueView.selectedScenario.id}&item=${signatureQueueView.selectedScenario.selectedItem.itemId}`,
+          eyebrow: "Assinatura",
+          title: signatureQueueView.selectedScenario.label,
+          description: `${signatureQueueView.selectedScenario.summary.pendingCount} pendente(s) e ${signatureQueueView.selectedScenario.summary.batchReadyCount} pronto(s) para lote.`,
+          statusTone: statusToneForQueue(signatureQueueView.selectedScenario.summary.status),
+          statusLabel: statusLabelForQueue(signatureQueueView.selectedScenario.summary.status),
+          cta: "Abrir fila",
+        }
+      : unavailableCard({
+          href: "/emission/signature-queue",
+          eyebrow: "Assinatura",
+          title: "Fila de assinatura",
+          description: "Leitura canonica indisponivel no momento.",
+          cta: "Abrir fila",
+        }),
+  );
+
+  cards.push(
     userDirectoryView
       ? {
           href: `/auth/users?scenario=${userDirectoryView.selectedScenario.id}`,
@@ -223,6 +249,7 @@ export function buildOperationsOverviewModel(input: {
       onboardingView &&
       emissionView &&
       reviewSignatureView &&
+      signatureQueueView &&
       userDirectoryView,
   );
 
@@ -240,6 +267,23 @@ export function buildOperationsOverviewModel(input: {
       : "Uma ou mais leituras canonicas do backend estao indisponiveis.",
     cards,
   };
+}
+
+function statusToneForQueue(status: "ready" | "attention" | "blocked"): "ok" | "warn" {
+  return status === "ready" ? "ok" : "warn";
+}
+
+function statusLabelForQueue(status: "ready" | "attention" | "blocked"): string {
+  switch (status) {
+    case "ready":
+      return "Fila pronta";
+    case "attention":
+      return "Fila com atencao";
+    case "blocked":
+      return "Fila bloqueada";
+    default:
+      return status;
+  }
 }
 
 function unavailableCard(input: {

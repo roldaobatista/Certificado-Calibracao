@@ -3,6 +3,7 @@ import { loadUserDirectoryCatalog } from "@/src/auth/user-directory-api";
 import { loadEmissionDryRunCatalog } from "@/src/emission/emission-dry-run-api";
 import { loadEmissionWorkspaceCatalog } from "@/src/emission/emission-workspace-api";
 import { loadReviewSignatureCatalog } from "@/src/emission/review-signature-api";
+import { loadSignatureQueueCatalog } from "@/src/emission/signature-queue-api";
 import { buildOperationsOverviewModel } from "@/src/home/operations-overview";
 import { loadOnboardingCatalog } from "@/src/onboarding/onboarding-api";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -16,6 +17,7 @@ export default async function HomePage() {
     onboardingCatalog,
     emissionCatalog,
     reviewSignatureCatalog,
+    signatureQueueCatalog,
     userDirectoryCatalog,
   ] = await Promise.all([
     loadEmissionWorkspaceCatalog(),
@@ -23,6 +25,7 @@ export default async function HomePage() {
     loadOnboardingCatalog(),
     loadEmissionDryRunCatalog(),
     loadReviewSignatureCatalog(),
+    loadSignatureQueueCatalog(),
     loadUserDirectoryCatalog(),
   ]);
 
@@ -32,6 +35,7 @@ export default async function HomePage() {
     onboardingCatalog,
     emissionCatalog,
     reviewSignatureCatalog,
+    signatureQueueCatalog,
     userDirectoryCatalog,
   });
   const availableSources = overview.cards.filter((card) => card.statusLabel !== "Sem carga canonica").length;
@@ -40,8 +44,8 @@ export default async function HomePage() {
   return (
     <AppShell
       eyebrow="V1 - emissao controlada"
-      title="Backoffice regulado para workspace, auth, equipe e emissao"
-      description="A home agora consolida o workspace canonico de emissao junto com auth, equipe, onboarding, dry-run e workflow de revisao/assinatura para mostrar a prontidao operacional antes da primeira emissao."
+      title="Backoffice regulado para workspace, auth, equipe e assinatura"
+      description="A home agora consolida o workspace canonico de emissao junto com auth, equipe, onboarding, dry-run, workflow e fila de assinatura para mostrar a prontidao operacional antes da emissao."
       aside={
         <>
           <div className="hero-stat">
@@ -86,7 +90,7 @@ export default async function HomePage() {
         <article className="detail-card">
           <span className="eyebrow">Fluxos prontos</span>
           <strong>{overview.readyCount} fluxo(s) liberado(s)</strong>
-          <p>Workspace, auth, equipe, onboarding, dry-run e workflow de assinatura sao avaliados lado a lado para evitar drift entre telas.</p>
+          <p>Workspace, auth, equipe, onboarding, dry-run, workflow e fila de assinatura sao avaliados lado a lado para evitar drift entre telas.</p>
         </article>
 
         <article className="detail-card">

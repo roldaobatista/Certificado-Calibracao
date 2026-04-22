@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  certificatePreviewCatalogSchema,
   emissionDryRunCatalogSchema,
   emissionWorkspaceCatalogSchema,
   onboardingCatalogSchema,
   publicCertificateCatalogSchema,
   reviewSignatureCatalogSchema,
   selfSignupCatalogSchema,
+  signatureQueueCatalogSchema,
   userDirectoryCatalogSchema,
 } from "@afere/contracts";
 
@@ -117,6 +119,32 @@ test("serves the canonical emission dry-run catalog from the backend", async () 
   }
 });
 
+test("serves the canonical certificate preview catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/emission/certificate-preview?scenario=type-c-blocked",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = certificatePreviewCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "type-c-blocked");
+
+    assert.equal(payload.selectedScenarioId, "type-c-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.result.status, "blocked");
+    assert.equal(blockedScenario.result.suggestedReturnStep, 2);
+    assert.equal(blockedScenario.result.sections.length, 8);
+  } finally {
+    await app.close();
+  }
+});
+
 test("serves the canonical emission workspace catalog from the backend", async () => {
   const { runtimeReadiness } = createRuntimeReadinessStub();
   const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
@@ -138,6 +166,32 @@ test("serves the canonical emission workspace catalog from the backend", async (
     assert.equal(blockedScenario.summary.status, "blocked");
     assert.equal(blockedScenario.modules.some((module) => module.key === "workflow"), true);
     assert.match(blockedScenario.summary.blockers.join(" "), /MFA/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical signature queue catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/emission/signature-queue?scenario=mfa-blocked",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = signatureQueueCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "mfa-blocked");
+
+    assert.equal(payload.selectedScenarioId, "mfa-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.summary.status, "blocked");
+    assert.equal(blockedScenario.approval.canSign, false);
+    assert.match(blockedScenario.approval.blockers.join(" "), /MFA/i);
   } finally {
     await app.close();
   }
@@ -242,7 +296,7 @@ test("serves the canonical review/signature workflow catalog from the backend", 
     const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "reviewer-conflict");
 
     assert.equal(payload.selectedScenarioId, "reviewer-conflict");
-    assert.equal(payload.scenarios.length, 3);
+    assert.equal(payload.scenarios.length, 4);
     assert.ok(blockedScenario);
     assert.equal(blockedScenario.result.status, "blocked");
     assert.equal(blockedScenario.result.reviewStep.status, "blocked");

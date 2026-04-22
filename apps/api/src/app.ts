@@ -7,12 +7,14 @@ import {
   createRuntimeReadiness,
   type RuntimeReadiness,
 } from "./infra/runtime-readiness.js";
+import { registerCertificatePreviewRoutes } from "./interfaces/http/certificate-preview.js";
 import { registerEmissionDryRunRoutes } from "./interfaces/http/emission-dry-run.js";
 import { registerEmissionWorkspaceRoutes } from "./interfaces/http/emission-workspace.js";
 import { registerOnboardingRoutes } from "./interfaces/http/onboarding.js";
 import { registerPublicCertificateRoutes } from "./interfaces/http/public-certificate.js";
 import { registerReviewSignatureRoutes } from "./interfaces/http/review-signature.js";
 import { registerSelfSignupRoutes } from "./interfaces/http/self-signup.js";
+import { registerSignatureQueueRoutes } from "./interfaces/http/signature-queue.js";
 import { registerUserDirectoryRoutes } from "./interfaces/http/user-directory.js";
 import { trpcPlugin } from "./plugins/trpc.js";
 
@@ -51,9 +53,11 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   });
 
   await app.register(trpcPlugin);
+  await registerCertificatePreviewRoutes(app);
   await registerEmissionDryRunRoutes(app);
   await registerEmissionWorkspaceRoutes(app);
   await registerReviewSignatureRoutes(app);
+  await registerSignatureQueueRoutes(app);
   await registerSelfSignupRoutes(app);
   await registerUserDirectoryRoutes(app);
   await registerOnboardingRoutes(app);

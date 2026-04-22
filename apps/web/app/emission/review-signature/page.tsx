@@ -31,6 +31,26 @@ function formatRole(role: string): string {
   }
 }
 
+function mapReviewScenarioToPreviewScenario(reviewScenarioId: string): string {
+  switch (reviewScenarioId) {
+    case "signatory-mfa-blocked":
+      return "type-c-blocked";
+    default:
+      return "type-b-ready";
+  }
+}
+
+function mapReviewScenarioToQueueScenario(reviewScenarioId: string): string {
+  switch (reviewScenarioId) {
+    case "approved-ready":
+      return "approved-ready";
+    case "signatory-mfa-blocked":
+      return "mfa-blocked";
+    default:
+      return "approved-ready";
+  }
+}
+
 export default async function ReviewSignaturePage(props: PageProps) {
   const catalog = await loadReviewSignatureCatalog({ scenarioId: props.searchParams?.scenario });
 
@@ -180,6 +200,31 @@ export default async function ReviewSignaturePage(props: PageProps) {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="section-header">
+        <div className="section-copy">
+          <span className="eyebrow">Atalhos</span>
+          <h2>Continuar a partir do workflow</h2>
+          <p>Use as rotas abaixo para conferir a previa do certificado ou abrir a fila final de assinatura.</p>
+        </div>
+      </section>
+
+      <section className="nav-grid">
+        <NavCard
+          href={`/emission/certificate-preview?scenario=${mapReviewScenarioToPreviewScenario(scenario.id)}`}
+          eyebrow="Previa"
+          title="Abrir previa do certificado"
+          description="Revisar os campos que serao apresentados ao signatario antes da emissao."
+          cta="Abrir previa"
+        />
+        <NavCard
+          href={`/emission/signature-queue?scenario=${mapReviewScenarioToQueueScenario(scenario.id)}`}
+          eyebrow="Fila"
+          title="Abrir fila de assinatura"
+          description="Conferir os itens prontos, em atencao ou bloqueados antes da assinatura final."
+          cta="Abrir fila"
+        />
       </section>
 
       <section className="section-header">

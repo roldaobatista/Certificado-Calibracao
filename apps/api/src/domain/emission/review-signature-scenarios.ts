@@ -80,6 +80,20 @@ const SCENARIOS: ReviewSignatureScenario[] = [
     }),
   },
   {
+    id: "approved-ready",
+    label: "Workflow aprovado e pronto para assinar",
+    description: "A revisao tecnica ja foi concluida e a assinatura esta liberada para o signatario autorizado.",
+    result: evaluateReviewSignatureWorkflow({
+      organizationId: "org-acme",
+      instrumentType: "balanca",
+      stage: "approved",
+      executor: EXECUTOR,
+      reviewer: REVIEWER,
+      signatory: SIGNATORY,
+      candidates: [EXECUTOR, REVIEWER, QUALITY_MANAGER, SIGNATORY, BACKUP_SIGNATORY],
+    }),
+  },
+  {
     id: "reviewer-conflict",
     label: "Revisor igual ao executor",
     description: "O workflow bloqueia quando o executor tenta revisar a propria OS.",

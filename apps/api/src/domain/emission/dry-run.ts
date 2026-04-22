@@ -29,19 +29,26 @@ export interface RunCertificateEmissionDryRunInput {
     organizationId: string;
     organizationCode: string;
     profile: EmissionDryRunProfile;
+    displayName?: string;
   };
   equipment: {
     customerId?: string;
+    customerName?: string;
     address?: EquipmentRegistrationAddress;
     instrumentType: string;
     instrumentDescription: string;
     serialNumber: string;
+    tagCode?: string;
+    manufacturer?: string;
+    model?: string;
   };
   standard: {
     source: "INM" | "RBC" | "ILAC_MRA";
     calibrationDate: string;
     hasValidCertificate: boolean;
     certificateValidUntil?: string;
+    certificateReference?: string;
+    standardSetLabel?: string;
     measurementValue?: number;
     applicableRange?: {
       minimum: number;
@@ -56,6 +63,8 @@ export interface RunCertificateEmissionDryRunInput {
   };
   signatory: {
     signatoryId: string;
+    displayName?: string;
+    authorizationLabel?: string;
     competencies: SignatoryCompetenceRecord[];
   };
   certificate: {
@@ -71,8 +80,22 @@ export interface RunCertificateEmissionDryRunInput {
     signedAtUtc: string;
     emittedAtUtc: string;
     technicalReviewerId: string;
+    technicalReviewerName?: string;
     deviceId: string;
   };
+  environment?: {
+    procedureRangeLabel?: string;
+    temperatureC?: number;
+    humidityPercent?: number;
+    pressureHpa?: number;
+    withinProcedureRange?: boolean;
+  };
+  decision?: {
+    requested: boolean;
+    ruleLabel?: string;
+    outcomeLabel?: string;
+  };
+  notes?: string[];
   accreditation?: {
     accreditationActive?: boolean;
     hasRegisteredScope?: boolean;

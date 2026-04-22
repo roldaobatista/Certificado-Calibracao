@@ -7,6 +7,7 @@ import type {
   EmissionWorkspaceScenarioRefs,
   EmissionWorkspaceStatus,
   OnboardingBlockingReason,
+  ReviewSignatureScenarioId,
   ReviewSignatureWorkflowResult,
   SelfSignupScenarioId,
   UserDirectoryScenarioId,
@@ -250,7 +251,7 @@ function buildDryRunModule(
 }
 
 function buildWorkflowModule(
-  scenarioId: "segregated-ready" | "reviewer-conflict" | "signatory-mfa-blocked",
+  scenarioId: ReviewSignatureScenarioId,
   label: string,
   result: ReviewSignatureWorkflowResult,
 ): EmissionWorkspaceModule {

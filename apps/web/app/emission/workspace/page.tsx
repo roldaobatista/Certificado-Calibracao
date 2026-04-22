@@ -27,6 +27,33 @@ function statusLabel(status: "ready" | "attention" | "blocked"): string {
   }
 }
 
+function mapWorkspaceScenarioToPreviewScenario(
+  workspaceScenarioId: string,
+  dryRunScenarioId: string,
+): string {
+  if (dryRunScenarioId) {
+    return dryRunScenarioId;
+  }
+
+  switch (workspaceScenarioId) {
+    case "release-blocked":
+      return "type-c-blocked";
+    default:
+      return "type-b-ready";
+  }
+}
+
+function mapWorkspaceScenarioToQueueScenario(workspaceScenarioId: string): string {
+  switch (workspaceScenarioId) {
+    case "team-attention":
+      return "attention-required";
+    case "release-blocked":
+      return "mfa-blocked";
+    default:
+      return "approved-ready";
+  }
+}
+
 export default async function EmissionWorkspacePage(props: PageProps) {
   const catalog = await loadEmissionWorkspaceCatalog({ scenarioId: props.searchParams?.scenario });
 
@@ -120,6 +147,35 @@ export default async function EmissionWorkspacePage(props: PageProps) {
             cta="Abrir modulo"
           />
         ))}
+      </section>
+
+      <section className="section-header">
+        <div className="section-copy">
+          <span className="eyebrow">Previa e assinatura</span>
+          <h2>Conferir o certificado e a fila final</h2>
+          <p>O workspace aponta para a previa integral e para a fila de assinatura coerentes com este cenario.</p>
+        </div>
+      </section>
+
+      <section className="nav-grid">
+        <NavCard
+          href={`/emission/certificate-preview?scenario=${mapWorkspaceScenarioToPreviewScenario(scenario.id, scenario.references.dryRunScenarioId)}`}
+          eyebrow="Certificado"
+          title="Abrir previa integral"
+          description="Revisar os campos que o operador precisa conferir antes da assinatura final."
+          statusTone={statusTone(scenario.summary.status)}
+          statusLabel={statusLabel(scenario.summary.status)}
+          cta="Abrir previa"
+        />
+        <NavCard
+          href={`/emission/signature-queue?scenario=${mapWorkspaceScenarioToQueueScenario(scenario.id)}`}
+          eyebrow="Assinatura"
+          title="Abrir fila canonica"
+          description="Inspecionar os itens pendentes e a tela final de assinatura antes da emissao."
+          statusTone={statusTone(scenario.summary.status)}
+          statusLabel={statusLabel(scenario.summary.status)}
+          cta="Abrir fila"
+        />
       </section>
 
       <section className="detail-grid">

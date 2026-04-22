@@ -26,9 +26,11 @@ const SCENARIOS = {
         organizationId: "org-b",
         organizationCode: "AFR",
         profile: "B",
+        displayName: "Lab. Acme",
       },
       equipment: {
         customerId: "customer-001",
+        customerName: "Industria Horizonte",
         address: {
           line1: "Rua da Calibracao, 100",
           city: "Cuiaba",
@@ -39,12 +41,17 @@ const SCENARIOS = {
         instrumentType: "ipna_classe_iii",
         instrumentDescription: "Balanca IPNA 300 kg",
         serialNumber: "SN-300-01",
+        tagCode: "BAL-007",
+        manufacturer: "Toledo",
+        model: "Prix 3",
       },
       standard: {
         source: "RBC",
         calibrationDate: "2026-04-22",
         hasValidCertificate: true,
         certificateValidUntil: "2026-12-31",
+        certificateReference: "RBC CAL-1234",
+        standardSetLabel: "PESO-001 / PESO-002 / TH-003",
         measurementValue: 150,
         applicableRange: {
           minimum: 0,
@@ -59,6 +66,8 @@ const SCENARIOS = {
       },
       signatory: {
         signatoryId: "signatory-b",
+        displayName: "Carlos Signatario",
+        authorizationLabel: "Signatario autorizado",
         competencies: [
           {
             instrumentType: "ipna_classe_iii",
@@ -85,8 +94,22 @@ const SCENARIOS = {
         signedAtUtc: "2026-04-22T13:44:00Z",
         emittedAtUtc: "2026-04-22T13:45:00Z",
         technicalReviewerId: "reviewer-b",
+        technicalReviewerName: "Maria Revisora",
         deviceId: "web-station-01",
       },
+      environment: {
+        procedureRangeLabel: "Temp 18C-25C | Umid 30%-70%",
+        temperatureC: 22.4,
+        humidityPercent: 55,
+        pressureHpa: 1013,
+        withinProcedureRange: true,
+      },
+      decision: {
+        requested: true,
+        ruleLabel: "ILAC G8 sem banda de guarda",
+        outcomeLabel: "Aprovado",
+      },
+      notes: ["Execucao sem observacoes de campo.", "Foto da placa e do display anexadas no fluxo."],
       freeText:
         "Resultados rastreaveis ao SI por meio dos padroes usados, calibrados por laboratorio RBC acreditado.",
     },
@@ -100,9 +123,11 @@ const SCENARIOS = {
         organizationId: "org-a",
         organizationCode: "CALA",
         profile: "A",
+        displayName: "Laboratorio Alfa",
       },
       equipment: {
         customerId: "customer-002",
+        customerName: "Hospital Central",
         address: {
           line1: "Avenida da Metrologia, 55",
           city: "Goiania",
@@ -113,12 +138,17 @@ const SCENARIOS = {
         instrumentType: "ipna_classe_ii",
         instrumentDescription: "Balanca analitica 32 kg",
         serialNumber: "SN-A-32",
+        tagCode: "BAL-021",
+        manufacturer: "Shimadzu",
+        model: "ATX",
       },
       standard: {
         source: "ILAC_MRA",
         calibrationDate: "2026-04-22",
         hasValidCertificate: true,
         certificateValidUntil: "2027-01-15",
+        certificateReference: "ILAC CAL-2026-88",
+        standardSetLabel: "PESO-F1 / TH-010",
         measurementValue: 12,
         applicableRange: {
           minimum: 0,
@@ -133,6 +163,8 @@ const SCENARIOS = {
       },
       signatory: {
         signatoryId: "signatory-a",
+        displayName: "Paula Signataria",
+        authorizationLabel: "Signataria acreditada",
         competencies: [
           {
             instrumentType: "ipna_classe_ii",
@@ -159,8 +191,20 @@ const SCENARIOS = {
         signedAtUtc: "2026-04-22T10:14:00Z",
         emittedAtUtc: "2026-04-22T10:15:00Z",
         technicalReviewerId: "reviewer-a",
+        technicalReviewerName: "Renata Qualidade",
         deviceId: "web-station-02",
       },
+      environment: {
+        procedureRangeLabel: "Temp 20C-24C | Umid 40%-60%",
+        temperatureC: 21.2,
+        humidityPercent: 48,
+        pressureHpa: 1009,
+        withinProcedureRange: true,
+      },
+      decision: {
+        requested: false,
+      },
+      notes: ["Simbolo Cgcre/RBC suprimido por ponto fora do escopo acreditado."],
       accreditation: {
         accreditationActive: true,
         hasRegisteredScope: true,
@@ -180,9 +224,11 @@ const SCENARIOS = {
         organizationId: "org-c",
         organizationCode: "LABC",
         profile: "C",
+        displayName: "Metrologia Campo Sul",
       },
       equipment: {
         customerId: "customer-003",
+        customerName: "Cliente sem cadastro completo",
         address: {
           line1: "Rua Sem CEP, 10",
           city: "Campo Grande",
@@ -192,11 +238,16 @@ const SCENARIOS = {
         instrumentType: "ipna_classe_iii",
         instrumentDescription: "Balanca plataforma 500 kg",
         serialNumber: "SN-C-500",
+        tagCode: "BAL-404",
+        manufacturer: "Marte",
+        model: "Plataforma 500",
       },
       standard: {
         source: "RBC",
         calibrationDate: "2026-04-22",
         hasValidCertificate: false,
+        certificateReference: "RBC CAL-0099",
+        standardSetLabel: "PESO-009 / TH-404",
         measurementValue: 450,
         applicableRange: {
           minimum: 0,
@@ -211,6 +262,8 @@ const SCENARIOS = {
       },
       signatory: {
         signatoryId: "signatory-c",
+        displayName: "Andre Signatario",
+        authorizationLabel: "Competencia vencida",
         competencies: [
           {
             instrumentType: "ipna_classe_iii",
@@ -237,8 +290,25 @@ const SCENARIOS = {
         signedAtUtc: "2026-04-22T15:20:00Z",
         emittedAtUtc: "2026-04-22T15:21:00Z",
         technicalReviewerId: "reviewer-c",
+        technicalReviewerName: "Revisor Pendente",
         deviceId: "web-station-03",
       },
+      environment: {
+        procedureRangeLabel: "Temp 18C-25C | Umid 30%-70%",
+        temperatureC: 28.1,
+        humidityPercent: 73,
+        pressureHpa: 1002,
+        withinProcedureRange: false,
+      },
+      decision: {
+        requested: true,
+        ruleLabel: "ILAC G8 com banda de guarda",
+        outcomeLabel: "Indeterminado",
+      },
+      notes: [
+        "Endereco do equipamento incompleto no cadastro.",
+        "Campo livre traz termos proibidos para o perfil Tipo C.",
+      ],
       freeText:
         "Organizacao nao acreditada, mas o texto menciona RBC e Cgcre de forma inadequada para o perfil C.",
     },

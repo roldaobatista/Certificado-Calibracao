@@ -179,6 +179,26 @@ export default async function EmissionDryRunPage(props: PageProps) {
 
       <section className="section-header">
         <div className="section-copy">
+          <span className="eyebrow">Previa</span>
+          <h2>Conferir a peca antes da assinatura</h2>
+          <p>A pre-visualizacao canonica usa este mesmo cenario do dry-run para mostrar o certificado antes da assinatura.</p>
+        </div>
+      </section>
+
+      <section className="nav-grid">
+        <NavCard
+          href={`/emission/certificate-preview?scenario=${scenario.id}`}
+          eyebrow="Certificado"
+          title="Abrir previa integral"
+          description="Conferir cabecalho, identificacao, padroes, ambiente, resultados, decisao e rodape antes da assinatura."
+          statusTone={scenario.result.status === "ready" ? "ok" : "warn"}
+          statusLabel={scenario.result.status === "ready" ? "Previa pronta" : "Previa bloqueada"}
+          cta="Abrir previa"
+        />
+      </section>
+
+      <section className="section-header">
+        <div className="section-copy">
           <span className="eyebrow">Cenarios</span>
           <h2>Trocar o contexto do dry-run</h2>
           <p>Esses atalhos ajudam a revisar o comportamento dos perfis A, B e C sem alterar o codigo.</p>
