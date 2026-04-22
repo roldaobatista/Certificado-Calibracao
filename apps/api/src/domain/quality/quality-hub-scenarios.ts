@@ -67,7 +67,7 @@ const MODULE_META: Record<QualityHubModuleKey, ModuleMeta> = {
   "nonconforming-work": {
     title: "Trabalho nao conforme",
     clauseLabel: "ISO/IEC 17025 7.10",
-    ctaLabel: "Planejado",
+    ctaLabel: "Abrir contencao",
   },
   "internal-audit": {
     title: "Auditoria interna",
@@ -100,7 +100,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
   "operational-attention": {
     label: "Qualidade em acompanhamento preventivo",
     description:
-      "O gestor acompanha NCs abertas, uma reclamacao ainda em tratamento e a unica area restante ainda planejada sem perder o recorte operacional ja implementado.",
+      "O gestor acompanha NCs abertas, uma reclamacao ainda em tratamento e as contencoes internas ja formalizadas sem perder o recorte operacional implementado.",
     status: "attention",
     selectedModuleKey: "nonconformities",
     links: {
@@ -119,11 +119,11 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       nextManagementReviewLabel: "30/06/2026",
     },
     recommendedAction:
-      "Fechar a acao corretiva vencendo, responder a reclamacao aberta e usar trilha/NC como ancora auditavel ate as demais areas ganharem fluxo proprio.",
+      "Fechar a acao corretiva vencendo, responder a reclamacao aberta e registrar a liberacao documental da suspensao preventiva antes da proxima reuniao.",
     blockers: [],
     warnings: [
       "O modulo de reclamacoes segue com uma resposta formal pendente e precisa de fechamento dentro do prazo.",
-      "Trabalho nao conforme segue explicitamente planejado e ainda depende de uma leitura dedicada.",
+      "A liberacao da suspensao preventiva ainda depende de evidencia documental do PG-005 e dos procedimentos afetados.",
     ],
     modules: [
       {
@@ -161,13 +161,16 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "nonconforming-work",
-        metricLabel: "1 caso derivado de NC",
-        summary: "O tratamento de trabalho nao conforme continua representado apenas pelos sinais canonicos de NC e workspace.",
+        metricLabel: "3 PT suspensos | liberacao pendente",
+        summary:
+          "Modulo canonico ativo para contencao preventiva, regra de liberacao segura e rastreabilidade do retorno ao fluxo.",
         status: "attention",
-        availability: "planned",
-        nextStepLabel: "Criar leitura propria para congelamento, contencao e reabertura segura de OS afetadas.",
+        availability: "implemented",
+        href: "/quality/nonconforming-work?scenario=contained-attention&case=ncw-014",
+        nextStepLabel:
+          "Concluir a evidencia documental da suspensao preventiva antes de liberar o uso novamente nas novas OS.",
         blockers: [],
-        warnings: ["A classificacao ainda depende da interpretacao cruzada entre workspace e NC."],
+        warnings: ["A liberacao ainda nao pode ocorrer por acordo informal; precisa permanecer no mesmo recorte auditavel."],
       },
       {
         key: "internal-audit",
@@ -258,7 +261,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       "NC critica aberta com reclamacao correlata exige resposta formal da Qualidade.",
     ],
     warnings: [
-      "Trabalho nao conforme segue planejado e precisa nascer sem perder o contexto critico atual.",
+      "A contencao critica, a reclamacao e a regra de reemissao precisam seguir o mesmo parecer formal da Qualidade.",
     ],
     modules: [
       {
@@ -296,13 +299,16 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "nonconforming-work",
-        metricLabel: "OS congelada por contencao",
-        summary: "O tratamento de trabalho nao conforme ainda depende da leitura manual entre workspace, NC e trilha critica.",
+        metricLabel: "OS congelada | nova OS exigivel",
+        summary:
+          "Modulo canonico ativo para congelamento explicito, bloqueio de liberacao e regra fail-closed de reemissao do recorte critico.",
         status: "blocked",
-        availability: "planned",
-        nextStepLabel: "Materializar a triagem de trabalho nao conforme com bloqueio explicito de OS e lote.",
-        blockers: ["Sem modulo dedicado, a contencao fica distribuida entre telas operacionais."],
-        warnings: [],
+        availability: "implemented",
+        href: "/quality/nonconforming-work?scenario=release-blocked&case=ncw-015",
+        nextStepLabel:
+          "Registrar a decisao formal do caso e abrir nova OS se a correcao alterar leitura bruta, padrao ou ambiente.",
+        blockers: ["A liberacao do recorte continua vedada enquanto a correção depender de reavaliacao do caso critico."],
+        warnings: ["A reemissao nao pode ser usada para mascarar mudanca de recorte tecnico; se mudou, abre nova OS."],
       },
       {
         key: "internal-audit",
@@ -365,7 +371,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
   "stable-baseline": {
     label: "Qualidade em baseline estavel",
     description:
-      "O recorte atual nao apresenta bloqueio critico e o hub destaca quais leituras ja estao prontas para auditoria e qual area continua planejada.",
+      "O recorte atual nao apresenta bloqueio critico e o hub destaca quais leituras ja estao prontas para auditoria com todas as areas dedicadas do modulo implementadas.",
     status: "ready",
     selectedModuleKey: "audit-trail",
     links: {
@@ -384,9 +390,9 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       nextManagementReviewLabel: "30/06/2026",
     },
     recommendedAction:
-      "Manter as leituras implementadas verdes, usar o hub como porta de entrada do gestor e seguir expandindo as areas ainda planejadas sem drift de contexto.",
+      "Manter as leituras implementadas verdes, usar o hub como porta de entrada do gestor e reaproveitar o historico encerrado como precedente auditavel.",
     blockers: [],
-    warnings: ["A area ainda planejada permanece visivel como backlog regulado e nao como dado ficticio."],
+    warnings: [],
     modules: [
       {
         key: "nonconformities",
@@ -423,11 +429,14 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "nonconforming-work",
-        metricLabel: "Sem OS congelada",
-        summary: "O tratamento especifico de trabalho nao conforme permanece planejado, sem caso aberto no recorte atual.",
+        metricLabel: "Historico arquivado | sem contencao aberta",
+        summary:
+          "Modulo canonico ativo com historico encerrado, regra de liberacao formalizada e nenhum caso interno aberto no recorte atual.",
         status: "ready",
-        availability: "planned",
-        nextStepLabel: "Criar o modulo dedicado antes do primeiro caso recorrente depender de rastreio manual.",
+        availability: "implemented",
+        href: "/quality/nonconforming-work?scenario=archived-history&case=ncw-011",
+        nextStepLabel:
+          "Manter o historico arquivado e reabrir contencao apenas quando surgir um novo recorte interno de 7.10.",
         blockers: [],
         warnings: [],
       },

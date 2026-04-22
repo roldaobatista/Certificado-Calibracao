@@ -19,6 +19,7 @@ export * from "./emission-workspace.js";
 export * from "./emission-dry-run.js";
 export * from "./mobile-offline-calibration.js";
 export * from "./management-review.js";
+export * from "./nonconforming-work.js";
 export * from "./offline-sync.js";
 export * from "./nonconformity-registry.js";
 export * from "./onboarding.js";

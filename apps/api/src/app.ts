@@ -16,6 +16,7 @@ import { registerEmissionWorkspaceRoutes } from "./interfaces/http/emission-work
 import { registerEquipmentRegistryRoutes } from "./interfaces/http/equipment-registry.js";
 import { registerInternalAuditRoutes } from "./interfaces/http/internal-audit.js";
 import { registerManagementReviewRoutes } from "./interfaces/http/management-review.js";
+import { registerNonconformingWorkRoutes } from "./interfaces/http/nonconforming-work.js";
 import { registerNonconformityRoutes } from "./interfaces/http/nonconformities.js";
 import { registerOfflineSyncRoutes } from "./interfaces/http/offline-sync.js";
 import { registerOnboardingRoutes } from "./interfaces/http/onboarding.js";
@@ -81,6 +82,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerEquipmentRegistryRoutes(app);
   await registerInternalAuditRoutes(app);
   await registerManagementReviewRoutes(app);
+  await registerNonconformingWorkRoutes(app);
   await registerNonconformityRoutes(app);
   await registerOfflineSyncRoutes(app);
   await registerQualityDocumentRoutes(app);

@@ -24,12 +24,12 @@ test("returns the default quality hub scenario when the query is unknown", () =>
   assert.equal(scenario.summary.status, "attention");
 });
 
-test("keeps the hub in attention while distinguishing implemented and planned areas", () => {
+test("keeps the hub in attention while distinguishing implemented areas without hidden backlog", () => {
   const scenario = resolveQualityHubScenario("operational-attention");
 
   assert.equal(scenario.selectedModuleKey, "nonconformities");
-  assert.equal(scenario.summary.implementedModuleCount, 8);
-  assert.equal(scenario.summary.plannedModuleCount, 1);
+  assert.equal(scenario.summary.implementedModuleCount, 9);
+  assert.equal(scenario.summary.plannedModuleCount, 0);
   assert.equal(scenario.modules.find((module) => module.key === "complaints")?.availability, "implemented");
   assert.match(
     scenario.modules.find((module) => module.key === "complaints")?.href ?? "",
@@ -62,6 +62,14 @@ test("keeps the hub in attention while distinguishing implemented and planned ar
   assert.match(
     scenario.modules.find((module) => module.key === "management-review")?.href ?? "",
     /quality\/management-review/i,
+  );
+  assert.equal(
+    scenario.modules.find((module) => module.key === "nonconforming-work")?.availability,
+    "implemented",
+  );
+  assert.match(
+    scenario.modules.find((module) => module.key === "nonconforming-work")?.href ?? "",
+    /quality\/nonconforming-work/i,
   );
 });
 

@@ -9,6 +9,7 @@ import {
   emissionDryRunCatalogSchema,
   emissionWorkspaceCatalogSchema,
   managementReviewCatalogSchema,
+  nonconformingWorkCatalogSchema,
   nonconformityRegistryCatalogSchema,
   offlineSyncCatalogSchema,
   equipmentRegistryCatalogSchema,
@@ -388,6 +389,33 @@ test("serves the canonical management review catalog from the backend", async ()
     assert.ok(blockedScenario);
     assert.equal(blockedScenario.detail.status, "blocked");
     assert.match(blockedScenario.detail.blockers.join(" "), /extraordinaria|liberacao|trilha/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical nonconforming work catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/quality/nonconforming-work?scenario=release-blocked&case=ncw-015",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = nonconformingWorkCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find(
+      (scenario) => scenario.id === "release-blocked",
+    );
+
+    assert.equal(payload.selectedScenarioId, "release-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.releaseRuleLabel, /nova OS|reemissao|leitura bruta/i);
   } finally {
     await app.close();
   }
