@@ -28,8 +28,8 @@ test("keeps the hub in attention while distinguishing implemented and planned ar
   const scenario = resolveQualityHubScenario("operational-attention");
 
   assert.equal(scenario.selectedModuleKey, "nonconformities");
-  assert.equal(scenario.summary.implementedModuleCount, 5);
-  assert.equal(scenario.summary.plannedModuleCount, 4);
+  assert.equal(scenario.summary.implementedModuleCount, 6);
+  assert.equal(scenario.summary.plannedModuleCount, 3);
   assert.equal(scenario.modules.find((module) => module.key === "complaints")?.availability, "implemented");
   assert.match(
     scenario.modules.find((module) => module.key === "complaints")?.href ?? "",
@@ -44,6 +44,11 @@ test("keeps the hub in attention while distinguishing implemented and planned ar
   assert.match(
     scenario.modules.find((module) => module.key === "documents")?.href ?? "",
     /quality\/documents/i,
+  );
+  assert.equal(scenario.modules.find((module) => module.key === "indicators")?.availability, "implemented");
+  assert.match(
+    scenario.modules.find((module) => module.key === "indicators")?.href ?? "",
+    /quality\/indicators/i,
   );
 });
 
@@ -60,11 +65,11 @@ test("blocks the quality hub when the audit trail integrity fails closed", () =>
 });
 
 test("allows switching the selected module inside the same scenario", () => {
-  const scenario = resolveQualityHubScenario("stable-baseline", "documents");
+  const scenario = resolveQualityHubScenario("stable-baseline", "indicators");
 
-  assert.equal(scenario.selectedModuleKey, "documents");
+  assert.equal(scenario.selectedModuleKey, "indicators");
   assert.equal(
-    scenario.modules.find((module) => module.key === "documents")?.availability,
+    scenario.modules.find((module) => module.key === "indicators")?.availability,
     "implemented",
   );
 });

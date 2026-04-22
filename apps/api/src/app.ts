@@ -25,6 +25,7 @@ import { registerProcedureRegistryRoutes } from "./interfaces/http/procedure-reg
 import { registerPublicCertificateRoutes } from "./interfaces/http/public-certificate.js";
 import { registerQualityDocumentRoutes } from "./interfaces/http/quality-documents.js";
 import { registerQualityHubRoutes } from "./interfaces/http/quality-hub.js";
+import { registerQualityIndicatorRoutes } from "./interfaces/http/quality-indicators.js";
 import { registerRiskRegisterRoutes } from "./interfaces/http/risk-register.js";
 import { registerReviewSignatureRoutes } from "./interfaces/http/review-signature.js";
 import { registerSelfSignupRoutes } from "./interfaces/http/self-signup.js";
@@ -80,6 +81,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerOfflineSyncRoutes(app);
   await registerQualityDocumentRoutes(app);
   await registerQualityHubRoutes(app);
+  await registerQualityIndicatorRoutes(app);
   await registerRiskRegisterRoutes(app);
   await registerReviewSignatureRoutes(app);
   await registerServiceOrderReviewRoutes(app);

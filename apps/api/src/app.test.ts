@@ -20,6 +20,7 @@ import {
   publicCertificateCatalogSchema,
   qualityDocumentRegistryCatalogSchema,
   qualityHubCatalogSchema,
+  qualityIndicatorRegistryCatalogSchema,
   riskRegisterCatalogSchema,
   reviewSignatureCatalogSchema,
   serviceOrderReviewCatalogSchema,
@@ -230,6 +231,31 @@ test("serves the canonical quality document catalog from the backend", async () 
     assert.ok(blockedScenario);
     assert.equal(blockedScenario.detail.status, "blocked");
     assert.match(blockedScenario.detail.blockers.join(" "), /obsoleta|operacional/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical quality indicator catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/quality/indicators?scenario=critical-drift&indicator=indicator-capa-effectiveness",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = qualityIndicatorRegistryCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "critical-drift");
+
+    assert.equal(payload.selectedScenarioId, "critical-drift");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.blockers.join(" "), /eficacia|reincidencia|critica/i);
   } finally {
     await app.close();
   }

@@ -92,7 +92,7 @@ const MODULE_META: Record<QualityHubModuleKey, ModuleMeta> = {
   indicators: {
     title: "Indicadores",
     clauseLabel: "ISO/IEC 17025 8.9",
-    ctaLabel: "Planejado",
+    ctaLabel: "Abrir indicadores",
   },
 };
 
@@ -123,7 +123,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
     blockers: [],
     warnings: [
       "O modulo de reclamacoes segue com uma resposta formal pendente e precisa de fechamento dentro do prazo.",
-      "Trabalho nao conforme, auditoria interna, analise critica e indicadores seguem explicitamente planejados.",
+      "Trabalho nao conforme, auditoria interna e analise critica seguem explicitamente planejados.",
     ],
     modules: [
       {
@@ -213,13 +213,14 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "indicators",
-        metricLabel: "Indicadores consolidados pendentes",
-        summary: "Os indicadores ainda nao possuem dashboard proprio; o hub apenas registra a demanda prevista no PRD.",
-        status: "ready",
-        availability: "planned",
-        nextStepLabel: "Materializar painel gerencial com tendencia de NC, reclamacoes, riscos e auditorias.",
+        metricLabel: "87,5% no prazo · 2 alertas",
+        summary: "Modulo canonico ativo para metas, tendencias de 12 meses, snapshots mensais e exportacao do consolidado para analise critica.",
+        status: "attention",
+        availability: "implemented",
+        href: "/quality/indicators?scenario=action-sla-attention&indicator=indicator-capa-sla",
+        nextStepLabel: "Recuperar o SLA de CAPA e reduzir a taxa de NC por area antes da proxima analise critica.",
         blockers: [],
-        warnings: [],
+        warnings: ["Dois indicadores seguem em atencao preventiva no recorte atual."],
       },
     ],
   },
@@ -251,7 +252,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       "NC critica aberta com reclamacao correlata exige resposta formal da Qualidade.",
     ],
     warnings: [
-      "Trabalho nao conforme, auditoria interna, analise critica e indicadores seguem planejados e precisam nascer sem perder o contexto critico atual.",
+      "Trabalho nao conforme, auditoria interna e analise critica seguem planejados e precisam nascer sem perder o contexto critico atual.",
     ],
     modules: [
       {
@@ -341,13 +342,14 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "indicators",
-        metricLabel: "Indicadores criticos sem painel",
-        summary: "Ainda nao existe dashboard dedicado para acompanhar impacto do incidente no sistema de gestao.",
-        status: "attention",
-        availability: "planned",
-        nextStepLabel: "Criar painel com severidade, tempo de resposta e reincidencia dos casos criticos.",
-        blockers: [],
-        warnings: [],
+        metricLabel: "3 indicadores em deriva critica",
+        summary: "Modulo canonico ativo para consolidar queda de reemissao, SLA CAPA, reincidencia e satisfacao do cliente no mesmo recorte critico.",
+        status: "blocked",
+        availability: "implemented",
+        href: "/quality/indicators?scenario=critical-drift&indicator=indicator-reissue-free",
+        nextStepLabel: "Usar o painel como ancora da resposta extraordinaria e revalidar metas apos saneamento do caso critico.",
+        blockers: ["O painel consolidado mostra deriva critica em reemissao, SLA e eficacia CAPA."],
+        warnings: ["A satisfacao do cliente tambem caiu no mesmo recorte de resposta critica."],
       },
     ],
   },
@@ -464,11 +466,12 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "indicators",
-        metricLabel: "Painel gerencial planejado",
-        summary: "O hub ainda nao tem dashboard dedicado de indicadores, mas preserva a necessidade como backlog auditavel.",
+        metricLabel: "6 indicadores dentro da meta",
+        summary: "Modulo canonico ativo com snapshots mensais, metas controladas e consolidado pronto para analise critica ordinaria.",
         status: "ready",
-        availability: "planned",
-        nextStepLabel: "Criar painel com tendencia de NC, reclamacoes, riscos e auditorias.",
+        availability: "implemented",
+        href: "/quality/indicators?scenario=baseline-ready&indicator=indicator-reissue-free",
+        nextStepLabel: "Manter a coleta mensal e reutilizar o consolidado na proxima pauta ordinaria da direcao.",
         blockers: [],
         warnings: [],
       },

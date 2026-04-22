@@ -28,6 +28,7 @@ export * from "./procedure-registry.js";
 export * from "./public-certificate.js";
 export * from "./quality-document-registry.js";
 export * from "./quality-hub.js";
+export * from "./quality-indicators.js";
 export * from "./registry-shared.js";
 export * from "./risk-register.js";
 export * from "./review-signature.js";
