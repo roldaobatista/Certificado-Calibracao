@@ -4,89 +4,97 @@
 
 ## Princípio
 
-Cada fatia é **emitível ponta a ponta** (dentro do seu escopo limitado) e tem dossiê de validação fechado **antes** de a próxima iniciar. Não há "fatia parcial" — ou a fatia sai com gate verde, ou não sai.
+Cada fatia é **emitível ponta a ponta** dentro do seu escopo e tem dossiê de validação fechado **antes** de a próxima iniciar. Não há "fatia parcial" — ou a fatia sai com gate verde, ou não sai.
+
+O roadmap vigente segue a ordem lógica de construção de software:
+
+1. fundação técnica;
+2. cadastros principais;
+3. fluxo operacional central;
+4. portal e extras;
+5. Qualidade e camadas regulatórias avançadas.
+
+**Regra dura de interpretação**: artefato canônico, tela de leitura ou contrato implementado fora de ordem **não fecha a fatia** correspondente. Para uma fase contar como concluída, ela precisa entregar banco, API, UI e testes reais do núcleo daquela fase.
 
 ## Fatias
 
-### V1 — Emissão Tipo B ou C em ambiente controlado
+### V1 — Fundação técnica
 **Escopo**
-- Organização Tipo B (laboratório não acreditado) **ou** Tipo C (prestadora simples).
-- Sem sync offline (tudo online).
-- Sem Tipo A (acreditado).
-- Wizard de emissão completo com bloqueios §9 ativos.
-- Backend `apps/api` com auth, RBAC básico, emissão, assinatura, QR.
-- Audit log com hash-chain + WORM.
+- Banco, schema, migrações, seeds e contratos básicos do núcleo operacional.
+- Autenticação, sessão, RBAC e persistência reais no backend.
+- Ambiente local reprodutível com API, web, portal e dependências de runtime.
 
 **Gate de saída**
-- 100% dos AC §13 do escopo Tipo B/C verdes.
+- Migrações e seeds canônicos rodam limpos no ambiente local e em CI.
+- Login, sessão e RBAC reais funcionam com isolamento multitenant ativo.
+- APIs centrais deixam de depender de cenários estáticos para o núcleo operacional.
 - Dossiê V1 fechado em `compliance/validation-dossier/releases/v1.md`.
 - Release-norm V1 aprovado por `product-governance`.
 - Pacote normativo v1.0.0 assinado e em uso.
 
-**Prazo realista estimado:** 6–8 semanas.
+**Prazo realista estimado:** 4–6 semanas.
 
 ---
 
-### V2 — Sync offline-first robusto
+### V2 — Cadastros principais
 **Escopo**
-- Android em campo, 100% offline.
-- Simulador determinístico (ver `08-sync-simulator.md`) com todos os cenários C1–C8 verdes.
-- Reconciliação server-side com fila de revisão humana.
-- SQLCipher + chave derivada por device.
+- CRUD real de clientes, equipamentos, padrões/pesos, procedimentos e usuários.
+- Vínculos obrigatórios entre cliente, endereço, equipamento, padrão e competência.
+- Busca, filtros básicos, arquivamento e trilha mínima de auditoria dos cadastros.
 
 **Gate de saída**
-- Matriz de conflitos 100% coberta com seeds canônicos.
-- 1 seed weekly rodou sem falha.
-- Dossiê V2 inclui trace de cada cenário.
+- Todos os cadastros principais criam, editam, listam e arquivam dados reais no banco.
+- As regras de elegibilidade de padrão, vínculo de equipamento e competência ficam aplicadas sobre dados persistidos.
+- O back-office deixa de depender apenas de catálogos canônicos nos cadastros principais.
+- Dossiê V2 fechado em `compliance/validation-dossier/releases/v2.md`.
 
 **Prazo realista:** +4–6 semanas.
 
 ---
 
-### V3 — Tipo A (acreditado) com escopo/CMC e símbolo Cgcre/RBC
+### V3 — Fluxo operacional central
 **Escopo**
-- Perfil A habilitado.
-- Cadastro formal de escopo acreditado + CMC.
-- Template A com selo Cgcre/RBC aplicado por regra de arquitetura.
-- Bloqueio absoluto: Tipo B/C não conseguem emitir com selo (campo nem existe na UI e validação server-side).
+- Abertura e ciclo real da OS.
+- Revisão técnica, assinatura e emissão oficial do certificado.
+- Numeração sequencial, declaração metrológica, eventos críticos e persistência do fluxo ponta a ponta.
 
 **Gate de saída**
-- Testes anti-deriva: tentativa semântica de Tipo B inserir selo = rejeição.
-- `regulator` aprova escopo/CMC implementados.
+- Existe caminho real ponta a ponta de OS até certificado emitido em ambiente controlado.
+- Revisão técnica, assinatura e audit trail rodam sobre dados persistidos e atores reais.
+- Numeração e declaração do certificado saem do fluxo operacional, não de cenários estáticos.
 - `product-governance` libera release V3.
-- Parecer jurídico datado em `compliance/legal-opinions/`.
 
 **Prazo realista:** +6–8 semanas.
 
 ---
 
-### V4 — Reemissão controlada (ISO 17025 §7.8.8)
+### V4 — Portal e extras
 **Escopo**
-- Fluxo completo de reemissão com justificativa.
-- Hash-chain preservada: certificado original continua acessível e verificável.
-- Novo certificado referencia o anterior.
-- Trilha imutável de quem pediu, quem revisou, quem aprovou.
+- Portal do cliente com dashboard, carteira de equipamentos e visualização do certificado.
+- Verificação pública por QR e reemissão controlada sobre certificados reais persistidos.
+- Canal mobile/offline e sync entram aqui como extensão operacional após o fechamento do fluxo central.
 
 **Gate de saída**
-- Teste de imutabilidade: certificado original não sofre alteração após reemissão.
-- Verificação por QR continua funcional para certificado antigo.
-- Fuzz cross-tenant verde.
+- Portal do cliente opera sobre dados reais de equipamentos e certificados.
+- Verificação pública responde com metadados mínimos e autenticidade de certificados reais.
+- Reemissão controlada preserva histórico, QR anterior e trilha de aprovação.
+- O canal mobile/offline, quando habilitado, mantém matriz de conflitos e fila humana verdes no dossiê V4.
 
-**Prazo realista:** +4 semanas.
+**Prazo realista:** +6–8 semanas.
 
 ---
 
-### V5 — Módulo Qualidade completo
+### V5 — Qualidade e camadas regulatórias avançadas
 **Escopo**
-- Gestão de não-conformidades.
-- Controle de competências.
-- Auditorias internas.
-- Indicadores e análise crítica.
+- Módulo de Qualidade operando sobre OS, revisões, certificados e evidências reais.
+- Não conformidades, auditorias internas, indicadores, análise crítica e governança de release.
+- Camadas regulatórias avançadas, incluindo perfil Tipo A, escopo/CMC e pareceres formais.
 
 **Gate de saída**
-- Auditoria interna dry-run executada com auditor convidado.
-- Relatório em `compliance/release-norm/v5-dry-run.md`.
-- Módulo Qualidade passa em auditoria simulada ISO 17025.
+- Qualidade deixa de ser apenas leitura canônica e passa a operar sobre dados persistidos do núcleo.
+- Regras de perfil regulatório, escopo/CMC e pacote normativo ficam integradas ao fluxo real.
+- Auditoria interna dry-run e governança de release ficam arquivados no dossiê V5.
+- `product-governance` libera V5 com pareceres necessários e pacote normativo vigente.
 
 **Prazo realista:** +6–8 semanas.
 
@@ -94,7 +102,7 @@ Cada fatia é **emitível ponta a ponta** (dentro do seu escopo limitado) e tem 
 
 ## Total realista
 
-**V1 → V5: ~26–34 semanas** (≈ 6–8 meses).
+**V1 → V5: ~26–36 semanas** (≈ 6–9 meses).
 
 Compara com o roadmap original de 4 semanas do `HARNESS_DESIGN.md` — que era, reconhecidamente, otimista para o escopo do PRD.
 
@@ -103,7 +111,8 @@ Compara com o roadmap original de 4 semanas do `HARNESS_DESIGN.md` — que era, 
 1. Nenhuma fatia inicia sem gate da anterior fechado em `compliance/release-norm/`.
 2. Gate de saída inclui: dossiê de validação, pacote normativo vigente, guardrails verdes, aprovação `product-governance`.
 3. Regressão em fatia anterior (teste que era verde fica vermelho) = release da nova fatia bloqueado.
-4. Fatia pode ser **dividida** se escopo crescer, mas nunca **mesclada** (cada uma mantém gate próprio).
+4. Fatia pode ser **dividida** se escopo crescer, mas nunca **mesclada**; cada uma mantém gate próprio.
+5. Adiantamentos canônicos fora de ordem contam como ativos preparatórios, não como fechamento da fatia.
 
 ## Gate executável
 
@@ -119,11 +128,32 @@ Compara com o roadmap original de 4 semanas do `HARNESS_DESIGN.md` — que era, 
 - release-norm, dossiê e pacote normativo por fatia;
 - escopo, agentes primários e gates de saída por fatia.
 
-O gate entra em `pnpm check:all` e no pre-commit quando arquivos P1-4 mudam.
+`pnpm roadmap-backlog-check` valida `compliance/roadmap/execution-backlog.yaml` como complemento operacional do roadmap:
+
+- cadeia explícita `V1.1 ... V5.x`;
+- coerência entre `id`, `slice` e as fatias declaradas em `v1-v5.yaml`;
+- dependências apenas para itens anteriores;
+- janelas `now`, `next` e `later` sem regressão de prioridade;
+- `linked_requirements` do item restritos aos requisitos já atribuídos à fatia correspondente.
+
+Os dois gates entram em `pnpm check:all` e no pre-commit quando arquivos P1-4 mudam.
+
+## Backlog operacional
+
+`compliance/roadmap/execution-backlog.yaml` traduz o roadmap em sequência executável. Ele não substitui V1-V5; ele responde "qual é o próximo passo?" sem reabrir a governança macro.
+
+Regras de leitura:
+
+- cada item do backlog pertence a exatamente uma fatia;
+- fechar um item não fecha a fatia por si só;
+- a janela `now/next/later` orienta prioridade, não aprovação regulatória;
+- a conclusão da fatia continua dependendo do gate de saída declarado em `v1-v5.yaml`.
 
 ## Paralelização possível
 
 Dentro de uma fatia, agentes podem trabalhar em paralelo (Tier 2) em áreas não conflitantes:
-- V1: `backend-api` + `web-ui` + `db-schema` em paralelo após specs aprovadas.
-- V2: `android` foca; `backend-api` suporta.
-- V3: `regulator` + `backend-api` + `web-ui` em sequência curta.
+- V1: `backend-api` + `db-schema` + `web-ui` em paralelo após specs aprovadas.
+- V2: `backend-api` + `web-ui` + `db-schema` fatiam os cadastros por domínio.
+- V3: `backend-api` + `web-ui` + `metrology-calc` fecham o fluxo central.
+- V4: `backend-api` + `web-ui` + `android` atacam portal, reemissão e canal offline sem reabrir o núcleo.
+- V5: `backend-api` + `web-ui` + `regulator` + `product-governance` consolidam Qualidade e camadas regulatórias.

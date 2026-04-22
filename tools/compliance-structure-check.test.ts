@@ -75,6 +75,7 @@ function writeCompleteComplianceTree(root: string) {
     "compliance/regulator-decisions/README.md",
     "compliance/release-norm/README.md",
     "compliance/roadmap/README.md",
+    "compliance/roadmap/execution-backlog.yaml",
     "compliance/roadmap/transversal-tracks.yaml",
     "compliance/roadmap/v1-v5.yaml",
     "compliance/runbooks/README.md",
@@ -126,6 +127,7 @@ test("fails when canonical compliance artifacts are missing", async () => {
 
     assert.match(result.errors.join("\n"), /COMP-001/);
     assert.match(result.errors.join("\n"), /compliance\/README\.md/);
+    assert.match(result.errors.join("\n"), /compliance\/roadmap\/execution-backlog\.yaml/);
     assert.match(result.errors.join("\n"), /compliance\/roadmap\/transversal-tracks\.yaml/);
     assert.match(result.errors.join("\n"), /compliance\/validation-dossier\/requirements\.yaml/);
     assert.match(result.errors.join("\n"), /compliance\/release-norm/);
@@ -160,7 +162,7 @@ test("passes when the canonical compliance tree and README references are presen
     const result = checkComplianceStructure(root);
 
     assert.deepEqual(result.errors, []);
-    assert.equal(result.checkedArtifacts, 56);
+    assert.equal(result.checkedArtifacts, 57);
     assert.equal(result.checkedReadmeReferences, 13);
   } finally {
     cleanup();

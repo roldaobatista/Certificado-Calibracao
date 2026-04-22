@@ -48,6 +48,7 @@ const REQUIRED_ARTIFACTS: RequiredArtifact[] = [
   { path: "compliance/regulator-decisions/README.md", type: "file" },
   { path: "compliance/release-norm/README.md", type: "file" },
   { path: "compliance/roadmap/README.md", type: "file" },
+  { path: "compliance/roadmap/execution-backlog.yaml", type: "file" },
   { path: "compliance/roadmap/transversal-tracks.yaml", type: "file" },
   { path: "compliance/roadmap/v1-v5.yaml", type: "file" },
   { path: "compliance/runbooks/README.md", type: "file" },

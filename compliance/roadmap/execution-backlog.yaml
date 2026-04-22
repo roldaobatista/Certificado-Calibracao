@@ -1,0 +1,498 @@
+version: 1
+source: harness/10-roadmap.md
+roadmap_path: compliance/roadmap/v1-v5.yaml
+policy:
+  foundation_first: true
+  backlog_item_does_not_close_slice: true
+  slice_gate_still_required: true
+  planning_windows_are_advisory: true
+items:
+  - id: V1.1
+    slice: V1
+    planning_window: now
+    title: Ambiente local reprodutível
+    depends_on: []
+    primary_agents:
+      - backend-api
+      - web-ui
+      - db-schema
+    linked_requirements:
+      - REQ-HARNESS-P0-1-BACKEND-READINESS
+    objective: Colocar API, web, portal, Postgres e Redis em um bootstrap local previsível e repetível.
+    deliverables:
+      - Compose, env e portas estáveis sem conflito com outros projetos locais.
+      - Scripts e rotina canônica de subida, readiness e troubleshoot do ambiente.
+    done_when:
+      - API, web e portal sobem localmente com banco e cache funcionais.
+      - Readiness, migrations e seeds podem ser executados ponta a ponta no setup padrão.
+  - id: V1.2
+    slice: V1
+    planning_window: now
+    title: Banco, schema, migrações e seeds do núcleo
+    depends_on:
+      - V1.1
+    primary_agents:
+      - db-schema
+      - backend-api
+    linked_requirements:
+      - REQ-PRD-13-13-RLS-ISOLATION
+    objective: Estruturar a base persistente multitenant que sustenta cadastros, fluxo operacional e auditoria.
+    deliverables:
+      - Schema inicial do núcleo operacional com tenancy explícita.
+      - Migrações, seeds e políticas base de isolamento prontos para CI e ambiente local.
+    done_when:
+      - O banco sobe com migrações idempotentes e seeds determinísticos.
+      - Entidades-base do núcleo deixam de depender de payloads apenas estáticos.
+  - id: V1.3
+    slice: V1
+    planning_window: now
+    title: Autenticação, sessão e RBAC reais
+    depends_on:
+      - V1.2
+    primary_agents:
+      - backend-api
+      - lgpd-security
+      - web-ui
+    linked_requirements:
+      - REQ-PRD-13-11-AUTH-SSO-MFA
+    objective: Sair do acesso demonstrativo e estabelecer login real, sessão persistida e autorização por papel.
+    deliverables:
+      - Fluxo de autenticação real com sessão e contexto de tenant.
+      - Guardas de autorização para áreas sensíveis do back-office e portal.
+    done_when:
+      - Usuários reais autenticam, mantêm sessão e recebem permissões corretas por perfil.
+      - A UI deixa de depender de cenários livres para acessar áreas do núcleo.
+  - id: V1.4
+    slice: V1
+    planning_window: now
+    title: Onboarding e bootstrap do tenant
+    depends_on:
+      - V1.3
+    primary_agents:
+      - backend-api
+      - web-ui
+      - db-schema
+    linked_requirements:
+      - REQ-PRD-13-12-ONBOARDING-WIZARD-BLOCKS
+    objective: Transformar o onboarding em caminho real de criação controlada da organização e dos bloqueios iniciais.
+    deliverables:
+      - Wizard de onboarding conectado a persistência real.
+      - Regras fail-closed para impedir avanço sem dados críticos do tenant.
+    done_when:
+      - Uma organização pode ser criada e preparada sem intervenção manual fora do fluxo previsto.
+      - Os bloqueios do wizard refletem dados persistidos e não somente cenários canônicos.
+  - id: V1.5
+    slice: V1
+    planning_window: now
+    title: Contracts básicos e backend persistido do núcleo
+    depends_on:
+      - V1.4
+    primary_agents:
+      - backend-api
+      - db-schema
+      - web-ui
+    linked_requirements: []
+    objective: Fechar a fundação tirando o núcleo operacional de leituras estáticas e consolidando contratos sobre persistência real.
+    deliverables:
+      - Repositórios, serviços e contracts básicos acoplados ao banco do núcleo.
+      - Baseline V1 pronto para destravar cadastros sem reabrir a fundação.
+    done_when:
+      - Endpoints centrais do núcleo operam sobre persistência real e não apenas cenários.
+      - O backlog de V2 pode começar sem depender de refação estrutural da fundação.
+  - id: V2.1
+    slice: V2
+    planning_window: next
+    title: Usuários, papéis e competências
+    depends_on:
+      - V1.5
+    primary_agents:
+      - backend-api
+      - web-ui
+    linked_requirements:
+      - REQ-PRD-13-09-SIGNATORY-COMPETENCE-BLOCK
+    objective: Abrir o primeiro cadastro real do domínio operacional, com foco em usuários, papéis e competências críticas.
+    deliverables:
+      - CRUD real de usuários e vínculo com perfis operacionais.
+      - Registro e bloqueio básico de competências expiradas ou insuficientes.
+    done_when:
+      - Usuários são criados, editados e arquivados no banco.
+      - A competência influencia autorização de revisão e assinatura quando aplicável.
+  - id: V2.2
+    slice: V2
+    planning_window: next
+    title: Clientes e endereços
+    depends_on:
+      - V2.1
+    primary_agents:
+      - backend-api
+      - web-ui
+      - db-schema
+    linked_requirements:
+      - REQ-PRD-13-08-EQUIPMENT-CUSTOMER-ADDRESS
+    objective: Materializar o cadastro real do cliente como base dos vínculos operacionais.
+    deliverables:
+      - CRUD de clientes com contatos e endereços persistidos.
+      - Estrutura de vínculo pronta para OS, equipamentos e certificados.
+    done_when:
+      - Clientes e endereços podem ser geridos integralmente no back-office.
+      - Equipamentos e OS passam a ter referência persistida para cliente e local.
+  - id: V2.3
+    slice: V2
+    planning_window: next
+    title: Padrões e pesos
+    depends_on:
+      - V2.2
+    primary_agents:
+      - backend-api
+      - web-ui
+      - db-schema
+    linked_requirements:
+      - REQ-PRD-13-02-STANDARD-ELIGIBILITY-BLOCK
+    objective: Substituir o catálogo demonstrativo por um cadastro real de padrões e pesos com elegibilidade rastreável.
+    deliverables:
+      - CRUD de padrões e pesos com status, validade e disponibilidade.
+      - Regras de elegibilidade aplicadas sobre dados persistidos.
+    done_when:
+      - O operador consegue cadastrar e consultar padrões reais do laboratório.
+      - Itens inelegíveis deixam de poder sustentar emissão futura sem liberação válida.
+  - id: V2.4
+    slice: V2
+    planning_window: next
+    title: Procedimentos versionados
+    depends_on:
+      - V2.3
+    primary_agents:
+      - backend-api
+      - web-ui
+    linked_requirements: []
+    objective: Organizar o cadastro operacional de procedimentos antes de abrir o fluxo real da OS.
+    deliverables:
+      - CRUD de procedimentos com revisão vigente e histórico básico.
+      - Base de vínculo entre procedimento, equipamento e padrão.
+    done_when:
+      - Procedimentos passam a existir como dado persistido e selecionável.
+      - A OS futura consegue apontar para um procedimento real e versionado.
+  - id: V2.5
+    slice: V2
+    planning_window: next
+    title: Equipamentos e vínculos obrigatórios
+    depends_on:
+      - V2.4
+    primary_agents:
+      - backend-api
+      - web-ui
+      - db-schema
+    linked_requirements:
+      - REQ-PRD-13-08-EQUIPMENT-CUSTOMER-ADDRESS
+    objective: Consolidar o cadastro de equipamentos com todos os vínculos mínimos do domínio metrológico.
+    deliverables:
+      - CRUD de equipamentos conectado a cliente, endereço, procedimento e padrão aplicável.
+      - Regras de consistência mínima para impedir vínculo incompleto.
+    done_when:
+      - Equipamentos podem ser cadastrados e localizados no banco com seus vínculos essenciais.
+      - O fluxo de OS encontra equipamentos reais já preparados para uso operacional.
+  - id: V2.6
+    slice: V2
+    planning_window: next
+    title: Busca, arquivamento e trilha mínima dos cadastros
+    depends_on:
+      - V2.5
+    primary_agents:
+      - backend-api
+      - web-ui
+    linked_requirements: []
+    objective: Fechar V2 com ergonomia mínima de operação e rastreabilidade básica sobre os cadastros persistidos.
+    deliverables:
+      - Busca, filtros, arquivamento e leitura consistente entre os cadastros principais.
+      - Registro mínimo de alterações para suporte ao fluxo operacional central.
+    done_when:
+      - Os cadastros deixam de depender de páginas isoladas e passam a operar como conjunto coerente.
+      - O núcleo de dados está pronto para abrir OS e certificados sobre registros reais.
+  - id: V3.1
+    slice: V3
+    planning_window: later
+    title: Abertura e ciclo real da OS
+    depends_on:
+      - V2.6
+    primary_agents:
+      - backend-api
+      - web-ui
+      - db-schema
+    linked_requirements: []
+    objective: Iniciar o fluxo central com ordem de serviço real, baseada em cadastros e atores persistidos.
+    deliverables:
+      - Criação, edição e transição básica da OS sobre dados reais.
+      - Vínculo de OS com cliente, equipamento, procedimento e padrão selecionado.
+    done_when:
+      - Existe OS persistida e navegável sem depender de cenários estáticos.
+      - O operador consegue iniciar o fluxo técnico usando apenas dados reais do sistema.
+  - id: V3.2
+    slice: V3
+    planning_window: later
+    title: Resultados técnicos e declarações metrológicas
+    depends_on:
+      - V3.1
+    primary_agents:
+      - backend-api
+      - metrology-calc
+      - web-ui
+    linked_requirements:
+      - REQ-PRD-13-03-CERTIFICATE-MEASUREMENT-DECLARATIONS
+    objective: Registrar os resultados que alimentarão a revisão e a emissão do certificado.
+    deliverables:
+      - Estrutura persistida para medições, resultados e declarações obrigatórias.
+      - Base para compor a futura saída do certificado com dados reais da OS.
+    done_when:
+      - A OS passa a guardar o conteúdo técnico essencial para emissão.
+      - Declarações metrológicas deixam de existir apenas na prévia canônica.
+  - id: V3.3
+    slice: V3
+    planning_window: later
+    title: Revisão técnica real
+    depends_on:
+      - V3.2
+    primary_agents:
+      - backend-api
+      - web-ui
+    linked_requirements:
+      - REQ-PRD-13-04-TECHNICAL-REVIEW-SIGNATURE-AUDIT
+    objective: Introduzir a aprovação técnica formal antes da assinatura e emissão.
+    deliverables:
+      - Workflow persistido de revisão com checklist, parecer e bloqueios.
+      - Vínculo da revisão com usuário competente e dados reais da OS.
+    done_when:
+      - Nenhum certificado segue para assinatura sem revisão técnica registrada.
+      - A revisão pode reprovar, pedir ajuste ou aprovar com rastreabilidade completa.
+  - id: V3.4
+    slice: V3
+    planning_window: later
+    title: Assinatura eletrônica do certificado
+    depends_on:
+      - V3.3
+    primary_agents:
+      - backend-api
+      - web-ui
+      - lgpd-security
+    linked_requirements:
+      - REQ-PRD-13-04-TECHNICAL-REVIEW-SIGNATURE-AUDIT
+    objective: Fechar a etapa de autorização formal do documento com assinatura compatível ao fluxo real.
+    deliverables:
+      - Passo de assinatura com reautenticação e vínculo ao revisor autorizado.
+      - Registro persistido da aprovação final antes da emissão oficial.
+    done_when:
+      - A assinatura deixa de ser fila canônica apenas demonstrativa.
+      - O sistema consegue provar quem assinou, quando e sobre qual revisão.
+  - id: V3.5
+    slice: V3
+    planning_window: later
+    title: Emissão, numeração e trilha crítica
+    depends_on:
+      - V3.4
+    primary_agents:
+      - backend-api
+      - web-ui
+      - db-schema
+      - metrology-calc
+    linked_requirements:
+      - REQ-PRD-13-06-CRITICAL-EVENT-AUDIT-TRAIL
+      - REQ-PRD-13-14-SEQUENTIAL-NUMBERING
+    objective: Concluir o núcleo operacional com certificado emitido oficialmente, número sequencial e eventos críticos persistidos.
+    deliverables:
+      - Emissão oficial de certificado vinculada à OS revisada e assinada.
+      - Numeração sequencial, audit trail crítico e fail-closed para emissão inválida.
+    done_when:
+      - Existe caminho real de OS para certificado emitido em ambiente controlado.
+      - Numeração e trilha deixam de depender de cenários determinísticos de leitura.
+  - id: V4.1
+    slice: V4
+    planning_window: later
+    title: Verificação pública por QR
+    depends_on:
+      - V3.5
+    primary_agents:
+      - backend-api
+      - web-ui
+      - lgpd-security
+    linked_requirements:
+      - REQ-PRD-13-05-PUBLIC-QR-AUTHENTICITY
+      - REQ-PRD-13-17-PUBLIC-QR-MINIMAL-METADATA
+    objective: Expor autenticidade pública do certificado real com metadados mínimos e fail-closed.
+    deliverables:
+      - Endpoint e tela pública de verificação do QR.
+      - Política mínima de metadados para consulta externa.
+    done_when:
+      - Um certificado emitido no fluxo central pode ser verificado fora do sistema autenticado.
+      - A verificação pública não vaza além do conjunto mínimo aprovado.
+  - id: V4.2
+    slice: V4
+    planning_window: later
+    title: Portal autenticado do cliente
+    depends_on:
+      - V4.1
+    primary_agents:
+      - web-ui
+      - backend-api
+      - lgpd-security
+    linked_requirements: []
+    objective: Abrir o canal autenticado do cliente apoiado em dados reais do fluxo central.
+    deliverables:
+      - Acesso autenticado ao portal com contexto do cliente correto.
+      - Base de leitura para dashboard, equipamentos e certificados reais.
+    done_when:
+      - O cliente acessa sua carteira sem depender de cenários estáticos.
+      - O portal opera sobre os mesmos registros persistidos do back-office.
+  - id: V4.3
+    slice: V4
+    planning_window: later
+    title: Dashboard, carteira de equipamentos e certificados
+    depends_on:
+      - V4.2
+    primary_agents:
+      - web-ui
+      - backend-api
+    linked_requirements: []
+    objective: Entregar a navegação principal do cliente com visão operacional dos ativos e certificados emitidos.
+    deliverables:
+      - Dashboard do cliente com vencimentos, equipamentos e certificados recentes.
+      - Carteira navegável de equipamentos e visualização dos certificados reais.
+    done_when:
+      - O portal mostra dados reais de equipamentos e certificados emitidos.
+      - O cliente consegue localizar e acompanhar seus registros sem apoio manual.
+  - id: V4.4
+    slice: V4
+    planning_window: later
+    title: Reemissão controlada
+    depends_on:
+      - V4.3
+    primary_agents:
+      - backend-api
+      - web-ui
+      - db-schema
+    linked_requirements:
+      - REQ-PRD-13-16-CONTROLLED-REISSUE
+    objective: Habilitar reemissão sem perder histórico, justificativa e autenticidade do documento original.
+    deliverables:
+      - Workflow real de reemissão com motivo, aprovação e vínculo ao certificado anterior.
+      - Preservação da cadeia histórica para auditoria e consulta pública.
+    done_when:
+      - O sistema reemite mantendo rastro do documento original.
+      - Cliente e back-office conseguem distinguir claramente original e reemitido.
+  - id: V4.5
+    slice: V4
+    planning_window: later
+    title: Canal mobile offline e sync
+    depends_on:
+      - V4.4
+    primary_agents:
+      - android
+      - backend-api
+      - qa-acceptance
+      - lgpd-security
+    linked_requirements:
+      - REQ-PRD-13-01-MOBILE-OFFLINE-CALIBRATION
+      - REQ-PRD-13-07-ANDROID-SYNC-IDEMPOTENCY
+      - REQ-PRD-13-20-OFFLINE-SYNC-CHAOS
+      - REQ-HARNESS-P1-1-SYNC-SIMULATOR
+    objective: Levar o fluxo central já estabilizado para o canal mobile/offline sem inverter a prioridade do núcleo web.
+    deliverables:
+      - App e sync conectados ao fluxo real de OS/certificado como canal complementar.
+      - Evidência de conflitos, idempotência e fila humana sobre dados reais.
+    done_when:
+      - O mobile consome e devolve eventos do fluxo central com segurança.
+      - A matriz de sync deixa de cobrir apenas cenários artificiais e passa a acompanhar o canal real.
+  - id: V5.1
+    slice: V5
+    planning_window: later
+    title: Não conformidades e trabalho não conforme
+    depends_on:
+      - V4.5
+    primary_agents:
+      - backend-api
+      - web-ui
+      - product-governance
+    linked_requirements: []
+    objective: Abrir a camada de Qualidade sobre dados reais do núcleo operacional.
+    deliverables:
+      - Módulo de NC e trabalho não conforme operando sobre OS, certificados e evidências reais.
+      - Regras básicas de contenção e rastreabilidade ligadas ao núcleo persistido.
+    done_when:
+      - A Qualidade deixa de ser apenas leitura canônica e passa a atuar sobre o fluxo real.
+      - Casos críticos ficam vinculados a registros reais e auditáveis do sistema.
+  - id: V5.2
+    slice: V5
+    planning_window: later
+    title: Auditorias internas
+    depends_on:
+      - V5.1
+    primary_agents:
+      - backend-api
+      - web-ui
+      - qa-acceptance
+    linked_requirements: []
+    objective: Materializar o programa de auditoria interna já apoiado em dados reais do núcleo e da Qualidade.
+    deliverables:
+      - Ciclos, checklist, achados e follow-up conectados a evidências persistidas.
+      - Base para dry-run regulatório e dossiê V5.
+    done_when:
+      - Auditoria interna deixa de ser apenas previsão de módulo.
+      - Os achados conseguem apontar para evidências reais da operação.
+  - id: V5.3
+    slice: V5
+    planning_window: later
+    title: Indicadores e painel gerencial
+    depends_on:
+      - V5.2
+    primary_agents:
+      - backend-api
+      - web-ui
+      - qa-acceptance
+    linked_requirements: []
+    objective: Consolidar indicadores de Qualidade e operação para gestão contínua do laboratório.
+    deliverables:
+      - Painel de indicadores baseado em dados persistidos do fluxo central e da Qualidade.
+      - Recortes mínimos para monitorar prazos, NCs, reemissões e desempenho operacional.
+    done_when:
+      - Indicadores deixam de depender de snapshots demonstrativos isolados.
+      - A gestão passa a enxergar tendências reais do sistema em produção controlada.
+  - id: V5.4
+    slice: V5
+    planning_window: later
+    title: Análise crítica pela direção
+    depends_on:
+      - V5.3
+    primary_agents:
+      - web-ui
+      - backend-api
+      - product-governance
+    linked_requirements: []
+    objective: Fechar o ciclo de gestão com reunião, entradas automáticas e deliberações baseadas em dados reais.
+    deliverables:
+      - Pauta, entradas e deliberações de análise crítica conectadas aos indicadores e achados reais.
+      - Evidência pronta para o dossiê e para a governança de release.
+    done_when:
+      - A análise crítica consolida efetivamente insumos reais do sistema.
+      - O laboratório passa a ter trilha auditável da gestão crítica sobre a operação.
+  - id: V5.5
+    slice: V5
+    planning_window: later
+    title: Governança regulatória avançada
+    depends_on:
+      - V5.4
+    primary_agents:
+      - regulator
+      - product-governance
+      - legal-counsel
+      - backend-api
+      - web-ui
+    linked_requirements:
+      - REQ-PRD-13-10-SCOPE-CMC-BLOCK
+      - REQ-PRD-13-15-REGULATORY-PROFILES-PDF
+      - REQ-PRD-13-21-LEGAL-OPINION-DPA
+      - REQ-PRD-13-22-NORMATIVE-GOVERNANCE-OWNER
+    objective: Encerrar V5 integrando governança normativa, perfil regulatório, escopo/CMC e pareceres formais ao sistema já operacional.
+    deliverables:
+      - Camadas regulatórias avançadas aplicadas sobre o fluxo real e a Qualidade ativa.
+      - Dossiê, release-norm e governança final coerentes com o estado persistido do produto.
+    done_when:
+      - Perfil regulatório, pareceres e governança deixam de viver apenas em módulos isolados de leitura.
+      - O release V5 pode ser avaliado com base em operação real, não em adiantamentos canônicos.
