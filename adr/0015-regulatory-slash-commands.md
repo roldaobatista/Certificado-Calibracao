@@ -26,4 +26,4 @@ Os comandos passam a ser auditáveis e compatíveis com o harness. Execuções m
 
 ## Limitação
 
-`/emit-cert-dry` continua fail-closed enquanto a emissão dry-run real não for implementada nas fatias V1+. O comando atual prepara a cascata L4 e registra a indisponibilidade, sem simular certificado.
+`/emit-cert-dry` ainda não gera PDF/A, assinatura real ou persistência de certificado. O comando agora executa o dry-run canônico e continua fail-closed apenas quando os gates do próprio pipeline retornarem bloqueio.

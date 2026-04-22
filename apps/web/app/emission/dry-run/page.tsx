@@ -1,0 +1,169 @@
+import { resolveEmissionDryRunScenario, listEmissionDryRunScenarios } from "@/src/emission/emission-dry-run-scenarios";
+import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
+
+type PageProps = {
+  searchParams?: {
+    scenario?: string;
+  };
+};
+
+export default function EmissionDryRunPage(props: PageProps) {
+  const scenario = resolveEmissionDryRunScenario(props.searchParams?.scenario);
+  const scenarios = listEmissionDryRunScenarios();
+
+  return (
+    <AppShell
+      eyebrow="Emissao - dry-run"
+      title={scenario.summary.headline}
+      description={scenario.description}
+      aside={
+        <div className="hero-stat">
+          <span className="eyebrow">Leitura atual</span>
+          <strong>{scenario.label}</strong>
+          <StatusPill
+            tone={scenario.summary.status === "ready" ? "ok" : "warn"}
+            label={scenario.summary.status === "ready" ? "Emissao pronta" : "Emissao bloqueada"}
+          />
+          <p>
+            {scenario.summary.passedChecks} checks verdes e {scenario.summary.failedChecks} checks falhos neste preview.
+          </p>
+        </div>
+      }
+    >
+      <section className="section-header">
+        <div className="section-copy">
+          <span className="eyebrow">Sintese</span>
+          <h2>{scenario.result.summary}</h2>
+          <p>O dry-run junta os gates de V1 em uma leitura unica para revisao operacional antes da emissao oficial.</p>
+        </div>
+      </section>
+
+      <section className="detail-grid">
+        <article className="detail-card">
+          <span className="eyebrow">Artefatos</span>
+          <strong>{scenario.summary.templateLabel}</strong>
+          <p>{scenario.summary.symbolLabel}</p>
+          <div className="chip-list">
+            {scenario.result.artifacts.certificateNumber ? (
+              <span className="chip">{scenario.result.artifacts.certificateNumber}</span>
+            ) : (
+              <span className="chip chip--warn">Sem numero reservado</span>
+            )}
+            {scenario.result.artifacts.qrVerificationStatus ? (
+              <span className="chip">{scenario.result.artifacts.qrVerificationStatus}</span>
+            ) : (
+              <span className="chip chip--warn">QR sem preview</span>
+            )}
+          </div>
+        </article>
+
+        <article className="detail-card">
+          <span className="eyebrow">Bloqueios</span>
+          <strong>
+            {scenario.summary.blockers.length === 0
+              ? "Nenhum bloqueio ativo"
+              : `${scenario.summary.blockers.length} bloqueios operacionais`}
+          </strong>
+          <ul>
+            {scenario.summary.blockers.length === 0 ? (
+              <li>Todos os gates desta fatia estao verdes para seguir.</li>
+            ) : (
+              scenario.summary.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)
+            )}
+          </ul>
+        </article>
+
+        <article className="detail-card">
+          <span className="eyebrow">Warnings</span>
+          <strong>
+            {scenario.summary.warnings.length === 0
+              ? "Sem warnings complementares"
+              : `${scenario.summary.warnings.length} avisos de politica`}
+          </strong>
+          <ul>
+            {scenario.summary.warnings.length === 0 ? (
+              <li>Nenhuma observacao adicional precisa ser carregada para esta execucao.</li>
+            ) : (
+              scenario.summary.warnings.map((warning) => <li key={warning}>{warning}</li>)
+            )}
+          </ul>
+        </article>
+      </section>
+
+      <section className="content-panel">
+        <div className="section-copy">
+          <span className="eyebrow">Checklist</span>
+          <h2>Verificacao por gate</h2>
+          <p>Os checks abaixo mostram exatamente onde o pipeline seco passa ou falha antes de tocar persistencia real.</p>
+        </div>
+
+        <ul className="check-list">
+          {scenario.result.checks.map((check) => (
+            <li key={check.id}>
+              <div className="metric-row">
+                <strong>{check.title}</strong>
+                <StatusPill
+                  tone={check.status === "passed" ? "ok" : "warn"}
+                  label={check.status === "passed" ? "Passou" : "Falhou"}
+                />
+              </div>
+              <p>{check.detail}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="detail-grid">
+        <article className="detail-card">
+          <span className="eyebrow">Declaracao</span>
+          <strong>Resumo tecnico</strong>
+          <p>{scenario.result.artifacts.declarationSummary ?? "Declaracao indisponivel neste cenario."}</p>
+        </article>
+
+        <article className="detail-card">
+          <span className="eyebrow">QR</span>
+          <strong>Preview do endpoint publico</strong>
+          <p>{scenario.result.artifacts.qrCodeUrl ?? "QR ainda nao pode ser gerado neste cenario."}</p>
+        </article>
+
+        <article className="detail-card">
+          <span className="eyebrow">Portal</span>
+          <strong>Metadados minimos previstos</strong>
+          {Object.keys(scenario.result.artifacts.publicPreview).length === 0 ? (
+            <div className="empty-state">Sem recorte publico disponivel para este cenario.</div>
+          ) : (
+            <dl>
+              {Object.entries(scenario.result.artifacts.publicPreview).map(([key, value]) => (
+                <div key={key}>
+                  <dt>{key}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </article>
+      </section>
+
+      <section className="section-header">
+        <div className="section-copy">
+          <span className="eyebrow">Cenarios</span>
+          <h2>Trocar o contexto do dry-run</h2>
+          <p>Esses atalhos ajudam a revisar o comportamento dos perfis A, B e C sem alterar o codigo.</p>
+        </div>
+      </section>
+
+      <section className="nav-grid">
+        {scenarios.map((item) => (
+          <NavCard
+            key={item.id}
+            href={`/emission/dry-run?scenario=${item.id}`}
+            eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
+            title={item.label}
+            description={item.description}
+            cta="Abrir dry-run"
+          />
+        ))}
+      </section>
+    </AppShell>
+  );
+}

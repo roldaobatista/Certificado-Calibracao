@@ -36,16 +36,27 @@ export async function lintOwnership(options: LintOptions = {}): Promise<LintResu
   const rules = loadRules(rulesPath);
   const findings: Finding[] = [];
   let filesScanned = 0;
+  const constrainedFiles =
+    paths && paths.length > 0
+      ? await fg(paths, {
+          cwd,
+          ignore: rules.coverage.exclude,
+          absolute: true,
+          dot: false,
+          onlyFiles: true,
+        })
+      : null;
+  const constrainedSet = constrainedFiles ? new Set(constrainedFiles) : null;
 
   for (const rule of rules.rules) {
-    const scope = paths && paths.length > 0 ? paths : rule.scope;
-    const files = await fg(scope, {
+    const scopedFiles = await fg(rule.scope, {
       cwd,
       ignore: rules.coverage.exclude,
       absolute: true,
       dot: false,
       onlyFiles: true,
     });
+    const files = constrainedSet ? scopedFiles.filter((file) => constrainedSet.has(file)) : scopedFiles;
     filesScanned += files.length;
     for (const file of files) {
       const content = safeRead(file);

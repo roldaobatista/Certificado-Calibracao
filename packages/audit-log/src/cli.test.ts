@@ -4,19 +4,20 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { GENESIS_HASH, computeAuditHash, type AuditChainEntry } from "./verify.js";
 
 const testDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(testDir, "../../..");
 const cliPath = join(testDir, "cli.ts");
+const tsxLoaderUrl = pathToFileURL(join(repoRoot, "node_modules", "tsx", "dist", "loader.mjs")).href;
 
 function entry(id: string, prevHash: string, payload: unknown): AuditChainEntry {
   return { id, prevHash, payload, hash: computeAuditHash(prevHash, payload) };
 }
 
 function runCli(args: string[]) {
-  return spawnSync(process.execPath, ["--import", "tsx", cliPath, ...args], {
+  return spawnSync(process.execPath, ["--import", tsxLoaderUrl, cliPath, ...args], {
     cwd: repoRoot,
     encoding: "utf8",
   });

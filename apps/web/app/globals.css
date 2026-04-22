@@ -251,6 +251,58 @@ a {
   padding: 22px;
 }
 
+.detail-card dl {
+  margin: 12px 0 0;
+  display: grid;
+  gap: 12px;
+}
+
+.detail-card dt {
+  color: var(--accent-deep);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.detail-card dd {
+  margin: 4px 0 0;
+  color: var(--ink);
+}
+
+.check-list {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0 0;
+  display: grid;
+  gap: 14px;
+}
+
+.check-list li {
+  padding: 16px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.check-list li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.empty-state {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(143, 93, 24, 0.08);
+  border: 1px solid rgba(143, 93, 24, 0.16);
+  color: var(--warn);
+}
+
 @media (max-width: 920px) {
   .hero-panel,
   .detail-grid,

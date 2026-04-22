@@ -8,6 +8,21 @@ importers:
 
   .:
     devDependencies:
+      '@afere/audit-log':
+        specifier: workspace:*
+        version: link:packages/audit-log
+      '@afere/contracts':
+        specifier: workspace:*
+        version: link:packages/contracts
+      '@afere/db':
+        specifier: workspace:*
+        version: link:packages/db
+      '@afere/engine-uncertainty':
+        specifier: workspace:*
+        version: link:packages/engine-uncertainty
+      '@afere/normative-rules':
+        specifier: workspace:*
+        version: link:packages/normative-rules
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
@@ -38,6 +53,12 @@ importers:
       '@afere/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@afere/engine-uncertainty':
+        specifier: workspace:*
+        version: link:../../packages/engine-uncertainty
+      '@afere/normative-rules':
+        specifier: workspace:*
+        version: link:../../packages/normative-rules
       '@fastify/cors':
         specifier: ^10.0.1
         version: 10.1.0

@@ -1,30 +1,31 @@
 ---
-description: Planeja dry-run de emissão de certificado e falha fechado enquanto o pipeline real não existir
+description: Executa dry-run de emissao de certificado por perfil regulatorio e prepara a cascata L4
 owner: backend-api
 risk_level: blocker
-required_commands: ["pnpm verification-cascade:plan -- --changed apps/api/src/domain/emission/dry-run.ts", "pnpm test:tools"]
+required_commands: ["pnpm verification-cascade:plan -- --changed apps/api/src/domain/emission/dry-run.ts", "pnpm emit-cert-dry -- --profile B", "pnpm test:tools"]
 ---
 
 # /emit-cert-dry
 
 ## Objetivo
 
-Preparar a simulação de emissão por perfil A/B/C sem persistência, assinatura real ou QR, mantendo fail-closed até o pipeline de emissão existir.
+Executar um dry-run regulatório de emissão por perfil A/B/C sem persistência, PDF/A ou assinatura real, consolidando os gates de V1 em um único relatório operacional.
 
 ## Execução
 
 ```bash
 pnpm verification-cascade:plan -- --changed apps/api/src/domain/emission/dry-run.ts
+pnpm emit-cert-dry -- --profile ${ARGUMENTS:-B}
 pnpm test:tools
 ```
 
-Quando o dry-run real for implementado em V1+, substituir a segunda linha pelo CLI de emissão em modo `--dry-run --profile $ARGUMENTS` e manter o plano L4.
+Para inspecionar todos os detalhes em automação, usar `pnpm emit-cert-dry -- --profile ${ARGUMENTS:-B} --json`.
 
 ## Evidência
 
 - Registrar plano de verificação gerado pela cascata.
-- Registrar que o dry-run real está indisponível quando não houver endpoint/CLI de emissão.
-- Quando existir implementação, arquivar saída e artefatos em `compliance/validation-dossier/evidence/`.
+- Registrar a saída textual ou JSON do dry-run com o perfil executado.
+- Arquivar a saída em `compliance/validation-dossier/evidence/` quando o dry-run fizer parte de release ou dossiê formal.
 
 ## Escalonamento
 

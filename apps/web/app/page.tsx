@@ -44,6 +44,13 @@ export default function HomePage() {
           description="Mostra se a primeira emissao pode seguir ou se escopo, QR e numeracao ainda bloqueiam a operacao."
           cta="Abrir onboarding"
         />
+        <NavCard
+          href="/emission/dry-run?scenario=type-b-ready"
+          eyebrow="Emissao"
+          title="Dry-run consolidado"
+          description="Encadeia os gates tecnicos de V1 em um preview unico antes da emissao oficial."
+          cta="Abrir dry-run"
+        />
       </section>
     </AppShell>
   );

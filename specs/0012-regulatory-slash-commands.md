@@ -25,10 +25,9 @@ Implementar a primeira fatia funcional do P2-2: padronizar e validar os slash-co
 - O gate falha se `owner` não for agente canônico.
 - O gate falha se `risk_level` não for `low`, `medium`, `high` ou `blocker`.
 - O gate falha se o comando não tiver bloco executável na seção `Execução`.
-- `/emit-cert-dry` mantém fail-closed honesto enquanto o pipeline real de emissão ainda não existir.
+- `/emit-cert-dry` aponta para um comando real do workspace e permanece fail-closed apenas quando o próprio dry-run retornar bloqueios.
 
 ## Fora de escopo
 
-- Não implementa o pipeline real de emissão dry-run.
 - Não cria suporte de slash-commands específico para Codex CLI; a fonte operacional desta fatia é `.claude/commands/`.
 - Não substitui gates já existentes; os comandos apenas tornam execuções manuais padronizadas e auditáveis.
