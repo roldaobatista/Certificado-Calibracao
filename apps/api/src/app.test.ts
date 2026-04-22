@@ -18,6 +18,7 @@ import {
   portalEquipmentCatalogSchema,
   procedureRegistryCatalogSchema,
   publicCertificateCatalogSchema,
+  qualityDocumentRegistryCatalogSchema,
   qualityHubCatalogSchema,
   riskRegisterCatalogSchema,
   reviewSignatureCatalogSchema,
@@ -204,6 +205,31 @@ test("serves the canonical risk register catalog from the backend", async () => 
     assert.ok(blockedScenario);
     assert.equal(blockedScenario.detail.status, "blocked");
     assert.match(blockedScenario.detail.blockers.join(" "), /direcao|NC-015|reclamacao/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical quality document catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/quality/documents?scenario=obsolete-blocked&document=document-pg005-r01",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = qualityDocumentRegistryCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "obsolete-blocked");
+
+    assert.equal(payload.selectedScenarioId, "obsolete-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.blockers.join(" "), /obsoleta|operacional/i);
   } finally {
     await app.close();
   }

@@ -87,7 +87,7 @@ const MODULE_META: Record<QualityHubModuleKey, ModuleMeta> = {
   documents: {
     title: "Documentos da qualidade",
     clauseLabel: "ISO/IEC 17025 8.3 e 8.4",
-    ctaLabel: "Planejado",
+    ctaLabel: "Abrir documentos",
   },
   indicators: {
     title: "Indicadores",
@@ -123,7 +123,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
     blockers: [],
     warnings: [
       "O modulo de reclamacoes segue com uma resposta formal pendente e precisa de fechamento dentro do prazo.",
-      "Trabalho nao conforme, auditoria interna, analise critica, documentos e indicadores seguem explicitamente planejados.",
+      "Trabalho nao conforme, auditoria interna, analise critica e indicadores seguem explicitamente planejados.",
     ],
     modules: [
       {
@@ -202,13 +202,14 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "documents",
-        metricLabel: "Backlog documental visivel",
-        summary: "O hub reconhece a necessidade de documentos da qualidade, mas ainda nao assume manual, PG, PT, IT ou FR como modulo proprio.",
-        status: "ready",
-        availability: "planned",
-        nextStepLabel: "Separar documentos da qualidade dos procedimentos operacionais ja publicados no registro tecnico.",
+        metricLabel: "24 documentos vigentes · 1 revisao preventiva",
+        summary: "Modulo canonico ativo para MQ, PG, PT, IT e FR com vigencia, historico obsoleto e referencias cruzadas ao contexto tecnico.",
+        status: "attention",
+        availability: "implemented",
+        href: "/quality/documents?scenario=revision-attention&document=document-pg005-r02",
+        nextStepLabel: "Concluir a revisao preventiva do PG-005 e manter o acervo historico apenas para consulta auditavel.",
         blockers: [],
-        warnings: ["Procedimentos tecnicos existentes nao substituem o modulo documental da Qualidade."],
+        warnings: ["Procedimentos tecnicos continuam separados do acervo SGQ, mas agora ligados por contexto canônico."],
       },
       {
         key: "indicators",
@@ -250,7 +251,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       "NC critica aberta com reclamacao correlata exige resposta formal da Qualidade.",
     ],
     warnings: [
-      "Trabalho nao conforme, auditoria interna, analise critica, documentos e indicadores seguem planejados e precisam nascer sem perder o contexto critico atual.",
+      "Trabalho nao conforme, auditoria interna, analise critica e indicadores seguem planejados e precisam nascer sem perder o contexto critico atual.",
     ],
     modules: [
       {
@@ -329,13 +330,14 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "documents",
-        metricLabel: "Revisao documental requerida",
-        summary: "A documentacao da Qualidade ainda nao ganhou fluxo proprio para resposta formal e rastreavel.",
-        status: "attention",
-        availability: "planned",
-        nextStepLabel: "Versionar formularios e procedimentos da Qualidade associados ao caso critico.",
-        blockers: [],
-        warnings: [],
+        metricLabel: "1 revisao obsoleta bloqueada",
+        summary: "Modulo canonico ativo para acervo SGQ, com revisao obsoleta explicitamente bloqueada para uso operacional em casos novos.",
+        status: "blocked",
+        availability: "implemented",
+        href: "/quality/documents?scenario=obsolete-blocked&document=document-pg005-r01",
+        nextStepLabel: "Migrar qualquer consulta operacional para a revisao vigente correspondente antes de prosseguir com o caso critico.",
+        blockers: ["Revisao obsoleta do PG-005 nao pode sustentar tratativas novas nem resposta critica atual."],
+        warnings: ["A revisao vigente ainda segue em fechamento preventivo da Qualidade."],
       },
       {
         key: "indicators",
@@ -451,11 +453,12 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "documents",
-        metricLabel: "Modulo documental planejado",
-        summary: "Os documentos da Qualidade continuam explicitamente separados dos procedimentos tecnicos ja existentes.",
+        metricLabel: "24 documentos vigentes",
+        summary: "Modulo canonico ativo com acervo SGQ vigente, historico obsoleto rastreavel e referencias cruzadas ao cadastro tecnico.",
         status: "ready",
-        availability: "planned",
-        nextStepLabel: "Versionar manual, PG, IT e formularios com estado vigente/obsoleto.",
+        availability: "implemented",
+        href: "/quality/documents?scenario=operational-ready&document=document-mq001-r03",
+        nextStepLabel: "Manter o acervo vigente arquivado e seguir a cadencia anual de revisao do SGQ.",
         blockers: [],
         warnings: [],
       },

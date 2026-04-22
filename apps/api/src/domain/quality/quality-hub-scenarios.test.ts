@@ -28,8 +28,8 @@ test("keeps the hub in attention while distinguishing implemented and planned ar
   const scenario = resolveQualityHubScenario("operational-attention");
 
   assert.equal(scenario.selectedModuleKey, "nonconformities");
-  assert.equal(scenario.summary.implementedModuleCount, 4);
-  assert.equal(scenario.summary.plannedModuleCount, 5);
+  assert.equal(scenario.summary.implementedModuleCount, 5);
+  assert.equal(scenario.summary.plannedModuleCount, 4);
   assert.equal(scenario.modules.find((module) => module.key === "complaints")?.availability, "implemented");
   assert.match(
     scenario.modules.find((module) => module.key === "complaints")?.href ?? "",
@@ -39,6 +39,11 @@ test("keeps the hub in attention while distinguishing implemented and planned ar
   assert.match(
     scenario.modules.find((module) => module.key === "risk-impartiality")?.href ?? "",
     /quality\/risk-register/i,
+  );
+  assert.equal(scenario.modules.find((module) => module.key === "documents")?.availability, "implemented");
+  assert.match(
+    scenario.modules.find((module) => module.key === "documents")?.href ?? "",
+    /quality\/documents/i,
   );
 });
 
@@ -58,7 +63,10 @@ test("allows switching the selected module inside the same scenario", () => {
   const scenario = resolveQualityHubScenario("stable-baseline", "documents");
 
   assert.equal(scenario.selectedModuleKey, "documents");
-  assert.equal(scenario.modules.find((module) => module.key === "documents")?.availability, "planned");
+  assert.equal(
+    scenario.modules.find((module) => module.key === "documents")?.availability,
+    "implemented",
+  );
 });
 
 test("builds the canonical quality hub catalog with selected scenario", () => {
