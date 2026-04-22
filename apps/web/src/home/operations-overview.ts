@@ -1,11 +1,17 @@
 import type {
   EmissionDryRunCatalog,
+  EmissionWorkspaceCatalog,
   OnboardingCatalog,
+  ReviewSignatureCatalog,
   SelfSignupCatalog,
+  UserDirectoryCatalog,
 } from "@afere/contracts";
 
 import { buildSelfSignupCatalogView } from "../auth/self-signup-scenarios";
+import { buildUserDirectoryCatalogView } from "../auth/user-directory-scenarios";
 import { buildEmissionDryRunCatalogView } from "../emission/emission-dry-run-scenarios";
+import { buildEmissionWorkspaceCatalogView } from "../emission/emission-workspace-scenarios";
+import { buildReviewSignatureCatalogView } from "../emission/review-signature-scenarios";
 import { buildOnboardingCatalogView } from "../onboarding/onboarding-scenarios";
 
 export interface OperationsOverviewCard {
@@ -32,6 +38,9 @@ export function buildOperationsOverviewModel(input: {
   selfSignupCatalog: SelfSignupCatalog | null;
   onboardingCatalog: OnboardingCatalog | null;
   emissionCatalog: EmissionDryRunCatalog | null;
+  emissionWorkspaceCatalog: EmissionWorkspaceCatalog | null;
+  reviewSignatureCatalog: ReviewSignatureCatalog | null;
+  userDirectoryCatalog: UserDirectoryCatalog | null;
 }): OperationsOverviewModel {
   const cards: OperationsOverviewCard[] = [];
   let readyCount = 0;
@@ -43,9 +52,44 @@ export function buildOperationsOverviewModel(input: {
   const onboardingView = input.onboardingCatalog
     ? buildOnboardingCatalogView(input.onboardingCatalog)
     : null;
+  const emissionWorkspaceView = input.emissionWorkspaceCatalog
+    ? buildEmissionWorkspaceCatalogView(input.emissionWorkspaceCatalog)
+    : null;
   const emissionView = input.emissionCatalog
     ? buildEmissionDryRunCatalogView(input.emissionCatalog)
     : null;
+  const reviewSignatureView = input.reviewSignatureCatalog
+    ? buildReviewSignatureCatalogView(input.reviewSignatureCatalog)
+    : null;
+  const userDirectoryView = input.userDirectoryCatalog
+    ? buildUserDirectoryCatalogView(input.userDirectoryCatalog)
+    : null;
+
+  cards.push(
+    emissionWorkspaceView
+      ? {
+          href: `/emission/workspace?scenario=${emissionWorkspaceView.selectedScenario.id}`,
+          eyebrow: "Workspace",
+          title: emissionWorkspaceView.selectedScenario.label,
+          description: emissionWorkspaceView.selectedScenario.summaryLabel,
+          statusTone:
+            emissionWorkspaceView.selectedScenario.summary.status === "ready" ? "ok" : "warn",
+          statusLabel:
+            emissionWorkspaceView.selectedScenario.summary.status === "ready"
+              ? "Workspace pronto"
+              : emissionWorkspaceView.selectedScenario.summary.status === "attention"
+                ? "Workspace com atencao"
+                : "Workspace bloqueado",
+          cta: "Abrir workspace",
+        }
+      : unavailableCard({
+          href: "/emission/workspace",
+          eyebrow: "Workspace",
+          title: "Prontidao consolidada da emissao",
+          description: "Leitura canonica indisponivel no momento.",
+          cta: "Abrir workspace",
+        }),
+  );
 
   cards.push(
     selfSignupView
@@ -119,6 +163,52 @@ export function buildOperationsOverviewModel(input: {
         }),
   );
 
+  cards.push(
+    reviewSignatureView
+      ? {
+          href: `/emission/review-signature?scenario=${reviewSignatureView.selectedScenario.id}`,
+          eyebrow: "Revisao",
+          title: reviewSignatureView.selectedScenario.label,
+          description: `${reviewSignatureView.selectedScenario.summary.reviewStatusLabel} · ${reviewSignatureView.selectedScenario.summary.signatureStatusLabel}.`,
+          statusTone: reviewSignatureView.selectedScenario.summary.status === "ready" ? "ok" : "warn",
+          statusLabel:
+            reviewSignatureView.selectedScenario.summary.status === "ready"
+              ? "Workflow liberado"
+              : "Workflow bloqueado",
+          cta: "Abrir workflow",
+        }
+      : unavailableCard({
+          href: "/emission/review-signature",
+          eyebrow: "Revisao",
+          title: "Workflow de revisao e assinatura",
+          description: "Leitura canonica indisponivel no momento.",
+          cta: "Abrir workflow",
+        }),
+  );
+
+  cards.push(
+    userDirectoryView
+      ? {
+          href: `/auth/users?scenario=${userDirectoryView.selectedScenario.id}`,
+          eyebrow: "Equipe",
+          title: userDirectoryView.selectedScenario.label,
+          description: userDirectoryView.selectedScenario.summaryLabel,
+          statusTone: userDirectoryView.selectedScenario.summary.status === "ready" ? "ok" : "warn",
+          statusLabel:
+            userDirectoryView.selectedScenario.summary.status === "ready"
+              ? "Equipe saudavel"
+              : "Equipe com atencao",
+          cta: "Abrir usuarios",
+        }
+      : unavailableCard({
+          href: "/auth/users",
+          eyebrow: "Equipe",
+          title: "Diretorio de usuarios",
+          description: "Leitura canonica indisponivel no momento.",
+          cta: "Abrir usuarios",
+        }),
+  );
+
   for (const card of cards) {
     if (card.statusTone === "ok") {
       readyCount += 1;
@@ -127,7 +217,14 @@ export function buildOperationsOverviewModel(input: {
     }
   }
 
-  const allSourcesAvailable = Boolean(selfSignupView && onboardingView && emissionView);
+  const allSourcesAvailable = Boolean(
+    emissionWorkspaceView &&
+      selfSignupView &&
+      onboardingView &&
+      emissionView &&
+      reviewSignatureView &&
+      userDirectoryView,
+  );
 
   return {
     readyCount,

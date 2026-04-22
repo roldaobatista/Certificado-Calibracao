@@ -1,5 +1,8 @@
 import { loadSelfSignupCatalog } from "@/src/auth/self-signup-api";
+import { loadUserDirectoryCatalog } from "@/src/auth/user-directory-api";
 import { loadEmissionDryRunCatalog } from "@/src/emission/emission-dry-run-api";
+import { loadEmissionWorkspaceCatalog } from "@/src/emission/emission-workspace-api";
+import { loadReviewSignatureCatalog } from "@/src/emission/review-signature-api";
 import { buildOperationsOverviewModel } from "@/src/home/operations-overview";
 import { loadOnboardingCatalog } from "@/src/onboarding/onboarding-api";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -7,29 +10,43 @@ import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [selfSignupCatalog, onboardingCatalog, emissionCatalog] = await Promise.all([
-    loadSelfSignupCatalog(),
-    loadOnboardingCatalog(),
-    loadEmissionDryRunCatalog(),
-  ]);
-
-  const overview = buildOperationsOverviewModel({
+  const [
+    emissionWorkspaceCatalog,
     selfSignupCatalog,
     onboardingCatalog,
     emissionCatalog,
+    reviewSignatureCatalog,
+    userDirectoryCatalog,
+  ] = await Promise.all([
+    loadEmissionWorkspaceCatalog(),
+    loadSelfSignupCatalog(),
+    loadOnboardingCatalog(),
+    loadEmissionDryRunCatalog(),
+    loadReviewSignatureCatalog(),
+    loadUserDirectoryCatalog(),
+  ]);
+
+  const overview = buildOperationsOverviewModel({
+    emissionWorkspaceCatalog,
+    selfSignupCatalog,
+    onboardingCatalog,
+    emissionCatalog,
+    reviewSignatureCatalog,
+    userDirectoryCatalog,
   });
   const availableSources = overview.cards.filter((card) => card.statusLabel !== "Sem carga canonica").length;
+  const totalSources = overview.cards.length;
 
   return (
     <AppShell
       eyebrow="V1 - emissao controlada"
-      title="Backoffice regulado para onboarding e auth"
-      description="A home agora consolida as leituras canonicas de auth, onboarding e dry-run para mostrar a prontidao operacional antes da primeira emissao."
+      title="Backoffice regulado para workspace, auth, equipe e emissao"
+      description="A home agora consolida o workspace canonico de emissao junto com auth, equipe, onboarding, dry-run e workflow de revisao/assinatura para mostrar a prontidao operacional antes da primeira emissao."
       aside={
         <>
           <div className="hero-stat">
             <span className="eyebrow">Leitura canonica</span>
-            <strong>{availableSources}/3 fluxos conectados ao backend</strong>
+            <strong>{availableSources}/{totalSources} fluxos conectados ao backend</strong>
             <StatusPill tone={overview.heroStatusTone} label={overview.heroStatusLabel} />
             <p>{overview.heroStatusDescription}</p>
           </div>
@@ -58,10 +75,10 @@ export default async function HomePage() {
       <section className="detail-grid">
         <article className="detail-card">
           <span className="eyebrow">Conectividade</span>
-          <strong>{availableSources === 3 ? "Todas as leituras online" : "Leitura parcial do backend"}</strong>
+          <strong>{availableSources === totalSources ? "Todas as leituras online" : "Leitura parcial do backend"}</strong>
           <p>
-            {availableSources === 3
-              ? "As tres rotas operacionais responderam com payload valido."
+            {availableSources === totalSources
+              ? "Todas as rotas operacionais responderam com payload valido."
               : "Uma ou mais rotas nao responderam com carga canonica valida."}
           </p>
         </article>
@@ -69,7 +86,7 @@ export default async function HomePage() {
         <article className="detail-card">
           <span className="eyebrow">Fluxos prontos</span>
           <strong>{overview.readyCount} fluxo(s) liberado(s)</strong>
-          <p>Auth, onboarding e dry-run sao avaliados lado a lado para evitar drift entre telas.</p>
+          <p>Workspace, auth, equipe, onboarding, dry-run e workflow de assinatura sao avaliados lado a lado para evitar drift entre telas.</p>
         </article>
 
         <article className="detail-card">

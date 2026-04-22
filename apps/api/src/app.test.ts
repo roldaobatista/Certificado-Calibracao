@@ -3,9 +3,12 @@ import { test } from "node:test";
 
 import {
   emissionDryRunCatalogSchema,
+  emissionWorkspaceCatalogSchema,
   onboardingCatalogSchema,
   publicCertificateCatalogSchema,
+  reviewSignatureCatalogSchema,
   selfSignupCatalogSchema,
+  userDirectoryCatalogSchema,
 } from "@afere/contracts";
 
 import type { Env } from "./config/env.js";
@@ -114,6 +117,32 @@ test("serves the canonical emission dry-run catalog from the backend", async () 
   }
 });
 
+test("serves the canonical emission workspace catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/emission/workspace?scenario=release-blocked",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = emissionWorkspaceCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "release-blocked");
+
+    assert.equal(payload.selectedScenarioId, "release-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.summary.status, "blocked");
+    assert.equal(blockedScenario.modules.some((module) => module.key === "workflow"), true);
+    assert.match(blockedScenario.summary.blockers.join(" "), /MFA/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("serves the canonical self-signup catalog from the backend", async () => {
   const { runtimeReadiness } = createRuntimeReadinessStub();
   const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
@@ -192,6 +221,57 @@ test("serves the canonical public certificate catalog from the backend", async (
     if (reissuedScenario.result.ok) {
       assert.equal("actorId" in reissuedScenario.result.certificate, false);
     }
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical review/signature workflow catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/emission/review-signature?scenario=reviewer-conflict",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = reviewSignatureCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "reviewer-conflict");
+
+    assert.equal(payload.selectedScenarioId, "reviewer-conflict");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.result.status, "blocked");
+    assert.equal(blockedScenario.result.reviewStep.status, "blocked");
+    assert.equal(blockedScenario.result.suggestions.reviewer?.displayName, "Renata Qualidade");
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical user directory catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/auth/users?scenario=expiring-competencies",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = userDirectoryCatalogSchema.parse(response.json());
+    const attentionScenario = payload.scenarios.find((scenario) => scenario.id === "expiring-competencies");
+
+    assert.equal(payload.selectedScenarioId, "expiring-competencies");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(attentionScenario);
+    assert.equal(attentionScenario.summary.status, "attention");
+    assert.equal(attentionScenario.summary.expiringCompetencies, 1);
   } finally {
     await app.close();
   }
