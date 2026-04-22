@@ -62,7 +62,7 @@ const MODULE_META: Record<QualityHubModuleKey, ModuleMeta> = {
   complaints: {
     title: "Reclamacoes",
     clauseLabel: "ISO/IEC 17025 7.9",
-    ctaLabel: "Planejado",
+    ctaLabel: "Abrir reclamacoes",
   },
   "nonconforming-work": {
     title: "Trabalho nao conforme",
@@ -100,7 +100,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
   "operational-attention": {
     label: "Qualidade em acompanhamento preventivo",
     description:
-      "O gestor acompanha NCs abertas, uma reclamacao ainda em tratamento e backlog planejado do modulo sem perder o recorte operacional ja implementado.",
+      "O gestor acompanha NCs abertas, uma reclamacao ainda em tratamento e backlog planejado das demais areas sem perder o recorte operacional ja implementado.",
     status: "attention",
     selectedModuleKey: "nonconformities",
     links: {
@@ -122,7 +122,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       "Fechar a acao corretiva vencendo, responder a reclamacao aberta e usar trilha/NC como ancora auditavel ate as demais areas ganharem fluxo proprio.",
     blockers: [],
     warnings: [
-      "Uma reclamacao aberta ainda depende de fluxo dedicado do modulo Qualidade.",
+      "O modulo de reclamacoes segue com uma resposta formal pendente e precisa de fechamento dentro do prazo.",
       "Acoes de riscos, analise critica, documentos e indicadores seguem explicitamente planejadas.",
     ],
     modules: [
@@ -151,12 +151,13 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       {
         key: "complaints",
         metricLabel: "1 reclamacao aberta",
-        summary: "A area ainda nao possui fluxo proprio; por enquanto a reclamacao aparece refletida por NC e trilha auditavel.",
+        summary: "Modulo canonico ativo para relato, prazo de resposta, checklist de acoes e vinculos com NC, trilha e OS.",
         status: "attention",
-        availability: "planned",
-        nextStepLabel: "Materializar o fluxo de reclamacoes sem perder o vinculo com NC, reemissao e audit log.",
+        availability: "implemented",
+        href: "/quality/complaints?scenario=open-follow-up&complaint=recl-004",
+        nextStepLabel: "Responder a reclamacao aberta dentro do prazo e escalar apenas os casos com impacto direto em certificado.",
         blockers: [],
-        warnings: ["Sem rota dedicada: o hub nao inventa backlog transacional de reclamacoes."],
+        warnings: ["Uma reclamacao aberta segue aguardando resposta formal da Qualidade."],
       },
       {
         key: "nonconforming-work",
@@ -248,7 +249,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       "NC critica aberta com reclamacao correlata exige resposta formal da Qualidade.",
     ],
     warnings: [
-      "As areas de reclamacoes e trabalho nao conforme ainda estao planejadas e precisam nascer sem perder o contexto critico atual.",
+      "Trabalho nao conforme, auditoria interna, analise critica, riscos, documentos e indicadores seguem planejados e precisam nascer sem perder o contexto critico atual.",
     ],
     modules: [
       {
@@ -276,11 +277,12 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       {
         key: "complaints",
         metricLabel: "2 reclamacoes abertas",
-        summary: "O caso mais critico ja existe nos sinais atuais, mas ainda nao possui modulo dedicado para resposta e fechamento.",
+        summary: "Modulo canonico ativo para triar resposta formal, vinculo a NC e gatilho de reemissao controlada.",
         status: "blocked",
-        availability: "planned",
-        nextStepLabel: "Criar o fluxo de reclamacoes com resposta, vinculo a NC e gatilhos de reemissao controlada.",
-        blockers: ["O backlog de reclamacoes nao pode permanecer implícito quando o caso impacta emissao."],
+        availability: "implemented",
+        href: "/quality/complaints?scenario=critical-response&complaint=recl-007",
+        nextStepLabel: "Concluir a resposta formal e iniciar a reemissao controlada antes de encerrar o caso critico.",
+        blockers: ["O cliente ainda nao recebeu resposta formal conclusiva para o caso critico."],
         warnings: [],
       },
       {
@@ -396,10 +398,11 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       {
         key: "complaints",
         metricLabel: "Sem reclamacoes abertas",
-        summary: "A area continua planejada, mas o recorte atual nao aponta backlog critico de reclamacoes.",
+        summary: "Modulo canonico ativo apenas para historico; o recorte atual nao aponta backlog critico de reclamacoes.",
         status: "ready",
-        availability: "planned",
-        nextStepLabel: "Materializar fluxo de reclamacao antes que a area dependa de planilhas externas.",
+        availability: "implemented",
+        href: "/quality/complaints?scenario=resolved-history&complaint=recl-002",
+        nextStepLabel: "Manter as evidencias resolvidas arquivadas e reutilizar o aprendizado em treinamento e resposta documental.",
         blockers: [],
         warnings: [],
       },

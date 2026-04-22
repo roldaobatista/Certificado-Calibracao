@@ -28,9 +28,13 @@ test("keeps the hub in attention while distinguishing implemented and planned ar
   const scenario = resolveQualityHubScenario("operational-attention");
 
   assert.equal(scenario.selectedModuleKey, "nonconformities");
-  assert.equal(scenario.summary.implementedModuleCount, 2);
-  assert.equal(scenario.summary.plannedModuleCount, 7);
-  assert.equal(scenario.modules.find((module) => module.key === "complaints")?.availability, "planned");
+  assert.equal(scenario.summary.implementedModuleCount, 3);
+  assert.equal(scenario.summary.plannedModuleCount, 6);
+  assert.equal(scenario.modules.find((module) => module.key === "complaints")?.availability, "implemented");
+  assert.match(
+    scenario.modules.find((module) => module.key === "complaints")?.href ?? "",
+    /quality\/complaints/i,
+  );
 });
 
 test("blocks the quality hub when the audit trail integrity fails closed", () => {

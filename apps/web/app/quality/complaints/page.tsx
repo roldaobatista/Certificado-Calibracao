@@ -1,11 +1,11 @@
-import { loadNonconformityCatalog } from "@/src/quality/nonconformity-api";
-import { buildNonconformityCatalogView } from "@/src/quality/nonconformity-scenarios";
+import { loadComplaintCatalog } from "@/src/quality/complaint-registry-api";
+import { buildComplaintCatalogView } from "@/src/quality/complaint-registry-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
 
 type PageProps = {
   searchParams?: {
     scenario?: string;
-    nc?: string;
+    complaint?: string;
   };
 };
 
@@ -18,72 +18,71 @@ function statusTone(status: "ready" | "attention" | "blocked"): "ok" | "warn" {
 function statusLabel(status: "ready" | "attention" | "blocked"): string {
   switch (status) {
     case "ready":
-      return "NC encerrada";
+      return "Reclamacao encerrada";
     case "attention":
-      return "NC em acompanhamento";
+      return "Resposta em andamento";
     case "blocked":
-      return "NC critica";
+      return "Resposta critica";
     default:
       return status;
   }
 }
 
-function mapNonconformityScenarioToQualityHubScenario(
-  scenarioId: "open-attention" | "critical-response" | "resolved-history",
+function actionLabel(status: "complete" | "pending" | "blocked"): string {
+  switch (status) {
+    case "complete":
+      return "Concluido";
+    case "pending":
+      return "Pendente";
+    case "blocked":
+      return "Bloqueado";
+    default:
+      return status;
+  }
+}
+
+function mapComplaintScenarioToQualityHubScenario(
+  scenarioId: "open-follow-up" | "critical-response" | "resolved-history",
 ): "operational-attention" | "critical-response" | "stable-baseline" {
   switch (scenarioId) {
     case "critical-response":
       return "critical-response";
     case "resolved-history":
       return "stable-baseline";
-    case "open-attention":
+    case "open-follow-up":
     default:
       return "operational-attention";
   }
 }
 
-function mapNonconformityScenarioToComplaintContext(
-  scenarioId: "open-attention" | "critical-response" | "resolved-history",
-): { scenarioId: "open-follow-up" | "critical-response" | "resolved-history"; complaintId: string } {
-  switch (scenarioId) {
-    case "critical-response":
-      return { scenarioId: "critical-response", complaintId: "recl-007" };
-    case "resolved-history":
-      return { scenarioId: "resolved-history", complaintId: "recl-002" };
-    case "open-attention":
-    default:
-      return { scenarioId: "open-follow-up", complaintId: "recl-004" };
-  }
-}
-
-export default async function NonconformityPage(props: PageProps) {
-  const catalog = await loadNonconformityCatalog({
+export default async function ComplaintPage(props: PageProps) {
+  const catalog = await loadComplaintCatalog({
     scenarioId: props.searchParams?.scenario,
-    ncId: props.searchParams?.nc,
+    complaintId: props.searchParams?.complaint,
   });
 
   if (!catalog) {
     return (
       <AppShell
-        eyebrow="Qualidade - nao conformidades"
-        title="Modulo de NC indisponivel"
-        description="O back-office nao recebeu o payload canonico de nao conformidades. Em fail-closed, nenhuma NC local foi assumida."
+        eyebrow="Qualidade - reclamacoes"
+        title="Modulo de reclamacoes indisponivel"
+        description="O back-office nao recebeu o payload canonico de reclamacoes. Em fail-closed, nenhuma resposta, prazo ou reemissao local foi assumida."
         aside={
           <div className="hero-stat">
             <span className="eyebrow">Leitura atual</span>
             <strong>Backend obrigatorio</strong>
             <StatusPill tone="warn" label="Sem carga canonica" />
-            <p>Suba o `apps/api` ou configure `AFERE_API_BASE_URL` para liberar o modulo de nao conformidades.</p>
+            <p>Suba o `apps/api` ou configure `AFERE_API_BASE_URL` para liberar o modulo de reclamacoes.</p>
           </div>
         }
       >
         <section className="content-panel">
           <div className="section-copy">
             <span className="eyebrow">Proximo passo</span>
-            <h2>Conectar NCs ao backend</h2>
+            <h2>Conectar reclamacoes ao backend</h2>
             <p>
-              Esta pagina depende do endpoint canonico `GET /quality/nonconformities`. Sem resposta valida, o web nao
-              assume severidade, responsavel ou prazo de nenhuma NC.
+              Esta pagina depende do endpoint canonico `GET /quality/complaints`. Sem resposta valida, o web nao
+              assume relato, prazo de resposta, vinculo a NC ou gatilho de reemissao.
             </p>
           </div>
         </section>
@@ -91,13 +90,12 @@ export default async function NonconformityPage(props: PageProps) {
     );
   }
 
-  const { selectedScenario: scenario, scenarios } = buildNonconformityCatalogView(catalog);
+  const { selectedScenario: scenario, scenarios } = buildComplaintCatalogView(catalog);
   const detail = scenario.detail;
-  const complaintContext = mapNonconformityScenarioToComplaintContext(scenario.id);
 
   return (
     <AppShell
-      eyebrow="Qualidade - nao conformidades"
+      eyebrow="Qualidade - reclamacoes"
       title={scenario.summary.headline}
       description={scenario.description}
       aside={
@@ -112,9 +110,10 @@ export default async function NonconformityPage(props: PageProps) {
       <section className="detail-grid">
         <article className="detail-card">
           <span className="eyebrow">Resumo</span>
-          <strong>{scenario.summary.openCount} NC(s) aberta(s)</strong>
+          <strong>{scenario.summary.openCount} reclamacao(oes) aberta(s)</strong>
           <p>
-            {scenario.summary.criticalCount} critica(s) e {scenario.summary.closedCount} encerrada(s) no recorte atual.
+            {scenario.summary.overdueCount} vencida(s), {scenario.summary.reissuePendingCount} com reemissao pendente
+            e {scenario.summary.resolvedLast30d} resolvida(s) no recorte.
           </p>
         </article>
 
@@ -125,10 +124,10 @@ export default async function NonconformityPage(props: PageProps) {
         </article>
 
         <article className="detail-card">
-          <span className="eyebrow">Responsavel e prazo</span>
-          <strong>{detail.ownerLabel}</strong>
+          <span className="eyebrow">Prazo de resposta</span>
+          <strong>{detail.responseDeadlineLabel}</strong>
           <p>
-            aberta em {detail.openedAtLabel} · prazo {detail.dueAtLabel}
+            {detail.ownerLabel} · canal {detail.channelLabel}
           </p>
         </article>
       </section>
@@ -136,39 +135,53 @@ export default async function NonconformityPage(props: PageProps) {
       <section className="nav-grid">
         {scenario.items.map((item) => (
           <NavCard
-            key={item.ncId}
-            href={`/quality/nonconformities?scenario=${scenario.id}&nc=${item.ncId}`}
-            eyebrow={item.ncId}
+            key={item.complaintId}
+            href={`/quality/complaints?scenario=${scenario.id}&complaint=${item.complaintId}`}
+            eyebrow={item.complaintId}
             title={item.summary}
-            description={`${item.originLabel} · ${item.severityLabel} · ${item.ownerLabel} · ${item.ageLabel}`}
+            description={`${item.customerName} · ${item.channelLabel} · ${item.severityLabel} · ${item.ownerLabel}`}
             statusTone={statusTone(item.status)}
             statusLabel={statusLabel(item.status)}
-            cta="Abrir NC"
+            cta="Abrir reclamacao"
           />
         ))}
       </section>
 
       <section className="detail-grid">
         <article className="detail-card">
-          <span className="eyebrow">Origem e severidade</span>
-          <strong>{detail.originLabel}</strong>
-          <p>{detail.severityLabel}</p>
+          <span className="eyebrow">Cliente e canal</span>
+          <strong>{detail.customerName}</strong>
+          <p>
+            {detail.channelLabel} · recebida em {detail.receivedAtLabel}
+          </p>
         </article>
 
         <article className="detail-card">
-          <span className="eyebrow">Causa e contenção</span>
-          <strong>{detail.rootCauseLabel}</strong>
-          <p>{detail.containmentLabel}</p>
+          <span className="eyebrow">Relato</span>
+          <strong>Contexto do cliente</strong>
+          <p>{detail.narrative}</p>
         </article>
 
         <article className="detail-card">
-          <span className="eyebrow">Acao corretiva</span>
-          <strong>{detail.correctiveActionLabel}</strong>
-          <p>{detail.evidenceLabel}</p>
+          <span className="eyebrow">NC e reemissao</span>
+          <strong>{detail.linkedNonconformityLabel}</strong>
+          <p>{detail.reissueReasonLabel ? `Motivo de reemissao sugerido: ${detail.reissueReasonLabel}.` : "Sem gatilho de reemissao formal neste recorte."}</p>
         </article>
       </section>
 
       <section className="detail-grid">
+        <article className="detail-card">
+          <span className="eyebrow">Checklist de acoes</span>
+          <strong>{detail.actions.length} etapa(s)</strong>
+          <ul>
+            {detail.actions.map((item) => (
+              <li key={item.key}>
+                {item.label} · {actionLabel(item.status)} · {item.detail}
+              </li>
+            ))}
+          </ul>
+        </article>
+
         <article className="detail-card">
           <span className="eyebrow">Bloqueios</span>
           <strong>{detail.blockers.length} bloqueio(s)</strong>
@@ -190,35 +203,30 @@ export default async function NonconformityPage(props: PageProps) {
             {detail.warnings.length === 0 ? <li>Sem warnings adicionais neste cenario.</li> : null}
           </ul>
         </article>
+      </section>
 
-        <article className="detail-card">
+      <section className="content-panel">
+        <div className="section-copy">
           <span className="eyebrow">Evidencia</span>
-          <strong>{detail.evidenceLabel}</strong>
-          <p>Use os atalhos abaixo para voltar ao fluxo, trilha ou procedimento relacionados.</p>
-        </article>
+          <h2>Dossie minimo da tratativa</h2>
+          <p>{detail.evidenceLabel}</p>
+        </div>
       </section>
 
       <section className="nav-grid">
         <NavCard
-          href={`/quality?scenario=${mapNonconformityScenarioToQualityHubScenario(scenario.id)}&module=nonconformities`}
+          href={`/quality?scenario=${mapComplaintScenarioToQualityHubScenario(scenario.id)}&module=complaints`}
           eyebrow="Hub"
           title="Voltar ao hub da qualidade"
-          description="Reabrir a visao consolidada da Qualidade mantendo a NC como ancora do recorte."
+          description="Reabrir o panorama consolidado da Qualidade mantendo a reclamacao como ancora do recorte."
           cta="Abrir hub"
-        />
-        <NavCard
-          href={`/quality/complaints?scenario=${complaintContext.scenarioId}&complaint=${complaintContext.complaintId}`}
-          eyebrow="Reclamacoes"
-          title="Abrir reclamacoes"
-          description="Conferir a tratativa de cliente mais coerente com o recorte atual da NC."
-          cta="Abrir reclamacoes"
         />
         {detail.links.workspaceScenarioId ? (
           <NavCard
             href={`/emission/workspace?scenario=${detail.links.workspaceScenarioId}`}
             eyebrow="Workspace"
-            title="Abrir prontidao consolidada"
-            description="Voltar ao recorte operacional associado a esta NC."
+            title="Abrir workspace operacional"
+            description="Voltar ao recorte operacional associado a esta reclamacao."
             cta="Abrir workspace"
           />
         ) : null}
@@ -227,17 +235,17 @@ export default async function NonconformityPage(props: PageProps) {
             href={`/quality/audit-trail?scenario=${detail.links.auditTrailScenarioId}`}
             eyebrow="Auditoria"
             title="Abrir trilha de auditoria"
-            description="Inspecionar a cadeia append-only relacionada a esta NC."
+            description="Inspecionar a cadeia append-only relacionada a esta reclamacao."
             cta="Abrir trilha"
           />
         ) : null}
-        {detail.links.procedureScenarioId ? (
+        {detail.links.nonconformityScenarioId && detail.links.nonconformityId ? (
           <NavCard
-            href={`/registry/procedures?scenario=${detail.links.procedureScenarioId}`}
-            eyebrow="Procedimento"
-            title="Abrir lista versionada"
-            description="Conferir o procedimento ligado a esta NC."
-            cta="Abrir procedimento"
+            href={`/quality/nonconformities?scenario=${detail.links.nonconformityScenarioId}&nc=${detail.links.nonconformityId}`}
+            eyebrow="NC"
+            title="Abrir nao conformidade"
+            description="Conferir a NC vinculada a esta reclamacao."
+            cta="Abrir NC"
           />
         ) : null}
         {detail.links.serviceOrderScenarioId && detail.links.reviewItemId ? (
@@ -245,7 +253,7 @@ export default async function NonconformityPage(props: PageProps) {
             href={`/emission/service-order-review?scenario=${detail.links.serviceOrderScenarioId}&item=${detail.links.reviewItemId}`}
             eyebrow="OS"
             title="Abrir revisao tecnica da OS"
-            description="Inspecionar a OS vinculada ao contexto desta NC."
+            description="Inspecionar a OS vinculada ao contexto desta reclamacao."
             cta="Abrir OS"
           />
         ) : null}
@@ -255,13 +263,13 @@ export default async function NonconformityPage(props: PageProps) {
         {scenarios.map((item) => (
           <NavCard
             key={item.id}
-            href={`/quality/nonconformities?scenario=${item.id}&nc=${item.selectedNc.ncId}`}
+            href={`/quality/complaints?scenario=${item.id}&complaint=${item.selectedComplaint.complaintId}`}
             eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
             title={item.label}
             description={item.summaryLabel}
             statusTone={statusTone(item.summary.status)}
             statusLabel={statusLabel(item.summary.status)}
-            cta="Abrir NCs"
+            cta="Abrir reclamacoes"
           />
         ))}
       </section>

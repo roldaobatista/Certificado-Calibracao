@@ -9,6 +9,7 @@ import {
 } from "./infra/runtime-readiness.js";
 import { registerAuditTrailRoutes } from "./interfaces/http/audit-trail.js";
 import { registerCertificatePreviewRoutes } from "./interfaces/http/certificate-preview.js";
+import { registerComplaintRoutes } from "./interfaces/http/complaints.js";
 import { registerCustomerRegistryRoutes } from "./interfaces/http/customer-registry.js";
 import { registerEmissionDryRunRoutes } from "./interfaces/http/emission-dry-run.js";
 import { registerEmissionWorkspaceRoutes } from "./interfaces/http/emission-workspace.js";
@@ -68,6 +69,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await app.register(trpcPlugin);
   await registerAuditTrailRoutes(app);
   await registerCertificatePreviewRoutes(app);
+  await registerComplaintRoutes(app);
   await registerCustomerRegistryRoutes(app);
   await registerEmissionDryRunRoutes(app);
   await registerEmissionWorkspaceRoutes(app);

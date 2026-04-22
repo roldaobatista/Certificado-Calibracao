@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   auditTrailCatalogSchema,
   certificatePreviewCatalogSchema,
+  complaintRegistryCatalogSchema,
   customerRegistryCatalogSchema,
   emissionDryRunCatalogSchema,
   emissionWorkspaceCatalogSchema,
@@ -152,6 +153,31 @@ test("serves the canonical audit trail catalog from the backend", async () => {
     assert.ok(blockedScenario);
     assert.equal(blockedScenario.detail.status, "blocked");
     assert.match(blockedScenario.detail.blockers.join(" "), /Hash-chain divergente/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical complaint registry catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/quality/complaints?scenario=critical-response&complaint=recl-007",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = complaintRegistryCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "critical-response");
+
+    assert.equal(payload.selectedScenarioId, "critical-response");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.blockers.join(" "), /reemissao|cliente/i);
   } finally {
     await app.close();
   }

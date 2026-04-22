@@ -42,6 +42,20 @@ function mapAuditTrailScenarioToQualityHubScenario(
   }
 }
 
+function mapAuditTrailScenarioToComplaintContext(
+  scenarioId: "recent-emission" | "reissue-attention" | "integrity-blocked",
+): { scenarioId: "resolved-history" | "open-follow-up" | "critical-response"; complaintId: string } {
+  switch (scenarioId) {
+    case "integrity-blocked":
+      return { scenarioId: "critical-response", complaintId: "recl-007" };
+    case "reissue-attention":
+      return { scenarioId: "critical-response", complaintId: "recl-007" };
+    case "recent-emission":
+    default:
+      return { scenarioId: "resolved-history", complaintId: "recl-002" };
+  }
+}
+
 export default async function AuditTrailPage(props: PageProps) {
   const catalog = await loadAuditTrailCatalog({
     scenarioId: props.searchParams?.scenario,
@@ -80,6 +94,7 @@ export default async function AuditTrailPage(props: PageProps) {
   const { selectedScenario: scenario, scenarios } = buildAuditTrailCatalogView(catalog);
   const selectedEvent = scenario.selectedEvent;
   const detail = scenario.detail;
+  const complaintContext = mapAuditTrailScenarioToComplaintContext(scenario.id);
 
   return (
     <AppShell
@@ -207,6 +222,13 @@ export default async function AuditTrailPage(props: PageProps) {
           title="Voltar ao hub da qualidade"
           description="Reabrir o panorama consolidado da Qualidade mantendo este recorte como ancora."
           cta="Abrir hub"
+        />
+        <NavCard
+          href={`/quality/complaints?scenario=${complaintContext.scenarioId}&complaint=${complaintContext.complaintId}`}
+          eyebrow="Reclamacoes"
+          title="Abrir reclamacoes"
+          description="Conferir a tratativa de cliente mais coerente com o recorte atual da trilha."
+          cta="Abrir reclamacoes"
         />
         {detail.links.workspaceScenarioId ? (
           <NavCard
