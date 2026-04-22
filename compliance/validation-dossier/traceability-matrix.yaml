@@ -477,6 +477,7 @@ requirements:
     owner: android
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
+      - specs/0063-v2-offline-sync-review-queue.md
     linked_tests:
       - evals/sync-simulator/prd-13-07-android-sync-idempotency.test.ts
     planned_tests: []
@@ -693,6 +694,7 @@ requirements:
     linked_specs:
       - specs/0002-mvp-acceptance-traceability.md
       - specs/0027-prd-13-20-sync-chaos-validation.md
+      - specs/0063-v2-offline-sync-review-queue.md
     linked_tests:
       - evals/sync-simulator/prd-13-20-offline-sync-chaos.test.ts
     planned_tests: []

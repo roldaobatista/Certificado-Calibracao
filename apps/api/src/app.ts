@@ -14,6 +14,7 @@ import { registerEmissionDryRunRoutes } from "./interfaces/http/emission-dry-run
 import { registerEmissionWorkspaceRoutes } from "./interfaces/http/emission-workspace.js";
 import { registerEquipmentRegistryRoutes } from "./interfaces/http/equipment-registry.js";
 import { registerNonconformityRoutes } from "./interfaces/http/nonconformities.js";
+import { registerOfflineSyncRoutes } from "./interfaces/http/offline-sync.js";
 import { registerOnboardingRoutes } from "./interfaces/http/onboarding.js";
 import { registerOrganizationSettingsRoutes } from "./interfaces/http/organization-settings.js";
 import { registerPortalCertificateRoutes } from "./interfaces/http/portal-certificate.js";
@@ -71,6 +72,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerEmissionWorkspaceRoutes(app);
   await registerEquipmentRegistryRoutes(app);
   await registerNonconformityRoutes(app);
+  await registerOfflineSyncRoutes(app);
   await registerReviewSignatureRoutes(app);
   await registerServiceOrderReviewRoutes(app);
   await registerSignatureQueueRoutes(app);

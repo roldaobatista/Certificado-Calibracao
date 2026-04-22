@@ -1,6 +1,7 @@
 import type {
   EmissionDryRunCatalog,
   EmissionWorkspaceCatalog,
+  OfflineSyncCatalog,
   OnboardingCatalog,
   ReviewSignatureCatalog,
   ServiceOrderReviewCatalog,
@@ -17,6 +18,7 @@ import { buildReviewSignatureCatalogView } from "../emission/review-signature-sc
 import { buildServiceOrderReviewCatalogView } from "../emission/service-order-review-scenarios";
 import { buildSignatureQueueCatalogView } from "../emission/signature-queue-scenarios";
 import { buildOnboardingCatalogView } from "../onboarding/onboarding-scenarios";
+import { buildOfflineSyncCatalogView } from "../sync/offline-sync-scenarios";
 
 export interface OperationsOverviewCard {
   href: string;
@@ -46,6 +48,7 @@ export function buildOperationsOverviewModel(input: {
   serviceOrderReviewCatalog: ServiceOrderReviewCatalog | null;
   reviewSignatureCatalog: ReviewSignatureCatalog | null;
   signatureQueueCatalog: SignatureQueueCatalog | null;
+  offlineSyncCatalog: OfflineSyncCatalog | null;
   userDirectoryCatalog: UserDirectoryCatalog | null;
 }): OperationsOverviewModel {
   const cards: OperationsOverviewCard[] = [];
@@ -72,6 +75,9 @@ export function buildOperationsOverviewModel(input: {
     : null;
   const signatureQueueView = input.signatureQueueCatalog
     ? buildSignatureQueueCatalogView(input.signatureQueueCatalog)
+    : null;
+  const offlineSyncView = input.offlineSyncCatalog
+    ? buildOfflineSyncCatalogView(input.offlineSyncCatalog)
     : null;
   const userDirectoryView = input.userDirectoryCatalog
     ? buildUserDirectoryCatalogView(input.userDirectoryCatalog)
@@ -245,6 +251,31 @@ export function buildOperationsOverviewModel(input: {
   );
 
   cards.push(
+    offlineSyncView
+      ? {
+          href: `/sync/review-queue?scenario=${offlineSyncView.selectedScenario.id}&item=${offlineSyncView.selectedScenario.selectedOutboxItem.itemId}&conflict=${offlineSyncView.selectedScenario.selectedConflict.conflictId}`,
+          eyebrow: "Sync",
+          title: offlineSyncView.selectedScenario.label,
+          description: `${offlineSyncView.selectedScenario.summary.openConflictCount} conflito(s) aberto(s), ${offlineSyncView.selectedScenario.summary.escalatedConflictCount} escalado(s) e ${offlineSyncView.selectedScenario.summary.queuedItems} lote(s) na outbox.`,
+          statusTone: offlineSyncView.selectedScenario.summary.status === "ready" ? "ok" : "warn",
+          statusLabel:
+            offlineSyncView.selectedScenario.summary.status === "ready"
+              ? "Sync pronto"
+              : offlineSyncView.selectedScenario.summary.status === "attention"
+                ? "Triagem pendente"
+                : "Sync bloqueado",
+          cta: "Abrir sync",
+        }
+      : unavailableCard({
+          href: "/sync/review-queue",
+          eyebrow: "Sync",
+          title: "Fila humana de conflitos offline",
+          description: "Leitura canonica indisponivel no momento.",
+          cta: "Abrir sync",
+        }),
+  );
+
+  cards.push(
     userDirectoryView
       ? {
           href: `/auth/users?scenario=${userDirectoryView.selectedScenario.id}`,
@@ -283,6 +314,7 @@ export function buildOperationsOverviewModel(input: {
       serviceOrderReviewView &&
       reviewSignatureView &&
       signatureQueueView &&
+      offlineSyncView &&
       userDirectoryView,
   );
 

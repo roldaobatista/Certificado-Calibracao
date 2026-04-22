@@ -8,6 +8,7 @@ import {
   emissionDryRunCatalogSchema,
   emissionWorkspaceCatalogSchema,
   nonconformityRegistryCatalogSchema,
+  offlineSyncCatalogSchema,
   equipmentRegistryCatalogSchema,
   onboardingCatalogSchema,
   organizationSettingsCatalogSchema,
@@ -327,6 +328,32 @@ test("serves the canonical nonconformity registry catalog from the backend", asy
     assert.ok(blockedScenario);
     assert.equal(blockedScenario.detail.status, "blocked");
     assert.match(blockedScenario.detail.blockers.join(" "), /critica aberta/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical offline sync review queue from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/sync/review-queue?scenario=human-review-open&item=sync-os-2026-0047&conflict=conflict-c1-0047",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = offlineSyncCatalogSchema.parse(response.json());
+    const selectedScenario = payload.scenarios.find((scenario) => scenario.id === "human-review-open");
+
+    assert.equal(payload.selectedScenarioId, "human-review-open");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(selectedScenario);
+    assert.equal(selectedScenario.summary.status, "attention");
+    assert.equal(selectedScenario.detail.class, "C1");
+    assert.equal(selectedScenario.detail.blockedForEmission, true);
   } finally {
     await app.close();
   }
