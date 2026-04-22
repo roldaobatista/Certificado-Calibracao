@@ -28,8 +28,8 @@ test("keeps the hub in attention while distinguishing implemented and planned ar
   const scenario = resolveQualityHubScenario("operational-attention");
 
   assert.equal(scenario.selectedModuleKey, "nonconformities");
-  assert.equal(scenario.summary.implementedModuleCount, 7);
-  assert.equal(scenario.summary.plannedModuleCount, 2);
+  assert.equal(scenario.summary.implementedModuleCount, 8);
+  assert.equal(scenario.summary.plannedModuleCount, 1);
   assert.equal(scenario.modules.find((module) => module.key === "complaints")?.availability, "implemented");
   assert.match(
     scenario.modules.find((module) => module.key === "complaints")?.href ?? "",
@@ -54,6 +54,14 @@ test("keeps the hub in attention while distinguishing implemented and planned ar
   assert.match(
     scenario.modules.find((module) => module.key === "indicators")?.href ?? "",
     /quality\/indicators/i,
+  );
+  assert.equal(
+    scenario.modules.find((module) => module.key === "management-review")?.availability,
+    "implemented",
+  );
+  assert.match(
+    scenario.modules.find((module) => module.key === "management-review")?.href ?? "",
+    /quality\/management-review/i,
   );
 });
 

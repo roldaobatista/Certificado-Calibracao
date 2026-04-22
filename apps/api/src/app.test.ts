@@ -8,6 +8,7 @@ import {
   customerRegistryCatalogSchema,
   emissionDryRunCatalogSchema,
   emissionWorkspaceCatalogSchema,
+  managementReviewCatalogSchema,
   nonconformityRegistryCatalogSchema,
   offlineSyncCatalogSchema,
   equipmentRegistryCatalogSchema,
@@ -360,6 +361,33 @@ test("serves the canonical internal audit catalog from the backend", async () =>
     assert.ok(blockedScenario);
     assert.equal(blockedScenario.detail.status, "blocked");
     assert.match(blockedScenario.detail.blockers.join(" "), /extraordinaria|trilha|liberacao/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical management review catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/quality/management-review?scenario=extraordinary-response&meeting=review-extra-2026-04",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = managementReviewCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find(
+      (scenario) => scenario.id === "extraordinary-response",
+    );
+
+    assert.equal(payload.selectedScenarioId, "extraordinary-response");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.blockers.join(" "), /extraordinaria|liberacao|trilha/i);
   } finally {
     await app.close();
   }

@@ -77,7 +77,7 @@ const MODULE_META: Record<QualityHubModuleKey, ModuleMeta> = {
   "management-review": {
     title: "Analise critica",
     clauseLabel: "ISO/IEC 17025 8.9",
-    ctaLabel: "Planejado",
+    ctaLabel: "Abrir analise critica",
   },
   "risk-impartiality": {
     title: "Imparcialidade e riscos",
@@ -100,7 +100,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
   "operational-attention": {
     label: "Qualidade em acompanhamento preventivo",
     description:
-      "O gestor acompanha NCs abertas, uma reclamacao ainda em tratamento e backlog planejado das demais areas sem perder o recorte operacional ja implementado.",
+      "O gestor acompanha NCs abertas, uma reclamacao ainda em tratamento e a unica area restante ainda planejada sem perder o recorte operacional ja implementado.",
     status: "attention",
     selectedModuleKey: "nonconformities",
     links: {
@@ -123,7 +123,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
     blockers: [],
     warnings: [
       "O modulo de reclamacoes segue com uma resposta formal pendente e precisa de fechamento dentro do prazo.",
-      "Trabalho nao conforme e analise critica seguem explicitamente planejados.",
+      "Trabalho nao conforme segue explicitamente planejado e ainda depende de uma leitura dedicada.",
     ],
     modules: [
       {
@@ -182,13 +182,18 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "management-review",
-        metricLabel: "Proxima reuniao: 30/06/2026",
-        summary: "A pauta consolidada continua planejada e ainda depende da convergencia entre NC, reclamacoes, riscos e indicadores.",
+        metricLabel: "Reuniao 30/06 | 2 decisoes pendentes",
+        summary:
+          "Modulo canonico ativo para pauta ordinaria, reunioes arquivadas, entradas automaticas e deliberacoes abertas da direcao.",
         status: "attention",
-        availability: "planned",
-        nextStepLabel: "Gerar pauta automatica com entradas vindas das leituras canonicamente implementadas.",
+        availability: "implemented",
+        href: "/quality/management-review?scenario=agenda-attention&meeting=review-2026-q2",
+        nextStepLabel:
+          "Levar a pauta de 30/06 com NCs, auditoria, riscos e indicadores ja consolidados para fechamento da ata.",
         blockers: [],
-        warnings: ["Ainda nao existe ata, deliberação ou workflow dedicados nesta area."],
+        warnings: [
+          "A ata final ainda depende do fechamento minimo de NCs, auditoria interna e SLA de CAPA.",
+        ],
       },
       {
         key: "risk-impartiality",
@@ -253,7 +258,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       "NC critica aberta com reclamacao correlata exige resposta formal da Qualidade.",
     ],
     warnings: [
-      "Trabalho nao conforme e analise critica seguem planejados e precisam nascer sem perder o contexto critico atual.",
+      "Trabalho nao conforme segue planejado e precisa nascer sem perder o contexto critico atual.",
     ],
     modules: [
       {
@@ -313,12 +318,14 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       {
         key: "management-review",
         metricLabel: "Reuniao extraordinaria hoje",
-        summary: "A analise critica formal ainda nao existe no produto, mas o hub registra a urgencia de decisao colegiada.",
-        status: "attention",
-        availability: "planned",
-        nextStepLabel: "Consolidar pauta critica com entradas de NC, trilha, risco e reclamacao.",
-        blockers: [],
-        warnings: ["Sem ata nem deliberação dedicadas por enquanto."],
+        summary:
+          "Modulo canonico ativo para pauta extraordinaria, entradas automaticas criticas e deliberações colegiadas bloqueantes.",
+        status: "blocked",
+        availability: "implemented",
+        href: "/quality/management-review?scenario=extraordinary-response&meeting=review-extra-2026-04",
+        nextStepLabel: "Registrar a deliberação extraordinaria antes de qualquer liberacao do recorte critico.",
+        blockers: ["A reuniao extraordinaria segue obrigatoria antes de qualquer liberacao do caso critico."],
+        warnings: ["A ata extraordinaria precisa consolidar trilha, NC, reclamacao, auditoria e riscos no mesmo registro."],
       },
       {
         key: "risk-impartiality",
@@ -358,7 +365,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
   "stable-baseline": {
     label: "Qualidade em baseline estavel",
     description:
-      "O recorte atual nao apresenta bloqueio critico e o hub destaca quais leituras ja estao prontas para auditoria e quais areas continuam planejadas.",
+      "O recorte atual nao apresenta bloqueio critico e o hub destaca quais leituras ja estao prontas para auditoria e qual area continua planejada.",
     status: "ready",
     selectedModuleKey: "audit-trail",
     links: {
@@ -379,7 +386,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
     recommendedAction:
       "Manter as leituras implementadas verdes, usar o hub como porta de entrada do gestor e seguir expandindo as areas ainda planejadas sem drift de contexto.",
     blockers: [],
-    warnings: ["As areas ainda planejadas permanecem visiveis como backlog regulado e nao como dados ficticios."],
+    warnings: ["A area ainda planejada permanece visivel como backlog regulado e nao como dado ficticio."],
     modules: [
       {
         key: "nonconformities",
@@ -437,11 +444,13 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "management-review",
-        metricLabel: "Proxima reuniao: 30/06/2026",
-        summary: "A analise critica ainda nao ganhou fluxo proprio, mas o hub ja preserva a proxima janela de revisao.",
+        metricLabel: "Ultima reuniao 31/03 | sem decisao aberta",
+        summary:
+          "Modulo canonico ativo com reuniao ordinaria arquivada, pauta reservada e consolidado pronto para a proxima direcao.",
         status: "ready",
-        availability: "planned",
-        nextStepLabel: "Transformar as leituras existentes em pauta automatica e ata versionada.",
+        availability: "implemented",
+        href: "/quality/management-review?scenario=ordinary-ready&meeting=review-2026-q1",
+        nextStepLabel: "Reutilizar a ata de 31/03 como baseline e preparar a proxima pauta ordinaria sem deliberação pendente.",
         blockers: [],
         warnings: [],
       },
