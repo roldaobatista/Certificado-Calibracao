@@ -6,6 +6,7 @@ import {
   emissionWorkspaceCatalogSchema,
   onboardingCatalogSchema,
   reviewSignatureCatalogSchema,
+  serviceOrderReviewCatalogSchema,
   selfSignupCatalogSchema,
   signatureQueueCatalogSchema,
   userDirectoryCatalogSchema,
@@ -185,6 +186,89 @@ const REVIEW_SIGNATURE_CATALOG = reviewSignatureCatalogSchema.parse({
   ],
 });
 
+const SERVICE_ORDER_REVIEW_CATALOG = serviceOrderReviewCatalogSchema.parse({
+  selectedScenarioId: "review-ready",
+  scenarios: [
+    {
+      id: "review-ready",
+      label: "OS pronta para revisao",
+      description: "Linha do tempo, dados de execucao e checklist tecnico coerentes.",
+      summary: {
+        status: "ready",
+        headline: "OS pronta para concluir a revisao tecnica",
+        totalCount: 4,
+        awaitingReviewCount: 1,
+        awaitingSignatureCount: 1,
+        inExecutionCount: 1,
+        emittedCount: 1,
+        blockedCount: 0,
+        recommendedAction: "Aprovar a revisao tecnica.",
+        blockers: [],
+        warnings: [],
+      },
+      selectedItemId: "os-2026-00142",
+      items: [
+        {
+          itemId: "os-2026-00142",
+          workOrderNumber: "OS-2026-00142",
+          customerName: "Lab. Acme",
+          equipmentLabel: "Toledo Prix 3",
+          status: "awaiting_review",
+          technicianName: "Joao Executor",
+          updatedAtLabel: "14:22",
+        },
+      ],
+      detail: {
+        itemId: "os-2026-00142",
+        title: "OS-2026-00142 · Lab. Acme · Toledo Prix 3",
+        status: "ready",
+        statusLine: "Aguardando revisao · Atribuido a: Maria Revisora · Executado por: Joao Executor",
+        executorLabel: "Joao Executor",
+        assignedReviewerLabel: "Maria Revisora",
+        procedureLabel: "PT-005 rev.04",
+        standardsLabel: "PESO-001 / PESO-002",
+        environmentLabel: "22.4 C",
+        curvePointsLabel: "5 pontos",
+        evidenceLabel: "12 evidencias",
+        uncertaintyLabel: "0.05 kg",
+        conformityLabel: "Aprovado",
+        timeline: [
+          {
+            key: "created",
+            label: "Criada",
+            status: "complete",
+            timestampLabel: "12/04 09:01",
+          },
+        ],
+        metrics: [
+          {
+            label: "Repetibilidade",
+            value: "sigma = 0,058 kg",
+            tone: "ok",
+          },
+        ],
+        checklist: [
+          {
+            label: "Padroes validos",
+            status: "passed",
+            detail: "Ok",
+          },
+        ],
+        commentDraft: "Revisao liberada.",
+        allowedActions: ["approve_review", "open_preview"],
+        blockers: [],
+        warnings: [],
+        links: {
+          workspaceScenarioId: "baseline-ready",
+          previewScenarioId: "type-b-ready",
+          reviewSignatureScenarioId: "segregated-ready",
+          signatureQueueScenarioId: "approved-ready",
+        },
+      },
+    },
+  ],
+});
+
 const SIGNATURE_QUEUE_CATALOG = signatureQueueCatalogSchema.parse({
   selectedScenarioId: "approved-ready",
   scenarios: [
@@ -297,12 +381,13 @@ test("summarizes the canonical readiness across auth, onboarding and emission", 
     selfSignupCatalog: SELF_SIGNUP_CATALOG,
     onboardingCatalog: ONBOARDING_CATALOG,
     emissionCatalog: EMISSION_CATALOG,
+    serviceOrderReviewCatalog: SERVICE_ORDER_REVIEW_CATALOG,
     reviewSignatureCatalog: REVIEW_SIGNATURE_CATALOG,
     signatureQueueCatalog: SIGNATURE_QUEUE_CATALOG,
     userDirectoryCatalog: USER_DIRECTORY_CATALOG,
   });
 
-  assert.equal(model.readyCount, 5);
+  assert.equal(model.readyCount, 6);
   assert.equal(model.blockedCount, 2);
   assert.equal(model.allSourcesAvailable, true);
   assert.equal(model.heroStatusTone, "warn");
@@ -311,9 +396,14 @@ test("summarizes the canonical readiness across auth, onboarding and emission", 
   assert.equal(model.cards[1]?.href, "/auth/self-signup?scenario=signatory-ready");
   assert.equal(model.cards[2]?.statusLabel, "Emissao bloqueada");
   assert.equal(model.cards[3]?.statusLabel, "Emissao pronta");
-  assert.equal(model.cards[4]?.statusLabel, "Workflow liberado");
-  assert.equal(model.cards[5]?.statusLabel, "Fila pronta");
-  assert.equal(model.cards[6]?.statusLabel, "Equipe saudavel");
+  assert.equal(model.cards[4]?.statusLabel, "OS pronta");
+  assert.equal(
+    model.cards[4]?.href,
+    "/emission/service-order-review?scenario=review-ready&item=os-2026-00142",
+  );
+  assert.equal(model.cards[5]?.statusLabel, "Workflow liberado");
+  assert.equal(model.cards[6]?.statusLabel, "Fila pronta");
+  assert.equal(model.cards[7]?.statusLabel, "Equipe saudavel");
 });
 
 test("fails closed when one or more canonical sources are unavailable", () => {
@@ -322,16 +412,17 @@ test("fails closed when one or more canonical sources are unavailable", () => {
     selfSignupCatalog: null,
     onboardingCatalog: null,
     emissionCatalog: null,
+    serviceOrderReviewCatalog: null,
     reviewSignatureCatalog: null,
     signatureQueueCatalog: null,
     userDirectoryCatalog: null,
   });
 
   assert.equal(model.readyCount, 0);
-  assert.equal(model.blockedCount, 7);
+  assert.equal(model.blockedCount, 8);
   assert.equal(model.allSourcesAvailable, false);
   assert.equal(model.heroStatusTone, "warn");
   assert.equal(model.heroStatusLabel, "Revisao operacional necessaria");
-  assert.equal(model.cards.length, 7);
+  assert.equal(model.cards.length, 8);
   assert.equal(model.cards.every((card) => card.statusLabel === "Sem carga canonica"), true);
 });

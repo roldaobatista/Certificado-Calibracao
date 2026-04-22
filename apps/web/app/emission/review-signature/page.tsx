@@ -51,6 +51,16 @@ function mapReviewScenarioToQueueScenario(reviewScenarioId: string): string {
   }
 }
 
+function mapReviewScenarioToServiceOrderScenario(reviewScenarioId: string): string {
+  switch (reviewScenarioId) {
+    case "reviewer-conflict":
+    case "signatory-mfa-blocked":
+      return "review-blocked";
+    default:
+      return "review-ready";
+  }
+}
+
 export default async function ReviewSignaturePage(props: PageProps) {
   const catalog = await loadReviewSignatureCatalog({ scenarioId: props.searchParams?.scenario });
 
@@ -211,6 +221,13 @@ export default async function ReviewSignaturePage(props: PageProps) {
       </section>
 
       <section className="nav-grid">
+        <NavCard
+          href={`/emission/service-order-review?scenario=${mapReviewScenarioToServiceOrderScenario(scenario.id)}`}
+          eyebrow="OS"
+          title="Abrir detalhe da OS"
+          description="Contextualizar o workflow com linha do tempo, checklist e dados de execucao."
+          cta="Abrir OS"
+        />
         <NavCard
           href={`/emission/certificate-preview?scenario=${mapReviewScenarioToPreviewScenario(scenario.id)}`}
           eyebrow="Previa"

@@ -54,6 +54,17 @@ function mapWorkspaceScenarioToQueueScenario(workspaceScenarioId: string): strin
   }
 }
 
+function mapWorkspaceScenarioToServiceOrderScenario(workspaceScenarioId: string): string {
+  switch (workspaceScenarioId) {
+    case "team-attention":
+      return "history-pending";
+    case "release-blocked":
+      return "review-blocked";
+    default:
+      return "review-ready";
+  }
+}
+
 export default async function EmissionWorkspacePage(props: PageProps) {
   const catalog = await loadEmissionWorkspaceCatalog({ scenarioId: props.searchParams?.scenario });
 
@@ -158,6 +169,15 @@ export default async function EmissionWorkspacePage(props: PageProps) {
       </section>
 
       <section className="nav-grid">
+        <NavCard
+          href={`/emission/service-order-review?scenario=${mapWorkspaceScenarioToServiceOrderScenario(scenario.id)}`}
+          eyebrow="OS"
+          title="Abrir detalhe da OS"
+          description="Revisar linha do tempo, checklist tecnico e acoes da OS atual."
+          statusTone={statusTone(scenario.summary.status)}
+          statusLabel={statusLabel(scenario.summary.status)}
+          cta="Abrir OS"
+        />
         <NavCard
           href={`/emission/certificate-preview?scenario=${mapWorkspaceScenarioToPreviewScenario(scenario.id, scenario.references.dryRunScenarioId)}`}
           eyebrow="Certificado"

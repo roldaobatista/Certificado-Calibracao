@@ -16,6 +16,7 @@ export * from "./mobile-offline-calibration.js";
 export * from "./onboarding.js";
 export * from "./public-certificate.js";
 export * from "./review-signature.js";
+export * from "./service-order-review.js";
 export * from "./self-signup.js";
 export * from "./signature-queue.js";
 export * from "./user-directory.js";

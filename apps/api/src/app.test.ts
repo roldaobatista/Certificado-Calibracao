@@ -8,6 +8,7 @@ import {
   onboardingCatalogSchema,
   publicCertificateCatalogSchema,
   reviewSignatureCatalogSchema,
+  serviceOrderReviewCatalogSchema,
   selfSignupCatalogSchema,
   signatureQueueCatalogSchema,
   userDirectoryCatalogSchema,
@@ -192,6 +193,32 @@ test("serves the canonical signature queue catalog from the backend", async () =
     assert.equal(blockedScenario.summary.status, "blocked");
     assert.equal(blockedScenario.approval.canSign, false);
     assert.match(blockedScenario.approval.blockers.join(" "), /MFA/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical service-order review catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/emission/service-order-review?scenario=review-blocked",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = serviceOrderReviewCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "review-blocked");
+
+    assert.equal(payload.selectedScenarioId, "review-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.equal(blockedScenario.detail.allowedActions.includes("approve_review"), false);
+    assert.match(blockedScenario.detail.blockers.join(" "), /Revisor atual coincide com o executor/i);
   } finally {
     await app.close();
   }

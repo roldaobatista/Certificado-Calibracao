@@ -3,6 +3,7 @@ import type {
   EmissionWorkspaceCatalog,
   OnboardingCatalog,
   ReviewSignatureCatalog,
+  ServiceOrderReviewCatalog,
   SelfSignupCatalog,
   SignatureQueueCatalog,
   UserDirectoryCatalog,
@@ -13,6 +14,7 @@ import { buildUserDirectoryCatalogView } from "../auth/user-directory-scenarios"
 import { buildEmissionDryRunCatalogView } from "../emission/emission-dry-run-scenarios";
 import { buildEmissionWorkspaceCatalogView } from "../emission/emission-workspace-scenarios";
 import { buildReviewSignatureCatalogView } from "../emission/review-signature-scenarios";
+import { buildServiceOrderReviewCatalogView } from "../emission/service-order-review-scenarios";
 import { buildSignatureQueueCatalogView } from "../emission/signature-queue-scenarios";
 import { buildOnboardingCatalogView } from "../onboarding/onboarding-scenarios";
 
@@ -41,6 +43,7 @@ export function buildOperationsOverviewModel(input: {
   onboardingCatalog: OnboardingCatalog | null;
   emissionCatalog: EmissionDryRunCatalog | null;
   emissionWorkspaceCatalog: EmissionWorkspaceCatalog | null;
+  serviceOrderReviewCatalog: ServiceOrderReviewCatalog | null;
   reviewSignatureCatalog: ReviewSignatureCatalog | null;
   signatureQueueCatalog: SignatureQueueCatalog | null;
   userDirectoryCatalog: UserDirectoryCatalog | null;
@@ -60,6 +63,9 @@ export function buildOperationsOverviewModel(input: {
     : null;
   const emissionView = input.emissionCatalog
     ? buildEmissionDryRunCatalogView(input.emissionCatalog)
+    : null;
+  const serviceOrderReviewView = input.serviceOrderReviewCatalog
+    ? buildServiceOrderReviewCatalogView(input.serviceOrderReviewCatalog)
     : null;
   const reviewSignatureView = input.reviewSignatureCatalog
     ? buildReviewSignatureCatalogView(input.reviewSignatureCatalog)
@@ -170,6 +176,32 @@ export function buildOperationsOverviewModel(input: {
   );
 
   cards.push(
+    serviceOrderReviewView
+      ? {
+          href: `/emission/service-order-review?scenario=${serviceOrderReviewView.selectedScenario.id}&item=${serviceOrderReviewView.selectedScenario.selectedItem.itemId}`,
+          eyebrow: "OS",
+          title: serviceOrderReviewView.selectedScenario.label,
+          description: `${serviceOrderReviewView.selectedScenario.summary.awaitingReviewCount} aguardando revisao e ${serviceOrderReviewView.selectedScenario.summary.awaitingSignatureCount} aguardando assinatura.`,
+          statusTone:
+            serviceOrderReviewView.selectedScenario.summary.status === "ready" ? "ok" : "warn",
+          statusLabel:
+            serviceOrderReviewView.selectedScenario.summary.status === "ready"
+              ? "OS pronta"
+              : serviceOrderReviewView.selectedScenario.summary.status === "attention"
+                ? "OS com atencao"
+                : "OS bloqueada",
+          cta: "Abrir OS",
+        }
+      : unavailableCard({
+          href: "/emission/service-order-review",
+          eyebrow: "OS",
+          title: "Lista e detalhe canonico da OS",
+          description: "Leitura canonica indisponivel no momento.",
+          cta: "Abrir OS",
+        }),
+  );
+
+  cards.push(
     reviewSignatureView
       ? {
           href: `/emission/review-signature?scenario=${reviewSignatureView.selectedScenario.id}`,
@@ -248,6 +280,7 @@ export function buildOperationsOverviewModel(input: {
       selfSignupView &&
       onboardingView &&
       emissionView &&
+      serviceOrderReviewView &&
       reviewSignatureView &&
       signatureQueueView &&
       userDirectoryView,

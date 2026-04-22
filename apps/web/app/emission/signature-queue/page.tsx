@@ -52,6 +52,17 @@ function mapQueueScenarioToWorkspaceScenario(queueScenarioId: string): string {
   }
 }
 
+function mapQueueScenarioToServiceOrderScenario(queueScenarioId: string): string {
+  switch (queueScenarioId) {
+    case "attention-required":
+      return "history-pending";
+    case "mfa-blocked":
+      return "review-blocked";
+    default:
+      return "review-ready";
+  }
+}
+
 function describeItemValidations(item: {
   validations: Array<{ status: "passed" | "warning" | "failed" }>;
 }): string {
@@ -296,6 +307,13 @@ export default async function SignatureQueuePage(props: PageProps) {
       </section>
 
       <section className="nav-grid">
+        <NavCard
+          href={`/emission/service-order-review?scenario=${mapQueueScenarioToServiceOrderScenario(scenario.id)}`}
+          eyebrow="OS"
+          title="Abrir detalhe da OS"
+          description="Voltar ao detalhe canonico da OS que originou a fila de assinatura."
+          cta="Abrir OS"
+        />
         <NavCard
           href={`/emission/certificate-preview?scenario=${selectedItem.previewScenarioId}`}
           eyebrow="Previa"
