@@ -77,6 +77,74 @@ function actionLabel(
   }
 }
 
+function mapServiceOrderScenarioToRegistryContext(scenarioId: string): {
+  scenarioId: string;
+  customerId: string;
+  equipmentId: string;
+} {
+  switch (scenarioId) {
+    case "history-pending":
+      return {
+        scenarioId: "certificate-attention",
+        customerId: "customer-003",
+        equipmentId: "equipment-003",
+      };
+    case "review-blocked":
+      return {
+        scenarioId: "registration-blocked",
+        customerId: "customer-004",
+        equipmentId: "equipment-004",
+      };
+    default:
+      return {
+        scenarioId: "operational-ready",
+        customerId: "customer-001",
+        equipmentId: "equipment-001",
+      };
+  }
+}
+
+function mapServiceOrderScenarioToProcedureContext(scenarioId: string): {
+  scenarioId: string;
+  procedureId: string;
+} {
+  switch (scenarioId) {
+    case "review-blocked":
+      return {
+        scenarioId: "revision-attention",
+        procedureId: "procedure-pt009-r02",
+      };
+    default:
+      return {
+        scenarioId: "operational-ready",
+        procedureId: "procedure-pt005-r04",
+      };
+  }
+}
+
+function mapServiceOrderScenarioToAuditTrailContext(scenarioId: string): {
+  scenarioId: string;
+  eventId: string;
+} {
+  switch (scenarioId) {
+    case "history-pending":
+      return {
+        scenarioId: "reissue-attention",
+        eventId: "audit-7",
+      };
+    case "review-blocked":
+      return {
+        scenarioId: "integrity-blocked",
+        eventId: "audit-3",
+      };
+    default:
+      return {
+        scenarioId: "recent-emission",
+        eventId: "audit-4",
+      };
+  }
+}
+
 export default async function ServiceOrderReviewPage(props: PageProps) {
   const catalog = await loadServiceOrderReviewCatalog({
     scenarioId: props.searchParams?.scenario,
@@ -114,6 +182,9 @@ export default async function ServiceOrderReviewPage(props: PageProps) {
 
   const { selectedScenario: scenario, scenarios } = buildServiceOrderReviewCatalogView(catalog);
   const selectedItem = scenario.selectedItem;
+  const registryContext = mapServiceOrderScenarioToRegistryContext(scenario.id);
+  const procedureContext = mapServiceOrderScenarioToProcedureContext(scenario.id);
+  const auditTrailContext = mapServiceOrderScenarioToAuditTrailContext(scenario.id);
 
   return (
     <AppShell
@@ -316,6 +387,34 @@ export default async function ServiceOrderReviewPage(props: PageProps) {
       </section>
 
       <section className="nav-grid">
+        <NavCard
+          href={`/registry/customer-detail?scenario=${registryContext.scenarioId}&customer=${registryContext.customerId}`}
+          eyebrow="Cliente"
+          title="Abrir detalhe do cliente"
+          description="Conferir dados, contatos, enderecos e certificados ligados a esta OS."
+          cta="Abrir cliente"
+        />
+        <NavCard
+          href={`/registry/equipment?scenario=${registryContext.scenarioId}&equipment=${registryContext.equipmentId}`}
+          eyebrow="Equipamento"
+          title="Abrir lista global de equipamentos"
+          description="Voltar ao cadastro e ao vencimento do equipamento relacionado a esta OS."
+          cta="Abrir equipamento"
+        />
+        <NavCard
+          href={`/registry/procedures?scenario=${procedureContext.scenarioId}&procedure=${procedureContext.procedureId}`}
+          eyebrow="Procedimento"
+          title="Abrir lista versionada"
+          description="Conferir a vigencia e o contexto do procedimento associado a esta OS."
+          cta="Abrir procedimento"
+        />
+        <NavCard
+          href={`/quality/audit-trail?scenario=${auditTrailContext.scenarioId}&event=${auditTrailContext.eventId}`}
+          eyebrow="Auditoria"
+          title="Abrir trilha de auditoria"
+          description="Conferir a cadeia append-only relacionada a esta OS e aos eventos criticos de emissao."
+          cta="Abrir trilha"
+        />
         <NavCard
           href={`/emission/workspace?scenario=${scenario.detail.links.workspaceScenarioId}`}
           eyebrow="Workspace"

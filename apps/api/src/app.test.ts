@@ -2,15 +2,25 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  auditTrailCatalogSchema,
   certificatePreviewCatalogSchema,
+  customerRegistryCatalogSchema,
   emissionDryRunCatalogSchema,
   emissionWorkspaceCatalogSchema,
+  nonconformityRegistryCatalogSchema,
+  equipmentRegistryCatalogSchema,
   onboardingCatalogSchema,
+  organizationSettingsCatalogSchema,
+  portalCertificateCatalogSchema,
+  portalDashboardCatalogSchema,
+  portalEquipmentCatalogSchema,
+  procedureRegistryCatalogSchema,
   publicCertificateCatalogSchema,
   reviewSignatureCatalogSchema,
   serviceOrderReviewCatalogSchema,
   selfSignupCatalogSchema,
   signatureQueueCatalogSchema,
+  standardRegistryCatalogSchema,
   userDirectoryCatalogSchema,
 } from "@afere/contracts";
 
@@ -120,6 +130,56 @@ test("serves the canonical emission dry-run catalog from the backend", async () 
   }
 });
 
+test("serves the canonical audit trail catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/quality/audit-trail?scenario=integrity-blocked",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = auditTrailCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "integrity-blocked");
+
+    assert.equal(payload.selectedScenarioId, "integrity-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.blockers.join(" "), /Hash-chain divergente/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical customer registry catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/registry/customers?scenario=registration-blocked",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = customerRegistryCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "registration-blocked");
+
+    assert.equal(payload.selectedScenarioId, "registration-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.blockers.join(" "), /CEP validado|Campos ausentes/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("serves the canonical certificate preview catalog from the backend", async () => {
   const { runtimeReadiness } = createRuntimeReadinessStub();
   const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
@@ -146,6 +206,81 @@ test("serves the canonical certificate preview catalog from the backend", async 
   }
 });
 
+test("serves the canonical equipment registry catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/registry/equipment?scenario=certificate-attention",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = equipmentRegistryCatalogSchema.parse(response.json());
+    const attentionScenario = payload.scenarios.find((scenario) => scenario.id === "certificate-attention");
+
+    assert.equal(payload.selectedScenarioId, "certificate-attention");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(attentionScenario);
+    assert.equal(attentionScenario.detail.status, "attention");
+    assert.match(attentionScenario.detail.warnings.join(" "), /janela critica de vencimento/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical standard registry catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/registry/standards?scenario=expired-blocked",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = standardRegistryCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "expired-blocked");
+
+    assert.equal(payload.selectedScenarioId, "expired-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.blockers.join(" "), /vencido/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical procedure registry catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/registry/procedures?scenario=obsolete-visible",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = procedureRegistryCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "obsolete-visible");
+
+    assert.equal(payload.selectedScenarioId, "obsolete-visible");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.blockers.join(" "), /obsoleta|novas OS/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("serves the canonical emission workspace catalog from the backend", async () => {
   const { runtimeReadiness } = createRuntimeReadinessStub();
   const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
@@ -167,6 +302,132 @@ test("serves the canonical emission workspace catalog from the backend", async (
     assert.equal(blockedScenario.summary.status, "blocked");
     assert.equal(blockedScenario.modules.some((module) => module.key === "workflow"), true);
     assert.match(blockedScenario.summary.blockers.join(" "), /MFA/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical nonconformity registry catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/quality/nonconformities?scenario=critical-response",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = nonconformityRegistryCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "critical-response");
+
+    assert.equal(payload.selectedScenarioId, "critical-response");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.blockers.join(" "), /critica aberta/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical organization settings catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/settings/organization?scenario=profile-change-blocked&section=regulatory_profile",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = organizationSettingsCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "profile-change-blocked");
+
+    assert.equal(payload.selectedScenarioId, "profile-change-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.selectedSectionKey, "regulatory_profile");
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.blockers.join(" "), /dupla aprovacao|serie acreditada/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical portal dashboard catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/portal/dashboard?scenario=overdue-blocked",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = portalDashboardCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "overdue-blocked");
+
+    assert.equal(payload.selectedScenarioId, "overdue-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.summary.status, "blocked");
+    assert.match(blockedScenario.summary.blockers.join(" "), /BAL-019/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical portal certificate catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/portal/certificate?scenario=download-blocked&certificate=cert-00128",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = portalCertificateCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "download-blocked");
+
+    assert.equal(payload.selectedScenarioId, "download-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.blockers.join(" "), /viewer integral/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical portal equipment catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/portal/equipment?scenario=overdue-blocked&equipment=equipment-bal-019",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = portalEquipmentCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "overdue-blocked");
+
+    assert.equal(payload.selectedScenarioId, "overdue-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.blockers.join(" "), /calibracao valida/i);
   } finally {
     await app.close();
   }

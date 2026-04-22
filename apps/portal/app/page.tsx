@@ -86,6 +86,35 @@ export default async function HomePage() {
           />
         ))}
       </section>
+
+      <section className="section-header">
+        <div className="section-copy">
+          <span className="eyebrow">Portal autenticado</span>
+          <h2>Entradas canonicamente previstas para o cliente</h2>
+          <p>O portal tambem passa a expor o dashboard logado do cliente com carteira, certificados e vencimentos.</p>
+        </div>
+      </section>
+
+      <section className="nav-grid">
+        <NavCard
+          href="/dashboard?scenario=stable-portfolio"
+          eyebrow="Dashboard"
+          title="Carteira estavel"
+          description="Abrir a visao do cliente quando nao ha vencimentos imediatos no recorte atual."
+          statusTone="ok"
+          statusLabel="Sem alertas"
+          cta="Abrir dashboard"
+        />
+        <NavCard
+          href="/dashboard?scenario=expiring-soon"
+          eyebrow="Vencimentos"
+          title="Equipamentos vencendo em breve"
+          description="Abrir o dashboard com foco em vencimentos proximos e acao preventiva."
+          statusTone="warn"
+          statusLabel="Atencao"
+          cta="Abrir dashboard"
+        />
+      </section>
     </AppShell>
   );
 }

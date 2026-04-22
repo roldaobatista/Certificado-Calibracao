@@ -65,6 +65,120 @@ function mapWorkspaceScenarioToServiceOrderScenario(workspaceScenarioId: string)
   }
 }
 
+function mapWorkspaceScenarioToRegistryScenario(workspaceScenarioId: string): string {
+  switch (workspaceScenarioId) {
+    case "team-attention":
+      return "certificate-attention";
+    case "release-blocked":
+      return "registration-blocked";
+    default:
+      return "operational-ready";
+  }
+}
+
+function mapWorkspaceScenarioToStandardScenario(workspaceScenarioId: string): string {
+  switch (workspaceScenarioId) {
+    case "team-attention":
+      return "expiration-attention";
+    case "release-blocked":
+      return "expired-blocked";
+    default:
+      return "operational-ready";
+  }
+}
+
+function mapWorkspaceScenarioToProcedureContext(workspaceScenarioId: string): {
+  scenarioId: string;
+  procedureId: string;
+} {
+  switch (workspaceScenarioId) {
+    case "team-attention":
+      return {
+        scenarioId: "revision-attention",
+        procedureId: "procedure-pt009-r02",
+      };
+    case "release-blocked":
+      return {
+        scenarioId: "obsolete-visible",
+        procedureId: "procedure-pt005-r03",
+      };
+    default:
+      return {
+        scenarioId: "operational-ready",
+        procedureId: "procedure-pt005-r04",
+      };
+  }
+}
+
+function mapWorkspaceScenarioToAuditTrailContext(workspaceScenarioId: string): {
+  scenarioId: string;
+  eventId: string;
+} {
+  switch (workspaceScenarioId) {
+    case "team-attention":
+      return {
+        scenarioId: "reissue-attention",
+        eventId: "audit-7",
+      };
+    case "release-blocked":
+      return {
+        scenarioId: "integrity-blocked",
+        eventId: "audit-3",
+      };
+    default:
+      return {
+        scenarioId: "recent-emission",
+        eventId: "audit-4",
+      };
+  }
+}
+
+function mapWorkspaceScenarioToNonconformityContext(workspaceScenarioId: string): {
+  scenarioId: string;
+  ncId: string;
+} {
+  switch (workspaceScenarioId) {
+    case "team-attention":
+      return {
+        scenarioId: "open-attention",
+        ncId: "nc-014",
+      };
+    case "release-blocked":
+      return {
+        scenarioId: "critical-response",
+        ncId: "nc-015",
+      };
+    default:
+      return {
+        scenarioId: "resolved-history",
+        ncId: "nc-011",
+      };
+  }
+}
+
+function mapWorkspaceScenarioToOrganizationSettingsContext(workspaceScenarioId: string): {
+  scenarioId: string;
+  sectionKey: string;
+} {
+  switch (workspaceScenarioId) {
+    case "team-attention":
+      return {
+        scenarioId: "renewal-attention",
+        sectionKey: "security",
+      };
+    case "release-blocked":
+      return {
+        scenarioId: "profile-change-blocked",
+        sectionKey: "regulatory_profile",
+      };
+    default:
+      return {
+        scenarioId: "operational-ready",
+        sectionKey: "regulatory_profile",
+      };
+  }
+}
+
 export default async function EmissionWorkspacePage(props: PageProps) {
   const catalog = await loadEmissionWorkspaceCatalog({ scenarioId: props.searchParams?.scenario });
 
@@ -98,6 +212,10 @@ export default async function EmissionWorkspacePage(props: PageProps) {
   }
 
   const { selectedScenario: scenario, scenarios } = buildEmissionWorkspaceCatalogView(catalog);
+  const procedureContext = mapWorkspaceScenarioToProcedureContext(scenario.id);
+  const auditTrailContext = mapWorkspaceScenarioToAuditTrailContext(scenario.id);
+  const nonconformityContext = mapWorkspaceScenarioToNonconformityContext(scenario.id);
+  const organizationSettingsContext = mapWorkspaceScenarioToOrganizationSettingsContext(scenario.id);
 
   return (
     <AppShell
@@ -195,6 +313,91 @@ export default async function EmissionWorkspacePage(props: PageProps) {
           statusTone={statusTone(scenario.summary.status)}
           statusLabel={statusLabel(scenario.summary.status)}
           cta="Abrir fila"
+        />
+      </section>
+
+      <section className="section-header">
+        <div className="section-copy">
+          <span className="eyebrow">Cadastros</span>
+          <h2>Clientes e equipamentos que sustentam a operacao</h2>
+          <p>O workspace tambem aponta para os cadastros canonicos usados pela emissao e pela revisao tecnica.</p>
+        </div>
+      </section>
+
+      <section className="nav-grid">
+        <NavCard
+          href={`/registry/customers?scenario=${mapWorkspaceScenarioToRegistryScenario(scenario.id)}`}
+          eyebrow="Clientes"
+          title="Abrir lista de clientes"
+          description="Conferir o recorte canonico de clientes ativos, em atencao ou bloqueados."
+          statusTone={statusTone(scenario.summary.status)}
+          statusLabel={statusLabel(scenario.summary.status)}
+          cta="Abrir clientes"
+        />
+        <NavCard
+          href={`/registry/equipment?scenario=${mapWorkspaceScenarioToRegistryScenario(scenario.id)}`}
+          eyebrow="Equipamentos"
+          title="Abrir lista global de equipamentos"
+          description="Validar cadastro minimo, vencimentos e relacionamento com clientes antes da emissao."
+          statusTone={statusTone(scenario.summary.status)}
+          statusLabel={statusLabel(scenario.summary.status)}
+          cta="Abrir equipamentos"
+        />
+        <NavCard
+          href={`/registry/standards?scenario=${mapWorkspaceScenarioToStandardScenario(scenario.id)}`}
+          eyebrow="Padroes"
+          title="Abrir carteira de padroes"
+          description="Conferir vencimentos, historico de calibracoes e elegibilidade dos padroes usados pela operacao."
+          statusTone={statusTone(scenario.summary.status)}
+          statusLabel={statusLabel(scenario.summary.status)}
+          cta="Abrir padroes"
+        />
+        <NavCard
+          href={`/registry/procedures?scenario=${procedureContext.scenarioId}&procedure=${procedureContext.procedureId}`}
+          eyebrow="Procedimentos"
+          title="Abrir lista versionada"
+          description="Conferir vigencia, revisoes ativas e procedimentos obsoletos que sustentam a operacao."
+          statusTone={statusTone(scenario.summary.status)}
+          statusLabel={statusLabel(scenario.summary.status)}
+          cta="Abrir procedimentos"
+        />
+        <NavCard
+          href={`/quality/audit-trail?scenario=${auditTrailContext.scenarioId}&event=${auditTrailContext.eventId}`}
+          eyebrow="Auditoria"
+          title="Abrir trilha de auditoria"
+          description="Conferir a cadeia append-only, reemissoes e integridade do recorte operacional."
+          statusTone={statusTone(scenario.summary.status)}
+          statusLabel={statusLabel(scenario.summary.status)}
+          cta="Abrir trilha"
+        />
+        <NavCard
+          href={`/quality/nonconformities?scenario=${nonconformityContext.scenarioId}&nc=${nonconformityContext.ncId}`}
+          eyebrow="NCs"
+          title="Abrir nao conformidades"
+          description="Conferir NCs abertas, criticas ou encerradas ligadas ao recorte operacional."
+          statusTone={statusTone(scenario.summary.status)}
+          statusLabel={statusLabel(scenario.summary.status)}
+          cta="Abrir NCs"
+        />
+      </section>
+
+      <section className="section-header">
+        <div className="section-copy">
+          <span className="eyebrow">Governanca</span>
+          <h2>Configuracoes estruturais da organizacao</h2>
+          <p>O workspace tambem aponta para o catalogo canonico de configuracoes que sustenta perfil, numeracao e seguranca.</p>
+        </div>
+      </section>
+
+      <section className="nav-grid">
+        <NavCard
+          href={`/settings/organization?scenario=${organizationSettingsContext.scenarioId}&section=${organizationSettingsContext.sectionKey}`}
+          eyebrow="Configuracoes"
+          title="Abrir organizacao"
+          description="Revisar perfil regulatorio, numeracao, auth, notificacoes e LGPD do tenant ativo."
+          statusTone={statusTone(scenario.summary.status)}
+          statusLabel={statusLabel(scenario.summary.status)}
+          cta="Abrir configuracoes"
         />
       </section>
 
