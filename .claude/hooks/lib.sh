@@ -1,14 +1,40 @@
 #!/usr/bin/env bash
 # Helpers compartilhados pelos hooks do Aferê.
 
+run_pnpm_windows() {
+  local repo_root
+  repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+  local windows_repo_root="$repo_root"
+  if command -v wslpath >/dev/null 2>&1; then
+    windows_repo_root="$(wslpath -w "$repo_root")"
+  fi
+
+  if command -v pwsh.exe >/dev/null 2>&1; then
+    pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "$windows_repo_root\\tools\\ensure-node-env.ps1" -- pnpm "$@"
+    return $?
+  fi
+
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$windows_repo_root\\tools\\ensure-node-env.ps1" -- pnpm "$@"
+}
+
 run_pnpm() {
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*)
+      if command -v powershell.exe >/dev/null 2>&1; then
+        run_pnpm_windows "$@"
+        return $?
+      fi
+      ;;
+  esac
+
   if command -v node >/dev/null 2>&1; then
     pnpm "$@"
     return $?
   fi
 
   if command -v cmd.exe >/dev/null 2>&1; then
-    cmd.exe /d /c pnpm.cmd "$@"
+    cmd.exe /d /c call tools\\ensure-node-env.cmd pnpm.cmd "$@"
     return $?
   fi
 

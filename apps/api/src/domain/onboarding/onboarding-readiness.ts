@@ -1,3 +1,5 @@
+import type { OnboardingBlockingReason, OnboardingReadinessResult } from "@afere/contracts";
+
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
 export interface OnboardingPrerequisites {
@@ -14,16 +16,10 @@ export interface EvaluateOnboardingReadinessInput {
   prerequisites: OnboardingPrerequisites;
 }
 
-export interface OnboardingReadinessResult {
-  completedWithinTarget: boolean;
-  canEmitFirstCertificate: boolean;
-  blockingReasons: string[];
-}
-
 export function evaluateOnboardingReadiness(
   input: EvaluateOnboardingReadinessInput,
 ): OnboardingReadinessResult {
-  const blockingReasons: string[] = [];
+  const blockingReasons: OnboardingBlockingReason[] = [];
 
   if (!input.prerequisites.primarySignatoryReady) blockingReasons.push("primary_signatory_pending");
   if (!input.prerequisites.certificateNumberingConfigured) {

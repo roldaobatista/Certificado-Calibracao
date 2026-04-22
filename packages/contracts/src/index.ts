@@ -10,3 +10,6 @@ export type AppRouter = typeof appRouter;
 export { createCallerFactory, type AppContext } from "./trpc.js";
 export { HealthStatus } from "./routers/health.js";
 export * from "./mobile-offline-calibration.js";
+export * from "./onboarding.js";
+export * from "./public-certificate.js";
+export * from "./self-signup.js";

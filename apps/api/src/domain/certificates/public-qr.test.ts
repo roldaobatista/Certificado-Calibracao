@@ -34,7 +34,7 @@ test("validates an authentic public QR when the token matches and the emitted ce
 
   assert.equal(result.ok, true);
   assert.equal(result.status, "authentic");
-  assert.equal(result.reason, undefined);
+  assert.equal("reason" in result, false);
   assert.equal(result.certificate?.certificateNumber, "ACME-000123");
 });
 

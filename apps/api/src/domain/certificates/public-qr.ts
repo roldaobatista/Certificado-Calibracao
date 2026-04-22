@@ -1,36 +1,14 @@
 import { verifyAuditHashChain, verifyControlledReissueAuditTrail, type AuditChainEntry } from "@afere/audit-log";
-
-export interface PublicCertificateRecord {
-  certificateId: string;
-  certificateNumber: string;
-  publicVerificationToken?: string;
-  issuedAtUtc?: string;
-  reissuedAtUtc?: string;
-  replacementCertificateNumber?: string;
-  revision?: string;
-  instrumentDescription?: string;
-  serialNumber?: string;
-  [key: string]: unknown;
-}
+import type {
+  PublicCertificateQrVerificationResult,
+  PublicCertificateRecord,
+} from "@afere/contracts";
 
 export interface VerifyPublicCertificateQrAuthenticityInput {
   qrCodeUrl: string;
   expectedHost: string;
   certificates: PublicCertificateRecord[];
   auditEntries: AuditChainEntry[];
-}
-
-export interface PublicCertificateQrVerificationResult {
-  ok: boolean;
-  status: "authentic" | "reissued" | "not_found";
-  reason?:
-    | "invalid_qr_url"
-    | "certificate_not_found"
-    | "token_mismatch"
-    | "invalid_audit_trail"
-    | "missing_emission_event"
-    | "missing_reissue_evidence";
-  certificate?: PublicCertificateRecord;
 }
 
 export function verifyPublicCertificateQrAuthenticity(

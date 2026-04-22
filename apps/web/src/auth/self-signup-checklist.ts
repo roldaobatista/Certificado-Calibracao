@@ -1,5 +1,8 @@
-export type SelfSignupRole = "admin" | "signatory" | "technician";
-export type SelfSignupProvider = "email_password" | "google" | "microsoft" | "apple";
+import type {
+  SelfSignupChecklistViewModel,
+  SelfSignupProvider,
+  SelfSignupRole,
+} from "@afere/contracts";
 
 const REQUIRED_PROVIDERS: SelfSignupProvider[] = [
   "email_password",
@@ -12,13 +15,6 @@ export interface BuildSelfSignupChecklistViewModelInput {
   role: SelfSignupRole;
   enabledProviders: SelfSignupProvider[];
   mfaRequired: boolean;
-}
-
-export interface SelfSignupChecklistViewModel {
-  status: "ready" | "blocked";
-  visibleMethods: SelfSignupProvider[];
-  missingMethods: SelfSignupProvider[];
-  showMfaStep: boolean;
 }
 
 export function buildSelfSignupChecklistViewModel(

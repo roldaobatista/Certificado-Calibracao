@@ -1,5 +1,4 @@
-export type SelfSignupRole = "admin" | "signatory" | "technician";
-export type SelfSignupProvider = "email_password" | "google" | "microsoft" | "apple";
+import type { SelfSignupProvider, SelfSignupRole } from "@afere/contracts";
 
 const REQUIRED_PROVIDERS: SelfSignupProvider[] = [
   "email_password",

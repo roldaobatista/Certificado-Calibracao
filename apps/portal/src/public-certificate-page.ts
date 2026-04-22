@@ -1,10 +1,7 @@
-import type { PublicCertificateQrVerificationResult } from "../../api/src/domain/certificates/public-qr.js";
-
-export interface PublicCertificatePageModel {
-  status: "authentic" | "reissued" | "not_found";
-  title: string;
-  publicMetadata: Record<string, string>;
-}
+import type {
+  PublicCertificatePageModel,
+  PublicCertificateQrVerificationResult,
+} from "@afere/contracts";
 
 const AUTHENTIC_METADATA_KEYS = [
   "certificateNumber",

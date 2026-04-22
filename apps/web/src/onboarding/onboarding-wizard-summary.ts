@@ -1,4 +1,6 @@
-const BLOCKING_REASON_LABELS: Record<string, string> = {
+import type { OnboardingBlockingReason, OnboardingWizardSummary } from "@afere/contracts";
+
+const BLOCKING_REASON_LABELS: Record<OnboardingBlockingReason, string> = {
   organization_profile_pending: "Cadastro da organizacao",
   primary_signatory_pending: "Signatario principal",
   certificate_numbering_pending: "Numeracao de certificado",
@@ -9,14 +11,7 @@ const BLOCKING_REASON_LABELS: Record<string, string> = {
 export interface BuildOnboardingWizardSummaryInput {
   completedWithinTarget: boolean;
   canEmitFirstCertificate: boolean;
-  blockingReasons: string[];
-}
-
-export interface OnboardingWizardSummary {
-  status: "ready" | "blocked";
-  title: string;
-  timeTargetLabel: string;
-  blockingSteps: string[];
+  blockingReasons: OnboardingBlockingReason[];
 }
 
 export function buildOnboardingWizardSummary(
@@ -30,8 +25,6 @@ export function buildOnboardingWizardSummary(
     timeTargetLabel: input.completedWithinTarget
       ? "Dentro da meta de 1 hora"
       : "Acima da meta de 1 hora",
-    blockingSteps: input.blockingReasons.map(
-      (reason) => BLOCKING_REASON_LABELS[reason] ?? reason,
-    ),
+    blockingSteps: input.blockingReasons.map((reason) => BLOCKING_REASON_LABELS[reason]),
   };
 }
