@@ -82,7 +82,7 @@ const MODULE_META: Record<QualityHubModuleKey, ModuleMeta> = {
   "risk-impartiality": {
     title: "Imparcialidade e riscos",
     clauseLabel: "ISO/IEC 17025 4.1 e 8.5",
-    ctaLabel: "Planejado",
+    ctaLabel: "Abrir riscos",
   },
   documents: {
     title: "Documentos da qualidade",
@@ -123,7 +123,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
     blockers: [],
     warnings: [
       "O modulo de reclamacoes segue com uma resposta formal pendente e precisa de fechamento dentro do prazo.",
-      "Acoes de riscos, analise critica, documentos e indicadores seguem explicitamente planejadas.",
+      "Trabalho nao conforme, auditoria interna, analise critica, documentos e indicadores seguem explicitamente planejados.",
     ],
     modules: [
       {
@@ -191,13 +191,14 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "risk-impartiality",
-        metricLabel: "7 riscos ativos",
-        summary: "A matriz de risco e as declaracoes de imparcialidade continuam previstas, sem payload transacional proprio.",
+        metricLabel: "3 riscos ativos · 1 declaracao pendente",
+        summary: "Modulo canonico ativo para declaracoes anuais, matriz de riscos, mitigacoes e exportacao controlada para analise critica.",
         status: "attention",
-        availability: "planned",
-        nextStepLabel: "Materializar registro de riscos, conflitos declarados e exportacao para analise critica.",
+        availability: "implemented",
+        href: "/quality/risk-register?scenario=annual-declarations&risk=risk-003",
+        nextStepLabel: "Fechar a rodada anual de declaracoes e manter os conflitos declarados sob revisao da Qualidade.",
         blockers: [],
-        warnings: [],
+        warnings: ["Uma declaracao anual segue pendente e exige restricao adicional em atribuicoes sensiveis."],
       },
       {
         key: "documents",
@@ -249,7 +250,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       "NC critica aberta com reclamacao correlata exige resposta formal da Qualidade.",
     ],
     warnings: [
-      "Trabalho nao conforme, auditoria interna, analise critica, riscos, documentos e indicadores seguem planejados e precisam nascer sem perder o contexto critico atual.",
+      "Trabalho nao conforme, auditoria interna, analise critica, documentos e indicadores seguem planejados e precisam nascer sem perder o contexto critico atual.",
     ],
     modules: [
       {
@@ -317,13 +318,14 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "risk-impartiality",
-        metricLabel: "9 riscos ativos",
-        summary: "O registro de riscos segue planejado, mas a criticidade atual indica aumento do risco operacional e reputacional.",
-        status: "attention",
-        availability: "planned",
-        nextStepLabel: "Abrir a matriz de risco com probabilidade, impacto e plano de resposta.",
-        blockers: [],
-        warnings: [],
+        metricLabel: "1 risco critico escalado",
+        summary: "Modulo canonico ativo para escalonar pressao comercial, registrar mitigacoes e manter o fail-closed ancorado em declaracoes e matriz de riscos.",
+        status: "blocked",
+        availability: "implemented",
+        href: "/quality/risk-register?scenario=commercial-pressure&risk=risk-001",
+        nextStepLabel: "Registrar decisao colegiada da direcao antes de qualquer liberacao operacional relacionada.",
+        blockers: ["Pressao comercial critica continua sem decisao colegiada registrada."],
+        warnings: ["A pauta extraordinaria de analise critica ainda precisa ser consolidada."],
       },
       {
         key: "documents",
@@ -438,11 +440,12 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "risk-impartiality",
-        metricLabel: "4 riscos monitorados",
-        summary: "A area segue planejada, sem incidente aberto, mas com backlog explicito para matriz e declaracoes.",
+        metricLabel: "2 riscos monitorados",
+        summary: "Modulo canonico ativo com declaracoes anuais arquivadas e riscos mantidos apenas em monitoramento rotineiro.",
         status: "ready",
-        availability: "planned",
-        nextStepLabel: "Criar registro de riscos e declaracoes anuais de conflito.",
+        availability: "implemented",
+        href: "/quality/risk-register?scenario=stable-monitoring&risk=risk-002",
+        nextStepLabel: "Manter a revisao mensal da matriz e reutilizar o consolidado na analise critica ordinaria.",
         blockers: [],
         warnings: [],
       },

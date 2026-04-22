@@ -19,6 +19,7 @@ import {
   procedureRegistryCatalogSchema,
   publicCertificateCatalogSchema,
   qualityHubCatalogSchema,
+  riskRegisterCatalogSchema,
   reviewSignatureCatalogSchema,
   serviceOrderReviewCatalogSchema,
   selfSignupCatalogSchema,
@@ -178,6 +179,31 @@ test("serves the canonical complaint registry catalog from the backend", async (
     assert.ok(blockedScenario);
     assert.equal(blockedScenario.detail.status, "blocked");
     assert.match(blockedScenario.detail.blockers.join(" "), /reemissao|cliente/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical risk register catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/quality/risk-register?scenario=commercial-pressure&risk=risk-001",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = riskRegisterCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "commercial-pressure");
+
+    assert.equal(payload.selectedScenarioId, "commercial-pressure");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.blockers.join(" "), /direcao|NC-015|reclamacao/i);
   } finally {
     await app.close();
   }
