@@ -72,7 +72,7 @@ const MODULE_META: Record<QualityHubModuleKey, ModuleMeta> = {
   "internal-audit": {
     title: "Auditoria interna",
     clauseLabel: "ISO/IEC 17025 8.8",
-    ctaLabel: "Planejado",
+    ctaLabel: "Abrir auditoria",
   },
   "management-review": {
     title: "Analise critica",
@@ -123,7 +123,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
     blockers: [],
     warnings: [
       "O modulo de reclamacoes segue com uma resposta formal pendente e precisa de fechamento dentro do prazo.",
-      "Trabalho nao conforme, auditoria interna e analise critica seguem explicitamente planejados.",
+      "Trabalho nao conforme e analise critica seguem explicitamente planejados.",
     ],
     modules: [
       {
@@ -171,13 +171,14 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "internal-audit",
-        metricLabel: "Programa anual: 4 ciclos",
-        summary: "O plano anual ainda nao tem rota dedicada, mas o hub preserva a demanda visivel para o gestor.",
-        status: "ready",
-        availability: "planned",
-        nextStepLabel: "Materializar plano, execucao e evidencias do programa interno de auditoria.",
+        metricLabel: "Programa 2026 | 2 NC em follow-up",
+        summary: "Modulo canonico ativo para programa anual, ciclo executado, checklist aplicado, achados e follow-up minimo.",
+        status: "attention",
+        availability: "implemented",
+        href: "/quality/internal-audit?scenario=follow-up-attention&cycle=audit-cycle-2026-1",
+        nextStepLabel: "Fechar os achados do ciclo 1 antes de abrir o proximo ciclo ordinario do programa anual.",
         blockers: [],
-        warnings: [],
+        warnings: ["O follow-up das NCs do ciclo 1 ainda precisa fechar antes do proximo ciclo."],
       },
       {
         key: "management-review",
@@ -252,7 +253,7 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       "NC critica aberta com reclamacao correlata exige resposta formal da Qualidade.",
     ],
     warnings: [
-      "Trabalho nao conforme, auditoria interna e analise critica seguem planejados e precisam nascer sem perder o contexto critico atual.",
+      "Trabalho nao conforme e analise critica seguem planejados e precisam nascer sem perder o contexto critico atual.",
     ],
     modules: [
       {
@@ -300,13 +301,14 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "internal-audit",
-        metricLabel: "1 ciclo extraordinario sugerido",
-        summary: "O programa anual ainda nao foi materializado, mas este cenario ja exige acao extraordinaria da Qualidade.",
-        status: "attention",
-        availability: "planned",
-        nextStepLabel: "Abrir um ciclo extraordinario no futuro modulo de auditoria interna.",
-        blockers: [],
-        warnings: ["A necessidade de auditoria extraordinaria esta sinalizada sem workflow proprio."],
+        metricLabel: "1 auditoria extraordinaria pendente",
+        summary: "Modulo canonico ativo para escalar ciclo extraordinario, checklist critico e achados bloqueantes antes de liberar o caso.",
+        status: "blocked",
+        availability: "implemented",
+        href: "/quality/internal-audit?scenario=extraordinary-escalation&cycle=audit-cycle-extra-2026",
+        nextStepLabel: "Abrir o ciclo extraordinario e emitir parecer inicial antes de qualquer liberacao operacional.",
+        blockers: ["A auditoria extraordinaria segue pendente e bloqueia o recorte critico."],
+        warnings: ["NC-015 e a trilha divergente continuam ancorando o follow-up extraordinario."],
       },
       {
         key: "management-review",
@@ -424,11 +426,12 @@ const SCENARIOS: Record<QualityHubScenarioId, QualityHubScenarioDefinition> = {
       },
       {
         key: "internal-audit",
-        metricLabel: "Programa anual: 3 ciclos",
-        summary: "A area segue planejada, com o programa anual apenas visivel pelo hub e sem execucao dedicada.",
+        metricLabel: "Programa 2026 | proximo ciclo em Set/2026",
+        summary: "Modulo canonico ativo com programa anual, historico arquivado e proximos ciclos reservados no calendario da Qualidade.",
         status: "ready",
-        availability: "planned",
-        nextStepLabel: "Materializar plano anual, execução e pareceres de auditoria interna.",
+        availability: "implemented",
+        href: "/quality/internal-audit?scenario=program-on-track&cycle=audit-cycle-2026-1",
+        nextStepLabel: "Manter o programa anual em trilho e preparar a amostragem do ciclo 2 sem perder o historico auditavel.",
         blockers: [],
         warnings: [],
       },

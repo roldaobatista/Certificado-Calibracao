@@ -14,6 +14,7 @@ export * from "./complaint-registry.js";
 export * from "./customer-registry.js";
 export * from "./equipment-registry.js";
 export { HealthStatus } from "./routers/health.js";
+export * from "./internal-audit.js";
 export * from "./emission-workspace.js";
 export * from "./emission-dry-run.js";
 export * from "./mobile-offline-calibration.js";
