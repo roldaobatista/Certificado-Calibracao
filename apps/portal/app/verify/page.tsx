@@ -1,7 +1,5 @@
-import {
-  listPublicCertificateScenarios,
-  resolvePublicCertificateScenario,
-} from "@/src/public-certificate-scenarios";
+import { loadPublicCertificateCatalog } from "@/src/public-certificate-api";
+import { buildPublicCertificateCatalogView } from "@/src/public-certificate-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
 
 type PageProps = {
@@ -10,9 +8,41 @@ type PageProps = {
   };
 };
 
-export default function VerifyPage(props: PageProps) {
-  const scenario = resolvePublicCertificateScenario(props.searchParams?.scenario);
-  const scenarios = listPublicCertificateScenarios();
+export const dynamic = "force-dynamic";
+
+export default async function VerifyPage(props: PageProps) {
+  const catalog = await loadPublicCertificateCatalog({ scenarioId: props.searchParams?.scenario });
+
+  if (!catalog) {
+    return (
+      <AppShell
+        eyebrow="Portal - PRD 13.17"
+        title="Verificacao publica indisponivel"
+        description="O portal nao recebeu o payload canonico do backend. Em fail-closed, nenhum metadado publico foi assumido."
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Leitura atual</span>
+            <strong>Backend obrigatorio</strong>
+            <StatusPill tone="warn" label="Sem resposta canonica" />
+            <p>Suba o `apps/api` ou configure `AFERE_API_BASE_URL` para liberar a verificacao publica.</p>
+          </div>
+        }
+      >
+        <section className="content-panel">
+          <div className="section-copy">
+            <span className="eyebrow">Proximo passo</span>
+            <h2>Conectar o portal ao backend</h2>
+            <p>
+              Esta pagina agora depende do endpoint canonico `GET /portal/verify`. Sem resposta valida do backend,
+              o portal nao monta preview local para evitar drift e leakage acidental.
+            </p>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
+
+  const { selectedScenario: scenario, scenarios } = buildPublicCertificateCatalogView(catalog);
 
   return (
     <AppShell
@@ -39,7 +69,7 @@ export default function VerifyPage(props: PageProps) {
                   : "Sem dados publicos"
             }
           />
-          <p>O modelo da pagina e montado a partir do contrato compartilhado, sem depender de import entre apps.</p>
+          <p>O portal agora traduz apenas o payload publico canonico vindo do backend.</p>
         </div>
       }
     >
@@ -91,7 +121,7 @@ export default function VerifyPage(props: PageProps) {
         <div className="section-copy">
           <span className="eyebrow">Cenarios</span>
           <h2>Trocar o estado da verificacao</h2>
-          <p>Esses links ajudam a validar o portal antes da conexao com o endpoint real de verificacao por QR.</p>
+          <p>Esses links ajudam a validar o portal usando o catalogo canonico de verificacao publica.</p>
         </div>
       </section>
 

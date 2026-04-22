@@ -1,4 +1,8 @@
-import type { EmissionDryRunProfile, EmissionDryRunResult } from "@afere/contracts";
+import type {
+  EmissionDryRunProfile,
+  EmissionDryRunResult,
+  EmissionDryRunScenarioId as ContractEmissionDryRunScenarioId,
+} from "@afere/contracts";
 
 import {
   runCertificateEmissionDryRun,
@@ -239,7 +243,7 @@ const SCENARIOS = {
         "Organizacao nao acreditada, mas o texto menciona RBC e Cgcre de forma inadequada para o perfil C.",
     },
   },
-} as const satisfies Record<string, EmissionDryRunScenarioDefinition>;
+} as const satisfies Record<ContractEmissionDryRunScenarioId, EmissionDryRunScenarioDefinition>;
 
 export type EmissionDryRunScenarioId = keyof typeof SCENARIOS;
 

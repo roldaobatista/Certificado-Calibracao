@@ -1,4 +1,5 @@
-import { listOnboardingScenarios, resolveOnboardingScenario } from "@/src/onboarding/onboarding-scenarios";
+import { loadOnboardingCatalog } from "@/src/onboarding/onboarding-api";
+import { buildOnboardingCatalogView } from "@/src/onboarding/onboarding-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
 
 type PageProps = {
@@ -7,9 +8,41 @@ type PageProps = {
   };
 };
 
-export default function OnboardingPage(props: PageProps) {
-  const scenario = resolveOnboardingScenario(props.searchParams?.scenario);
-  const scenarios = listOnboardingScenarios();
+export const dynamic = "force-dynamic";
+
+export default async function OnboardingPage(props: PageProps) {
+  const catalog = await loadOnboardingCatalog({ scenarioId: props.searchParams?.scenario });
+
+  if (!catalog) {
+    return (
+      <AppShell
+        eyebrow="Onboarding - PRD 13.12"
+        title="Onboarding indisponivel para revisao"
+        description="O back-office nao recebeu a leitura canonica do backend. Em fail-closed, a pagina nao assume um resumo local."
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Leitura atual</span>
+            <strong>Backend obrigatorio</strong>
+            <StatusPill tone="warn" label="Sem resumo canonico" />
+            <p>Suba o `apps/api` ou configure `AFERE_API_BASE_URL` para liberar o estado operacional do onboarding.</p>
+          </div>
+        }
+      >
+        <section className="content-panel">
+          <div className="section-copy">
+            <span className="eyebrow">Proximo passo</span>
+            <h2>Conectar a prontidao do onboarding ao backend</h2>
+            <p>
+              Esta pagina agora depende do endpoint canonico `GET /onboarding/readiness`. Sem carga valida do backend,
+              a leitura da primeira emissao permanece bloqueada para evitar drift.
+            </p>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
+
+  const { selectedScenario: scenario, scenarios } = buildOnboardingCatalogView(catalog);
 
   return (
     <AppShell
@@ -54,7 +87,7 @@ export default function OnboardingPage(props: PageProps) {
             {scenario.summary.blockingSteps.length === 0 ? (
               <li>Configuracao minima atendida para seguir com a primeira emissao.</li>
             ) : (
-              scenario.summary.blockingSteps.map((step) => <li key={step}>{step}</li>)
+              scenario.summary.blockingSteps.map((step: string) => <li key={step}>{step}</li>)
             )}
           </ul>
         </article>
@@ -63,7 +96,7 @@ export default function OnboardingPage(props: PageProps) {
           <span className="eyebrow">Leitura de V1</span>
           <strong>Fluxo pensado para operacao assistida</strong>
           <p>
-            Esta tela ainda usa cenarios guiados, mas o layout ja esta pronto para receber respostas reais da API sem remodelar a UX.
+            Esta tela agora materializa o resumo vindo do backend sem duplicar a regra de prontidao no cliente.
           </p>
         </article>
       </section>
@@ -72,7 +105,7 @@ export default function OnboardingPage(props: PageProps) {
         <div className="section-copy">
           <span className="eyebrow">Cenarios</span>
           <h2>Alternar entre pronto e bloqueado</h2>
-          <p>Os links abaixo ajudam a validar o tom do produto antes de acoplar fetch e persistencia reais.</p>
+          <p>Os links abaixo ajudam a validar a leitura operacional usando a catalogacao canonica do backend.</p>
         </div>
       </section>
 

@@ -36,11 +36,18 @@ export function NavCard(props: {
   title: string;
   description: string;
   cta: string;
+  statusTone?: "ok" | "warn" | "neutral";
+  statusLabel?: string;
 }) {
   return (
     <Link className="nav-card" href={props.href}>
       <span className="eyebrow">{props.eyebrow}</span>
       <strong>{props.title}</strong>
+      {props.statusTone && props.statusLabel ? (
+        <div className="nav-card__status">
+          <StatusPill tone={props.statusTone} label={props.statusLabel} />
+        </div>
+      ) : null}
       <p>{props.description}</p>
       <span className="nav-card__cta">{props.cta}</span>
     </Link>

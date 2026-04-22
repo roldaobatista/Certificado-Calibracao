@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import {
+  emissionDryRunCatalogSchema,
+  onboardingCatalogSchema,
+  publicCertificateCatalogSchema,
+  selfSignupCatalogSchema,
+} from "@afere/contracts";
+
 import type { Env } from "./config/env.js";
 import { RuntimeReadinessError, type RuntimeReadiness } from "./infra/runtime-readiness.js";
 import { buildApp } from "./app.js";
@@ -74,6 +81,117 @@ test("returns 503 on /readyz when any runtime dependency fails closed", async ()
         redis: { ok: false, reason: "ping_failed" },
       },
     });
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical emission dry-run catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/emission/dry-run?scenario=type-c-blocked",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = emissionDryRunCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "type-c-blocked");
+
+    assert.equal(payload.selectedScenarioId, "type-c-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.result.status, "blocked");
+    assert.equal(
+      blockedScenario.result.checks.filter((check) => check.status === "failed").length,
+      5,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical self-signup catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/auth/self-signup?scenario=technician-blocked",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = selfSignupCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "technician-blocked");
+
+    assert.equal(payload.selectedScenarioId, "technician-blocked");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.result.ok, false);
+    assert.deepEqual(blockedScenario.result.missingProviders, ["microsoft", "apple"]);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical onboarding catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/onboarding/readiness?scenario=blocked",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = onboardingCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "blocked");
+
+    assert.equal(payload.selectedScenarioId, "blocked");
+    assert.equal(payload.scenarios.length, 2);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.result.canEmitFirstCertificate, false);
+    assert.deepEqual(blockedScenario.result.blockingReasons, [
+      "primary_signatory_pending",
+      "certificate_numbering_pending",
+      "scope_review_pending",
+      "public_qr_pending",
+    ]);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical public certificate catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/portal/verify?scenario=reissued",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = publicCertificateCatalogSchema.parse(response.json());
+    const reissuedScenario = payload.scenarios.find((scenario) => scenario.id === "reissued");
+
+    assert.equal(payload.selectedScenarioId, "reissued");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(reissuedScenario);
+    assert.equal(reissuedScenario.result.status, "reissued");
+    assert.equal(reissuedScenario.result.ok, true);
+    if (reissuedScenario.result.ok) {
+      assert.equal("actorId" in reissuedScenario.result.certificate, false);
+    }
   } finally {
     await app.close();
   }

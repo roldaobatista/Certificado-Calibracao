@@ -1,4 +1,5 @@
-import { resolveEmissionDryRunScenario, listEmissionDryRunScenarios } from "@/src/emission/emission-dry-run-scenarios";
+import { loadEmissionDryRunCatalog } from "@/src/emission/emission-dry-run-api";
+import { buildEmissionDryRunCatalogView } from "@/src/emission/emission-dry-run-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
 
 type PageProps = {
@@ -7,9 +8,41 @@ type PageProps = {
   };
 };
 
-export default function EmissionDryRunPage(props: PageProps) {
-  const scenario = resolveEmissionDryRunScenario(props.searchParams?.scenario);
-  const scenarios = listEmissionDryRunScenarios();
+export const dynamic = "force-dynamic";
+
+export default async function EmissionDryRunPage(props: PageProps) {
+  const catalog = await loadEmissionDryRunCatalog({ scenarioId: props.searchParams?.scenario });
+
+  if (!catalog) {
+    return (
+      <AppShell
+        eyebrow="Emissao - dry-run"
+        title="Dry-run indisponivel para revisao"
+        description="O back-office nao recebeu o payload canonico do backend. Em fail-closed, nenhum preview local foi assumido."
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Leitura atual</span>
+            <strong>Backend obrigatorio</strong>
+            <StatusPill tone="warn" label="Sem carga canonica" />
+            <p>Suba o `apps/api` ou configure `AFERE_API_BASE_URL` para liberar o dry-run operacional.</p>
+          </div>
+        }
+      >
+        <section className="content-panel">
+          <div className="section-copy">
+            <span className="eyebrow">Proximo passo</span>
+            <h2>Conectar a leitura operacional ao backend</h2>
+            <p>
+              A tela agora depende do endpoint canonico `GET /emission/dry-run`. Sem esse backend disponivel, a
+              revisao fica bloqueada para evitar drift entre UI e dominio regulatorio.
+            </p>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
+
+  const { selectedScenario: scenario, scenarios } = buildEmissionDryRunCatalogView(catalog);
 
   return (
     <AppShell

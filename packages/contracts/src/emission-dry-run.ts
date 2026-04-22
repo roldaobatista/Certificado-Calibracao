@@ -49,3 +49,25 @@ export const emissionDryRunResultSchema = z.object({
   artifacts: emissionDryRunArtifactsSchema,
 });
 export type EmissionDryRunResult = z.infer<typeof emissionDryRunResultSchema>;
+
+export const emissionDryRunScenarioIdSchema = z.enum([
+  "type-b-ready",
+  "type-a-suppressed",
+  "type-c-blocked",
+]);
+export type EmissionDryRunScenarioId = z.infer<typeof emissionDryRunScenarioIdSchema>;
+
+export const emissionDryRunScenarioSchema = z.object({
+  id: emissionDryRunScenarioIdSchema,
+  label: z.string().min(1),
+  description: z.string().min(1),
+  profile: emissionDryRunProfileSchema,
+  result: emissionDryRunResultSchema,
+});
+export type EmissionDryRunScenario = z.infer<typeof emissionDryRunScenarioSchema>;
+
+export const emissionDryRunCatalogSchema = z.object({
+  selectedScenarioId: emissionDryRunScenarioIdSchema,
+  scenarios: z.array(emissionDryRunScenarioSchema).min(1),
+});
+export type EmissionDryRunCatalog = z.infer<typeof emissionDryRunCatalogSchema>;

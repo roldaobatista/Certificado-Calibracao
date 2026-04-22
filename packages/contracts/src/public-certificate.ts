@@ -55,3 +55,24 @@ export const publicCertificatePageModelSchema = z.object({
   publicMetadata: z.record(z.string(), z.string()),
 });
 export type PublicCertificatePageModel = z.infer<typeof publicCertificatePageModelSchema>;
+
+export const publicCertificateScenarioIdSchema = z.enum([
+  "authentic",
+  "reissued",
+  "not-found",
+]);
+export type PublicCertificateScenarioId = z.infer<typeof publicCertificateScenarioIdSchema>;
+
+export const publicCertificateScenarioSchema = z.object({
+  id: publicCertificateScenarioIdSchema,
+  label: z.string().min(1),
+  description: z.string().min(1),
+  result: publicCertificateQrVerificationResultSchema,
+});
+export type PublicCertificateScenario = z.infer<typeof publicCertificateScenarioSchema>;
+
+export const publicCertificateCatalogSchema = z.object({
+  selectedScenarioId: publicCertificateScenarioIdSchema,
+  scenarios: z.array(publicCertificateScenarioSchema).min(1),
+});
+export type PublicCertificateCatalog = z.infer<typeof publicCertificateCatalogSchema>;

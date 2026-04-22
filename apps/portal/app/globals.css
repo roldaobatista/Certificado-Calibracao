@@ -208,6 +208,11 @@ a {
   box-shadow: 0 26px 44px rgba(2, 11, 18, 0.34);
 }
 
+.nav-card__status {
+  margin-top: 14px;
+  display: flex;
+}
+
 .nav-card__cta {
   margin-top: 18px;
   display: inline-flex;

@@ -1,71 +1,37 @@
-import type { OnboardingBlockingReason, OnboardingWizardSummary } from "@afere/contracts";
+import type {
+  OnboardingCatalog,
+  OnboardingScenario,
+  OnboardingWizardSummary,
+} from "@afere/contracts";
 
 import { buildOnboardingWizardSummary } from "./onboarding-wizard-summary";
 
-type OnboardingScenarioDefinition = {
-  label: string;
-  description: string;
-  input: {
-    completedWithinTarget: boolean;
-    canEmitFirstCertificate: boolean;
-    blockingReasons: OnboardingBlockingReason[];
-  };
-};
-
-const SCENARIOS = {
-  ready: {
-    label: "Liberado para emissao",
-    description: "Todos os prerequisitos foram concluidos dentro da meta operacional de 1 hora.",
-    input: {
-      completedWithinTarget: true,
-      canEmitFirstCertificate: true,
-      blockingReasons: [],
-    },
-  },
-  blocked: {
-    label: "Bloqueado por prerequisitos",
-    description: "A primeira emissao segue fechada ate o escopo, a numeracao e o QR publico estarem configurados.",
-    input: {
-      completedWithinTarget: false,
-      canEmitFirstCertificate: false,
-      blockingReasons: [
-        "certificate_numbering_pending",
-        "scope_review_pending",
-        "public_qr_pending",
-      ],
-    },
-  },
-} as const satisfies Record<string, OnboardingScenarioDefinition>;
-
-export type OnboardingScenarioId = keyof typeof SCENARIOS;
-
-export interface OnboardingScenario {
-  id: OnboardingScenarioId;
-  label: string;
-  description: string;
+export interface OnboardingScenarioViewModel extends OnboardingScenario {
   summary: OnboardingWizardSummary;
 }
 
-const DEFAULT_SCENARIO: OnboardingScenarioId = "ready";
+export interface OnboardingCatalogViewModel {
+  selectedScenario: OnboardingScenarioViewModel;
+  scenarios: OnboardingScenarioViewModel[];
+}
 
-export function resolveOnboardingScenario(scenarioId?: string): OnboardingScenario {
-  const id = isOnboardingScenarioId(scenarioId) ? scenarioId : DEFAULT_SCENARIO;
-  const scenario = SCENARIOS[id];
+export function buildOnboardingCatalogView(
+  catalog: OnboardingCatalog,
+): OnboardingCatalogViewModel {
+  const scenarios = catalog.scenarios.map((scenario) => ({
+    ...scenario,
+    summary: buildOnboardingWizardSummary(scenario.result),
+  }));
+
+  const selectedScenario =
+    scenarios.find((scenario) => scenario.id === catalog.selectedScenarioId) ?? scenarios[0];
+
+  if (!selectedScenario) {
+    throw new Error("missing_onboarding_scenarios");
+  }
 
   return {
-    id,
-    label: scenario.label,
-    description: scenario.description,
-    summary: buildOnboardingWizardSummary(scenario.input),
+    selectedScenario,
+    scenarios,
   };
-}
-
-export function listOnboardingScenarios(): OnboardingScenario[] {
-  return (Object.keys(SCENARIOS) as OnboardingScenarioId[]).map((scenarioId) =>
-    resolveOnboardingScenario(scenarioId),
-  );
-}
-
-function isOnboardingScenarioId(value: string | undefined): value is OnboardingScenarioId {
-  return typeof value === "string" && value in SCENARIOS;
 }

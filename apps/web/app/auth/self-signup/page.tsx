@@ -1,4 +1,5 @@
-import { listSelfSignupScenarios, resolveSelfSignupScenario } from "@/src/auth/self-signup-scenarios";
+import { loadSelfSignupCatalog } from "@/src/auth/self-signup-api";
+import { buildSelfSignupCatalogView } from "@/src/auth/self-signup-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
 
 type PageProps = {
@@ -7,9 +8,41 @@ type PageProps = {
   };
 };
 
-export default function SelfSignupPage(props: PageProps) {
-  const scenario = resolveSelfSignupScenario(props.searchParams?.scenario);
-  const scenarios = listSelfSignupScenarios();
+export const dynamic = "force-dynamic";
+
+export default async function SelfSignupPage(props: PageProps) {
+  const catalog = await loadSelfSignupCatalog({ scenarioId: props.searchParams?.scenario });
+
+  if (!catalog) {
+    return (
+      <AppShell
+        eyebrow="Auth - PRD 13.11"
+        title="Auto-cadastro indisponivel para revisao"
+        description="O back-office nao recebeu o payload canonico do backend. Em fail-closed, o checklist local nao foi assumido."
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Leitura atual</span>
+            <strong>Backend obrigatorio</strong>
+            <StatusPill tone="warn" label="Fluxo sem carga canonica" />
+            <p>Suba o `apps/api` ou configure `AFERE_API_BASE_URL` para liberar a leitura operacional do auth.</p>
+          </div>
+        }
+      >
+        <section className="content-panel">
+          <div className="section-copy">
+            <span className="eyebrow">Proximo passo</span>
+            <h2>Conectar a verificacao de auth ao backend</h2>
+            <p>
+              Esta pagina agora depende do endpoint canonico `GET /auth/self-signup`. Sem resposta valida do backend,
+              o web nao assume checklist local para evitar drift regulatorio.
+            </p>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
+
+  const { selectedScenario: scenario, scenarios } = buildSelfSignupCatalogView(catalog);
 
   return (
     <AppShell
@@ -45,9 +78,9 @@ export default function SelfSignupPage(props: PageProps) {
       <section className="detail-grid">
         <article className="detail-card">
           <span className="eyebrow">Disponiveis</span>
-          <strong>{scenario.viewModel.visibleMethods.length} metodos visiveis</strong>
-          <div className="chip-list">
-            {scenario.viewModel.visibleMethods.map((method) => (
+            <strong>{scenario.viewModel.visibleMethods.length} metodos visiveis</strong>
+            <div className="chip-list">
+            {scenario.viewModel.visibleMethods.map((method: string) => (
               <span className="chip" key={method}>
                 {method}
               </span>
@@ -66,7 +99,7 @@ export default function SelfSignupPage(props: PageProps) {
             {scenario.viewModel.missingMethods.length === 0 ? (
               <span className="chip">Stack de login completa</span>
             ) : (
-              scenario.viewModel.missingMethods.map((method) => (
+              scenario.viewModel.missingMethods.map((method: string) => (
                 <span className="chip chip--warn" key={method}>
                   {method}
                 </span>

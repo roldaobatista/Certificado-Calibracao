@@ -213,6 +213,11 @@ a {
   box-shadow: 0 22px 40px rgba(57, 42, 24, 0.12);
 }
 
+.nav-card__status {
+  margin-top: 14px;
+  display: flex;
+}
+
 .nav-card__cta {
   margin-top: 18px;
   display: inline-flex;

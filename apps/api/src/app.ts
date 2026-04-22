@@ -7,6 +7,10 @@ import {
   createRuntimeReadiness,
   type RuntimeReadiness,
 } from "./infra/runtime-readiness.js";
+import { registerEmissionDryRunRoutes } from "./interfaces/http/emission-dry-run.js";
+import { registerOnboardingRoutes } from "./interfaces/http/onboarding.js";
+import { registerPublicCertificateRoutes } from "./interfaces/http/public-certificate.js";
+import { registerSelfSignupRoutes } from "./interfaces/http/self-signup.js";
 import { trpcPlugin } from "./plugins/trpc.js";
 
 export type BuildAppOptions = {
@@ -44,6 +48,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   });
 
   await app.register(trpcPlugin);
+  await registerEmissionDryRunRoutes(app);
+  await registerSelfSignupRoutes(app);
+  await registerOnboardingRoutes(app);
+  await registerPublicCertificateRoutes(app);
 
   app.get("/healthz", async () => ({
     status: "ok",

@@ -1,5 +1,6 @@
 import type {
   SelfSignupChecklistViewModel,
+  SelfSignupPolicyResult,
   SelfSignupProvider,
   SelfSignupRole,
 } from "@afere/contracts";
@@ -29,5 +30,19 @@ export function buildSelfSignupChecklistViewModel(
     visibleMethods,
     missingMethods,
     showMfaStep: input.mfaRequired,
+  };
+}
+
+export function buildSelfSignupChecklistViewModelFromPolicy(
+  result: SelfSignupPolicyResult,
+): SelfSignupChecklistViewModel {
+  const missingProviders = new Set(result.missingProviders);
+  const visibleMethods = REQUIRED_PROVIDERS.filter((provider) => !missingProviders.has(provider));
+
+  return {
+    status: result.ok ? "ready" : "blocked",
+    visibleMethods,
+    missingMethods: result.missingProviders,
+    showMfaStep: result.mfaRequired,
   };
 }
