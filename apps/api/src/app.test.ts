@@ -17,6 +17,7 @@ import {
   portalEquipmentCatalogSchema,
   procedureRegistryCatalogSchema,
   publicCertificateCatalogSchema,
+  qualityHubCatalogSchema,
   reviewSignatureCatalogSchema,
   serviceOrderReviewCatalogSchema,
   selfSignupCatalogSchema,
@@ -328,6 +329,32 @@ test("serves the canonical nonconformity registry catalog from the backend", asy
     assert.ok(blockedScenario);
     assert.equal(blockedScenario.detail.status, "blocked");
     assert.match(blockedScenario.detail.blockers.join(" "), /critica aberta/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the canonical quality hub catalog from the backend", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/quality?scenario=critical-response&module=audit-trail",
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const payload = qualityHubCatalogSchema.parse(response.json());
+    const blockedScenario = payload.scenarios.find((scenario) => scenario.id === "critical-response");
+
+    assert.equal(payload.selectedScenarioId, "critical-response");
+    assert.equal(payload.scenarios.length, 3);
+    assert.ok(blockedScenario);
+    assert.equal(blockedScenario.selectedModuleKey, "audit-trail");
+    assert.equal(blockedScenario.summary.status, "blocked");
+    assert.match(blockedScenario.summary.blockers.join(" "), /integridade|NC critica/i);
   } finally {
     await app.close();
   }

@@ -25,6 +25,7 @@ export * from "./portal-certificate.js";
 export * from "./portal-equipment.js";
 export * from "./procedure-registry.js";
 export * from "./public-certificate.js";
+export * from "./quality-hub.js";
 export * from "./registry-shared.js";
 export * from "./review-signature.js";
 export * from "./service-order-review.js";

@@ -22,6 +22,7 @@ import { registerPortalDashboardRoutes } from "./interfaces/http/portal-dashboar
 import { registerPortalEquipmentRoutes } from "./interfaces/http/portal-equipment.js";
 import { registerProcedureRegistryRoutes } from "./interfaces/http/procedure-registry.js";
 import { registerPublicCertificateRoutes } from "./interfaces/http/public-certificate.js";
+import { registerQualityHubRoutes } from "./interfaces/http/quality-hub.js";
 import { registerReviewSignatureRoutes } from "./interfaces/http/review-signature.js";
 import { registerSelfSignupRoutes } from "./interfaces/http/self-signup.js";
 import { registerServiceOrderReviewRoutes } from "./interfaces/http/service-order-review.js";
@@ -73,6 +74,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerEquipmentRegistryRoutes(app);
   await registerNonconformityRoutes(app);
   await registerOfflineSyncRoutes(app);
+  await registerQualityHubRoutes(app);
   await registerReviewSignatureRoutes(app);
   await registerServiceOrderReviewRoutes(app);
   await registerSignatureQueueRoutes(app);

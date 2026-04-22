@@ -28,6 +28,20 @@ function statusLabel(status: "ready" | "attention" | "blocked"): string {
   }
 }
 
+function mapNonconformityScenarioToQualityHubScenario(
+  scenarioId: "open-attention" | "critical-response" | "resolved-history",
+): "operational-attention" | "critical-response" | "stable-baseline" {
+  switch (scenarioId) {
+    case "critical-response":
+      return "critical-response";
+    case "resolved-history":
+      return "stable-baseline";
+    case "open-attention":
+    default:
+      return "operational-attention";
+  }
+}
+
 export default async function NonconformityPage(props: PageProps) {
   const catalog = await loadNonconformityCatalog({
     scenarioId: props.searchParams?.scenario,
@@ -170,6 +184,13 @@ export default async function NonconformityPage(props: PageProps) {
       </section>
 
       <section className="nav-grid">
+        <NavCard
+          href={`/quality?scenario=${mapNonconformityScenarioToQualityHubScenario(scenario.id)}&module=nonconformities`}
+          eyebrow="Hub"
+          title="Voltar ao hub da qualidade"
+          description="Reabrir a visao consolidada da Qualidade mantendo a NC como ancora do recorte."
+          cta="Abrir hub"
+        />
         {detail.links.workspaceScenarioId ? (
           <NavCard
             href={`/emission/workspace?scenario=${detail.links.workspaceScenarioId}`}

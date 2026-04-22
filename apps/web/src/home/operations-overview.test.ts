@@ -6,6 +6,7 @@ import {
   emissionWorkspaceCatalogSchema,
   offlineSyncCatalogSchema,
   onboardingCatalogSchema,
+  qualityHubCatalogSchema,
   reviewSignatureCatalogSchema,
   serviceOrderReviewCatalogSchema,
   selfSignupCatalogSchema,
@@ -483,6 +484,55 @@ const OFFLINE_SYNC_CATALOG = offlineSyncCatalogSchema.parse({
   ],
 });
 
+const QUALITY_HUB_CATALOG = qualityHubCatalogSchema.parse({
+  selectedScenarioId: "operational-attention",
+  scenarios: [
+    {
+      id: "operational-attention",
+      label: "Qualidade em acompanhamento preventivo",
+      description: "Resumo da qualidade com backlog planejado explicito.",
+      selectedModuleKey: "nonconformities",
+      summary: {
+        status: "attention",
+        organizationName: "Lab. Acme",
+        openNonconformities: 2,
+        overdueActions: 1,
+        auditProgramCount: 4,
+        complaintCount: 1,
+        activeRiskCount: 7,
+        implementedModuleCount: 2,
+        plannedModuleCount: 7,
+        nextManagementReviewLabel: "30/06/2026",
+        recommendedAction: "Fechar acao corretiva e acompanhar reclamacao aberta.",
+        blockers: [],
+        warnings: [],
+      },
+      links: {
+        workspaceScenarioId: "team-attention",
+        organizationSettingsScenarioId: "renewal-attention",
+        auditTrailScenarioId: "reissue-attention",
+        nonconformityScenarioId: "open-attention",
+      },
+      modules: [
+        {
+          key: "nonconformities",
+          title: "NC e acoes corretivas",
+          clauseLabel: "ISO/IEC 17025 7.10 e 8.7",
+          metricLabel: "2 NC abertas · 1 acao vencendo",
+          summary: "Modulo ativo.",
+          status: "attention",
+          availability: "implemented",
+          href: "/quality/nonconformities?scenario=open-attention&nc=nc-014",
+          ctaLabel: "Abrir NCs",
+          nextStepLabel: "Fechar a acao corretiva.",
+          blockers: [],
+          warnings: [],
+        },
+      ],
+    },
+  ],
+});
+
 test("summarizes the canonical readiness across auth, onboarding and emission", () => {
   const model = buildOperationsOverviewModel({
     emissionWorkspaceCatalog: EMISSION_WORKSPACE_CATALOG,
@@ -493,11 +543,12 @@ test("summarizes the canonical readiness across auth, onboarding and emission", 
     reviewSignatureCatalog: REVIEW_SIGNATURE_CATALOG,
     signatureQueueCatalog: SIGNATURE_QUEUE_CATALOG,
     offlineSyncCatalog: OFFLINE_SYNC_CATALOG,
+    qualityHubCatalog: QUALITY_HUB_CATALOG,
     userDirectoryCatalog: USER_DIRECTORY_CATALOG,
   });
 
   assert.equal(model.readyCount, 6);
-  assert.equal(model.blockedCount, 3);
+  assert.equal(model.blockedCount, 4);
   assert.equal(model.allSourcesAvailable, true);
   assert.equal(model.heroStatusTone, "warn");
   assert.equal(model.cards[0]?.href, "/emission/workspace?scenario=team-attention");
@@ -517,7 +568,12 @@ test("summarizes the canonical readiness across auth, onboarding and emission", 
     model.cards[7]?.href,
     "/sync/review-queue?scenario=human-review-open&item=sync-os-2026-0047&conflict=conflict-c1-0047",
   );
-  assert.equal(model.cards[8]?.statusLabel, "Equipe saudavel");
+  assert.equal(model.cards[8]?.statusLabel, "Hub com atencao");
+  assert.equal(
+    model.cards[8]?.href,
+    "/quality?scenario=operational-attention&module=nonconformities",
+  );
+  assert.equal(model.cards[9]?.statusLabel, "Equipe saudavel");
 });
 
 test("fails closed when one or more canonical sources are unavailable", () => {
@@ -530,14 +586,15 @@ test("fails closed when one or more canonical sources are unavailable", () => {
     reviewSignatureCatalog: null,
     signatureQueueCatalog: null,
     offlineSyncCatalog: null,
+    qualityHubCatalog: null,
     userDirectoryCatalog: null,
   });
 
   assert.equal(model.readyCount, 0);
-  assert.equal(model.blockedCount, 9);
+  assert.equal(model.blockedCount, 10);
   assert.equal(model.allSourcesAvailable, false);
   assert.equal(model.heroStatusTone, "warn");
   assert.equal(model.heroStatusLabel, "Revisao operacional necessaria");
-  assert.equal(model.cards.length, 9);
+  assert.equal(model.cards.length, 10);
   assert.equal(model.cards.every((card) => card.statusLabel === "Sem carga canonica"), true);
 });

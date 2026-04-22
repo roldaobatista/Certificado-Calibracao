@@ -28,6 +28,20 @@ function statusLabel(status: "ready" | "attention" | "blocked"): string {
   }
 }
 
+function mapAuditTrailScenarioToQualityHubScenario(
+  scenarioId: "recent-emission" | "reissue-attention" | "integrity-blocked",
+): "stable-baseline" | "operational-attention" | "critical-response" {
+  switch (scenarioId) {
+    case "integrity-blocked":
+      return "critical-response";
+    case "reissue-attention":
+      return "operational-attention";
+    case "recent-emission":
+    default:
+      return "stable-baseline";
+  }
+}
+
 export default async function AuditTrailPage(props: PageProps) {
   const catalog = await loadAuditTrailCatalog({
     scenarioId: props.searchParams?.scenario,
@@ -187,6 +201,13 @@ export default async function AuditTrailPage(props: PageProps) {
       </section>
 
       <section className="nav-grid">
+        <NavCard
+          href={`/quality?scenario=${mapAuditTrailScenarioToQualityHubScenario(scenario.id)}&module=audit-trail`}
+          eyebrow="Hub"
+          title="Voltar ao hub da qualidade"
+          description="Reabrir o panorama consolidado da Qualidade mantendo este recorte como ancora."
+          cta="Abrir hub"
+        />
         {detail.links.workspaceScenarioId ? (
           <NavCard
             href={`/emission/workspace?scenario=${detail.links.workspaceScenarioId}`}

@@ -3,6 +3,7 @@ import type {
   EmissionWorkspaceCatalog,
   OfflineSyncCatalog,
   OnboardingCatalog,
+  QualityHubCatalog,
   ReviewSignatureCatalog,
   ServiceOrderReviewCatalog,
   SelfSignupCatalog,
@@ -18,6 +19,7 @@ import { buildReviewSignatureCatalogView } from "../emission/review-signature-sc
 import { buildServiceOrderReviewCatalogView } from "../emission/service-order-review-scenarios";
 import { buildSignatureQueueCatalogView } from "../emission/signature-queue-scenarios";
 import { buildOnboardingCatalogView } from "../onboarding/onboarding-scenarios";
+import { buildQualityHubCatalogView } from "../quality/quality-hub-scenarios";
 import { buildOfflineSyncCatalogView } from "../sync/offline-sync-scenarios";
 
 export interface OperationsOverviewCard {
@@ -49,6 +51,7 @@ export function buildOperationsOverviewModel(input: {
   reviewSignatureCatalog: ReviewSignatureCatalog | null;
   signatureQueueCatalog: SignatureQueueCatalog | null;
   offlineSyncCatalog: OfflineSyncCatalog | null;
+  qualityHubCatalog: QualityHubCatalog | null;
   userDirectoryCatalog: UserDirectoryCatalog | null;
 }): OperationsOverviewModel {
   const cards: OperationsOverviewCard[] = [];
@@ -78,6 +81,9 @@ export function buildOperationsOverviewModel(input: {
     : null;
   const offlineSyncView = input.offlineSyncCatalog
     ? buildOfflineSyncCatalogView(input.offlineSyncCatalog)
+    : null;
+  const qualityHubView = input.qualityHubCatalog
+    ? buildQualityHubCatalogView(input.qualityHubCatalog)
     : null;
   const userDirectoryView = input.userDirectoryCatalog
     ? buildUserDirectoryCatalogView(input.userDirectoryCatalog)
@@ -276,6 +282,31 @@ export function buildOperationsOverviewModel(input: {
   );
 
   cards.push(
+    qualityHubView
+      ? {
+          href: `/quality?scenario=${qualityHubView.selectedScenario.id}&module=${qualityHubView.selectedScenario.selectedModule.key}`,
+          eyebrow: "Qualidade",
+          title: qualityHubView.selectedScenario.label,
+          description: `${qualityHubView.selectedScenario.summary.openNonconformities} NC(s), ${qualityHubView.selectedScenario.summary.complaintCount} reclamacao(oes) e ${qualityHubView.selectedScenario.summary.plannedModuleCount} area(s) planejada(s).`,
+          statusTone: qualityHubView.selectedScenario.summary.status === "ready" ? "ok" : "warn",
+          statusLabel:
+            qualityHubView.selectedScenario.summary.status === "ready"
+              ? "Hub estavel"
+              : qualityHubView.selectedScenario.summary.status === "attention"
+                ? "Hub com atencao"
+                : "Hub bloqueado",
+          cta: "Abrir qualidade",
+        }
+      : unavailableCard({
+          href: "/quality",
+          eyebrow: "Qualidade",
+          title: "Hub da qualidade",
+          description: "Leitura canonica indisponivel no momento.",
+          cta: "Abrir qualidade",
+        }),
+  );
+
+  cards.push(
     userDirectoryView
       ? {
           href: `/auth/users?scenario=${userDirectoryView.selectedScenario.id}`,
@@ -315,6 +346,7 @@ export function buildOperationsOverviewModel(input: {
       reviewSignatureView &&
       signatureQueueView &&
       offlineSyncView &&
+      qualityHubView &&
       userDirectoryView,
   );
 
