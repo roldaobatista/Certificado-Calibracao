@@ -38,7 +38,16 @@ if "%~1"=="" goto :done
 
 set "COMMAND=%~1"
 shift
-call "%COMMAND%" %*
+set "CALL_QUOTED=0"
+if not "%COMMAND:\=%"=="%COMMAND%" set "CALL_QUOTED=1"
+if not "%COMMAND:/=%"=="%COMMAND%" set "CALL_QUOTED=1"
+if not "%COMMAND::=%"=="%COMMAND%" set "CALL_QUOTED=1"
+
+if "%CALL_QUOTED%"=="1" (
+  call "%COMMAND%" %*
+) else (
+  call %COMMAND% %*
+)
 set "EXIT_CODE=%ERRORLEVEL%"
 exit /b %EXIT_CODE%
 
