@@ -8,6 +8,35 @@ const ORGANIZATION_ID = "00000000-0000-4000-8000-000000000101";
 const ADMIN_ID = "00000000-0000-4000-8000-000000000201";
 const SIGNATORY_ID = "00000000-0000-4000-8000-000000000202";
 const TECHNICIAN_ID = "00000000-0000-4000-8000-000000000203";
+const INVITED_ID = "00000000-0000-4000-8000-000000000204";
+const SUSPENDED_ID = "00000000-0000-4000-8000-000000000205";
+const CUSTOMER_IDS = {
+  acme: "00000000-0000-4000-8000-000000000401",
+  paoDoce: "00000000-0000-4000-8000-000000000402",
+  xyz: "00000000-0000-4000-8000-000000000403",
+  pendente: "00000000-0000-4000-8000-000000000404",
+};
+const STANDARD_IDS = {
+  peso1: "00000000-0000-4000-8000-000000000501",
+  peso2: "00000000-0000-4000-8000-000000000502",
+  peso5: "00000000-0000-4000-8000-000000000503",
+  peso10: "00000000-0000-4000-8000-000000000504",
+  thermo: "00000000-0000-4000-8000-000000000505",
+};
+const PROCEDURE_IDS = {
+  pt005r04: "00000000-0000-4000-8000-000000000601",
+  pt006r02: "00000000-0000-4000-8000-000000000602",
+  pt009r02: "00000000-0000-4000-8000-000000000603",
+  pg001r01: "00000000-0000-4000-8000-000000000604",
+  pt005r03: "00000000-0000-4000-8000-000000000605",
+};
+const EQUIPMENT_IDS = {
+  eq0007: "00000000-0000-4000-8000-000000000701",
+  eq0012: "00000000-0000-4000-8000-000000000702",
+  eq0011: "00000000-0000-4000-8000-000000000703",
+  eq0008: "00000000-0000-4000-8000-000000000704",
+  eq0404: "00000000-0000-4000-8000-000000000705",
+};
 const DEFAULT_PASSWORD = "Afere@2026!";
 
 async function main() {
@@ -36,6 +65,7 @@ async function main() {
     displayName: "Ana Administradora",
     roles: ["admin", "quality_manager"],
     teamName: "Gestao tecnica",
+    status: "active",
     mfaEnforced: true,
     mfaEnrolled: true,
     deviceCount: 2,
@@ -48,6 +78,7 @@ async function main() {
     displayName: "Bruno Signatario",
     roles: ["signatory", "technical_reviewer"],
     teamName: "Metrologia",
+    status: "active",
     mfaEnforced: true,
     mfaEnrolled: true,
     deviceCount: 1,
@@ -60,9 +91,36 @@ async function main() {
     displayName: "Carla Tecnica",
     roles: ["technician"],
     teamName: "Campo",
+    status: "active",
     mfaEnforced: false,
     mfaEnrolled: false,
     deviceCount: 1,
+    passwordHash,
+  });
+
+  await upsertUser({
+    id: INVITED_ID,
+    email: "convite@afere.local",
+    displayName: "Diego Convite",
+    roles: ["technical_reviewer"],
+    teamName: "Qualidade",
+    status: "invited",
+    mfaEnforced: true,
+    mfaEnrolled: false,
+    deviceCount: 0,
+    passwordHash,
+  });
+
+  await upsertUser({
+    id: SUSPENDED_ID,
+    email: "suspenso@afere.local",
+    displayName: "Elisa Suspensa",
+    roles: ["technician"],
+    teamName: "Campo",
+    status: "suspended",
+    mfaEnforced: false,
+    mfaEnrolled: false,
+    deviceCount: 0,
     passwordHash,
   });
 
@@ -79,7 +137,7 @@ async function main() {
         instrumentType: "balanca",
         roleLabel: "Signatario autorizado",
         status: "authorized",
-        validUntil: new Date("2027-04-20T00:00:00.000Z"),
+        validUntil: parseDate("2027-04-20"),
       },
       {
         id: "00000000-0000-4000-8000-000000000302",
@@ -88,7 +146,7 @@ async function main() {
         instrumentType: "balanca",
         roleLabel: "Revisor tecnico",
         status: "authorized",
-        validUntil: new Date("2027-01-20T00:00:00.000Z"),
+        validUntil: parseDate("2027-01-20"),
       },
       {
         id: "00000000-0000-4000-8000-000000000303",
@@ -97,7 +155,25 @@ async function main() {
         instrumentType: "balanca",
         roleLabel: "Executor de campo",
         status: "authorized",
-        validUntil: new Date("2026-12-20T00:00:00.000Z"),
+        validUntil: parseDate("2026-12-20"),
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000304",
+        organizationId: ORGANIZATION_ID,
+        userId: INVITED_ID,
+        instrumentType: "balanca",
+        roleLabel: "Revisor em onboarding",
+        status: "expiring",
+        validUntil: parseDate("2026-06-15"),
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000305",
+        organizationId: ORGANIZATION_ID,
+        userId: SUSPENDED_ID,
+        instrumentType: "balanca",
+        roleLabel: "Tecnico suspenso",
+        status: "expired",
+        validUntil: parseDate("2026-03-01"),
       },
     ],
   });
@@ -125,6 +201,468 @@ async function main() {
     },
   });
 
+  await upsertCustomer({
+    id: CUSTOMER_IDS.acme,
+    legalName: "Lab. Acme Analises Ltda.",
+    tradeName: "Lab. Acme",
+    documentLabel: "12.345.678/0001-XX",
+    segmentLabel: "Laboratorio clinico",
+    accountOwnerName: "Joao das Neves",
+    accountOwnerEmail: "joao@lab-acme.com.br",
+    contractLabel: "Contrato vigente ate 31/12/2026",
+    specialConditionsLabel: "Sala climatizada 21+/-2 C, restricao de acesso",
+    contactName: "Joao das Neves",
+    contactRoleLabel: "Responsavel tecnico",
+    contactEmail: "joao@lab-acme.com.br",
+    contactPhoneLabel: "(65) 99999-0001",
+    addressLine1: "Rua da Calibracao, 100",
+    addressCity: "Cuiaba",
+    addressState: "MT",
+    addressPostalCode: "78000-000",
+    addressCountry: "Brasil",
+    addressConditionsLabel: "Sala climatizada 21+/-2 C, acesso controlado.",
+    archivedAt: null,
+  });
+
+  await upsertCustomer({
+    id: CUSTOMER_IDS.paoDoce,
+    legalName: "Padaria Pao Doce Comercio Ltda.",
+    tradeName: "Padaria Pao Doce",
+    documentLabel: "23.456.789/0001-YY",
+    segmentLabel: "Panificacao",
+    accountOwnerName: "Marcia Lima",
+    accountOwnerEmail: "marcia@paodoce.com.br",
+    contractLabel: "Contrato vigente ate 30/11/2026",
+    specialConditionsLabel: "Atendimento antes da abertura da loja",
+    contactName: "Marcia Lima",
+    contactRoleLabel: "Responsavel administrativa",
+    contactEmail: "marcia@paodoce.com.br",
+    contactPhoneLabel: "(65) 99999-1101",
+    addressLine1: "Avenida do Comercio, 45",
+    addressCity: "Cuiaba",
+    addressState: "MT",
+    addressPostalCode: "78005-010",
+    addressCountry: "Brasil",
+    addressConditionsLabel: "Atendimento antes das 6h para nao interromper a producao.",
+    archivedAt: null,
+  });
+
+  await upsertCustomer({
+    id: CUSTOMER_IDS.xyz,
+    legalName: "Industria XYZ Alimentos S.A.",
+    tradeName: "Industria XYZ",
+    documentLabel: "34.567.890/0001-ZZ",
+    segmentLabel: "Industria alimenticia",
+    accountOwnerName: "Carlos Mendes",
+    accountOwnerEmail: "carlos@xyz.com.br",
+    contractLabel: "Contrato vigente ate 30/09/2026",
+    specialConditionsLabel: "Janela operacional entre 22h e 4h para linhas criticas",
+    contactName: "Carlos Mendes",
+    contactRoleLabel: "Coordenador de manutencao",
+    contactEmail: "carlos@xyz.com.br",
+    contactPhoneLabel: "(65) 99999-2201",
+    addressLine1: "Distrito Industrial, 2200",
+    addressCity: "Varzea Grande",
+    addressState: "MT",
+    addressPostalCode: "78110-500",
+    addressCountry: "Brasil",
+    addressConditionsLabel: "Acesso controlado e EPIs obrigatorios.",
+    archivedAt: null,
+  });
+
+  await upsertCustomer({
+    id: CUSTOMER_IDS.pendente,
+    legalName: "Cliente sem cadastro completo",
+    tradeName: "Cadastro pendente",
+    documentLabel: "CNPJ pendente",
+    segmentLabel: "Homologacao",
+    accountOwnerName: "Responsavel nao confirmado",
+    accountOwnerEmail: "pendente@cliente.local",
+    contractLabel: "Contrato aguardando formalizacao",
+    specialConditionsLabel: "Endereco do equipamento ainda nao validado",
+    contactName: "Contato nao confirmado",
+    contactRoleLabel: "Ponto focal pendente",
+    contactEmail: "pendente@cliente.local",
+    contactPhoneLabel: null,
+    addressLine1: "Rua Sem CEP, 10",
+    addressCity: "Campo Grande",
+    addressState: "MS",
+    addressPostalCode: null,
+    addressCountry: "Brasil",
+    addressConditionsLabel: "Confirmacao documental em aberto.",
+    archivedAt: null,
+  });
+
+  await upsertStandard({
+    id: STANDARD_IDS.peso1,
+    code: "PESO-001",
+    title: "PESO-001 · Peso padrão 1 kg · classe F1",
+    kindLabel: "Peso",
+    nominalClassLabel: "1 kg · F1",
+    sourceLabel: "RBC-1234",
+    certificateLabel: "1234/25/081",
+    manufacturerLabel: "Coelmatic",
+    modelLabel: "M1K",
+    serialNumberLabel: "9-22-101",
+    nominalValueLabel: "1,000 kg",
+    classLabel: "F1",
+    usageRangeLabel: "Cargas ate 1 kg",
+    measurementValue: 1,
+    applicableRangeMin: 0,
+    applicableRangeMax: 1,
+    uncertaintyLabel: "+/- 8 mg",
+    correctionFactorLabel: "+0,001 g",
+    hasValidCertificate: true,
+    certificateValidUntil: parseDate("2026-08-12"),
+    archivedAt: null,
+  });
+
+  await upsertStandard({
+    id: STANDARD_IDS.peso2,
+    code: "PESO-002",
+    title: "PESO-002 · Peso padrão 2 kg · classe F1",
+    kindLabel: "Peso",
+    nominalClassLabel: "2 kg · F1",
+    sourceLabel: "RBC-1234",
+    certificateLabel: "1234/25/082",
+    manufacturerLabel: "Coelmatic",
+    modelLabel: "M2K",
+    serialNumberLabel: "9-22-102",
+    nominalValueLabel: "2,000 kg",
+    classLabel: "F1",
+    usageRangeLabel: "Cargas ate 2 kg",
+    measurementValue: 2,
+    applicableRangeMin: 0,
+    applicableRangeMax: 2,
+    uncertaintyLabel: "+/- 9 mg",
+    correctionFactorLabel: "+0,002 g",
+    hasValidCertificate: true,
+    certificateValidUntil: parseDate("2026-08-12"),
+    archivedAt: null,
+  });
+
+  await upsertStandard({
+    id: STANDARD_IDS.peso5,
+    code: "PESO-005",
+    title: "PESO-005 · Peso padrão 5 kg · classe M1",
+    kindLabel: "Peso",
+    nominalClassLabel: "5 kg · M1",
+    sourceLabel: "RBC-1234",
+    certificateLabel: "1234/25/088",
+    manufacturerLabel: "Coelmatic",
+    modelLabel: "M5K",
+    serialNumberLabel: "9-22-115",
+    nominalValueLabel: "5,000 kg",
+    classLabel: "M1",
+    usageRangeLabel: "Cargas ate 5 kg",
+    measurementValue: 5,
+    applicableRangeMin: 0,
+    applicableRangeMax: 5,
+    uncertaintyLabel: "+/- 12 mg",
+    correctionFactorLabel: "+0,003 g",
+    hasValidCertificate: true,
+    certificateValidUntil: parseDate("2026-04-24"),
+    archivedAt: null,
+  });
+
+  await upsertStandard({
+    id: STANDARD_IDS.peso10,
+    code: "PESO-010",
+    title: "PESO-010 · Peso padrão 10 kg · classe M1",
+    kindLabel: "Peso",
+    nominalClassLabel: "10 kg · M1",
+    sourceLabel: "RBC-1234",
+    certificateLabel: "1234/25/099",
+    manufacturerLabel: "Coelmatic",
+    modelLabel: "M10K",
+    serialNumberLabel: "9-22-130",
+    nominalValueLabel: "10,000 kg",
+    classLabel: "M1",
+    usageRangeLabel: "Cargas ate 10 kg",
+    measurementValue: 10,
+    applicableRangeMin: 0,
+    applicableRangeMax: 10,
+    uncertaintyLabel: "+/- 18 mg",
+    correctionFactorLabel: "+0,005 g",
+    hasValidCertificate: true,
+    certificateValidUntil: parseDate("2026-04-02"),
+    archivedAt: null,
+  });
+
+  await upsertStandard({
+    id: STANDARD_IDS.thermo,
+    code: "TH-003",
+    title: "TH-003 · Termohigrometro de referencia",
+    kindLabel: "Termohigr",
+    nominalClassLabel: "-",
+    sourceLabel: "RBC-9876",
+    certificateLabel: "9876/25/044",
+    manufacturerLabel: "Testo",
+    modelLabel: "TH-610",
+    serialNumberLabel: "TH-610-44",
+    nominalValueLabel: "Referencia ambiental",
+    classLabel: "Instrumento auxiliar",
+    usageRangeLabel: "18C-25C / 30%-70%",
+    measurementValue: 22.4,
+    applicableRangeMin: 18,
+    applicableRangeMax: 25,
+    uncertaintyLabel: "+/- 0,2 C / 1,5%",
+    correctionFactorLabel: "Compensacao automatica ativa",
+    hasValidCertificate: true,
+    certificateValidUntil: parseDate("2026-06-30"),
+    archivedAt: null,
+  });
+
+  await prisma.standardCalibration.deleteMany({
+    where: { organizationId: ORGANIZATION_ID },
+  });
+
+  await prisma.standardCalibration.createMany({
+    data: [
+      calibration("00000000-0000-4000-8000-000000000801", STANDARD_IDS.peso1, "2025-08-12", "Lab Cal-1234", "1234/25/081", "RBC", "+/- 8 mg", "2026-08-12"),
+      calibration("00000000-0000-4000-8000-000000000802", STANDARD_IDS.peso1, "2024-08-10", "Lab Cal-1234", "1234/24/063", "RBC", "+/- 8 mg", "2025-08-10"),
+      calibration("00000000-0000-4000-8000-000000000803", STANDARD_IDS.peso2, "2025-08-12", "Lab Cal-1234", "1234/25/082", "RBC", "+/- 9 mg", "2026-08-12"),
+      calibration("00000000-0000-4000-8000-000000000804", STANDARD_IDS.peso5, "2025-04-24", "Lab Cal-1234", "1234/25/088", "RBC", "+/- 12 mg", "2026-04-24"),
+      calibration("00000000-0000-4000-8000-000000000805", STANDARD_IDS.peso5, "2024-04-14", "Lab Cal-1234", "1234/24/072", "RBC", "+/- 13 mg", "2025-04-14"),
+      calibration("00000000-0000-4000-8000-000000000806", STANDARD_IDS.peso10, "2025-04-02", "Lab Cal-1234", "1234/25/099", "RBC", "+/- 18 mg", "2026-04-02"),
+      calibration("00000000-0000-4000-8000-000000000807", STANDARD_IDS.thermo, "2025-06-30", "Lab Cal-9876", "9876/25/044", "RBC", "+/- 0,2 C / 1,5%", "2026-06-30"),
+    ],
+  });
+
+  await upsertProcedure({
+    id: PROCEDURE_IDS.pt005r04,
+    code: "PT-005",
+    title: "Calibracao IPNA classe III campo",
+    typeLabel: "NAWI III",
+    revisionLabel: "04",
+    effectiveSince: parseDate("2024-03-01"),
+    effectiveUntil: null,
+    lifecycleLabel: "Vigente",
+    usageLabel: "Campo controlado e bancada assistida",
+    scopeLabel: "Balancas IPNA classe III em faixa ate 300 kg com 5 pontos de curva.",
+    environmentRangeLabel: "Temp 18C-25C · Umid 30%-70%",
+    curvePolicyLabel: "5 pontos com sequencia crescente e decrescente.",
+    standardsPolicyLabel: "Peso F1/M1 vigente + auxiliar ambiental TH-003 obrigatorio.",
+    approvalLabel: "Aprovado por Ana Costa · vigencia desde 03/2024",
+    relatedDocuments: [
+      "IT-005-1 · Checklist de campo",
+      "FR-021 · Registro bruto da curva",
+      "BAL-UNC-IPNA-III · Balanco de incerteza",
+    ],
+    archivedAt: null,
+  });
+
+  await upsertProcedure({
+    id: PROCEDURE_IDS.pt006r02,
+    code: "PT-006",
+    title: "Calibracao IPNA bancada",
+    typeLabel: "NAWI",
+    revisionLabel: "02",
+    effectiveSince: parseDate("2023-11-01"),
+    effectiveUntil: null,
+    lifecycleLabel: "Vigente",
+    usageLabel: "Bancada interna",
+    scopeLabel: "Balancas NAWI de bancada com curva reduzida e controle ambiental interno.",
+    environmentRangeLabel: "Temp 20C-24C · Umid 40%-60%",
+    curvePolicyLabel: "4 pontos com repetibilidade em 50%.",
+    standardsPolicyLabel: "Pesos F1/F2 vigentes conforme capacidade da balanca.",
+    approvalLabel: "Aprovado por Ana Costa · vigencia desde 11/2023",
+    relatedDocuments: ["IT-006-1 · Preparacao de bancada", "FR-022 · Registro de repetibilidade"],
+    archivedAt: null,
+  });
+
+  await upsertProcedure({
+    id: PROCEDURE_IDS.pt009r02,
+    code: "PT-009",
+    title: "Calibracao IPNA ambiente ampliado",
+    typeLabel: "NAWI III especial",
+    revisionLabel: "02",
+    effectiveSince: parseDate("2024-02-01"),
+    effectiveUntil: null,
+    lifecycleLabel: "Vigente com revisao pendente",
+    usageLabel: "Campo com condicoes variaveis",
+    scopeLabel: "Balancas IPNA classe III com janela de ambiente ampliada e conferencia reforcada.",
+    environmentRangeLabel: "Temp 18C-25C · Umid 30%-70% · revisao em curso",
+    curvePolicyLabel: "5 pontos com checagem adicional de historico.",
+    standardsPolicyLabel: "Padroes M1 vigentes e evidencia fotografica obrigatoria.",
+    approvalLabel: "Revisao de qualidade aberta para abril/2026",
+    relatedDocuments: [
+      "IT-009-1 · Lista de desvios controlados",
+      "FR-030 · Conferencia de historico",
+      "NC-014 · Acao preventiva associada",
+    ],
+    archivedAt: null,
+  });
+
+  await upsertProcedure({
+    id: PROCEDURE_IDS.pg001r01,
+    code: "PG-001",
+    title: "Controle de documentos",
+    typeLabel: "Gestao",
+    revisionLabel: "01",
+    effectiveSince: parseDate("2024-01-01"),
+    effectiveUntil: null,
+    lifecycleLabel: "Vigente",
+    usageLabel: "Governanca da qualidade",
+    scopeLabel: "Documentos MQ/PG/PT/IT/FR com controle de vigencia e obsolescencia.",
+    environmentRangeLabel: "Nao aplicavel",
+    curvePolicyLabel: "Nao aplicavel",
+    standardsPolicyLabel: "Nao aplicavel",
+    approvalLabel: "Aprovado por Ana Costa · vigencia desde 01/2024",
+    relatedDocuments: ["MQ-001 · Manual da qualidade", "IT-DOC-01 · Fluxo de publicacao"],
+    archivedAt: null,
+  });
+
+  await upsertProcedure({
+    id: PROCEDURE_IDS.pt005r03,
+    code: "PT-005",
+    title: "Calibracao IPNA classe III campo",
+    typeLabel: "NAWI III",
+    revisionLabel: "03",
+    effectiveSince: parseDate("2023-09-01"),
+    effectiveUntil: parseDate("2024-03-01"),
+    lifecycleLabel: "Obsoleto",
+    usageLabel: "Consulta historica apenas",
+    scopeLabel: "Revisao mantida apenas para rastreabilidade historica de OS antigas.",
+    environmentRangeLabel: "Temp 18C-25C · Umid 30%-70%",
+    curvePolicyLabel: "5 pontos historicos sem os ajustes documentados da rev. 04.",
+    standardsPolicyLabel: "Padroes vigentes exigidos somente para consulta de historico.",
+    approvalLabel: "Substituido pela rev. 04 em 03/2024",
+    relatedDocuments: ["FR-021 rev.03 · Registro historico", "Ata de substituicao da rev. 04"],
+    archivedAt: null,
+  });
+
+  await upsertEquipment({
+    id: EQUIPMENT_IDS.eq0007,
+    customerId: CUSTOMER_IDS.acme,
+    procedureId: PROCEDURE_IDS.pt005r04,
+    primaryStandardId: STANDARD_IDS.peso1,
+    code: "EQ-0007",
+    tagCode: "BAL-007",
+    serialNumber: "SN-300-01",
+    typeModelLabel: "NAWI Toledo Prix 3",
+    capacityClassLabel: "300 kg · 0,05 kg · III",
+    supportingStandardCodes: ["PESO-002", "TH-003"],
+    addressLine1: "Rua da Calibracao, 100",
+    addressCity: "Cuiaba",
+    addressState: "MT",
+    addressPostalCode: "78000-000",
+    addressCountry: "Brasil",
+    addressConditionsLabel: "Sala climatizada 21+/-2 C, acesso controlado.",
+    lastCalibrationAt: parseDate("2026-04-18"),
+    nextCalibrationAt: parseDate("2026-10-18"),
+    archivedAt: null,
+  });
+
+  await upsertEquipment({
+    id: EQUIPMENT_IDS.eq0012,
+    customerId: CUSTOMER_IDS.acme,
+    procedureId: PROCEDURE_IDS.pt006r02,
+    primaryStandardId: STANDARD_IDS.peso2,
+    code: "EQ-0012",
+    tagCode: "BAL-012",
+    serialNumber: "SN-300-12",
+    typeModelLabel: "NAWI Toledo Prix 4",
+    capacityClassLabel: "30 kg · 0,01 kg · III",
+    supportingStandardCodes: ["TH-003"],
+    addressLine1: "Rua da Calibracao, 100",
+    addressCity: "Cuiaba",
+    addressState: "MT",
+    addressPostalCode: "78000-000",
+    addressCountry: "Brasil",
+    addressConditionsLabel: "Sala climatizada 21+/-2 C, acesso controlado.",
+    lastCalibrationAt: parseDate("2026-04-18"),
+    nextCalibrationAt: parseDate("2026-10-18"),
+    archivedAt: null,
+  });
+
+  await upsertEquipment({
+    id: EQUIPMENT_IDS.eq0011,
+    customerId: CUSTOMER_IDS.paoDoce,
+    procedureId: PROCEDURE_IDS.pt006r02,
+    primaryStandardId: STANDARD_IDS.peso2,
+    code: "EQ-0011",
+    tagCode: "PAD-011",
+    serialNumber: "SN-PD-011",
+    typeModelLabel: "NAWI Urano Pop 30",
+    capacityClassLabel: "30 kg · 0,01 kg · III",
+    supportingStandardCodes: ["TH-003"],
+    addressLine1: "Avenida do Comercio, 45",
+    addressCity: "Cuiaba",
+    addressState: "MT",
+    addressPostalCode: "78005-010",
+    addressCountry: "Brasil",
+    addressConditionsLabel: "Atendimento antes das 6h para nao interromper a producao.",
+    lastCalibrationAt: parseDate("2026-04-17"),
+    nextCalibrationAt: parseDate("2026-10-17"),
+    archivedAt: null,
+  });
+
+  await upsertEquipment({
+    id: EQUIPMENT_IDS.eq0008,
+    customerId: CUSTOMER_IDS.xyz,
+    procedureId: PROCEDURE_IDS.pt009r02,
+    primaryStandardId: STANDARD_IDS.peso5,
+    code: "EQ-0008",
+    tagCode: "BL-X-22",
+    serialNumber: "SN-XY-22",
+    typeModelLabel: "NAWI Marte L50",
+    capacityClassLabel: "50 kg · 0,005 kg · III",
+    supportingStandardCodes: ["TH-003"],
+    addressLine1: "Distrito Industrial, 2200",
+    addressCity: "Varzea Grande",
+    addressState: "MT",
+    addressPostalCode: "78110-500",
+    addressCountry: "Brasil",
+    addressConditionsLabel: "Acesso controlado e EPIs obrigatorios.",
+    lastCalibrationAt: parseDate("2026-03-02"),
+    nextCalibrationAt: parseDate("2026-05-02"),
+    archivedAt: null,
+  });
+
+  await upsertEquipment({
+    id: EQUIPMENT_IDS.eq0404,
+    customerId: CUSTOMER_IDS.pendente,
+    procedureId: PROCEDURE_IDS.pt009r02,
+    primaryStandardId: STANDARD_IDS.peso10,
+    code: "EQ-0404",
+    tagCode: "BAL-404",
+    serialNumber: "SN-C-500",
+    typeModelLabel: "Balanca plataforma Marte 500",
+    capacityClassLabel: "500 kg · 0,1 kg · III",
+    supportingStandardCodes: ["TH-404"],
+    addressLine1: "Rua Sem CEP, 10",
+    addressCity: "Campo Grande",
+    addressState: "MS",
+    addressPostalCode: null,
+    addressCountry: "Brasil",
+    addressConditionsLabel: "Confirmacao documental em aberto.",
+    lastCalibrationAt: parseDate("2026-04-19"),
+    nextCalibrationAt: null,
+    archivedAt: null,
+  });
+
+  await prisma.registryAuditEvent.deleteMany({
+    where: { organizationId: ORGANIZATION_ID },
+  });
+
+  await prisma.registryAuditEvent.createMany({
+    data: [
+      auditEvent("00000000-0000-4000-8000-000000000901", "user", ADMIN_ID, "create", "Usuario administrador bootstrapado para o tenant demo.", ADMIN_ID, "2026-04-23T12:05:00.000Z"),
+      auditEvent("00000000-0000-4000-8000-000000000902", "user", SIGNATORY_ID, "update", "Competencia de assinatura revisada para o recorte de balancas.", ADMIN_ID, "2026-04-23T12:18:00.000Z"),
+      auditEvent("00000000-0000-4000-8000-000000000903", "customer", CUSTOMER_IDS.acme, "update", "Endereco operacional e contrato revisados para 2026.", ADMIN_ID, "2026-04-23T13:02:00.000Z"),
+      auditEvent("00000000-0000-4000-8000-000000000904", "customer", CUSTOMER_IDS.xyz, "update", "Janela operacional noturna validada com o responsavel do cliente.", ADMIN_ID, "2026-04-23T13:20:00.000Z"),
+      auditEvent("00000000-0000-4000-8000-000000000905", "customer", CUSTOMER_IDS.pendente, "create", "Cadastro em homologacao aberto com endereco ainda pendente.", ADMIN_ID, "2026-04-23T13:36:00.000Z"),
+      auditEvent("00000000-0000-4000-8000-000000000906", "standard", STANDARD_IDS.peso5, "update", "Padrao entrou em janela preventiva de recalibracao.", SIGNATORY_ID, "2026-04-23T14:10:00.000Z"),
+      auditEvent("00000000-0000-4000-8000-000000000907", "standard", STANDARD_IDS.peso10, "update", "Padrao vencido removido da agenda futura.", SIGNATORY_ID, "2026-04-23T14:22:00.000Z"),
+      auditEvent("00000000-0000-4000-8000-000000000908", "procedure", PROCEDURE_IDS.pt009r02, "update", "Revisao preventiva aberta pela Qualidade.", ADMIN_ID, "2026-04-23T14:44:00.000Z"),
+      auditEvent("00000000-0000-4000-8000-000000000909", "procedure", PROCEDURE_IDS.pt005r03, "archive", "Revisao antiga mantida apenas para consulta historica.", ADMIN_ID, "2026-04-23T14:55:00.000Z"),
+      auditEvent("00000000-0000-4000-8000-000000000910", "equipment", EQUIPMENT_IDS.eq0007, "update", "Vinculo principal com padrao e procedimento confirmado.", TECHNICIAN_ID, "2026-04-23T15:08:00.000Z"),
+      auditEvent("00000000-0000-4000-8000-000000000911", "equipment", EQUIPMENT_IDS.eq0008, "update", "Proxima calibracao entrou em janela de atencao.", TECHNICIAN_ID, "2026-04-23T15:22:00.000Z"),
+      auditEvent("00000000-0000-4000-8000-000000000912", "equipment", EQUIPMENT_IDS.eq0404, "create", "Equipamento bloqueado aguardando endereco minimo completo.", TECHNICIAN_ID, "2026-04-23T15:40:00.000Z"),
+    ],
+  });
+
   await prisma.appSession.deleteMany({
     where: { organizationId: ORGANIZATION_ID, expiresAt: { lt: new Date() } },
   });
@@ -136,6 +674,7 @@ async function upsertUser(input: {
   displayName: string;
   roles: string[];
   teamName: string;
+  status: string;
   mfaEnforced: boolean;
   mfaEnrolled: boolean;
   deviceCount: number;
@@ -150,29 +689,218 @@ async function upsertUser(input: {
       passwordHash: input.passwordHash,
       displayName: input.displayName,
       roles: input.roles,
-      status: "active",
+      status: input.status,
       teamName: input.teamName,
       mfaEnforced: input.mfaEnforced,
       mfaEnrolled: input.mfaEnrolled,
       deviceCount: input.deviceCount,
-      lastLoginAt: new Date("2026-04-23T13:00:00.000Z"),
+      lastLoginAt: input.status === "active" ? new Date("2026-04-23T13:00:00.000Z") : null,
     },
     update: {
       email: input.email,
       passwordHash: input.passwordHash,
       displayName: input.displayName,
       roles: input.roles,
-      status: "active",
+      status: input.status,
       teamName: input.teamName,
       mfaEnforced: input.mfaEnforced,
       mfaEnrolled: input.mfaEnrolled,
       deviceCount: input.deviceCount,
+      lastLoginAt: input.status === "active" ? new Date("2026-04-23T13:00:00.000Z") : null,
     },
   });
 }
 
+async function upsertCustomer(input: {
+  id: string;
+  legalName: string;
+  tradeName: string;
+  documentLabel: string;
+  segmentLabel: string;
+  accountOwnerName: string;
+  accountOwnerEmail: string;
+  contractLabel: string;
+  specialConditionsLabel: string;
+  contactName: string;
+  contactRoleLabel: string;
+  contactEmail: string;
+  contactPhoneLabel: string | null;
+  addressLine1: string;
+  addressCity: string;
+  addressState: string;
+  addressPostalCode: string | null;
+  addressCountry: string;
+  addressConditionsLabel: string | null;
+  archivedAt: Date | null;
+}) {
+  const { id, ...data } = input;
+  await prisma.customer.upsert({
+    where: { id },
+    create: {
+      id,
+      organizationId: ORGANIZATION_ID,
+      ...data,
+    },
+    update: {
+      ...data,
+    },
+  });
+}
+
+async function upsertStandard(input: {
+  id: string;
+  code: string;
+  title: string;
+  kindLabel: string;
+  nominalClassLabel: string;
+  sourceLabel: string;
+  certificateLabel: string;
+  manufacturerLabel: string;
+  modelLabel: string;
+  serialNumberLabel: string;
+  nominalValueLabel: string;
+  classLabel: string;
+  usageRangeLabel: string;
+  measurementValue: number;
+  applicableRangeMin: number;
+  applicableRangeMax: number;
+  uncertaintyLabel: string;
+  correctionFactorLabel: string;
+  hasValidCertificate: boolean;
+  certificateValidUntil: Date | null;
+  archivedAt: Date | null;
+}) {
+  const { id, ...data } = input;
+  await prisma.standard.upsert({
+    where: { id },
+    create: {
+      id,
+      organizationId: ORGANIZATION_ID,
+      ...data,
+    },
+    update: {
+      ...data,
+    },
+  });
+}
+
+async function upsertProcedure(input: {
+  id: string;
+  code: string;
+  title: string;
+  typeLabel: string;
+  revisionLabel: string;
+  effectiveSince: Date;
+  effectiveUntil: Date | null;
+  lifecycleLabel: string;
+  usageLabel: string;
+  scopeLabel: string;
+  environmentRangeLabel: string;
+  curvePolicyLabel: string;
+  standardsPolicyLabel: string;
+  approvalLabel: string;
+  relatedDocuments: string[];
+  archivedAt: Date | null;
+}) {
+  const { id, ...data } = input;
+  await prisma.procedureRevision.upsert({
+    where: { id },
+    create: {
+      id,
+      organizationId: ORGANIZATION_ID,
+      ...data,
+    },
+    update: {
+      ...data,
+    },
+  });
+}
+
+async function upsertEquipment(input: {
+  id: string;
+  customerId: string;
+  procedureId: string | null;
+  primaryStandardId: string | null;
+  code: string;
+  tagCode: string;
+  serialNumber: string;
+  typeModelLabel: string;
+  capacityClassLabel: string;
+  supportingStandardCodes: string[];
+  addressLine1: string;
+  addressCity: string;
+  addressState: string;
+  addressPostalCode: string | null;
+  addressCountry: string;
+  addressConditionsLabel: string | null;
+  lastCalibrationAt: Date | null;
+  nextCalibrationAt: Date | null;
+  archivedAt: Date | null;
+}) {
+  const { id, ...data } = input;
+  await prisma.equipment.upsert({
+    where: { id },
+    create: {
+      id,
+      organizationId: ORGANIZATION_ID,
+      ...data,
+    },
+    update: {
+      ...data,
+    },
+  });
+}
+
+function calibration(
+  id: string,
+  standardId: string,
+  calibratedAt: string,
+  laboratoryLabel: string,
+  certificateLabel: string,
+  sourceLabel: string,
+  uncertaintyLabel: string,
+  validUntil: string,
+) {
+  return {
+    id,
+    organizationId: ORGANIZATION_ID,
+    standardId,
+    calibratedAt: parseDate(calibratedAt),
+    laboratoryLabel,
+    certificateLabel,
+    sourceLabel,
+    uncertaintyLabel,
+    validUntil: parseDate(validUntil),
+  };
+}
+
+function auditEvent(
+  id: string,
+  entityType: string,
+  entityId: string,
+  action: string,
+  summary: string,
+  actorUserId: string | null,
+  createdAt: string,
+) {
+  return {
+    id,
+    organizationId: ORGANIZATION_ID,
+    entityType,
+    entityId,
+    action,
+    actorUserId,
+    summary,
+    createdAt: new Date(createdAt),
+  };
+}
+
+function parseDate(value: string) {
+  return new Date(`${value}T00:00:00.000Z`);
+}
+
 function hashSeedPassword(password: string): string {
-  const salt = "afere-v1-seed";
+  const salt = "afere-v2-seed";
   const derived = scryptSync(password, salt, 64, {
     N: 16384,
     r: 8,

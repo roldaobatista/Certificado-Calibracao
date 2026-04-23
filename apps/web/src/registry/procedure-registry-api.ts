@@ -9,6 +9,7 @@ export interface LoadProcedureRegistryCatalogOptions {
   scenarioId?: string;
   procedureId?: string;
   apiBaseUrl?: string;
+  cookieHeader?: string;
   fetchImpl?: typeof fetch;
 }
 
@@ -29,9 +30,7 @@ export async function loadProcedureRegistryCatalog(
   try {
     const response = await fetchImpl(endpoint, {
       method: "GET",
-      headers: {
-        accept: "application/json",
-      },
+      headers: buildHeaders(options.cookieHeader),
       cache: "no-store",
     });
 
@@ -45,6 +44,18 @@ export async function loadProcedureRegistryCatalog(
   } catch {
     return null;
   }
+}
+
+function buildHeaders(cookieHeader?: string) {
+  const headers: Record<string, string> = {
+    accept: "application/json",
+  };
+
+  if (cookieHeader) {
+    headers.cookie = cookieHeader;
+  }
+
+  return headers;
 }
 
 function buildProcedureRegistryEndpoint(

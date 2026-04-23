@@ -9,6 +9,7 @@ export interface LoadEquipmentRegistryCatalogOptions {
   scenarioId?: string;
   equipmentId?: string;
   apiBaseUrl?: string;
+  cookieHeader?: string;
   fetchImpl?: typeof fetch;
 }
 
@@ -29,9 +30,7 @@ export async function loadEquipmentRegistryCatalog(
   try {
     const response = await fetchImpl(endpoint, {
       method: "GET",
-      headers: {
-        accept: "application/json",
-      },
+      headers: buildHeaders(options.cookieHeader),
       cache: "no-store",
     });
 
@@ -45,6 +44,18 @@ export async function loadEquipmentRegistryCatalog(
   } catch {
     return null;
   }
+}
+
+function buildHeaders(cookieHeader?: string) {
+  const headers: Record<string, string> = {
+    accept: "application/json",
+  };
+
+  if (cookieHeader) {
+    headers.cookie = cookieHeader;
+  }
+
+  return headers;
 }
 
 function buildEquipmentRegistryEndpoint(

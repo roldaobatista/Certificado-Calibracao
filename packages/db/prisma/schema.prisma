@@ -41,6 +41,12 @@ model Organization {
   sessions                AppSession[]
   competencies            UserCompetency[]
   onboardingState         OnboardingState?
+  customers               Customer[]
+  standards               Standard[]
+  standardCalibrations    StandardCalibration[]
+  procedures              ProcedureRevision[]
+  equipment               Equipment[]
+  registryAuditEvents     RegistryAuditEvent[]
 
   @@map("organizations")
   @@schema("public")
@@ -64,6 +70,7 @@ model AppUser {
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   competencies   UserCompetency[]
   sessions       AppSession[]
+  registryEvents RegistryAuditEvent[] @relation("RegistryEventActor")
 
   @@index([organizationId, status])
   @@map("app_users")
@@ -120,5 +127,173 @@ model OnboardingState {
   organization                    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("onboarding_states")
+  @@schema("public")
+}
+
+model Customer {
+  id                     String       @id @default(uuid()) @db.Uuid
+  organizationId         String       @map("organization_id") @db.Uuid
+  legalName              String       @map("legal_name") @db.VarChar(160)
+  tradeName              String       @map("trade_name") @db.VarChar(160)
+  documentLabel          String       @map("document_label") @db.VarChar(80)
+  segmentLabel           String       @map("segment_label") @db.VarChar(120)
+  accountOwnerName       String       @map("account_owner_name") @db.VarChar(140)
+  accountOwnerEmail      String       @map("account_owner_email") @db.VarChar(255)
+  contractLabel          String       @map("contract_label")
+  specialConditionsLabel String       @map("special_conditions_label")
+  contactName            String       @map("contact_name") @db.VarChar(140)
+  contactRoleLabel       String       @map("contact_role_label") @db.VarChar(120)
+  contactEmail           String       @map("contact_email") @db.VarChar(255)
+  contactPhoneLabel      String?      @map("contact_phone_label") @db.VarChar(40)
+  addressLine1           String       @map("address_line1") @db.VarChar(180)
+  addressCity            String       @map("address_city") @db.VarChar(80)
+  addressState           String       @map("address_state") @db.VarChar(40)
+  addressPostalCode      String?      @map("address_postal_code") @db.VarChar(24)
+  addressCountry         String       @map("address_country") @db.VarChar(40)
+  addressConditionsLabel String?      @map("address_conditions_label")
+  archivedAt             DateTime?    @map("archived_at") @db.Timestamptz(6)
+  createdAt              DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization           Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  equipment              Equipment[]
+
+  @@index([organizationId, archivedAt])
+  @@index([organizationId, tradeName])
+  @@map("customers")
+  @@schema("public")
+}
+
+model Standard {
+  id                  String               @id @default(uuid()) @db.Uuid
+  organizationId      String               @map("organization_id") @db.Uuid
+  code                String               @db.VarChar(64)
+  title               String               @db.VarChar(160)
+  kindLabel           String               @map("kind_label") @db.VarChar(80)
+  nominalClassLabel   String               @map("nominal_class_label") @db.VarChar(80)
+  sourceLabel         String               @map("source_label") @db.VarChar(80)
+  certificateLabel    String               @map("certificate_label") @db.VarChar(80)
+  manufacturerLabel   String               @map("manufacturer_label") @db.VarChar(80)
+  modelLabel          String               @map("model_label") @db.VarChar(80)
+  serialNumberLabel   String               @map("serial_number_label") @db.VarChar(80)
+  nominalValueLabel   String               @map("nominal_value_label") @db.VarChar(80)
+  classLabel          String               @map("class_label") @db.VarChar(40)
+  usageRangeLabel     String               @map("usage_range_label") @db.VarChar(120)
+  measurementValue    Decimal              @map("measurement_value") @db.Decimal(18, 6)
+  applicableRangeMin  Decimal              @map("applicable_range_min") @db.Decimal(18, 6)
+  applicableRangeMax  Decimal              @map("applicable_range_max") @db.Decimal(18, 6)
+  uncertaintyLabel    String               @map("uncertainty_label") @db.VarChar(80)
+  correctionFactorLabel String             @map("correction_factor_label") @db.VarChar(80)
+  hasValidCertificate Boolean              @default(true) @map("has_valid_certificate")
+  certificateValidUntil DateTime?          @map("certificate_valid_until") @db.Date
+  archivedAt          DateTime?            @map("archived_at") @db.Timestamptz(6)
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  calibrations        StandardCalibration[]
+  equipment           Equipment[]          @relation("EquipmentPrimaryStandard")
+
+  @@unique([organizationId, code])
+  @@index([organizationId, archivedAt])
+  @@map("standards")
+  @@schema("public")
+}
+
+model StandardCalibration {
+  id               String       @id @default(uuid()) @db.Uuid
+  organizationId   String       @map("organization_id") @db.Uuid
+  standardId       String       @map("standard_id") @db.Uuid
+  calibratedAt     DateTime     @map("calibrated_at") @db.Date
+  laboratoryLabel  String       @map("laboratory_label") @db.VarChar(120)
+  certificateLabel String       @map("certificate_label") @db.VarChar(80)
+  sourceLabel      String       @map("source_label") @db.VarChar(80)
+  uncertaintyLabel String       @map("uncertainty_label") @db.VarChar(80)
+  validUntil       DateTime     @map("valid_until") @db.Date
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  standard         Standard     @relation(fields: [standardId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, standardId, calibratedAt])
+  @@map("standard_calibrations")
+  @@schema("public")
+}
+
+model ProcedureRevision {
+  id                    String       @id @default(uuid()) @db.Uuid
+  organizationId        String       @map("organization_id") @db.Uuid
+  code                  String       @db.VarChar(64)
+  title                 String       @db.VarChar(160)
+  typeLabel             String       @map("type_label") @db.VarChar(80)
+  revisionLabel         String       @map("revision_label") @db.VarChar(24)
+  effectiveSince        DateTime     @map("effective_since") @db.Date
+  effectiveUntil        DateTime?    @map("effective_until") @db.Date
+  lifecycleLabel        String       @map("lifecycle_label") @db.VarChar(60)
+  usageLabel            String       @map("usage_label") @db.VarChar(160)
+  scopeLabel            String       @map("scope_label")
+  environmentRangeLabel String       @map("environment_range_label") @db.VarChar(160)
+  curvePolicyLabel      String       @map("curve_policy_label")
+  standardsPolicyLabel  String       @map("standards_policy_label")
+  approvalLabel         String       @map("approval_label") @db.VarChar(160)
+  relatedDocuments      String[]     @default([]) @map("related_documents")
+  archivedAt            DateTime?    @map("archived_at") @db.Timestamptz(6)
+  createdAt             DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  equipment             Equipment[]  @relation("EquipmentProcedure")
+
+  @@unique([organizationId, code, revisionLabel])
+  @@index([organizationId, code, archivedAt])
+  @@map("procedure_revisions")
+  @@schema("public")
+}
+
+model Equipment {
+  id                    String            @id @default(uuid()) @db.Uuid
+  organizationId        String            @map("organization_id") @db.Uuid
+  customerId            String            @map("customer_id") @db.Uuid
+  procedureId           String?           @map("procedure_id") @db.Uuid
+  primaryStandardId     String?           @map("primary_standard_id") @db.Uuid
+  code                  String            @db.VarChar(64)
+  tagCode               String            @map("tag_code") @db.VarChar(64)
+  serialNumber          String            @map("serial_number") @db.VarChar(80)
+  typeModelLabel        String            @map("type_model_label") @db.VarChar(120)
+  capacityClassLabel    String            @map("capacity_class_label") @db.VarChar(120)
+  supportingStandardCodes String[]        @default([]) @map("supporting_standard_codes")
+  addressLine1          String            @map("address_line1") @db.VarChar(180)
+  addressCity           String            @map("address_city") @db.VarChar(80)
+  addressState          String            @map("address_state") @db.VarChar(40)
+  addressPostalCode     String?           @map("address_postal_code") @db.VarChar(24)
+  addressCountry        String            @map("address_country") @db.VarChar(40)
+  addressConditionsLabel String?          @map("address_conditions_label")
+  lastCalibrationAt     DateTime?         @map("last_calibration_at") @db.Date
+  nextCalibrationAt     DateTime?         @map("next_calibration_at") @db.Date
+  archivedAt            DateTime?         @map("archived_at") @db.Timestamptz(6)
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization          Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  customer              Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  procedure             ProcedureRevision? @relation("EquipmentProcedure", fields: [procedureId], references: [id], onDelete: SetNull)
+  primaryStandard       Standard?         @relation("EquipmentPrimaryStandard", fields: [primaryStandardId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, code])
+  @@index([organizationId, customerId, archivedAt])
+  @@index([organizationId, tagCode])
+  @@map("equipment")
+  @@schema("public")
+}
+
+model RegistryAuditEvent {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  entityType     String       @map("entity_type") @db.VarChar(40)
+  entityId       String       @map("entity_id") @db.Uuid
+  action         String       @db.VarChar(40)
+  actorUserId    String?      @map("actor_user_id") @db.Uuid
+  summary        String       @db.VarChar(240)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  actorUser      AppUser?     @relation("RegistryEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, entityType, entityId, createdAt])
+  @@map("registry_audit_events")
   @@schema("public")
 }

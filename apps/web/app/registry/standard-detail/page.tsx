@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadStandardRegistryCatalog } from "@/src/registry/standard-registry-api";
 import { buildStandardRegistryCatalogView } from "@/src/registry/standard-registry-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -29,12 +32,41 @@ function statusLabel(status: "ready" | "attention" | "blocked"): string {
 }
 
 export default async function StandardDetailPage(props: PageProps) {
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
   const catalog = await loadStandardRegistryCatalog({
     scenarioId: props.searchParams?.scenario,
     standardId: props.searchParams?.standard,
+    cookieHeader,
   });
 
   if (!catalog) {
+    if (authSession?.authenticated === false && !props.searchParams?.scenario) {
+      return (
+        <AppShell
+          eyebrow="Cadastros - detalhe do padrao"
+          title="Detalhe protegido por sessao"
+          description="O detalhe persistido do padrao exige autenticacao antes da leitura."
+          aside={
+            <div className="hero-stat">
+              <span className="eyebrow">Acesso atual</span>
+              <strong>Login necessario</strong>
+              <StatusPill tone="warn" label="RBAC ativo" />
+              <p>Entre com um papel autorizado para abrir a carteira real de padroes.</p>
+            </div>
+          }
+        >
+          <section className="content-panel">
+            <div className="button-row">
+              <a className="button-primary" href="/auth/login">
+                Fazer login
+              </a>
+            </div>
+          </section>
+        </AppShell>
+      );
+    }
+
     return (
       <AppShell
         eyebrow="Cadastros - detalhe do padrao"
@@ -65,6 +97,7 @@ export default async function StandardDetailPage(props: PageProps) {
 
   const { selectedScenario: scenario, scenarios } = buildStandardRegistryCatalogView(catalog);
   const detail = scenario.detail;
+  const isPersistedMode = authSession?.authenticated === true && !props.searchParams?.scenario;
 
   return (
     <AppShell
@@ -164,7 +197,11 @@ export default async function StandardDetailPage(props: PageProps) {
 
       <section className="nav-grid">
         <NavCard
-          href={`/registry/standards?scenario=${scenario.id}&standard=${detail.standardId}`}
+          href={
+            isPersistedMode
+              ? `/registry/standards?standard=${detail.standardId}`
+              : `/registry/standards?scenario=${scenario.id}&standard=${detail.standardId}`
+          }
           eyebrow="Padroes"
           title="Abrir lista da carteira"
           description="Voltar ao painel de vencimentos e aos demais padroes do mesmo recorte."
@@ -172,55 +209,45 @@ export default async function StandardDetailPage(props: PageProps) {
         />
         {detail.links.registryScenarioId && detail.links.selectedEquipmentId ? (
           <NavCard
-            href={`/registry/equipment?scenario=${detail.links.registryScenarioId}&equipment=${detail.links.selectedEquipmentId}`}
+            href={
+              isPersistedMode
+                ? `/registry/equipment?equipment=${detail.links.selectedEquipmentId}`
+                : `/registry/equipment?scenario=${detail.links.registryScenarioId}&equipment=${detail.links.selectedEquipmentId}`
+            }
             eyebrow="Equipamento"
             title="Abrir lista global de equipamentos"
             description="Conferir o equipamento vinculado a este padrao no mesmo recorte operacional."
             cta="Abrir equipamento"
           />
         ) : null}
-        {detail.links.serviceOrderScenarioId && detail.links.reviewItemId ? (
-          <NavCard
-            href={`/emission/service-order-review?scenario=${detail.links.serviceOrderScenarioId}&item=${detail.links.reviewItemId}`}
-            eyebrow="OS"
-            title="Abrir revisao tecnica da OS"
-            description="Inspecionar a OS recente que reutiliza este padrao no fluxo de emissao."
-            cta="Abrir OS"
-          />
-        ) : null}
-        {detail.links.dryRunScenarioId ? (
-          <NavCard
-            href={`/emission/dry-run?scenario=${detail.links.dryRunScenarioId}`}
-            eyebrow="Dry-run"
-            title="Abrir dry-run de emissao"
-            description="Conferir o recorte de emissao que depende do mesmo padrao selecionado."
-            cta="Abrir dry-run"
-          />
-        ) : null}
       </section>
 
-      <section className="section-header">
-        <div className="section-copy">
-          <span className="eyebrow">Cenarios</span>
-          <h2>Trocar o contexto do padrao</h2>
-          <p>Use os cenarios abaixo para revisar baseline, atencao por vencimento e bloqueio por expiracao sem alterar codigo.</p>
-        </div>
-      </section>
+      {!isPersistedMode ? (
+        <>
+          <section className="section-header">
+            <div className="section-copy">
+              <span className="eyebrow">Cenarios</span>
+              <h2>Trocar o contexto do padrao</h2>
+              <p>Use os cenarios abaixo para revisar baseline, atencao por vencimento e bloqueio por expiracao sem alterar codigo.</p>
+            </div>
+          </section>
 
-      <section className="nav-grid">
-        {scenarios.map((item) => (
-          <NavCard
-            key={item.id}
-            href={`/registry/standard-detail?scenario=${item.id}&standard=${item.selectedStandard.standardId}`}
-            eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
-            title={item.label}
-            description={item.summaryLabel}
-            statusTone={statusTone(item.summary.status)}
-            statusLabel={statusLabel(item.summary.status)}
-            cta="Abrir padrao"
-          />
-        ))}
-      </section>
+          <section className="nav-grid">
+            {scenarios.map((item) => (
+              <NavCard
+                key={item.id}
+                href={`/registry/standard-detail?scenario=${item.id}&standard=${item.selectedStandard.standardId}`}
+                eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
+                title={item.label}
+                description={item.summaryLabel}
+                statusTone={statusTone(item.summary.status)}
+                statusLabel={statusLabel(item.summary.status)}
+                cta="Abrir padrao"
+              />
+            ))}
+          </section>
+        </>
+      ) : null}
     </AppShell>
   );
 }

@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadCustomerRegistryCatalog } from "@/src/registry/customer-registry-api";
 import { buildCustomerRegistryCatalogView } from "@/src/registry/customer-registry-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -29,12 +32,41 @@ function statusLabel(status: "ready" | "attention" | "blocked"): string {
 }
 
 export default async function CustomerDetailPage(props: PageProps) {
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
   const catalog = await loadCustomerRegistryCatalog({
     scenarioId: props.searchParams?.scenario,
     customerId: props.searchParams?.customer,
+    cookieHeader,
   });
 
   if (!catalog) {
+    if (authSession?.authenticated === false && !props.searchParams?.scenario) {
+      return (
+        <AppShell
+          eyebrow="Cadastros - detalhe do cliente"
+          title="Detalhe protegido por sessao"
+          description="O detalhe persistido do cliente exige autenticacao antes da leitura."
+          aside={
+            <div className="hero-stat">
+              <span className="eyebrow">Acesso atual</span>
+              <strong>Login necessario</strong>
+              <StatusPill tone="warn" label="RBAC ativo" />
+              <p>Entre com um papel autorizado para abrir o cadastro real do tenant.</p>
+            </div>
+          }
+        >
+          <section className="content-panel">
+            <div className="button-row">
+              <a className="button-primary" href="/auth/login">
+                Fazer login
+              </a>
+            </div>
+          </section>
+        </AppShell>
+      );
+    }
+
     return (
       <AppShell
         eyebrow="Cadastros - detalhe do cliente"
@@ -65,6 +97,7 @@ export default async function CustomerDetailPage(props: PageProps) {
 
   const { selectedScenario: scenario, scenarios } = buildCustomerRegistryCatalogView(catalog);
   const detail = scenario.detail;
+  const isPersistedMode = authSession?.authenticated === true && !props.searchParams?.scenario;
 
   return (
     <AppShell
@@ -90,7 +123,7 @@ export default async function CustomerDetailPage(props: PageProps) {
         <article className="detail-card">
           <span className="eyebrow">Condicoes especiais</span>
           <strong>{detail.specialConditionsLabel}</strong>
-          <p>O recorte abaixo traduz o cadastro operacional em abas e leituras canônicas reutilizaveis.</p>
+          <p>O recorte abaixo traduz o cadastro operacional em abas e leituras canonicas reutilizaveis.</p>
         </article>
 
         <article className="detail-card">
@@ -111,7 +144,7 @@ export default async function CustomerDetailPage(props: PageProps) {
         <div className="section-copy">
           <span className="eyebrow">Dados</span>
           <h2>Contato, endereco e contexto operacional</h2>
-          <p>As secoes abaixo resumem o detalhe do cliente em leitura canônica e auditavel.</p>
+          <p>As secoes abaixo resumem o detalhe do cliente em leitura canonica e auditavel.</p>
         </div>
 
         <div className="detail-grid">
@@ -220,54 +253,44 @@ export default async function CustomerDetailPage(props: PageProps) {
 
       <section className="nav-grid">
         <NavCard
-          href={`/registry/equipment?scenario=${detail.links.equipmentScenarioId}&equipment=${detail.links.selectedEquipmentId ?? ""}`}
+          href={
+            isPersistedMode
+              ? `/registry/equipment${detail.links.selectedEquipmentId ? `?equipment=${detail.links.selectedEquipmentId}` : ""}`
+              : `/registry/equipment?scenario=${detail.links.equipmentScenarioId}&equipment=${detail.links.selectedEquipmentId ?? ""}`
+          }
           eyebrow="Equipamentos"
           title="Abrir lista global de equipamentos"
           description="Conferir os equipamentos vinculados ao cliente dentro do mesmo recorte operacional."
           cta="Abrir equipamentos"
         />
-        {detail.links.serviceOrderScenarioId && detail.links.reviewItemId ? (
-          <NavCard
-            href={`/emission/service-order-review?scenario=${detail.links.serviceOrderScenarioId}&item=${detail.links.reviewItemId}`}
-            eyebrow="OS"
-            title="Abrir revisao tecnica da OS"
-            description="Ir para a OS canônica associada ao cliente selecionado."
-            cta="Abrir OS"
-          />
-        ) : null}
-        {detail.links.dryRunScenarioId ? (
-          <NavCard
-            href={`/emission/dry-run?scenario=${detail.links.dryRunScenarioId}`}
-            eyebrow="Dry-run"
-            title="Abrir dry-run de emissao"
-            description="Conferir o recorte de emissao que reaproveita o mesmo cliente e equipamento."
-            cta="Abrir dry-run"
-          />
-        ) : null}
       </section>
 
-      <section className="section-header">
-        <div className="section-copy">
-          <span className="eyebrow">Cenarios</span>
-          <h2>Trocar o contexto do cliente</h2>
-          <p>Use os cenarios abaixo para revisar baseline, atencao de vencimento e bloqueio cadastral sem alterar codigo.</p>
-        </div>
-      </section>
+      {!isPersistedMode ? (
+        <>
+          <section className="section-header">
+            <div className="section-copy">
+              <span className="eyebrow">Cenarios</span>
+              <h2>Trocar o contexto do cliente</h2>
+              <p>Use os cenarios abaixo para revisar baseline, atencao de vencimento e bloqueio cadastral sem alterar codigo.</p>
+            </div>
+          </section>
 
-      <section className="nav-grid">
-        {scenarios.map((item) => (
-          <NavCard
-            key={item.id}
-            href={`/registry/customer-detail?scenario=${item.id}&customer=${item.selectedCustomer.customerId}`}
-            eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
-            title={item.label}
-            description={item.summaryLabel}
-            statusTone={statusTone(item.summary.status)}
-            statusLabel={statusLabel(item.summary.status)}
-            cta="Abrir cliente"
-          />
-        ))}
-      </section>
+          <section className="nav-grid">
+            {scenarios.map((item) => (
+              <NavCard
+                key={item.id}
+                href={`/registry/customer-detail?scenario=${item.id}&customer=${item.selectedCustomer.customerId}`}
+                eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
+                title={item.label}
+                description={item.summaryLabel}
+                statusTone={statusTone(item.summary.status)}
+                statusLabel={statusLabel(item.summary.status)}
+                cta="Abrir cliente"
+              />
+            ))}
+          </section>
+        </>
+      ) : null}
     </AppShell>
   );
 }

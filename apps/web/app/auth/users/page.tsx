@@ -5,9 +5,14 @@ import { loadUserDirectoryCatalog } from "@/src/auth/user-directory-api";
 import { buildUserDirectoryCatalogView } from "@/src/auth/user-directory-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
 
+const API_BASE_URL = process.env.AFERE_API_BASE_URL ?? "http://127.0.0.1:3000";
+const WEB_BASE_URL = "http://127.0.0.1:3002";
+
 type PageProps = {
   searchParams?: {
     scenario?: string;
+    q?: string;
+    status?: string;
   };
 };
 
@@ -58,6 +63,18 @@ function formatCompetencyStatus(status: string): string {
   }
 }
 
+function matchesUser(user: (ReturnType<typeof buildUserDirectoryCatalogView>)["selectedScenario"]["users"][number], query: string, status: string) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchesQuery =
+    normalizedQuery.length === 0 ||
+    user.displayName.toLowerCase().includes(normalizedQuery) ||
+    user.email.toLowerCase().includes(normalizedQuery) ||
+    user.roles.some((role) => formatRole(role).toLowerCase().includes(normalizedQuery));
+  const matchesStatus = status.length === 0 || user.status === status;
+
+  return matchesQuery && matchesStatus;
+}
+
 export const dynamic = "force-dynamic";
 
 export default async function UserDirectoryPage(props: PageProps) {
@@ -88,7 +105,7 @@ export default async function UserDirectoryPage(props: PageProps) {
             <div className="section-copy">
               <span className="eyebrow">Proximo passo</span>
               <h2>Autenticar antes de abrir o diretorio</h2>
-              <p>O endpoint `GET /auth/users` deixa de responder no modo real quando nao ha sessao autorizada.</p>
+              <p>O endpoint `GET /auth/users` exige sessao valida quando a pagina sai do modo de cenarios.</p>
             </div>
             <div className="button-row">
               <a className="button-primary" href="/auth/login">
@@ -132,6 +149,10 @@ export default async function UserDirectoryPage(props: PageProps) {
   }
 
   const { selectedScenario: scenario, scenarios } = buildUserDirectoryCatalogView(catalog);
+  const search = props.searchParams?.q?.trim() ?? "";
+  const statusFilter = props.searchParams?.status?.trim() ?? "";
+  const filteredUsers = scenario.users.filter((user) => matchesUser(user, search, statusFilter));
+  const isPersistedMode = authSession?.authenticated === true && !props.searchParams?.scenario;
 
   return (
     <AppShell
@@ -164,14 +185,150 @@ export default async function UserDirectoryPage(props: PageProps) {
         </article>
 
         <article className="detail-card">
-          <span className="eyebrow">Uso em V1</span>
-          <strong>Base para RBAC e assinatura</strong>
-          <p>O diretorio mostra quem pode operar, revisar e assinar antes da emissao oficial.</p>
+          <span className="eyebrow">Uso em V2</span>
+          <strong>Cadastro persistido de equipe</strong>
+          <p>Esta pagina agora consegue criar, suspender e revisar usuarios reais do tenant autenticado.</p>
         </article>
       </section>
 
+      <section className="content-panel">
+        <div className="section-copy">
+          <span className="eyebrow">Filtros</span>
+          <h2>Buscar equipe por nome, e-mail ou papel</h2>
+          <p>Os filtros abaixo atuam no catalogo carregado do backend sem abandonar o contexto atual.</p>
+        </div>
+        <form className="form-grid" method="get" action="/auth/users">
+          {props.searchParams?.scenario ? (
+            <input type="hidden" name="scenario" value={props.searchParams.scenario} />
+          ) : null}
+          <label className="field">
+            <span>Buscar</span>
+            <input defaultValue={search} name="q" placeholder="Ana, tecnico, admin@..." />
+          </label>
+          <label className="field">
+            <span>Status</span>
+            <select defaultValue={statusFilter} name="status">
+              <option value="">Todos</option>
+              <option value="active">Ativo</option>
+              <option value="invited">Convidado</option>
+              <option value="suspended">Suspenso</option>
+            </select>
+          </label>
+          <div className="button-row">
+            <button className="button-primary" type="submit">
+              Aplicar filtro
+            </button>
+            <a className="button-secondary" href={props.searchParams?.scenario ? `/auth/users?scenario=${props.searchParams.scenario}` : "/auth/users"}>
+              Limpar
+            </a>
+          </div>
+        </form>
+      </section>
+
+      {isPersistedMode ? (
+        <section className="content-panel">
+          <div className="section-copy">
+            <span className="eyebrow">Gestao</span>
+            <h2>Criar usuario e registrar competencias</h2>
+            <p>
+              Use `instrumento|papel|AAAA-MM-DD` em uma linha por competencia. A acao grava no backend real e volta
+              para esta pagina.
+            </p>
+          </div>
+
+          <form className="form-grid" method="post" action={`${API_BASE_URL}/auth/users/manage`}>
+            <input type="hidden" name="action" value="save" />
+            <input type="hidden" name="redirectTo" value={`${WEB_BASE_URL}/auth/users`} />
+
+            <label className="field">
+              <span>Nome completo</span>
+              <input name="displayName" placeholder="Teresa Tecnica" required />
+            </label>
+
+            <label className="field">
+              <span>E-mail</span>
+              <input name="email" placeholder="teresa@afere.local" required type="email" />
+            </label>
+
+            <label className="field">
+              <span>Senha inicial</span>
+              <input minLength={8} name="password" placeholder="Afere@2026!" type="password" />
+            </label>
+
+            <label className="field">
+              <span>Time</span>
+              <input defaultValue="Metrologia" name="teamName" placeholder="Metrologia" />
+            </label>
+
+            <label className="field">
+              <span>Status</span>
+              <select defaultValue="active" name="status">
+                <option value="active">Ativo</option>
+                <option value="invited">Convidado</option>
+                <option value="suspended">Suspenso</option>
+              </select>
+            </label>
+
+            <label className="field">
+              <span>Dispositivos autorizados</span>
+              <input defaultValue="1" min="0" name="deviceCount" type="number" />
+            </label>
+
+            <div className="detail-grid">
+              {[
+                ["admin", "Administrador"],
+                ["quality_manager", "Gestor da qualidade"],
+                ["signatory", "Signatario"],
+                ["technical_reviewer", "Revisor tecnico"],
+                ["technician", "Tecnico calibrador"],
+              ].map(([role, label]) => (
+                <label className="toggle-field" key={role}>
+                  <input name="roles" type="checkbox" value={role} defaultChecked={role === "technician"} />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </div>
+
+            <label className="field">
+              <span>Competencias</span>
+              <textarea
+                defaultValue={"balanca|Tecnico calibrador|2027-06-01"}
+                name="competenciesText"
+                placeholder="balanca|Tecnico calibrador|2027-06-01"
+              />
+            </label>
+
+            <div className="detail-grid">
+              <label className="toggle-field">
+                <input defaultChecked name="mfaEnforced" type="checkbox" />
+                <span>MFA obrigatorio</span>
+              </label>
+
+              <label className="toggle-field">
+                <input name="mfaEnrolled" type="checkbox" />
+                <span>MFA ja cadastrado</span>
+              </label>
+            </div>
+
+            <div className="button-row">
+              <button className="button-primary" type="submit">
+                Salvar usuario
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
+      <section className="section-header">
+        <div className="section-copy">
+          <span className="eyebrow">Equipe</span>
+          <h2>Usuarios carregados do catalogo atual</h2>
+          <p>O bloco abaixo mistura o resumo canonico com os filtros locais do back-office.</p>
+        </div>
+      </section>
+
       <section className="nav-grid">
-        {scenario.users.map((user) => (
+        {filteredUsers.map((user) => (
           <article className="nav-card" key={user.userId}>
             <span className="eyebrow">{formatLifecycle(user.status)}</span>
             <strong>{user.displayName}</strong>
@@ -201,32 +358,54 @@ export default async function UserDirectoryPage(props: PageProps) {
                 ))
               )}
             </div>
+            {isPersistedMode ? (
+              <form className="inline-form" method="post" action={`${API_BASE_URL}/auth/users/manage`}>
+                <input
+                  type="hidden"
+                  name="action"
+                  value={user.status === "suspended" ? "restore" : "archive"}
+                />
+                <input type="hidden" name="userId" value={user.userId} />
+                <input type="hidden" name="redirectTo" value={`${WEB_BASE_URL}/auth/users`} />
+                <button className="button-secondary" type="submit">
+                  {user.status === "suspended" ? "Reativar" : "Suspender"}
+                </button>
+              </form>
+            ) : null}
           </article>
         ))}
       </section>
 
-      <section className="section-header">
-        <div className="section-copy">
-          <span className="eyebrow">Cenarios</span>
-          <h2>Trocar o estado da equipe</h2>
-          <p>Use os cenarios abaixo para revisar convites, suspensoes e vencimento de competencias sem alterar codigo.</p>
-        </div>
-      </section>
+      {filteredUsers.length === 0 ? (
+        <div className="empty-state">Nenhum usuario corresponde aos filtros aplicados.</div>
+      ) : null}
 
-      <section className="nav-grid">
-        {scenarios.map((item) => (
-          <NavCard
-            key={item.id}
-            href={`/auth/users?scenario=${item.id}`}
-            eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
-            title={item.label}
-            description={item.summaryLabel}
-            statusTone={item.summary.status === "ready" ? "ok" : "warn"}
-            statusLabel={item.summary.status === "ready" ? "Equipe saudavel" : "Equipe com atencao"}
-            cta="Abrir diretorio"
-          />
-        ))}
-      </section>
+      {!isPersistedMode ? (
+        <>
+          <section className="section-header">
+            <div className="section-copy">
+              <span className="eyebrow">Cenarios</span>
+              <h2>Trocar o estado da equipe</h2>
+              <p>Use os cenarios abaixo para revisar convites, suspensoes e vencimento de competencias sem alterar codigo.</p>
+            </div>
+          </section>
+
+          <section className="nav-grid">
+            {scenarios.map((item) => (
+              <NavCard
+                key={item.id}
+                href={`/auth/users?scenario=${item.id}`}
+                eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
+                title={item.label}
+                description={item.summaryLabel}
+                statusTone={item.summary.status === "ready" ? "ok" : "warn"}
+                statusLabel={item.summary.status === "ready" ? "Equipe saudavel" : "Equipe com atencao"}
+                cta="Abrir diretorio"
+              />
+            ))}
+          </section>
+        </>
+      ) : null}
     </AppShell>
   );
 }

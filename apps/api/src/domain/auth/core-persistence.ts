@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { CompetencyStatus, MembershipRole, UserLifecycleStatus } from "@afere/contracts";
 import { membershipRoleSchema } from "@afere/contracts";
 import type { PrismaClient } from "@prisma/client";
@@ -72,6 +74,26 @@ export type CreateSessionInput = {
   expiresAt: Date;
 };
 
+export type SaveUserInput = {
+  organizationId: string;
+  userId?: string;
+  actorUserId?: string;
+  email: string;
+  passwordHash?: string;
+  displayName: string;
+  roles: MembershipRole[];
+  status: UserLifecycleStatus;
+  teamName?: string;
+  mfaEnforced: boolean;
+  mfaEnrolled: boolean;
+  deviceCount: number;
+  competencies: Array<{
+    instrumentType: string;
+    roleLabel: string;
+    validUntil: Date;
+  }>;
+};
+
 export interface CorePersistence {
   findUserByEmail(email: string): Promise<PersistedUserRecord | null>;
   findSessionByTokenHash(tokenHash: string): Promise<PersistedSessionRecord | null>;
@@ -79,6 +101,13 @@ export interface CorePersistence {
   revokeSessionByTokenHash(tokenHash: string): Promise<void>;
   touchUserLogin(userId: string, occurredAt: Date): Promise<void>;
   listUsersByOrganization(organizationId: string): Promise<PersistedUserRecord[]>;
+  saveUser(input: SaveUserInput): Promise<PersistedUserRecord>;
+  setUserStatus(
+    organizationId: string,
+    userId: string,
+    status: UserLifecycleStatus,
+    actorUserId?: string,
+  ): Promise<void>;
   getOnboardingByOrganization(organizationId: string): Promise<PersistedOnboardingRecord | null>;
   updateOnboardingByOrganization(
     organizationId: string,
@@ -149,6 +178,51 @@ export function createMemoryCorePersistence(seed: {
         .filter((user) => user.organizationId === organizationId)
         .map((user) => cloneRecord(user)!)
         .sort((left, right) => left.displayName.localeCompare(right.displayName));
+    },
+    async saveUser(input) {
+      const existing = input.userId ? users.get(input.userId) : null;
+      const userId = input.userId ?? `memory-user-${users.size + 1}`;
+      const passwordHash =
+        input.passwordHash ?? existing?.passwordHash ?? (() => {
+          throw new Error("memory_password_hash_required");
+        })();
+
+      const user: PersistedUserRecord = {
+        userId,
+        organizationId: input.organizationId,
+        organizationName: existing?.organizationName ?? "Laboratorio Persistido",
+        organizationSlug: existing?.organizationSlug ?? "lab-persistido",
+        email: input.email.trim().toLowerCase(),
+        passwordHash,
+        displayName: input.displayName,
+        roles: input.roles,
+        status: input.status,
+        teamName: input.teamName,
+        mfaEnforced: input.mfaEnforced,
+        mfaEnrolled: input.mfaEnrolled,
+        deviceCount: input.deviceCount,
+        lastLoginUtc: existing?.lastLoginUtc,
+        competencies: input.competencies.map((competency) => ({
+          instrumentType: competency.instrumentType,
+          roleLabel: competency.roleLabel,
+          status: inferCompetencyStatus(competency.validUntil),
+          validUntilUtc: competency.validUntil.toISOString(),
+        })),
+      };
+
+      users.set(userId, user);
+      return cloneRecord(user)!;
+    },
+    async setUserStatus(organizationId, userId, status) {
+      const existing = users.get(userId);
+      if (!existing || existing.organizationId !== organizationId) {
+        throw new Error("memory_user_not_found");
+      }
+
+      users.set(userId, {
+        ...existing,
+        status,
+      });
     },
     async getOnboardingByOrganization(organizationId) {
       return cloneRecord(onboarding.get(organizationId) ?? null);
@@ -296,6 +370,124 @@ export function createPrismaCorePersistence(prisma: PrismaClient): CorePersisten
       });
 
       return users.map((user) => mapUserRecord(user));
+    },
+    async saveUser(input) {
+      const saved = await prisma.$transaction(async (tx) => {
+        const existing = input.userId
+          ? await tx.appUser.findUnique({
+              where: { id: input.userId },
+              include: {
+                organization: true,
+                competencies: true,
+              },
+            })
+          : null;
+
+        const user = input.userId
+          ? await tx.appUser.update({
+              where: { id: input.userId },
+              data: {
+                email: input.email.trim().toLowerCase(),
+                passwordHash: input.passwordHash ?? existing?.passwordHash,
+                displayName: input.displayName.trim(),
+                roles: input.roles,
+                status: input.status,
+                teamName: input.teamName?.trim() || null,
+                mfaEnforced: input.mfaEnforced,
+                mfaEnrolled: input.mfaEnrolled,
+                deviceCount: input.deviceCount,
+              },
+              include: {
+                organization: true,
+                competencies: true,
+              },
+            })
+          : await tx.appUser.create({
+              data: {
+                organizationId: input.organizationId,
+                email: input.email.trim().toLowerCase(),
+                passwordHash:
+                  input.passwordHash ?? (() => {
+                    throw new Error("password_hash_required");
+                  })(),
+                displayName: input.displayName.trim(),
+                roles: input.roles,
+                status: input.status,
+                teamName: input.teamName?.trim() || null,
+                mfaEnforced: input.mfaEnforced,
+                mfaEnrolled: input.mfaEnrolled,
+                deviceCount: input.deviceCount,
+              },
+              include: {
+                organization: true,
+                competencies: true,
+              },
+            });
+
+        await tx.userCompetency.deleteMany({
+          where: {
+            organizationId: input.organizationId,
+            userId: user.id,
+          },
+        });
+
+        if (input.competencies.length > 0) {
+          await tx.userCompetency.createMany({
+            data: input.competencies.map((competency) => ({
+              id: randomUUID(),
+              organizationId: input.organizationId,
+              userId: user.id,
+              instrumentType: competency.instrumentType.trim(),
+              roleLabel: competency.roleLabel.trim(),
+              status: inferCompetencyStatus(competency.validUntil),
+              validUntil: competency.validUntil,
+            })),
+          });
+        }
+
+        await tx.registryAuditEvent.create({
+          data: {
+            organizationId: input.organizationId,
+            entityType: "user",
+            entityId: user.id,
+            action: input.userId ? "update" : "create",
+            actorUserId: input.actorUserId,
+            summary: input.userId
+              ? `Usuario ${input.displayName.trim()} atualizado.`
+              : `Usuario ${input.displayName.trim()} cadastrado.`,
+          },
+        });
+
+        return tx.appUser.findUniqueOrThrow({
+          where: { id: user.id },
+          include: {
+            organization: true,
+            competencies: true,
+          },
+        });
+      });
+
+      return mapUserRecord(saved);
+    },
+    async setUserStatus(organizationId, userId, status, actorUserId) {
+      const updated = await prisma.appUser.update({
+        where: { id: userId },
+        data: { status },
+      });
+
+      await prisma.registryAuditEvent.create({
+        data: {
+          organizationId,
+          entityType: "user",
+          entityId: userId,
+          action: status === "suspended" ? "archive" : "update",
+          actorUserId,
+          summary:
+            status === "suspended"
+              ? `Usuario ${updated.displayName} suspenso.`
+              : `Status do usuario ${updated.displayName} alterado para ${status}.`,
+        },
+      });
     },
     async getOnboardingByOrganization(organizationId) {
       const record = await prisma.onboardingState.findUnique({
@@ -480,6 +672,15 @@ function parseCompetencyStatus(value: string): CompetencyStatus {
   }
 
   return "authorized";
+}
+
+function inferCompetencyStatus(validUntil: Date): CompetencyStatus {
+  const remainingMs = validUntil.getTime() - Date.now();
+  if (remainingMs < 0) {
+    return "expired";
+  }
+
+  return remainingMs <= 90 * 24 * 60 * 60 * 1000 ? "expiring" : "authorized";
 }
 
 function allOnboardingFlagsComplete(input: UpdateOnboardingInput) {

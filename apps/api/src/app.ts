@@ -6,6 +6,10 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type { Env } from "./config/env.js";
 import { createPrismaCorePersistence, type CorePersistence } from "./domain/auth/core-persistence.js";
 import {
+  createPrismaRegistryPersistence,
+  type RegistryPersistence,
+} from "./domain/registry/registry-persistence.js";
+import {
   checkRuntimeReadiness,
   createRuntimeReadiness,
   type RuntimeReadiness,
@@ -46,6 +50,7 @@ export type BuildAppOptions = {
   env: Env;
   runtimeReadiness?: RuntimeReadiness;
   corePersistence?: CorePersistence;
+  registryPersistence?: RegistryPersistence;
 };
 
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
@@ -72,13 +77,19 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     await runtimeReadiness.close();
   });
 
-  const prismaForCore = options.corePersistence ? null : createPrismaClient(env.DATABASE_URL);
+  const prisma =
+    options.corePersistence && options.registryPersistence
+      ? null
+      : createPrismaClient(env.DATABASE_URL);
   const corePersistence =
-    options.corePersistence ?? createPrismaCorePersistence(prismaForCore ?? createPrismaClient(env.DATABASE_URL));
+    options.corePersistence ?? createPrismaCorePersistence(prisma ?? createPrismaClient(env.DATABASE_URL));
+  const registryPersistence =
+    options.registryPersistence ??
+    createPrismaRegistryPersistence(prisma ?? createPrismaClient(env.DATABASE_URL));
 
-  if (prismaForCore) {
+  if (prisma) {
     app.addHook("onClose", async () => {
-      await prismaForCore.$disconnect();
+      await prisma.$disconnect();
     });
   }
 
@@ -93,10 +104,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerAuditTrailRoutes(app);
   await registerCertificatePreviewRoutes(app);
   await registerComplaintRoutes(app);
-  await registerCustomerRegistryRoutes(app);
+  await registerCustomerRegistryRoutes(app, corePersistence, registryPersistence);
   await registerEmissionDryRunRoutes(app);
   await registerEmissionWorkspaceRoutes(app, corePersistence);
-  await registerEquipmentRegistryRoutes(app);
+  await registerEquipmentRegistryRoutes(app, corePersistence, registryPersistence);
   await registerInternalAuditRoutes(app);
   await registerManagementReviewRoutes(app);
   await registerNonconformingWorkRoutes(app);
@@ -109,7 +120,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerReviewSignatureRoutes(app);
   await registerServiceOrderReviewRoutes(app);
   await registerSignatureQueueRoutes(app);
-  await registerStandardRegistryRoutes(app);
+  await registerStandardRegistryRoutes(app, corePersistence, registryPersistence);
   await registerSelfSignupRoutes(app);
   await registerUserDirectoryRoutes(app, corePersistence);
   await registerOnboardingRoutes(app, corePersistence);
@@ -117,7 +128,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerPortalCertificateRoutes(app);
   await registerPortalDashboardRoutes(app);
   await registerPortalEquipmentRoutes(app);
-  await registerProcedureRegistryRoutes(app);
+  await registerProcedureRegistryRoutes(app, corePersistence, registryPersistence);
   await registerPublicCertificateRoutes(app);
 
   app.get("/healthz", async () => ({

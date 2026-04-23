@@ -42,6 +42,14 @@ const BootstrapBodySchema = z.object({
 
 export const ONBOARDING_ALLOWED_ROLES: MembershipRole[] = ["admin", "quality_manager"];
 export const USER_DIRECTORY_ALLOWED_ROLES: MembershipRole[] = ["admin", "quality_manager"];
+export const REGISTRY_ALLOWED_ROLES: MembershipRole[] = [
+  "admin",
+  "quality_manager",
+  "signatory",
+  "technical_reviewer",
+  "technician",
+];
+export const REGISTRY_WRITE_ALLOWED_ROLES: MembershipRole[] = ["admin", "quality_manager"];
 export const WORKSPACE_ALLOWED_ROLES: MembershipRole[] = [
   "admin",
   "quality_manager",
@@ -171,6 +179,22 @@ export async function requireWorkspaceAccess(
   persistence: CorePersistence,
 ) {
   return requireAuthenticatedRequest(request, reply, persistence, WORKSPACE_ALLOWED_ROLES);
+}
+
+export async function requireRegistryAccess(
+  request: Parameters<typeof requireAuthenticatedRequest>[0],
+  reply: Parameters<typeof requireAuthenticatedRequest>[1],
+  persistence: CorePersistence,
+) {
+  return requireAuthenticatedRequest(request, reply, persistence, REGISTRY_ALLOWED_ROLES);
+}
+
+export async function requireRegistryWriteAccess(
+  request: Parameters<typeof requireAuthenticatedRequest>[0],
+  reply: Parameters<typeof requireAuthenticatedRequest>[1],
+  persistence: CorePersistence,
+) {
+  return requireAuthenticatedRequest(request, reply, persistence, REGISTRY_WRITE_ALLOWED_ROLES);
 }
 
 function readRedirectTarget(body: unknown) {
