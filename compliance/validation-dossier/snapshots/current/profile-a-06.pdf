@@ -1,0 +1,116 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 2 /Kids [5 0 R 7 0 R] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+4 0 obj
+<< /Length 2110 >>
+stream
+BT
+/F1 10 Tf
+12 TL
+48 794 Td
+0 g
+(AFERE - CERTIFICADO CANONICO DE CALIBRACAO) Tj
+T* (SNAPSHOT: profile-a-06) Tj
+T* (CENARIO: Tipo A canonico 06) Tj
+T* (STATUS: PRONTO PARA ASSINATURA) Tj
+T* (PERFIL REGULATORIO: TIPO A) Tj
+T* (RENDERER: deterministic-pdf-v1) Tj
+T* (PDFA STATUS: pending_external_validation) Tj
+T* () Tj
+T* (EMISSOR) Tj
+T* (Organizacao: Laboratorio Alfa 06) Tj
+T* (Codigo: CALA) Tj
+T* (Certificado: CALA-000206) Tj
+T* (Revisao: R0) Tj
+T* () Tj
+T* (IDENTIFICACAO) Tj
+T* (Cliente: Cliente A 06) Tj
+T* (Endereco: Avenida Metrologia 105 | Goiania | GO | 74005-000 | BR) Tj
+T* (Equipamento: Balanca farmaceutica 6 kg | Shimadzu | ATX | A-SN-006) Tj
+T* (TAG: A-TAG-006) Tj
+T* () Tj
+T* (PADROES E RASTREABILIDADE) Tj
+T* (Fonte do padrao: ILAC_MRA) Tj
+T* (Conjunto: PADRAO-A-06) Tj
+T* (Certificado do padrao: CAL-A-0006) Tj
+T* (Validade do padrao: 2027-06-15) Tj
+T* () Tj
+T* (RESULTADOS) Tj
+T* (Resultado: 13.003 kg) Tj
+T* (Incerteza expandida: 0.09 kg) Tj
+T* (Fator de abrangencia: k=2) Tj
+T* (Declaracao tecnica: Resultado: 13.003 kg | U: 0.09 kg | k=2) Tj
+T* () Tj
+T* (DECISAO E PUBLICACAO) Tj
+T* (Politica de simbolo: suppressed) Tj
+T* (Template: template-a) Tj
+T* (QR publico: https://portal.afere.local/verify?certificate=cert-dry-a-001&token=token-a-006) Tj
+T* (QR status: authentic) Tj
+T* (Assinatura prevista: 2026-04-22T10:14:00Z) Tj
+T* (Emissao prevista: 2026-04-22T10:15:00Z) Tj
+T* () Tj
+T* (OBSERVACOES) Tj
+T* (- Ponto fora do escopo acreditado; simbolo suprimido de forma controlada.) Tj
+T* (- Snapshot canonico A-06.) Tj
+T* () Tj
+T* (WARNINGS) Tj
+T* (- Escopo acreditado fora do ponto ensaiado: simbolo sera suprimido.) Tj
+T* () Tj
+T* (CHECKLIST DE EMISSAO) Tj
+T* (- [PASSED] Politica regulatoria: Perfil A compativel com template-a e politica de simbolo suppressed.) Tj
+T* (- [PASSED] Cadastro do equipamento: Cliente e endereco minimo do equipamento preenchidos.) Tj
+T* (- [PASSED] Elegibilidade do padrao: Padrao valido, dentro da faixa aplicavel e aceito pelo perfil regulatorio.) Tj
+T* (- [PASSED] Competencia do signatario: Competencia vigente encontrada para ipna_classe_ii.) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 4 0 R >>
+endobj
+6 0 obj
+<< /Length 571 >>
+stream
+BT
+/F1 10 Tf
+12 TL
+48 794 Td
+0 g
+(- [PASSED] Numeracao do certificado: Proximo numero reservado em dry-run: CALA-000206.) Tj
+T* (- [PASSED] Declaracao metrologica: Resultado: 13.003 kg | U: 0.09 kg | k=2) Tj
+T* (- [PASSED] Audit trail da emissao: Hash-chain, eventos criticos e metadados de revisao/assinatura consistentes.) Tj
+T* (- [PASSED] QR publico: QR autenticado em dry-run com status authentic.) Tj
+T* () Tj
+T* (NOTA REGULATORIA: artefato deterministico para regressao canonica. A conformidade PDF/A formal depende de validacao externa e segue fail-closed.) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Title (Certificado canonico profile-a-06) /Subject (Certificado canonico acreditado com variacoes controladas de escopo e rastreabilidade.) /Author (Afere) /Creator (deterministic-pdf-v1) /Producer (deterministic-pdf-v1) /Keywords (afere,certificate,A,profile-a-06) /CreationDate (D:20260423000000Z) /ModDate (D:20260423000000Z) >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000127 00000 n 
+0000000195 00000 n 
+0000002357 00000 n 
+0000002483 00000 n 
+0000003105 00000 n 
+0000003231 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R /Info 8 0 R >>
+startxref
+3582
+%%EOF

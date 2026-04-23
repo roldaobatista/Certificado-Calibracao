@@ -853,7 +853,12 @@ test("wires snapshot diff into the root pipeline and pre-commit", () => {
   const preCommit = readFileSync(resolve(process.cwd(), ".githooks/pre-commit"), "utf8");
   const workflow = readFileSync(resolve(process.cwd(), ".github", "workflows", "required-gates.yml"), "utf8");
 
-  assert.equal(packageJson.scripts["snapshot-diff-check"], "tsx tools/verification-cascade.ts check");
+  assert.equal(packageJson.scripts["snapshot-diff:write-current"], "tsx tools/certificate-snapshots.ts write-current");
+  assert.equal(packageJson.scripts["snapshot-diff:sync"], "tsx tools/certificate-snapshots.ts sync");
+  assert.equal(
+    packageJson.scripts["snapshot-diff-check"],
+    "pnpm snapshot-diff:write-current && tsx tools/verification-cascade.ts check",
+  );
   assert.equal(packageJson.scripts["verification-cascade:issue-drafts"], "tsx tools/verification-cascade.ts issue-drafts");
   assert.match(packageJson.scripts["check:all"], /pnpm snapshot-diff-check/);
   assert.match(preCommit, /snapshot-diff-check/);

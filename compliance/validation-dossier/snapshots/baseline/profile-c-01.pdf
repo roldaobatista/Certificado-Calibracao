@@ -1,0 +1,115 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 2 /Kids [5 0 R 7 0 R] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+4 0 obj
+<< /Length 2170 >>
+stream
+BT
+/F1 10 Tf
+12 TL
+48 794 Td
+0 g
+(AFERE - CERTIFICADO CANONICO DE CALIBRACAO) Tj
+T* (SNAPSHOT: profile-c-01) Tj
+T* (CENARIO: Tipo C canonico 01) Tj
+T* (STATUS: PRONTO PARA ASSINATURA) Tj
+T* (PERFIL REGULATORIO: TIPO C) Tj
+T* (RENDERER: deterministic-pdf-v1) Tj
+T* (PDFA STATUS: pending_external_validation) Tj
+T* () Tj
+T* (EMISSOR) Tj
+T* (Organizacao: Metrologia Campo Sul 01) Tj
+T* (Codigo: LABC) Tj
+T* (Certificado: LABC-000401) Tj
+T* (Revisao: R0) Tj
+T* () Tj
+T* (IDENTIFICACAO) Tj
+T* (Cliente: Cliente C 01) Tj
+T* (Endereco: Rua Campo 300 | Campo Grande | MS | 79000-000 | BR) Tj
+T* (Equipamento: Padrao massa 5 kg | Marte | Plataforma 500 | C-SN-001) Tj
+T* (TAG: C-TAG-001) Tj
+T* () Tj
+T* (PADROES E RASTREABILIDADE) Tj
+T* (Fonte do padrao: INM) Tj
+T* (Conjunto: PADRAO-C-01) Tj
+T* (Certificado do padrao: CAL-C-0001) Tj
+T* (Validade do padrao: 2027-01-20) Tj
+T* () Tj
+T* (RESULTADOS) Tj
+T* (Resultado: 20.01 kg) Tj
+T* (Incerteza expandida: 0.1 kg) Tj
+T* (Fator de abrangencia: k=2) Tj
+T* (Declaracao tecnica: Resultado: 20.01 kg | U: 0.1 kg | k=2) Tj
+T* () Tj
+T* (DECISAO E PUBLICACAO) Tj
+T* (Politica de simbolo: blocked) Tj
+T* (Template: template-c) Tj
+T* (QR publico: https://portal.afere.local/verify?certificate=cert-dry-c-001&token=token-c-001) Tj
+T* (QR status: authentic) Tj
+T* (Assinatura prevista: 2026-04-22T15:20:00Z) Tj
+T* (Emissao prevista: 2026-04-22T15:21:00Z) Tj
+T* (Regra de decisao: ILAC G8 sem banda de guarda) Tj
+T* (Resultado da decisao: Aprovado) Tj
+T* () Tj
+T* (OBSERVACOES) Tj
+T* (- Snapshot canonico C-01.) Tj
+T* (- Emissao controlada pronta no perfil C sem termos proibidos.) Tj
+T* () Tj
+T* (CHECKLIST DE EMISSAO) Tj
+T* (- [PASSED] Politica regulatoria: Perfil C compativel com template-c e politica de simbolo blocked.) Tj
+T* (- [PASSED] Cadastro do equipamento: Cliente e endereco minimo do equipamento preenchidos.) Tj
+T* (- [PASSED] Elegibilidade do padrao: Padrao valido, dentro da faixa aplicavel e aceito pelo perfil regulatorio.) Tj
+T* (- [PASSED] Competencia do signatario: Competencia vigente encontrada para ipna_classe_iii.) Tj
+T* (- [PASSED] Numeracao do certificado: Proximo numero reservado em dry-run: LABC-000401.) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 4 0 R >>
+endobj
+6 0 obj
+<< /Length 474 >>
+stream
+BT
+/F1 10 Tf
+12 TL
+48 794 Td
+0 g
+(- [PASSED] Declaracao metrologica: Resultado: 20.01 kg | U: 0.1 kg | k=2) Tj
+T* (- [PASSED] Audit trail da emissao: Hash-chain, eventos criticos e metadados de revisao/assinatura consistentes.) Tj
+T* (- [PASSED] QR publico: QR autenticado em dry-run com status authentic.) Tj
+T* () Tj
+T* (NOTA REGULATORIA: artefato deterministico para regressao canonica. A conformidade PDF/A formal depende de validacao externa e segue fail-closed.) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Title (Certificado canonico profile-c-01) /Subject (Certificado canonico do perfil C com cenarios fail-closed e prontos controlados.) /Author (Afere) /Creator (deterministic-pdf-v1) /Producer (deterministic-pdf-v1) /Keywords (afere,certificate,C,profile-c-01) /CreationDate (D:20260423000000Z) /ModDate (D:20260423000000Z) >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000127 00000 n 
+0000000195 00000 n 
+0000002417 00000 n 
+0000002543 00000 n 
+0000003068 00000 n 
+0000003194 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R /Info 8 0 R >>
+startxref
+3539
+%%EOF
