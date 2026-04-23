@@ -496,3 +496,80 @@ items:
     done_when:
       - Perfil regulatório, pareceres e governança deixam de viver apenas em módulos isolados de leitura.
       - O release V5 pode ser avaliado com base em operação real, não em adiantamentos canônicos.
+  - id: V5.6
+    slice: V5
+    planning_window: later
+    title: Certificado oficial operacional e evidências binárias
+    depends_on:
+      - V5.5
+    primary_agents:
+      - backend-api
+      - web-ui
+      - lgpd-security
+      - regulator
+    linked_requirements: []
+    objective: Separar o artefato oficial do certificado do renderer canônico de regressão e ligar o documento emitido a storage/evidências reais.
+    deliverables:
+      - Renderer operacional do certificado alimentado pela engine e pelos dados persistidos completos da OS.
+      - Metadados de storage, hashes e vínculo entre certificado oficial, anexos e evidências binárias reais.
+    done_when:
+      - O certificado emitido oficialmente deixa de depender do artefato canônico de snapshot como peça operacional.
+      - Auditoria e publicação conseguem apontar para documento binário real com hash e rastreabilidade persistidos.
+  - id: V5.7
+    slice: V5
+    planning_window: later
+    title: Assinatura operacional, PDF/A externo e publicação final
+    depends_on:
+      - V5.6
+    primary_agents:
+      - backend-api
+      - web-ui
+      - lgpd-security
+      - product-governance
+    linked_requirements: []
+    objective: Fechar o documento oficial com assinatura eletrônica operacional, validação externa de PDF/A e publicação final fail-closed.
+    deliverables:
+      - Assinatura eletrônica operacional auditável sobre o certificado oficial publicado.
+      - Integração de validação externa de PDF/A com bloqueio fail-closed quando o artefato não estiver aprovado.
+    done_when:
+      - O documento oficial publicado difere explicitamente do snapshot de regressão e mantém trilha auditável de assinatura.
+      - QR, reemissão e publicação final operam sobre artefato oficial validado externamente ou bloqueado de forma controlada.
+  - id: V5.8
+    slice: V5
+    planning_window: later
+    title: Android Kotlin real e sync materializado
+    depends_on:
+      - V5.7
+    primary_agents:
+      - android
+      - backend-api
+      - qa-acceptance
+      - lgpd-security
+    linked_requirements: []
+    objective: Trocar o canal mobile canônico por app Android Kotlin real com banco local protegido, outbox e sync cliente-servidor materializados.
+    deliverables:
+      - App Android real com coleta offline de leituras, anexos e contexto de execução técnica.
+      - Sync cliente-servidor com replay protection, idempotência e fila humana conectados ao backend persistido.
+    done_when:
+      - Uma calibração consegue começar offline no app real e sincronizar sem perda nem duplicidade aceita.
+      - A matriz de conflitos deixa de ser apenas simulador e passa a refletir o canal Android operacional.
+  - id: V5.9
+    slice: V5
+    planning_window: later
+    title: Validação formal, piloto controlado e readiness de produção
+    depends_on:
+      - V5.8
+    primary_agents:
+      - qa-acceptance
+      - product-governance
+      - legal-counsel
+      - backend-api
+      - web-ui
+    linked_requirements: []
+    objective: Encerrar o plano mestre com validação formal do software, piloto controlado e critério explícito de go-live sobre operação real.
+    deliverables:
+      - Dossiê formal do software com rastreabilidade requisito -> teste -> evidência para engine, documento e sync reais.
+      - Critérios de entrada e saída de piloto controlado, runbooks de operação e release-norm de go-live.
+    done_when:
+      - Existe piloto controlado arquivado com evidências suficientes para discutir operação auditável do sistema.
+      - O go-live deixa de depender de inferência e passa a ter critérios executáveis, rastreáveis e fail-closed.
