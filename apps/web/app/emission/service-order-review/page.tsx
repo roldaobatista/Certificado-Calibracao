@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import type { ServiceOrderMeasurementRawData } from "@afere/contracts";
 
 import { loadAuthSession } from "@/src/auth/session-api";
 import { loadUserDirectoryCatalog } from "@/src/auth/user-directory-api";
@@ -86,6 +87,86 @@ function actionLabel(
     default:
       return action;
   }
+}
+
+function buildMeasurementRawDataDraft(unit = "kg"): ServiceOrderMeasurementRawData {
+  return {
+    captureMode: "manual",
+    environment: {
+      temperatureStartC: 22,
+      temperatureEndC: 22.2,
+      relativeHumidityPercent: 48,
+      atmosphericPressureHpa: 1013,
+    },
+    repeatabilityRuns: [
+      {
+        loadValue: 15,
+        unit,
+        indications: [15.001, 15.001, 15.002, 15.001, 15.001],
+      },
+    ],
+    eccentricityPoints: [
+      {
+        positionLabel: "centro",
+        loadValue: 15,
+        indicationValue: 15.001,
+        unit,
+      },
+      {
+        positionLabel: "frontal",
+        loadValue: 15,
+        indicationValue: 15.003,
+        unit,
+      },
+    ],
+    linearityPoints: [
+      {
+        pointLabel: "50%",
+        sequence: "ascending",
+        appliedLoadValue: 15,
+        referenceValue: 15,
+        indicationValue: 15.001,
+        unit,
+      },
+    ],
+    evidenceAttachments: [
+      {
+        attachmentId: "evidence-001",
+        label: "Foto da montagem",
+        kind: "photo",
+        mediaType: "image/jpeg",
+      },
+    ],
+  };
+}
+
+function formatMeasurementRawDataValue(
+  rawData?: ServiceOrderMeasurementRawData,
+  unit?: string,
+): string {
+  return JSON.stringify(rawData ?? buildMeasurementRawDataDraft(unit), null, 2);
+}
+
+function summarizeMeasurementRawData(rawData?: ServiceOrderMeasurementRawData): string[] {
+  if (!rawData) {
+    return ["Sem leituras estruturadas persistidas nesta OS."];
+  }
+
+  const summary = [
+    `Modo de captura: ${rawData.captureMode}`,
+    `Repetitividade: ${rawData.repeatabilityRuns.length} serie(s)`,
+    `Excentricidade: ${rawData.eccentricityPoints.length} ponto(s)`,
+    `Linearidade: ${rawData.linearityPoints.length} ponto(s)`,
+    `Anexos estruturados: ${rawData.evidenceAttachments.length}`,
+  ];
+
+  if (rawData.environment) {
+    summary.push(
+      `Ambiente estruturado: ${rawData.environment.temperatureStartC} a ${rawData.environment.temperatureEndC} C / ${rawData.environment.relativeHumidityPercent}% UR`,
+    );
+  }
+
+  return summary;
 }
 
 function mapServiceOrderScenarioToRegistryContext(scenarioId: string): {
@@ -361,6 +442,14 @@ export default async function ServiceOrderReviewPage(props: PageProps) {
             <label className="field">
               <span>Unidade</span>
               <input name="measurementUnit" placeholder="kg" />
+            </label>
+            <label className="field field-full">
+              <span>Dados brutos estruturados (JSON)</span>
+              <textarea
+                name="measurementRawData"
+                defaultValue={formatMeasurementRawDataValue(undefined, "kg")}
+                rows={18}
+              />
             </label>
             <label className="field">
               <span>Regra de decisao</span>
@@ -820,6 +909,17 @@ export default async function ServiceOrderReviewPage(props: PageProps) {
                 <span>Unidade</span>
                 <input defaultValue={scenario.detail.measurementUnit ?? ""} name="measurementUnit" />
               </label>
+              <label className="field field-full">
+                <span>Dados brutos estruturados (JSON)</span>
+                <textarea
+                  defaultValue={formatMeasurementRawDataValue(
+                    scenario.detail.measurementRawData,
+                    scenario.detail.measurementUnit,
+                  )}
+                  name="measurementRawData"
+                  rows={18}
+                />
+              </label>
               <label className="field">
                 <span>Regra de decisao</span>
                 <input defaultValue={scenario.detail.decisionRuleLabel ?? ""} name="decisionRuleLabel" />
@@ -889,8 +989,20 @@ export default async function ServiceOrderReviewPage(props: PageProps) {
               {scenario.detail.measurementCoverageFactor !== undefined ? (
                 <li>Fator de abrangencia: k = {scenario.detail.measurementCoverageFactor}</li>
               ) : null}
+              {summarizeMeasurementRawData(scenario.detail.measurementRawData).map((line) => (
+                <li key={line}>Dados brutos: {line}</li>
+              ))}
               {scenario.detail.decisionRuleLabel ? <li>Regra de decisao: {scenario.detail.decisionRuleLabel}</li> : null}
               {scenario.detail.decisionOutcomeLabel ? <li>Resultado da decisao: {scenario.detail.decisionOutcomeLabel}</li> : null}
+              {scenario.detail.decisionAssistance ? (
+                <li>Assistencia decisoria: {scenario.detail.decisionAssistance.alignmentLabel}</li>
+              ) : null}
+              {scenario.detail.decisionAssistance?.indicativeDecision ? (
+                <li>Snapshot indicativo: {scenario.detail.decisionAssistance.indicativeDecision.summaryLabel}</li>
+              ) : null}
+              {scenario.detail.decisionAssistance?.officialDecisionJustification ? (
+                <li>Justificativa da divergencia: {scenario.detail.decisionAssistance.officialDecisionJustification}</li>
+              ) : null}
               {scenario.detail.freeTextStatement ? <li>Declaracao livre: {scenario.detail.freeTextStatement}</li> : null}
             </ul>
           </article>

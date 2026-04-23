@@ -16,6 +16,12 @@ test("returns a ready dry-run for the canonical type B scenario", () => {
   assert.equal(scenario.result.artifacts.certificateNumber, "AFR-000124");
   assert.equal(scenario.result.artifacts.qrVerificationStatus, "authentic");
   assert.equal(scenario.result.checks.filter((check) => check.status === "failed").length, 0);
+  assert.equal(
+    scenario.result.checks.some(
+      (check) => check.id === "raw_measurement_capture" && check.status === "passed",
+    ),
+    true,
+  );
 });
 
 test("keeps type A emission ready while suppressing the accreditation symbol outside scope", () => {
@@ -43,6 +49,11 @@ test("returns a blocked dry-run with explicit failed checks for the canonical ty
   assert.ok(
     scenario.result.checks.some(
       (check) => check.id === "qr_authenticity" && check.status === "failed",
+    ),
+  );
+  assert.ok(
+    scenario.result.checks.some(
+      (check) => check.id === "raw_measurement_capture" && check.status === "failed",
     ),
   );
 });

@@ -19,6 +19,7 @@ const STEP_BY_CHECK: Record<EmissionDryRunCheckId, number> = {
   standard_eligibility: 3,
   signatory_competence: 14,
   certificate_numbering: 13,
+  raw_measurement_capture: 9,
   measurement_declaration: 10,
   audit_trail: 15,
   qr_authenticity: 13,

@@ -140,7 +140,7 @@ test("serves the canonical emission dry-run catalog from the backend", async () 
     assert.equal(blockedScenario.result.status, "blocked");
     assert.equal(
       blockedScenario.result.checks.filter((check) => check.status === "failed").length,
-      5,
+      6,
     );
   } finally {
     await app.close();
@@ -1147,6 +1147,14 @@ test("allows admins to manage persisted users and v2 registry records", async ()
         applicableRangeMax: 50,
         uncertaintyLabel: "+/- 0,020 kg",
         correctionFactorLabel: "+0,001 kg",
+        quantityKind: "mass",
+        measurementUnit: "kg",
+        traceabilitySource: "rbc",
+        certificateIssuer: "Lab Cal-5050",
+        conventionalMassErrorValue: 0.0012,
+        expandedUncertaintyValue: 0.02,
+        coverageFactorK: 2,
+        densityKgPerM3: 8000,
         hasValidCertificate: true,
         certificateValidUntilUtc: "2027-04-23",
       },
@@ -1187,6 +1195,23 @@ test("allows admins to manage persisted users and v2 registry records", async ()
     );
     assert.ok(createdStandard);
 
+    const createdStandardDetailResponse = await app.inject({
+      method: "GET",
+      url: `/registry/standards?standard=${createdStandard?.standardId}`,
+      headers: { cookie },
+    });
+    const createdStandardDetailPayload = standardRegistryCatalogSchema.parse(
+      createdStandardDetailResponse.json(),
+    );
+    assert.equal(
+      createdStandardDetailPayload.scenarios[0]?.detail.metrologyProfile?.certificateIssuer,
+      "Lab Cal-5050",
+    );
+    assert.equal(
+      createdStandardDetailPayload.scenarios[0]?.detail.metrologyProfile?.coverageFactorK,
+      2,
+    );
+
     const proceduresResponse = await app.inject({
       method: "GET",
       url: "/registry/procedures",
@@ -1212,6 +1237,15 @@ test("allows admins to manage persisted users and v2 registry records", async ()
         serialNumber: "SN-050",
         typeModelLabel: "Balanca plataforma 500 kg",
         capacityClassLabel: "500 kg · 0,1 kg · III",
+        instrumentKind: "platform_scale",
+        measurementUnit: "kg",
+        maximumCapacityValue: 500,
+        minimumCapacityValue: 0,
+        readabilityValue: 0.1,
+        verificationScaleIntervalValue: 0.1,
+        normativeClass: "iii",
+        effectiveRangeMinValue: 5,
+        effectiveRangeMaxValue: 500,
         supportingStandardCodes: ["PESO-001", "PESO-002"],
         addressLine1: "Rua da Calibracao, 500",
         addressCity: "Cuiaba",
@@ -1283,6 +1317,23 @@ test("allows admins to manage persisted users and v2 registry records", async ()
     const equipmentPayload = equipmentRegistryCatalogSchema.parse(equipmentResponse.json());
     const createdEquipment = equipmentPayload.scenarios[0]?.items.find((item) => item.code === "EQ-050");
     assert.ok(createdEquipment);
+
+    const createdEquipmentDetailResponse = await app.inject({
+      method: "GET",
+      url: `/registry/equipment?equipment=${createdEquipment?.equipmentId}`,
+      headers: { cookie },
+    });
+    const createdEquipmentDetailPayload = equipmentRegistryCatalogSchema.parse(
+      createdEquipmentDetailResponse.json(),
+    );
+    assert.equal(
+      createdEquipmentDetailPayload.scenarios[0]?.detail.metrologyProfile?.instrumentKind,
+      "platform_scale",
+    );
+    assert.equal(
+      createdEquipmentDetailPayload.scenarios[0]?.detail.metrologyProfile?.verificationScaleIntervalValue,
+      0.1,
+    );
 
     const archiveEquipment = await app.inject({
       method: "POST",
@@ -1393,6 +1444,7 @@ test("creates and updates persisted service orders through the manage route", as
         evidenceLabel: "3 evidencias coletadas",
         uncertaintyLabel: "U = 0,20 kg (k=2)",
         conformityLabel: "Execucao em andamento",
+        measurementRawData: buildMeasurementRawDataFixture("kg", 15),
         commentDraft: "OS aberta para atendimento em campo.",
       },
     });
@@ -1429,6 +1481,7 @@ test("creates and updates persisted service orders through the manage route", as
         evidenceLabel: "9 evidencias anexadas",
         uncertaintyLabel: "U = 0,14 kg (k=2)",
         conformityLabel: "Pronta para revisao",
+        measurementRawData: buildMeasurementRawDataFixture("kg", 30),
         commentDraft: "Execucao concluida e pronta para revisao tecnica.",
       },
     });
@@ -1441,9 +1494,154 @@ test("creates and updates persisted service orders through the manage route", as
     });
     const detailPayload = serviceOrderReviewCatalogSchema.parse(detailResponse.json());
 
-    assert.equal(detailPayload.selectedScenarioId, "review-ready");
-    assert.equal(detailPayload.scenarios[0]?.detail.itemId, createdItem?.itemId);
-    assert.equal(detailPayload.scenarios[0]?.detail.status, "ready");
+    assert.equal(detailPayload.selectedScenarioId, "history-pending");
+    const selectedDetailScenario = detailPayload.scenarios.find(
+      (scenario) => scenario.id === detailPayload.selectedScenarioId,
+    );
+    assert.ok(selectedDetailScenario);
+    assert.equal(selectedDetailScenario.detail.itemId, createdItem?.itemId);
+    assert.equal(selectedDetailScenario.detail.status, "attention");
+    assert.equal(selectedDetailScenario.detail.measurementRawData?.linearityPoints.length, 1);
+    assert.equal(
+      selectedDetailScenario.detail.equipmentMetrologySnapshot?.verificationScaleIntervalValue,
+      0.05,
+    );
+    assert.equal(
+      selectedDetailScenario.detail.standardMetrologySnapshot?.coverageFactorK,
+      2,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("rejects invalid raw measurement JSON when saving a service order", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV3CoreSeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV2RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(createV3ServiceOrderSeed()),
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/emission/service-order-review/manage",
+      headers: { cookie },
+      payload: {
+        action: "save",
+        customerId: "customer-001",
+        equipmentId: "equipment-001",
+        procedureId: "procedure-001",
+        primaryStandardId: "standard-001",
+        executorUserId: "user-admin-1",
+        reviewerUserId: "user-signatory-1",
+        workOrderNumber: "OS-2026-0202",
+        workflowStatus: "in_execution",
+        environmentLabel: "22,3 C · 47% UR",
+        curvePointsLabel: "3 pontos iniciais",
+        evidenceLabel: "3 evidencias coletadas",
+        uncertaintyLabel: "U = 0,20 kg (k=2)",
+        conformityLabel: "Execucao em andamento",
+        measurementRawData: "{invalid-json",
+        commentDraft: "OS aberta para atendimento em campo.",
+      },
+    });
+
+    assert.equal(response.statusCode, 400);
+  } finally {
+    await app.close();
+  }
+});
+
+test("derives execution labels from raw measurement data when manual labels are omitted", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV3CoreSeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV2RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(createV3ServiceOrderSeed()),
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/emission/service-order-review/manage",
+      headers: { cookie },
+      payload: {
+        action: "save",
+        customerId: "customer-001",
+        equipmentId: "equipment-001",
+        procedureId: "procedure-001",
+        primaryStandardId: "standard-001",
+        executorUserId: "user-admin-1",
+        reviewerUserId: "user-reviewer-1",
+        signatoryUserId: "user-signatory-1",
+        workOrderNumber: "OS-2026-0203",
+        workflowStatus: "awaiting_review",
+        measurementRawData: buildMeasurementRawDataFixture("kg", 20),
+        commentDraft: "OS criada com labels derivados do bruto.",
+      },
+    });
+    assert.equal(createResponse.statusCode, 204);
+
+    const detailResponse = await app.inject({
+      method: "GET",
+      url: "/emission/service-order-review",
+      headers: { cookie },
+    });
+    const payload = serviceOrderReviewCatalogSchema.parse(detailResponse.json());
+    const created = payload.scenarios
+      .flatMap((scenario) => scenario.items)
+      .find((item) => item.workOrderNumber === "OS-2026-0203");
+
+    assert.ok(created);
+
+    const createdDetailResponse = await app.inject({
+      method: "GET",
+      url: `/emission/service-order-review?item=${created?.itemId}`,
+      headers: { cookie },
+    });
+    const createdPayload = serviceOrderReviewCatalogSchema.parse(createdDetailResponse.json());
+    const selectedScenario = createdPayload.scenarios.find(
+      (scenario) => scenario.id === createdPayload.selectedScenarioId,
+    );
+    assert.ok(selectedScenario);
+    const detail = selectedScenario.detail;
+
+    assert.match(detail.environmentLabel, /22,1 C -> 22,3 C/);
+    assert.match(detail.curvePointsLabel, /repetitividade/i);
+    assert.match(detail.evidenceLabel, /evidencia\(s\) estruturada\(s\)/i);
+    assert.match(detail.conformityLabel, /Bruto estruturado apto para revisao/i);
+    assert.match(detail.uncertaintyLabel, /U preliminar = ±/i);
+    assert.equal(Number((detail.measurementExpandedUncertaintyValue ?? 0).toFixed(6)), 0.057859);
+    assert.equal(detail.measurementCoverageFactor, 2);
+    assert.equal(detail.measurementUnit, "kg");
   } finally {
     await app.close();
   }
@@ -1471,7 +1669,8 @@ test("serves the persisted V3 emission catalogs for the authenticated tenant", a
     const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
     assert.ok(cookie);
 
-    const [dryRunResponse, reviewResponse, queueResponse, auditResponse] = await Promise.all([
+    const [dryRunResponse, reviewResponse, queueResponse, auditResponse, serviceOrderResponse] =
+      await Promise.all([
       app.inject({
         method: "GET",
         url: "/emission/dry-run?item=service-order-00142",
@@ -1492,22 +1691,375 @@ test("serves the persisted V3 emission catalogs for the authenticated tenant", a
         url: "/quality/audit-trail?item=service-order-00142",
         headers: { cookie },
       }),
+      app.inject({
+        method: "GET",
+        url: "/emission/service-order-review?item=service-order-00142",
+        headers: { cookie },
+      }),
     ]);
 
     assert.equal(dryRunResponse.statusCode, 200);
     assert.equal(reviewResponse.statusCode, 200);
     assert.equal(queueResponse.statusCode, 200);
     assert.equal(auditResponse.statusCode, 200);
+    assert.equal(serviceOrderResponse.statusCode, 200);
 
     const dryRunPayload = emissionDryRunCatalogSchema.parse(dryRunResponse.json());
     const reviewPayload = reviewSignatureCatalogSchema.parse(reviewResponse.json());
     const queuePayload = signatureQueueCatalogSchema.parse(queueResponse.json());
     const auditPayload = auditTrailCatalogSchema.parse(auditResponse.json());
+    const serviceOrderPayload = serviceOrderReviewCatalogSchema.parse(serviceOrderResponse.json());
 
     assert.equal(dryRunPayload.scenarios.length, 3);
     assert.equal(reviewPayload.scenarios.length, 4);
     assert.equal(queuePayload.scenarios.length, 3);
     assert.equal(auditPayload.scenarios.length, 3);
+    assert.equal(
+      dryRunPayload.scenarios[0]?.result.checks.some((check) => check.id === "raw_measurement_capture"),
+      true,
+    );
+    assert.equal(
+      serviceOrderPayload.scenarios[0]?.detail.metrics.some((metric) => metric.label === "Repetitividade"),
+      true,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("renders the preliminary uncertainty budget in persisted review and preview", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV3CoreSeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV2RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(createV3ServiceOrderSeed()),
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const [reviewResponse, previewResponse] = await Promise.all([
+      app.inject({
+        method: "GET",
+        url: "/emission/service-order-review?item=service-order-00142",
+        headers: { cookie },
+      }),
+      app.inject({
+        method: "GET",
+        url: "/emission/certificate-preview?item=service-order-00142",
+        headers: { cookie },
+      }),
+    ]);
+
+    assert.equal(reviewResponse.statusCode, 200);
+    assert.equal(previewResponse.statusCode, 200);
+
+    const reviewPayload = serviceOrderReviewCatalogSchema.parse(reviewResponse.json());
+    const previewPayload = certificatePreviewCatalogSchema.parse(previewResponse.json());
+    const reviewScenario = reviewPayload.scenarios.find(
+      (scenario) => scenario.id === reviewPayload.selectedScenarioId,
+    );
+    const previewScenario = previewPayload.scenarios.find(
+      (scenario) => scenario.id === previewPayload.selectedScenarioId,
+    );
+
+    assert.ok(reviewScenario);
+    assert.ok(previewScenario);
+    assert.equal(
+      reviewScenario.detail.checklist.some(
+        (item) =>
+          item.label === "Orcamento preliminar de incerteza" &&
+          item.status === "passed",
+      ),
+      true,
+    );
+    assert.equal(
+      reviewScenario.detail.metrics.some(
+        (metric) => metric.label === "Pre-calculo U" && /kg/i.test(metric.value),
+      ),
+      true,
+    );
+    assert.equal(
+      reviewScenario.detail.metrics.some(
+        (metric) => metric.label === "EMA indicativo" && /EMA/i.test(metric.value),
+      ),
+      true,
+    );
+    assert.equal(
+      reviewScenario.detail.metrics.some(
+        (metric) => metric.label === "Decisao indicativa" && /Decisao indicativa/i.test(metric.value),
+      ),
+      true,
+    );
+    assert.equal(
+      reviewScenario.detail.checklist.some(
+        (item) =>
+          item.label === "EMA indicativo Portaria 157/2022" &&
+          item.status === "passed",
+      ),
+      true,
+    );
+
+    const resultsSection = previewScenario.result.sections.find(
+      (section) => section.key === "results",
+    );
+    assert.ok(resultsSection);
+    assert.equal(
+      resultsSection.fields.some((field) => field.label === "Uc preliminar"),
+      true,
+    );
+    assert.equal(
+      resultsSection.fields.some((field) => field.label === "U preliminar"),
+      true,
+    );
+    assert.equal(
+      resultsSection.fields.some((field) => field.label === "EMA 157/2022"),
+      true,
+    );
+    const decisionSection = previewScenario.result.sections.find(
+      (section) => section.key === "decision",
+    );
+    assert.ok(decisionSection);
+    assert.equal(
+      decisionSection.fields.some(
+        (field) =>
+          field.label === "Decisao indicativa" &&
+          /Decisao indicativa/i.test(field.value),
+      ),
+      true,
+    );
+    assert.equal(
+      decisionSection.fields.some((field) => field.label === "Assistencia decisoria"),
+      true,
+    );
+    assert.equal(
+      resultsSection.fields.some(
+        (field) =>
+          field.label === "Orcamento preliminar" &&
+          /U preliminar=/i.test(field.value),
+      ),
+      true,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("blocks persisted review approval without an explicit official decision", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV3CoreSeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV2RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(createV3ServiceOrderSeed()),
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/emission/review-signature/manage",
+      headers: { cookie },
+      payload: {
+        action: "review",
+        serviceOrderId: "service-order-00142",
+        reviewerUserId: "user-reviewer-1",
+        signatoryUserId: "user-signatory-1",
+        workflowStatus: "awaiting_signature",
+        reviewDecision: "approved",
+        reviewDecisionComment: "Revisao concluida.",
+        reviewDeviceId: "device-review-01",
+      },
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(response.json().error, "official_decision_required");
+  } finally {
+    await app.close();
+  }
+});
+
+test("requires justification when the official decision diverges from the indicative evaluation", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV3CoreSeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV2RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(createV3ServiceOrderSeed()),
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/emission/review-signature/manage",
+      headers: { cookie },
+      payload: {
+        action: "review",
+        serviceOrderId: "service-order-00142",
+        reviewerUserId: "user-reviewer-1",
+        signatoryUserId: "user-signatory-1",
+        workflowStatus: "awaiting_signature",
+        reviewDecision: "approved",
+        reviewDecisionComment: "Revisao concluida com ressalva.",
+        decisionOutcomeLabel: "Nao conforme",
+        reviewDeviceId: "device-review-01",
+      },
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(
+      response.json().error,
+      "official_decision_divergence_justification_required",
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("blocks direct emission when the persisted review lacks an official decision", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const seed = createV3ServiceOrderSeed();
+  type SeedServiceOrders = NonNullable<typeof seed.serviceOrders>;
+  const serviceOrders = structuredClone(seed.serviceOrders ?? []) as SeedServiceOrders;
+  seed.serviceOrders = serviceOrders.map((record: SeedServiceOrders[number]) =>
+    record.serviceOrderId === "service-order-00142"
+      ? {
+          ...record,
+          workflowStatus: "awaiting_signature" as const,
+          reviewDecision: "approved" as const,
+          decisionOutcomeLabel: undefined,
+          officialDecisionDivergesFromIndicative: false,
+          officialDecisionJustification: undefined,
+        }
+      : record,
+  ) as SeedServiceOrders;
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV3CoreSeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV2RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(seed),
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/emission/signature-queue/manage",
+      headers: { cookie },
+      payload: {
+        action: "emit",
+        serviceOrderId: "service-order-00142",
+        signatoryUserId: "user-signatory-1",
+        signatureDeviceId: "device-sign-01",
+      },
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(response.json().error, "official_decision_required");
+  } finally {
+    await app.close();
+  }
+});
+
+test("blocks direct emission when a divergent official decision has no justification", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const seed = createV3ServiceOrderSeed();
+  type SeedServiceOrders = NonNullable<typeof seed.serviceOrders>;
+  const serviceOrders = structuredClone(seed.serviceOrders ?? []) as SeedServiceOrders;
+  seed.serviceOrders = serviceOrders.map((record: SeedServiceOrders[number]) =>
+    record.serviceOrderId === "service-order-00142"
+      ? {
+          ...record,
+          workflowStatus: "awaiting_signature" as const,
+          reviewDecision: "approved" as const,
+          decisionOutcomeLabel: "Nao conforme",
+          officialDecisionDivergesFromIndicative: true,
+          officialDecisionJustification: undefined,
+        }
+      : record,
+  ) as SeedServiceOrders;
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV3CoreSeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV2RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(seed),
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/emission/signature-queue/manage",
+      headers: { cookie },
+      payload: {
+        action: "emit",
+        serviceOrderId: "service-order-00142",
+        signatoryUserId: "user-signatory-1",
+        signatureDeviceId: "device-sign-01",
+      },
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(
+      response.json().error,
+      "official_decision_divergence_justification_required",
+    );
   } finally {
     await app.close();
   }
@@ -1547,6 +2099,7 @@ test("approves and emits a persisted service order through the V3 workflow", asy
         workflowStatus: "awaiting_signature",
         reviewDecision: "approved",
         reviewDecisionComment: "Revisao concluida sem ressalvas.",
+        decisionOutcomeLabel: "Inconclusiva",
         reviewDeviceId: "device-review-01",
       },
     });
@@ -1570,6 +2123,11 @@ test("approves and emits a persisted service order through the V3 workflow", asy
       url: "/emission/signature-queue?item=service-order-00142",
       headers: { cookie },
     });
+    const previewResponse = await app.inject({
+      method: "GET",
+      url: "/emission/certificate-preview?item=service-order-00142",
+      headers: { cookie },
+    });
     const auditResponse = await app.inject({
       method: "GET",
       url: "/quality/audit-trail?item=service-order-00142",
@@ -1577,12 +2135,67 @@ test("approves and emits a persisted service order through the V3 workflow", asy
     });
 
     const queuePayload = signatureQueueCatalogSchema.parse(queueResponse.json());
+    const previewPayload = certificatePreviewCatalogSchema.parse(previewResponse.json());
     const auditPayload = auditTrailCatalogSchema.parse(auditResponse.json());
+    const queueScenario = queuePayload.scenarios.find(
+      (scenario) => scenario.id === queuePayload.selectedScenarioId,
+    );
+    const previewScenario = previewPayload.scenarios.find(
+      (scenario) => scenario.id === previewPayload.selectedScenarioId,
+    );
+    assert.ok(queueScenario);
+    assert.ok(previewScenario);
+    const decisionSection = previewScenario.result.sections.find(
+      (section) => section.key === "decision",
+    );
+    assert.ok(decisionSection);
+    assert.equal(
+      decisionSection.fields.some(
+        (field) =>
+          field.label === "Assistencia decisoria" && /alinhada/i.test(field.value),
+      ),
+      true,
+    );
 
-    assert.equal((queuePayload.scenarios[0]?.approval.documentHash?.length ?? 0) > 0, true);
-    assert.match(queuePayload.scenarios[0]?.approval.compactPreview[3]?.value ?? "", /^LABPERSISTID/);
+    assert.equal((queueScenario.approval.documentHash?.length ?? 0) > 0, true);
+    assert.match(queueScenario.approval.compactPreview[3]?.value ?? "", /^LABPERSISTID/);
+    assert.equal(queueScenario.approval.decisionAssistance?.officialDecisionLabel, "Inconclusiva");
+    assert.equal(
+      queueScenario.approval.decisionAssistance?.indicativeDecision?.summaryLabel.includes(
+        "Decisao indicativa",
+      ),
+      true,
+    );
     assert.equal(auditPayload.selectedScenarioId, "recent-emission");
     assert.equal(auditPayload.scenarios[0]?.items.some((item) => item.actionLabel === "certificate.emitted"), true);
+
+    const reviewEvent = auditPayload.scenarios[0]?.items.find(
+      (item) => item.actionLabel === "technical_review.completed",
+    );
+    assert.ok(reviewEvent);
+
+    const auditDetailResponse = await app.inject({
+      method: "GET",
+      url: `/quality/audit-trail?item=service-order-00142&event=${reviewEvent.eventId}`,
+      headers: { cookie },
+    });
+    const auditDetailPayload = auditTrailCatalogSchema.parse(auditDetailResponse.json());
+    const auditDetailScenario = auditDetailPayload.scenarios.find(
+      (scenario) => scenario.id === auditDetailPayload.selectedScenarioId,
+    );
+    assert.ok(auditDetailScenario);
+    assert.equal(
+      auditDetailScenario.detail.selectedEventContextFields.some(
+        (field) => field.label === "Decisao oficial" && field.value === "Inconclusiva",
+      ),
+      true,
+    );
+    assert.equal(
+      auditDetailScenario.detail.selectedEventContextFields.some(
+        (field) => field.label === "Decisao indicativa" && /Decisao indicativa/i.test(field.value),
+      ),
+      true,
+    );
   } finally {
     await app.close();
   }
@@ -2308,6 +2921,14 @@ function createV3ServiceOrderSeed() {
         tagCode: "BAL-007",
         serialNumber: "SN-300-01",
         typeModelLabel: "NAWI Toledo Prix 3",
+        metrologyProfile: buildEquipmentMetrologyProfileFixture({
+          instrumentKind: "nawi",
+          maximumCapacityValue: 300,
+          readabilityValue: 0.05,
+          verificationScaleIntervalValue: 0.05,
+          normativeClass: "iii",
+          effectiveRangeMaxValue: 300,
+        }),
       },
     ],
     procedures: [
@@ -2331,6 +2952,10 @@ function createV3ServiceOrderSeed() {
         measurementValue: 1,
         applicableRangeMin: 0,
         applicableRangeMax: 1,
+        metrologyProfile: buildStandardMetrologyProfileFixture({
+          expandedUncertaintyValue: 0.000008,
+          conventionalMassErrorValue: 0.000001,
+        }),
       },
     ],
     serviceOrders: [
@@ -2356,6 +2981,18 @@ function createV3ServiceOrderSeed() {
         procedureLabel: "PT-005 rev.04",
         primaryStandardId: "standard-001",
         standardsLabel: "PESO-001 · Peso padrao 1 kg",
+        equipmentMetrologySnapshot: buildEquipmentMetrologyProfileFixture({
+          instrumentKind: "nawi",
+          maximumCapacityValue: 300,
+          readabilityValue: 0.05,
+          verificationScaleIntervalValue: 0.05,
+          normativeClass: "iii",
+          effectiveRangeMaxValue: 300,
+        }),
+        standardMetrologySnapshot: buildStandardMetrologyProfileFixture({
+          expandedUncertaintyValue: 0.000008,
+          conventionalMassErrorValue: 0.000001,
+        }),
         standardSource: "RBC" as const,
         standardCertificateReference: "1234/25/081",
         standardHasValidCertificate: true,
@@ -2382,6 +3019,7 @@ function createV3ServiceOrderSeed() {
         measurementExpandedUncertaintyValue: 0.12,
         measurementCoverageFactor: 2,
         measurementUnit: "kg",
+        measurementRawData: buildMeasurementRawDataFixture("kg", 15),
         decisionRuleLabel: "ILAC G8 com banda de guarda",
         decisionOutcomeLabel: "Conforme",
         freeTextStatement: "Resultado dentro da faixa operacional declarada.",
@@ -2527,6 +3165,14 @@ function createV4ServiceOrderSeed() {
         tagCode: "BAL-141",
         serialNumber: "SN-141-02",
         typeModelLabel: "Balanca Prix 4 Uno 30 kg",
+        metrologyProfile: buildEquipmentMetrologyProfileFixture({
+          instrumentKind: "nawi",
+          maximumCapacityValue: 30,
+          readabilityValue: 0.005,
+          verificationScaleIntervalValue: 0.005,
+          normativeClass: "iii",
+          effectiveRangeMaxValue: 30,
+        }),
       },
     ],
     serviceOrders: [
@@ -2553,6 +3199,18 @@ function createV4ServiceOrderSeed() {
         procedureLabel: "PT-005 rev.04",
         primaryStandardId: "standard-001",
         standardsLabel: "PESO-001 · Peso padrao 1 kg",
+        equipmentMetrologySnapshot: buildEquipmentMetrologyProfileFixture({
+          instrumentKind: "nawi",
+          maximumCapacityValue: 30,
+          readabilityValue: 0.005,
+          verificationScaleIntervalValue: 0.005,
+          normativeClass: "iii",
+          effectiveRangeMaxValue: 30,
+        }),
+        standardMetrologySnapshot: buildStandardMetrologyProfileFixture({
+          expandedUncertaintyValue: 0.000008,
+          conventionalMassErrorValue: 0.000001,
+        }),
         standardSource: "RBC" as const,
         standardCertificateReference: "1234/25/081",
         standardHasValidCertificate: true,
@@ -2579,6 +3237,7 @@ function createV4ServiceOrderSeed() {
         measurementExpandedUncertaintyValue: 0.08,
         measurementCoverageFactor: 2,
         measurementUnit: "kg",
+        measurementRawData: buildMeasurementRawDataFixture("kg", 15),
         decisionRuleLabel: "ILAC G8 sem banda de guarda adicional",
         decisionOutcomeLabel: "Conforme",
         freeTextStatement: "Certificado emitido com base em revisao tecnica concluida e assinatura valida.",
@@ -2667,6 +3326,95 @@ function createV4ServiceOrderSeed() {
         occurredAtUtc: "2026-04-20T09:23:00.000Z",
       },
     ]),
+  };
+}
+
+function buildMeasurementRawDataFixture(unit: string, loadValue: number) {
+  return {
+    captureMode: "manual" as const,
+    environment: {
+      temperatureStartC: 22.1,
+      temperatureEndC: 22.3,
+      relativeHumidityPercent: 48,
+      atmosphericPressureHpa: 1013,
+    },
+    repeatabilityRuns: [
+      {
+        loadValue,
+        unit,
+        indications: [loadValue, loadValue + 0.001, loadValue, loadValue + 0.001, loadValue],
+      },
+    ],
+    eccentricityPoints: [
+      {
+        positionLabel: "centro",
+        loadValue,
+        indicationValue: loadValue,
+        unit,
+      },
+      {
+        positionLabel: "frontal",
+        loadValue,
+        indicationValue: loadValue + 0.002,
+        unit,
+      },
+    ],
+    linearityPoints: [
+      {
+        pointLabel: "50%",
+        sequence: "ascending" as const,
+        appliedLoadValue: loadValue,
+        referenceValue: loadValue,
+        indicationValue: loadValue + 0.001,
+        unit,
+      },
+    ],
+    evidenceAttachments: [
+      {
+        attachmentId: "evidence-seed-001",
+        label: "Foto do ensaio",
+        kind: "photo",
+        mediaType: "image/jpeg",
+      },
+    ],
+  };
+}
+
+function buildEquipmentMetrologyProfileFixture(input: {
+  instrumentKind: "nawi" | "platform_scale" | "analytical_balance" | "precision_balance" | "vehicle_scale";
+  maximumCapacityValue: number;
+  readabilityValue: number;
+  verificationScaleIntervalValue: number;
+  normativeClass?: "i" | "ii" | "iii" | "iiii";
+  effectiveRangeMaxValue?: number;
+}) {
+  return {
+    instrumentKind: input.instrumentKind,
+    measurementUnit: "kg",
+    maximumCapacityValue: input.maximumCapacityValue,
+    readabilityValue: input.readabilityValue,
+    verificationScaleIntervalValue: input.verificationScaleIntervalValue,
+    normativeClass: input.normativeClass,
+    minimumCapacityValue: 0,
+    minimumLoadValue: 0,
+    effectiveRangeMinValue: 0,
+    effectiveRangeMaxValue: input.effectiveRangeMaxValue ?? input.maximumCapacityValue,
+  };
+}
+
+function buildStandardMetrologyProfileFixture(input: {
+  expandedUncertaintyValue: number;
+  conventionalMassErrorValue?: number;
+}) {
+  return {
+    quantityKind: "mass" as const,
+    measurementUnit: "kg",
+    traceabilitySource: "rbc" as const,
+    certificateIssuer: "Lab Cal-1234",
+    expandedUncertaintyValue: input.expandedUncertaintyValue,
+    coverageFactorK: 2,
+    conventionalMassErrorValue: input.conventionalMassErrorValue,
+    densityKgPerM3: 8000,
   };
 }
 

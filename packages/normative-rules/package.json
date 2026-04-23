@@ -20,6 +20,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
+    "@aws-sdk/client-kms": "^3.901.0",
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {

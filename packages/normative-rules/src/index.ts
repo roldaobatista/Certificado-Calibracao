@@ -22,6 +22,7 @@ export {
   loadNormativePackageManifest,
   loadSignedNormativePackageFromDirectory,
   parseNormativePackageYaml,
+  serializeNormativePackageForSignature,
   signNormativePackage,
   verifyApprovedNormativePackageRepository,
   verifySignedNormativePackage,
@@ -35,6 +36,13 @@ export {
   type NormativeRuleSeverity,
   type SignedNormativePackageInput,
 } from "./package.js";
+
+export {
+  signNormativePackageWithAwsKms,
+  type AwsKmsSigningArtifacts,
+  type AwsKmsSigningInput,
+  type AwsKmsLikeClient,
+} from "./kms-signing.js";
 
 export {
   resolveRegulatoryPdfPolicy,

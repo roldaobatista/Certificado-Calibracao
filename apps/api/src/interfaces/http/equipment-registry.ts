@@ -1,4 +1,11 @@
-import { equipmentRegistryCatalogSchema, type EquipmentRegistryCatalog } from "@afere/contracts";
+import {
+  equipmentInstrumentKindSchema,
+  equipmentMetrologyProfileSchema,
+  equipmentNormativeClassSchema,
+  equipmentRegistryCatalogSchema,
+  type EquipmentMetrologyProfile,
+  type EquipmentRegistryCatalog,
+} from "@afere/contracts";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
@@ -10,6 +17,7 @@ import { requireRegistryAccess, requireRegistryWriteAccess } from "./auth-sessio
 import {
   isConflictError,
   readRedirectTarget,
+  toNumber,
   toOptionalString,
   toStringArray,
 } from "./form-helpers.js";
@@ -30,6 +38,16 @@ const SaveEquipmentBodySchema = z.object({
   serialNumber: z.string().min(2),
   typeModelLabel: z.string().min(3),
   capacityClassLabel: z.string().min(3),
+  instrumentKind: z.preprocess(toOptionalString, equipmentInstrumentKindSchema.optional()),
+  measurementUnit: z.preprocess(toOptionalString, z.string().min(1).optional()),
+  maximumCapacityValue: z.preprocess(toNumber, z.number().positive().optional()),
+  readabilityValue: z.preprocess(toNumber, z.number().positive().optional()),
+  verificationScaleIntervalValue: z.preprocess(toNumber, z.number().positive().optional()),
+  normativeClass: z.preprocess(toOptionalString, equipmentNormativeClassSchema.optional()),
+  minimumCapacityValue: z.preprocess(toNumber, z.number().nonnegative().optional()),
+  minimumLoadValue: z.preprocess(toNumber, z.number().nonnegative().optional()),
+  effectiveRangeMinValue: z.preprocess(toNumber, z.number().nonnegative().optional()),
+  effectiveRangeMaxValue: z.preprocess(toNumber, z.number().positive().optional()),
   supportingStandardCodes: z.preprocess(toStringArray, z.array(z.string().min(1))),
   addressLine1: z.string().min(3),
   addressCity: z.string().min(2),
@@ -41,6 +59,7 @@ const SaveEquipmentBodySchema = z.object({
   nextCalibrationAtUtc: z.preprocess(toOptionalString, z.string().min(1).optional()),
   redirectTo: z.preprocess(toOptionalString, z.string().min(1).optional()),
 });
+type SaveEquipmentBody = z.infer<typeof SaveEquipmentBodySchema>;
 
 const ToggleEquipmentArchiveBodySchema = z.object({
   action: z.enum(["archive", "restore"]),
@@ -52,6 +71,28 @@ const ManageEquipmentBodySchema = z.discriminatedUnion("action", [
   SaveEquipmentBodySchema,
   ToggleEquipmentArchiveBodySchema,
 ]);
+
+function buildEquipmentMetrologyProfile(body: SaveEquipmentBody): EquipmentMetrologyProfile | undefined | null {
+  const candidate = {
+    instrumentKind: body.instrumentKind,
+    measurementUnit: body.measurementUnit,
+    maximumCapacityValue: body.maximumCapacityValue,
+    readabilityValue: body.readabilityValue,
+    verificationScaleIntervalValue: body.verificationScaleIntervalValue,
+    normativeClass: body.normativeClass,
+    minimumCapacityValue: body.minimumCapacityValue,
+    minimumLoadValue: body.minimumLoadValue,
+    effectiveRangeMinValue: body.effectiveRangeMinValue,
+    effectiveRangeMaxValue: body.effectiveRangeMaxValue,
+  };
+
+  if (!Object.values(candidate).some((value) => value !== undefined)) {
+    return undefined;
+  }
+
+  const parsed = equipmentMetrologyProfileSchema.safeParse(candidate);
+  return parsed.success ? parsed.data : null;
+}
 
 export async function registerEquipmentRegistryRoutes(
   app: FastifyInstance,
@@ -113,6 +154,12 @@ export async function registerEquipmentRegistryRoutes(
       return reply.code(400).send({ error: "invalid_body" });
     }
 
+    const metrologyProfile =
+      body.data.action === "save" ? buildEquipmentMetrologyProfile(body.data) : undefined;
+    if (body.data.action === "save" && metrologyProfile === null) {
+      return reply.code(400).send({ error: "invalid_equipment_metrology_profile" });
+    }
+
     try {
       if (body.data.action === "save") {
         await registryPersistence.saveEquipment({
@@ -127,6 +174,7 @@ export async function registerEquipmentRegistryRoutes(
           serialNumber: body.data.serialNumber,
           typeModelLabel: body.data.typeModelLabel,
           capacityClassLabel: body.data.capacityClassLabel,
+          metrologyProfile: metrologyProfile ?? undefined,
           supportingStandardCodes: body.data.supportingStandardCodes,
           addressLine1: body.data.addressLine1,
           addressCity: body.data.addressCity,

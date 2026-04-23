@@ -1,7 +1,23 @@
 import { computeAuditHash } from "@afere/audit-log";
 import { Prisma, type PrismaClient } from "@prisma/client";
+import {
+  analyzeRawMeasurementData,
+  buildPreliminaryUncertaintyBudget,
+  evaluateIndicativeDecisionRule,
+  evaluatePortaria157IndicativeTolerance,
+} from "@afere/engine-uncertainty";
 
-import type { ServiceOrderListItemStatus } from "@afere/contracts";
+import {
+  indicativeDecisionSnapshotSchema,
+  equipmentMetrologyProfileSchema,
+  serviceOrderMeasurementRawDataSchema,
+  standardMetrologyProfileSchema,
+  type EquipmentMetrologyProfile,
+  type IndicativeDecisionSnapshot,
+  type ServiceOrderListItemStatus,
+  type ServiceOrderMeasurementRawData,
+  type StandardMetrologyProfile,
+} from "@afere/contracts";
 
 export type ReviewDecision = "pending" | "approved" | "rejected";
 
@@ -73,6 +89,8 @@ export type PersistedServiceOrderRecord = {
   procedureLabel: string;
   primaryStandardId: string;
   standardsLabel: string;
+  equipmentMetrologySnapshot?: EquipmentMetrologyProfile;
+  standardMetrologySnapshot?: StandardMetrologyProfile;
   standardSource: "INM" | "RBC" | "ILAC_MRA";
   standardCertificateReference: string;
   standardHasValidCertificate: boolean;
@@ -99,8 +117,12 @@ export type PersistedServiceOrderRecord = {
   measurementExpandedUncertaintyValue?: number;
   measurementCoverageFactor?: number;
   measurementUnit?: string;
+  measurementRawData?: ServiceOrderMeasurementRawData;
   decisionRuleLabel?: string;
   decisionOutcomeLabel?: string;
+  indicativeDecisionSnapshot?: IndicativeDecisionSnapshot;
+  officialDecisionDivergesFromIndicative?: boolean;
+  officialDecisionJustification?: string;
   freeTextStatement?: string;
   commentDraft: string;
   reviewDecision: ReviewDecision;
@@ -154,6 +176,7 @@ type ServiceOrderReferenceEquipment = {
   tagCode: string;
   serialNumber: string;
   typeModelLabel: string;
+  metrologyProfile?: EquipmentMetrologyProfile;
 };
 
 type ServiceOrderReferenceProcedure = {
@@ -170,6 +193,7 @@ type ServiceOrderReferenceStandard = {
   title: string;
   sourceLabel: string;
   certificateLabel: string;
+  metrologyProfile?: StandardMetrologyProfile;
   hasValidCertificate: boolean;
   certificateValidUntilUtc?: string;
   measurementValue: number;
@@ -189,15 +213,16 @@ export type SaveServiceOrderInput = {
   signatoryUserId?: string;
   workOrderNumber: string;
   workflowStatus: ServiceOrderListItemStatus;
-  environmentLabel: string;
-  curvePointsLabel: string;
-  evidenceLabel: string;
-  uncertaintyLabel: string;
-  conformityLabel: string;
+  environmentLabel?: string;
+  curvePointsLabel?: string;
+  evidenceLabel?: string;
+  uncertaintyLabel?: string;
+  conformityLabel?: string;
   measurementResultValue?: number;
   measurementExpandedUncertaintyValue?: number;
   measurementCoverageFactor?: number;
   measurementUnit?: string;
+  measurementRawData?: ServiceOrderMeasurementRawData;
   decisionRuleLabel?: string;
   decisionOutcomeLabel?: string;
   freeTextStatement?: string;
@@ -212,6 +237,8 @@ export type SaveServiceOrderWorkflowInput = {
   workflowStatus: ServiceOrderListItemStatus;
   reviewDecision: ReviewDecision;
   reviewDecisionComment: string;
+  decisionOutcomeLabel?: string;
+  officialDecisionJustification?: string;
   reviewDeviceId?: string;
   commentDraft?: string;
 };
@@ -399,6 +426,38 @@ export function createMemoryServiceOrderPersistence(seed: {
       }
 
       const nowUtc = new Date().toISOString();
+      const measurementRawData =
+        structuredClone(input.measurementRawData ?? existing?.measurementRawData) ?? undefined;
+      const metrologySnapshots = resolveServiceOrderMetrologySnapshots({
+        existing,
+        equipmentId: references.equipment.equipmentId,
+        primaryStandardId: references.standard.standardId,
+        equipmentProfile: references.equipment.metrologyProfile,
+        standardProfile: references.standard.metrologyProfile,
+      });
+      const executionLabels = resolveServiceOrderExecutionLabels({
+        environmentLabel: input.environmentLabel,
+        curvePointsLabel: input.curvePointsLabel,
+        evidenceLabel: input.evidenceLabel,
+        conformityLabel: input.conformityLabel,
+        measurementRawData,
+        analysisContext: buildRawMeasurementAnalysisContext({
+          equipmentMetrologySnapshot: metrologySnapshots.equipmentMetrologySnapshot,
+          standardMetrologySnapshot: metrologySnapshots.standardMetrologySnapshot,
+          measurementUnit: input.measurementUnit ?? existing?.measurementUnit,
+        }),
+        existing,
+      });
+      const resolvedMeasurement = resolveServiceOrderMeasurementFields({
+        uncertaintyLabel: input.uncertaintyLabel,
+        measurementExpandedUncertaintyValue: input.measurementExpandedUncertaintyValue,
+        measurementCoverageFactor: input.measurementCoverageFactor,
+        measurementUnit: input.measurementUnit,
+        measurementRawData,
+        equipmentMetrologySnapshot: metrologySnapshots.equipmentMetrologySnapshot,
+        standardMetrologySnapshot: metrologySnapshots.standardMetrologySnapshot,
+        existing,
+      });
       const saved: PersistedServiceOrderRecord = {
         serviceOrderId: input.serviceOrderId ?? `service-order-${serviceOrders.size + 1}`,
         organizationId: input.organizationId,
@@ -421,6 +480,8 @@ export function createMemoryServiceOrderPersistence(seed: {
         procedureLabel: `${references.procedure.code} rev.${references.procedure.revisionLabel}`,
         primaryStandardId: references.standard.standardId,
         standardsLabel: `${references.standard.code} · ${references.standard.title}`,
+        equipmentMetrologySnapshot: metrologySnapshots.equipmentMetrologySnapshot,
+        standardMetrologySnapshot: metrologySnapshots.standardMetrologySnapshot,
         standardSource: mapStandardSource(references.standard.sourceLabel),
         standardCertificateReference: references.standard.certificateLabel,
         standardHasValidCertificate: references.standard.hasValidCertificate,
@@ -438,20 +499,24 @@ export function createMemoryServiceOrderPersistence(seed: {
         signatoryName: references.signatory?.displayName ?? existing?.signatoryName,
         workOrderNumber: input.workOrderNumber.trim(),
         workflowStatus: input.workflowStatus,
-        environmentLabel: input.environmentLabel.trim(),
-        curvePointsLabel: input.curvePointsLabel.trim(),
-        evidenceLabel: input.evidenceLabel.trim(),
-        uncertaintyLabel: input.uncertaintyLabel.trim(),
-        conformityLabel: input.conformityLabel.trim(),
+        environmentLabel: executionLabels.environmentLabel,
+        curvePointsLabel: executionLabels.curvePointsLabel,
+        evidenceLabel: executionLabels.evidenceLabel,
+        uncertaintyLabel: resolvedMeasurement.uncertaintyLabel,
+        conformityLabel: executionLabels.conformityLabel,
         measurementResultValue: input.measurementResultValue ?? existing?.measurementResultValue,
         measurementExpandedUncertaintyValue:
-          input.measurementExpandedUncertaintyValue ?? existing?.measurementExpandedUncertaintyValue,
-        measurementCoverageFactor:
-          input.measurementCoverageFactor ?? existing?.measurementCoverageFactor,
-        measurementUnit: normalizeOptionalString(input.measurementUnit) ?? existing?.measurementUnit,
+          resolvedMeasurement.measurementExpandedUncertaintyValue,
+        measurementCoverageFactor: resolvedMeasurement.measurementCoverageFactor,
+        measurementUnit: resolvedMeasurement.measurementUnit,
+        measurementRawData,
         decisionRuleLabel: normalizeOptionalString(input.decisionRuleLabel) ?? existing?.decisionRuleLabel,
         decisionOutcomeLabel:
           normalizeOptionalString(input.decisionOutcomeLabel) ?? existing?.decisionOutcomeLabel,
+        indicativeDecisionSnapshot: existing?.indicativeDecisionSnapshot,
+        officialDecisionDivergesFromIndicative:
+          existing?.officialDecisionDivergesFromIndicative ?? false,
+        officialDecisionJustification: existing?.officialDecisionJustification,
         freeTextStatement:
           normalizeOptionalString(input.freeTextStatement) ?? existing?.freeTextStatement,
         commentDraft: input.commentDraft.trim(),
@@ -495,6 +560,11 @@ export function createMemoryServiceOrderPersistence(seed: {
         ? requireActiveUser(users.get(input.signatoryUserId), input.organizationId, "signatory_not_found")
         : undefined;
       const nowUtc = new Date().toISOString();
+      const decisionUpdate = resolveWorkflowDecisionAssistanceUpdate({
+        existing,
+        input,
+        nowUtc,
+      });
       const updated: PersistedServiceOrderRecord = {
         ...existing,
         reviewerUserId: input.reviewerUserId ?? existing.reviewerUserId,
@@ -504,6 +574,11 @@ export function createMemoryServiceOrderPersistence(seed: {
         workflowStatus: input.workflowStatus,
         reviewDecision: input.reviewDecision,
         reviewDecisionComment: input.reviewDecisionComment.trim(),
+        decisionOutcomeLabel: decisionUpdate.decisionOutcomeLabel,
+        indicativeDecisionSnapshot: decisionUpdate.indicativeDecisionSnapshot,
+        officialDecisionDivergesFromIndicative:
+          decisionUpdate.officialDecisionDivergesFromIndicative,
+        officialDecisionJustification: decisionUpdate.officialDecisionJustification,
         reviewDeviceId: normalizeOptionalString(input.reviewDeviceId),
         commentDraft: normalizeOptionalString(input.commentDraft) ?? existing.commentDraft,
         reviewStartedAtUtc: existing.reviewStartedAtUtc ?? nowUtc,
@@ -527,6 +602,7 @@ export function createMemoryServiceOrderPersistence(seed: {
       if (!existing || existing.organizationId !== input.organizationId) {
         throw new Error("service_order_not_found");
       }
+      assertServiceOrderReadyForEmission(existing);
 
       const signatoryId = input.signatoryUserId ?? existing.signatoryUserId;
       const signatory = signatoryId
@@ -870,6 +946,44 @@ export function createPrismaServiceOrderPersistence(prisma: PrismaClient): Servi
         }
 
         const now = new Date();
+        const measurementRawData =
+          input.measurementRawData ?? parseMeasurementRawData(existing?.measurementRawData);
+        const existingRecord = existing ? mapServiceOrderRecord(existing) : undefined;
+        const metrologySnapshots = resolveServiceOrderMetrologySnapshots({
+          existing: existingRecord,
+          equipmentId: references.equipment.id,
+          primaryStandardId: references.standard.id,
+          equipmentProfile: parseEquipmentMetrologyProfile(references.equipment.metrologyProfile),
+          standardProfile: parseStandardMetrologyProfile(references.standard.metrologyProfile),
+        });
+        const executionLabels = resolveServiceOrderExecutionLabels({
+          environmentLabel: input.environmentLabel,
+          curvePointsLabel: input.curvePointsLabel,
+          evidenceLabel: input.evidenceLabel,
+          conformityLabel: input.conformityLabel,
+          measurementRawData,
+          analysisContext: buildRawMeasurementAnalysisContext({
+            equipmentMetrologySnapshot: metrologySnapshots.equipmentMetrologySnapshot,
+            standardMetrologySnapshot: metrologySnapshots.standardMetrologySnapshot,
+            measurementUnit: input.measurementUnit ?? existing?.measurementUnit ?? undefined,
+          }),
+          existing: {
+            environmentLabel: existing?.environmentLabel ?? undefined,
+            curvePointsLabel: existing?.curvePointsLabel ?? undefined,
+            evidenceLabel: existing?.evidenceLabel ?? undefined,
+            conformityLabel: existing?.conformityLabel ?? undefined,
+          },
+        });
+        const resolvedMeasurement = resolveServiceOrderMeasurementFields({
+          uncertaintyLabel: input.uncertaintyLabel,
+          measurementExpandedUncertaintyValue: input.measurementExpandedUncertaintyValue,
+          measurementCoverageFactor: input.measurementCoverageFactor,
+          measurementUnit: input.measurementUnit,
+          measurementRawData,
+          equipmentMetrologySnapshot: metrologySnapshots.equipmentMetrologySnapshot,
+          standardMetrologySnapshot: metrologySnapshots.standardMetrologySnapshot,
+          existing: existingRecord,
+        });
         const data = {
           customerId: input.customerId,
           equipmentId: input.equipmentId,
@@ -880,23 +994,35 @@ export function createPrismaServiceOrderPersistence(prisma: PrismaClient): Servi
           signatoryUserId: input.signatoryUserId ?? existing?.signatoryUserId ?? null,
           workOrderNumber: input.workOrderNumber.trim(),
           workflowStatus: input.workflowStatus,
-          environmentLabel: input.environmentLabel.trim(),
-          curvePointsLabel: input.curvePointsLabel.trim(),
-          evidenceLabel: input.evidenceLabel.trim(),
-          uncertaintyLabel: input.uncertaintyLabel.trim(),
-          conformityLabel: input.conformityLabel.trim(),
+          environmentLabel: executionLabels.environmentLabel,
+          curvePointsLabel: executionLabels.curvePointsLabel,
+          evidenceLabel: executionLabels.evidenceLabel,
+          uncertaintyLabel: resolvedMeasurement.uncertaintyLabel,
+          conformityLabel: executionLabels.conformityLabel,
           measurementResultValue: input.measurementResultValue ?? existing?.measurementResultValue ?? null,
           measurementExpandedUncertaintyValue:
-            input.measurementExpandedUncertaintyValue ??
-            existing?.measurementExpandedUncertaintyValue ??
-            null,
+            resolvedMeasurement.measurementExpandedUncertaintyValue ?? null,
           measurementCoverageFactor:
-            input.measurementCoverageFactor ?? existing?.measurementCoverageFactor ?? null,
-          measurementUnit: normalizeOptionalString(input.measurementUnit) ?? existing?.measurementUnit ?? null,
+            resolvedMeasurement.measurementCoverageFactor ?? null,
+          measurementUnit: resolvedMeasurement.measurementUnit ?? null,
+          measurementRawData: toPrismaJsonValue(measurementRawData),
+          equipmentMetrologySnapshot: toPrismaJsonValue(
+            metrologySnapshots.equipmentMetrologySnapshot,
+          ),
+          standardMetrologySnapshot: toPrismaJsonValue(
+            metrologySnapshots.standardMetrologySnapshot,
+          ),
           decisionRuleLabel:
             normalizeOptionalString(input.decisionRuleLabel) ?? existing?.decisionRuleLabel ?? null,
           decisionOutcomeLabel:
             normalizeOptionalString(input.decisionOutcomeLabel) ?? existing?.decisionOutcomeLabel ?? null,
+          indicativeDecisionSnapshot: toPrismaJsonValue(
+            parseIndicativeDecisionSnapshot(existing?.indicativeDecisionSnapshot),
+          ),
+          officialDecisionDivergesFromIndicative:
+            existing?.officialDecisionDivergesFromIndicative ?? false,
+          officialDecisionJustification:
+            existing?.officialDecisionJustification ?? null,
           freeTextStatement:
             normalizeOptionalString(input.freeTextStatement) ?? existing?.freeTextStatement ?? null,
           commentDraft: input.commentDraft.trim(),
@@ -985,6 +1111,11 @@ export function createPrismaServiceOrderPersistence(prisma: PrismaClient): Servi
         }
 
         const now = new Date();
+        const decisionUpdate = resolveWorkflowDecisionAssistanceUpdate({
+          existing: mapServiceOrderRecord(existing),
+          input,
+          nowUtc: now.toISOString(),
+        });
         const saved = await tx.serviceOrder.update({
           where: { id: existing.id },
           data: {
@@ -993,6 +1124,14 @@ export function createPrismaServiceOrderPersistence(prisma: PrismaClient): Servi
             workflowStatus: input.workflowStatus,
             reviewDecision: input.reviewDecision,
             reviewDecisionComment: input.reviewDecisionComment.trim(),
+            decisionOutcomeLabel: decisionUpdate.decisionOutcomeLabel ?? null,
+            indicativeDecisionSnapshot: toPrismaJsonValue(
+              decisionUpdate.indicativeDecisionSnapshot,
+            ),
+            officialDecisionDivergesFromIndicative:
+              decisionUpdate.officialDecisionDivergesFromIndicative,
+            officialDecisionJustification:
+              decisionUpdate.officialDecisionJustification ?? null,
             reviewDeviceId: normalizeOptionalString(input.reviewDeviceId) ?? null,
             commentDraft: normalizeOptionalString(input.commentDraft) ?? existing.commentDraft,
             reviewStartedAt: existing.reviewStartedAt ?? now,
@@ -1023,6 +1162,7 @@ export function createPrismaServiceOrderPersistence(prisma: PrismaClient): Servi
         if (!existing) {
           throw new Error("service_order_not_found");
         }
+        assertServiceOrderReadyForEmission(mapServiceOrderRecord(existing));
 
         const signatoryId = input.signatoryUserId ?? existing.signatoryUserId ?? undefined;
         const signatory = signatoryId
@@ -1311,6 +1451,15 @@ async function ensureDerivedAuditEvents(
       actorLabel: record.reviewerName,
       deviceId: record.reviewDeviceId,
       entityLabel: record.workOrderNumber,
+      metadata: {
+        decisionRuleLabel: record.decisionRuleLabel,
+        officialDecisionLabel: record.decisionOutcomeLabel,
+        indicativeDecisionSummaryLabel: record.indicativeDecisionSnapshot?.summaryLabel,
+        indicativeDecisionVerdict: record.indicativeDecisionSnapshot?.verdict,
+        officialDecisionDivergesFromIndicative:
+          record.officialDecisionDivergesFromIndicative,
+        officialDecisionJustification: record.officialDecisionJustification,
+      },
       occurredAtUtc: record.reviewCompletedAtUtc,
     });
   }
@@ -1322,6 +1471,12 @@ async function ensureDerivedAuditEvents(
       actorLabel: record.reviewerName,
       deviceId: record.reviewDeviceId,
       entityLabel: record.workOrderNumber,
+      metadata: {
+        decisionRuleLabel: record.decisionRuleLabel,
+        officialDecisionLabel: record.decisionOutcomeLabel,
+        indicativeDecisionSummaryLabel: record.indicativeDecisionSnapshot?.summaryLabel,
+        officialDecisionJustification: record.officialDecisionJustification,
+      },
       occurredAtUtc: record.reviewCompletedAtUtc,
     });
   }
@@ -1337,6 +1492,7 @@ async function ensureAuditEvent(
     entityLabel: string;
     deviceId?: string;
     certificateNumber?: string;
+    metadata?: Record<string, unknown>;
     occurredAtUtc: string;
   },
 ) {
@@ -1355,6 +1511,7 @@ async function ensureAuditEvent(
     entityLabel: input.entityLabel,
     deviceId: input.deviceId,
     certificateNumber: input.certificateNumber,
+    metadata: input.metadata,
     occurredAtUtc: input.occurredAtUtc,
   });
 }
@@ -1787,8 +1944,14 @@ function mapServiceOrderRecord(record: {
   measurementExpandedUncertaintyValue: number | null;
   measurementCoverageFactor: number | null;
   measurementUnit: string | null;
+  measurementRawData: Prisma.JsonValue | null;
+  equipmentMetrologySnapshot: Prisma.JsonValue | null;
+  standardMetrologySnapshot: Prisma.JsonValue | null;
   decisionRuleLabel: string | null;
   decisionOutcomeLabel: string | null;
+  indicativeDecisionSnapshot: Prisma.JsonValue | null;
+  officialDecisionDivergesFromIndicative: boolean;
+  officialDecisionJustification: string | null;
   freeTextStatement: string | null;
   commentDraft: string;
   reviewDecision: string;
@@ -1825,6 +1988,7 @@ function mapServiceOrderRecord(record: {
     tagCode: string;
     serialNumber: string;
     typeModelLabel: string;
+    metrologyProfile: Prisma.JsonValue | null;
   };
   procedure: { code: string; revisionLabel: string };
   primaryStandard: {
@@ -1832,6 +1996,7 @@ function mapServiceOrderRecord(record: {
     title: string;
     sourceLabel: string;
     certificateLabel: string;
+    metrologyProfile: Prisma.JsonValue | null;
     hasValidCertificate: boolean;
     certificateValidUntil: Date | null;
     measurementValue: { toString(): string };
@@ -1864,6 +2029,12 @@ function mapServiceOrderRecord(record: {
     procedureLabel: `${record.procedure.code} rev.${record.procedure.revisionLabel}`,
     primaryStandardId: record.primaryStandardId,
     standardsLabel: `${record.primaryStandard.code} · ${record.primaryStandard.title}`,
+    equipmentMetrologySnapshot:
+      parseEquipmentMetrologyProfile(record.equipmentMetrologySnapshot) ??
+      parseEquipmentMetrologyProfile(record.equipment.metrologyProfile),
+    standardMetrologySnapshot:
+      parseStandardMetrologyProfile(record.standardMetrologySnapshot) ??
+      parseStandardMetrologyProfile(record.primaryStandard.metrologyProfile),
     standardSource: mapStandardSource(record.primaryStandard.sourceLabel),
     standardCertificateReference: record.primaryStandard.certificateLabel,
     standardHasValidCertificate: record.primaryStandard.hasValidCertificate,
@@ -1891,8 +2062,15 @@ function mapServiceOrderRecord(record: {
       record.measurementExpandedUncertaintyValue ?? undefined,
     measurementCoverageFactor: record.measurementCoverageFactor ?? undefined,
     measurementUnit: record.measurementUnit ?? undefined,
+    measurementRawData: parseMeasurementRawData(record.measurementRawData),
     decisionRuleLabel: record.decisionRuleLabel ?? undefined,
     decisionOutcomeLabel: record.decisionOutcomeLabel ?? undefined,
+    indicativeDecisionSnapshot: parseIndicativeDecisionSnapshot(
+      record.indicativeDecisionSnapshot,
+    ),
+    officialDecisionDivergesFromIndicative:
+      record.officialDecisionDivergesFromIndicative,
+    officialDecisionJustification: record.officialDecisionJustification ?? undefined,
     freeTextStatement: record.freeTextStatement ?? undefined,
     commentDraft: record.commentDraft,
     reviewDecision: parseReviewDecision(record.reviewDecision),
@@ -2220,7 +2398,620 @@ function mapStandardSource(sourceLabel: string): "INM" | "RBC" | "ILAC_MRA" {
   return "RBC";
 }
 
+function resolveServiceOrderExecutionLabels(input: {
+  environmentLabel?: string;
+  curvePointsLabel?: string;
+  evidenceLabel?: string;
+  conformityLabel?: string;
+  measurementRawData?: ServiceOrderMeasurementRawData;
+  analysisContext?: {
+    defaultConventionalMassErrorValue?: number;
+    expectedMeasurementUnit?: string;
+  };
+  existing?: {
+    environmentLabel?: string;
+    curvePointsLabel?: string;
+    evidenceLabel?: string;
+    conformityLabel?: string;
+  };
+}) {
+  const analysis = input.measurementRawData
+    ? analyzeRawMeasurementData(input.measurementRawData, input.analysisContext)
+    : undefined;
+  const derivedEnvironmentLabel = deriveEnvironmentLabel(input.measurementRawData);
+  const derivedCurvePointsLabel = deriveCurvePointsLabel(input.measurementRawData, analysis);
+  const derivedEvidenceLabel = deriveEvidenceLabel(input.measurementRawData);
+  const derivedConformityLabel = analysis?.summary.completenessLabel;
+
+  return {
+    environmentLabel: resolveRequiredExecutionLabel(
+      input.environmentLabel,
+      input.existing?.environmentLabel,
+      derivedEnvironmentLabel,
+      "missing_environment_label",
+    ),
+    curvePointsLabel: resolveRequiredExecutionLabel(
+      input.curvePointsLabel,
+      input.existing?.curvePointsLabel,
+      derivedCurvePointsLabel,
+      "missing_curve_points_label",
+    ),
+    evidenceLabel: resolveRequiredExecutionLabel(
+      input.evidenceLabel,
+      input.existing?.evidenceLabel,
+      derivedEvidenceLabel,
+      "missing_evidence_label",
+    ),
+    conformityLabel: resolveRequiredExecutionLabel(
+      input.conformityLabel,
+      input.existing?.conformityLabel,
+      derivedConformityLabel,
+      "missing_conformity_label",
+    ),
+  };
+}
+
+export function buildRawMeasurementAnalysisContext(input: {
+  equipmentMetrologySnapshot?: EquipmentMetrologyProfile;
+  standardMetrologySnapshot?: StandardMetrologyProfile;
+  measurementUnit?: string;
+}) {
+  return {
+    defaultConventionalMassErrorValue: input.standardMetrologySnapshot?.conventionalMassErrorValue,
+    expectedMeasurementUnit:
+      input.equipmentMetrologySnapshot?.measurementUnit ??
+      input.standardMetrologySnapshot?.measurementUnit ??
+      input.measurementUnit,
+  };
+}
+
+export function buildPreliminaryUncertaintyContext(input: {
+  equipmentMetrologySnapshot?: EquipmentMetrologyProfile;
+  standardMetrologySnapshot?: StandardMetrologyProfile;
+  measurementUnit?: string;
+  measurementCoverageFactor?: number;
+}) {
+  return {
+    readabilityValue: input.equipmentMetrologySnapshot?.readabilityValue,
+    standardExpandedUncertaintyValue:
+      input.standardMetrologySnapshot?.expandedUncertaintyValue,
+    standardCoverageFactorK: input.standardMetrologySnapshot?.coverageFactorK,
+    expandedCoverageFactor: input.measurementCoverageFactor,
+    expectedMeasurementUnit:
+      input.equipmentMetrologySnapshot?.measurementUnit ??
+      input.standardMetrologySnapshot?.measurementUnit ??
+      input.measurementUnit,
+  };
+}
+
+export function buildPortaria157IndicativeToleranceContext(input: {
+  equipmentMetrologySnapshot?: EquipmentMetrologyProfile;
+  measurementUnit?: string;
+}) {
+  return {
+    instrumentKind: input.equipmentMetrologySnapshot?.instrumentKind,
+    normativeClass: input.equipmentMetrologySnapshot?.normativeClass,
+    verificationScaleIntervalValue:
+      input.equipmentMetrologySnapshot?.verificationScaleIntervalValue,
+    maximumCapacityValue: input.equipmentMetrologySnapshot?.maximumCapacityValue,
+    expectedMeasurementUnit:
+      input.equipmentMetrologySnapshot?.measurementUnit ?? input.measurementUnit,
+  };
+}
+
+function resolveWorkflowDecisionAssistanceUpdate(input: {
+  existing: PersistedServiceOrderRecord;
+  input: SaveServiceOrderWorkflowInput;
+  nowUtc: string;
+}) {
+  const approvalRequested =
+    input.input.reviewDecision === "approved" ||
+    input.input.workflowStatus === "awaiting_signature" ||
+    input.input.workflowStatus === "emitted";
+  const submittedDecisionOutcomeLabel = normalizeOptionalString(
+    input.input.decisionOutcomeLabel,
+  );
+  const decisionOutcomeLabel = approvalRequested
+    ? submittedDecisionOutcomeLabel
+    : submittedDecisionOutcomeLabel ?? input.existing.decisionOutcomeLabel;
+  const indicativeDecisionSnapshot = buildIndicativeDecisionSnapshot(
+    deriveIndicativeDecisionEvaluation(input.existing),
+    input.nowUtc,
+  );
+
+  if (approvalRequested && !decisionOutcomeLabel) {
+    throw new Error("official_decision_required");
+  }
+
+  const officialDecisionDivergesFromIndicative = didOfficialDecisionDivergeFromIndicative(
+    decisionOutcomeLabel,
+    indicativeDecisionSnapshot,
+  );
+  const officialDecisionJustification = officialDecisionDivergesFromIndicative
+    ? normalizeOptionalString(input.input.officialDecisionJustification) ??
+      input.existing.officialDecisionJustification
+    : undefined;
+
+  if (
+    officialDecisionDivergesFromIndicative &&
+    !normalizeOptionalString(officialDecisionJustification)
+  ) {
+    throw new Error("official_decision_divergence_justification_required");
+  }
+
+  return {
+    decisionOutcomeLabel,
+    indicativeDecisionSnapshot,
+    officialDecisionDivergesFromIndicative,
+    officialDecisionJustification: normalizeOptionalString(
+      officialDecisionJustification,
+    ),
+  };
+}
+
+function assertServiceOrderReadyForEmission(record: PersistedServiceOrderRecord) {
+  if (record.reviewDecision !== "approved") {
+    throw new Error("review_not_approved");
+  }
+
+  if (!normalizeOptionalString(record.decisionOutcomeLabel)) {
+    throw new Error("official_decision_required");
+  }
+
+  if (
+    record.officialDecisionDivergesFromIndicative &&
+    !normalizeOptionalString(record.officialDecisionJustification)
+  ) {
+    throw new Error("official_decision_divergence_justification_required");
+  }
+}
+
+function deriveIndicativeDecisionEvaluation(record: Pick<
+  PersistedServiceOrderRecord,
+  | "equipmentMetrologySnapshot"
+  | "standardMetrologySnapshot"
+  | "measurementUnit"
+  | "measurementCoverageFactor"
+  | "measurementRawData"
+  | "decisionRuleLabel"
+>) {
+  const rawMeasurementContext = buildRawMeasurementAnalysisContext({
+    equipmentMetrologySnapshot: record.equipmentMetrologySnapshot,
+    standardMetrologySnapshot: record.standardMetrologySnapshot,
+    measurementUnit: record.measurementUnit,
+  });
+  const rawAnalysis = record.measurementRawData
+    ? analyzeRawMeasurementData(record.measurementRawData, rawMeasurementContext)
+    : undefined;
+  const preliminaryUncertainty = rawAnalysis
+    ? buildPreliminaryUncertaintyBudget(
+        rawAnalysis,
+        buildPreliminaryUncertaintyContext({
+          equipmentMetrologySnapshot: record.equipmentMetrologySnapshot,
+          standardMetrologySnapshot: record.standardMetrologySnapshot,
+          measurementUnit: record.measurementUnit,
+          measurementCoverageFactor: record.measurementCoverageFactor,
+        }),
+      )
+    : undefined;
+  const indicativeTolerance = rawAnalysis
+    ? evaluatePortaria157IndicativeTolerance(
+        rawAnalysis,
+        buildPortaria157IndicativeToleranceContext({
+          equipmentMetrologySnapshot: record.equipmentMetrologySnapshot,
+          measurementUnit: record.measurementUnit,
+        }),
+      )
+    : undefined;
+
+  return evaluateIndicativeDecisionRule({
+    decisionRuleLabel: record.decisionRuleLabel,
+    preliminaryUncertainty,
+    indicativeTolerance,
+  });
+}
+
+function buildIndicativeDecisionSnapshot(
+  evaluation: ReturnType<typeof evaluateIndicativeDecisionRule>,
+  recordedAtUtc: string,
+): IndicativeDecisionSnapshot {
+  return {
+    mode: evaluation.mode,
+    verdict: evaluation.verdict,
+    readyForIndicativeUse: evaluation.readyForIndicativeUse,
+    summaryLabel: evaluation.summaryLabel,
+    pointCount: evaluation.points.length,
+    unit: normalizeOptionalString(evaluation.unit),
+    expandedUncertaintyValue: evaluation.expandedUncertaintyValue,
+    recordedAtUtc,
+  };
+}
+
+function didOfficialDecisionDivergeFromIndicative(
+  officialDecisionLabel: string | undefined,
+  indicativeDecisionSnapshot: IndicativeDecisionSnapshot | undefined,
+) {
+  if (
+    !officialDecisionLabel ||
+    !indicativeDecisionSnapshot?.readyForIndicativeUse ||
+    !indicativeDecisionSnapshot.verdict
+  ) {
+    return false;
+  }
+
+  const normalizedOfficialVerdict = classifyOfficialDecisionLabel(officialDecisionLabel);
+  if (!normalizedOfficialVerdict) {
+    return false;
+  }
+
+  return normalizedOfficialVerdict !== indicativeDecisionSnapshot.verdict;
+}
+
+function classifyOfficialDecisionLabel(
+  value: string | undefined,
+): IndicativeDecisionSnapshot["verdict"] | undefined {
+  const normalized = value
+    ?.trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (
+    normalized.includes("nao conforme") ||
+    normalized.includes("nao-conforme") ||
+    normalized.includes("reprov")
+  ) {
+    return "non_conforming";
+  }
+
+  if (normalized.includes("inconclus") || normalized.includes("indetermin")) {
+    return "inconclusive";
+  }
+
+  if (normalized.includes("conforme") || normalized.includes("aprov")) {
+    return "conforming";
+  }
+
+  return undefined;
+}
+
+function resolveServiceOrderMeasurementFields(input: {
+  uncertaintyLabel?: string;
+  measurementExpandedUncertaintyValue?: number;
+  measurementCoverageFactor?: number;
+  measurementUnit?: string;
+  measurementRawData?: ServiceOrderMeasurementRawData;
+  equipmentMetrologySnapshot?: EquipmentMetrologyProfile;
+  standardMetrologySnapshot?: StandardMetrologyProfile;
+  existing?: {
+    uncertaintyLabel?: string;
+    measurementExpandedUncertaintyValue?: number;
+    measurementCoverageFactor?: number;
+    measurementUnit?: string;
+  };
+}) {
+  const rawMeasurementContext = buildRawMeasurementAnalysisContext({
+    equipmentMetrologySnapshot: input.equipmentMetrologySnapshot,
+    standardMetrologySnapshot: input.standardMetrologySnapshot,
+    measurementUnit: input.measurementUnit ?? input.existing?.measurementUnit,
+  });
+  const rawAnalysis = input.measurementRawData
+    ? analyzeRawMeasurementData(input.measurementRawData, rawMeasurementContext)
+    : undefined;
+  const preliminaryUncertainty = rawAnalysis
+    ? buildPreliminaryUncertaintyBudget(
+        rawAnalysis,
+        buildPreliminaryUncertaintyContext({
+          equipmentMetrologySnapshot: input.equipmentMetrologySnapshot,
+          standardMetrologySnapshot: input.standardMetrologySnapshot,
+          measurementUnit:
+            input.measurementUnit ??
+            input.existing?.measurementUnit ??
+            rawMeasurementContext.expectedMeasurementUnit,
+          measurementCoverageFactor:
+            input.measurementCoverageFactor ??
+            input.existing?.measurementCoverageFactor,
+        }),
+      )
+    : undefined;
+  const derivedMeasurementUnit =
+    normalizeOptionalString(input.measurementUnit) ??
+    normalizeOptionalString(input.existing?.measurementUnit) ??
+    normalizeOptionalString(rawMeasurementContext.expectedMeasurementUnit) ??
+    normalizeOptionalString(rawAnalysis?.unit);
+  const derivedExpandedUncertaintyValue =
+    preliminaryUncertainty?.expandedUncertainty?.value;
+  const derivedCoverageFactor =
+    preliminaryUncertainty?.expandedUncertainty?.coverageFactor;
+  const derivedUncertaintyLabel = deriveUncertaintyLabel(preliminaryUncertainty);
+
+  return {
+    uncertaintyLabel: resolveRequiredExecutionLabel(
+      input.uncertaintyLabel,
+      input.existing?.uncertaintyLabel,
+      derivedUncertaintyLabel,
+      "missing_uncertainty_label",
+    ),
+    measurementExpandedUncertaintyValue:
+      input.measurementExpandedUncertaintyValue ??
+      input.existing?.measurementExpandedUncertaintyValue ??
+      derivedExpandedUncertaintyValue,
+    measurementCoverageFactor:
+      input.measurementCoverageFactor ??
+      input.existing?.measurementCoverageFactor ??
+      derivedCoverageFactor,
+    measurementUnit: derivedMeasurementUnit,
+  };
+}
+
+function resolveRequiredExecutionLabel(
+  manualValue: string | undefined,
+  existingValue: string | undefined,
+  derivedValue: string | undefined,
+  errorCode: string,
+) {
+  const resolved =
+    normalizeOptionalString(manualValue) ??
+    normalizeOptionalString(existingValue) ??
+    normalizeOptionalString(derivedValue);
+
+  if (!resolved) {
+    throw new Error(errorCode);
+  }
+
+  return resolved;
+}
+
+function deriveEnvironmentLabel(value: ServiceOrderMeasurementRawData | undefined) {
+  const environment = value?.environment;
+  if (!environment) {
+    return undefined;
+  }
+
+  const segments = [
+    `${formatLabelNumber(environment.temperatureStartC)} C -> ${formatLabelNumber(environment.temperatureEndC)} C`,
+    `${formatLabelNumber(environment.relativeHumidityPercent)}% UR`,
+    environment.atmosphericPressureHpa !== undefined
+      ? `${formatLabelNumber(environment.atmosphericPressureHpa)} hPa`
+      : undefined,
+  ].filter((segment): segment is string => Boolean(segment));
+
+  return segments.join(" · ");
+}
+
+function deriveCurvePointsLabel(
+  value: ServiceOrderMeasurementRawData | undefined,
+  analysis: ReturnType<typeof analyzeRawMeasurementData> | undefined,
+) {
+  if (!value) {
+    return undefined;
+  }
+
+  const parts = [
+    value.repeatabilityRuns.length > 0
+      ? `${value.repeatabilityRuns.length} serie(s) repetitividade`
+      : undefined,
+    value.eccentricityPoints.length > 0
+      ? `${value.eccentricityPoints.length} ponto(s) excentricidade`
+      : undefined,
+    value.linearityPoints.length > 0
+      ? `${value.linearityPoints.length} ponto(s) linearidade`
+      : undefined,
+    value.hysteresisPoints && value.hysteresisPoints.length > 0
+      ? `${value.hysteresisPoints.length} ponto(s) histerese`
+      : undefined,
+  ].filter((part): part is string => Boolean(part));
+
+  if (parts.length === 0) {
+    return analysis?.summary.completenessLabel;
+  }
+
+  return parts.join(" · ");
+}
+
+function deriveEvidenceLabel(value: ServiceOrderMeasurementRawData | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  return `${value.evidenceAttachments.length} evidencia(s) estruturada(s)`;
+}
+
+function deriveUncertaintyLabel(
+  preliminaryUncertainty: ReturnType<typeof buildPreliminaryUncertaintyBudget> | undefined,
+) {
+  if (!preliminaryUncertainty) {
+    return undefined;
+  }
+
+  if (preliminaryUncertainty.expandedUncertainty) {
+    return `U preliminar = ±${formatLabelNumber(
+      preliminaryUncertainty.expandedUncertainty.value,
+    )} ${preliminaryUncertainty.expandedUncertainty.unit} (${preliminaryUncertainty.expandedUncertainty.coverageFactorFormatted}${
+      preliminaryUncertainty.repeatabilityFloorApplied ? " · piso 0,41*d" : ""
+    })`;
+  }
+
+  return preliminaryUncertainty.summaryLabel;
+}
+
+function parseMeasurementRawData(
+  value: Prisma.JsonValue | ServiceOrderMeasurementRawData | undefined | null,
+) {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = serviceOrderMeasurementRawDataSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+}
+
+function parseIndicativeDecisionSnapshot(
+  value: Prisma.JsonValue | IndicativeDecisionSnapshot | undefined | null,
+) {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = indicativeDecisionSnapshotSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+}
+
+function parseEquipmentMetrologyProfile(
+  value: Prisma.JsonValue | EquipmentMetrologyProfile | undefined | null,
+) {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = equipmentMetrologyProfileSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+}
+
+function parseStandardMetrologyProfile(
+  value: Prisma.JsonValue | StandardMetrologyProfile | undefined | null,
+) {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = standardMetrologyProfileSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+}
+
+function resolveServiceOrderMetrologySnapshots(input: {
+  existing?: PersistedServiceOrderRecord;
+  equipmentId: string;
+  primaryStandardId: string;
+  equipmentProfile?: EquipmentMetrologyProfile;
+  standardProfile?: StandardMetrologyProfile;
+}) {
+  const sameEquipment = input.existing?.equipmentId === input.equipmentId;
+  const sameStandard = input.existing?.primaryStandardId === input.primaryStandardId;
+
+  return {
+    equipmentMetrologySnapshot:
+      input.equipmentProfile ??
+      (sameEquipment ? input.existing?.equipmentMetrologySnapshot : undefined),
+    standardMetrologySnapshot:
+      input.standardProfile ??
+      (sameStandard ? input.existing?.standardMetrologySnapshot : undefined),
+  };
+}
+
+export function summarizeEquipmentMetrologyProfile(profile: EquipmentMetrologyProfile | undefined) {
+  if (!profile) {
+    return undefined;
+  }
+
+  const parts = [
+    `${renderEquipmentInstrumentKind(profile.instrumentKind)} · Max ${formatProfileNumber(profile.maximumCapacityValue)} ${profile.measurementUnit}`,
+    `d=${formatProfileNumber(profile.readabilityValue)} ${profile.measurementUnit}`,
+    `e=${formatProfileNumber(profile.verificationScaleIntervalValue)} ${profile.measurementUnit}`,
+    profile.normativeClass ? `classe ${profile.normativeClass.toUpperCase()}` : undefined,
+  ];
+
+  return parts.filter((part): part is string => Boolean(part)).join(" · ");
+}
+
+export function summarizeStandardMetrologyProfile(profile: StandardMetrologyProfile | undefined) {
+  if (!profile) {
+    return undefined;
+  }
+
+  const parts = [
+    `${renderStandardQuantityKind(profile.quantityKind)} · Uexp ${formatProfileNumber(profile.expandedUncertaintyValue)} ${profile.measurementUnit} (k=${formatProfileNumber(profile.coverageFactorK)})`,
+    `fonte ${renderTraceabilitySource(profile.traceabilitySource)}`,
+    profile.conventionalMassErrorValue !== undefined
+      ? `erro conv. ${formatSignedProfileNumber(profile.conventionalMassErrorValue)} ${profile.measurementUnit}`
+      : undefined,
+    profile.certificateIssuer,
+  ];
+
+  return parts.filter((part): part is string => Boolean(part)).join(" · ");
+}
+
+function toPrismaJsonValue(
+  value:
+    | ServiceOrderMeasurementRawData
+    | EquipmentMetrologyProfile
+    | StandardMetrologyProfile
+    | IndicativeDecisionSnapshot
+    | undefined,
+) {
+  if (!value) {
+    return Prisma.JsonNull;
+  }
+
+  return value as Prisma.InputJsonValue;
+}
+
+function renderEquipmentInstrumentKind(value: EquipmentMetrologyProfile["instrumentKind"]) {
+  switch (value) {
+    case "nawi":
+      return "NAWI/IPNA";
+    case "analytical_balance":
+      return "Balanca analitica";
+    case "precision_balance":
+      return "Balanca de precisao";
+    case "platform_scale":
+      return "Balanca plataforma";
+    case "vehicle_scale":
+      return "Balanca rodoviaria";
+    default:
+      return value;
+  }
+}
+
+function renderStandardQuantityKind(value: StandardMetrologyProfile["quantityKind"]) {
+  switch (value) {
+    case "mass":
+      return "Massa";
+    case "temperature":
+      return "Temperatura";
+    case "humidity":
+      return "Umidade";
+    case "pressure":
+      return "Pressao";
+    case "auxiliary":
+      return "Auxiliar";
+    default:
+      return value;
+  }
+}
+
+function renderTraceabilitySource(value: StandardMetrologyProfile["traceabilitySource"]) {
+  switch (value) {
+    case "rbc":
+      return "RBC";
+    case "internal":
+      return "Interna";
+    case "third_party":
+      return "Terceira parte";
+    case "untraced":
+      return "Sem rastreabilidade";
+    default:
+      return value;
+  }
+}
+
 function normalizeOptionalString(value: string | undefined | null) {
   const normalized = value?.trim();
   return normalized ? normalized : undefined;
+}
+
+function formatLabelNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : String(value).replace(".", ",");
+}
+
+function formatProfileNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : String(value).replace(".", ",");
+}
+
+function formatSignedProfileNumber(value: number) {
+  return value > 0 ? `+${formatProfileNumber(value)}` : formatProfileNumber(value);
 }

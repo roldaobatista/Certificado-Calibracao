@@ -76,14 +76,15 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 4 0 R >>
 endobj
 6 0 obj
-<< /Length 476 >>
+<< /Length 570 >>
 stream
 BT
 /F1 10 Tf
 12 TL
 48 794 Td
 0 g
-(- [PASSED] Declaracao metrologica: Resultado: 129.98 kg | U: 0.13 kg | k=2) Tj
+(- [PASSED] Captura bruta metrologica: Captura bruta completa e coerente para revisao.) Tj
+T* (- [PASSED] Declaracao metrologica: Resultado: 129.98 kg | U: 0.13 kg | k=2) Tj
 T* (- [PASSED] Audit trail da emissao: Hash-chain, eventos criticos e metadados de revisao/assinatura consistentes.) Tj
 T* (- [PASSED] QR publico: QR autenticado em dry-run com status authentic.) Tj
 T* () Tj
@@ -106,10 +107,10 @@ xref
 0000000195 00000 n 
 0000002417 00000 n 
 0000002543 00000 n 
-0000003070 00000 n 
-0000003196 00000 n 
+0000003164 00000 n 
+0000003290 00000 n 
 trailer
 << /Size 9 /Root 1 0 R /Info 8 0 R >>
 startxref
-3529
+3623
 %%EOF

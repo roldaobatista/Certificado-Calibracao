@@ -198,6 +198,7 @@ model Standard {
   applicableRangeMax  Decimal              @map("applicable_range_max") @db.Decimal(18, 6)
   uncertaintyLabel    String               @map("uncertainty_label") @db.VarChar(80)
   correctionFactorLabel String             @map("correction_factor_label") @db.VarChar(80)
+  metrologyProfile    Json?                @map("metrology_profile") @db.JsonB
   hasValidCertificate Boolean              @default(true) @map("has_valid_certificate")
   certificateValidUntil DateTime?          @map("certificate_valid_until") @db.Date
   archivedAt          DateTime?            @map("archived_at") @db.Timestamptz(6)
@@ -274,6 +275,7 @@ model Equipment {
   serialNumber          String            @map("serial_number") @db.VarChar(80)
   typeModelLabel        String            @map("type_model_label") @db.VarChar(120)
   capacityClassLabel    String            @map("capacity_class_label") @db.VarChar(120)
+  metrologyProfile      Json?             @map("metrology_profile") @db.JsonB
   supportingStandardCodes String[]        @default([]) @map("supporting_standard_codes")
   addressLine1          String            @map("address_line1") @db.VarChar(180)
   addressCity           String            @map("address_city") @db.VarChar(80)
@@ -337,8 +339,14 @@ model ServiceOrder {
   measurementExpandedUncertaintyValue Float?    @map("measurement_expanded_uncertainty_value")
   measurementCoverageFactor           Float?    @map("measurement_coverage_factor")
   measurementUnit                     String?   @map("measurement_unit") @db.VarChar(24)
+  measurementRawData                  Json?     @map("measurement_raw_data") @db.JsonB
+  equipmentMetrologySnapshot          Json?     @map("equipment_metrology_snapshot") @db.JsonB
+  standardMetrologySnapshot           Json?     @map("standard_metrology_snapshot") @db.JsonB
   decisionRuleLabel                   String?   @map("decision_rule_label") @db.VarChar(160)
   decisionOutcomeLabel                String?   @map("decision_outcome_label") @db.VarChar(160)
+  indicativeDecisionSnapshot          Json?     @map("indicative_decision_snapshot") @db.JsonB
+  officialDecisionDivergesFromIndicative Boolean @default(false) @map("official_decision_diverges_from_indicative")
+  officialDecisionJustification       String?   @map("official_decision_justification")
   freeTextStatement                   String?   @map("free_text_statement")
   commentDraft        String            @default("") @map("comment_draft")
   reviewDecision      String            @default("pending") @map("review_decision") @db.VarChar(24)

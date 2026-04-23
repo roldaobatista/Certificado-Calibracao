@@ -150,6 +150,12 @@ export default async function StandardRegistryPage(props: PageProps) {
           <strong>{selectedStandard.sourceLabel}</strong>
           <p>{selectedStandard.certificateLabel}</p>
         </article>
+
+        <article className="detail-card">
+          <span className="eyebrow">Perfil metrologico</span>
+          <strong>{scenario.detail.metrologySummaryLabel ?? "Perfil metrologico canonico pendente."}</strong>
+          <p>O cadastro estruturado prepara a engine de calculo sem substituir os labels documentais atuais.</p>
+        </article>
       </section>
 
       <section className="content-panel">
@@ -265,6 +271,59 @@ export default async function StandardRegistryPage(props: PageProps) {
             <label className="field">
               <span>Fator de correcao</span>
               <input name="correctionFactorLabel" placeholder="+0,001 kg" required />
+            </label>
+            <label className="field">
+              <span>Grandeza canonica</span>
+              <select defaultValue="" name="quantityKind">
+                <option value="">Nao informar</option>
+                <option value="mass">Massa</option>
+                <option value="temperature">Temperatura</option>
+                <option value="humidity">Umidade</option>
+                <option value="pressure">Pressao</option>
+                <option value="auxiliary">Auxiliar</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Unidade canonica</span>
+              <input name="measurementUnit" placeholder="kg" />
+            </label>
+            <label className="field">
+              <span>Rastreabilidade</span>
+              <select defaultValue="" name="traceabilitySource">
+                <option value="">Nao informar</option>
+                <option value="rbc">RBC</option>
+                <option value="internal">Interna</option>
+                <option value="third_party">Terceira parte</option>
+                <option value="untraced">Sem rastreabilidade</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Emissor do certificado</span>
+              <input name="certificateIssuer" placeholder="Lab Cal-1234" />
+            </label>
+            <label className="field">
+              <span>Erro convencional</span>
+              <input name="conventionalMassErrorValue" step="0.000001" type="number" />
+            </label>
+            <label className="field">
+              <span>U expandida (valor)</span>
+              <input name="expandedUncertaintyValue" step="0.000001" type="number" />
+            </label>
+            <label className="field">
+              <span>Fator k</span>
+              <input name="coverageFactorK" step="0.0001" type="number" />
+            </label>
+            <label className="field">
+              <span>Graus de liberdade</span>
+              <input name="degreesOfFreedom" step="0.01" type="number" />
+            </label>
+            <label className="field">
+              <span>Densidade (kg/m3)</span>
+              <input name="densityKgPerM3" step="0.01" type="number" />
+            </label>
+            <label className="field">
+              <span>Limite de deriva</span>
+              <input name="driftLimitValue" step="0.000001" type="number" />
             </label>
             <label className="field">
               <span>Validade do certificado</span>

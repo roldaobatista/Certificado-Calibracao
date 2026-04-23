@@ -28,4 +28,4 @@ O verificador em `@afere/normative-rules` exige `package.sha256`, `package.sig`,
 - Hash publicado: `b8a3f72a16bb9e7e70f4d52f084b384f830d2af3c0a7ad80f6ef3225d7aaa531`
 - Chave: `bootstrap-ed25519-2026-04-20-v1`
 
-A assinatura real por KMS ainda é pendente e não deve armazenar chave privada neste repositório. Este baseline usa chave Ed25519 bootstrap offline, com apenas chave pública e metadados versionados.
+A assinatura por KMS agora possui trilha canônica de tooling via `pnpm normative-package:kms-sign -- --dir <approved/...> --key-id <arn|alias> --region <aws-region> --signer <label>`, escrevendo `package.sha256`, `package.sig`, `package.public-key.pem` e `package.signature.yaml` no formato esperado pelo verificador. A ativação em produção continua pendente de infraestrutura/credenciais reais; este baseline segue com chave Ed25519 bootstrap offline, com apenas chave pública e metadados versionados.

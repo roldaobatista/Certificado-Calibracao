@@ -300,6 +300,59 @@ export default async function EquipmentRegistryPage(props: PageProps) {
               <input name="capacityClassLabel" placeholder="500 kg · 0,1 kg · III" required />
             </label>
             <label className="field">
+              <span>Tipo metrologico</span>
+              <select defaultValue="" name="instrumentKind">
+                <option value="">Nao informar</option>
+                <option value="nawi">NAWI/IPNA</option>
+                <option value="analytical_balance">Balanca analitica</option>
+                <option value="precision_balance">Balanca de precisao</option>
+                <option value="platform_scale">Balanca plataforma</option>
+                <option value="vehicle_scale">Balanca rodoviaria</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Unidade canonica</span>
+              <input name="measurementUnit" placeholder="kg" />
+            </label>
+            <label className="field">
+              <span>Capacidade maxima</span>
+              <input name="maximumCapacityValue" step="0.000001" type="number" />
+            </label>
+            <label className="field">
+              <span>Capacidade minima</span>
+              <input name="minimumCapacityValue" step="0.000001" type="number" />
+            </label>
+            <label className="field">
+              <span>Divisao real d</span>
+              <input name="readabilityValue" step="0.000001" type="number" />
+            </label>
+            <label className="field">
+              <span>Divisao de verificacao e</span>
+              <input name="verificationScaleIntervalValue" step="0.000001" type="number" />
+            </label>
+            <label className="field">
+              <span>Classe normativa</span>
+              <select defaultValue="" name="normativeClass">
+                <option value="">Nao informar</option>
+                <option value="i">Classe I</option>
+                <option value="ii">Classe II</option>
+                <option value="iii">Classe III</option>
+                <option value="iiii">Classe IIII</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Carga minima</span>
+              <input name="minimumLoadValue" step="0.000001" type="number" />
+            </label>
+            <label className="field">
+              <span>Faixa efetiva minima</span>
+              <input name="effectiveRangeMinValue" step="0.000001" type="number" />
+            </label>
+            <label className="field">
+              <span>Faixa efetiva maxima</span>
+              <input name="effectiveRangeMaxValue" step="0.000001" type="number" />
+            </label>
+            <label className="field">
               <span>Padroes de apoio</span>
               <input name="supportingStandardCodes" placeholder="PESO-001, PESO-002" />
             </label>
@@ -407,12 +460,18 @@ export default async function EquipmentRegistryPage(props: PageProps) {
             <p>{scenario.detail.lastServiceOrderLabel}</p>
           </article>
 
-          <article className="detail-card">
-            <span className="eyebrow">Proxima calibracao</span>
-            <strong>{scenario.detail.nextCalibrationLabel}</strong>
-            <p>O estado abaixo continua fail-closed quando o cadastro minimo ou a janela operacional exigem acao.</p>
-          </article>
-        </div>
+        <article className="detail-card">
+          <span className="eyebrow">Proxima calibracao</span>
+          <strong>{scenario.detail.nextCalibrationLabel}</strong>
+          <p>O estado abaixo continua fail-closed quando o cadastro minimo ou a janela operacional exigem acao.</p>
+        </article>
+
+        <article className="detail-card">
+          <span className="eyebrow">Perfil metrologico</span>
+          <strong>{scenario.detail.metrologySummaryLabel ?? "Perfil metrologico canonico pendente."}</strong>
+          <p>Essa camada prepara `Max`, `d`, `e` e classe normativa para a engine real.</p>
+        </article>
+      </div>
       </section>
 
       <section className="detail-grid">

@@ -1,4 +1,11 @@
-import { standardRegistryCatalogSchema, type StandardRegistryCatalog } from "@afere/contracts";
+import {
+  standardMetrologyProfileSchema,
+  standardQuantityKindSchema,
+  standardRegistryCatalogSchema,
+  standardTraceabilitySourceSchema,
+  type StandardMetrologyProfile,
+  type StandardRegistryCatalog,
+} from "@afere/contracts";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
@@ -40,10 +47,21 @@ const SaveStandardBodySchema = z.object({
   applicableRangeMax: z.preprocess(toNumber, z.number()),
   uncertaintyLabel: z.string().min(1),
   correctionFactorLabel: z.string().min(1),
+  quantityKind: z.preprocess(toOptionalString, standardQuantityKindSchema.optional()),
+  measurementUnit: z.preprocess(toOptionalString, z.string().min(1).optional()),
+  traceabilitySource: z.preprocess(toOptionalString, standardTraceabilitySourceSchema.optional()),
+  certificateIssuer: z.preprocess(toOptionalString, z.string().min(1).optional()),
+  conventionalMassErrorValue: z.preprocess(toNumber, z.number().optional()),
+  expandedUncertaintyValue: z.preprocess(toNumber, z.number().nonnegative().optional()),
+  coverageFactorK: z.preprocess(toNumber, z.number().positive().optional()),
+  degreesOfFreedom: z.preprocess(toNumber, z.number().positive().optional()),
+  densityKgPerM3: z.preprocess(toNumber, z.number().positive().optional()),
+  driftLimitValue: z.preprocess(toNumber, z.number().nonnegative().optional()),
   hasValidCertificate: z.preprocess(toBoolean, z.boolean()),
   certificateValidUntilUtc: z.preprocess(toOptionalString, z.string().min(1).optional()),
   redirectTo: z.preprocess(toOptionalString, z.string().min(1).optional()),
 });
+type SaveStandardBody = z.infer<typeof SaveStandardBodySchema>;
 
 const ToggleStandardArchiveBodySchema = z.object({
   action: z.enum(["archive", "restore"]),
@@ -55,6 +73,28 @@ const ManageStandardBodySchema = z.discriminatedUnion("action", [
   SaveStandardBodySchema,
   ToggleStandardArchiveBodySchema,
 ]);
+
+function buildStandardMetrologyProfile(body: SaveStandardBody): StandardMetrologyProfile | undefined | null {
+  const candidate = {
+    quantityKind: body.quantityKind,
+    measurementUnit: body.measurementUnit,
+    traceabilitySource: body.traceabilitySource,
+    certificateIssuer: body.certificateIssuer,
+    conventionalMassErrorValue: body.conventionalMassErrorValue,
+    expandedUncertaintyValue: body.expandedUncertaintyValue,
+    coverageFactorK: body.coverageFactorK,
+    degreesOfFreedom: body.degreesOfFreedom,
+    densityKgPerM3: body.densityKgPerM3,
+    driftLimitValue: body.driftLimitValue,
+  };
+
+  if (!Object.values(candidate).some((value) => value !== undefined)) {
+    return undefined;
+  }
+
+  const parsed = standardMetrologyProfileSchema.safeParse(candidate);
+  return parsed.success ? parsed.data : null;
+}
 
 export async function registerStandardRegistryRoutes(
   app: FastifyInstance,
@@ -112,6 +152,12 @@ export async function registerStandardRegistryRoutes(
       return reply.code(400).send({ error: "invalid_body" });
     }
 
+    const metrologyProfile =
+      body.data.action === "save" ? buildStandardMetrologyProfile(body.data) : undefined;
+    if (body.data.action === "save" && metrologyProfile === null) {
+      return reply.code(400).send({ error: "invalid_standard_metrology_profile" });
+    }
+
     try {
       if (body.data.action === "save") {
         await registryPersistence.saveStandard({
@@ -135,6 +181,7 @@ export async function registerStandardRegistryRoutes(
           applicableRangeMax: body.data.applicableRangeMax,
           uncertaintyLabel: body.data.uncertaintyLabel,
           correctionFactorLabel: body.data.correctionFactorLabel,
+          metrologyProfile: metrologyProfile ?? undefined,
           hasValidCertificate: body.data.hasValidCertificate,
           certificateValidUntilUtc: body.data.certificateValidUntilUtc,
         });

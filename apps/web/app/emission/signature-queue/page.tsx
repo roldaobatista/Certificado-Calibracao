@@ -254,9 +254,9 @@ export default async function SignatureQueuePage(props: PageProps) {
             </ul>
           </article>
 
-          <article className="detail-card">
-            <span className="eyebrow">Previa compacta</span>
-            <strong>{selectedItem.certificateNumber ?? "Numeracao ainda indisponivel"}</strong>
+        <article className="detail-card">
+          <span className="eyebrow">Previa compacta</span>
+          <strong>{selectedItem.certificateNumber ?? "Numeracao ainda indisponivel"}</strong>
             <dl>
               {scenario.approval.compactPreview.map((field) => (
                 <div key={`${scenario.approval.itemId}-${field.label}`}>
@@ -266,6 +266,27 @@ export default async function SignatureQueuePage(props: PageProps) {
               ))}
             </dl>
           </article>
+
+          {scenario.approval.decisionAssistance ? (
+            <article className="detail-card">
+              <span className="eyebrow">Decisao assistida</span>
+              <strong>
+                {scenario.approval.decisionAssistance.officialDecisionLabel ?? "Decisao oficial pendente"}
+              </strong>
+              <p>{scenario.approval.decisionAssistance.alignmentLabel}</p>
+              <div className="chip-list">
+                <span className="chip">
+                  {scenario.approval.decisionAssistance.indicativeDecision?.summaryLabel ?? "Sem snapshot indicativo"}
+                </span>
+                {scenario.approval.decisionAssistance.justificationRequired ? (
+                  <span className="chip chip--warn">Justificativa exigida</span>
+                ) : null}
+              </div>
+              {scenario.approval.decisionAssistance.officialDecisionJustification ? (
+                <p>{scenario.approval.decisionAssistance.officialDecisionJustification}</p>
+              ) : null}
+            </article>
+          ) : null}
         </div>
       </section>
 

@@ -1,4 +1,10 @@
-import type { PrismaClient } from "@prisma/client";
+import {
+  equipmentMetrologyProfileSchema,
+  standardMetrologyProfileSchema,
+  type EquipmentMetrologyProfile,
+  type StandardMetrologyProfile,
+} from "@afere/contracts";
+import { Prisma, type PrismaClient } from "@prisma/client";
 
 export type RegistryEntityType = "customer" | "standard" | "procedure" | "equipment";
 
@@ -66,6 +72,7 @@ export type PersistedStandardRecord = {
   applicableRangeMax: number;
   uncertaintyLabel: string;
   correctionFactorLabel: string;
+  metrologyProfile?: StandardMetrologyProfile;
   hasValidCertificate: boolean;
   certificateValidUntilUtc?: string;
   createdAtUtc: string;
@@ -107,6 +114,7 @@ export type PersistedEquipmentRecord = {
   serialNumber: string;
   typeModelLabel: string;
   capacityClassLabel: string;
+  metrologyProfile?: EquipmentMetrologyProfile;
   supportingStandardCodes: string[];
   addressLine1: string;
   addressCity: string;
@@ -166,6 +174,7 @@ export type SaveStandardInput = {
   applicableRangeMax: number;
   uncertaintyLabel: string;
   correctionFactorLabel: string;
+  metrologyProfile?: StandardMetrologyProfile;
   hasValidCertificate: boolean;
   certificateValidUntilUtc?: string;
 };
@@ -202,6 +211,7 @@ export type SaveEquipmentInput = {
   serialNumber: string;
   typeModelLabel: string;
   capacityClassLabel: string;
+  metrologyProfile?: EquipmentMetrologyProfile;
   supportingStandardCodes: string[];
   addressLine1: string;
   addressCity: string;
@@ -387,6 +397,7 @@ export function createMemoryRegistryPersistence(seed: {
         applicableRangeMax: input.applicableRangeMax,
         uncertaintyLabel: input.uncertaintyLabel,
         correctionFactorLabel: input.correctionFactorLabel,
+        metrologyProfile: input.metrologyProfile ? structuredClone(input.metrologyProfile) : undefined,
         hasValidCertificate: input.hasValidCertificate,
         certificateValidUntilUtc: normalizeOptional(input.certificateValidUntilUtc),
         createdAtUtc: existing?.createdAtUtc ?? nowUtc,
@@ -518,6 +529,7 @@ export function createMemoryRegistryPersistence(seed: {
         serialNumber: input.serialNumber,
         typeModelLabel: input.typeModelLabel,
         capacityClassLabel: input.capacityClassLabel,
+        metrologyProfile: input.metrologyProfile ? structuredClone(input.metrologyProfile) : undefined,
         supportingStandardCodes: input.supportingStandardCodes,
         addressLine1: input.addressLine1,
         addressCity: input.addressCity,
@@ -918,6 +930,9 @@ function mapStandardSaveData(input: SaveStandardInput) {
     applicableRangeMax: input.applicableRangeMax,
     uncertaintyLabel: input.uncertaintyLabel.trim(),
     correctionFactorLabel: input.correctionFactorLabel.trim(),
+    metrologyProfile: input.metrologyProfile
+      ? toPrismaJsonValue(input.metrologyProfile)
+      : Prisma.JsonNull,
     hasValidCertificate: input.hasValidCertificate,
     certificateValidUntil: normalizeDate(input.certificateValidUntilUtc),
   };
@@ -952,6 +967,9 @@ function mapEquipmentSaveData(input: SaveEquipmentInput) {
     serialNumber: input.serialNumber.trim(),
     typeModelLabel: input.typeModelLabel.trim(),
     capacityClassLabel: input.capacityClassLabel.trim(),
+    metrologyProfile: input.metrologyProfile
+      ? toPrismaJsonValue(input.metrologyProfile)
+      : Prisma.JsonNull,
     supportingStandardCodes: input.supportingStandardCodes,
     addressLine1: input.addressLine1.trim(),
     addressCity: input.addressCity.trim(),
@@ -1036,6 +1054,7 @@ function mapStandardRecord(record: {
   applicableRangeMax: { toNumber(): number } | number;
   uncertaintyLabel: string;
   correctionFactorLabel: string;
+  metrologyProfile: Prisma.JsonValue | null;
   hasValidCertificate: boolean;
   certificateValidUntil: Date | null;
   createdAt: Date;
@@ -1070,6 +1089,7 @@ function mapStandardRecord(record: {
     applicableRangeMax: toNumber(record.applicableRangeMax),
     uncertaintyLabel: record.uncertaintyLabel,
     correctionFactorLabel: record.correctionFactorLabel,
+    metrologyProfile: parseStandardMetrologyProfile(record.metrologyProfile),
     hasValidCertificate: record.hasValidCertificate,
     certificateValidUntilUtc: record.certificateValidUntil?.toISOString(),
     createdAtUtc: record.createdAt.toISOString(),
@@ -1141,6 +1161,7 @@ function mapEquipmentRecord(record: {
   serialNumber: string;
   typeModelLabel: string;
   capacityClassLabel: string;
+  metrologyProfile: Prisma.JsonValue | null;
   supportingStandardCodes: string[];
   addressLine1: string;
   addressCity: string;
@@ -1165,6 +1186,7 @@ function mapEquipmentRecord(record: {
     serialNumber: record.serialNumber,
     typeModelLabel: record.typeModelLabel,
     capacityClassLabel: record.capacityClassLabel,
+    metrologyProfile: parseEquipmentMetrologyProfile(record.metrologyProfile),
     supportingStandardCodes: record.supportingStandardCodes,
     addressLine1: record.addressLine1,
     addressCity: record.addressCity,
@@ -1243,6 +1265,30 @@ function sortByArchivedThenName<T extends { archivedAtUtc?: string }>(
 
       return getLabel(left).localeCompare(getLabel(right));
     });
+}
+
+function toPrismaJsonValue(
+  value: EquipmentMetrologyProfile | StandardMetrologyProfile,
+): Prisma.InputJsonValue {
+  return value as Prisma.InputJsonValue;
+}
+
+function parseStandardMetrologyProfile(value: Prisma.JsonValue | null | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = standardMetrologyProfileSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+}
+
+function parseEquipmentMetrologyProfile(value: Prisma.JsonValue | null | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = equipmentMetrologyProfileSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
 }
 
 function normalizeDate(value?: string | null) {

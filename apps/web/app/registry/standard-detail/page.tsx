@@ -135,6 +135,16 @@ export default async function StandardDetailPage(props: PageProps) {
           <strong>{detail.uncertaintyLabel}</strong>
           <p>{detail.correctionFactorLabel}</p>
         </article>
+
+        <article className="detail-card">
+          <span className="eyebrow">Perfil metrologico</span>
+          <strong>{detail.metrologySummaryLabel ?? "Perfil metrologico canonico pendente."}</strong>
+          <p>
+            {detail.metrologyProfile
+              ? `${detail.metrologyProfile.certificateIssuer} · ${detail.metrologyProfile.traceabilitySource}`
+              : "Cadastre a estrutura canonica para alimentar a engine metrologica real."}
+          </p>
+        </article>
       </section>
 
       <section className="content-panel">

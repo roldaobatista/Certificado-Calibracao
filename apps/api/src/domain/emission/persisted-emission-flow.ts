@@ -4,15 +4,27 @@ import {
   verifyTechnicalReviewSignatureAudit,
   type AuditChainEntry,
 } from "@afere/audit-log";
+import {
+  analyzeRawMeasurementData,
+  buildPreliminaryUncertaintyBudget,
+  evaluateIndicativeDecisionRule,
+  evaluatePortaria157IndicativeTolerance,
+  type IndicativeDecisionEvaluation,
+  type Portaria157IndicativeToleranceEvaluation,
+  type PreliminaryUncertaintyBudget,
+  type RawMeasurementAnalysis,
+} from "@afere/engine-uncertainty";
 import type {
   AuditTrailCatalog,
   AuditTrailDetail,
   AuditTrailEventItem,
+  AuditTrailMetadataField,
   AuditTrailScenario,
   AuditTrailScenarioId,
   CertificatePreviewCatalog,
   CertificatePreviewField,
   CertificatePreviewScenario,
+  DecisionAssistanceSummary,
   EmissionCertificatePreview,
   EmissionDryRunCatalog,
   EmissionDryRunProfile,
@@ -44,6 +56,13 @@ import type {
   PersistedEmissionAuditEvent,
   PersistedServiceOrderRecord,
 } from "./service-order-persistence.js";
+import {
+  buildPortaria157IndicativeToleranceContext,
+  buildPreliminaryUncertaintyContext,
+  buildRawMeasurementAnalysisContext,
+  summarizeEquipmentMetrologyProfile,
+  summarizeStandardMetrologyProfile,
+} from "./service-order-persistence.js";
 
 type PersistedFlowInput = {
   nowUtc: string;
@@ -60,6 +79,11 @@ type PersistedAuditTrailInput = PersistedFlowInput & {
 
 type FlowState = {
   record: PersistedServiceOrderRecord;
+  rawAnalysis?: RawMeasurementAnalysis;
+  preliminaryUncertainty?: PreliminaryUncertaintyBudget;
+  indicativeTolerance?: Portaria157IndicativeToleranceEvaluation;
+  indicativeDecision: IndicativeDecisionEvaluation;
+  decisionAssistance: DecisionAssistanceSummary;
   dryRunScenarioId: EmissionDryRunScenarioId;
   dryRunResult: EmissionDryRunResult;
   preview: EmissionCertificatePreview;
@@ -197,10 +221,46 @@ function buildFlowStates(input: PersistedFlowInput): FlowState[] {
   return input.records.map((record) => {
     const signatory = resolveAssignedUser(record.signatoryUserId, userMap);
     const reviewer = resolveAssignedUser(record.reviewerUserId, userMap);
+    const rawMeasurementContext = buildRawMeasurementAnalysisContext({
+      equipmentMetrologySnapshot: record.equipmentMetrologySnapshot,
+      standardMetrologySnapshot: record.standardMetrologySnapshot,
+      measurementUnit: record.measurementUnit,
+    });
+    const preliminaryUncertaintyContext = buildPreliminaryUncertaintyContext({
+      equipmentMetrologySnapshot: record.equipmentMetrologySnapshot,
+      standardMetrologySnapshot: record.standardMetrologySnapshot,
+      measurementUnit: record.measurementUnit,
+      measurementCoverageFactor: record.measurementCoverageFactor,
+    });
+    const rawAnalysis = record.measurementRawData
+      ? analyzeRawMeasurementData(record.measurementRawData, rawMeasurementContext)
+      : undefined;
+    const preliminaryUncertainty = rawAnalysis
+      ? buildPreliminaryUncertaintyBudget(
+          rawAnalysis,
+          preliminaryUncertaintyContext,
+        )
+      : undefined;
+    const indicativeTolerance = rawAnalysis
+      ? evaluatePortaria157IndicativeTolerance(
+          rawAnalysis,
+          buildPortaria157IndicativeToleranceContext({
+            equipmentMetrologySnapshot: record.equipmentMetrologySnapshot,
+            measurementUnit: record.measurementUnit,
+          }),
+        )
+      : undefined;
+    const indicativeDecision = evaluateIndicativeDecisionRule({
+      decisionRuleLabel: record.decisionRuleLabel,
+      preliminaryUncertainty,
+      indicativeTolerance,
+    });
+    const decisionAssistance = buildDecisionAssistanceSummary(record, indicativeDecision);
     const reviewScenario = buildReviewScenario({
       record,
       users: input.users,
       records: input.records,
+      decisionAssistance,
     });
     const dryRunResult = runCertificateEmissionDryRun({
       organization: {
@@ -235,6 +295,20 @@ function buildFlowStates(input: PersistedFlowInput): FlowState[] {
         coverageFactor: record.measurementCoverageFactor ?? Number.NaN,
         unit: record.measurementUnit ?? "",
       },
+      rawCapture: rawAnalysis
+        ? {
+            structuredDataPresent: true,
+            readyForMetrologyReview: rawAnalysis.completeness.readyForMetrologyReview,
+            summaryLabel: rawAnalysis.summary.completenessLabel,
+            blockers: rawAnalysis.blockers,
+            warnings: rawAnalysis.warnings,
+          }
+        : {
+            structuredDataPresent: false,
+            readyForMetrologyReview: false,
+            summaryLabel: "OS sem captura bruta estruturada.",
+            blockers: ["Sem dados brutos estruturados persistidos."],
+          },
       signatory: {
         signatoryId: signatory?.userId ?? "missing-signatory",
         displayName: signatory?.displayName,
@@ -289,16 +363,37 @@ function buildFlowStates(input: PersistedFlowInput): FlowState[] {
       },
     };
 
-    const preview = buildPreview(record, normalizedDryRunResult, input.onboarding);
+    const preview = buildPreview(
+      record,
+      rawAnalysis,
+      preliminaryUncertainty,
+      indicativeTolerance,
+      indicativeDecision,
+      decisionAssistance,
+      normalizedDryRunResult,
+      input.onboarding,
+    );
     const queueValidations = buildQueueValidations(
       record,
+      rawAnalysis,
       reviewScenario.result,
+      decisionAssistance,
       normalizedDryRunResult,
       input.onboarding,
     );
     const queueBlockers = uniqueStrings([
       ...normalizedDryRunResult.blockers,
       ...reviewScenario.result.blockers,
+      ...(rawAnalysis?.blockers ?? []),
+      ...(indicativeTolerance?.blockers ?? []),
+      ...(decisionAssistance.justificationRequired &&
+      !decisionAssistance.officialDecisionJustification
+        ? ["Divergencia entre decisao oficial e indicativa exige justificativa registrada."]
+        : []),
+      ...(!decisionAssistance.officialDecisionLabel &&
+      (record.reviewDecision === "approved" || record.workflowStatus === "awaiting_signature" || record.workflowStatus === "emitted")
+        ? ["Decisao oficial obrigatoria ausente para uma OS ja revisada."]
+        : []),
       ...queueValidations
         .filter((validation) => validation.status === "failed")
         .map((validation) => validation.detail),
@@ -306,6 +401,14 @@ function buildFlowStates(input: PersistedFlowInput): FlowState[] {
     const queueWarnings = uniqueStrings([
       ...normalizedDryRunResult.warnings,
       ...reviewScenario.result.warnings,
+      ...(rawAnalysis?.warnings ?? []),
+      ...(indicativeTolerance?.warnings ?? []),
+      ...(decisionAssistance.alignment === "divergent" &&
+      decisionAssistance.officialDecisionJustification
+        ? [
+            "Decisao oficial diverge da indicativa e segue para assinatura com justificativa registrada.",
+          ]
+        : []),
       ...queueValidations
         .filter((validation) => validation.status === "warning")
         .map((validation) => validation.detail),
@@ -314,6 +417,11 @@ function buildFlowStates(input: PersistedFlowInput): FlowState[] {
 
     return {
       record,
+      rawAnalysis,
+      preliminaryUncertainty,
+      indicativeTolerance,
+      indicativeDecision,
+      decisionAssistance,
       dryRunScenarioId: deriveDryRunScenarioId(normalizedDryRunResult),
       dryRunResult: normalizedDryRunResult,
       preview,
@@ -325,6 +433,64 @@ function buildFlowStates(input: PersistedFlowInput): FlowState[] {
       queueWarnings,
     };
   });
+}
+
+function buildDecisionAssistanceSummary(
+  record: PersistedServiceOrderRecord,
+  indicativeDecision: IndicativeDecisionEvaluation,
+): DecisionAssistanceSummary {
+  const indicativeDecisionSnapshot =
+    record.indicativeDecisionSnapshot ??
+    materializeIndicativeDecisionSnapshot(indicativeDecision, record.updatedAtUtc);
+  const officialDecisionConfirmed =
+    record.reviewDecision === "approved" ||
+    record.workflowStatus === "awaiting_signature" ||
+    record.workflowStatus === "emitted";
+  const alignment =
+    !officialDecisionConfirmed || !record.decisionOutcomeLabel
+      ? "pending"
+      : record.officialDecisionDivergesFromIndicative
+        ? "divergent"
+        : "aligned";
+  const alignmentLabel =
+    alignment === "pending"
+      ? "Decisao oficial ainda nao confirmada pelo revisor."
+      : alignment === "divergent"
+        ? record.officialDecisionJustification
+          ? "Decisao oficial diverge da indicativa com justificativa registrada."
+          : "Decisao oficial diverge da indicativa e exige justificativa."
+        : indicativeDecisionSnapshot?.readyForIndicativeUse
+          ? "Decisao oficial alinhada ao snapshot indicativo revisado."
+          : "Decisao oficial registrada sem indicativo plenamente consolidado.";
+
+  return {
+    indicativeDecision: indicativeDecisionSnapshot,
+    officialDecisionLabel: record.decisionOutcomeLabel,
+    officialDecisionDivergesFromIndicative: Boolean(
+      record.officialDecisionDivergesFromIndicative,
+    ),
+    alignment,
+    alignmentLabel,
+    justificationRequired:
+      officialDecisionConfirmed && Boolean(record.officialDecisionDivergesFromIndicative),
+    officialDecisionJustification: record.officialDecisionJustification,
+  };
+}
+
+function materializeIndicativeDecisionSnapshot(
+  indicativeDecision: IndicativeDecisionEvaluation,
+  recordedAtUtc: string,
+) {
+  return {
+    mode: indicativeDecision.mode,
+    verdict: indicativeDecision.verdict,
+    readyForIndicativeUse: indicativeDecision.readyForIndicativeUse,
+    summaryLabel: indicativeDecision.summaryLabel,
+    pointCount: indicativeDecision.points.length,
+    unit: indicativeDecision.unit,
+    expandedUncertaintyValue: indicativeDecision.expandedUncertaintyValue,
+    recordedAtUtc,
+  };
 }
 
 function buildDryRunScenario(state: FlowState, scenarioId: EmissionDryRunScenarioId): EmissionDryRunScenario {
@@ -350,6 +516,7 @@ function buildReviewScenario(input: {
   record: PersistedServiceOrderRecord;
   users: PersistedUserRecord[];
   records: PersistedServiceOrderRecord[];
+  decisionAssistance: DecisionAssistanceSummary;
 }): ReviewSignatureScenario {
   const userMap = new Map(input.users.map((user) => [user.userId, user]));
   const instrumentType = input.record.instrumentType;
@@ -380,7 +547,10 @@ function buildReviewScenario(input: {
     id: scenarioId,
     label: reviewScenarioLabel(scenarioId),
     description: reviewScenarioDescription(scenarioId, input.record.workOrderNumber),
-    result,
+    result: {
+      ...result,
+      decisionAssistance: input.decisionAssistance,
+    },
   };
 }
 
@@ -468,6 +638,7 @@ function buildApprovalPanel(state: FlowState): SignatureApprovalPanel {
     blockers: state.queueBlockers,
     warnings: state.queueWarnings,
     authRequirements: buildApprovalRequirements(state),
+    decisionAssistance: state.decisionAssistance,
     compactPreview,
   };
 }
@@ -553,7 +724,9 @@ function buildAuditScenario(input: {
   const selectedEvent =
     items.find((item) => item.eventId === input.selectedEventId) ??
     items[0];
-  const detail = buildAuditDetail(state, entries, selectedEvent?.eventId, status);
+  const selectedAuditEvent =
+    events.find((event) => event.eventId === selectedEvent?.eventId) ?? events[0];
+  const detail = buildAuditDetail(state, entries, selectedAuditEvent, status);
 
   return {
     id: input.scenarioId,
@@ -620,7 +793,7 @@ function buildAuditItem(
 function buildAuditDetail(
   state: FlowState,
   entries: AuditChainEntry[],
-  selectedEventId: string | undefined,
+  selectedEvent: PersistedEmissionAuditEvent | undefined,
   status: RegistryOperationalStatus,
 ): AuditTrailDetail {
   const hashChain = verifyAuditHashChain(entries);
@@ -657,7 +830,7 @@ function buildAuditDetail(
     selectedWindowLabel: "Tenant autenticado",
     selectedActorLabel: "Todos os atores da emissao",
     selectedEntityLabel: state.record.workOrderNumber,
-    selectedActionLabel: selectedEventId ?? "Evento mais recente",
+    selectedActionLabel: selectedEvent?.action ?? "Evento mais recente",
     chainStatusLabel:
       status === "ready"
         ? "Hash-chain integra e eventos criticos completos"
@@ -674,6 +847,7 @@ function buildAuditDetail(
       uniqueStrings(entries.map((entry) => readAuditAction(entry))).length > 0
         ? uniqueStrings(entries.map((entry) => readAuditAction(entry)))
         : ["chain.pending"],
+    selectedEventContextFields: buildAuditEventContextFields(selectedEvent),
     missingActions,
     blockers,
     warnings,
@@ -699,8 +873,61 @@ function buildPlaceholderAuditItem(record: PersistedServiceOrderRecord): AuditTr
   };
 }
 
+function buildAuditEventContextFields(
+  event: PersistedEmissionAuditEvent | undefined,
+): AuditTrailMetadataField[] {
+  if (!event?.metadata) {
+    return [];
+  }
+
+  const metadata = event.metadata;
+  const fields: AuditTrailMetadataField[] = [];
+  appendAuditMetadataField(fields, "Regra de decisao", metadata.decisionRuleLabel);
+  appendAuditMetadataField(fields, "Decisao oficial", metadata.officialDecisionLabel);
+  appendAuditMetadataField(
+    fields,
+    "Decisao indicativa",
+    metadata.indicativeDecisionSummaryLabel,
+  );
+  appendAuditMetadataField(
+    fields,
+    "Divergencia",
+    typeof metadata.officialDecisionDivergesFromIndicative === "boolean"
+      ? metadata.officialDecisionDivergesFromIndicative
+        ? "Sim"
+        : "Nao"
+      : undefined,
+  );
+  appendAuditMetadataField(
+    fields,
+    "Justificativa",
+    metadata.officialDecisionJustification,
+  );
+  return fields;
+}
+
+function appendAuditMetadataField(
+  fields: AuditTrailMetadataField[],
+  label: string,
+  value: unknown,
+) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return;
+  }
+
+  fields.push({
+    label,
+    value,
+  });
+}
+
 function buildPreview(
   record: PersistedServiceOrderRecord,
+  rawAnalysis: RawMeasurementAnalysis | undefined,
+  preliminaryUncertainty: PreliminaryUncertaintyBudget | undefined,
+  indicativeTolerance: Portaria157IndicativeToleranceEvaluation | undefined,
+  indicativeDecision: IndicativeDecisionEvaluation,
+  decisionAssistance: DecisionAssistanceSummary,
   result: EmissionDryRunResult,
   onboarding: PersistedOnboardingRecord,
 ): EmissionCertificatePreview {
@@ -725,8 +952,28 @@ function buildPreview(
     qrCodeUrl: result.artifacts.qrCodeUrl,
     qrVerificationStatus: result.artifacts.qrVerificationStatus,
     suggestedReturnStep: Number.isFinite(suggestedReturnStep) ? suggestedReturnStep : undefined,
-    blockers: result.blockers,
-    warnings: result.warnings,
+    blockers: uniqueStrings([
+      ...result.blockers,
+      ...(rawAnalysis?.blockers ?? []),
+      ...(preliminaryUncertainty?.blockers ?? []),
+      ...(indicativeTolerance?.blockers ?? []),
+      ...(decisionAssistance.justificationRequired &&
+      !decisionAssistance.officialDecisionJustification
+        ? ["Decisao oficial divergente sem justificativa registrada."]
+        : []),
+    ]),
+    warnings: uniqueStrings([
+      ...result.warnings,
+      ...(rawAnalysis?.warnings ?? []),
+      ...(preliminaryUncertainty?.warnings ?? []),
+      ...(indicativeTolerance?.warnings ?? []),
+      ...(decisionAssistance.alignment === "divergent" &&
+      decisionAssistance.officialDecisionJustification
+        ? [
+            "Decisao oficial diverge da indicativa e a previa reflete a justificativa registrada.",
+          ]
+        : []),
+    ]),
     sections: [
       buildSection("header", "Cabecalho", [
         ["Organizacao emissora", onboarding.organizationName],
@@ -739,27 +986,69 @@ function buildPreview(
         ["Equipamento", record.equipmentLabel],
         ["Serie", record.equipmentSerialNumber],
         ["TAG", record.equipmentTagCode],
+        [
+          "Perfil equipamento",
+          summarizeEquipmentMetrologyProfile(record.equipmentMetrologySnapshot) ??
+            "Snapshot metrologico nao congelado",
+        ],
       ]),
       buildSection("standards", "Padroes", [
         ["Padrao principal", record.standardsLabel],
         ["Fonte", record.standardSource],
         ["Certificado do padrao", record.standardCertificateReference],
-        ["Validade", record.standardCertificateValidUntilUtc ? formatDate(record.standardCertificateValidUntilUtc) : "Nao informada"],
+        [
+          "Validade",
+          record.standardCertificateValidUntilUtc
+            ? formatDate(record.standardCertificateValidUntilUtc)
+            : "Nao informada",
+        ],
+        [
+          "Perfil padrao",
+          summarizeStandardMetrologyProfile(record.standardMetrologySnapshot) ??
+            "Snapshot metrologico nao congelado",
+        ],
       ]),
       buildSection("environment", "Ambiente", [
         ["Condicoes", record.environmentLabel],
         ["Pontos da curva", record.curvePointsLabel],
         ["Evidencias", record.evidenceLabel],
+        ["Dados brutos", renderRawDataFootprint(record)],
+        ["Captura metrologica", rawAnalysis?.summary.completenessLabel ?? "Sem analise de bruto"],
       ]),
       buildSection("results", "Resultados", [
         ["Resultado", renderMeasurement(record.measurementResultValue, record.measurementUnit)],
         ["Incerteza expandida", renderMeasurement(record.measurementExpandedUncertaintyValue, record.measurementUnit)],
         ["Fator k", record.measurementCoverageFactor ? `k=${record.measurementCoverageFactor}` : "Nao informado"],
         ["Resumo tecnico", result.artifacts.declarationSummary ?? "Declaracao indisponivel"],
+        ["Repetitividade", rawAnalysis?.summary.repeatabilityLabel ?? "Sem leitura estruturada"],
+        ["Excentricidade", rawAnalysis?.summary.eccentricityLabel ?? "Sem leitura estruturada"],
+        ["Linearidade", rawAnalysis?.summary.linearityLabel ?? "Sem leitura estruturada"],
+        [
+          "EMA 157/2022",
+          indicativeTolerance?.summaryLabel ?? "Sem avaliacao indicativa",
+        ],
+        [
+          "U preliminar",
+          preliminaryUncertainty?.expandedUncertainty?.formatted ?? "Nao consolidada",
+        ],
+        [
+          "Uc preliminar",
+          preliminaryUncertainty?.combinedStandardUncertainty?.formatted ?? "Nao consolidada",
+        ],
+        [
+          "Orcamento preliminar",
+          preliminaryUncertainty?.summaryLabel ?? "Sem orcamento preliminar",
+        ],
       ]),
       buildSection("decision", "Regra de decisao e observacoes", [
         ["Regra de decisao", record.decisionRuleLabel ?? "Nao aplicada"],
         ["Resultado da decisao", record.decisionOutcomeLabel ?? "Nao aplicado"],
+        ["Decisao indicativa", indicativeDecision.summaryLabel],
+        ["Assistencia decisoria", decisionAssistance.alignmentLabel],
+        [
+          "Justificativa da divergencia",
+          decisionAssistance.officialDecisionJustification ?? "Nao aplicavel",
+        ],
         ["Texto livre", record.freeTextStatement ?? "Sem texto complementar"],
       ]),
       buildSection("authorization", "Revisao e assinatura", [
@@ -796,6 +1085,7 @@ const STEP_BY_CHECK: Record<EmissionDryRunResult["checks"][number]["id"], number
   standard_eligibility: 3,
   signatory_competence: 14,
   certificate_numbering: 13,
+  raw_measurement_capture: 9,
   measurement_declaration: 10,
   audit_trail: 15,
   qr_authenticity: 13,
@@ -803,7 +1093,9 @@ const STEP_BY_CHECK: Record<EmissionDryRunResult["checks"][number]["id"], number
 
 function buildQueueValidations(
   record: PersistedServiceOrderRecord,
+  rawAnalysis: RawMeasurementAnalysis | undefined,
   review: ReviewSignatureScenario["result"],
+  decisionAssistance: DecisionAssistanceSummary,
   dryRun: EmissionDryRunResult,
   onboarding: PersistedOnboardingRecord,
 ): SignatureQueueValidation[] {
@@ -837,6 +1129,33 @@ function buildQueueValidations(
       detail: review.assignments.signatory?.mfaEnabled
         ? "MFA ativo para o signatario atribuido."
         : "Signatario sem MFA obrigatorio ativo.",
+    },
+    {
+      label: "Leituras brutas",
+      status: !rawAnalysis
+        ? "warning"
+        : rawAnalysis.blockers.length > 0
+          ? "failed"
+          : rawAnalysis.completeness.readyForMetrologyReview
+            ? "passed"
+            : "warning",
+      detail: !rawAnalysis
+        ? "A OS ainda nao possui bruto estruturado para aprofundar a conferencia."
+        : rawAnalysis.summary.completenessLabel,
+    },
+    {
+      label: "Decisao oficial assistida",
+      status:
+        !decisionAssistance.officialDecisionLabel ||
+        decisionAssistance.alignment === "pending"
+          ? "failed"
+          : decisionAssistance.justificationRequired &&
+              !decisionAssistance.officialDecisionJustification
+            ? "failed"
+            : decisionAssistance.alignment === "divergent"
+              ? "warning"
+              : "passed",
+      detail: decisionAssistance.alignmentLabel,
     },
     {
       label: "Politica regulatoria",
@@ -1070,6 +1389,7 @@ function toAuditEntry(event: PersistedEmissionAuditEvent): AuditChainEntry {
       entityLabel: event.entityLabel,
       timestampUtc: event.occurredAtUtc,
       deviceId: event.deviceId,
+      ...(event.metadata ?? {}),
     },
   };
 }
@@ -1172,6 +1492,20 @@ function buildFallbackDocumentHash(record: PersistedServiceOrderRecord) {
   }
 
   return `sha256-simulado-${hash.toString(16).padStart(8, "0")}`;
+}
+
+function renderRawDataFootprint(record: PersistedServiceOrderRecord) {
+  if (!record.measurementRawData) {
+    return "Resumo sem leituras estruturadas";
+  }
+
+  const measurements =
+    record.measurementRawData.repeatabilityRuns.length +
+    record.measurementRawData.eccentricityPoints.length +
+    record.measurementRawData.linearityPoints.length +
+    (record.measurementRawData.hysteresisPoints?.length ?? 0);
+
+  return `${measurements} leituras estruturadas / ${record.measurementRawData.evidenceAttachments.length} anexos`;
 }
 
 function compactField(label: string, value: string): CertificatePreviewField {

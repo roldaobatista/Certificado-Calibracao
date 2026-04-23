@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { emissionDryRunScenarioIdSchema } from "./emission-dry-run.js";
+import { standardMetrologyProfileSchema } from "./metrology-profile.js";
 import { registryOperationalStatusSchema, registryScenarioIdSchema } from "./registry-shared.js";
 import { serviceOrderReviewScenarioIdSchema } from "./service-order-review.js";
 
@@ -68,6 +69,8 @@ export const standardDetailSchema = z.object({
   usageRangeLabel: z.string().min(1),
   uncertaintyLabel: z.string().min(1),
   correctionFactorLabel: z.string().min(1),
+  metrologySummaryLabel: z.string().min(1).optional(),
+  metrologyProfile: standardMetrologyProfileSchema.optional(),
   history: z.array(standardCalibrationHistoryEntrySchema).min(1),
   recentWorkOrders: z.array(standardRecentWorkOrderSchema).min(1),
   blockers: z.array(z.string().min(1)),

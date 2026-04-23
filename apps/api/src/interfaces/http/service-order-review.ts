@@ -1,5 +1,6 @@
 import {
   serviceOrderReviewCatalogSchema,
+  serviceOrderMeasurementRawDataSchema,
   type ServiceOrderListItemStatus,
   type ServiceOrderReviewCatalog,
 } from "@afere/contracts";
@@ -23,6 +24,29 @@ const QuerySchema = z.object({
   item: z.string().min(1).optional(),
 });
 
+const MeasurementRawDataFieldSchema = z
+  .unknown()
+  .transform((value, ctx) => {
+    if (value === undefined || value === null || value === "") {
+      return undefined;
+    }
+
+    if (typeof value === "string") {
+      try {
+        return JSON.parse(value);
+      } catch {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "invalid_measurement_raw_data_json",
+        });
+        return z.NEVER;
+      }
+    }
+
+    return value;
+  })
+  .pipe(serviceOrderMeasurementRawDataSchema.optional());
+
 const SaveServiceOrderBodySchema = z.object({
   action: z.literal("save"),
   serviceOrderId: z.preprocess(toOptionalString, z.string().min(1).optional()),
@@ -41,15 +65,16 @@ const SaveServiceOrderBodySchema = z.object({
     "emitted",
     "blocked",
   ]) as z.ZodType<ServiceOrderListItemStatus>,
-  environmentLabel: z.string().min(3),
-  curvePointsLabel: z.string().min(3),
-  evidenceLabel: z.string().min(3),
-  uncertaintyLabel: z.string().min(3),
-  conformityLabel: z.string().min(3),
+  environmentLabel: z.preprocess(toOptionalString, z.string().min(3).optional()),
+  curvePointsLabel: z.preprocess(toOptionalString, z.string().min(3).optional()),
+  evidenceLabel: z.preprocess(toOptionalString, z.string().min(3).optional()),
+  uncertaintyLabel: z.preprocess(toOptionalString, z.string().min(3).optional()),
+  conformityLabel: z.preprocess(toOptionalString, z.string().min(3).optional()),
   measurementResultValue: z.preprocess(toNumber, z.number().finite().optional()),
   measurementExpandedUncertaintyValue: z.preprocess(toNumber, z.number().finite().optional()),
   measurementCoverageFactor: z.preprocess(toNumber, z.number().finite().optional()),
   measurementUnit: z.preprocess(toOptionalString, z.string().min(1).optional()),
+  measurementRawData: MeasurementRawDataFieldSchema,
   decisionRuleLabel: z.preprocess(toOptionalString, z.string().min(1).optional()),
   decisionOutcomeLabel: z.preprocess(toOptionalString, z.string().min(1).optional()),
   freeTextStatement: z.preprocess(toOptionalString, z.string().min(1).optional()),
@@ -132,6 +157,7 @@ export async function registerServiceOrderReviewRoutes(
         measurementExpandedUncertaintyValue: body.data.measurementExpandedUncertaintyValue,
         measurementCoverageFactor: body.data.measurementCoverageFactor,
         measurementUnit: body.data.measurementUnit,
+        measurementRawData: body.data.measurementRawData,
         decisionRuleLabel: body.data.decisionRuleLabel,
         decisionOutcomeLabel: body.data.decisionOutcomeLabel,
         freeTextStatement: body.data.freeTextStatement,

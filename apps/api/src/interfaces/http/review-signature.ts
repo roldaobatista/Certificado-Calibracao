@@ -40,6 +40,8 @@ const ManageWorkflowBodySchema = z.object({
   ]) as z.ZodType<ServiceOrderListItemStatus>,
   reviewDecision: z.enum(["pending", "approved", "rejected"]) as z.ZodType<ReviewDecision>,
   reviewDecisionComment: z.string().default(""),
+  decisionOutcomeLabel: z.preprocess(toOptionalString, z.string().min(1).optional()),
+  officialDecisionJustification: z.preprocess(toOptionalString, z.string().min(3).optional()),
   reviewDeviceId: z.preprocess(toOptionalString, z.string().min(1).optional()),
   commentDraft: z.preprocess(toOptionalString, z.string().min(1).optional()),
   redirectTo: z.preprocess(toOptionalString, z.string().min(1).optional()),
@@ -118,6 +120,8 @@ export async function registerReviewSignatureRoutes(
         workflowStatus: body.data.workflowStatus,
         reviewDecision: body.data.reviewDecision,
         reviewDecisionComment: body.data.reviewDecisionComment,
+        decisionOutcomeLabel: body.data.decisionOutcomeLabel,
+        officialDecisionJustification: body.data.officialDecisionJustification,
         reviewDeviceId: body.data.reviewDeviceId,
         commentDraft: body.data.commentDraft,
       });
@@ -126,7 +130,12 @@ export async function registerReviewSignatureRoutes(
         return reply.code(409).send({ error: "review_signature_conflict" });
       }
 
-      if (error instanceof Error && /not_found|mismatch|invalid/i.test(error.message)) {
+      if (
+        error instanceof Error &&
+        /not_found|mismatch|invalid|official_decision_required|official_decision_divergence_justification_required/i.test(
+          error.message,
+        )
+      ) {
         return reply.code(409).send({ error: error.message });
       }
 
