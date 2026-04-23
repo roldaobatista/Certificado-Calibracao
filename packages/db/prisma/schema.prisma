@@ -54,6 +54,7 @@ model Organization {
   nonconformingWorkCases  NonconformingWorkCase[]
   internalAuditCycles     InternalAuditCycle[]
   managementReviewMeetings ManagementReviewMeeting[]
+  qualityIndicatorSnapshots QualityIndicatorSnapshot[]
   complianceProfile       OrganizationComplianceProfile?
 
   @@map("organizations")
@@ -562,6 +563,27 @@ model ManagementReviewMeeting {
   @@index([organizationId, scheduledFor])
   @@index([organizationId, status])
   @@map("management_review_meetings")
+  @@schema("public")
+}
+
+model QualityIndicatorSnapshot {
+  id            String       @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  indicatorId   String       @map("indicator_id") @db.VarChar(80)
+  monthStart    DateTime     @map("month_start") @db.Date
+  valueNumeric  Float        @map("value_numeric")
+  targetNumeric Float?       @map("target_numeric")
+  status        String       @db.VarChar(24)
+  sourceLabel   String       @map("source_label") @db.VarChar(160)
+  evidenceLabel String       @map("evidence_label")
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([organizationId, indicatorId, monthStart])
+  @@index([organizationId, monthStart])
+  @@index([organizationId, indicatorId, monthStart])
+  @@map("quality_indicator_snapshots")
   @@schema("public")
 }
 

@@ -119,7 +119,7 @@ export default async function QualityIndicatorsPage(props: PageProps) {
         title={scenario.summary.headline}
         description={
           authSession?.authenticated === true && !props.searchParams?.scenario
-            ? `${scenario.description} Os numeros exibidos derivam do tenant persistido da V5.`
+            ? `${scenario.description} Os numeros exibidos derivam do tenant persistido da V5 e do historico mensal consolidado.`
             : scenario.description
         }
         aside={

@@ -38,7 +38,7 @@ export async function registerQualityHubRoutes(
         return reply;
       }
 
-      const [serviceOrders, nonconformities, nonconformingWork, internalAuditCycles, meetings, complianceProfile] =
+      const [serviceOrders, nonconformities, nonconformingWork, internalAuditCycles, meetings, complianceProfile, indicatorSnapshots] =
         await Promise.all([
           serviceOrderPersistence.listServiceOrdersByOrganization(context.user.organizationId),
           qualityPersistence.listNonconformitiesByOrganization(context.user.organizationId),
@@ -46,6 +46,7 @@ export async function registerQualityHubRoutes(
           qualityPersistence.listInternalAuditCyclesByOrganization(context.user.organizationId),
           qualityPersistence.listManagementReviewMeetingsByOrganization(context.user.organizationId),
           qualityPersistence.getComplianceProfileByOrganization(context.user.organizationId),
+          qualityPersistence.listQualityIndicatorSnapshotsByOrganization(context.user.organizationId),
         ]);
 
       const payload: QualityHubCatalog = qualityHubCatalogSchema.parse(
@@ -55,6 +56,7 @@ export async function registerQualityHubRoutes(
           nonconformingWork,
           internalAuditCycles,
           managementReviewMeetings: meetings,
+          indicatorSnapshots,
           complianceProfile,
           selectedModuleKey: query.data.module as QualityHubModuleKey | undefined,
         }),

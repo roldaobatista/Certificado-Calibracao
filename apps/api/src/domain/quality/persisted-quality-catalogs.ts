@@ -19,6 +19,7 @@ import type {
   PersistedManagementReviewMeetingRecord,
   PersistedNonconformityRecord,
   PersistedNonconformingWorkRecord,
+  PersistedQualityIndicatorSnapshotRecord,
 } from "./quality-persistence.js";
 
 type BuilderStatus = RegistryOperationalStatus;
@@ -41,6 +42,7 @@ type DerivedIndicator = {
   warnings: string[];
   status: BuilderStatus;
   snapshots: Array<{
+    monthStartUtc: string;
     monthLabel: string;
     valueLabel: string;
     status: BuilderStatus;
@@ -207,12 +209,33 @@ export function buildPersistedQualityIndicatorCatalog(input: {
   nonconformingWork: PersistedNonconformingWorkRecord[];
   internalAuditCycles: PersistedInternalAuditCycleRecord[];
   managementReviewMeetings: PersistedManagementReviewMeetingRecord[];
+  indicatorSnapshots: PersistedQualityIndicatorSnapshotRecord[];
+  selectedIndicatorId?: string;
 }): QualityIndicatorRegistryCatalog {
   const indicators = deriveIndicators(input);
-  const selectedReady = indicators.find((indicator) => indicator.status === "ready") ?? indicators[0]!;
+  const selectedIndicator =
+    indicators.find((indicator) => indicator.indicatorId === input.selectedIndicatorId) ?? indicators[0]!;
+  const selectedReady =
+    indicators.find(
+      (indicator) =>
+        indicator.indicatorId === selectedIndicator.indicatorId && indicator.status === "ready",
+    ) ??
+    indicators.find((indicator) => indicator.status === "ready") ??
+    indicators[0]!;
   const selectedAttention =
-    indicators.find((indicator) => indicator.status === "attention") ?? indicators[0]!;
-  const selectedBlocked = indicators.find((indicator) => indicator.status === "blocked") ?? indicators[0]!;
+    indicators.find(
+      (indicator) =>
+        indicator.indicatorId === selectedIndicator.indicatorId && indicator.status === "attention",
+    ) ??
+    indicators.find((indicator) => indicator.status === "attention") ??
+    indicators[0]!;
+  const selectedBlocked =
+    indicators.find(
+      (indicator) =>
+        indicator.indicatorId === selectedIndicator.indicatorId && indicator.status === "blocked",
+    ) ??
+    indicators.find((indicator) => indicator.status === "blocked") ??
+    indicators[0]!;
   const summary = summarizeIndicators(indicators);
 
   return {
@@ -310,6 +333,7 @@ export function buildPersistedQualityHubCatalog(input: {
   nonconformingWork: PersistedNonconformingWorkRecord[];
   internalAuditCycles: PersistedInternalAuditCycleRecord[];
   managementReviewMeetings: PersistedManagementReviewMeetingRecord[];
+  indicatorSnapshots: PersistedQualityIndicatorSnapshotRecord[];
   complianceProfile?: PersistedComplianceProfileRecord | null;
   selectedModuleKey?: QualityHubModule["key"];
 }): QualityHubCatalog {
@@ -320,6 +344,7 @@ export function buildPersistedQualityHubCatalog(input: {
     nonconformingWork: input.nonconformingWork,
     internalAuditCycles: input.internalAuditCycles,
     managementReviewMeetings: input.managementReviewMeetings,
+    indicatorSnapshots: input.indicatorSnapshots,
   });
   const latestMeeting = [...input.managementReviewMeetings].sort(
     (left, right) => right.scheduledForUtc.localeCompare(left.scheduledForUtc),
@@ -702,7 +727,7 @@ function buildIndicatorScenario(
           : summary.status === "attention"
             ? "Indicadores em atencao preventiva"
             : "Indicadores em baseline real",
-      monthlyWindowLabel: "Ultimos 6 meses persistidos",
+      monthlyWindowLabel: summary.monthlyWindowLabel,
       indicatorCount: indicators.length,
       attentionCount: summary.attentionCount,
       blockedCount: summary.blockedCount,
@@ -745,7 +770,11 @@ function buildIndicatorScenario(
       measurementDefinitionLabel: selectedIndicator.measurementDefinitionLabel,
       evidenceLabel: selectedIndicator.evidenceLabel,
       managementReviewLabel: selectedIndicator.managementReviewLabel,
-      snapshots: selectedIndicator.snapshots,
+      snapshots: selectedIndicator.snapshots.map((snapshot) => ({
+        monthLabel: snapshot.monthLabel,
+        valueLabel: snapshot.valueLabel,
+        status: snapshot.status,
+      })),
       relatedArtifacts: selectedIndicator.relatedArtifacts,
       blockers: selectedIndicator.blockers,
       warnings: selectedIndicator.warnings,
@@ -914,6 +943,7 @@ function deriveIndicators(input: {
   nonconformingWork: PersistedNonconformingWorkRecord[];
   internalAuditCycles: PersistedInternalAuditCycleRecord[];
   managementReviewMeetings: PersistedManagementReviewMeetingRecord[];
+  indicatorSnapshots: PersistedQualityIndicatorSnapshotRecord[];
 }): DerivedIndicator[] {
   const totalOrders = Math.max(1, input.serviceOrders.length);
   const emittedOrders = input.serviceOrders.filter((record) => record.workflowStatus === "emitted").length;
@@ -924,7 +954,7 @@ function deriveIndicators(input: {
   const openAuditCycles = input.internalAuditCycles.filter((record) => record.status !== "ready").length;
   const openMeetings = input.managementReviewMeetings.filter((record) => record.status !== "ready").length;
 
-  return [
+  const indicators: DerivedIndicator[] = [
     {
       indicatorId: "indicator-emission-completion",
       title: "OS emitidas no fluxo persistido",
@@ -942,7 +972,7 @@ function deriveIndicators(input: {
       blockers: [],
       warnings: emittedOrders / totalOrders < 0.85 ? ["A taxa de emissao esta abaixo da meta configurada."] : [],
       status: emittedOrders / totalOrders < 0.6 ? "blocked" : emittedOrders / totalOrders < 0.85 ? "attention" : "ready",
-      snapshots: buildPercentageSnapshots((emittedOrders / totalOrders) * 100),
+      snapshots: buildFallbackPercentageSnapshots((emittedOrders / totalOrders) * 100),
       links: {},
     },
     {
@@ -962,7 +992,7 @@ function deriveIndicators(input: {
       blockers: blockedNc > 0 ? ["Existe pelo menos uma NC critica em aberto."] : [],
       warnings: openNc > 1 ? ["O tenant acumulou mais NCs abertas que a meta."] : [],
       status: blockedNc > 0 ? "blocked" : openNc > 1 ? "attention" : "ready",
-      snapshots: buildCountSnapshots(openNc),
+      snapshots: buildFallbackCountSnapshots(openNc),
       links: {
         nonconformityId: input.nonconformities[0]?.ncId,
         nonconformityScenarioId: input.nonconformities[0]
@@ -998,7 +1028,7 @@ function deriveIndicators(input: {
           : openAuditCycles + openMeetings + blockedWork + reissuedOrders > 1
             ? "attention"
             : "ready",
-      snapshots: buildCountSnapshots(openAuditCycles + openMeetings + blockedWork + reissuedOrders),
+      snapshots: buildFallbackCountSnapshots(openAuditCycles + openMeetings + blockedWork + reissuedOrders),
       links: {
         nonconformityId: input.nonconformities.find((record) => record.status !== "ready")?.ncId,
         nonconformityScenarioId: input.nonconformities.find((record) => record.status !== "ready")
@@ -1007,6 +1037,10 @@ function deriveIndicators(input: {
       },
     },
   ];
+
+  return indicators.map((indicator) =>
+    applyHistoricalSnapshots(indicator, input.indicatorSnapshots.filter((snapshot) => snapshot.indicatorId === indicator.indicatorId)),
+  );
 }
 
 function buildManagementReviewAutomaticInputs(input: {
@@ -1145,30 +1179,123 @@ function summarizeIndicators(indicators: DerivedIndicator[]) {
   const attentionCount = indicators.filter((indicator) => indicator.status === "attention").length;
   const blockedCount = indicators.filter((indicator) => indicator.status === "blocked").length;
   const status: BuilderStatus = blockedCount > 0 ? "blocked" : attentionCount > 0 ? "attention" : "ready";
-  return { attentionCount, blockedCount, status };
+  return {
+    attentionCount,
+    blockedCount,
+    status,
+    monthlyWindowLabel: describeMonthlyWindow(indicators),
+  };
 }
 
-function buildPercentageSnapshots(currentValue: number): DerivedIndicator["snapshots"] {
+function buildFallbackPercentageSnapshots(currentValue: number): DerivedIndicator["snapshots"] {
   const currentStatus: BuilderStatus = currentValue < 60 ? "blocked" : currentValue < 85 ? "attention" : "ready";
   return [
-    { monthLabel: "M-5", valueLabel: `${round(Math.max(0, currentValue - 10))}%`, status: "attention" as const },
-    { monthLabel: "M-4", valueLabel: `${round(Math.max(0, currentValue - 7))}%`, status: "attention" as const },
-    { monthLabel: "M-3", valueLabel: `${round(Math.max(0, currentValue - 5))}%`, status: "ready" as const },
-    { monthLabel: "M-2", valueLabel: `${round(Math.max(0, currentValue - 3))}%`, status: "ready" as const },
-    { monthLabel: "M-1", valueLabel: `${round(Math.max(0, currentValue - 1))}%`, status: "ready" as const },
-    { monthLabel: "Atual", valueLabel: `${round(currentValue)}%`, status: currentStatus },
+    { monthStartUtc: "2025-11-01T00:00:00.000Z", monthLabel: "M-5", valueLabel: `${round(Math.max(0, currentValue - 10))}%`, status: "attention" as const },
+    { monthStartUtc: "2025-12-01T00:00:00.000Z", monthLabel: "M-4", valueLabel: `${round(Math.max(0, currentValue - 7))}%`, status: "attention" as const },
+    { monthStartUtc: "2026-01-01T00:00:00.000Z", monthLabel: "M-3", valueLabel: `${round(Math.max(0, currentValue - 5))}%`, status: "ready" as const },
+    { monthStartUtc: "2026-02-01T00:00:00.000Z", monthLabel: "M-2", valueLabel: `${round(Math.max(0, currentValue - 3))}%`, status: "ready" as const },
+    { monthStartUtc: "2026-03-01T00:00:00.000Z", monthLabel: "M-1", valueLabel: `${round(Math.max(0, currentValue - 1))}%`, status: "ready" as const },
+    { monthStartUtc: "2026-04-01T00:00:00.000Z", monthLabel: "Atual", valueLabel: `${round(currentValue)}%`, status: currentStatus },
   ];
 }
 
-function buildCountSnapshots(currentValue: number): DerivedIndicator["snapshots"] {
+function buildFallbackCountSnapshots(currentValue: number): DerivedIndicator["snapshots"] {
   return [
-    { monthLabel: "M-5", valueLabel: `${Math.max(0, currentValue - 1)}`, status: "ready" as const },
-    { monthLabel: "M-4", valueLabel: `${Math.max(0, currentValue - 1)}`, status: "ready" as const },
-    { monthLabel: "M-3", valueLabel: `${Math.max(0, currentValue)}`, status: currentValue > 1 ? "attention" as const : "ready" as const },
-    { monthLabel: "M-2", valueLabel: `${Math.max(0, currentValue + (currentValue > 0 ? 0 : 1))}`, status: currentValue > 2 ? "blocked" as const : currentValue > 1 ? "attention" as const : "ready" as const },
-    { monthLabel: "M-1", valueLabel: `${Math.max(0, currentValue)}`, status: currentValue > 2 ? "blocked" as const : currentValue > 1 ? "attention" as const : "ready" as const },
-    { monthLabel: "Atual", valueLabel: `${currentValue}`, status: currentValue > 2 ? "blocked" as const : currentValue > 1 ? "attention" as const : "ready" as const },
+    { monthStartUtc: "2025-11-01T00:00:00.000Z", monthLabel: "M-5", valueLabel: `${Math.max(0, currentValue - 1)}`, status: "ready" as const },
+    { monthStartUtc: "2025-12-01T00:00:00.000Z", monthLabel: "M-4", valueLabel: `${Math.max(0, currentValue - 1)}`, status: "ready" as const },
+    { monthStartUtc: "2026-01-01T00:00:00.000Z", monthLabel: "M-3", valueLabel: `${Math.max(0, currentValue)}`, status: currentValue > 1 ? "attention" as const : "ready" as const },
+    { monthStartUtc: "2026-02-01T00:00:00.000Z", monthLabel: "M-2", valueLabel: `${Math.max(0, currentValue + (currentValue > 0 ? 0 : 1))}`, status: currentValue > 2 ? "blocked" as const : currentValue > 1 ? "attention" as const : "ready" as const },
+    { monthStartUtc: "2026-03-01T00:00:00.000Z", monthLabel: "M-1", valueLabel: `${Math.max(0, currentValue)}`, status: currentValue > 2 ? "blocked" as const : currentValue > 1 ? "attention" as const : "ready" as const },
+    { monthStartUtc: "2026-04-01T00:00:00.000Z", monthLabel: "Atual", valueLabel: `${currentValue}`, status: currentValue > 2 ? "blocked" as const : currentValue > 1 ? "attention" as const : "ready" as const },
   ];
+}
+
+function applyHistoricalSnapshots(
+  indicator: DerivedIndicator,
+  snapshots: PersistedQualityIndicatorSnapshotRecord[],
+): DerivedIndicator {
+  if (snapshots.length === 0) {
+    return {
+      ...indicator,
+      warnings: mergeUnique(
+        indicator.warnings,
+        "Ainda nao ha historico mensal persistido para este indicador.",
+      ),
+    };
+  }
+
+  const ordered = [...snapshots]
+    .sort((left, right) => left.monthStartUtc.localeCompare(right.monthStartUtc))
+    .slice(-6);
+  const latest = ordered[ordered.length - 1]!;
+  const previous = ordered.length > 1 ? ordered[ordered.length - 2]! : null;
+  const latestValue = latest.valueNumeric;
+  const latestTarget = latest.targetNumeric ?? indicator.targetValue;
+  const normalizedSnapshots = ordered.map((snapshot) => ({
+    monthStartUtc: snapshot.monthStartUtc,
+    monthLabel: formatMonthLabel(snapshot.monthStartUtc),
+    valueLabel: formatIndicatorValue(snapshot.valueNumeric, indicator.unitLabel),
+    status: snapshot.status,
+  }));
+
+  return {
+    ...indicator,
+    currentValue: latestValue,
+    targetValue: latestTarget,
+    status: latest.status,
+    trendLabel: describeHistoricalTrend(indicator.unitLabel, previous?.valueNumeric, latestValue, latest.status),
+    periodLabel: `Historico mensal persistido de ${formatMonthLabel(ordered[0]!.monthStartUtc)} a ${formatMonthLabel(latest.monthStartUtc)}`,
+    evidenceLabel: `${indicator.evidenceLabel} Historico persistido: ${ordered.length} snapshot(s) ate ${formatMonthLabel(latest.monthStartUtc)} (${latest.sourceLabel}).`,
+    managementReviewLabel: `Levar a serie consolidada ate ${formatMonthLabel(latest.monthStartUtc)} para a proxima analise critica.`,
+    snapshots: normalizedSnapshots,
+    blockers:
+      latest.status === "blocked"
+        ? mergeUnique(indicator.blockers, "O ultimo fechamento mensal consolidado ficou em deriva critica.")
+        : indicator.blockers,
+    warnings:
+      ordered.length < 3
+        ? mergeUnique(indicator.warnings, "Historico mensal ainda curto para leitura longitudinal.")
+        : indicator.warnings,
+  };
+}
+
+function describeHistoricalTrend(
+  unitLabel: string,
+  previousValue: number | undefined,
+  currentValue: number,
+  status: BuilderStatus,
+) {
+  if (previousValue === undefined) {
+    return status === "blocked"
+      ? "Primeiro fechamento mensal em deriva critica"
+      : status === "attention"
+        ? "Primeiro fechamento mensal em atencao"
+        : "Primeiro fechamento mensal registrado";
+  }
+
+  const delta = round(currentValue - previousValue);
+  const signedDelta = delta > 0 ? `+${delta}` : `${delta}`;
+  const normalizedUnit = unitLabel.trim();
+
+  if (normalizedUnit === "%") {
+    return `${signedDelta} p.p. vs mes anterior`;
+  }
+
+  return `${signedDelta} ${normalizedUnit} vs mes anterior`;
+}
+
+function describeMonthlyWindow(indicators: DerivedIndicator[]) {
+  const monthStarts = indicators.flatMap((indicator) => indicator.snapshots.map((snapshot) => snapshot.monthStartUtc));
+  if (monthStarts.length === 0) {
+    return "Sem historico mensal consolidado";
+  }
+
+  const ordered = [...monthStarts].sort();
+  return `Historico mensal de ${formatMonthLabel(ordered[0]!)} a ${formatMonthLabel(ordered[ordered.length - 1]!)}`;
+}
+
+function mergeUnique(values: string[], extra: string) {
+  return values.includes(extra) ? values : [...values, extra];
 }
 
 function compareStatusThenDate<
@@ -1273,6 +1400,14 @@ function formatDateTime(value: string | undefined) {
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone: "UTC",
+  }).format(new Date(value));
+}
+
+function formatMonthLabel(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    month: "2-digit",
+    year: "numeric",
     timeZone: "UTC",
   }).format(new Date(value));
 }
