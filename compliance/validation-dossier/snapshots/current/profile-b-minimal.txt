@@ -1,8 +1,0 @@
-snapshot: profile-b-minimal
-profile: B
-certificate: canonical calibration certificate
-instrument: pressure gauge
-decision_rule: guard_band
-uncertainty_k: 2
-status: approved
-
