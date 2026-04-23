@@ -10,6 +10,13 @@ import type {
   RegistryOperationalStatus,
 } from "@afere/contracts";
 
+import {
+  buildManagementReviewCalendar,
+  buildManagementReviewCalendarExportHref,
+  formatManagementReviewSchedule,
+  type ManagementReviewCalendarMeeting,
+} from "./management-review-calendar.js";
+
 type ScenarioMeetingState = {
   meetingId: string;
   dateLabel: string;
@@ -28,6 +35,7 @@ type ScenarioMeetingState = {
   decisions: ManagementReviewDecisionItem[];
   blockers: string[];
   warnings: string[];
+  scheduledForUtc: string;
 };
 
 type ManagementReviewScenarioDefinition = {
@@ -125,6 +133,7 @@ const SCENARIOS: Record<ManagementReviewScenarioId, ManagementReviewScenarioDefi
         ],
         blockers: [],
         warnings: [],
+        scheduledForUtc: "2026-03-31T13:00:00.000Z",
       },
       {
         meetingId: "review-2026-q2",
@@ -160,6 +169,7 @@ const SCENARIOS: Record<ManagementReviewScenarioId, ManagementReviewScenarioDefi
         ],
         blockers: [],
         warnings: [],
+        scheduledForUtc: "2026-06-30T13:00:00.000Z",
       },
     ],
   },
@@ -205,6 +215,7 @@ const SCENARIOS: Record<ManagementReviewScenarioId, ManagementReviewScenarioDefi
         ],
         blockers: [],
         warnings: [],
+        scheduledForUtc: "2026-03-31T13:00:00.000Z",
       },
       {
         meetingId: "review-2026-q2",
@@ -300,6 +311,7 @@ const SCENARIOS: Record<ManagementReviewScenarioId, ManagementReviewScenarioDefi
           "A pauta ordinaria depende do follow-up minimo de auditoria interna e NCs.",
           "O SLA de CAPA segue abaixo da meta e precisa entrar como deliberação explicita.",
         ],
+        scheduledForUtc: "2026-06-30T13:00:00.000Z",
       },
     ],
   },
@@ -345,6 +357,7 @@ const SCENARIOS: Record<ManagementReviewScenarioId, ManagementReviewScenarioDefi
         ],
         blockers: [],
         warnings: [],
+        scheduledForUtc: "2026-03-31T13:00:00.000Z",
       },
       {
         meetingId: "review-extra-2026-04",
@@ -446,6 +459,7 @@ const SCENARIOS: Record<ManagementReviewScenarioId, ManagementReviewScenarioDefi
           "A trilha divergente e a NC critica impedem encerrar a pauta sem deliberação formal da direcao.",
         ],
         warnings: ["Os indicadores, a reclamacao e a auditoria extraordinaria precisam entrar na mesma ata."],
+        scheduledForUtc: "2026-04-23T14:00:00.000Z",
       },
     ],
   },
@@ -463,7 +477,8 @@ export function resolveManagementReviewScenario(
   scenarioId?: string,
   meetingId?: string,
 ): ManagementReviewScenario {
-  const definition = resolveDefinition(scenarioId);
+  const resolvedScenarioId = resolveScenarioId(scenarioId);
+  const definition = resolveDefinition(resolvedScenarioId);
   const meetings = definition.meetings.map(buildMeetingItem);
   const selectedMeeting =
     meetings.find((meeting) => meeting.meetingId === meetingId) ??
@@ -474,10 +489,10 @@ export function resolveManagementReviewScenario(
     throw new Error("missing_management_review_meetings");
   }
 
-  const detail = buildMeetingDetail(definition, selectedMeeting.meetingId);
+  const detail = buildMeetingDetail(definition, resolvedScenarioId, selectedMeeting.meetingId);
 
   return {
-    id: resolveScenarioId(scenarioId),
+    id: resolvedScenarioId,
     label: definition.label,
     description: definition.description,
     summary: buildSummary(definition, detail),
@@ -501,6 +516,15 @@ export function buildManagementReviewCatalog(
   };
 }
 
+export function resolveManagementReviewScenarioMeeting(
+  scenarioId: string | undefined,
+  meetingId: string,
+): ManagementReviewCalendarMeeting {
+  const resolvedScenarioId = resolveScenarioId(scenarioId);
+  const definition = resolveDefinition(resolvedScenarioId);
+  return toCalendarMeeting(getMeetingState(definition, meetingId));
+}
+
 function buildMeetingItem(state: ScenarioMeetingState): ManagementReviewMeetingItem {
   return {
     meetingId: state.meetingId,
@@ -513,9 +537,14 @@ function buildMeetingItem(state: ScenarioMeetingState): ManagementReviewMeetingI
 
 function buildMeetingDetail(
   definition: ManagementReviewScenarioDefinition,
+  scenarioId: ManagementReviewScenarioId,
   meetingId: string,
 ): ManagementReviewDetail {
   const meeting = getMeetingState(definition, meetingId);
+  const calendar = buildManagementReviewCalendar({
+    meetings: definition.meetings.map(toCalendarMeeting),
+    scenarioId,
+  });
 
   return {
     meetingId: meeting.meetingId,
@@ -523,11 +552,17 @@ function buildMeetingDetail(
     status: meeting.status,
     noticeLabel: meeting.noticeLabel,
     nextMeetingLabel: meeting.nextMeetingLabel,
+    scheduledForLabel: formatManagementReviewSchedule(meeting.scheduledForUtc),
     chairLabel: meeting.chairLabel,
     attendeesLabel: meeting.attendeesLabel,
     periodLabel: meeting.periodLabel,
     ataLabel: meeting.ataLabel,
     evidenceLabel: meeting.evidenceLabel,
+    calendarExportHref: buildManagementReviewCalendarExportHref({
+      meetingId: meeting.meetingId,
+      scenarioId,
+    }),
+    calendar,
     agendaItems: meeting.agendaItems,
     automaticInputs: meeting.automaticInputs,
     decisions: meeting.decisions,
@@ -583,6 +618,21 @@ function getMeetingState(
   }
 
   return meeting;
+}
+
+function toCalendarMeeting(meeting: ScenarioMeetingState): ManagementReviewCalendarMeeting {
+  return {
+    meetingId: meeting.meetingId,
+    titleLabel: meeting.titleLabel,
+    status: meeting.status,
+    scheduledForUtc: meeting.scheduledForUtc,
+    noticeLabel: meeting.noticeLabel,
+    chairLabel: meeting.chairLabel,
+    attendeesLabel: meeting.attendeesLabel,
+    periodLabel: meeting.periodLabel,
+    outcomeLabel: meeting.outcomeLabel,
+    evidenceLabel: meeting.evidenceLabel,
+  };
 }
 
 function isManagementReviewScenarioId(

@@ -40,11 +40,26 @@ const CATALOG_FIXTURE = managementReviewCatalogSchema.parse({
         status: "attention",
         noticeLabel: "Reuniao ordinaria preparada, mas ainda dependente do fechamento preventivo.",
         nextMeetingLabel: "30/06/2026",
+        scheduledForLabel: "30/06/2026, 13:00",
         chairLabel: "Direcao | Ana Costa",
         attendeesLabel: "Ana Costa, Carlos, Maria, Joao Silva",
         periodLabel: "Q2/2026",
         ataLabel: "Pauta automatica pronta para reuniao de 30/06/2026",
         evidenceLabel: "Consolidado trimestral anexado para a pauta ordinaria.",
+        calendarExportHref: "/quality/management-review/calendar.ics?meeting=review-2026-q2&scenario=agenda-attention",
+        calendar: {
+          timezoneLabel: "UTC",
+          nextScheduledLabel: "30/06/2026, 13:00",
+          entries: [
+            {
+              meetingId: "review-2026-q2",
+              titleLabel: "Analise critica Q2/2026",
+              scheduledForLabel: "30/06/2026, 13:00",
+              status: "attention",
+              exportHref: "/quality/management-review/calendar.ics?meeting=review-2026-q2&scenario=agenda-attention",
+            },
+          ],
+        },
         agendaItems: [
           { key: "corrective-actions", label: "Acoes corretivas", status: "attention" },
         ],
@@ -102,11 +117,28 @@ const CATALOG_FIXTURE = managementReviewCatalogSchema.parse({
         status: "blocked",
         noticeLabel: "Reuniao extraordinaria obrigatoria antes de qualquer reemissao ou liberacao.",
         nextMeetingLabel: "Hoje | extraordinaria",
+        scheduledForLabel: "23/04/2026, 14:00",
         chairLabel: "Direcao | Ana Costa",
         attendeesLabel: "Direcao, Ana Costa, Carlos, Maria, Joao Silva",
         periodLabel: "Recorte extraordinario de 04/2026",
         ataLabel: "Ata extraordinaria ainda nao iniciada",
         evidenceLabel: "Dossie critico consolidado anexado.",
+        calendarExportHref:
+          "/quality/management-review/calendar.ics?meeting=review-extra-2026-04&scenario=extraordinary-response",
+        calendar: {
+          timezoneLabel: "UTC",
+          nextScheduledLabel: "23/04/2026, 14:00",
+          entries: [
+            {
+              meetingId: "review-extra-2026-04",
+              titleLabel: "Analise critica extraordinaria 04/2026",
+              scheduledForLabel: "23/04/2026, 14:00",
+              status: "blocked",
+              exportHref:
+                "/quality/management-review/calendar.ics?meeting=review-extra-2026-04&scenario=extraordinary-response",
+            },
+          ],
+        },
         agendaItems: [
           { key: "critical-case", label: "Contencao do caso critico", status: "blocked" },
         ],

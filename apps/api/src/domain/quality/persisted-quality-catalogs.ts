@@ -21,6 +21,11 @@ import type {
   PersistedNonconformingWorkRecord,
   PersistedQualityIndicatorSnapshotRecord,
 } from "./quality-persistence.js";
+import {
+  buildManagementReviewCalendar,
+  buildManagementReviewCalendarExportHref,
+  formatManagementReviewSchedule,
+} from "./management-review-calendar.js";
 
 type BuilderStatus = RegistryOperationalStatus;
 
@@ -285,6 +290,7 @@ export function buildPersistedManagementReviewCatalog(input: {
   const selectedMeeting = selectRecord(meetings, input.selectedMeetingId);
   const autoInputs = buildManagementReviewAutomaticInputs(input);
   const summary = summarizeManagementReviews(meetings);
+  const calendar = buildManagementReviewCalendar({ meetings });
   const readyMeeting = pickFirstByStatus(meetings, "ready") ?? selectedMeeting;
   const attentionMeeting = pickFirstByStatus(meetings, "attention") ?? selectedMeeting;
   const blockedMeeting = pickFirstByStatus(meetings, "blocked") ?? selectedMeeting;
@@ -303,6 +309,7 @@ export function buildPersistedManagementReviewCatalog(input: {
         meetings,
         readyMeeting,
         autoInputs,
+        calendar,
         summary,
       ),
       buildManagementReviewScenario(
@@ -312,6 +319,7 @@ export function buildPersistedManagementReviewCatalog(input: {
         meetings,
         attentionMeeting,
         autoInputs,
+        calendar,
         summary,
       ),
       buildManagementReviewScenario(
@@ -321,6 +329,7 @@ export function buildPersistedManagementReviewCatalog(input: {
         meetings,
         blockedMeeting,
         autoInputs,
+        calendar,
         summary,
       ),
     ],
@@ -652,6 +661,7 @@ function buildManagementReviewScenario(
   meetings: PersistedManagementReviewMeetingRecord[],
   selectedMeeting: PersistedManagementReviewMeetingRecord,
   automaticInputs: ManagementReviewAutomaticInput[],
+  calendar: ReturnType<typeof buildManagementReviewCalendar>,
   summary: ReturnType<typeof summarizeManagementReviews>,
 ) {
   return {
@@ -693,11 +703,16 @@ function buildManagementReviewScenario(
       status: selectedMeeting.status,
       noticeLabel: selectedMeeting.noticeLabel,
       nextMeetingLabel: selectedMeeting.nextMeetingLabel,
+      scheduledForLabel: formatManagementReviewSchedule(selectedMeeting.scheduledForUtc),
       chairLabel: selectedMeeting.chairLabel,
       attendeesLabel: selectedMeeting.attendeesLabel,
       periodLabel: selectedMeeting.periodLabel,
       ataLabel: selectedMeeting.ataLabel,
       evidenceLabel: selectedMeeting.evidenceLabel,
+      calendarExportHref: buildManagementReviewCalendarExportHref({
+        meetingId: selectedMeeting.meetingId,
+      }),
+      calendar,
       agendaItems: selectedMeeting.agendaItems,
       automaticInputs,
       decisions: selectedMeeting.decisions,

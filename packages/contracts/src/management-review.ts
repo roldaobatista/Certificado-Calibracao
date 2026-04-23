@@ -44,17 +44,36 @@ export const managementReviewDecisionItemSchema = z.object({
 });
 export type ManagementReviewDecisionItem = z.infer<typeof managementReviewDecisionItemSchema>;
 
+export const managementReviewCalendarEntrySchema = z.object({
+  meetingId: z.string().min(1),
+  titleLabel: z.string().min(1),
+  scheduledForLabel: z.string().min(1),
+  status: registryOperationalStatusSchema,
+  exportHref: z.string().min(1),
+});
+export type ManagementReviewCalendarEntry = z.infer<typeof managementReviewCalendarEntrySchema>;
+
+export const managementReviewCalendarSchema = z.object({
+  timezoneLabel: z.string().min(1),
+  nextScheduledLabel: z.string().min(1),
+  entries: z.array(managementReviewCalendarEntrySchema).min(1),
+});
+export type ManagementReviewCalendar = z.infer<typeof managementReviewCalendarSchema>;
+
 export const managementReviewDetailSchema = z.object({
   meetingId: z.string().min(1),
   title: z.string().min(1),
   status: registryOperationalStatusSchema,
   noticeLabel: z.string().min(1),
   nextMeetingLabel: z.string().min(1),
+  scheduledForLabel: z.string().min(1),
   chairLabel: z.string().min(1),
   attendeesLabel: z.string().min(1),
   periodLabel: z.string().min(1),
   ataLabel: z.string().min(1),
   evidenceLabel: z.string().min(1),
+  calendarExportHref: z.string().min(1),
+  calendar: managementReviewCalendarSchema,
   agendaItems: z.array(managementReviewAgendaItemSchema).min(1),
   automaticInputs: z.array(managementReviewAutomaticInputSchema).min(1),
   decisions: z.array(managementReviewDecisionItemSchema).min(1),
