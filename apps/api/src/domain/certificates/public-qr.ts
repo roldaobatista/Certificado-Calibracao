@@ -25,13 +25,19 @@ export function verifyPublicCertificateQrAuthenticity(
     return { ok: false, status: "not_found", reason: "invalid_qr_url" };
   }
 
-  const certificate = input.certificates.find((item) => item.certificateId === certificateId);
+  const certificate = input.certificates.find(
+    (item) =>
+      item.certificateId === certificateId &&
+      isNonEmptyString(item.publicVerificationToken) &&
+      item.publicVerificationToken === token,
+  );
   if (!certificate) {
-    return { ok: false, status: "not_found", reason: "certificate_not_found" };
-  }
-
-  if (!isNonEmptyString(certificate.publicVerificationToken) || certificate.publicVerificationToken !== token) {
-    return { ok: false, status: "not_found", reason: "token_mismatch" };
+    const hasCertificate = input.certificates.some((item) => item.certificateId === certificateId);
+    return {
+      ok: false,
+      status: "not_found",
+      reason: hasCertificate ? "token_mismatch" : "certificate_not_found",
+    };
   }
 
   const certificateEntries = input.auditEntries.filter((entry) =>

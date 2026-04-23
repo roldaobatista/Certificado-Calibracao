@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadQualityIndicatorCatalog } from "@/src/quality/quality-indicator-api";
 import { buildQualityIndicatorCatalogView } from "@/src/quality/quality-indicator-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -43,12 +46,41 @@ function mapIndicatorScenarioToQualityHubScenario(
 }
 
 export default async function QualityIndicatorsPage(props: PageProps) {
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
   const catalog = await loadQualityIndicatorCatalog({
     scenarioId: props.searchParams?.scenario,
     indicatorId: props.searchParams?.indicator,
+    cookieHeader,
   });
 
   if (!catalog) {
+    if (authSession?.authenticated === false && !props.searchParams?.scenario) {
+      return (
+        <AppShell
+          eyebrow="Qualidade - indicadores"
+          title="Modulo protegido por sessao"
+          description="Os indicadores persistidos da V5 exigem autenticacao antes da leitura."
+          aside={
+            <div className="hero-stat">
+              <span className="eyebrow">Acesso atual</span>
+              <strong>Login necessario</strong>
+              <StatusPill tone="warn" label="RBAC ativo" />
+              <p>Entre com um papel de Qualidade para abrir o painel real do tenant.</p>
+            </div>
+          }
+        >
+          <section className="content-panel">
+            <div className="button-row">
+              <a className="button-primary" href="/auth/login">
+                Fazer login
+              </a>
+            </div>
+          </section>
+        </AppShell>
+      );
+    }
+
     return (
       <AppShell
         eyebrow="Qualidade - indicadores"
@@ -82,13 +114,17 @@ export default async function QualityIndicatorsPage(props: PageProps) {
   const selectedIndicator = scenario.selectedIndicator;
 
   return (
-    <AppShell
-      eyebrow="Qualidade - indicadores"
-      title={scenario.summary.headline}
-      description={scenario.description}
-      aside={
-        <div className="hero-stat">
-          <span className="eyebrow">Cenario ativo</span>
+      <AppShell
+        eyebrow="Qualidade - indicadores"
+        title={scenario.summary.headline}
+        description={
+          authSession?.authenticated === true && !props.searchParams?.scenario
+            ? `${scenario.description} Os numeros exibidos derivam do tenant persistido da V5.`
+            : scenario.description
+        }
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Cenario ativo</span>
           <strong>{scenario.label}</strong>
           <StatusPill tone={statusTone(scenario.summary.status)} label={statusLabel(scenario.summary.status)} />
           <p>{scenario.summary.recommendedAction}</p>

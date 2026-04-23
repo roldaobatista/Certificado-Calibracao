@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadManagementReviewCatalog } from "@/src/quality/management-review-api";
 import { buildManagementReviewCatalogView } from "@/src/quality/management-review-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -43,12 +46,41 @@ function mapManagementReviewScenarioToQualityHubScenario(
 }
 
 export default async function ManagementReviewPage(props: PageProps) {
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
   const catalog = await loadManagementReviewCatalog({
     scenarioId: props.searchParams?.scenario,
     meetingId: props.searchParams?.meeting,
+    cookieHeader,
   });
 
   if (!catalog) {
+    if (authSession?.authenticated === false && !props.searchParams?.scenario) {
+      return (
+        <AppShell
+          eyebrow="Qualidade - analise critica"
+          title="Modulo protegido por sessao"
+          description="A analise critica persistida da V5 exige autenticacao antes da leitura."
+          aside={
+            <div className="hero-stat">
+              <span className="eyebrow">Acesso atual</span>
+              <strong>Login necessario</strong>
+              <StatusPill tone="warn" label="RBAC ativo" />
+              <p>Entre com um papel de Qualidade para abrir as reunioes reais do tenant.</p>
+            </div>
+          }
+        >
+          <section className="content-panel">
+            <div className="button-row">
+              <a className="button-primary" href="/auth/login">
+                Fazer login
+              </a>
+            </div>
+          </section>
+        </AppShell>
+      );
+    }
+
     return (
       <AppShell
         eyebrow="Qualidade - analise critica"
@@ -82,13 +114,17 @@ export default async function ManagementReviewPage(props: PageProps) {
   const selectedMeeting = scenario.selectedMeeting;
 
   return (
-    <AppShell
-      eyebrow="Qualidade - analise critica"
-      title={scenario.summary.headline}
-      description={scenario.description}
-      aside={
-        <div className="hero-stat">
-          <span className="eyebrow">Cenario ativo</span>
+      <AppShell
+        eyebrow="Qualidade - analise critica"
+        title={scenario.summary.headline}
+        description={
+          authSession?.authenticated === true && !props.searchParams?.scenario
+            ? `${scenario.description} A reuniao exibida vem da camada persistida da V5.`
+            : scenario.description
+        }
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Cenario ativo</span>
           <strong>{scenario.label}</strong>
           <StatusPill tone={statusTone(scenario.summary.status)} label={statusLabel(scenario.summary.status)} />
           <p>{scenario.summary.recommendedAction}</p>

@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadInternalAuditCatalog } from "@/src/quality/internal-audit-api";
 import { buildInternalAuditCatalogView } from "@/src/quality/internal-audit-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -46,12 +49,41 @@ function mapInternalAuditScenarioToQualityHubScenario(
 }
 
 export default async function InternalAuditPage(props: PageProps) {
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
   const catalog = await loadInternalAuditCatalog({
     scenarioId: props.searchParams?.scenario,
     cycleId: props.searchParams?.cycle,
+    cookieHeader,
   });
 
   if (!catalog) {
+    if (authSession?.authenticated === false && !props.searchParams?.scenario) {
+      return (
+        <AppShell
+          eyebrow="Qualidade - auditoria interna"
+          title="Modulo protegido por sessao"
+          description="A auditoria interna persistida da V5 exige autenticacao antes da leitura."
+          aside={
+            <div className="hero-stat">
+              <span className="eyebrow">Acesso atual</span>
+              <strong>Login necessario</strong>
+              <StatusPill tone="warn" label="RBAC ativo" />
+              <p>Entre com um papel de Qualidade para abrir os ciclos reais do tenant.</p>
+            </div>
+          }
+        >
+          <section className="content-panel">
+            <div className="button-row">
+              <a className="button-primary" href="/auth/login">
+                Fazer login
+              </a>
+            </div>
+          </section>
+        </AppShell>
+      );
+    }
+
     return (
       <AppShell
         eyebrow="Qualidade - auditoria interna"
@@ -85,13 +117,17 @@ export default async function InternalAuditPage(props: PageProps) {
   const selectedCycle = scenario.selectedCycle;
 
   return (
-    <AppShell
-      eyebrow="Qualidade - auditoria interna"
-      title={scenario.summary.headline}
-      description={scenario.description}
-      aside={
-        <div className="hero-stat">
-          <span className="eyebrow">Cenario ativo</span>
+      <AppShell
+        eyebrow="Qualidade - auditoria interna"
+        title={scenario.summary.headline}
+        description={
+          authSession?.authenticated === true && !props.searchParams?.scenario
+            ? `${scenario.description} O programa exibido vem da base persistida da V5.`
+            : scenario.description
+        }
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Cenario ativo</span>
           <strong>{scenario.label}</strong>
           <StatusPill tone={statusTone(scenario.summary.status)} label={statusLabel(scenario.summary.status)} />
           <p>{scenario.summary.recommendedAction}</p>

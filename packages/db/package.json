@@ -13,9 +13,9 @@
     }
   },
   "scripts": {
-    "build": "pnpm exec prisma generate && tsc",
+    "build": "pnpm exec prisma generate --no-engine && tsc",
     "dev": "tsc --watch",
-    "typecheck": "pnpm exec prisma generate && tsc --noEmit",
+    "typecheck": "pnpm exec prisma generate --no-engine && tsc --noEmit",
     "prisma:generate": "pnpm exec prisma generate",
     "prisma:migrate:dev": "pnpm exec prisma migrate dev",
     "prisma:migrate:deploy": "pnpm exec prisma migrate deploy",

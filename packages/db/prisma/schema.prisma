@@ -48,7 +48,13 @@ model Organization {
   equipment               Equipment[]
   registryAuditEvents     RegistryAuditEvent[]
   serviceOrders           ServiceOrder[]
+  certificatePublications CertificatePublication[]
   emissionAuditEvents     EmissionAuditEvent[]
+  nonconformities         Nonconformity[]
+  nonconformingWorkCases  NonconformingWorkCase[]
+  internalAuditCycles     InternalAuditCycle[]
+  managementReviewMeetings ManagementReviewMeeting[]
+  complianceProfile       OrganizationComplianceProfile?
 
   @@map("organizations")
   @@schema("public")
@@ -77,6 +83,7 @@ model AppUser {
   reviewedServiceOrders ServiceOrder[] @relation("ServiceOrderReviewer")
   signedServiceOrders ServiceOrder[]   @relation("ServiceOrderSignatory")
   emissionAuditEvents EmissionAuditEvent[] @relation("EmissionAuditEventActor")
+  ownedNonconformities Nonconformity[]
 
   @@index([organizationId, status])
   @@map("app_users")
@@ -362,7 +369,10 @@ model ServiceOrder {
   executorUser        AppUser           @relation("ServiceOrderExecutor", fields: [executorUserId], references: [id], onDelete: Restrict)
   reviewerUser        AppUser?          @relation("ServiceOrderReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
   signatoryUser       AppUser?          @relation("ServiceOrderSignatory", fields: [signatoryUserId], references: [id], onDelete: SetNull)
+  certificatePublications CertificatePublication[]
   emissionAuditEvents EmissionAuditEvent[]
+  nonconformities         Nonconformity[]
+  nonconformingWorkCases  NonconformingWorkCase[]
 
   @@unique([organizationId, workOrderNumber])
   @@unique([organizationId, certificateNumber])
@@ -370,6 +380,37 @@ model ServiceOrder {
   @@index([organizationId, customerId, updatedAt])
   @@index([organizationId, equipmentId, updatedAt])
   @@map("service_orders")
+  @@schema("public")
+}
+
+model CertificatePublication {
+  id                      String       @id @default(uuid()) @db.Uuid
+  organizationId          String       @map("organization_id") @db.Uuid
+  serviceOrderId          String       @map("service_order_id") @db.Uuid
+  certificateNumber       String       @map("certificate_number") @db.VarChar(64)
+  revision                String       @db.VarChar(16)
+  publicVerificationToken String       @unique @map("public_verification_token") @db.VarChar(80)
+  documentHash            String       @map("document_hash") @db.VarChar(128)
+  qrHost                  String       @map("qr_host") @db.VarChar(160)
+  signedAt                DateTime?    @map("signed_at") @db.Timestamptz(6)
+  issuedAt                DateTime     @map("issued_at") @db.Timestamptz(6)
+  supersededAt            DateTime?    @map("superseded_at") @db.Timestamptz(6)
+  replacementPublicationId String?     @unique @map("replacement_publication_id") @db.Uuid
+  previousCertificateHash String?      @map("previous_certificate_hash") @db.VarChar(128)
+  notificationRecipient   String?      @map("notification_recipient") @db.VarChar(255)
+  notificationSentAt      DateTime?    @map("notification_sent_at") @db.Timestamptz(6)
+  reissueReason           String?      @map("reissue_reason") @db.VarChar(160)
+  createdAt               DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization            Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  serviceOrder            ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  replacementPublication  CertificatePublication? @relation("CertificatePublicationReplacement", fields: [replacementPublicationId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  replacedPublication     CertificatePublication? @relation("CertificatePublicationReplacement")
+
+  @@unique([organizationId, certificateNumber, revision])
+  @@index([organizationId, serviceOrderId, issuedAt])
+  @@index([organizationId, issuedAt])
+  @@map("certificate_publications")
   @@schema("public")
 }
 
@@ -383,17 +424,172 @@ model EmissionAuditEvent {
   entityLabel       String       @map("entity_label") @db.VarChar(160)
   deviceId          String?      @map("device_id") @db.VarChar(120)
   certificateNumber String?      @map("certificate_number") @db.VarChar(64)
+  metadata          Json?        @db.JsonB
   prevHash          String       @map("prev_hash") @db.VarChar(64)
   hash              String       @db.VarChar(64)
   occurredAt        DateTime     @map("occurred_at") @db.Timestamptz(6)
   createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  serviceOrder      ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
-  actorUser         AppUser?     @relation("EmissionAuditEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  serviceOrder      ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  actorUser         AppUser?     @relation("EmissionAuditEventActor", fields: [actorUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@unique([serviceOrderId, hash])
   @@index([organizationId, serviceOrderId, occurredAt])
   @@index([organizationId, action, occurredAt])
   @@map("emission_audit_events")
+  @@schema("public")
+}
+
+model Nonconformity {
+  id                    String        @id @default(uuid()) @db.Uuid
+  organizationId        String        @map("organization_id") @db.Uuid
+  serviceOrderId        String?       @map("service_order_id") @db.Uuid
+  ownerUserId           String?       @map("owner_user_id") @db.Uuid
+  title                 String        @db.VarChar(160)
+  originLabel           String        @map("origin_label") @db.VarChar(120)
+  severityLabel         String        @map("severity_label") @db.VarChar(80)
+  status                String        @db.VarChar(24)
+  noticeLabel           String        @map("notice_label") @db.VarChar(200)
+  rootCauseLabel        String        @map("root_cause_label")
+  containmentLabel      String        @map("containment_label")
+  correctiveActionLabel String        @map("corrective_action_label")
+  evidenceLabel         String        @map("evidence_label")
+  blockers              String[]      @default([])
+  warnings              String[]      @default([])
+  openedAt              DateTime      @map("opened_at") @db.Timestamptz(6)
+  dueAt                 DateTime      @map("due_at") @db.Timestamptz(6)
+  resolvedAt            DateTime?     @map("resolved_at") @db.Timestamptz(6)
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization          Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  serviceOrder          ServiceOrder? @relation(fields: [serviceOrderId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  ownerUser             AppUser?      @relation(fields: [ownerUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  nonconformingWorkCases NonconformingWorkCase[]
+
+  @@unique([organizationId, title])
+  @@index([organizationId, status, dueAt])
+  @@index([organizationId, serviceOrderId])
+  @@map("nonconformities")
+  @@schema("public")
+}
+
+model NonconformingWorkCase {
+  id                  String         @id @default(uuid()) @db.Uuid
+  organizationId      String         @map("organization_id") @db.Uuid
+  serviceOrderId      String?        @map("service_order_id") @db.Uuid
+  nonconformityId     String?        @map("nonconformity_id") @db.Uuid
+  title               String         @db.VarChar(160)
+  classificationLabel String         @map("classification_label") @db.VarChar(120)
+  originLabel         String         @map("origin_label") @db.VarChar(120)
+  affectedEntityLabel String         @map("affected_entity_label") @db.VarChar(160)
+  status              String         @db.VarChar(24)
+  noticeLabel         String         @map("notice_label") @db.VarChar(200)
+  containmentLabel    String         @map("containment_label")
+  releaseRuleLabel    String         @map("release_rule_label")
+  evidenceLabel       String         @map("evidence_label")
+  restorationLabel    String         @map("restoration_label")
+  blockers            String[]       @default([])
+  warnings            String[]       @default([])
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization        Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  serviceOrder        ServiceOrder?  @relation(fields: [serviceOrderId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  nonconformity       Nonconformity? @relation(fields: [nonconformityId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@unique([organizationId, title])
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, serviceOrderId])
+  @@map("nonconforming_work_cases")
+  @@schema("public")
+}
+
+model InternalAuditCycle {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  cycleLabel     String       @map("cycle_label") @db.VarChar(120)
+  windowLabel    String       @map("window_label") @db.VarChar(120)
+  scopeLabel     String       @map("scope_label")
+  auditorLabel   String       @map("auditor_label") @db.VarChar(160)
+  auditeeLabel   String       @map("auditee_label") @db.VarChar(160)
+  periodLabel    String       @map("period_label") @db.VarChar(160)
+  reportLabel    String       @map("report_label") @db.VarChar(200)
+  evidenceLabel  String       @map("evidence_label")
+  nextReviewLabel String      @map("next_review_label") @db.VarChar(200)
+  noticeLabel    String       @map("notice_label") @db.VarChar(200)
+  status         String       @db.VarChar(24)
+  checklistItems Json         @default("[]") @map("checklist_items") @db.JsonB
+  findingRefs    String[]     @default([]) @map("finding_refs")
+  blockers       String[]     @default([])
+  warnings       String[]     @default([])
+  scheduledAt    DateTime     @map("scheduled_at") @db.Timestamptz(6)
+  completedAt    DateTime?    @map("completed_at") @db.Timestamptz(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([organizationId, cycleLabel])
+  @@index([organizationId, scheduledAt])
+  @@index([organizationId, status])
+  @@map("internal_audit_cycles")
+  @@schema("public")
+}
+
+model ManagementReviewMeeting {
+  id               String       @id @default(uuid()) @db.Uuid
+  organizationId   String       @map("organization_id") @db.Uuid
+  titleLabel       String       @map("title_label") @db.VarChar(160)
+  status           String       @db.VarChar(24)
+  dateLabel        String       @map("date_label") @db.VarChar(120)
+  outcomeLabel     String       @map("outcome_label") @db.VarChar(200)
+  noticeLabel      String       @map("notice_label") @db.VarChar(200)
+  nextMeetingLabel String       @map("next_meeting_label") @db.VarChar(160)
+  chairLabel       String       @map("chair_label") @db.VarChar(160)
+  attendeesLabel   String       @map("attendees_label")
+  periodLabel      String       @map("period_label") @db.VarChar(160)
+  ataLabel         String       @map("ata_label") @db.VarChar(200)
+  evidenceLabel    String       @map("evidence_label")
+  agendaItems      Json         @default("[]") @map("agenda_items") @db.JsonB
+  decisions        Json         @default("[]") @db.JsonB
+  blockers         String[]     @default([])
+  warnings         String[]     @default([])
+  scheduledFor     DateTime     @map("scheduled_for") @db.Timestamptz(6)
+  heldAt           DateTime?    @map("held_at") @db.Timestamptz(6)
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([organizationId, titleLabel])
+  @@index([organizationId, scheduledFor])
+  @@index([organizationId, status])
+  @@map("management_review_meetings")
+  @@schema("public")
+}
+
+model OrganizationComplianceProfile {
+  id                         String       @id @default(uuid()) @db.Uuid
+  organizationId             String       @unique @map("organization_id") @db.Uuid
+  organizationCode           String       @map("organization_code") @db.VarChar(32)
+  planLabel                  String       @map("plan_label") @db.VarChar(80)
+  certificatePrefix          String       @map("certificate_prefix") @db.VarChar(32)
+  accreditationNumber        String?      @map("accreditation_number") @db.VarChar(80)
+  accreditationValidUntil    DateTime?    @map("accreditation_valid_until") @db.Date
+  scopeSummary               String       @map("scope_summary")
+  cmcSummary                 String       @map("cmc_summary")
+  scopeItemCount             Int          @default(0) @map("scope_item_count")
+  cmcItemCount               Int          @default(0) @map("cmc_item_count")
+  legalOpinionStatus         String       @map("legal_opinion_status") @db.VarChar(40)
+  legalOpinionReference      String       @map("legal_opinion_reference") @db.VarChar(240)
+  dpaReference               String       @map("dpa_reference") @db.VarChar(240)
+  normativeGovernanceStatus  String       @map("normative_governance_status") @db.VarChar(40)
+  normativeGovernanceOwner   String       @map("normative_governance_owner") @db.VarChar(120)
+  normativeGovernanceReference String     @map("normative_governance_reference") @db.VarChar(240)
+  releaseNormVersion         String       @map("release_norm_version") @db.VarChar(32)
+  releaseNormStatus          String       @map("release_norm_status") @db.VarChar(40)
+  lastReviewedAt             DateTime     @map("last_reviewed_at") @db.Timestamptz(6)
+  createdAt                  DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization               Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("organization_compliance_profiles")
   @@schema("public")
 }

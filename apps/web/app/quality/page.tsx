@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadQualityHubCatalog } from "@/src/quality/quality-hub-api";
 import { buildQualityHubCatalogView } from "@/src/quality/quality-hub-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -49,12 +52,41 @@ function moduleStatusLabel(
 }
 
 export default async function QualityHubPage(props: PageProps) {
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
   const catalog = await loadQualityHubCatalog({
     scenarioId: props.searchParams?.scenario,
     moduleKey: props.searchParams?.module,
+    cookieHeader,
   });
 
   if (!catalog) {
+    if (authSession?.authenticated === false && !props.searchParams?.scenario) {
+      return (
+        <AppShell
+          eyebrow="Qualidade - hub"
+          title="Hub protegido por sessao"
+          description="A leitura persistida da V5 exige autenticacao antes de consolidar Qualidade e governanca reais."
+          aside={
+            <div className="hero-stat">
+              <span className="eyebrow">Acesso atual</span>
+              <strong>Login necessario</strong>
+              <StatusPill tone="warn" label="RBAC ativo" />
+              <p>Entre com um papel de Qualidade para abrir o hub persistido do tenant.</p>
+            </div>
+          }
+        >
+          <section className="content-panel">
+            <div className="button-row">
+              <a className="button-primary" href="/auth/login">
+                Fazer login
+              </a>
+            </div>
+          </section>
+        </AppShell>
+      );
+    }
+
     return (
       <AppShell
         eyebrow="Qualidade - hub"
@@ -90,7 +122,11 @@ export default async function QualityHubPage(props: PageProps) {
     <AppShell
       eyebrow="Qualidade - hub"
       title={`Qualidade · ${scenario.summary.organizationName}`}
-      description={scenario.description}
+      description={
+        authSession?.authenticated === true && !props.searchParams?.scenario
+          ? `${scenario.description} Este painel esta lendo a V5 persistida do tenant autenticado.`
+          : scenario.description
+      }
       aside={
         <div className="hero-stat">
           <span className="eyebrow">Cenario ativo</span>

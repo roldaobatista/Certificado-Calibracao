@@ -31,6 +31,18 @@ const EmitBodySchema = z.object({
   redirectTo: z.preprocess(toOptionalString, z.string().min(1).optional()),
 });
 
+const ReissueBodySchema = z.object({
+  action: z.literal("reissue"),
+  serviceOrderId: z.string().min(1),
+  approvalActorUserIdOne: z.string().min(1),
+  approvalActorUserIdTwo: z.string().min(1),
+  signatoryUserId: z.preprocess(toOptionalString, z.string().min(1).optional()),
+  reason: z.string().min(3),
+  notificationRecipient: z.string().email(),
+  signatureDeviceId: z.string().min(3),
+  redirectTo: z.preprocess(toOptionalString, z.string().min(1).optional()),
+});
+
 export async function registerSignatureQueueRoutes(
   app: FastifyInstance,
   corePersistence: CorePersistence,
@@ -88,7 +100,9 @@ export async function registerSignatureQueueRoutes(
       return reply;
     }
 
-    const body = EmitBodySchema.safeParse(request.body);
+    const body = z.discriminatedUnion("action", [EmitBodySchema, ReissueBodySchema]).safeParse(
+      request.body,
+    );
     if (!body.success) {
       return reply.code(400).send({ error: "invalid_body" });
     }
@@ -118,60 +132,97 @@ export async function registerSignatureQueueRoutes(
       return reply.code(409).send({ error: "emission_prerequisites_missing" });
     }
 
-    if (
-      record.reviewDecision !== "approved" &&
-      record.workflowStatus !== "awaiting_signature" &&
-      record.workflowStatus !== "emitted"
-    ) {
-      return reply.code(409).send({ error: "review_not_approved" });
-    }
-
-    if (record.workflowStatus === "emitted" && record.certificateNumber) {
-      return reply.code(409).send({ error: "service_order_already_emitted" });
-    }
-
-    const numbering = reserveSequentialCertificateNumber({
-      organizationId: context.user.organizationId,
-      organizationCode: deriveOrganizationCode(onboarding.organizationSlug),
-      issuedNumbers: records
-        .filter((item) => item.certificateNumber)
-        .map((item) => ({
-          organizationId: item.organizationId,
-          certificateNumber: item.certificateNumber!,
-        })),
-    });
-
-    if (!numbering.ok || !numbering.certificateNumber) {
-      return reply.code(409).send({ error: "certificate_numbering_failed", detail: numbering.errors });
-    }
-
     const occurredAt = new Date();
-    const documentHash = createHash("sha256")
-      .update(
-        [
-          record.workOrderNumber,
-          record.customerName,
-          record.equipmentLabel,
-          numbering.certificateNumber,
-          record.measurementResultValue ?? "",
-          record.measurementExpandedUncertaintyValue ?? "",
-        ].join("|"),
-      )
-      .digest("hex");
 
-    await serviceOrderPersistence.emitServiceOrder({
-      organizationId: context.user.organizationId,
-      serviceOrderId: body.data.serviceOrderId,
-      signatoryUserId: signatory.userId,
-      certificateNumber: numbering.certificateNumber,
-      certificateRevision: record.certificateRevision ?? "R0",
-      publicVerificationToken: randomBytes(12).toString("hex"),
-      documentHash,
-      qrHost: `${onboarding.organizationSlug}.afere.local`,
-      signatureStatement: `Assinatura eletrônica concluída por ${signatory.displayName}.`,
-      signatureDeviceId: body.data.signatureDeviceId.trim(),
-      occurredAt,
-    });
+    if (body.data.action === "emit") {
+      if (
+        record.reviewDecision !== "approved" &&
+        record.workflowStatus !== "awaiting_signature" &&
+        record.workflowStatus !== "emitted"
+      ) {
+        return reply.code(409).send({ error: "review_not_approved" });
+      }
+
+      if (record.workflowStatus === "emitted" && record.certificateNumber) {
+        return reply.code(409).send({ error: "service_order_already_emitted" });
+      }
+
+      const numbering = reserveSequentialCertificateNumber({
+        organizationId: context.user.organizationId,
+        organizationCode: deriveOrganizationCode(onboarding.organizationSlug),
+        issuedNumbers: records
+          .filter((item) => item.certificateNumber)
+          .map((item) => ({
+            organizationId: item.organizationId,
+            certificateNumber: item.certificateNumber!,
+          })),
+      });
+
+      if (!numbering.ok || !numbering.certificateNumber) {
+        return reply.code(409).send({ error: "certificate_numbering_failed", detail: numbering.errors });
+      }
+
+      const documentHash = createHash("sha256")
+        .update(
+          [
+            record.workOrderNumber,
+            record.customerName,
+            record.equipmentLabel,
+            numbering.certificateNumber,
+            record.measurementResultValue ?? "",
+            record.measurementExpandedUncertaintyValue ?? "",
+          ].join("|"),
+        )
+        .digest("hex");
+
+      await serviceOrderPersistence.emitServiceOrder({
+        organizationId: context.user.organizationId,
+        serviceOrderId: body.data.serviceOrderId,
+        signatoryUserId: signatory.userId,
+        certificateNumber: numbering.certificateNumber,
+        certificateRevision: record.certificateRevision ?? "R0",
+        publicVerificationToken: randomBytes(12).toString("hex"),
+        documentHash,
+        qrHost: `${onboarding.organizationSlug}.afere.local`,
+        signatureStatement: `Assinatura eletrônica concluída por ${signatory.displayName}.`,
+        signatureDeviceId: body.data.signatureDeviceId.trim(),
+        occurredAt,
+      });
+    } else {
+      if (record.workflowStatus !== "emitted" || !record.certificateNumber || !record.documentHash) {
+        return reply.code(409).send({ error: "service_order_not_emitted" });
+      }
+
+      const nextRevision = incrementRevision(record.certificateRevision ?? "R0");
+      const documentHash = createHash("sha256")
+        .update(
+          [
+            record.workOrderNumber,
+            record.customerName,
+            record.equipmentLabel,
+            record.certificateNumber,
+            nextRevision,
+            body.data.reason,
+            occurredAt.toISOString(),
+          ].join("|"),
+        )
+        .digest("hex");
+
+      await serviceOrderPersistence.reissueServiceOrder({
+        organizationId: context.user.organizationId,
+        serviceOrderId: body.data.serviceOrderId,
+        approvalActorUserIds: [body.data.approvalActorUserIdOne, body.data.approvalActorUserIdTwo],
+        signatoryUserId: signatory.userId,
+        reason: body.data.reason,
+        notificationRecipient: body.data.notificationRecipient,
+        publicVerificationToken: randomBytes(12).toString("hex"),
+        documentHash,
+        qrHost: `${onboarding.organizationSlug}.afere.local`,
+        signatureStatement: `Reemissão controlada assinada por ${signatory.displayName}.`,
+        signatureDeviceId: body.data.signatureDeviceId.trim(),
+        occurredAt,
+      });
+    }
 
     const redirectTo = readRedirectTarget(request.body);
     if (redirectTo) {
@@ -185,4 +236,10 @@ export async function registerSignatureQueueRoutes(
 function deriveOrganizationCode(slug: string) {
   const normalized = slug.replace(/[^a-z0-9]/gi, "").toUpperCase();
   return (normalized || "AFERE").slice(0, 12);
+}
+
+function incrementRevision(revision: string) {
+  const match = /^R(\d+)$/i.exec(revision.trim());
+  const current = match ? Number(match[1]) : 0;
+  return `R${current + 1}`;
 }

@@ -1,5 +1,5 @@
 import { computeAuditHash } from "@afere/audit-log";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 
 import type { ServiceOrderListItemStatus } from "@afere/contracts";
 
@@ -16,9 +16,39 @@ export type PersistedEmissionAuditEvent = {
   entityLabel: string;
   deviceId?: string;
   certificateNumber?: string;
+  metadata?: Record<string, unknown>;
   prevHash: string;
   hash: string;
   occurredAtUtc: string;
+};
+
+export type PersistedCertificatePublicationRecord = {
+  publicationId: string;
+  organizationId: string;
+  serviceOrderId: string;
+  customerId: string;
+  customerName: string;
+  equipmentId: string;
+  equipmentLabel: string;
+  equipmentTagCode: string;
+  equipmentSerialNumber: string;
+  workOrderNumber: string;
+  certificateNumber: string;
+  revision: string;
+  publicVerificationToken: string;
+  documentHash: string;
+  qrHost: string;
+  signedAtUtc?: string;
+  issuedAtUtc: string;
+  supersededAtUtc?: string;
+  replacementPublicationId?: string;
+  replacementCertificateNumber?: string;
+  previousCertificateHash?: string;
+  notificationRecipient?: string;
+  notificationSentAtUtc?: string;
+  reissueReason?: string;
+  createdAtUtc: string;
+  updatedAtUtc: string;
 };
 
 export type PersistedServiceOrderRecord = {
@@ -200,6 +230,21 @@ export type EmitServiceOrderInput = {
   occurredAt: Date;
 };
 
+export type ReissueServiceOrderInput = {
+  organizationId: string;
+  serviceOrderId: string;
+  approvalActorUserIds: [string, string];
+  signatoryUserId?: string;
+  reason: string;
+  notificationRecipient: string;
+  publicVerificationToken: string;
+  documentHash: string;
+  qrHost: string;
+  signatureStatement: string;
+  signatureDeviceId: string;
+  occurredAt: Date;
+};
+
 type MutableAuditEventStore = {
   listByServiceOrder(serviceOrderId: string): Promise<PersistedEmissionAuditEvent[]>;
   append(input: {
@@ -212,6 +257,7 @@ type MutableAuditEventStore = {
     entityLabel: string;
     deviceId?: string;
     certificateNumber?: string;
+    metadata?: Record<string, unknown>;
     occurredAtUtc: string;
   }): Promise<PersistedEmissionAuditEvent>;
 };
@@ -219,14 +265,25 @@ type MutableAuditEventStore = {
 export interface ServiceOrderPersistence {
   listServiceOrdersByOrganization(organizationId: string): Promise<PersistedServiceOrderRecord[]>;
   listEmissionAuditEventsByOrganization(organizationId: string): Promise<PersistedEmissionAuditEvent[]>;
+  listEmissionAuditEventsByServiceOrder(
+    serviceOrderId: string,
+  ): Promise<PersistedEmissionAuditEvent[]>;
+  listCertificatePublicationsByOrganization(
+    organizationId: string,
+  ): Promise<PersistedCertificatePublicationRecord[]>;
+  listCertificatePublicationsByServiceOrder(
+    serviceOrderId: string,
+  ): Promise<PersistedCertificatePublicationRecord[]>;
   saveServiceOrder(input: SaveServiceOrderInput): Promise<PersistedServiceOrderRecord>;
   saveServiceOrderWorkflow(input: SaveServiceOrderWorkflowInput): Promise<PersistedServiceOrderRecord>;
   emitServiceOrder(input: EmitServiceOrderInput): Promise<PersistedServiceOrderRecord>;
+  reissueServiceOrder(input: ReissueServiceOrderInput): Promise<PersistedServiceOrderRecord>;
 }
 
 export function createMemoryServiceOrderPersistence(seed: {
   serviceOrders?: PersistedServiceOrderRecord[];
   emissionAuditEvents?: PersistedEmissionAuditEvent[];
+  certificatePublications?: PersistedCertificatePublicationRecord[];
   users?: ServiceOrderReferenceUser[];
   customers?: ServiceOrderReferenceCustomer[];
   equipment?: ServiceOrderReferenceEquipment[];
@@ -237,6 +294,9 @@ export function createMemoryServiceOrderPersistence(seed: {
     (seed.serviceOrders ?? []).map((record) => [record.serviceOrderId, structuredClone(record)]),
   );
   const auditEvents = (seed.emissionAuditEvents ?? []).map((event) => structuredClone(event));
+  const certificatePublications = new Map(
+    (seed.certificatePublications ?? []).map((record) => [record.publicationId, structuredClone(record)]),
+  );
   const users = new Map((seed.users ?? []).map((user) => [user.userId, structuredClone(user)]));
   const customers = new Map(
     (seed.customers ?? []).map((customer) => [customer.customerId, structuredClone(customer)]),
@@ -275,6 +335,7 @@ export function createMemoryServiceOrderPersistence(seed: {
         entityLabel: input.entityLabel,
         deviceId: input.deviceId,
         certificateNumber: input.certificateNumber,
+        metadata: input.metadata,
         prevHash,
         hash,
         occurredAtUtc: input.occurredAtUtc,
@@ -296,6 +357,24 @@ export function createMemoryServiceOrderPersistence(seed: {
         .filter((event) => event.organizationId === organizationId)
         .sort(compareAuditEventsDesc)
         .map((event) => structuredClone(event));
+    },
+    async listEmissionAuditEventsByServiceOrder(serviceOrderId) {
+      return auditEvents
+        .filter((event) => event.serviceOrderId === serviceOrderId)
+        .sort(compareAuditEventsAsc)
+        .map((event) => structuredClone(event));
+    },
+    async listCertificatePublicationsByOrganization(organizationId) {
+      return Array.from(certificatePublications.values())
+        .filter((record) => record.organizationId === organizationId)
+        .sort(compareCertificatePublicationsDesc)
+        .map((record) => structuredClone(record));
+    },
+    async listCertificatePublicationsByServiceOrder(serviceOrderId) {
+      return Array.from(certificatePublications.values())
+        .filter((record) => record.serviceOrderId === serviceOrderId)
+        .sort(compareCertificatePublicationsDesc)
+        .map((record) => structuredClone(record));
     },
     async saveServiceOrder(input) {
       const existing = input.serviceOrderId ? serviceOrders.get(input.serviceOrderId) : undefined;
@@ -479,6 +558,11 @@ export function createMemoryServiceOrderPersistence(seed: {
       };
 
       serviceOrders.set(updated.serviceOrderId, updated);
+      const publicationNowUtc = updated.emittedAtUtc ?? occurredAtUtc;
+      upsertMemoryCertificatePublication(certificatePublications, updated, {
+        issuedAtUtc: publicationNowUtc,
+        signedAtUtc: updated.signedAtUtc,
+      });
       await ensureDerivedAuditEvents(auditStore, updated);
       await ensureAuditEvent(auditStore, updated, {
         action: "certificate.signed",
@@ -497,6 +581,172 @@ export function createMemoryServiceOrderPersistence(seed: {
         certificateNumber: updated.certificateNumber,
         entityLabel: updated.certificateNumber ?? updated.workOrderNumber,
         occurredAtUtc: updated.emittedAtUtc ?? occurredAtUtc,
+      });
+
+      return structuredClone(updated);
+    },
+    async reissueServiceOrder(input) {
+      const existing = serviceOrders.get(input.serviceOrderId);
+      if (!existing || existing.organizationId !== input.organizationId) {
+        throw new Error("service_order_not_found");
+      }
+
+      if (!existing.certificateNumber || !existing.documentHash || !existing.publicVerificationToken) {
+        throw new Error("service_order_not_emitted");
+      }
+
+      const approvalActors = input.approvalActorUserIds.map((actorUserId) =>
+        requireActiveUser(users.get(actorUserId), input.organizationId, "reissue_approver_not_found"),
+      );
+      if (new Set(approvalActors.map((actor) => actor.userId)).size < 2) {
+        throw new Error("reissue_distinct_approvals_required");
+      }
+
+      const signatoryId = input.signatoryUserId ?? existing.signatoryUserId;
+      const signatory = signatoryId
+        ? requireActiveUser(users.get(signatoryId), input.organizationId, "signatory_not_found")
+        : undefined;
+      if (!signatory) {
+        throw new Error("signatory_not_found");
+      }
+
+      const currentPublication = findCurrentPublication(
+        Array.from(certificatePublications.values()),
+        input.organizationId,
+        input.serviceOrderId,
+      );
+      if (!currentPublication) {
+        throw new Error("certificate_publication_not_found");
+      }
+
+      const nextRevision = incrementCertificateRevision(currentPublication.revision);
+      const occurredAtUtc = input.occurredAt.toISOString();
+      const notificationSentAtUtc = new Date(input.occurredAt.getTime() + 60_000).toISOString();
+      const updated: PersistedServiceOrderRecord = {
+        ...existing,
+        signatoryUserId: signatory.userId,
+        signatoryName: signatory.displayName,
+        workflowStatus: "emitted",
+        reviewDecision: "approved",
+        certificateRevision: nextRevision,
+        publicVerificationToken: input.publicVerificationToken,
+        documentHash: input.documentHash,
+        qrHost: input.qrHost,
+        signatureStatement: input.signatureStatement.trim(),
+        signatureDeviceId: input.signatureDeviceId.trim(),
+        signatureStartedAtUtc: existing.signatureStartedAtUtc ?? occurredAtUtc,
+        signedAtUtc: occurredAtUtc,
+        emittedAtUtc: occurredAtUtc,
+        updatedAtUtc: occurredAtUtc,
+      };
+
+      serviceOrders.set(updated.serviceOrderId, updated);
+
+      const replacementPublicationId = `publication-${certificatePublications.size + 1}`;
+      certificatePublications.set(currentPublication.publicationId, {
+        ...currentPublication,
+        supersededAtUtc: occurredAtUtc,
+        replacementPublicationId,
+        replacementCertificateNumber: formatCertificateDisplayNumber(
+          currentPublication.certificateNumber,
+          nextRevision,
+        ),
+        updatedAtUtc: occurredAtUtc,
+      });
+      certificatePublications.set(replacementPublicationId, {
+        publicationId: replacementPublicationId,
+        organizationId: updated.organizationId,
+        serviceOrderId: updated.serviceOrderId,
+        customerId: updated.customerId,
+        customerName: updated.customerName,
+        equipmentId: updated.equipmentId,
+        equipmentLabel: updated.equipmentLabel,
+        equipmentTagCode: updated.equipmentTagCode,
+        equipmentSerialNumber: updated.equipmentSerialNumber,
+        workOrderNumber: updated.workOrderNumber,
+        certificateNumber: updated.certificateNumber ?? currentPublication.certificateNumber,
+        revision: nextRevision,
+        publicVerificationToken: input.publicVerificationToken,
+        documentHash: input.documentHash,
+        qrHost: input.qrHost,
+        signedAtUtc: updated.signedAtUtc,
+        issuedAtUtc: updated.emittedAtUtc ?? occurredAtUtc,
+        previousCertificateHash: currentPublication.documentHash,
+        notificationRecipient: input.notificationRecipient.trim().toLowerCase(),
+        notificationSentAtUtc,
+        reissueReason: input.reason.trim(),
+        createdAtUtc: occurredAtUtc,
+        updatedAtUtc: occurredAtUtc,
+      });
+
+      await ensureDerivedAuditEvents(auditStore, updated);
+      for (const approver of approvalActors) {
+        await auditStore.append({
+          organizationId: updated.organizationId,
+          serviceOrderId: updated.serviceOrderId,
+          workOrderNumber: updated.workOrderNumber,
+          actorUserId: approver.userId,
+          actorLabel: approver.displayName,
+          action: "certificate.reissue.approved",
+          entityLabel: formatCertificateDisplayNumber(updated.certificateNumber, nextRevision),
+          certificateNumber: updated.certificateNumber,
+          occurredAtUtc,
+        });
+      }
+      await auditStore.append({
+        organizationId: updated.organizationId,
+        serviceOrderId: updated.serviceOrderId,
+        workOrderNumber: updated.workOrderNumber,
+        actorUserId: signatory.userId,
+        actorLabel: signatory.displayName,
+        action: "certificate.reissued",
+        entityLabel: formatCertificateDisplayNumber(updated.certificateNumber, nextRevision),
+        deviceId: updated.signatureDeviceId,
+        certificateNumber: updated.certificateNumber,
+        metadata: {
+          previousCertificateHash: currentPublication.documentHash,
+          previousRevision: currentPublication.revision,
+          newRevision: nextRevision,
+        },
+        occurredAtUtc,
+      });
+      await auditStore.append({
+        organizationId: updated.organizationId,
+        serviceOrderId: updated.serviceOrderId,
+        workOrderNumber: updated.workOrderNumber,
+        actorUserId: signatory.userId,
+        actorLabel: signatory.displayName,
+        action: "certificate.signed",
+        entityLabel: formatCertificateDisplayNumber(updated.certificateNumber, nextRevision),
+        deviceId: updated.signatureDeviceId,
+        certificateNumber: updated.certificateNumber,
+        occurredAtUtc: updated.signedAtUtc ?? occurredAtUtc,
+      });
+      await auditStore.append({
+        organizationId: updated.organizationId,
+        serviceOrderId: updated.serviceOrderId,
+        workOrderNumber: updated.workOrderNumber,
+        actorUserId: signatory.userId,
+        actorLabel: signatory.displayName,
+        action: "certificate.emitted",
+        entityLabel: formatCertificateDisplayNumber(updated.certificateNumber, nextRevision),
+        deviceId: updated.signatureDeviceId,
+        certificateNumber: updated.certificateNumber,
+        occurredAtUtc: updated.emittedAtUtc ?? occurredAtUtc,
+      });
+      await auditStore.append({
+        organizationId: updated.organizationId,
+        serviceOrderId: updated.serviceOrderId,
+        workOrderNumber: updated.workOrderNumber,
+        actorUserId: signatory.userId,
+        actorLabel: signatory.displayName,
+        action: "certificate.reissue.notified",
+        entityLabel: input.notificationRecipient.trim().toLowerCase(),
+        certificateNumber: updated.certificateNumber,
+        metadata: {
+          recipient: input.notificationRecipient.trim().toLowerCase(),
+        },
+        occurredAtUtc: notificationSentAtUtc,
       });
 
       return structuredClone(updated);
@@ -542,10 +792,61 @@ export function createPrismaServiceOrderPersistence(prisma: PrismaClient): Servi
         entityLabel: record.entityLabel,
         deviceId: record.deviceId ?? undefined,
         certificateNumber: record.certificateNumber ?? undefined,
+        metadata:
+          record.metadata && typeof record.metadata === "object" && !Array.isArray(record.metadata)
+            ? (record.metadata as Record<string, unknown>)
+            : undefined,
         prevHash: record.prevHash,
         hash: record.hash,
         occurredAtUtc: record.occurredAt.toISOString(),
       }));
+    },
+    async listEmissionAuditEventsByServiceOrder(serviceOrderId) {
+      const records = await prisma.emissionAuditEvent.findMany({
+        where: { serviceOrderId },
+        include: {
+          serviceOrder: {
+            select: {
+              workOrderNumber: true,
+            },
+          },
+        },
+        orderBy: [{ occurredAt: "asc" }, { createdAt: "asc" }],
+      });
+
+      return records.map((record) => ({
+        eventId: record.id,
+        organizationId: record.organizationId,
+        serviceOrderId: record.serviceOrderId,
+        workOrderNumber: record.serviceOrder.workOrderNumber,
+        actorUserId: record.actorUserId ?? undefined,
+        actorLabel: record.actorLabel,
+        action: record.action,
+        entityLabel: record.entityLabel,
+        deviceId: record.deviceId ?? undefined,
+        certificateNumber: record.certificateNumber ?? undefined,
+        prevHash: record.prevHash,
+        hash: record.hash,
+        occurredAtUtc: record.occurredAt.toISOString(),
+      }));
+    },
+    async listCertificatePublicationsByOrganization(organizationId) {
+      const records = await prisma.certificatePublication.findMany({
+        where: { organizationId },
+        include: certificatePublicationInclude,
+        orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }],
+      });
+
+      return records.map(mapCertificatePublicationRecord);
+    },
+    async listCertificatePublicationsByServiceOrder(serviceOrderId) {
+      const records = await prisma.certificatePublication.findMany({
+        where: { serviceOrderId },
+        include: certificatePublicationInclude,
+        orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }],
+      });
+
+      return records.map(mapCertificatePublicationRecord);
     },
     async saveServiceOrder(input) {
       return prisma.$transaction(async (tx) => {
@@ -756,6 +1057,10 @@ export function createPrismaServiceOrderPersistence(prisma: PrismaClient): Servi
 
         const mapped = mapServiceOrderRecord(saved);
         const auditStore = createPrismaAuditStore(tx, input.organizationId);
+        await upsertPrismaCertificatePublication(tx, mapped, {
+          issuedAt: now,
+          signedAt: mapped.signedAtUtc ? new Date(mapped.signedAtUtc) : undefined,
+        });
         await ensureDerivedAuditEvents(auditStore, mapped);
         await ensureAuditEvent(auditStore, mapped, {
           action: "certificate.signed",
@@ -779,6 +1084,177 @@ export function createPrismaServiceOrderPersistence(prisma: PrismaClient): Servi
         return mapped;
       });
     },
+    async reissueServiceOrder(input) {
+      return prisma.$transaction(async (tx) => {
+        const existing = await tx.serviceOrder.findFirst({
+          where: { id: input.serviceOrderId, organizationId: input.organizationId },
+          include: serviceOrderInclude,
+        });
+        if (!existing) {
+          throw new Error("service_order_not_found");
+        }
+        if (!existing.certificateNumber || !existing.documentHash || !existing.publicVerificationToken) {
+          throw new Error("service_order_not_emitted");
+        }
+
+        const approvalActors = await Promise.all(
+          input.approvalActorUserIds.map((actorUserId) =>
+            tx.appUser.findFirst({
+              where: { id: actorUserId, organizationId: input.organizationId, status: "active" },
+            }),
+          ),
+        );
+        if (approvalActors.some((actor) => !actor)) {
+          throw new Error("reissue_approver_not_found");
+        }
+        if (new Set(approvalActors.map((actor) => actor!.id)).size < 2) {
+          throw new Error("reissue_distinct_approvals_required");
+        }
+
+        const signatoryId = input.signatoryUserId ?? existing.signatoryUserId ?? undefined;
+        const signatory = signatoryId
+          ? await tx.appUser.findFirst({
+              where: { id: signatoryId, organizationId: input.organizationId, status: "active" },
+            })
+          : null;
+        if (!signatory) {
+          throw new Error("signatory_not_found");
+        }
+
+        const currentPublication = await tx.certificatePublication.findFirst({
+          where: {
+            organizationId: input.organizationId,
+            serviceOrderId: input.serviceOrderId,
+            supersededAt: null,
+          },
+          orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }],
+        });
+        if (!currentPublication) {
+          throw new Error("certificate_publication_not_found");
+        }
+
+        const now = input.occurredAt;
+        const nextRevision = incrementCertificateRevision(currentPublication.revision);
+        const notificationSentAt = new Date(now.getTime() + 60_000);
+        const saved = await tx.serviceOrder.update({
+          where: { id: existing.id },
+          data: {
+            signatoryUserId: signatory.id,
+            workflowStatus: "emitted",
+            reviewDecision: "approved",
+            certificateRevision: nextRevision,
+            publicVerificationToken: input.publicVerificationToken,
+            documentHash: input.documentHash,
+            qrHost: input.qrHost,
+            signatureStatement: input.signatureStatement.trim(),
+            signatureDeviceId: input.signatureDeviceId.trim(),
+            signatureStartedAt: existing.signatureStartedAt ?? now,
+            signedAt: now,
+            emittedAt: now,
+          },
+          include: serviceOrderInclude,
+        });
+
+        const mapped = mapServiceOrderRecord(saved);
+        const createdPublication = await tx.certificatePublication.create({
+          data: {
+            organizationId: mapped.organizationId,
+            serviceOrderId: mapped.serviceOrderId,
+            certificateNumber: mapped.certificateNumber ?? currentPublication.certificateNumber,
+            revision: nextRevision,
+            publicVerificationToken: input.publicVerificationToken,
+            documentHash: input.documentHash,
+            qrHost: input.qrHost,
+            signedAt: mapped.signedAtUtc ? new Date(mapped.signedAtUtc) : now,
+            issuedAt: mapped.emittedAtUtc ? new Date(mapped.emittedAtUtc) : now,
+            previousCertificateHash: currentPublication.documentHash,
+            notificationRecipient: input.notificationRecipient.trim().toLowerCase(),
+            notificationSentAt,
+            reissueReason: input.reason.trim(),
+          },
+        });
+        await tx.certificatePublication.update({
+          where: { id: currentPublication.id },
+          data: {
+            supersededAt: now,
+            replacementPublicationId: createdPublication.id,
+          },
+        });
+
+        const auditStore = createPrismaAuditStore(tx, input.organizationId);
+        await ensureDerivedAuditEvents(auditStore, mapped);
+        for (const approver of approvalActors) {
+          await auditStore.append({
+            organizationId: mapped.organizationId,
+            serviceOrderId: mapped.serviceOrderId,
+            workOrderNumber: mapped.workOrderNumber,
+            actorUserId: approver!.id,
+            actorLabel: approver!.displayName,
+            action: "certificate.reissue.approved",
+            entityLabel: formatCertificateDisplayNumber(mapped.certificateNumber, nextRevision),
+            certificateNumber: mapped.certificateNumber,
+            occurredAtUtc: now.toISOString(),
+          });
+        }
+        await auditStore.append({
+          organizationId: mapped.organizationId,
+          serviceOrderId: mapped.serviceOrderId,
+          workOrderNumber: mapped.workOrderNumber,
+          actorUserId: signatory.id,
+          actorLabel: signatory.displayName,
+          action: "certificate.reissued",
+          entityLabel: formatCertificateDisplayNumber(mapped.certificateNumber, nextRevision),
+          deviceId: mapped.signatureDeviceId,
+          certificateNumber: mapped.certificateNumber,
+          metadata: {
+            previousCertificateHash: currentPublication.documentHash,
+            previousRevision: currentPublication.revision,
+            newRevision: nextRevision,
+          },
+          occurredAtUtc: now.toISOString(),
+        });
+        await auditStore.append({
+          organizationId: mapped.organizationId,
+          serviceOrderId: mapped.serviceOrderId,
+          workOrderNumber: mapped.workOrderNumber,
+          actorUserId: signatory.id,
+          actorLabel: signatory.displayName,
+          action: "certificate.signed",
+          entityLabel: formatCertificateDisplayNumber(mapped.certificateNumber, nextRevision),
+          deviceId: mapped.signatureDeviceId,
+          certificateNumber: mapped.certificateNumber,
+          occurredAtUtc: mapped.signedAtUtc ?? now.toISOString(),
+        });
+        await auditStore.append({
+          organizationId: mapped.organizationId,
+          serviceOrderId: mapped.serviceOrderId,
+          workOrderNumber: mapped.workOrderNumber,
+          actorUserId: signatory.id,
+          actorLabel: signatory.displayName,
+          action: "certificate.emitted",
+          entityLabel: formatCertificateDisplayNumber(mapped.certificateNumber, nextRevision),
+          deviceId: mapped.signatureDeviceId,
+          certificateNumber: mapped.certificateNumber,
+          occurredAtUtc: mapped.emittedAtUtc ?? now.toISOString(),
+        });
+        await auditStore.append({
+          organizationId: mapped.organizationId,
+          serviceOrderId: mapped.serviceOrderId,
+          workOrderNumber: mapped.workOrderNumber,
+          actorUserId: signatory.id,
+          actorLabel: signatory.displayName,
+          action: "certificate.reissue.notified",
+          entityLabel: input.notificationRecipient.trim().toLowerCase(),
+          certificateNumber: mapped.certificateNumber,
+          metadata: {
+            recipient: input.notificationRecipient.trim().toLowerCase(),
+          },
+          occurredAtUtc: notificationSentAt.toISOString(),
+        });
+
+        return mapped;
+      });
+    },
   };
 }
 
@@ -792,6 +1268,16 @@ const serviceOrderInclude = {
   executorUser: true,
   reviewerUser: true,
   signatoryUser: true,
+} as const;
+
+const certificatePublicationInclude = {
+  serviceOrder: {
+    include: {
+      customer: true,
+      equipment: true,
+    },
+  },
+  replacementPublication: true,
 } as const;
 
 async function ensureDerivedAuditEvents(
@@ -927,6 +1413,7 @@ function createPrismaAuditStore(
           entityLabel: input.entityLabel,
           deviceId: input.deviceId ?? null,
           certificateNumber: input.certificateNumber ?? null,
+          metadata: input.metadata ? (input.metadata as Prisma.InputJsonValue) : undefined,
           prevHash,
           hash,
           occurredAt: new Date(input.occurredAtUtc),
@@ -944,12 +1431,167 @@ function createPrismaAuditStore(
         entityLabel: created.entityLabel,
         deviceId: created.deviceId ?? undefined,
         certificateNumber: created.certificateNumber ?? undefined,
+        metadata:
+          created.metadata && typeof created.metadata === "object" && !Array.isArray(created.metadata)
+            ? (created.metadata as Record<string, unknown>)
+            : undefined,
         prevHash: created.prevHash,
         hash: created.hash,
         occurredAtUtc: created.occurredAt.toISOString(),
       };
     },
   };
+}
+
+function compareCertificatePublicationsDesc(
+  left: PersistedCertificatePublicationRecord,
+  right: PersistedCertificatePublicationRecord,
+) {
+  if (left.issuedAtUtc !== right.issuedAtUtc) {
+    return right.issuedAtUtc.localeCompare(left.issuedAtUtc);
+  }
+
+  return right.createdAtUtc.localeCompare(left.createdAtUtc);
+}
+
+function findCurrentPublication(
+  records: PersistedCertificatePublicationRecord[],
+  organizationId: string,
+  serviceOrderId: string,
+) {
+  return records
+    .filter(
+      (record) =>
+        record.organizationId === organizationId &&
+        record.serviceOrderId === serviceOrderId &&
+        !record.supersededAtUtc,
+    )
+    .sort(compareCertificatePublicationsDesc)[0];
+}
+
+function incrementCertificateRevision(revision: string) {
+  const match = /^R(\d+)$/.exec(revision.trim().toUpperCase());
+  const current = match ? Number(match[1]) : 0;
+  return `R${current + 1}`;
+}
+
+function formatCertificateDisplayNumber(
+  certificateNumber: string | undefined,
+  revision: string | undefined,
+) {
+  const normalizedNumber = certificateNumber?.trim();
+  if (!normalizedNumber) {
+    return "Certificado sem numero";
+  }
+
+  const normalizedRevision = revision?.trim().toUpperCase();
+  return normalizedRevision && normalizedRevision !== "R0"
+    ? `${normalizedNumber}-${normalizedRevision}`
+    : normalizedNumber;
+}
+
+function upsertMemoryCertificatePublication(
+  store: Map<string, PersistedCertificatePublicationRecord>,
+  record: PersistedServiceOrderRecord,
+  input: {
+    issuedAtUtc: string;
+    signedAtUtc?: string;
+  },
+) {
+  if (!record.certificateNumber || !record.certificateRevision || !record.publicVerificationToken || !record.documentHash || !record.qrHost) {
+    return;
+  }
+
+  const existing = Array.from(store.values()).find(
+    (item) =>
+      item.organizationId === record.organizationId &&
+      item.serviceOrderId === record.serviceOrderId &&
+      item.certificateNumber === record.certificateNumber &&
+      item.revision === record.certificateRevision,
+  );
+  const publicationId = existing?.publicationId ?? `publication-${store.size + 1}`;
+  const publication: PersistedCertificatePublicationRecord = {
+    publicationId,
+    organizationId: record.organizationId,
+    serviceOrderId: record.serviceOrderId,
+    customerId: record.customerId,
+    customerName: record.customerName,
+    equipmentId: record.equipmentId,
+    equipmentLabel: record.equipmentLabel,
+    equipmentTagCode: record.equipmentTagCode,
+    equipmentSerialNumber: record.equipmentSerialNumber,
+    workOrderNumber: record.workOrderNumber,
+    certificateNumber: record.certificateNumber,
+    revision: record.certificateRevision,
+    publicVerificationToken: record.publicVerificationToken,
+    documentHash: record.documentHash,
+    qrHost: record.qrHost,
+    signedAtUtc: input.signedAtUtc,
+    issuedAtUtc: input.issuedAtUtc,
+    supersededAtUtc: existing?.supersededAtUtc,
+    replacementPublicationId: existing?.replacementPublicationId,
+    replacementCertificateNumber: existing?.replacementCertificateNumber,
+    previousCertificateHash: existing?.previousCertificateHash,
+    notificationRecipient: existing?.notificationRecipient,
+    notificationSentAtUtc: existing?.notificationSentAtUtc,
+    reissueReason: existing?.reissueReason,
+    createdAtUtc: existing?.createdAtUtc ?? input.issuedAtUtc,
+    updatedAtUtc: input.issuedAtUtc,
+  };
+  store.set(publicationId, publication);
+}
+
+async function upsertPrismaCertificatePublication(
+  tx: Omit<
+    PrismaClient,
+    "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+  >,
+  record: PersistedServiceOrderRecord,
+  input: {
+    issuedAt: Date;
+    signedAt?: Date;
+  },
+) {
+  if (!record.certificateNumber || !record.certificateRevision || !record.publicVerificationToken || !record.documentHash || !record.qrHost) {
+    return;
+  }
+
+  const existing = await tx.certificatePublication.findFirst({
+    where: {
+      organizationId: record.organizationId,
+      serviceOrderId: record.serviceOrderId,
+      certificateNumber: record.certificateNumber,
+      revision: record.certificateRevision,
+    },
+  });
+
+  if (existing) {
+    await tx.certificatePublication.update({
+      where: { id: existing.id },
+      data: {
+        publicVerificationToken: record.publicVerificationToken,
+        documentHash: record.documentHash,
+        qrHost: record.qrHost,
+        signedAt: input.signedAt ?? null,
+        issuedAt: input.issuedAt,
+      },
+    });
+    return;
+  }
+
+  await tx.certificatePublication.create({
+    data: {
+      organizationId: record.organizationId,
+      serviceOrderId: record.serviceOrderId,
+      certificateNumber: record.certificateNumber,
+      revision: record.certificateRevision,
+      publicVerificationToken: record.publicVerificationToken,
+      documentHash: record.documentHash,
+      qrHost: record.qrHost,
+      signedAt: input.signedAt ?? null,
+      issuedAt: input.issuedAt,
+    },
+  });
 }
 
 function buildAuditPayload(input: {
@@ -960,6 +1602,7 @@ function buildAuditPayload(input: {
   entityLabel: string;
   deviceId?: string;
   certificateNumber?: string;
+  metadata?: Record<string, unknown>;
   occurredAtUtc: string;
 }) {
   return {
@@ -971,6 +1614,7 @@ function buildAuditPayload(input: {
     entityLabel: input.entityLabel,
     timestampUtc: input.occurredAtUtc,
     deviceId: input.deviceId,
+    ...input.metadata,
   };
 }
 
@@ -1272,6 +1916,79 @@ function mapServiceOrderRecord(record: {
     emittedAtUtc: record.emittedAt?.toISOString(),
     updatedAtUtc: record.updatedAt.toISOString(),
     archivedAtUtc: record.archivedAt?.toISOString(),
+  };
+}
+
+function mapCertificatePublicationRecord(record: {
+  id: string;
+  organizationId: string;
+  serviceOrderId: string;
+  certificateNumber: string;
+  revision: string;
+  publicVerificationToken: string;
+  documentHash: string;
+  qrHost: string;
+  signedAt: Date | null;
+  issuedAt: Date;
+  supersededAt: Date | null;
+  replacementPublicationId: string | null;
+  previousCertificateHash: string | null;
+  notificationRecipient: string | null;
+  notificationSentAt: Date | null;
+  reissueReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  serviceOrder: {
+    workOrderNumber: string;
+    customerId: string;
+    customer: {
+      tradeName: string;
+    };
+    equipmentId: string;
+    equipment: {
+      code: string;
+      typeModelLabel: string;
+      tagCode: string;
+      serialNumber: string;
+    };
+  };
+  replacementPublication: {
+    certificateNumber: string;
+    revision: string;
+  } | null;
+}): PersistedCertificatePublicationRecord {
+  return {
+    publicationId: record.id,
+    organizationId: record.organizationId,
+    serviceOrderId: record.serviceOrderId,
+    customerId: record.serviceOrder.customerId,
+    customerName: record.serviceOrder.customer.tradeName,
+    equipmentId: record.serviceOrder.equipmentId,
+    equipmentLabel: `${record.serviceOrder.equipment.code} · ${record.serviceOrder.equipment.typeModelLabel}`,
+    equipmentTagCode: record.serviceOrder.equipment.tagCode,
+    equipmentSerialNumber: record.serviceOrder.equipment.serialNumber,
+    workOrderNumber: record.serviceOrder.workOrderNumber,
+    certificateNumber: record.certificateNumber,
+    revision: record.revision,
+    publicVerificationToken: record.publicVerificationToken,
+    documentHash: record.documentHash,
+    qrHost: record.qrHost,
+    signedAtUtc: record.signedAt?.toISOString(),
+    issuedAtUtc: record.issuedAt.toISOString(),
+    supersededAtUtc: record.supersededAt?.toISOString(),
+    replacementPublicationId: record.replacementPublicationId ?? undefined,
+    replacementCertificateNumber: record.replacementPublication
+      ? formatCertificateDisplayNumber(
+          record.replacementPublication.certificateNumber,
+          record.replacementPublication.revision,
+        )
+      : undefined,
+    previousCertificateHash: record.previousCertificateHash ?? undefined,
+    notificationRecipient: record.notificationRecipient ?? undefined,
+    notificationSentAtUtc: record.notificationSentAt?.toISOString(),
+    reissueReason: record.reissueReason ?? undefined,
+    createdAtUtc: record.createdAt.toISOString(),
+    updatedAtUtc: record.updatedAt.toISOString(),
   };
 }
 

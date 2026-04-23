@@ -10,6 +10,7 @@ const SIGNATORY_ID = "00000000-0000-4000-8000-000000000202";
 const TECHNICIAN_ID = "00000000-0000-4000-8000-000000000203";
 const INVITED_ID = "00000000-0000-4000-8000-000000000204";
 const SUSPENDED_ID = "00000000-0000-4000-8000-000000000205";
+const EXTERNAL_CLIENT_ID = "00000000-0000-4000-8000-000000000206";
 const CUSTOMER_IDS = {
   acme: "00000000-0000-4000-8000-000000000401",
   paoDoce: "00000000-0000-4000-8000-000000000402",
@@ -41,6 +42,16 @@ const SERVICE_ORDER_IDS = {
   os142: "00000000-0000-4000-8000-000000000801",
   os141: "00000000-0000-4000-8000-000000000802",
   os147: "00000000-0000-4000-8000-000000000803",
+};
+const CERTIFICATE_PUBLICATION_IDS = {
+  os141r0: "00000000-0000-4000-8000-000000000851",
+};
+const QUALITY_IDS = {
+  nc014: "00000000-0000-4000-8000-000000000861",
+  ncw014: "00000000-0000-4000-8000-000000000862",
+  audit2026q2: "00000000-0000-4000-8000-000000000863",
+  review2026q2: "00000000-0000-4000-8000-000000000864",
+  complianceProfile: "00000000-0000-4000-8000-000000000865",
 };
 const GENESIS_HASH = "0".repeat(64);
 const DEFAULT_PASSWORD = "Afere@2026!";
@@ -127,6 +138,19 @@ async function main() {
     mfaEnforced: false,
     mfaEnrolled: false,
     deviceCount: 0,
+    passwordHash,
+  });
+
+  await upsertUser({
+    id: EXTERNAL_CLIENT_ID,
+    email: "marcia@paodoce.com.br",
+    displayName: "Marcia Lima",
+    roles: ["external_client"],
+    teamName: "Cliente",
+    status: "active",
+    mfaEnforced: false,
+    mfaEnrolled: false,
+    deviceCount: 1,
     passwordHash,
   });
 
@@ -790,6 +814,33 @@ async function main() {
     archivedAt: null,
   });
 
+  await prisma.certificatePublication.deleteMany({
+    where: { organizationId: ORGANIZATION_ID },
+  });
+
+  await prisma.certificatePublication.createMany({
+    data: [
+      {
+        id: CERTIFICATE_PUBLICATION_IDS.os141r0,
+        organizationId: ORGANIZATION_ID,
+        serviceOrderId: SERVICE_ORDER_IDS.os141,
+        certificateNumber: "LABDEMO-000001",
+        revision: "R0",
+        publicVerificationToken: "pubtok-os141",
+        documentHash: createHash("sha256").update("OS-2026-00141|LABDEMO-000001").digest("hex"),
+        qrHost: "lab-demo.afere.local",
+        signedAt: new Date("2026-04-20T09:22:00.000Z"),
+        issuedAt: new Date("2026-04-20T09:23:00.000Z"),
+        supersededAt: null,
+        replacementPublicationId: null,
+        previousCertificateHash: null,
+        notificationRecipient: null,
+        notificationSentAt: null,
+        reissueReason: null,
+      },
+    ],
+  });
+
   await prisma.emissionAuditEvent.deleteMany({
     where: { organizationId: ORGANIZATION_ID },
   });
@@ -883,6 +934,176 @@ async function main() {
         ],
       }),
     ],
+  });
+
+  await prisma.managementReviewMeeting.deleteMany({
+    where: { organizationId: ORGANIZATION_ID },
+  });
+
+  await prisma.internalAuditCycle.deleteMany({
+    where: { organizationId: ORGANIZATION_ID },
+  });
+
+  await prisma.nonconformingWorkCase.deleteMany({
+    where: { organizationId: ORGANIZATION_ID },
+  });
+
+  await prisma.nonconformity.deleteMany({
+    where: { organizationId: ORGANIZATION_ID },
+  });
+
+  await prisma.organizationComplianceProfile.deleteMany({
+    where: { organizationId: ORGANIZATION_ID },
+  });
+
+  await prisma.nonconformity.createMany({
+    data: [
+      {
+        id: QUALITY_IDS.nc014,
+        organizationId: ORGANIZATION_ID,
+        serviceOrderId: SERVICE_ORDER_IDS.os147,
+        ownerUserId: ADMIN_ID,
+        title: "NC-014 · Revisor conflitado e padrao vencido na OS bloqueada",
+        originLabel: "Revisao tecnica",
+        severityLabel: "Critica",
+        status: "blocked",
+        noticeLabel: "A OS permanece bloqueada ate segregar funcoes e regularizar o padrao principal.",
+        rootCauseLabel: "Atribuicao inadequada de papeis somada a uso de padrao fora da validade.",
+        containmentLabel: "Suspender qualquer liberacao da OS-2026-00147 e reabrir a designacao de revisor.",
+        correctiveActionLabel: "Substituir o revisor, recalibrar o padrao e registrar nova conferencia tecnica.",
+        evidenceLabel: "OS-2026-00147, trilha append-only e parecer inicial da Qualidade.",
+        blockers: ["Segregacao de funcoes pendente", "Padrao principal vencido"],
+        warnings: ["Nao emitir certificado ate fechar a NC."],
+        openedAt: new Date("2026-04-23T13:20:00.000Z"),
+        dueAt: new Date("2026-04-30T17:00:00.000Z"),
+        resolvedAt: null,
+      },
+    ],
+  });
+
+  await prisma.nonconformingWorkCase.createMany({
+    data: [
+      {
+        id: QUALITY_IDS.ncw014,
+        organizationId: ORGANIZATION_ID,
+        serviceOrderId: SERVICE_ORDER_IDS.os147,
+        nonconformityId: QUALITY_IDS.nc014,
+        title: "NCW-014 · Contencao da OS-2026-00147",
+        classificationLabel: "Contencao preventiva",
+        originLabel: "OS bloqueada",
+        affectedEntityLabel: "OS-2026-00147",
+        status: "blocked",
+        noticeLabel: "Liberacao do fluxo bloqueada ate nova evidencia minima.",
+        containmentLabel: "Manter a OS congelada e impedir reemissao ou assinatura associada.",
+        releaseRuleLabel: "Somente liberar apos NC encerrada e revisor segregado.",
+        evidenceLabel: "Registro da NC-014, trilha de revisao rejeitada e anotacao da Qualidade.",
+        restorationLabel: "Retomar a OS apenas com novo revisor, padrao valido e checklist refeito.",
+        blockers: ["NC-014 aberta", "Fluxo tecnico ainda sem evidencia de restauracao"],
+        warnings: ["Nao substituir a contencao por acordo verbal."],
+      },
+    ],
+  });
+
+  await prisma.internalAuditCycle.createMany({
+    data: [
+      {
+        id: QUALITY_IDS.audit2026q2,
+        organizationId: ORGANIZATION_ID,
+        cycleLabel: "Programa 2026 · Ciclo 2",
+        windowLabel: "Q2 2026",
+        scopeLabel: "§7.8 Certificados | §8.8 Auditoria interna | §7.10 Trabalho nao conforme",
+        auditorLabel: "Ana Administradora",
+        auditeeLabel: "Operacoes e Qualidade",
+        periodLabel: "Abr-Jun 2026",
+        reportLabel: "Relatorio parcial do ciclo 2 em follow-up",
+        evidenceLabel: "Checklist do ciclo, NC-014 e trilha da OS-2026-00147.",
+        nextReviewLabel: "05/05/2026 13:00 UTC",
+        noticeLabel: "O ciclo permanece aberto ate concluir o follow-up da NC critica.",
+        status: "attention",
+        checklistItems: [
+          {
+            key: "certificates",
+            requirementLabel: "Certificados emitidos e bloqueados com evidencias rastreaveis",
+            evidenceLabel: "service_orders + emission_audit_events",
+            status: "attention",
+          },
+          {
+            key: "nonconforming-work",
+            requirementLabel: "Contencao formal do trabalho nao conforme",
+            evidenceLabel: "nonconforming_work_cases + NC-014",
+            status: "blocked",
+          },
+        ],
+        findingRefs: [QUALITY_IDS.nc014],
+        blockers: ["NC critica ainda sem encerramento"],
+        warnings: ["Nao abrir novo ciclo sem concluir o follow-up atual."],
+        scheduledAt: new Date("2026-04-24T14:00:00.000Z"),
+        completedAt: null,
+      },
+    ],
+  });
+
+  await prisma.managementReviewMeeting.createMany({
+    data: [
+      {
+        id: QUALITY_IDS.review2026q2,
+        organizationId: ORGANIZATION_ID,
+        titleLabel: "Analise critica Q2 2026",
+        status: "attention",
+        dateLabel: "30/06/2026",
+        outcomeLabel: "Pauta aberta com follow-up de Qualidade",
+        noticeLabel: "A ata final depende do fechamento minimo da NC critica e do ciclo de auditoria.",
+        nextMeetingLabel: "30/09/2026",
+        chairLabel: "Ana Administradora",
+        attendeesLabel: "Direcao, Qualidade e Metrologia",
+        periodLabel: "Q2 2026",
+        ataLabel: "Ata em preparacao",
+        evidenceLabel: "Indicadores V5, NC-014, ciclo 2 de auditoria e perfil regulatorio persistido.",
+        agendaItems: [
+          { key: "agenda-nc", label: "NCs e trabalho nao conforme", status: "attention" },
+          { key: "agenda-audit", label: "Follow-up da auditoria interna", status: "attention" },
+          { key: "agenda-regulatory", label: "Governanca regulatoria e release-norm V5", status: "ready" },
+        ],
+        decisions: [
+          {
+            key: "decision-close-nc",
+            label: "Encerrar NC-014 com evidencias minimas",
+            ownerLabel: "Ana Administradora",
+            dueDateLabel: "05/05/2026",
+            status: "attention",
+          },
+        ],
+        blockers: [],
+        warnings: ["A ata nao deve ser arquivada antes do follow-up minimo da NC."],
+        scheduledFor: new Date("2026-06-30T13:00:00.000Z"),
+        heldAt: null,
+      },
+    ],
+  });
+
+  await prisma.organizationComplianceProfile.create({
+    data: {
+      id: QUALITY_IDS.complianceProfile,
+      organizationId: ORGANIZATION_ID,
+      organizationCode: "AFERE",
+      planLabel: "Enterprise",
+      certificatePrefix: "LABDEMO",
+      accreditationNumber: "Cgcre CAL-1234",
+      accreditationValidUntil: parseDate("2027-09-30"),
+      scopeSummary: "Balancas NAWI/IPNA em escopo interno controlado para o tenant demo.",
+      cmcSummary: "CMC minima revisada para a familia principal de balancas do tenant.",
+      scopeItemCount: 4,
+      cmcItemCount: 4,
+      legalOpinionStatus: "approved_reference",
+      legalOpinionReference: "compliance/legal-opinions/2026-04-21-signature-auditability-opinion.md",
+      dpaReference: "compliance/legal-opinions/dpa-template.md",
+      normativeGovernanceStatus: "active",
+      normativeGovernanceOwner: "product-governance",
+      normativeGovernanceReference: "compliance/release-norm/pre-go-live-normative-governance.yaml",
+      releaseNormVersion: "v5",
+      releaseNormStatus: "pending_local_validation",
+      lastReviewedAt: new Date("2026-04-23T20:30:00.000Z"),
+    },
   });
 
   await prisma.registryAuditEvent.deleteMany({

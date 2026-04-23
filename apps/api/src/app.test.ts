@@ -1,3 +1,4 @@
+import { computeAuditHash } from "@afere/audit-log";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -39,6 +40,7 @@ import type { Env } from "./config/env.js";
 import { createMemoryCorePersistence } from "./domain/auth/core-persistence.js";
 import { hashPassword } from "./domain/auth/password.js";
 import { createMemoryServiceOrderPersistence } from "./domain/emission/service-order-persistence.js";
+import { createMemoryQualityPersistence } from "./domain/quality/quality-persistence.js";
 import { createMemoryRegistryPersistence } from "./domain/registry/registry-persistence.js";
 import { RuntimeReadinessError, type RuntimeReadiness } from "./infra/runtime-readiness.js";
 import { buildApp } from "./app.js";
@@ -1561,6 +1563,323 @@ test("approves and emits a persisted service order through the V3 workflow", asy
   }
 });
 
+test("serves the persisted V4 portal and public QR catalogs for the authenticated customer", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV4CoreSeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV4RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(createV4ServiceOrderSeed()),
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "marcia@paodoce.com.br",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const [dashboardResponse, equipmentResponse, certificateResponse, verifyResponse] = await Promise.all([
+      app.inject({
+        method: "GET",
+        url: "/portal/dashboard",
+        headers: { cookie },
+      }),
+      app.inject({
+        method: "GET",
+        url: "/portal/equipment?equipment=equipment-00141",
+        headers: { cookie },
+      }),
+      app.inject({
+        method: "GET",
+        url: "/portal/certificate?certificate=publication-00141-r0",
+        headers: { cookie },
+      }),
+      app.inject({
+        method: "GET",
+        url: "/portal/verify?certificate=service-order-00141&token=pubtok-os141",
+      }),
+    ]);
+
+    assert.equal(dashboardResponse.statusCode, 200);
+    assert.equal(equipmentResponse.statusCode, 200);
+    assert.equal(certificateResponse.statusCode, 200);
+    assert.equal(verifyResponse.statusCode, 200);
+
+    const dashboardPayload = portalDashboardCatalogSchema.parse(dashboardResponse.json());
+    const equipmentPayload = portalEquipmentCatalogSchema.parse(equipmentResponse.json());
+    const certificatePayload = portalCertificateCatalogSchema.parse(certificateResponse.json());
+    const verifyPayload = publicCertificateCatalogSchema.parse(verifyResponse.json());
+
+    assert.equal(dashboardPayload.scenarios[0]?.summary.clientName, "Marcia Lima");
+    assert.equal(dashboardPayload.scenarios[0]?.recentCertificates[0]?.certificateId, "publication-00141-r0");
+    assert.equal(equipmentPayload.scenarios[0]?.detail.certificateHistory[0]?.certificateId, "publication-00141-r0");
+    assert.equal(certificatePayload.scenarios[0]?.detail.metadataFields.some((field) => field.value === "R0"), true);
+    assert.equal(verifyPayload.scenarios[0]?.result.ok, true);
+    assert.equal(verifyPayload.scenarios[0]?.result.status, "authentic");
+  } finally {
+    await app.close();
+  }
+});
+
+test("reissues a persisted certificate and preserves the public QR history", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const serviceOrderPersistence = createMemoryServiceOrderPersistence(createV4ServiceOrderSeed());
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV4CoreSeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV4RegistrySeed()),
+    serviceOrderPersistence,
+  });
+
+  try {
+    const [adminLogin, portalLogin] = await Promise.all([
+      app.inject({
+        method: "POST",
+        url: "/auth/login",
+        payload: {
+          email: "admin@afere.local",
+          password: "Afere@2026!",
+        },
+      }),
+      app.inject({
+        method: "POST",
+        url: "/auth/login",
+        payload: {
+          email: "marcia@paodoce.com.br",
+          password: "Afere@2026!",
+        },
+      }),
+    ]);
+
+    const adminCookie = normalizeCookieHeader(adminLogin.headers["set-cookie"]);
+    const portalCookie = normalizeCookieHeader(portalLogin.headers["set-cookie"]);
+    assert.ok(adminCookie);
+    assert.ok(portalCookie);
+
+    const reissueResponse = await app.inject({
+      method: "POST",
+      url: "/emission/signature-queue/manage",
+      headers: { cookie: adminCookie },
+      payload: {
+        action: "reissue",
+        serviceOrderId: "service-order-00141",
+        approvalActorUserIdOne: "user-admin-1",
+        approvalActorUserIdTwo: "user-reviewer-1",
+        signatoryUserId: "user-signatory-1",
+        reason: "Correcao de identificacao do certificado.",
+        notificationRecipient: "marcia@paodoce.com.br",
+        signatureDeviceId: "device-sign-09",
+      },
+    });
+    assert.equal(reissueResponse.statusCode, 204);
+
+    const publications = await serviceOrderPersistence.listCertificatePublicationsByServiceOrder("service-order-00141");
+    const currentPublication = publications.find((item) => !item.supersededAtUtc);
+    assert.ok(currentPublication);
+    assert.equal(currentPublication?.revision, "R1");
+
+    const [oldVerifyResponse, newVerifyResponse, certificateResponse] = await Promise.all([
+      app.inject({
+        method: "GET",
+        url: "/portal/verify?certificate=service-order-00141&token=pubtok-os141",
+      }),
+      app.inject({
+        method: "GET",
+        url: `/portal/verify?certificate=service-order-00141&token=${currentPublication?.publicVerificationToken}`,
+      }),
+      app.inject({
+        method: "GET",
+        url: `/portal/certificate?certificate=${currentPublication?.publicationId}`,
+        headers: { cookie: portalCookie },
+      }),
+    ]);
+
+    assert.equal(oldVerifyResponse.statusCode, 200);
+    assert.equal(newVerifyResponse.statusCode, 200);
+    assert.equal(certificateResponse.statusCode, 200);
+
+    const oldVerifyPayload = publicCertificateCatalogSchema.parse(oldVerifyResponse.json());
+    const newVerifyPayload = publicCertificateCatalogSchema.parse(newVerifyResponse.json());
+    const certificatePayload = portalCertificateCatalogSchema.parse(certificateResponse.json());
+
+    assert.equal(oldVerifyPayload.scenarios[0]?.result.ok, true);
+    assert.equal(oldVerifyPayload.scenarios[0]?.result.status, "reissued");
+    assert.equal(newVerifyPayload.scenarios[0]?.result.ok, true);
+    assert.equal(newVerifyPayload.scenarios[0]?.result.status, "authentic");
+    assert.equal(certificatePayload.selectedScenarioId, "reissued-history");
+    assert.equal(certificatePayload.scenarios[0]?.detail.metadataFields.some((field) => field.value === "R1"), true);
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the persisted V5 quality and governance catalogs for the authenticated tenant", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV4CoreSeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV4RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(createV4ServiceOrderSeed()),
+    qualityPersistence: createMemoryQualityPersistence(createV5QualitySeed()),
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const [ncResponse, workResponse, auditResponse, indicatorResponse, reviewResponse, hubResponse, settingsResponse] =
+      await Promise.all([
+        app.inject({ method: "GET", url: "/quality/nonconformities", headers: { cookie } }),
+        app.inject({ method: "GET", url: "/quality/nonconforming-work", headers: { cookie } }),
+        app.inject({ method: "GET", url: "/quality/internal-audit", headers: { cookie } }),
+        app.inject({ method: "GET", url: "/quality/indicators", headers: { cookie } }),
+        app.inject({ method: "GET", url: "/quality/management-review", headers: { cookie } }),
+        app.inject({ method: "GET", url: "/quality", headers: { cookie } }),
+        app.inject({ method: "GET", url: "/settings/organization", headers: { cookie } }),
+      ]);
+
+    assert.equal(ncResponse.statusCode, 200);
+    assert.equal(workResponse.statusCode, 200);
+    assert.equal(auditResponse.statusCode, 200);
+    assert.equal(indicatorResponse.statusCode, 200);
+    assert.equal(reviewResponse.statusCode, 200);
+    assert.equal(hubResponse.statusCode, 200);
+    assert.equal(settingsResponse.statusCode, 200);
+
+    const ncPayload = nonconformityRegistryCatalogSchema.parse(ncResponse.json());
+    const auditPayload = internalAuditCatalogSchema.parse(auditResponse.json());
+    const indicatorPayload = qualityIndicatorRegistryCatalogSchema.parse(indicatorResponse.json());
+    const reviewPayload = managementReviewCatalogSchema.parse(reviewResponse.json());
+    const hubPayload = qualityHubCatalogSchema.parse(hubResponse.json());
+    const settingsPayload = organizationSettingsCatalogSchema.parse(settingsResponse.json());
+
+    assert.equal(ncPayload.scenarios[0]?.items[0]?.ncId, "nc-014");
+    assert.equal(auditPayload.scenarios[0]?.cycles[0]?.cycleId, "audit-cycle-2026-q2");
+    assert.equal((indicatorPayload.scenarios[0]?.indicators.length ?? 0) >= 3, true);
+    assert.equal(reviewPayload.scenarios[0]?.meetings[0]?.meetingId, "review-2026-q2");
+    assert.equal((hubPayload.scenarios[0]?.summary.implementedModuleCount ?? 0) >= 6, true);
+    assert.equal(settingsPayload.scenarios[0]?.summary.organizationCode, "AFERE");
+  } finally {
+    await app.close();
+  }
+});
+
+test("updates persisted V5 nonconformity and compliance profile through manage endpoints", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const qualityPersistence = createMemoryQualityPersistence(createV5QualitySeed());
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV4CoreSeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV4RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(createV4ServiceOrderSeed()),
+    qualityPersistence,
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const [ncManage, settingsManage] = await Promise.all([
+      app.inject({
+        method: "POST",
+        url: "/quality/nonconformities/manage",
+        headers: { cookie },
+        payload: {
+          action: "save",
+          ncId: "nc-014",
+          serviceOrderId: "service-order-00147",
+          ownerUserId: "user-admin-1",
+          title: "NC-014 · Segregacao revalidada",
+          originLabel: "Revisao tecnica",
+          severityLabel: "Moderada",
+          status: "attention",
+          noticeLabel: "A NC entrou em follow-up controlado.",
+          rootCauseLabel: "Papéis regularizados e aguardando evidencia final.",
+          containmentLabel: "Manter o bloqueio parcial ate anexar nova conferencia.",
+          correctiveActionLabel: "Concluir checklist final e liberar revisao.",
+          evidenceLabel: "Checklist final em andamento.",
+          blockers: [],
+          warnings: ["Ainda falta evidência final."],
+          openedAt: "2026-04-23T13:20:00.000Z",
+          dueAt: "2026-05-02T17:00:00.000Z",
+        },
+      }),
+      app.inject({
+        method: "POST",
+        url: "/settings/organization/manage",
+        headers: { cookie },
+        payload: {
+          action: "save",
+          regulatoryProfile: "type_a",
+          organizationCode: "AFERE",
+          planLabel: "Enterprise",
+          certificatePrefix: "LABDEMO",
+          accreditationNumber: "Cgcre CAL-1234",
+          accreditationValidUntil: "2027-09-30T00:00:00.000Z",
+          scopeSummary: "Escopo demo revisado.",
+          cmcSummary: "CMC demo revisada.",
+          scopeItemCount: "5",
+          cmcItemCount: "5",
+          legalOpinionStatus: "approved_reference",
+          legalOpinionReference: "compliance/legal-opinions/2026-04-21-signature-auditability-opinion.md",
+          dpaReference: "compliance/legal-opinions/dpa-template.md",
+          normativeGovernanceStatus: "active",
+          normativeGovernanceOwner: "product-governance",
+          normativeGovernanceReference: "compliance/release-norm/pre-go-live-normative-governance.yaml",
+          releaseNormVersion: "v5",
+          releaseNormStatus: "local_pass",
+          lastReviewedAt: "2026-04-23T21:00:00.000Z",
+        },
+      }),
+    ]);
+
+    assert.equal(ncManage.statusCode, 204);
+    assert.equal(settingsManage.statusCode, 204);
+
+    const [ncResponse, settingsResponse] = await Promise.all([
+      app.inject({ method: "GET", url: "/quality/nonconformities", headers: { cookie } }),
+      app.inject({ method: "GET", url: "/settings/organization", headers: { cookie } }),
+    ]);
+
+    const ncPayload = nonconformityRegistryCatalogSchema.parse(ncResponse.json());
+    const settingsPayload = organizationSettingsCatalogSchema.parse(settingsResponse.json());
+
+    assert.equal(ncPayload.scenarios[0]?.items[0]?.summary, "NC-014 · Segregacao revalidada");
+    assert.equal(
+      settingsPayload.scenarios[0]?.summary.profileLabel.includes("Tipo A"),
+      true,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
 function createRuntimeReadinessStub(options: {
   postgresReason?: string;
   redisReason?: string;
@@ -1965,4 +2284,470 @@ function createV3ServiceOrderSeed() {
       },
     ],
   };
+}
+
+function createV4CoreSeed() {
+  const seed = createV3CoreSeed();
+
+  return {
+    ...seed,
+    users: [
+      ...seed.users,
+      {
+        userId: "user-external-client-1",
+        organizationId: "org-1",
+        organizationName: "Laboratorio Persistido",
+        organizationSlug: "lab-persistido",
+        email: "marcia@paodoce.com.br",
+        passwordHash: hashPassword("Afere@2026!", "seed-external-client"),
+        displayName: "Marcia Lima",
+        roles: ["external_client"] as MembershipRole[],
+        status: "active" as const,
+        teamName: "Cliente",
+        mfaEnforced: false,
+        mfaEnrolled: false,
+        deviceCount: 1,
+        competencies: [],
+      },
+    ],
+  };
+}
+
+function createV4RegistrySeed() {
+  const seed = createV2RegistrySeed();
+
+  return {
+    ...seed,
+    customers: [
+      ...seed.customers,
+      {
+        customerId: "customer-002",
+        organizationId: "org-1",
+        legalName: "Padaria Pao Doce Comercio Ltda.",
+        tradeName: "Padaria Pao Doce",
+        documentLabel: "23.456.789/0001-YY",
+        segmentLabel: "Panificacao",
+        accountOwnerName: "Marcia Lima",
+        accountOwnerEmail: "marcia@paodoce.com.br",
+        contractLabel: "Contrato vigente ate 30/11/2026",
+        specialConditionsLabel: "Atendimento antes da abertura da loja",
+        contactName: "Marcia Lima",
+        contactRoleLabel: "Responsavel administrativa",
+        contactEmail: "marcia@paodoce.com.br",
+        contactPhoneLabel: "(65) 99999-1101",
+        addressLine1: "Avenida do Comercio, 45",
+        addressCity: "Cuiaba",
+        addressState: "MT",
+        addressPostalCode: "78005-010",
+        addressCountry: "Brasil",
+        addressConditionsLabel: "Atendimento antes das 6h para nao interromper a producao.",
+        createdAtUtc: "2026-04-10T12:00:00.000Z",
+        updatedAtUtc: "2026-04-23T12:00:00.000Z",
+      },
+    ],
+    equipment: [
+      ...seed.equipment,
+      {
+        equipmentId: "equipment-00141",
+        organizationId: "org-1",
+        customerId: "customer-002",
+        procedureId: "procedure-001",
+        primaryStandardId: "standard-001",
+        code: "EQ-00141",
+        tagCode: "BAL-141",
+        serialNumber: "SN-141-02",
+        typeModelLabel: "Balanca Prix 4 Uno 30 kg",
+        capacityClassLabel: "30 kg · 0,005 kg · III",
+        supportingStandardCodes: ["PESO-001"],
+        addressLine1: "Avenida do Comercio, 45",
+        addressCity: "Cuiaba",
+        addressState: "MT",
+        addressPostalCode: "78005-010",
+        addressCountry: "Brasil",
+        addressConditionsLabel: "Atendimento antes da abertura.",
+        lastCalibrationAtUtc: "2026-04-20T00:00:00.000Z",
+        nextCalibrationAtUtc: "2026-10-20T00:00:00.000Z",
+        createdAtUtc: "2026-04-10T12:00:00.000Z",
+        updatedAtUtc: "2026-04-23T12:00:00.000Z",
+      },
+    ],
+    auditEvents: [
+      ...seed.auditEvents,
+      {
+        entityType: "equipment" as const,
+        entityId: "equipment-00141",
+        action: "update",
+        summary: "Equipamento da carteira do portal vinculado ao cliente externo seed.",
+        createdAtUtc: "2026-04-23T13:00:00.000Z",
+      },
+    ],
+  };
+}
+
+function createV4ServiceOrderSeed() {
+  const seed = createV3ServiceOrderSeed();
+
+  return {
+    ...seed,
+    customers: [
+      ...seed.customers,
+      {
+        customerId: "customer-002",
+        organizationId: "org-1",
+        tradeName: "Padaria Pao Doce",
+        addressLine1: "Avenida do Comercio, 45",
+        addressCity: "Cuiaba",
+        addressState: "MT",
+        addressPostalCode: "78005-010",
+        addressCountry: "Brasil",
+      },
+    ],
+    equipment: [
+      ...seed.equipment,
+      {
+        equipmentId: "equipment-00141",
+        organizationId: "org-1",
+        customerId: "customer-002",
+        procedureId: "procedure-001",
+        primaryStandardId: "standard-001",
+        code: "EQ-00141",
+        tagCode: "BAL-141",
+        serialNumber: "SN-141-02",
+        typeModelLabel: "Balanca Prix 4 Uno 30 kg",
+      },
+    ],
+    serviceOrders: [
+      ...seed.serviceOrders,
+      {
+        serviceOrderId: "service-order-00141",
+        organizationId: "org-1",
+        customerId: "customer-002",
+        customerName: "Padaria Pao Doce",
+        customerAddress: {
+          line1: "Avenida do Comercio, 45",
+          city: "Cuiaba",
+          state: "MT",
+          postalCode: "78005-010",
+          country: "Brasil",
+        },
+        equipmentId: "equipment-00141",
+        equipmentLabel: "EQ-00141 · Balanca Prix 4 Uno 30 kg",
+        equipmentCode: "EQ-00141",
+        equipmentTagCode: "BAL-141",
+        equipmentSerialNumber: "SN-141-02",
+        instrumentType: "balanca",
+        procedureId: "procedure-001",
+        procedureLabel: "PT-005 rev.04",
+        primaryStandardId: "standard-001",
+        standardsLabel: "PESO-001 · Peso padrao 1 kg",
+        standardSource: "RBC" as const,
+        standardCertificateReference: "1234/25/081",
+        standardHasValidCertificate: true,
+        standardCertificateValidUntilUtc: "2026-08-12T00:00:00.000Z",
+        standardMeasurementValue: 1,
+        standardApplicableRange: {
+          minimum: 0,
+          maximum: 1,
+        },
+        executorUserId: "user-admin-1",
+        executorName: "Ana Administradora",
+        reviewerUserId: "user-reviewer-1",
+        reviewerName: "Renata Revisora",
+        signatoryUserId: "user-signatory-1",
+        signatoryName: "Bruno Signatario",
+        workOrderNumber: "OS-2026-00141",
+        workflowStatus: "emitted" as const,
+        environmentLabel: "23,0 C · 52% UR · atendimento antes da abertura",
+        curvePointsLabel: "4 pontos com repetibilidade em 50%",
+        evidenceLabel: "11 evidencias registradas",
+        uncertaintyLabel: "U = 0,08 kg (k=2)",
+        conformityLabel: "Aprovado sem restricoes adicionais",
+        measurementResultValue: 29.998,
+        measurementExpandedUncertaintyValue: 0.08,
+        measurementCoverageFactor: 2,
+        measurementUnit: "kg",
+        decisionRuleLabel: "ILAC G8 sem banda de guarda adicional",
+        decisionOutcomeLabel: "Conforme",
+        freeTextStatement: "Certificado emitido com base em revisao tecnica concluida e assinatura valida.",
+        commentDraft: "Historico estavel e repetibilidade dentro do criterio de aceitacao.",
+        reviewDecision: "approved" as const,
+        reviewDecisionComment: "Revisao aprovada e liberada para emissao oficial.",
+        reviewDeviceId: "device-review-02",
+        signatureDeviceId: "device-sign-02",
+        signatureStatement: "Assinatura eletronica concluida por Bruno Signatario.",
+        certificateNumber: "LABPERSISTID-000141",
+        certificateRevision: "R0",
+        publicVerificationToken: "pubtok-os141",
+        documentHash: "1411411411411411411411411411411411411411411411411411411411411411",
+        qrHost: "lab-persistido.afere.local",
+        createdAtUtc: "2026-04-12T11:42:00.000Z",
+        acceptedAtUtc: "2026-04-12T12:03:00.000Z",
+        executionStartedAtUtc: "2026-04-19T13:10:00.000Z",
+        executedAtUtc: "2026-04-19T15:40:00.000Z",
+        reviewStartedAtUtc: "2026-04-20T08:40:00.000Z",
+        reviewCompletedAtUtc: "2026-04-20T09:10:00.000Z",
+        signatureStartedAtUtc: "2026-04-20T09:18:00.000Z",
+        signedAtUtc: "2026-04-20T09:22:00.000Z",
+        emittedAtUtc: "2026-04-20T09:23:00.000Z",
+        updatedAtUtc: "2026-04-20T09:23:00.000Z",
+      },
+    ],
+    certificatePublications: [
+      {
+        publicationId: "publication-00141-r0",
+        organizationId: "org-1",
+        serviceOrderId: "service-order-00141",
+        customerId: "customer-002",
+        customerName: "Padaria Pao Doce",
+        equipmentId: "equipment-00141",
+        equipmentLabel: "EQ-00141 · Balanca Prix 4 Uno 30 kg",
+        equipmentTagCode: "BAL-141",
+        equipmentSerialNumber: "SN-141-02",
+        workOrderNumber: "OS-2026-00141",
+        certificateNumber: "LABPERSISTID-000141",
+        revision: "R0",
+        publicVerificationToken: "pubtok-os141",
+        documentHash: "1411411411411411411411411411411411411411411411411411411411411411",
+        qrHost: "lab-persistido.afere.local",
+        signedAtUtc: "2026-04-20T09:22:00.000Z",
+        issuedAtUtc: "2026-04-20T09:23:00.000Z",
+        createdAtUtc: "2026-04-20T09:23:00.000Z",
+        updatedAtUtc: "2026-04-20T09:23:00.000Z",
+      },
+    ],
+    emissionAuditEvents: buildSeedEmissionAuditTrail("service-order-00141", [
+      {
+        eventId: "audit-00141-0",
+        action: "calibration.executed",
+        actorUserId: "user-admin-1",
+        actorLabel: "Ana Administradora",
+        entityLabel: "OS-2026-00141",
+        occurredAtUtc: "2026-04-19T15:40:00.000Z",
+      },
+      {
+        eventId: "audit-00141-1",
+        action: "technical_review.completed",
+        actorUserId: "user-reviewer-1",
+        actorLabel: "Renata Revisora",
+        entityLabel: "OS-2026-00141",
+        deviceId: "device-review-02",
+        occurredAtUtc: "2026-04-20T09:10:00.000Z",
+      },
+      {
+        eventId: "audit-00141-2",
+        action: "certificate.signed",
+        actorUserId: "user-signatory-1",
+        actorLabel: "Bruno Signatario",
+        entityLabel: "OS-2026-00141",
+        deviceId: "device-sign-02",
+        certificateNumber: "LABPERSISTID-000141",
+        occurredAtUtc: "2026-04-20T09:22:00.000Z",
+      },
+      {
+        eventId: "audit-00141-3",
+        action: "certificate.emitted",
+        actorUserId: "user-signatory-1",
+        actorLabel: "Bruno Signatario",
+        entityLabel: "OS-2026-00141",
+        deviceId: "device-sign-02",
+        certificateNumber: "LABPERSISTID-000141",
+        occurredAtUtc: "2026-04-20T09:23:00.000Z",
+      },
+    ]),
+  };
+}
+
+function createV5QualitySeed() {
+  return {
+    nonconformities: [
+      {
+        ncId: "nc-014",
+        organizationId: "org-1",
+        serviceOrderId: "service-order-00147",
+        workOrderNumber: "OS-2026-00147",
+        ownerUserId: "user-admin-1",
+        ownerLabel: "Ana Administradora",
+        title: "NC-014 · Revisor conflitado e padrao vencido na OS bloqueada",
+        originLabel: "Revisao tecnica",
+        severityLabel: "Critica",
+        status: "blocked" as const,
+        noticeLabel: "A OS permanece bloqueada ate segregar funcoes e regularizar o padrao principal.",
+        rootCauseLabel: "Atribuicao inadequada de papeis somada a uso de padrao fora da validade.",
+        containmentLabel: "Suspender qualquer liberacao da OS-2026-00147.",
+        correctiveActionLabel: "Substituir o revisor, recalibrar o padrao e registrar nova conferencia.",
+        evidenceLabel: "OS-2026-00147 e trilha append-only.",
+        blockers: ["Segregacao de funcoes pendente", "Padrao principal vencido"],
+        warnings: ["Nao emitir certificado ate fechar a NC."],
+        openedAtUtc: "2026-04-23T13:20:00.000Z",
+        dueAtUtc: "2026-04-30T17:00:00.000Z",
+      },
+    ],
+    nonconformingWork: [
+      {
+        caseId: "ncw-014",
+        organizationId: "org-1",
+        serviceOrderId: "service-order-00147",
+        workOrderNumber: "OS-2026-00147",
+        nonconformityId: "nc-014",
+        title: "NCW-014 · Contencao da OS-2026-00147",
+        classificationLabel: "Contencao preventiva",
+        originLabel: "OS bloqueada",
+        affectedEntityLabel: "OS-2026-00147",
+        status: "blocked" as const,
+        noticeLabel: "Liberacao do fluxo bloqueada ate nova evidencia minima.",
+        containmentLabel: "Manter a OS congelada.",
+        releaseRuleLabel: "Somente liberar apos NC encerrada.",
+        evidenceLabel: "Registro da NC-014 e trilha de revisao.",
+        restorationLabel: "Retomar apenas com novo revisor e padrao valido.",
+        blockers: ["NC-014 aberta"],
+        warnings: ["Nao substituir a contencao por acordo verbal."],
+        createdAtUtc: "2026-04-23T14:00:00.000Z",
+        updatedAtUtc: "2026-04-23T14:10:00.000Z",
+      },
+    ],
+    internalAuditCycles: [
+      {
+        cycleId: "audit-cycle-2026-q2",
+        organizationId: "org-1",
+        cycleLabel: "Programa 2026 · Ciclo 2",
+        windowLabel: "Q2 2026",
+        scopeLabel: "§7.8 Certificados | §7.10 Trabalho nao conforme",
+        auditorLabel: "Ana Administradora",
+        auditeeLabel: "Operacoes e Qualidade",
+        periodLabel: "Abr-Jun 2026",
+        reportLabel: "Relatorio parcial do ciclo 2 em follow-up",
+        evidenceLabel: "Checklist do ciclo, NC-014 e trilha da OS-2026-00147.",
+        nextReviewLabel: "05/05/2026 13:00 UTC",
+        noticeLabel: "O ciclo permanece aberto ate concluir o follow-up da NC critica.",
+        status: "attention" as const,
+        checklist: [
+          {
+            key: "certificates",
+            requirementLabel: "Certificados emitidos e bloqueados com evidencias rastreaveis",
+            evidenceLabel: "service_orders + emission_audit_events",
+            status: "attention" as const,
+          },
+          {
+            key: "nonconforming-work",
+            requirementLabel: "Contencao formal do trabalho nao conforme",
+            evidenceLabel: "nonconforming_work_cases + NC-014",
+            status: "blocked" as const,
+          },
+        ],
+        findingRefs: ["nc-014"],
+        blockers: ["NC critica ainda sem encerramento"],
+        warnings: ["Nao abrir novo ciclo sem concluir o follow-up atual."],
+        scheduledAtUtc: "2026-04-24T14:00:00.000Z",
+      },
+    ],
+    managementReviewMeetings: [
+      {
+        meetingId: "review-2026-q2",
+        organizationId: "org-1",
+        titleLabel: "Analise critica Q2 2026",
+        status: "attention" as const,
+        dateLabel: "30/06/2026",
+        outcomeLabel: "Pauta aberta com follow-up de Qualidade",
+        noticeLabel: "A ata final depende do fechamento minimo da NC critica e do ciclo de auditoria.",
+        nextMeetingLabel: "30/09/2026",
+        chairLabel: "Ana Administradora",
+        attendeesLabel: "Direcao, Qualidade e Metrologia",
+        periodLabel: "Q2 2026",
+        ataLabel: "Ata em preparacao",
+        evidenceLabel: "Indicadores V5, NC-014, auditoria e perfil regulatorio persistido.",
+        agendaItems: [
+          { key: "agenda-nc", label: "NCs e trabalho nao conforme", status: "attention" as const },
+          { key: "agenda-audit", label: "Follow-up da auditoria interna", status: "attention" as const },
+        ],
+        decisions: [
+          {
+            key: "decision-close-nc",
+            label: "Encerrar NC-014 com evidencias minimas",
+            ownerLabel: "Ana Administradora",
+            dueDateLabel: "05/05/2026",
+            status: "attention" as const,
+          },
+        ],
+        blockers: [],
+        warnings: ["A ata nao deve ser arquivada antes do follow-up minimo da NC."],
+        scheduledForUtc: "2026-06-30T13:00:00.000Z",
+      },
+    ],
+    complianceProfiles: [
+      {
+        complianceProfileId: "compliance-profile-v5",
+        organizationId: "org-1",
+        organizationName: "Laboratorio Persistido",
+        organizationSlug: "lab-persistido",
+        regulatoryProfile: "type_b",
+        normativePackageVersion: "2026-04-20-baseline-v0.1.0",
+        organizationCode: "AFERE",
+        planLabel: "Enterprise",
+        certificatePrefix: "LABDEMO",
+        accreditationNumber: "Cgcre CAL-1234",
+        accreditationValidUntilUtc: "2027-09-30T00:00:00.000Z",
+        scopeSummary: "Escopo demo controlado para balancas.",
+        cmcSummary: "CMC demo revisada para o tenant persistido.",
+        scopeItemCount: 4,
+        cmcItemCount: 4,
+        legalOpinionStatus: "approved_reference",
+        legalOpinionReference: "compliance/legal-opinions/2026-04-21-signature-auditability-opinion.md",
+        dpaReference: "compliance/legal-opinions/dpa-template.md",
+        normativeGovernanceStatus: "active",
+        normativeGovernanceOwner: "product-governance",
+        normativeGovernanceReference: "compliance/release-norm/pre-go-live-normative-governance.yaml",
+        releaseNormVersion: "v5",
+        releaseNormStatus: "pending_local_validation",
+        lastReviewedAtUtc: "2026-04-23T20:30:00.000Z",
+      },
+    ],
+  };
+}
+
+function buildSeedEmissionAuditTrail(
+  serviceOrderId: string,
+  events: Array<{
+    eventId: string;
+    action: string;
+    actorUserId?: string;
+    actorLabel: string;
+    entityLabel: string;
+    deviceId?: string;
+    certificateNumber?: string;
+    occurredAtUtc: string;
+  }>,
+) {
+  let prevHash = "0".repeat(64);
+
+  return events.map((event) => {
+    const hash = computeAuditHash(prevHash, {
+      action: event.action,
+      actorId: event.actorUserId,
+      actorLabel: event.actorLabel,
+      certificateId: serviceOrderId,
+      certificateNumber: event.certificateNumber,
+      entityLabel: event.entityLabel,
+      timestampUtc: event.occurredAtUtc,
+      deviceId: event.deviceId,
+    });
+
+    const row = {
+      eventId: event.eventId,
+      organizationId: "org-1",
+      serviceOrderId,
+      workOrderNumber: event.entityLabel,
+      actorUserId: event.actorUserId,
+      actorLabel: event.actorLabel,
+      action: event.action,
+      entityLabel: event.entityLabel,
+      deviceId: event.deviceId,
+      certificateNumber: event.certificateNumber,
+      prevHash,
+      hash,
+      occurredAtUtc: event.occurredAtUtc,
+    };
+
+    prevHash = hash;
+    return row;
+  });
 }

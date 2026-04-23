@@ -57,6 +57,7 @@ export const WORKSPACE_ALLOWED_ROLES: MembershipRole[] = [
   "technical_reviewer",
   "technician",
 ];
+export const PORTAL_ALLOWED_ROLES: MembershipRole[] = ["external_client"];
 export const SERVICE_ORDER_WRITE_ALLOWED_ROLES: MembershipRole[] = [
   "admin",
   "quality_manager",
@@ -64,6 +65,15 @@ export const SERVICE_ORDER_WRITE_ALLOWED_ROLES: MembershipRole[] = [
   "technical_reviewer",
   "technician",
 ];
+export const QUALITY_ALLOWED_ROLES: MembershipRole[] = [
+  "admin",
+  "quality_manager",
+  "signatory",
+  "technical_reviewer",
+];
+export const QUALITY_WRITE_ALLOWED_ROLES: MembershipRole[] = ["admin", "quality_manager"];
+export const SETTINGS_ALLOWED_ROLES: MembershipRole[] = QUALITY_ALLOWED_ROLES;
+export const SETTINGS_WRITE_ALLOWED_ROLES: MembershipRole[] = QUALITY_WRITE_ALLOWED_ROLES;
 
 export async function registerAuthSessionRoutes(
   app: FastifyInstance,
@@ -188,6 +198,14 @@ export async function requireWorkspaceAccess(
   return requireAuthenticatedRequest(request, reply, persistence, WORKSPACE_ALLOWED_ROLES);
 }
 
+export async function requirePortalAccess(
+  request: Parameters<typeof requireAuthenticatedRequest>[0],
+  reply: Parameters<typeof requireAuthenticatedRequest>[1],
+  persistence: CorePersistence,
+) {
+  return requireAuthenticatedRequest(request, reply, persistence, PORTAL_ALLOWED_ROLES);
+}
+
 export async function requireServiceOrderWriteAccess(
   request: Parameters<typeof requireAuthenticatedRequest>[0],
   reply: Parameters<typeof requireAuthenticatedRequest>[1],
@@ -210,6 +228,38 @@ export async function requireRegistryWriteAccess(
   persistence: CorePersistence,
 ) {
   return requireAuthenticatedRequest(request, reply, persistence, REGISTRY_WRITE_ALLOWED_ROLES);
+}
+
+export async function requireQualityAccess(
+  request: Parameters<typeof requireAuthenticatedRequest>[0],
+  reply: Parameters<typeof requireAuthenticatedRequest>[1],
+  persistence: CorePersistence,
+) {
+  return requireAuthenticatedRequest(request, reply, persistence, QUALITY_ALLOWED_ROLES);
+}
+
+export async function requireQualityWriteAccess(
+  request: Parameters<typeof requireAuthenticatedRequest>[0],
+  reply: Parameters<typeof requireAuthenticatedRequest>[1],
+  persistence: CorePersistence,
+) {
+  return requireAuthenticatedRequest(request, reply, persistence, QUALITY_WRITE_ALLOWED_ROLES);
+}
+
+export async function requireSettingsAccess(
+  request: Parameters<typeof requireAuthenticatedRequest>[0],
+  reply: Parameters<typeof requireAuthenticatedRequest>[1],
+  persistence: CorePersistence,
+) {
+  return requireAuthenticatedRequest(request, reply, persistence, SETTINGS_ALLOWED_ROLES);
+}
+
+export async function requireSettingsWriteAccess(
+  request: Parameters<typeof requireAuthenticatedRequest>[0],
+  reply: Parameters<typeof requireAuthenticatedRequest>[1],
+  persistence: CorePersistence,
+) {
+  return requireAuthenticatedRequest(request, reply, persistence, SETTINGS_WRITE_ALLOWED_ROLES);
 }
 
 function readRedirectTarget(body: unknown) {

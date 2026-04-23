@@ -5,13 +5,20 @@ import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
 type PageProps = {
   searchParams?: {
     scenario?: string;
+    certificate?: string;
+    token?: string;
   };
 };
 
 export const dynamic = "force-dynamic";
 
 export default async function VerifyPage(props: PageProps) {
-  const catalog = await loadPublicCertificateCatalog({ scenarioId: props.searchParams?.scenario });
+  const isPersistedMode = !props.searchParams?.scenario;
+  const catalog = await loadPublicCertificateCatalog({
+    scenarioId: props.searchParams?.scenario,
+    certificateId: props.searchParams?.certificate,
+    token: props.searchParams?.token,
+  });
 
   if (!catalog) {
     return (
@@ -129,7 +136,11 @@ export default async function VerifyPage(props: PageProps) {
         {scenarios.map((item) => (
           <NavCard
             key={item.id}
-            href={`/verify?scenario=${item.id}`}
+            href={
+              isPersistedMode && props.searchParams?.certificate && props.searchParams?.token
+                ? `/verify?certificate=${encodeURIComponent(props.searchParams.certificate)}&token=${encodeURIComponent(props.searchParams.token)}`
+                : `/verify?scenario=${item.id}`
+            }
             eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
             title={item.label}
             description={item.description}

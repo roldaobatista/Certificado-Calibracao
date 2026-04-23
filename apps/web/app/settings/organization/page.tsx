@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadOrganizationSettingsCatalog } from "@/src/settings/organization-settings-api";
 import { buildOrganizationSettingsCatalogView } from "@/src/settings/organization-settings-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -29,12 +32,41 @@ function statusLabel(status: "ready" | "attention" | "blocked"): string {
 }
 
 export default async function OrganizationSettingsPage(props: PageProps) {
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
   const catalog = await loadOrganizationSettingsCatalog({
     scenarioId: props.searchParams?.scenario,
     sectionKey: props.searchParams?.section,
+    cookieHeader,
   });
 
   if (!catalog) {
+    if (authSession?.authenticated === false && !props.searchParams?.scenario) {
+      return (
+        <AppShell
+          eyebrow="Configuracoes - organizacao"
+          title="Configuracoes protegidas por sessao"
+          description="A governanca regulatoria persistida da V5 exige autenticacao antes da leitura."
+          aside={
+            <div className="hero-stat">
+              <span className="eyebrow">Acesso atual</span>
+              <strong>Login necessario</strong>
+              <StatusPill tone="warn" label="RBAC ativo" />
+              <p>Entre com um papel autorizado para abrir o perfil regulatorio real do tenant.</p>
+            </div>
+          }
+        >
+          <section className="content-panel">
+            <div className="button-row">
+              <a className="button-primary" href="/auth/login">
+                Fazer login
+              </a>
+            </div>
+          </section>
+        </AppShell>
+      );
+    }
+
     return (
       <AppShell
         eyebrow="Configuracoes - organizacao"
@@ -67,13 +99,17 @@ export default async function OrganizationSettingsPage(props: PageProps) {
   const detail = scenario.detail;
 
   return (
-    <AppShell
-      eyebrow="Configuracoes - organizacao"
-      title={scenario.summary.organizationName}
-      description={scenario.description}
-      aside={
-        <div className="hero-stat">
-          <span className="eyebrow">Cenario ativo</span>
+      <AppShell
+        eyebrow="Configuracoes - organizacao"
+        title={scenario.summary.organizationName}
+        description={
+          authSession?.authenticated === true && !props.searchParams?.scenario
+            ? `${scenario.description} A pagina esta exibindo a governanca persistida da V5.`
+            : scenario.description
+        }
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Cenario ativo</span>
           <strong>{scenario.label}</strong>
           <StatusPill tone={statusTone(scenario.summary.status)} label={statusLabel(scenario.summary.status)} />
           <p>{scenario.summary.recommendedAction}</p>

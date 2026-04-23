@@ -5,6 +5,7 @@ const DEFAULT_API_BASE_URL = "http://127.0.0.1:3000";
 export interface LoadPortalDashboardCatalogOptions {
   scenarioId?: string;
   apiBaseUrl?: string;
+  cookieHeader?: string;
   fetchImpl?: typeof fetch;
 }
 
@@ -24,9 +25,7 @@ export async function loadPortalDashboardCatalog(
   try {
     const response = await fetchImpl(endpoint, {
       method: "GET",
-      headers: {
-        accept: "application/json",
-      },
+      headers: buildHeaders(options.cookieHeader),
       cache: "no-store",
     });
 
@@ -40,6 +39,18 @@ export async function loadPortalDashboardCatalog(
   } catch {
     return null;
   }
+}
+
+function buildHeaders(cookieHeader?: string) {
+  const headers: Record<string, string> = {
+    accept: "application/json",
+  };
+
+  if (cookieHeader) {
+    headers.cookie = cookieHeader;
+  }
+
+  return headers;
 }
 
 function buildPortalDashboardEndpoint(apiBaseUrl: string, scenarioId?: string): string | null {
