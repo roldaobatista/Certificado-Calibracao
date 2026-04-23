@@ -308,6 +308,8 @@ export function buildPersistedEquipmentRegistryCatalog(
       ? `${linkedProcedure.code} rev.${linkedProcedure.revisionLabel}`
       : "Procedimento nao vinculado",
     nextCalibrationLabel: formatEquipmentNextCalibrationLabel(selectedEquipment, input.nowUtc),
+    metrologySummaryLabel: buildEquipmentMetrologySummary(selectedEquipment),
+    metrologyProfile: selectedEquipment.metrologyProfile,
     blockers: statusDetails.blockers,
     warnings: statusDetails.warnings,
     links: {
@@ -417,6 +419,8 @@ export function buildPersistedStandardRegistryCatalog(
           usageRangeLabel: selectedStandard.usageRangeLabel,
           uncertaintyLabel: selectedStandard.uncertaintyLabel,
           correctionFactorLabel: selectedStandard.correctionFactorLabel,
+          metrologySummaryLabel: buildStandardMetrologySummary(selectedStandard),
+          metrologyProfile: selectedStandard.metrologyProfile,
           history: buildStandardHistory(selectedStandard),
           recentWorkOrders: buildStandardRecentWorkOrders(linkedEquipment),
           blockers: details.blockers,
@@ -556,6 +560,42 @@ function buildStandardListItem(record: PersistedStandardRecord, nowUtc: string) 
       : "Nao informada",
     status: details.status,
   };
+}
+
+function buildEquipmentMetrologySummary(record: PersistedEquipmentRecord) {
+  const profile = record.metrologyProfile;
+  if (!profile) {
+    return "Perfil metrologico canonico pendente.";
+  }
+
+  const parts = [
+    `${renderEquipmentInstrumentKind(profile.instrumentKind)} · Max ${formatNumericValue(profile.maximumCapacityValue)} ${profile.measurementUnit}`,
+    `d=${formatNumericValue(profile.readabilityValue)} ${profile.measurementUnit}`,
+    `e=${formatNumericValue(profile.verificationScaleIntervalValue)} ${profile.measurementUnit}`,
+    profile.normativeClass ? `classe ${profile.normativeClass.toUpperCase()}` : undefined,
+  ];
+
+  return parts.filter((part): part is string => Boolean(part)).join(" · ");
+}
+
+function buildStandardMetrologySummary(record: PersistedStandardRecord) {
+  const profile = record.metrologyProfile;
+  if (!profile) {
+    return "Perfil metrologico canonico pendente.";
+  }
+
+  const parts = [
+    `${renderStandardQuantityKind(profile.quantityKind)} · Uexp ${formatNumericValue(profile.expandedUncertaintyValue)} ${profile.measurementUnit} (k=${formatNumericValue(profile.coverageFactorK)})`,
+    `fonte ${renderTraceabilitySource(profile.traceabilitySource)}`,
+    profile.conventionalMassErrorValue !== undefined
+      ? `erro conv. ${formatSignedValue(profile.conventionalMassErrorValue)} ${profile.measurementUnit}`
+      : undefined,
+    profile.densityKgPerM3 !== undefined
+      ? `densidade ${formatNumericValue(profile.densityKgPerM3)} kg/m3`
+      : undefined,
+  ];
+
+  return parts.filter((part): part is string => Boolean(part)).join(" · ");
 }
 
 function buildProcedureListItem(record: PersistedProcedureRecord, nowUtc: string) {
@@ -1145,6 +1185,61 @@ function renderStandardPanelLabel(code: string) {
   return code.toUpperCase();
 }
 
+function renderEquipmentInstrumentKind(
+  value: NonNullable<PersistedEquipmentRecord["metrologyProfile"]>["instrumentKind"],
+) {
+  switch (value) {
+    case "nawi":
+      return "NAWI/IPNA";
+    case "analytical_balance":
+      return "Balanca analitica";
+    case "precision_balance":
+      return "Balanca de precisao";
+    case "platform_scale":
+      return "Balanca plataforma";
+    case "vehicle_scale":
+      return "Balanca rodoviaria";
+    default:
+      return value;
+  }
+}
+
+function renderStandardQuantityKind(
+  value: NonNullable<PersistedStandardRecord["metrologyProfile"]>["quantityKind"],
+) {
+  switch (value) {
+    case "mass":
+      return "Massa";
+    case "temperature":
+      return "Temperatura";
+    case "humidity":
+      return "Umidade";
+    case "pressure":
+      return "Pressao";
+    case "auxiliary":
+      return "Auxiliar";
+    default:
+      return value;
+  }
+}
+
+function renderTraceabilitySource(
+  value: NonNullable<PersistedStandardRecord["metrologyProfile"]>["traceabilitySource"],
+) {
+  switch (value) {
+    case "rbc":
+      return "RBC";
+    case "internal":
+      return "Interna";
+    case "third_party":
+      return "Terceira parte";
+    case "untraced":
+      return "Sem rastreabilidade";
+    default:
+      return value;
+  }
+}
+
 function renderDueInLabel(validUntilLabel: string, nowUtc: string) {
   const validUntil = parseDateFromDisplay(validUntilLabel);
   if (!validUntil) {
@@ -1253,6 +1348,16 @@ function getDaysUntil(dateUtc: string | undefined, nowUtc: string) {
 function startOfUtcDay(value: string) {
   const day = TODAY_ONLY_FORMATTER.format(new Date(value));
   return new Date(`${day}T00:00:00.000Z`);
+}
+
+function formatNumericValue(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    maximumFractionDigits: 6,
+  }).format(value);
+}
+
+function formatSignedValue(value: number) {
+  return value > 0 ? `+${formatNumericValue(value)}` : formatNumericValue(value);
 }
 
 function formatDateLabel(value: string) {

@@ -14,9 +14,40 @@
 // - Arredondamento conforme DOQ-CGCRE.
 // - Property tests cobrindo casos-limite (negativos, zero, infinito, NaN).
 
-export const UNCERTAINTY_ENGINE_VERSION = "0.0.1-scaffold";
+export const UNCERTAINTY_ENGINE_VERSION = "0.0.6-indicative-decision-rule";
 
 export {
   buildCertificateMeasurementDeclaration,
   type CertificateMeasurementDeclaration,
 } from "./measurement-declarations.js";
+
+export {
+  analyzeRawMeasurementData,
+  type RawMeasurementAnalysisContext,
+  type RawMeasurementAnalysis,
+  type RawMeasurementAnalysisInput,
+} from "./raw-measurement-analysis.js";
+
+export {
+  buildPreliminaryUncertaintyBudget,
+  type PreliminaryUncertaintyBudget,
+  type PreliminaryUncertaintyBudgetContext,
+  type PreliminaryUncertaintyComponent,
+  type PreliminaryUncertaintyComponentId,
+  type PreliminaryUncertaintyComponentStatus,
+} from "./preliminary-uncertainty-budget.js";
+
+export {
+  evaluatePortaria157IndicativeTolerance,
+  type Portaria157IndicativeToleranceContext,
+  type Portaria157IndicativeToleranceEvaluation,
+  type Portaria157IndicativePointEvaluation,
+} from "./portaria-157-indicative-tolerance.js";
+
+export {
+  evaluateIndicativeDecisionRule,
+  type IndicativeDecisionEvaluation,
+  type IndicativeDecisionMode,
+  type IndicativeDecisionPointEvaluation,
+  type IndicativeDecisionVerdict,
+} from "./indicative-decision-rule.js";

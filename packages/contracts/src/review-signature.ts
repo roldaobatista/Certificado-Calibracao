@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { decisionAssistanceSummarySchema } from "./decision-assistance.js";
+
 export const membershipRoleSchema = z.enum([
   "admin",
   "quality_manager",
@@ -97,6 +99,7 @@ export const reviewSignatureWorkflowResultSchema = z.object({
   checks: z.array(reviewSignatureCheckSchema),
   assignments: reviewSignatureAssignmentsSchema,
   suggestions: reviewSignatureSuggestionsSchema,
+  decisionAssistance: decisionAssistanceSummarySchema.optional(),
 });
 export type ReviewSignatureWorkflowResult = z.infer<typeof reviewSignatureWorkflowResultSchema>;
 

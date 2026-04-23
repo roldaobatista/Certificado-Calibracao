@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { certificatePreviewFieldSchema } from "./certificate-preview.js";
+import { decisionAssistanceSummarySchema } from "./decision-assistance.js";
 import { emissionDryRunScenarioIdSchema } from "./emission-dry-run.js";
 import { reviewSignatureScenarioIdSchema } from "./review-signature.js";
 
@@ -76,6 +77,7 @@ export const signatureApprovalPanelSchema = z.object({
   blockers: z.array(z.string().min(1)),
   warnings: z.array(z.string().min(1)),
   authRequirements: z.array(signatureApprovalRequirementSchema).min(1),
+  decisionAssistance: decisionAssistanceSummarySchema.optional(),
   compactPreview: z.array(certificatePreviewFieldSchema).min(1),
 });
 export type SignatureApprovalPanel = z.infer<typeof signatureApprovalPanelSchema>;

@@ -10,7 +10,7 @@ snapshots:
     profile: A
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-a-01.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-a-01.pdf
-    sha256: b5fd9161b6a11d5e1b8dbded566db3f807ffcbb054d05c3a630eab8ec2469ac1
+    sha256: e47e1ec34a61e3f93be6fcdc02c3145263e6a6ca028a9ce4dba7a615b562d308
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -18,7 +18,7 @@ snapshots:
     profile: A
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-a-02.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-a-02.pdf
-    sha256: cf2dbb84e3ab2d5aedb7ca17a3a083269f831883b734b5266ea9590d93bf9a55
+    sha256: 86caf4815973f32a05aaa9ef29136a876c2cb6711e960ed8a54ab28fa41f9096
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -26,7 +26,7 @@ snapshots:
     profile: A
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-a-03.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-a-03.pdf
-    sha256: 257f1b337b15238b6aef4fbe9b0fb87566a860de9be9f914097aefd73e69b6ef
+    sha256: a93f1c23dc53de21ec80ebe5337d3b4ad069509585a3fe325f8eab31e80fe88c
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -34,7 +34,7 @@ snapshots:
     profile: A
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-a-04.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-a-04.pdf
-    sha256: 5f76a032484e219833e0e5ae8438e41b9ae512c0ba60f0b307c3042e97424207
+    sha256: c230d17fa0d507c38b4f8e9179673ef90ba6c9f7c0f5892f3a1c3ea410f3d998
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -42,7 +42,7 @@ snapshots:
     profile: A
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-a-05.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-a-05.pdf
-    sha256: 4ae21505320347214ae149bf3726be11c087eb3f3fbe587f20a333ae92b45a41
+    sha256: 920d10efb60ec6b8e3dba10463a8102debe3ab17486e0d09bf20594003351eac
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -50,7 +50,7 @@ snapshots:
     profile: A
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-a-06.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-a-06.pdf
-    sha256: f2b0c3e1efc4214550187c78c2e61144baea1daf053397bb0581c096513321ae
+    sha256: a965344f0e29516bae877d1dd7ea5a868bfa8b344fcaa92c1eede8c3d84a79b4
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -58,7 +58,7 @@ snapshots:
     profile: A
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-a-07.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-a-07.pdf
-    sha256: 11c92162229330c73da3217ef5b0032a66ef8b6eb47fbe9939522e51a5372273
+    sha256: 6883f44f2a2467d4e71f32aa32b3049f65e9d7b153bafa7d97e532be755b7bfd
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -66,7 +66,7 @@ snapshots:
     profile: A
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-a-08.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-a-08.pdf
-    sha256: 85394b7be10fc66757d038286fa12a3969b3c7fcb514640983d33d0fb9c8f233
+    sha256: 7d5d86a1a04974ac47d475b68164660122685057a68f2116036f8113d0ca1fc4
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -74,7 +74,7 @@ snapshots:
     profile: A
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-a-09.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-a-09.pdf
-    sha256: 2c099b2ec989de65eb3e52ecf85cd0d000406c8e57cf5fe9778b50ac83f73644
+    sha256: b768a0d8c562332072b59e4aa3bb201c66dca5b5309a721f543f38eeb74d4c04
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -82,7 +82,7 @@ snapshots:
     profile: A
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-a-10.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-a-10.pdf
-    sha256: a4dc864a2ce17f419850278f03864c3b47fc98f972f09c7aa5a8914d839a403a
+    sha256: b52eb030cb87f4e97a18e3344dfc4184d84f17d3809fa00f8056b33c63c5d138
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -90,7 +90,7 @@ snapshots:
     profile: B
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-b-01.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-b-01.pdf
-    sha256: 19aaffafa21ea8c7cd5a29d5987a6492e19bf8ca6eec0a00593e1fd94a2f42f2
+    sha256: 5cd3aa666cc1ba7e0bbf15cc2f6b5eb15197be3e6e12e9b01f3b20f02c9b6343
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -98,7 +98,7 @@ snapshots:
     profile: B
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-b-02.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-b-02.pdf
-    sha256: f682190a3583002dd7d1fcc8de6aed7034d3a080350c663b7085143eccf5c784
+    sha256: 21201a96f90d0250cf648f97f83043e307dd0861a753b3467be8ec6161dafa63
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -106,7 +106,7 @@ snapshots:
     profile: B
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-b-03.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-b-03.pdf
-    sha256: 673b0b086589e79871658a144a130ac26b4820a0ee99cc71635f8250bc95dbb2
+    sha256: 3038bc331271a8bd8dfac2994c2927de877c60f91663e407e09a614c561df93a
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -114,7 +114,7 @@ snapshots:
     profile: B
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-b-04.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-b-04.pdf
-    sha256: 7b86c2ef4c8930c03f5c7b9ab25e08487a8c2b1c55115d99dcd45ad3cdcdc84f
+    sha256: 0dcbd195ca900198c1aa8ead10df895397d748b87fbaea54878c28394361af98
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -122,7 +122,7 @@ snapshots:
     profile: B
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-b-05.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-b-05.pdf
-    sha256: c51970f73367e2895806c12e561dc1c3899b8596e043792e9570d1331be50654
+    sha256: 2445bbcd41771b629789aa1af08c19ec5b8094a1d9f3d9485ca5486e747aa38e
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -130,7 +130,7 @@ snapshots:
     profile: B
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-b-06.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-b-06.pdf
-    sha256: 16fc7e62145e410e8a2701f1b0aa0c8417fdedd4e5d377ac627b9f3faf275060
+    sha256: f06a89bab8b83fe667107c6e6d58362754d681bb38db9ed547629e3f0d5b2b0e
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -138,7 +138,7 @@ snapshots:
     profile: B
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-b-07.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-b-07.pdf
-    sha256: 50c88b0e13b7996efa3e0eaa6b8a479a8663285992e21657c33e9ee39161217e
+    sha256: d5753c1d7642596e4d3a87c971b82008c3fd28487b0f602b571c37a0449050a3
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -146,7 +146,7 @@ snapshots:
     profile: B
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-b-08.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-b-08.pdf
-    sha256: 5a5d3109874a3c49a25abd40863d6d24311e3d7abc0eb8617709224879997994
+    sha256: 8bacb909dd40621d79594fb7c1226b5d539061e8e211fd6dbcfecde78fc38ca8
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -154,7 +154,7 @@ snapshots:
     profile: B
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-b-09.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-b-09.pdf
-    sha256: 9d0ce4dee3e7a0b0af1179cab10956e51e7166343fd70f3a17c936e2723a780a
+    sha256: 2089538c33f8be05314abf0f36c967f6faa61f7b31ddb5744a9fb167cd876bb5
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -162,7 +162,7 @@ snapshots:
     profile: B
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-b-10.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-b-10.pdf
-    sha256: a537270e1de2049a1eb07c640648fad8d030b91bfa0b31bf1635972bb6dcccf1
+    sha256: 0e526ca242e5da89719c21395c0b1752920cd6c38dd95d989079eb253de63a4e
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -170,7 +170,7 @@ snapshots:
     profile: C
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-c-01.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-c-01.pdf
-    sha256: 72f4ef6844644cc2ba110f144c773bb1576957374fde85bae51df4b732efaeb6
+    sha256: 846a6a5f9e5ed9df578df57b71dda32a6d8377e1572943b3d8e95202c7e4c3a8
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -178,7 +178,7 @@ snapshots:
     profile: C
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-c-02.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-c-02.pdf
-    sha256: e7acc9ff60ae5e1b9b7bc88d08b1e230e0b32003a135a9ad789d6f39b2aabce6
+    sha256: 1039ca95603f3d469afd896c1669ba236673152b60e11293e49243897123bc2a
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -186,7 +186,7 @@ snapshots:
     profile: C
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-c-03.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-c-03.pdf
-    sha256: e4668db4e5b9b48a93534540bc406bf302eb318871adc01ae41013e957bef326
+    sha256: 96e3fa5f7efae2c5f7aed935ca1dbe92e69026335a7bc0eacc596189c80ab755
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -194,7 +194,7 @@ snapshots:
     profile: C
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-c-04.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-c-04.pdf
-    sha256: d78856a507ccbfab4b829b8f48dbe5e56a85a5689ed15a6a706e8bf59e001609
+    sha256: 9fb0fccd44e69ee16b4f4f1c34edd0b4fbffd99024db4f32b6e52ad3195e802c
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -202,7 +202,7 @@ snapshots:
     profile: C
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-c-05.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-c-05.pdf
-    sha256: 82ab5f24acd38868f8bc0f1f2f47e040b25e2af663f03e9a9d87d627d9450320
+    sha256: a6f89cc07321a37299a33fbb3ffe5f175fd108316cde45449d763ca04ac55ded
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -210,7 +210,7 @@ snapshots:
     profile: C
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-c-06.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-c-06.pdf
-    sha256: 26464c31ea00a4b2cdbff957bd2d1522cf16e2c7a8ffb0323b23954de7b3b8e7
+    sha256: 89b2c8ba18a256fc6fd6b8469be42fa46cd5b807d644cdfa4e8377a49620fcca
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -218,7 +218,7 @@ snapshots:
     profile: C
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-c-07.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-c-07.pdf
-    sha256: e68ee4b794c1d386066c5286c48d83247d95a6b8672a1767f29b6a3189471da5
+    sha256: 6e0ffb45cf578914ab983ac839d9ea195a9e978f89cbaf536f99a3326492fedc
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -226,7 +226,7 @@ snapshots:
     profile: C
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-c-08.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-c-08.pdf
-    sha256: a44ccd00ff513824422e3b7aa7ba3d2a13c44082f2016f524ae5d0df3fc9bae5
+    sha256: c3d1f718757f8bdb5e035d4c8af6313d148ea7a5387250c15c2f4d07b28c5d26
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -234,7 +234,7 @@ snapshots:
     profile: C
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-c-09.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-c-09.pdf
-    sha256: b075b186be21fc847d319009256f61c9de8759e855c507834cb9a901adbb27f1
+    sha256: 930b884387b5060a32c1c4fe0f89fa24e712bbfd6e5bd008b38e7653787a0c81
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]
@@ -242,7 +242,7 @@ snapshots:
     profile: C
     baseline_path: compliance/validation-dossier/snapshots/baseline/profile-c-10.pdf
     current_path: compliance/validation-dossier/snapshots/current/profile-c-10.pdf
-    sha256: 5c6092e4c54c295d65f69fb1413fa365fb4d32232c3aaa17e49d44832d56d650
+    sha256: c4df216b19a8d749127311e8f11509eedca9b4a709ff8ddf043fe79e8cce341b
     renderer: deterministic-pdf-v1
     pdfa_status: pending_external_validation
     requirement_refs: [REQ-EMISSION]

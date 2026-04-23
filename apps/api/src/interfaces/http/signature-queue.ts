@@ -16,7 +16,7 @@ import {
   requireServiceOrderWriteAccess,
   requireWorkspaceAccess,
 } from "./auth-session.js";
-import { readRedirectTarget, toOptionalString } from "./form-helpers.js";
+import { isConflictError, readRedirectTarget, toOptionalString } from "./form-helpers.js";
 
 const QuerySchema = z.object({
   scenario: z.string().min(1).optional(),
@@ -134,94 +134,109 @@ export async function registerSignatureQueueRoutes(
 
     const occurredAt = new Date();
 
-    if (body.data.action === "emit") {
+    try {
+      if (body.data.action === "emit") {
+        if (record.reviewDecision !== "approved" && record.workflowStatus !== "emitted") {
+          return reply.code(409).send({ error: "review_not_approved" });
+        }
+
+        if (record.workflowStatus === "emitted" && record.certificateNumber) {
+          return reply.code(409).send({ error: "service_order_already_emitted" });
+        }
+
+        const numbering = reserveSequentialCertificateNumber({
+          organizationId: context.user.organizationId,
+          organizationCode: deriveOrganizationCode(onboarding.organizationSlug),
+          issuedNumbers: records
+            .filter((item) => item.certificateNumber)
+            .map((item) => ({
+              organizationId: item.organizationId,
+              certificateNumber: item.certificateNumber!,
+            })),
+        });
+
+        if (!numbering.ok || !numbering.certificateNumber) {
+          return reply
+            .code(409)
+            .send({ error: "certificate_numbering_failed", detail: numbering.errors });
+        }
+
+        const documentHash = createHash("sha256")
+          .update(
+            [
+              record.workOrderNumber,
+              record.customerName,
+              record.equipmentLabel,
+              numbering.certificateNumber,
+              record.measurementResultValue ?? "",
+              record.measurementExpandedUncertaintyValue ?? "",
+            ].join("|"),
+          )
+          .digest("hex");
+
+        await serviceOrderPersistence.emitServiceOrder({
+          organizationId: context.user.organizationId,
+          serviceOrderId: body.data.serviceOrderId,
+          signatoryUserId: signatory.userId,
+          certificateNumber: numbering.certificateNumber,
+          certificateRevision: record.certificateRevision ?? "R0",
+          publicVerificationToken: randomBytes(12).toString("hex"),
+          documentHash,
+          qrHost: `${onboarding.organizationSlug}.afere.local`,
+          signatureStatement: `Assinatura eletrônica concluída por ${signatory.displayName}.`,
+          signatureDeviceId: body.data.signatureDeviceId.trim(),
+          occurredAt,
+        });
+      } else {
+        if (record.workflowStatus !== "emitted" || !record.certificateNumber || !record.documentHash) {
+          return reply.code(409).send({ error: "service_order_not_emitted" });
+        }
+
+        const nextRevision = incrementRevision(record.certificateRevision ?? "R0");
+        const documentHash = createHash("sha256")
+          .update(
+            [
+              record.workOrderNumber,
+              record.customerName,
+              record.equipmentLabel,
+              record.certificateNumber,
+              nextRevision,
+              body.data.reason,
+              occurredAt.toISOString(),
+            ].join("|"),
+          )
+          .digest("hex");
+
+        await serviceOrderPersistence.reissueServiceOrder({
+          organizationId: context.user.organizationId,
+          serviceOrderId: body.data.serviceOrderId,
+          approvalActorUserIds: [body.data.approvalActorUserIdOne, body.data.approvalActorUserIdTwo],
+          signatoryUserId: signatory.userId,
+          reason: body.data.reason,
+          notificationRecipient: body.data.notificationRecipient,
+          publicVerificationToken: randomBytes(12).toString("hex"),
+          documentHash,
+          qrHost: `${onboarding.organizationSlug}.afere.local`,
+          signatureStatement: `Reemissão controlada assinada por ${signatory.displayName}.`,
+          signatureDeviceId: body.data.signatureDeviceId.trim(),
+          occurredAt,
+        });
+      }
+    } catch (error) {
+      if (isConflictError(error)) {
+        return reply.code(409).send({ error: "signature_queue_conflict" });
+      }
+
       if (
-        record.reviewDecision !== "approved" &&
-        record.workflowStatus !== "awaiting_signature" &&
-        record.workflowStatus !== "emitted"
+        error instanceof Error &&
+        /review_not_approved|official_decision_required|official_decision_divergence_justification_required|service_order_already_emitted|service_order_not_emitted|signatory_not_found|reissue_distinct_approvals_required|reissue_approver_not_found/i.test(
+          error.message,
+        )
       ) {
-        return reply.code(409).send({ error: "review_not_approved" });
+        return reply.code(409).send({ error: error.message });
       }
 
-      if (record.workflowStatus === "emitted" && record.certificateNumber) {
-        return reply.code(409).send({ error: "service_order_already_emitted" });
-      }
-
-      const numbering = reserveSequentialCertificateNumber({
-        organizationId: context.user.organizationId,
-        organizationCode: deriveOrganizationCode(onboarding.organizationSlug),
-        issuedNumbers: records
-          .filter((item) => item.certificateNumber)
-          .map((item) => ({
-            organizationId: item.organizationId,
-            certificateNumber: item.certificateNumber!,
-          })),
-      });
-
-      if (!numbering.ok || !numbering.certificateNumber) {
-        return reply.code(409).send({ error: "certificate_numbering_failed", detail: numbering.errors });
-      }
-
-      const documentHash = createHash("sha256")
-        .update(
-          [
-            record.workOrderNumber,
-            record.customerName,
-            record.equipmentLabel,
-            numbering.certificateNumber,
-            record.measurementResultValue ?? "",
-            record.measurementExpandedUncertaintyValue ?? "",
-          ].join("|"),
-        )
-        .digest("hex");
-
-      await serviceOrderPersistence.emitServiceOrder({
-        organizationId: context.user.organizationId,
-        serviceOrderId: body.data.serviceOrderId,
-        signatoryUserId: signatory.userId,
-        certificateNumber: numbering.certificateNumber,
-        certificateRevision: record.certificateRevision ?? "R0",
-        publicVerificationToken: randomBytes(12).toString("hex"),
-        documentHash,
-        qrHost: `${onboarding.organizationSlug}.afere.local`,
-        signatureStatement: `Assinatura eletrônica concluída por ${signatory.displayName}.`,
-        signatureDeviceId: body.data.signatureDeviceId.trim(),
-        occurredAt,
-      });
-    } else {
-      if (record.workflowStatus !== "emitted" || !record.certificateNumber || !record.documentHash) {
-        return reply.code(409).send({ error: "service_order_not_emitted" });
-      }
-
-      const nextRevision = incrementRevision(record.certificateRevision ?? "R0");
-      const documentHash = createHash("sha256")
-        .update(
-          [
-            record.workOrderNumber,
-            record.customerName,
-            record.equipmentLabel,
-            record.certificateNumber,
-            nextRevision,
-            body.data.reason,
-            occurredAt.toISOString(),
-          ].join("|"),
-        )
-        .digest("hex");
-
-      await serviceOrderPersistence.reissueServiceOrder({
-        organizationId: context.user.organizationId,
-        serviceOrderId: body.data.serviceOrderId,
-        approvalActorUserIds: [body.data.approvalActorUserIdOne, body.data.approvalActorUserIdTwo],
-        signatoryUserId: signatory.userId,
-        reason: body.data.reason,
-        notificationRecipient: body.data.notificationRecipient,
-        publicVerificationToken: randomBytes(12).toString("hex"),
-        documentHash,
-        qrHost: `${onboarding.organizationSlug}.afere.local`,
-        signatureStatement: `Reemissão controlada assinada por ${signatory.displayName}.`,
-        signatureDeviceId: body.data.signatureDeviceId.trim(),
-        occurredAt,
-      });
+      throw error;
     }
 
     const redirectTo = readRedirectTarget(request.body);

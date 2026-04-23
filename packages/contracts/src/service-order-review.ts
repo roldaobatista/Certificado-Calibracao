@@ -2,6 +2,11 @@ import { z } from "zod";
 
 import { emissionWorkspaceScenarioIdSchema } from "./emission-workspace.js";
 import { emissionDryRunScenarioIdSchema } from "./emission-dry-run.js";
+import { decisionAssistanceSummarySchema } from "./decision-assistance.js";
+import {
+  equipmentMetrologyProfileSchema,
+  standardMetrologyProfileSchema,
+} from "./metrology-profile.js";
 import { reviewSignatureScenarioIdSchema } from "./review-signature.js";
 import { signatureQueueScenarioIdSchema } from "./signature-queue.js";
 
@@ -83,6 +88,75 @@ export const serviceOrderReviewLinksSchema = z.object({
 });
 export type ServiceOrderReviewLinks = z.infer<typeof serviceOrderReviewLinksSchema>;
 
+export const serviceOrderRawCaptureModeSchema = z.enum(["manual", "imported", "hybrid"]);
+export type ServiceOrderRawCaptureMode = z.infer<typeof serviceOrderRawCaptureModeSchema>;
+
+export const serviceOrderEnvironmentalSnapshotSchema = z.object({
+  temperatureStartC: z.number().finite(),
+  temperatureEndC: z.number().finite(),
+  relativeHumidityPercent: z.number().finite().min(0).max(100),
+  atmosphericPressureHpa: z.number().finite().optional(),
+  notes: z.string().min(1).optional(),
+});
+export type ServiceOrderEnvironmentalSnapshot = z.infer<
+  typeof serviceOrderEnvironmentalSnapshotSchema
+>;
+
+export const serviceOrderRepeatabilityRunSchema = z.object({
+  loadValue: z.number().finite(),
+  unit: z.string().min(1),
+  indications: z.array(z.number().finite()).min(1),
+  notes: z.string().min(1).optional(),
+});
+export type ServiceOrderRepeatabilityRun = z.infer<typeof serviceOrderRepeatabilityRunSchema>;
+
+export const serviceOrderEccentricityPointSchema = z.object({
+  positionLabel: z.string().min(1),
+  loadValue: z.number().finite(),
+  indicationValue: z.number().finite(),
+  unit: z.string().min(1),
+  notes: z.string().min(1).optional(),
+});
+export type ServiceOrderEccentricityPoint = z.infer<typeof serviceOrderEccentricityPointSchema>;
+
+export const serviceOrderLinearityPointSchema = z.object({
+  pointLabel: z.string().min(1),
+  sequence: z.enum(["ascending", "descending"]).optional(),
+  appliedLoadValue: z.number().finite(),
+  referenceValue: z.number().finite(),
+  indicationValue: z.number().finite(),
+  unit: z.string().min(1),
+  conventionalMassErrorValue: z.number().finite().optional(),
+  notes: z.string().min(1).optional(),
+});
+export type ServiceOrderLinearityPoint = z.infer<typeof serviceOrderLinearityPointSchema>;
+
+export const serviceOrderEvidenceAttachmentSchema = z.object({
+  attachmentId: z.string().min(1),
+  label: z.string().min(1),
+  kind: z.string().min(1),
+  mediaType: z.string().min(1),
+  storageKey: z.string().min(1).optional(),
+  sha256: z.string().min(1).optional(),
+  capturedAtUtc: z.string().min(1).optional(),
+});
+export type ServiceOrderEvidenceAttachment = z.infer<typeof serviceOrderEvidenceAttachmentSchema>;
+
+export const serviceOrderMeasurementRawDataSchema = z.object({
+  captureMode: serviceOrderRawCaptureModeSchema,
+  performedAtUtc: z.string().min(1).optional(),
+  environment: serviceOrderEnvironmentalSnapshotSchema.optional(),
+  repeatabilityRuns: z.array(serviceOrderRepeatabilityRunSchema).default([]),
+  eccentricityPoints: z.array(serviceOrderEccentricityPointSchema).default([]),
+  linearityPoints: z.array(serviceOrderLinearityPointSchema).default([]),
+  hysteresisPoints: z.array(serviceOrderLinearityPointSchema).optional(),
+  evidenceAttachments: z.array(serviceOrderEvidenceAttachmentSchema).default([]),
+  notes: z.string().min(1).optional(),
+});
+export type ServiceOrderMeasurementRawData = z.infer<
+  typeof serviceOrderMeasurementRawDataSchema
+>;
+
 export const serviceOrderReviewDetailSchema = z.object({
   itemId: z.string().min(1),
   customerId: z.string().min(1).optional(),
@@ -100,6 +174,10 @@ export const serviceOrderReviewDetailSchema = z.object({
   assignedSignatoryLabel: z.string().min(1).optional(),
   procedureLabel: z.string().min(1),
   standardsLabel: z.string().min(1),
+  equipmentMetrologySummaryLabel: z.string().min(1).optional(),
+  equipmentMetrologySnapshot: equipmentMetrologyProfileSchema.optional(),
+  standardMetrologySummaryLabel: z.string().min(1).optional(),
+  standardMetrologySnapshot: standardMetrologyProfileSchema.optional(),
   environmentLabel: z.string().min(1),
   curvePointsLabel: z.string().min(1),
   evidenceLabel: z.string().min(1),
@@ -109,8 +187,10 @@ export const serviceOrderReviewDetailSchema = z.object({
   measurementExpandedUncertaintyValue: z.number().finite().optional(),
   measurementCoverageFactor: z.number().finite().optional(),
   measurementUnit: z.string().min(1).optional(),
+  measurementRawData: serviceOrderMeasurementRawDataSchema.optional(),
   decisionRuleLabel: z.string().min(1).optional(),
   decisionOutcomeLabel: z.string().min(1).optional(),
+  decisionAssistance: decisionAssistanceSummarySchema.optional(),
   freeTextStatement: z.string().min(1).optional(),
   reviewDecision: z.enum(["pending", "approved", "rejected"]).optional(),
   certificateNumber: z.string().min(1).optional(),

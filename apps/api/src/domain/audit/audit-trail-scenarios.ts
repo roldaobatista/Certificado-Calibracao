@@ -461,6 +461,7 @@ function buildAuditTrailDetail(
           ? "Exportacao liberada com ressalva de revisao"
           : "Exportacao pronta para auditoria",
     coveredActions: coveredActions(entries),
+    selectedEventContextFields: [],
     missingActions: uniqueStrings([
       ...critical.missingActions,
       ...reviewSignature.missingActions,

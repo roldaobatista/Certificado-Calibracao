@@ -61,6 +61,13 @@ export interface RunCertificateEmissionDryRunInput {
     coverageFactor: number;
     unit: string;
   };
+  rawCapture?: {
+    structuredDataPresent: boolean;
+    readyForMetrologyReview: boolean;
+    summaryLabel?: string;
+    blockers?: string[];
+    warnings?: string[];
+  };
   signatory: {
     signatoryId: string;
     displayName?: string;
@@ -235,6 +242,42 @@ export function runCertificateEmissionDryRun(
     detail: numbering.ok
       ? `Proximo numero reservado em dry-run: ${numbering.certificateNumber}.`
       : `Bloqueios: ${numbering.errors.map(renderCertificateNumberingError).join("; ")}.`,
+  });
+
+  const rawCaptureBlockers = input.rawCapture?.blockers ?? [];
+  const rawCaptureWarnings = input.rawCapture?.warnings ?? [];
+  for (const warning of rawCaptureWarnings) {
+    warnings.add(warning);
+  }
+
+  const rawCaptureFailed =
+    input.rawCapture !== undefined &&
+    (!input.rawCapture.structuredDataPresent ||
+      !input.rawCapture.readyForMetrologyReview ||
+      rawCaptureBlockers.length > 0);
+  if (rawCaptureFailed) {
+    blockers.add("Captura bruta metrologica");
+  }
+  checks.push({
+    id: "raw_measurement_capture",
+    title: "Captura bruta metrologica",
+    status: rawCaptureFailed ? "failed" : "passed",
+    detail:
+      input.rawCapture === undefined
+        ? "Captura bruta nao modelada neste cenario."
+        : rawCaptureFailed
+          ? `Bloqueios: ${[
+              !input.rawCapture.structuredDataPresent
+                ? "sem dados brutos estruturados"
+                : undefined,
+              !input.rawCapture.readyForMetrologyReview
+                ? input.rawCapture.summaryLabel ?? "captura bruta ainda nao pronta para revisao"
+                : undefined,
+              ...rawCaptureBlockers,
+            ]
+              .filter((value): value is string => Boolean(value))
+              .join("; ")}.`
+          : input.rawCapture.summaryLabel ?? "Captura bruta pronta para sustentar a revisao.",
   });
 
   let declarationSummary: string | undefined;

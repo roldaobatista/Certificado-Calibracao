@@ -197,6 +197,24 @@ export default async function ReviewSignaturePage(props: PageProps) {
             ) : null}
           </div>
         </article>
+
+        {scenario.result.decisionAssistance ? (
+          <article className="detail-card">
+            <span className="eyebrow">Decisao assistida</span>
+            <strong>
+              {scenario.result.decisionAssistance.officialDecisionLabel ?? "Decisao oficial pendente"}
+            </strong>
+            <p>{scenario.result.decisionAssistance.alignmentLabel}</p>
+            <div className="chip-list">
+              <span className="chip">
+                {scenario.result.decisionAssistance.indicativeDecision?.summaryLabel ?? "Sem snapshot indicativo"}
+              </span>
+              {scenario.result.decisionAssistance.justificationRequired ? (
+                <span className="chip chip--warn">Justificativa obrigatoria</span>
+              ) : null}
+            </div>
+          </article>
+        ) : null}
       </section>
 
       {isPersistedMode && props.searchParams?.item ? (
@@ -262,12 +280,33 @@ export default async function ReviewSignaturePage(props: PageProps) {
               </select>
             </label>
             <label className="field">
+              <span>Decisao oficial</span>
+              <select
+                defaultValue={scenario.result.decisionAssistance?.officialDecisionLabel ?? ""}
+                name="decisionOutcomeLabel"
+              >
+                <option value="">Selecionar</option>
+                <option value="Conforme">Conforme</option>
+                <option value="Nao conforme">Nao conforme</option>
+                <option value="Inconclusiva">Inconclusiva</option>
+              </select>
+            </label>
+            <label className="field">
               <span>Device da revisao</span>
               <input defaultValue="device-review-01" name="reviewDeviceId" required />
             </label>
             <label className="field field-full">
               <span>Comentario da revisao</span>
               <textarea name="reviewDecisionComment" placeholder="Resumo tecnico da decisao." rows={4} />
+            </label>
+            <label className="field field-full">
+              <span>Justificativa da divergencia</span>
+              <textarea
+                defaultValue={scenario.result.decisionAssistance?.officialDecisionJustification ?? ""}
+                name="officialDecisionJustification"
+                placeholder="Obrigatoria quando a decisao oficial divergir da decisao indicativa."
+                rows={3}
+              />
             </label>
             <div className="button-row">
               <button className="button-primary" type="submit">

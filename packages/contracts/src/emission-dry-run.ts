@@ -14,6 +14,7 @@ export const emissionDryRunCheckIdSchema = z.enum([
   "standard_eligibility",
   "signatory_competence",
   "certificate_numbering",
+  "raw_measurement_capture",
   "measurement_declaration",
   "audit_trail",
   "qr_authenticity",

@@ -185,6 +185,25 @@ export default async function AuditTrailPage(props: PageProps) {
         </div>
       </section>
 
+      {detail.selectedEventContextFields.length > 0 ? (
+        <section className="content-panel">
+          <div className="section-copy">
+            <span className="eyebrow">Contexto do evento</span>
+            <h2>Metadados relevantes da selecao atual</h2>
+            <p>Quando a revisao tecnica registra decisao assistida, a trilha mostra o alinhamento e a justificativa associados ao evento.</p>
+          </div>
+
+          <div className="detail-grid">
+            {detail.selectedEventContextFields.map((field) => (
+              <article className="detail-card" key={field.label}>
+                <span className="eyebrow">{field.label}</span>
+                <strong>{field.value}</strong>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="section-header">
         <div className="section-copy">
           <span className="eyebrow">Eventos canonicos</span>

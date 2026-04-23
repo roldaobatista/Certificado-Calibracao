@@ -1,4 +1,5 @@
 import type {
+  DecisionAssistanceSummary,
   EmissionDryRunScenarioId,
   EmissionWorkspaceScenarioId,
   ReviewSignatureScenarioId,
@@ -16,8 +17,21 @@ import type {
   ServiceOrderTimelineStepKey,
   SignatureQueueScenarioId,
 } from "@afere/contracts";
+import {
+  analyzeRawMeasurementData,
+  buildPreliminaryUncertaintyBudget,
+  evaluateIndicativeDecisionRule,
+  evaluatePortaria157IndicativeTolerance,
+} from "@afere/engine-uncertainty";
 
-import type { PersistedServiceOrderRecord } from "./service-order-persistence.js";
+import {
+  buildPortaria157IndicativeToleranceContext,
+  buildPreliminaryUncertaintyContext,
+  buildRawMeasurementAnalysisContext,
+  summarizeEquipmentMetrologyProfile,
+  summarizeStandardMetrologyProfile,
+  type PersistedServiceOrderRecord,
+} from "./service-order-persistence.js";
 
 export function buildPersistedServiceOrderReviewCatalog(input: {
   nowUtc: string;
@@ -137,6 +151,7 @@ function buildDetail(
     warnings: string[];
     checklist: ServiceOrderReviewChecklistItem[];
     metrics: ServiceOrderExecutionMetric[];
+    decisionAssistance: DecisionAssistanceSummary;
   },
 ): ServiceOrderReviewDetail {
   return {
@@ -156,6 +171,14 @@ function buildDetail(
     assignedSignatoryLabel: record.signatoryName ?? "Signatario ainda nao atribuido",
     procedureLabel: record.procedureLabel,
     standardsLabel: record.standardsLabel,
+    equipmentMetrologySummaryLabel: summarizeEquipmentMetrologyProfile(
+      record.equipmentMetrologySnapshot,
+    ),
+    equipmentMetrologySnapshot: record.equipmentMetrologySnapshot,
+    standardMetrologySummaryLabel: summarizeStandardMetrologyProfile(
+      record.standardMetrologySnapshot,
+    ),
+    standardMetrologySnapshot: record.standardMetrologySnapshot,
     environmentLabel: record.environmentLabel,
     curvePointsLabel: record.curvePointsLabel,
     evidenceLabel: record.evidenceLabel,
@@ -165,8 +188,10 @@ function buildDetail(
     measurementExpandedUncertaintyValue: record.measurementExpandedUncertaintyValue,
     measurementCoverageFactor: record.measurementCoverageFactor,
     measurementUnit: record.measurementUnit,
+    measurementRawData: record.measurementRawData,
     decisionRuleLabel: record.decisionRuleLabel,
     decisionOutcomeLabel: record.decisionOutcomeLabel,
+    decisionAssistance: state.decisionAssistance,
     freeTextStatement: record.freeTextStatement,
     reviewDecision: record.reviewDecision,
     certificateNumber: record.certificateNumber,
@@ -193,6 +218,44 @@ function buildRecordState(record: PersistedServiceOrderRecord, nowUtc: string) {
     !record.reviewerUserId ||
     !record.reviewerName ||
     record.reviewerUserId === record.executorUserId;
+  const rawMeasurementContext = buildRawMeasurementAnalysisContext({
+    equipmentMetrologySnapshot: record.equipmentMetrologySnapshot,
+    standardMetrologySnapshot: record.standardMetrologySnapshot,
+    measurementUnit: record.measurementUnit,
+  });
+  const preliminaryUncertaintyContext = buildPreliminaryUncertaintyContext({
+    equipmentMetrologySnapshot: record.equipmentMetrologySnapshot,
+    standardMetrologySnapshot: record.standardMetrologySnapshot,
+    measurementUnit: record.measurementUnit,
+    measurementCoverageFactor: record.measurementCoverageFactor,
+  });
+  const rawAnalysis = record.measurementRawData
+    ? analyzeRawMeasurementData(record.measurementRawData, rawMeasurementContext)
+    : undefined;
+  const preliminaryUncertainty = rawAnalysis
+    ? buildPreliminaryUncertaintyBudget(
+        rawAnalysis,
+        preliminaryUncertaintyContext,
+      )
+    : undefined;
+  const indicativeTolerance = rawAnalysis
+    ? evaluatePortaria157IndicativeTolerance(
+        rawAnalysis,
+        buildPortaria157IndicativeToleranceContext({
+          equipmentMetrologySnapshot: record.equipmentMetrologySnapshot,
+          measurementUnit: record.measurementUnit,
+        }),
+      )
+    : undefined;
+  const indicativeDecision = evaluateIndicativeDecisionRule({
+    decisionRuleLabel: record.decisionRuleLabel,
+    preliminaryUncertainty,
+    indicativeTolerance,
+  });
+  const decisionAssistance = buildDecisionAssistanceSummary(record, indicativeDecision);
+  const metrologySnapshotsReady = Boolean(
+    record.equipmentMetrologySnapshot && record.standardMetrologySnapshot,
+  );
 
   const checklist: ServiceOrderReviewChecklistItem[] = [
     {
@@ -230,6 +293,67 @@ function buildRecordState(record: PersistedServiceOrderRecord, nowUtc: string) {
             : "A OS ja possui evidencias suficientes para sustentar o proximo passo do fluxo.",
     },
     {
+      label: "Leituras brutas estruturadas",
+      status: !rawAnalysis
+        ? "pending"
+        : rawAnalysis.blockers.length > 0
+          ? "failed"
+          : rawAnalysis.completeness.readyForMetrologyReview
+            ? "passed"
+            : "pending",
+      detail: !rawAnalysis
+        ? "A OS ainda depende de captura estruturada de ensaios para aprofundar a revisao."
+        : rawAnalysis.summary.completenessLabel,
+    },
+    {
+      label: "Snapshot metrologico congelado na OS",
+      status: metrologySnapshotsReady ? "passed" : "pending",
+      detail: metrologySnapshotsReady
+        ? "Equipamento e padrao principal tiveram o contexto metrologico canonico congelado na ordem de servico."
+        : "A OS ainda nao possui snapshot metrologico completo de equipamento e padrao principal.",
+    },
+    {
+      label: "Orcamento preliminar de incerteza",
+      status: !preliminaryUncertainty
+        ? "pending"
+        : preliminaryUncertainty.blockers.length > 0
+          ? "failed"
+          : preliminaryUncertainty.readyForIndicativeUse
+            ? "passed"
+            : "pending",
+      detail:
+        preliminaryUncertainty?.summaryLabel ??
+        "A OS ainda nao possui insumos suficientes para consolidar o orcamento preliminar.",
+    },
+    {
+      label: "EMA indicativo Portaria 157/2022",
+      status: !indicativeTolerance
+        ? "pending"
+        : indicativeTolerance.blockers.length > 0
+          ? "failed"
+          : indicativeTolerance.readyForIndicativeUse
+            ? "passed"
+            : "pending",
+      detail:
+        indicativeTolerance?.summaryLabel ??
+        "A OS ainda nao possui insumos suficientes para avaliar EMA indicativo.",
+    },
+    {
+      label: "Decisao oficial assistida",
+      status:
+        record.reviewDecision === "approved" || record.workflowStatus === "awaiting_signature" || record.workflowStatus === "emitted"
+          ? !record.decisionOutcomeLabel
+            ? "failed"
+            : decisionAssistance.justificationRequired &&
+                !decisionAssistance.officialDecisionJustification
+              ? "failed"
+              : "passed"
+          : record.decisionOutcomeLabel
+            ? "passed"
+            : "pending",
+      detail: decisionAssistance.alignmentLabel,
+    },
+    {
       label: "Prontidao para revisao e assinatura",
       status:
         record.workflowStatus === "awaiting_signature" || record.workflowStatus === "emitted"
@@ -248,12 +372,22 @@ function buildRecordState(record: PersistedServiceOrderRecord, nowUtc: string) {
     },
   ];
 
-  const blockers = checklist
-    .filter((item) => item.status === "failed")
-    .map((item) => item.detail);
-  const warnings = checklist
-    .filter((item) => item.status === "pending")
-    .map((item) => item.detail);
+  const blockers = uniqueStrings(
+    checklist
+      .filter((item) => item.status === "failed")
+      .map((item) => item.detail)
+      .concat(rawAnalysis?.blockers ?? [])
+      .concat(preliminaryUncertainty?.blockers ?? [])
+      .concat(indicativeTolerance?.blockers ?? []),
+  );
+  const warnings = uniqueStrings(
+    checklist
+      .filter((item) => item.status === "pending")
+      .map((item) => item.detail)
+      .concat(rawAnalysis?.warnings ?? [])
+      .concat(preliminaryUncertainty?.warnings ?? [])
+      .concat(indicativeTolerance?.warnings ?? []),
+  );
 
   const status: ServiceOrderReviewStatus =
     record.workflowStatus === "blocked" || blockers.length > 0
@@ -283,6 +417,103 @@ function buildRecordState(record: PersistedServiceOrderRecord, nowUtc: string) {
       value: reviewerConflict ? "Atribuicao pendente" : record.reviewerName ?? "Atribuido",
       tone: reviewerConflict ? "warn" : "ok",
     },
+    {
+      label: "Dados brutos",
+      value: record.measurementRawData
+        ? renderRawDataMetric(record.measurementRawData)
+        : "Resumo sem leituras estruturadas",
+      tone: record.measurementRawData ? "ok" : "neutral",
+    },
+    {
+      label: "Snapshot equipamento",
+      value:
+        summarizeEquipmentMetrologyProfile(record.equipmentMetrologySnapshot) ??
+        "Nao congelado",
+      tone: record.equipmentMetrologySnapshot ? "ok" : "neutral",
+    },
+    {
+      label: "Snapshot padrao",
+      value:
+        summarizeStandardMetrologyProfile(record.standardMetrologySnapshot) ??
+        "Nao congelado",
+      tone: record.standardMetrologySnapshot ? "ok" : "neutral",
+    },
+    {
+      label: "Repetitividade",
+      value: rawAnalysis?.summary.repeatabilityLabel ?? "Sem leitura estruturada",
+      tone: rawAnalysis
+        ? rawAnalysis.blockers.length > 0
+          ? "warn"
+          : "ok"
+        : "neutral",
+    },
+    {
+      label: "Excentricidade",
+      value: rawAnalysis?.summary.eccentricityLabel ?? "Sem leitura estruturada",
+      tone: rawAnalysis?.eccentricity ? "ok" : rawAnalysis ? "warn" : "neutral",
+    },
+    {
+      label: "Linearidade",
+      value: rawAnalysis?.summary.linearityLabel ?? "Sem leitura estruturada",
+      tone: rawAnalysis?.linearity ? "ok" : rawAnalysis ? "warn" : "neutral",
+    },
+    {
+      label: "EMA indicativo",
+      value:
+        indicativeTolerance?.summaryLabel ??
+        "Sem avaliacao indicativa de Portaria 157/2022",
+      tone: indicativeTolerance
+        ? indicativeTolerance.blockers.length > 0
+          ? "warn"
+          : indicativeTolerance.readyForIndicativeUse
+            ? "ok"
+            : "neutral"
+        : "neutral",
+    },
+    {
+      label: "Decisao indicativa",
+      value: indicativeDecision.summaryLabel,
+      tone: indicativeDecision.readyForIndicativeUse
+        ? indicativeDecision.verdict === "non_conforming"
+          ? "warn"
+          : indicativeDecision.verdict === "inconclusive"
+            ? "neutral"
+            : "ok"
+        : "neutral",
+    },
+    {
+      label: "Decisao oficial",
+      value: record.decisionOutcomeLabel ?? "Pendente de confirmacao pelo revisor",
+      tone: record.decisionOutcomeLabel
+        ? record.officialDecisionDivergesFromIndicative
+          ? "warn"
+          : "ok"
+        : "neutral",
+    },
+    {
+      label: "Assistencia decisoria",
+      value: decisionAssistance.alignmentLabel,
+      tone: decisionAssistance.alignment === "divergent"
+        ? "warn"
+        : decisionAssistance.alignment === "aligned"
+          ? "ok"
+          : "neutral",
+    },
+    {
+      label: "Pre-calculo U",
+      value:
+        preliminaryUncertainty?.expandedUncertainty?.formatted ??
+        preliminaryUncertainty?.combinedStandardUncertainty?.formatted ??
+        preliminaryUncertainty?.summaryLabel ??
+        "Sem orcamento preliminar",
+      tone: preliminaryUncertainty
+        ? preliminaryUncertainty.readyForIndicativeUse
+          ? "ok"
+          : preliminaryUncertainty.blockers.length > 0
+            ? "warn"
+            : "neutral"
+        : "neutral",
+    },
   ];
 
   return {
@@ -291,6 +522,65 @@ function buildRecordState(record: PersistedServiceOrderRecord, nowUtc: string) {
     warnings,
     checklist,
     metrics,
+    decisionAssistance,
+  };
+}
+
+function buildDecisionAssistanceSummary(
+  record: PersistedServiceOrderRecord,
+  indicativeDecision: ReturnType<typeof evaluateIndicativeDecisionRule>,
+): DecisionAssistanceSummary {
+  const indicativeDecisionSnapshot =
+    record.indicativeDecisionSnapshot ??
+    materializeIndicativeDecisionSnapshot(indicativeDecision, record.updatedAtUtc);
+  const officialDecisionConfirmed =
+    record.reviewDecision === "approved" ||
+    record.workflowStatus === "awaiting_signature" ||
+    record.workflowStatus === "emitted";
+  const alignment =
+    !officialDecisionConfirmed || !record.decisionOutcomeLabel
+      ? "pending"
+      : record.officialDecisionDivergesFromIndicative
+        ? "divergent"
+        : "aligned";
+  const alignmentLabel =
+    alignment === "pending"
+      ? "Decisao oficial ainda nao confirmada pelo revisor."
+      : alignment === "divergent"
+        ? record.officialDecisionJustification
+          ? "Decisao oficial diverge da indicativa com justificativa registrada."
+          : "Decisao oficial diverge da indicativa e exige justificativa."
+        : indicativeDecisionSnapshot?.readyForIndicativeUse
+          ? "Decisao oficial alinhada ao snapshot indicativo revisado."
+          : "Decisao oficial registrada sem indicativo plenamente consolidado.";
+
+  return {
+    indicativeDecision: indicativeDecisionSnapshot,
+    officialDecisionLabel: record.decisionOutcomeLabel,
+    officialDecisionDivergesFromIndicative: Boolean(
+      record.officialDecisionDivergesFromIndicative,
+    ),
+    alignment,
+    alignmentLabel,
+    justificationRequired:
+      officialDecisionConfirmed && Boolean(record.officialDecisionDivergesFromIndicative),
+    officialDecisionJustification: record.officialDecisionJustification,
+  };
+}
+
+function materializeIndicativeDecisionSnapshot(
+  indicativeDecision: ReturnType<typeof evaluateIndicativeDecisionRule>,
+  recordedAtUtc: string,
+) {
+  return {
+    mode: indicativeDecision.mode,
+    verdict: indicativeDecision.verdict,
+    readyForIndicativeUse: indicativeDecision.readyForIndicativeUse,
+    summaryLabel: indicativeDecision.summaryLabel,
+    pointCount: indicativeDecision.points.length,
+    unit: indicativeDecision.unit,
+    expandedUncertaintyValue: indicativeDecision.expandedUncertaintyValue,
+    recordedAtUtc,
   };
 }
 
@@ -487,4 +777,21 @@ function formatDateTime(value: string) {
 
 function isStandardExpired(_label: string, _nowUtc: string) {
   return false;
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values));
+}
+
+function renderRawDataMetric(
+  rawData: NonNullable<PersistedServiceOrderRecord["measurementRawData"]>,
+) {
+  const measurementCount =
+    rawData.repeatabilityRuns.length +
+    rawData.eccentricityPoints.length +
+    rawData.linearityPoints.length +
+    (rawData.hysteresisPoints?.length ?? 0);
+
+  const attachmentCount = rawData.evidenceAttachments.length;
+  return `${measurementCount} leituras estruturadas · ${attachmentCount} anexos`;
 }

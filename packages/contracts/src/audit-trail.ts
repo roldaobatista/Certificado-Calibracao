@@ -33,6 +33,12 @@ export const auditTrailDetailLinksSchema = z.object({
 });
 export type AuditTrailDetailLinks = z.infer<typeof auditTrailDetailLinksSchema>;
 
+export const auditTrailMetadataFieldSchema = z.object({
+  label: z.string().min(1),
+  value: z.string().min(1),
+});
+export type AuditTrailMetadataField = z.infer<typeof auditTrailMetadataFieldSchema>;
+
 export const auditTrailDetailSchema = z.object({
   chainId: z.string().min(1),
   title: z.string().min(1),
@@ -45,6 +51,7 @@ export const auditTrailDetailSchema = z.object({
   chainStatusLabel: z.string().min(1),
   exportLabel: z.string().min(1),
   coveredActions: z.array(z.string().min(1)).min(1),
+  selectedEventContextFields: z.array(auditTrailMetadataFieldSchema),
   missingActions: z.array(z.string().min(1)),
   blockers: z.array(z.string().min(1)),
   warnings: z.array(z.string().min(1)),

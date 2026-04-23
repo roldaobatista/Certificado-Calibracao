@@ -64,6 +64,11 @@ const SCENARIOS = {
         coverageFactor: 2,
         unit: "kg",
       },
+      rawCapture: {
+        structuredDataPresent: true,
+        readyForMetrologyReview: true,
+        summaryLabel: "Captura bruta completa e coerente para revisao.",
+      },
       signatory: {
         signatoryId: "signatory-b",
         displayName: "Carlos Signatario",
@@ -160,6 +165,11 @@ const SCENARIOS = {
         expandedUncertaintyValue: 0.08,
         coverageFactor: 2,
         unit: "kg",
+      },
+      rawCapture: {
+        structuredDataPresent: true,
+        readyForMetrologyReview: true,
+        summaryLabel: "Captura bruta completa com simbolo suprimido apenas por politica regulatoria.",
       },
       signatory: {
         signatoryId: "signatory-a",
@@ -259,6 +269,13 @@ const SCENARIOS = {
         expandedUncertaintyValue: 0.12,
         coverageFactor: 2,
         unit: "kg",
+      },
+      rawCapture: {
+        structuredDataPresent: false,
+        readyForMetrologyReview: false,
+        summaryLabel: "Bruto ausente para o ponto ensaiado.",
+        blockers: ["Sem leituras brutas persistidas para sustentar a emissao."],
+        warnings: ["A coleta de campo nao foi transposta para o formato estruturado."],
       },
       signatory: {
         signatoryId: "signatory-c",

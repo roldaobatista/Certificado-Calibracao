@@ -76,7 +76,7 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 4 0 R >>
 endobj
 6 0 obj
-<< /Length 571 >>
+<< /Length 695 >>
 stream
 BT
 /F1 10 Tf
@@ -84,6 +84,7 @@ BT
 48 794 Td
 0 g
 (- [PASSED] Numeracao do certificado: Proximo numero reservado em dry-run: CALA-000209.) Tj
+T* (- [PASSED] Captura bruta metrologica: Captura bruta completa com simbolo suprimido apenas por politica regulatoria.) Tj
 T* (- [PASSED] Declaracao metrologica: Resultado: 16.003 kg | U: 0.09 kg | k=2) Tj
 T* (- [PASSED] Audit trail da emissao: Hash-chain, eventos criticos e metadados de revisao/assinatura consistentes.) Tj
 T* (- [PASSED] QR publico: QR autenticado em dry-run com status authentic.) Tj
@@ -107,10 +108,10 @@ xref
 0000000195 00000 n 
 0000002358 00000 n 
 0000002484 00000 n 
-0000003106 00000 n 
-0000003232 00000 n 
+0000003230 00000 n 
+0000003356 00000 n 
 trailer
 << /Size 9 /Root 1 0 R /Info 8 0 R >>
 startxref
-3583
+3707
 %%EOF

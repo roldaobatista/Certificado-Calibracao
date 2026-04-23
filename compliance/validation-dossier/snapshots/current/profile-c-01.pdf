@@ -10,7 +10,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Courier >>
 endobj
 4 0 obj
-<< /Length 2170 >>
+<< /Length 1794 >>
 stream
 BT
 /F1 10 Tf
@@ -20,7 +20,7 @@ BT
 (AFERE - CERTIFICADO CANONICO DE CALIBRACAO) Tj
 T* (SNAPSHOT: profile-c-01) Tj
 T* (CENARIO: Tipo C canonico 01) Tj
-T* (STATUS: PRONTO PARA ASSINATURA) Tj
+T* (STATUS: BLOQUEADO ANTES DA ASSINATURA) Tj
 T* (PERFIL REGULATORIO: TIPO C) Tj
 T* (RENDERER: deterministic-pdf-v1) Tj
 T* (PDFA STATUS: pending_external_validation) Tj
@@ -63,12 +63,12 @@ T* (OBSERVACOES) Tj
 T* (- Snapshot canonico C-01.) Tj
 T* (- Emissao controlada pronta no perfil C sem termos proibidos.) Tj
 T* () Tj
-T* (CHECKLIST DE EMISSAO) Tj
-T* (- [PASSED] Politica regulatoria: Perfil C compativel com template-c e politica de simbolo blocked.) Tj
-T* (- [PASSED] Cadastro do equipamento: Cliente e endereco minimo do equipamento preenchidos.) Tj
-T* (- [PASSED] Elegibilidade do padrao: Padrao valido, dentro da faixa aplicavel e aceito pelo perfil regulatorio.) Tj
-T* (- [PASSED] Competencia do signatario: Competencia vigente encontrada para ipna_classe_iii.) Tj
-T* (- [PASSED] Numeracao do certificado: Proximo numero reservado em dry-run: LABC-000401.) Tj
+T* (WARNINGS) Tj
+T* (- A coleta de campo nao foi transposta para o formato estruturado.) Tj
+T* () Tj
+T* (BLOQUEIOS) Tj
+T* (- Captura bruta metrologica) Tj
+T* () Tj
 ET
 endstream
 endobj
@@ -76,14 +76,21 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 4 0 R >>
 endobj
 6 0 obj
-<< /Length 474 >>
+<< /Length 1206 >>
 stream
 BT
 /F1 10 Tf
 12 TL
 48 794 Td
 0 g
-(- [PASSED] Declaracao metrologica: Resultado: 20.01 kg | U: 0.1 kg | k=2) Tj
+(CHECKLIST DE EMISSAO) Tj
+T* (- [PASSED] Politica regulatoria: Perfil C compativel com template-c e politica de simbolo blocked.) Tj
+T* (- [PASSED] Cadastro do equipamento: Cliente e endereco minimo do equipamento preenchidos.) Tj
+T* (- [PASSED] Elegibilidade do padrao: Padrao valido, dentro da faixa aplicavel e aceito pelo perfil regulatorio.) Tj
+T* (- [PASSED] Competencia do signatario: Competencia vigente encontrada para ipna_classe_iii.) Tj
+T* (- [PASSED] Numeracao do certificado: Proximo numero reservado em dry-run: LABC-000401.) Tj
+T* (- [FAILED] Captura bruta metrologica: Bloqueios: sem dados brutos estruturados; Bruto ausente para o ponto ensaiado.; Sem leituras brutas persistidas para sustentar a emissao..) Tj
+T* (- [PASSED] Declaracao metrologica: Resultado: 20.01 kg | U: 0.1 kg | k=2) Tj
 T* (- [PASSED] Audit trail da emissao: Hash-chain, eventos criticos e metadados de revisao/assinatura consistentes.) Tj
 T* (- [PASSED] QR publico: QR autenticado em dry-run com status authentic.) Tj
 T* () Tj
@@ -104,12 +111,12 @@ xref
 0000000064 00000 n 
 0000000127 00000 n 
 0000000195 00000 n 
-0000002417 00000 n 
-0000002543 00000 n 
-0000003068 00000 n 
-0000003194 00000 n 
+0000002041 00000 n 
+0000002167 00000 n 
+0000003425 00000 n 
+0000003551 00000 n 
 trailer
 << /Size 9 /Root 1 0 R /Info 8 0 R >>
 startxref
-3539
+3896
 %%EOF
