@@ -396,7 +396,30 @@ test("serves the canonical management review catalog from the backend", async ()
     assert.equal(payload.scenarios.length, 3);
     assert.ok(blockedScenario);
     assert.equal(blockedScenario.detail.status, "blocked");
+    assert.match(blockedScenario.detail.scheduledForLabel, /23\/04\/2026|04\/2026/i);
+    assert.match(blockedScenario.detail.calendarExportHref, /calendar\.ics/i);
+    assert.equal(blockedScenario.detail.calendar.entries.length >= 2, true);
     assert.match(blockedScenario.detail.blockers.join(" "), /extraordinaria|liberacao|trilha/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("exports the canonical management review meeting as .ics", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/quality/management-review/calendar.ics?scenario=extraordinary-response&meeting=review-extra-2026-04",
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.match(String(response.headers["content-type"] ?? ""), /text\/calendar/i);
+    assert.match(response.body, /BEGIN:VCALENDAR/);
+    assert.match(response.body, /SUMMARY:Analise critica extraordinaria 04\/2026/);
+    assert.match(response.body, /DTSTART:20260423T140000Z/);
   } finally {
     await app.close();
   }
@@ -1776,8 +1799,54 @@ test("serves the persisted V5 quality and governance catalogs for the authentica
     assert.match(indicatorPayload.scenarios[0]?.summary.monthlyWindowLabel ?? "", /11\/2025|04\/2026/i);
     assert.equal((indicatorPayload.scenarios[0]?.detail.snapshots.length ?? 0) >= 6, true);
     assert.equal(reviewPayload.scenarios[0]?.meetings[0]?.meetingId, "review-2026-q2");
+    assert.match(reviewPayload.scenarios[0]?.detail.calendarExportHref ?? "", /calendar\.ics/i);
+    assert.equal((reviewPayload.scenarios[0]?.detail.calendar.entries.length ?? 0) >= 1, true);
     assert.equal((hubPayload.scenarios[0]?.summary.implementedModuleCount ?? 0) >= 6, true);
     assert.equal(settingsPayload.scenarios[0]?.summary.organizationCode, "AFERE");
+  } finally {
+    await app.close();
+  }
+});
+
+test("exports the persisted management review meeting as .ics only for the authenticated tenant", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV4CoreSeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV4RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(createV4ServiceOrderSeed()),
+    qualityPersistence: createMemoryQualityPersistence(createV5QualitySeed()),
+  });
+
+  try {
+    const anonymousResponse = await app.inject({
+      method: "GET",
+      url: "/quality/management-review/calendar.ics?meeting=review-2026-q2",
+    });
+    assert.equal(anonymousResponse.statusCode, 401);
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/quality/management-review/calendar.ics?meeting=review-2026-q2",
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.match(String(response.headers["content-type"] ?? ""), /text\/calendar/i);
+    assert.match(response.body, /BEGIN:VEVENT/);
+    assert.match(response.body, /SUMMARY:Analise critica Q2(\/| )2026/);
   } finally {
     await app.close();
   }

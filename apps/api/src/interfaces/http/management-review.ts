@@ -6,7 +6,11 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import type { CorePersistence } from "../../domain/auth/core-persistence.js";
-import { buildManagementReviewCatalog } from "../../domain/quality/management-review-scenarios.js";
+import {
+  buildManagementReviewCatalog,
+  resolveManagementReviewScenarioMeeting,
+} from "../../domain/quality/management-review-scenarios.js";
+import { buildManagementReviewCalendarIcs } from "../../domain/quality/management-review-calendar.js";
 import {
   buildPersistedManagementReviewCatalog,
 } from "../../domain/quality/persisted-quality-catalogs.js";
@@ -26,6 +30,11 @@ import {
 const QuerySchema = z.object({
   scenario: z.string().min(1).optional(),
   meeting: z.string().min(1).optional(),
+});
+
+const CalendarExportQuerySchema = z.object({
+  scenario: z.string().min(1).optional(),
+  meeting: z.string().min(1),
 });
 
 const SaveBodySchema = z.object({
@@ -108,6 +117,47 @@ export async function registerManagementReviewRoutes(
 
     const payload: ManagementReviewCatalog = managementReviewCatalogSchema.parse(
       buildManagementReviewCatalog(query.data.scenario, query.data.meeting),
+    );
+
+    return reply.code(200).send(payload);
+  });
+
+  app.get("/quality/management-review/calendar.ics", async (request, reply) => {
+    const query = CalendarExportQuerySchema.safeParse(request.query);
+    if (!query.success) {
+      return reply.code(400).send({ error: "invalid_query" });
+    }
+
+    const meeting = query.data.scenario
+      ? resolveManagementReviewScenarioMeeting(query.data.scenario, query.data.meeting)
+      : await (async () => {
+          const context = await requireQualityAccess(request, reply, corePersistence);
+          if (!context) {
+            return null;
+          }
+
+          const meetings = await qualityPersistence.listManagementReviewMeetingsByOrganization(
+            context.user.organizationId,
+          );
+          const selectedMeeting = meetings.find((item) => item.meetingId === query.data.meeting);
+          if (!selectedMeeting) {
+            reply.code(404).send({ error: "quality_management_review_not_found" });
+            return null;
+          }
+
+          return selectedMeeting;
+        })();
+
+    if (!meeting) {
+      return reply;
+    }
+
+    const payload = buildManagementReviewCalendarIcs({ meeting });
+
+    reply.header("content-type", "text/calendar; charset=utf-8");
+    reply.header(
+      "content-disposition",
+      `attachment; filename="management-review-${query.data.meeting}.ics"`,
     );
 
     return reply.code(200).send(payload);

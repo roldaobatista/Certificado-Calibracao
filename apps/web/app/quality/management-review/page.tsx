@@ -119,7 +119,7 @@ export default async function ManagementReviewPage(props: PageProps) {
         title={scenario.summary.headline}
         description={
           authSession?.authenticated === true && !props.searchParams?.scenario
-            ? `${scenario.description} A reuniao exibida vem da camada persistida da V5.`
+            ? `${scenario.description} A reuniao exibida vem da camada persistida da V5 com agenda, calendario e exportacao .ics consolidados.`
             : scenario.description
         }
         aside={
@@ -187,6 +187,46 @@ export default async function ManagementReviewPage(props: PageProps) {
           <strong>Dossie minimo</strong>
           <p>{detail.evidenceLabel}</p>
         </article>
+      </section>
+
+      <section className="detail-grid">
+        <article className="detail-card">
+          <span className="eyebrow">Agendamento</span>
+          <strong>{detail.scheduledForLabel}</strong>
+          <p>Fuso de referencia: {detail.calendar.timezoneLabel}</p>
+        </article>
+
+        <article className="detail-card">
+          <span className="eyebrow">Calendario</span>
+          <strong>{detail.calendar.entries.length} reuniao(oes)</strong>
+          <p>Proxima agenda consolidada: {detail.calendar.nextScheduledLabel}</p>
+        </article>
+
+        <article className="detail-card">
+          <span className="eyebrow">Exportacao</span>
+          <strong>Arquivo .ics</strong>
+          <p>Use o link abaixo para reabrir a reuniao selecionada no calendario externo.</p>
+          <div className="button-row">
+            <a className="button-secondary" href={detail.calendarExportHref}>
+              Baixar .ics
+            </a>
+          </div>
+        </article>
+      </section>
+
+      <section className="nav-grid">
+        {detail.calendar.entries.map((entry) => (
+          <NavCard
+            key={entry.meetingId}
+            href={entry.exportHref}
+            eyebrow={entry.scheduledForLabel}
+            title={entry.titleLabel}
+            description={`Calendario ${detail.calendar.timezoneLabel} | ${statusLabel(entry.status)}`}
+            statusTone={statusTone(entry.status)}
+            statusLabel={statusLabel(entry.status)}
+            cta="Baixar .ics"
+          />
+        ))}
       </section>
 
       <section className="detail-grid">
