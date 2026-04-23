@@ -2,5 +2,6 @@
 .githooks/* text eol=lf
 .claude/hooks/*.sh text eol=lf
 .codex/hooks/*.sh text eol=lf
+compliance/validation-dossier/snapshots/**/*.pdf -text
 compliance/validation-dossier/snapshots/**/*.txt text eol=lf
 compliance/validation-dossier/snapshots/**/*.yaml text eol=lf
