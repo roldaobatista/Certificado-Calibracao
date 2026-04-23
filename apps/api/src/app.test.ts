@@ -1773,6 +1773,8 @@ test("serves the persisted V5 quality and governance catalogs for the authentica
     assert.equal(ncPayload.scenarios[0]?.items[0]?.ncId, "nc-014");
     assert.equal(auditPayload.scenarios[0]?.cycles[0]?.cycleId, "audit-cycle-2026-q2");
     assert.equal((indicatorPayload.scenarios[0]?.indicators.length ?? 0) >= 3, true);
+    assert.match(indicatorPayload.scenarios[0]?.summary.monthlyWindowLabel ?? "", /11\/2025|04\/2026/i);
+    assert.equal((indicatorPayload.scenarios[0]?.detail.snapshots.length ?? 0) >= 6, true);
     assert.equal(reviewPayload.scenarios[0]?.meetings[0]?.meetingId, "review-2026-q2");
     assert.equal((hubPayload.scenarios[0]?.summary.implementedModuleCount ?? 0) >= 6, true);
     assert.equal(settingsPayload.scenarios[0]?.summary.organizationCode, "AFERE");
@@ -1781,7 +1783,7 @@ test("serves the persisted V5 quality and governance catalogs for the authentica
   }
 });
 
-test("updates persisted V5 nonconformity and compliance profile through manage endpoints", async () => {
+test("updates persisted V5 nonconformity, indicator history and compliance profile through manage endpoints", async () => {
   const { runtimeReadiness } = createRuntimeReadinessStub();
   const qualityPersistence = createMemoryQualityPersistence(createV5QualitySeed());
   const app = await buildApp({
@@ -1805,7 +1807,7 @@ test("updates persisted V5 nonconformity and compliance profile through manage e
     const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
     assert.ok(cookie);
 
-    const [ncManage, settingsManage] = await Promise.all([
+    const [ncManage, indicatorManage, settingsManage] = await Promise.all([
       app.inject({
         method: "POST",
         url: "/quality/nonconformities/manage",
@@ -1828,6 +1830,21 @@ test("updates persisted V5 nonconformity and compliance profile through manage e
           warnings: ["Ainda falta evidência final."],
           openedAt: "2026-04-23T13:20:00.000Z",
           dueAt: "2026-05-02T17:00:00.000Z",
+        },
+      }),
+      app.inject({
+        method: "POST",
+        url: "/quality/indicators/manage",
+        headers: { cookie },
+        payload: {
+          action: "save",
+          indicatorId: "indicator-emission-completion",
+          monthStart: "2026-05-01T00:00:00.000Z",
+          valueNumeric: "78",
+          targetNumeric: "85",
+          status: "attention",
+          sourceLabel: "Fechamento mensal 05/2026",
+          evidenceLabel: "Consolidado gerencial aprovado para maio/2026.",
         },
       }),
       app.inject({
@@ -1860,17 +1877,24 @@ test("updates persisted V5 nonconformity and compliance profile through manage e
     ]);
 
     assert.equal(ncManage.statusCode, 204);
+    assert.equal(indicatorManage.statusCode, 204);
     assert.equal(settingsManage.statusCode, 204);
 
-    const [ncResponse, settingsResponse] = await Promise.all([
+    const [ncResponse, indicatorResponse, settingsResponse] = await Promise.all([
       app.inject({ method: "GET", url: "/quality/nonconformities", headers: { cookie } }),
+      app.inject({ method: "GET", url: "/quality/indicators?indicator=indicator-emission-completion", headers: { cookie } }),
       app.inject({ method: "GET", url: "/settings/organization", headers: { cookie } }),
     ]);
 
     const ncPayload = nonconformityRegistryCatalogSchema.parse(ncResponse.json());
+    const indicatorPayload = qualityIndicatorRegistryCatalogSchema.parse(indicatorResponse.json());
     const settingsPayload = organizationSettingsCatalogSchema.parse(settingsResponse.json());
 
     assert.equal(ncPayload.scenarios[0]?.items[0]?.summary, "NC-014 · Segregacao revalidada");
+    assert.match(
+      indicatorPayload.scenarios.flatMap((scenario) => scenario.detail.snapshots.map((snapshot) => snapshot.monthLabel)).join(" "),
+      /05\/2026/i,
+    );
     assert.equal(
       settingsPayload.scenarios[0]?.summary.profileLabel.includes("Tipo A"),
       true,
@@ -2673,6 +2697,7 @@ function createV5QualitySeed() {
         scheduledForUtc: "2026-06-30T13:00:00.000Z",
       },
     ],
+    qualityIndicatorSnapshots: buildV5IndicatorHistorySeed(),
     complianceProfiles: [
       {
         complianceProfileId: "compliance-profile-v5",
@@ -2702,6 +2727,75 @@ function createV5QualitySeed() {
       },
     ],
   };
+}
+
+function buildV5IndicatorHistorySeed() {
+  return [
+    ...buildIndicatorHistorySeed({
+      indicatorId: "indicator-emission-completion",
+      targetNumeric: 85,
+      points: [
+        ["2025-11-01T00:00:00.000Z", 62, "attention"],
+        ["2025-12-01T00:00:00.000Z", 68, "attention"],
+        ["2026-01-01T00:00:00.000Z", 72, "attention"],
+        ["2026-02-01T00:00:00.000Z", 79, "attention"],
+        ["2026-03-01T00:00:00.000Z", 81, "attention"],
+        ["2026-04-01T00:00:00.000Z", 84, "attention"],
+      ],
+      sourcePrefix: "Fechamento mensal emissao",
+      evidenceLabel: "Consolidado gerencial do fluxo emitido.",
+    }),
+    ...buildIndicatorHistorySeed({
+      indicatorId: "indicator-open-nc-pressure",
+      targetNumeric: 1,
+      points: [
+        ["2025-11-01T00:00:00.000Z", 3, "blocked"],
+        ["2025-12-01T00:00:00.000Z", 3, "blocked"],
+        ["2026-01-01T00:00:00.000Z", 2, "attention"],
+        ["2026-02-01T00:00:00.000Z", 2, "attention"],
+        ["2026-03-01T00:00:00.000Z", 1, "ready"],
+        ["2026-04-01T00:00:00.000Z", 1, "ready"],
+      ],
+      sourcePrefix: "Fechamento mensal NC",
+      evidenceLabel: "Consolidado mensal de nao conformidades.",
+    }),
+    ...buildIndicatorHistorySeed({
+      indicatorId: "indicator-governance-follow-up",
+      targetNumeric: 1,
+      points: [
+        ["2025-11-01T00:00:00.000Z", 4, "blocked"],
+        ["2025-12-01T00:00:00.000Z", 3, "blocked"],
+        ["2026-01-01T00:00:00.000Z", 3, "blocked"],
+        ["2026-02-01T00:00:00.000Z", 2, "attention"],
+        ["2026-03-01T00:00:00.000Z", 2, "attention"],
+        ["2026-04-01T00:00:00.000Z", 1, "ready"],
+      ],
+      sourcePrefix: "Fechamento mensal follow-up",
+      evidenceLabel: "Consolidado mensal de follow-up gerencial.",
+    }),
+  ];
+}
+
+function buildIndicatorHistorySeed(input: {
+  indicatorId: string;
+  targetNumeric: number;
+  points: Array<[monthStartUtc: string, valueNumeric: number, status: "ready" | "attention" | "blocked"]>;
+  sourcePrefix: string;
+  evidenceLabel: string;
+}) {
+  return input.points.map(([monthStartUtc, valueNumeric, status], index) => ({
+    snapshotId: `${input.indicatorId}-${monthStartUtc.slice(0, 7)}`,
+    organizationId: "org-1",
+    indicatorId: input.indicatorId,
+    monthStartUtc,
+    valueNumeric,
+    targetNumeric: input.targetNumeric,
+    status,
+    sourceLabel: `${input.sourcePrefix} ${monthStartUtc.slice(5, 7)}/${monthStartUtc.slice(0, 4)}`,
+    evidenceLabel: input.evidenceLabel,
+    createdAtUtc: new Date(Date.parse(monthStartUtc) + 24 * 60 * 60 * 1000).toISOString(),
+    updatedAtUtc: new Date(Date.parse(monthStartUtc) + (index + 2) * 24 * 60 * 60 * 1000).toISOString(),
+  }));
 }
 
 function buildSeedEmissionAuditTrail(

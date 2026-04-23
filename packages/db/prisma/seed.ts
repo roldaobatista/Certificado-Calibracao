@@ -952,6 +952,10 @@ async function main() {
     where: { organizationId: ORGANIZATION_ID },
   });
 
+  await prisma.qualityIndicatorSnapshot.deleteMany({
+    where: { organizationId: ORGANIZATION_ID },
+  });
+
   await prisma.organizationComplianceProfile.deleteMany({
     where: { organizationId: ORGANIZATION_ID },
   });
@@ -1078,6 +1082,53 @@ async function main() {
         scheduledFor: new Date("2026-06-30T13:00:00.000Z"),
         heldAt: null,
       },
+    ],
+  });
+
+  await prisma.qualityIndicatorSnapshot.createMany({
+    data: [
+      ...indicatorHistorySeed({
+        indicatorId: "indicator-emission-completion",
+        targetNumeric: 85,
+        sourcePrefix: "Fechamento mensal emissao",
+        evidenceLabel: "Consolidado gerencial do fluxo emitido.",
+        points: [
+          ["2025-11-01", 62, "attention"],
+          ["2025-12-01", 68, "attention"],
+          ["2026-01-01", 72, "attention"],
+          ["2026-02-01", 79, "attention"],
+          ["2026-03-01", 81, "attention"],
+          ["2026-04-01", 84, "attention"],
+        ],
+      }),
+      ...indicatorHistorySeed({
+        indicatorId: "indicator-open-nc-pressure",
+        targetNumeric: 1,
+        sourcePrefix: "Fechamento mensal NC",
+        evidenceLabel: "Consolidado mensal de nao conformidades.",
+        points: [
+          ["2025-11-01", 3, "blocked"],
+          ["2025-12-01", 3, "blocked"],
+          ["2026-01-01", 2, "attention"],
+          ["2026-02-01", 2, "attention"],
+          ["2026-03-01", 1, "ready"],
+          ["2026-04-01", 1, "ready"],
+        ],
+      }),
+      ...indicatorHistorySeed({
+        indicatorId: "indicator-governance-follow-up",
+        targetNumeric: 1,
+        sourcePrefix: "Fechamento mensal follow-up",
+        evidenceLabel: "Consolidado mensal de follow-up gerencial.",
+        points: [
+          ["2025-11-01", 4, "blocked"],
+          ["2025-12-01", 3, "blocked"],
+          ["2026-01-01", 3, "blocked"],
+          ["2026-02-01", 2, "attention"],
+          ["2026-03-01", 2, "attention"],
+          ["2026-04-01", 1, "ready"],
+        ],
+      }),
     ],
   });
 
@@ -1443,6 +1494,29 @@ function canonicalize(value: unknown): unknown {
   }
 
   return value;
+}
+
+function indicatorHistorySeed(input: {
+  indicatorId: string;
+  targetNumeric: number;
+  sourcePrefix: string;
+  evidenceLabel: string;
+  points: Array<[monthStart: string, valueNumeric: number, status: "ready" | "attention" | "blocked"]>;
+}) {
+  return input.points.map(([monthStart, valueNumeric, status], index) => ({
+    id: `00000000-0000-4000-8000-${createHash("sha256")
+      .update(`${input.indicatorId}:${monthStart}:${index}`)
+      .digest("hex")
+      .slice(0, 12)}`,
+    organizationId: ORGANIZATION_ID,
+    indicatorId: input.indicatorId,
+    monthStart: parseDate(monthStart),
+    valueNumeric,
+    targetNumeric: input.targetNumeric,
+    status,
+    sourceLabel: `${input.sourcePrefix} ${monthStart.slice(5, 7)}/${monthStart.slice(0, 4)}`,
+    evidenceLabel: input.evidenceLabel,
+  }));
 }
 
 function calibration(

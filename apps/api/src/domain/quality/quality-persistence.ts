@@ -138,6 +138,20 @@ export type PersistedComplianceProfileRecord = {
   lastReviewedAtUtc: string;
 };
 
+export type PersistedQualityIndicatorSnapshotRecord = {
+  snapshotId: string;
+  organizationId: string;
+  indicatorId: string;
+  monthStartUtc: string;
+  valueNumeric: number;
+  targetNumeric?: number;
+  status: "ready" | "attention" | "blocked";
+  sourceLabel: string;
+  evidenceLabel: string;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+};
+
 export type SaveNonconformityInput = {
   organizationId: string;
   ncId?: string;
@@ -245,6 +259,18 @@ export type SaveComplianceProfileInput = {
   regulatoryProfile?: string;
 };
 
+export type SaveQualityIndicatorSnapshotInput = {
+  organizationId: string;
+  snapshotId?: string;
+  indicatorId: string;
+  monthStart: Date;
+  valueNumeric: number;
+  targetNumeric?: number;
+  status: "ready" | "attention" | "blocked";
+  sourceLabel: string;
+  evidenceLabel: string;
+};
+
 export interface QualityPersistence {
   listNonconformitiesByOrganization(organizationId: string): Promise<PersistedNonconformityRecord[]>;
   saveNonconformity(input: SaveNonconformityInput): Promise<PersistedNonconformityRecord>;
@@ -262,6 +288,12 @@ export interface QualityPersistence {
     organizationId: string,
   ): Promise<PersistedComplianceProfileRecord | null>;
   saveComplianceProfile(input: SaveComplianceProfileInput): Promise<PersistedComplianceProfileRecord>;
+  listQualityIndicatorSnapshotsByOrganization(
+    organizationId: string,
+  ): Promise<PersistedQualityIndicatorSnapshotRecord[]>;
+  saveQualityIndicatorSnapshot(
+    input: SaveQualityIndicatorSnapshotInput,
+  ): Promise<PersistedQualityIndicatorSnapshotRecord>;
 }
 
 export function createMemoryQualityPersistence(seed: {
@@ -270,6 +302,7 @@ export function createMemoryQualityPersistence(seed: {
   internalAuditCycles?: PersistedInternalAuditCycleRecord[];
   managementReviewMeetings?: PersistedManagementReviewMeetingRecord[];
   complianceProfiles?: PersistedComplianceProfileRecord[];
+  qualityIndicatorSnapshots?: PersistedQualityIndicatorSnapshotRecord[];
 } = {}): QualityPersistence {
   const nonconformities = new Map(
     (seed.nonconformities ?? []).map((record) => [record.ncId, structuredClone(record)]),
@@ -285,6 +318,9 @@ export function createMemoryQualityPersistence(seed: {
   );
   const complianceProfiles = new Map(
     (seed.complianceProfiles ?? []).map((record) => [record.organizationId, structuredClone(record)]),
+  );
+  const qualityIndicatorSnapshots = new Map(
+    (seed.qualityIndicatorSnapshots ?? []).map((record) => [record.snapshotId, structuredClone(record)]),
   );
 
   return {
@@ -458,6 +494,36 @@ export function createMemoryQualityPersistence(seed: {
       };
 
       complianceProfiles.set(input.organizationId, record);
+      return structuredClone(record);
+    },
+    async listQualityIndicatorSnapshotsByOrganization(organizationId) {
+      return Array.from(qualityIndicatorSnapshots.values())
+        .filter((record) => record.organizationId === organizationId)
+        .map((record) => structuredClone(record))
+        .sort((left, right) => {
+          if (left.indicatorId !== right.indicatorId) {
+            return left.indicatorId.localeCompare(right.indicatorId);
+          }
+          return left.monthStartUtc.localeCompare(right.monthStartUtc);
+        });
+    },
+    async saveQualityIndicatorSnapshot(input) {
+      const snapshotId = input.snapshotId ?? `memory-indicator-snapshot-${qualityIndicatorSnapshots.size + 1}`;
+      const record: PersistedQualityIndicatorSnapshotRecord = {
+        snapshotId,
+        organizationId: input.organizationId,
+        indicatorId: input.indicatorId.trim(),
+        monthStartUtc: input.monthStart.toISOString(),
+        valueNumeric: input.valueNumeric,
+        targetNumeric: input.targetNumeric,
+        status: input.status,
+        sourceLabel: input.sourceLabel.trim(),
+        evidenceLabel: input.evidenceLabel.trim(),
+        createdAtUtc: qualityIndicatorSnapshots.get(snapshotId)?.createdAtUtc ?? new Date().toISOString(),
+        updatedAtUtc: new Date().toISOString(),
+      };
+
+      qualityIndicatorSnapshots.set(snapshotId, record);
       return structuredClone(record);
     },
   };
@@ -791,6 +857,48 @@ export function createPrismaQualityPersistence(prisma: PrismaClient): QualityPer
       });
 
       return mapComplianceProfileRecord(record);
+    },
+    async listQualityIndicatorSnapshotsByOrganization(organizationId) {
+      const records = await prisma.qualityIndicatorSnapshot.findMany({
+        where: { organizationId },
+        orderBy: [{ indicatorId: "asc" }, { monthStart: "asc" }],
+      });
+
+      return records.map((record) => mapQualityIndicatorSnapshotRecord(record));
+    },
+    async saveQualityIndicatorSnapshot(input) {
+      if (input.snapshotId) {
+        await assertRecordOwnership(prisma.qualityIndicatorSnapshot, input.snapshotId, input.organizationId);
+      }
+
+      const data = {
+        indicatorId: input.indicatorId.trim(),
+        monthStart: input.monthStart,
+        valueNumeric: input.valueNumeric,
+        targetNumeric: input.targetNumeric ?? null,
+        status: input.status,
+        sourceLabel: input.sourceLabel.trim(),
+        evidenceLabel: input.evidenceLabel.trim(),
+      };
+
+      const record = input.snapshotId
+        ? await prisma.qualityIndicatorSnapshot.update({
+            where: { id: input.snapshotId },
+            data,
+          })
+        : await prisma.qualityIndicatorSnapshot.create({
+            data: {
+              id: crypto.randomUUID(),
+              organizationId: input.organizationId,
+              ...data,
+            },
+          });
+
+      if (record.organizationId !== input.organizationId) {
+        throw new Error("quality_indicator_snapshot_organization_mismatch");
+      }
+
+      return mapQualityIndicatorSnapshotRecord(record);
     },
   };
 }
@@ -1154,6 +1262,36 @@ function mapComplianceProfileRecord(
     releaseNormVersion: record.releaseNormVersion,
     releaseNormStatus: record.releaseNormStatus,
     lastReviewedAtUtc: record.lastReviewedAt.toISOString(),
+  };
+}
+
+function mapQualityIndicatorSnapshotRecord(
+  record: {
+    id: string;
+    organizationId: string;
+    indicatorId: string;
+    monthStart: Date;
+    valueNumeric: number;
+    targetNumeric: number | null;
+    status: string;
+    sourceLabel: string;
+    evidenceLabel: string;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+): PersistedQualityIndicatorSnapshotRecord {
+  return {
+    snapshotId: record.id,
+    organizationId: record.organizationId,
+    indicatorId: record.indicatorId,
+    monthStartUtc: record.monthStart.toISOString(),
+    valueNumeric: record.valueNumeric,
+    targetNumeric: record.targetNumeric ?? undefined,
+    status: normalizeOperationalStatus(record.status),
+    sourceLabel: record.sourceLabel,
+    evidenceLabel: record.evidenceLabel,
+    createdAtUtc: record.createdAt.toISOString(),
+    updatedAtUtc: record.updatedAt.toISOString(),
   };
 }
 
