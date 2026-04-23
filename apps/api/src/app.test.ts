@@ -38,6 +38,7 @@ import {
 import type { Env } from "./config/env.js";
 import { createMemoryCorePersistence } from "./domain/auth/core-persistence.js";
 import { hashPassword } from "./domain/auth/password.js";
+import { createMemoryServiceOrderPersistence } from "./domain/emission/service-order-persistence.js";
 import { createMemoryRegistryPersistence } from "./domain/registry/registry-persistence.js";
 import { RuntimeReadinessError, type RuntimeReadiness } from "./infra/runtime-readiness.js";
 import { buildApp } from "./app.js";
@@ -1281,6 +1282,285 @@ test("allows admins to manage persisted users and v2 registry records", async ()
   }
 });
 
+test("serves persisted service orders when the tenant is authenticated", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV1MemorySeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV2RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(createV3ServiceOrderSeed()),
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/emission/service-order-review",
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    const payload = serviceOrderReviewCatalogSchema.parse(response.json());
+
+    assert.equal(payload.selectedScenarioId, "review-ready");
+    assert.equal(payload.scenarios.length, 3);
+    assert.equal(
+      payload.scenarios[0]?.items.some((item) => item.workOrderNumber === "OS-2026-00142"),
+      true,
+    );
+    assert.equal(payload.scenarios[0]?.detail.customerId, "customer-001");
+  } finally {
+    await app.close();
+  }
+});
+
+test("creates and updates persisted service orders through the manage route", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV1MemorySeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV2RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(createV3ServiceOrderSeed()),
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/emission/service-order-review/manage",
+      headers: { cookie },
+      payload: {
+        action: "save",
+        customerId: "customer-001",
+        equipmentId: "equipment-001",
+        procedureId: "procedure-001",
+        primaryStandardId: "standard-001",
+        executorUserId: "user-admin-1",
+        reviewerUserId: "user-signatory-1",
+        workOrderNumber: "OS-2026-0201",
+        workflowStatus: "in_execution",
+        environmentLabel: "22,3 C · 47% UR",
+        curvePointsLabel: "3 pontos iniciais",
+        evidenceLabel: "3 evidencias coletadas",
+        uncertaintyLabel: "U = 0,20 kg (k=2)",
+        conformityLabel: "Execucao em andamento",
+        commentDraft: "OS aberta para atendimento em campo.",
+      },
+    });
+    assert.equal(createResponse.statusCode, 204);
+
+    const listResponse = await app.inject({
+      method: "GET",
+      url: "/emission/service-order-review",
+      headers: { cookie },
+    });
+    const listPayload = serviceOrderReviewCatalogSchema.parse(listResponse.json());
+    const createdItem = listPayload.scenarios[1]?.items.find(
+      (item) => item.workOrderNumber === "OS-2026-0201",
+    );
+    assert.ok(createdItem);
+
+    const updateResponse = await app.inject({
+      method: "POST",
+      url: "/emission/service-order-review/manage",
+      headers: { cookie },
+      payload: {
+        action: "save",
+        serviceOrderId: createdItem?.itemId,
+        customerId: "customer-001",
+        equipmentId: "equipment-001",
+        procedureId: "procedure-001",
+        primaryStandardId: "standard-001",
+        executorUserId: "user-admin-1",
+        reviewerUserId: "user-signatory-1",
+        workOrderNumber: "OS-2026-0201",
+        workflowStatus: "awaiting_review",
+        environmentLabel: "22,3 C · 47% UR",
+        curvePointsLabel: "5 pontos concluidos",
+        evidenceLabel: "9 evidencias anexadas",
+        uncertaintyLabel: "U = 0,14 kg (k=2)",
+        conformityLabel: "Pronta para revisao",
+        commentDraft: "Execucao concluida e pronta para revisao tecnica.",
+      },
+    });
+    assert.equal(updateResponse.statusCode, 204);
+
+    const detailResponse = await app.inject({
+      method: "GET",
+      url: `/emission/service-order-review?item=${createdItem?.itemId}`,
+      headers: { cookie },
+    });
+    const detailPayload = serviceOrderReviewCatalogSchema.parse(detailResponse.json());
+
+    assert.equal(detailPayload.selectedScenarioId, "review-ready");
+    assert.equal(detailPayload.scenarios[0]?.detail.itemId, createdItem?.itemId);
+    assert.equal(detailPayload.scenarios[0]?.detail.status, "ready");
+  } finally {
+    await app.close();
+  }
+});
+
+test("serves the persisted V3 emission catalogs for the authenticated tenant", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV3CoreSeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV2RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(createV3ServiceOrderSeed()),
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const [dryRunResponse, reviewResponse, queueResponse, auditResponse] = await Promise.all([
+      app.inject({
+        method: "GET",
+        url: "/emission/dry-run?item=service-order-00142",
+        headers: { cookie },
+      }),
+      app.inject({
+        method: "GET",
+        url: "/emission/review-signature?item=service-order-00142",
+        headers: { cookie },
+      }),
+      app.inject({
+        method: "GET",
+        url: "/emission/signature-queue?item=service-order-00142",
+        headers: { cookie },
+      }),
+      app.inject({
+        method: "GET",
+        url: "/quality/audit-trail?item=service-order-00142",
+        headers: { cookie },
+      }),
+    ]);
+
+    assert.equal(dryRunResponse.statusCode, 200);
+    assert.equal(reviewResponse.statusCode, 200);
+    assert.equal(queueResponse.statusCode, 200);
+    assert.equal(auditResponse.statusCode, 200);
+
+    const dryRunPayload = emissionDryRunCatalogSchema.parse(dryRunResponse.json());
+    const reviewPayload = reviewSignatureCatalogSchema.parse(reviewResponse.json());
+    const queuePayload = signatureQueueCatalogSchema.parse(queueResponse.json());
+    const auditPayload = auditTrailCatalogSchema.parse(auditResponse.json());
+
+    assert.equal(dryRunPayload.scenarios.length, 3);
+    assert.equal(reviewPayload.scenarios.length, 4);
+    assert.equal(queuePayload.scenarios.length, 3);
+    assert.equal(auditPayload.scenarios.length, 3);
+  } finally {
+    await app.close();
+  }
+});
+
+test("approves and emits a persisted service order through the V3 workflow", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV3CoreSeed()),
+    registryPersistence: createMemoryRegistryPersistence(createV2RegistrySeed()),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(createV3ServiceOrderSeed()),
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const reviewResponse = await app.inject({
+      method: "POST",
+      url: "/emission/review-signature/manage",
+      headers: { cookie },
+      payload: {
+        action: "review",
+        serviceOrderId: "service-order-00142",
+        reviewerUserId: "user-reviewer-1",
+        signatoryUserId: "user-signatory-1",
+        workflowStatus: "awaiting_signature",
+        reviewDecision: "approved",
+        reviewDecisionComment: "Revisao concluida sem ressalvas.",
+        reviewDeviceId: "device-review-01",
+      },
+    });
+    assert.equal(reviewResponse.statusCode, 204);
+
+    const emitResponse = await app.inject({
+      method: "POST",
+      url: "/emission/signature-queue/manage",
+      headers: { cookie },
+      payload: {
+        action: "emit",
+        serviceOrderId: "service-order-00142",
+        signatoryUserId: "user-signatory-1",
+        signatureDeviceId: "device-sign-01",
+      },
+    });
+    assert.equal(emitResponse.statusCode, 204);
+
+    const queueResponse = await app.inject({
+      method: "GET",
+      url: "/emission/signature-queue?item=service-order-00142",
+      headers: { cookie },
+    });
+    const auditResponse = await app.inject({
+      method: "GET",
+      url: "/quality/audit-trail?item=service-order-00142",
+      headers: { cookie },
+    });
+
+    const queuePayload = signatureQueueCatalogSchema.parse(queueResponse.json());
+    const auditPayload = auditTrailCatalogSchema.parse(auditResponse.json());
+
+    assert.equal((queuePayload.scenarios[0]?.approval.documentHash?.length ?? 0) > 0, true);
+    assert.match(queuePayload.scenarios[0]?.approval.compactPreview[3]?.value ?? "", /^LABPERSISTID/);
+    assert.equal(auditPayload.selectedScenarioId, "recent-emission");
+    assert.equal(auditPayload.scenarios[0]?.items.some((item) => item.actionLabel === "certificate.emitted"), true);
+  } finally {
+    await app.close();
+  }
+});
+
 function createRuntimeReadinessStub(options: {
   postgresReason?: string;
   redisReason?: string;
@@ -1346,6 +1626,29 @@ function createV1MemorySeed() {
             roleLabel: "Gestao",
             status: "authorized" as const,
             validUntilUtc: "2027-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+      {
+        userId: "user-reviewer-1",
+        organizationId: "org-1",
+        organizationName: "Laboratorio Persistido",
+        organizationSlug: "lab-persistido",
+        email: "revisora@afere.local",
+        passwordHash: hashPassword("Afere@2026!", "seed-reviewer"),
+        displayName: "Renata Revisora",
+        roles: ["technical_reviewer"] as MembershipRole[],
+        status: "active" as const,
+        teamName: "Qualidade",
+        mfaEnforced: true,
+        mfaEnrolled: true,
+        deviceCount: 1,
+        competencies: [
+          {
+            instrumentType: "balanca",
+            roleLabel: "Revisora tecnica",
+            status: "authorized" as const,
+            validUntilUtc: "2027-03-01T00:00:00.000Z",
           },
         ],
       },
@@ -1509,6 +1812,156 @@ function createV2RegistrySeed() {
         action: "update",
         summary: "Cadastro do cliente Lab. Acme revisado na V2.",
         createdAtUtc: "2026-04-23T12:00:00.000Z",
+      },
+    ],
+  };
+}
+
+function createV3CoreSeed() {
+  const seed = createV1MemorySeed();
+  return {
+    ...seed,
+    onboarding: seed.onboarding.map((record) => ({
+      ...record,
+      primarySignatoryReady: true,
+      certificateNumberingConfigured: true,
+      scopeReviewCompleted: true,
+      publicQrConfigured: true,
+    })),
+  };
+}
+
+function createV3ServiceOrderSeed() {
+  return {
+    users: [
+      {
+        userId: "user-admin-1",
+        organizationId: "org-1",
+        displayName: "Ana Administradora",
+        status: "active" as const,
+      },
+      {
+        userId: "user-reviewer-1",
+        organizationId: "org-1",
+        displayName: "Renata Revisora",
+        status: "active" as const,
+      },
+      {
+        userId: "user-signatory-1",
+        organizationId: "org-1",
+        displayName: "Bruno Signatario",
+        status: "active" as const,
+      },
+    ],
+    customers: [
+      {
+        customerId: "customer-001",
+        organizationId: "org-1",
+        tradeName: "Lab. Acme",
+        addressLine1: "Rua da Calibracao, 100",
+        addressCity: "Cuiaba",
+        addressState: "MT",
+        addressPostalCode: "78000-000",
+        addressCountry: "Brasil",
+      },
+    ],
+    equipment: [
+      {
+        equipmentId: "equipment-001",
+        organizationId: "org-1",
+        customerId: "customer-001",
+        procedureId: "procedure-001",
+        primaryStandardId: "standard-001",
+        code: "EQ-0007",
+        tagCode: "BAL-007",
+        serialNumber: "SN-300-01",
+        typeModelLabel: "NAWI Toledo Prix 3",
+      },
+    ],
+    procedures: [
+      {
+        procedureId: "procedure-001",
+        organizationId: "org-1",
+        code: "PT-005",
+        revisionLabel: "04",
+      },
+    ],
+    standards: [
+      {
+        standardId: "standard-001",
+        organizationId: "org-1",
+        code: "PESO-001",
+        title: "Peso padrao 1 kg",
+        sourceLabel: "RBC-1234",
+        certificateLabel: "1234/25/081",
+        hasValidCertificate: true,
+        certificateValidUntilUtc: "2026-08-12T00:00:00.000Z",
+        measurementValue: 1,
+        applicableRangeMin: 0,
+        applicableRangeMax: 1,
+      },
+    ],
+    serviceOrders: [
+      {
+        serviceOrderId: "service-order-00142",
+        organizationId: "org-1",
+        customerId: "customer-001",
+        customerName: "Lab. Acme",
+        customerAddress: {
+          line1: "Rua da Calibracao, 100",
+          city: "Cuiaba",
+          state: "MT",
+          postalCode: "78000-000",
+          country: "Brasil",
+        },
+        equipmentId: "equipment-001",
+        equipmentLabel: "EQ-0007 · NAWI Toledo Prix 3",
+        equipmentCode: "EQ-0007",
+        equipmentTagCode: "BAL-007",
+        equipmentSerialNumber: "SN-300-01",
+        instrumentType: "balanca",
+        procedureId: "procedure-001",
+        procedureLabel: "PT-005 rev.04",
+        primaryStandardId: "standard-001",
+        standardsLabel: "PESO-001 · Peso padrao 1 kg",
+        standardSource: "RBC" as const,
+        standardCertificateReference: "1234/25/081",
+        standardHasValidCertificate: true,
+        standardCertificateValidUntilUtc: "2026-08-12T00:00:00.000Z",
+        standardMeasurementValue: 1,
+        standardApplicableRange: {
+          minimum: 0,
+          maximum: 1,
+        },
+        executorUserId: "user-admin-1",
+        executorName: "Ana Administradora",
+        reviewerUserId: "user-reviewer-1",
+        reviewerName: "Renata Revisora",
+        signatoryUserId: "user-signatory-1",
+        signatoryName: "Bruno Signatario",
+        workOrderNumber: "OS-2026-00142",
+        workflowStatus: "awaiting_review" as const,
+        environmentLabel: "22,1 C · 48% UR · pressao estavel",
+        curvePointsLabel: "5 pontos (10% / 25% / 50% / 75% / 100%)",
+        evidenceLabel: "12 evidencias anexadas",
+        uncertaintyLabel: "U = 0,12 kg (k=2)",
+        conformityLabel: "Aprovado com banda de guarda de 50%",
+        measurementResultValue: 152.48,
+        measurementExpandedUncertaintyValue: 0.12,
+        measurementCoverageFactor: 2,
+        measurementUnit: "kg",
+        decisionRuleLabel: "ILAC G8 com banda de guarda",
+        decisionOutcomeLabel: "Conforme",
+        freeTextStatement: "Resultado dentro da faixa operacional declarada.",
+        commentDraft: "Curva coerente com o historico do equipamento e pronta para revisao tecnica.",
+        reviewDecision: "pending" as const,
+        reviewDecisionComment: "",
+        createdAtUtc: "2026-04-12T12:01:00.000Z",
+        acceptedAtUtc: "2026-04-12T12:15:00.000Z",
+        executionStartedAtUtc: "2026-04-19T14:00:00.000Z",
+        executedAtUtc: "2026-04-19T17:22:00.000Z",
+        reviewStartedAtUtc: "2026-04-23T11:30:00.000Z",
+        updatedAtUtc: "2026-04-23T11:30:00.000Z",
       },
     ],
   };

@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadEmissionDryRunCatalog } from "@/src/emission/emission-dry-run-api";
 import { buildEmissionDryRunCatalogView } from "@/src/emission/emission-dry-run-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -5,13 +8,47 @@ import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
 type PageProps = {
   searchParams?: {
     scenario?: string;
+    item?: string;
   };
 };
 
 export const dynamic = "force-dynamic";
 
 export default async function EmissionDryRunPage(props: PageProps) {
-  const catalog = await loadEmissionDryRunCatalog({ scenarioId: props.searchParams?.scenario });
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
+  const catalog = await loadEmissionDryRunCatalog({
+    scenarioId: props.searchParams?.scenario,
+    itemId: props.searchParams?.item,
+    cookieHeader,
+  });
+  const isPersistedMode = authSession?.authenticated === true && !props.searchParams?.scenario;
+
+  if (!catalog && authSession?.authenticated === false && !props.searchParams?.scenario) {
+    return (
+      <AppShell
+        eyebrow="Emissao - dry-run"
+        title="Dry-run protegido por sessao"
+        description="O dry-run persistido do tenant exige autenticacao antes da leitura."
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Acesso atual</span>
+            <strong>Login necessario</strong>
+            <StatusPill tone="warn" label="RBAC ativo" />
+            <p>Entre com um papel operacional para revisar o pipeline real de emissao.</p>
+          </div>
+        }
+      >
+        <section className="content-panel">
+          <div className="button-row">
+            <a className="button-primary" href="/auth/login">
+              Fazer login
+            </a>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
 
   if (!catalog) {
     return (
@@ -187,7 +224,11 @@ export default async function EmissionDryRunPage(props: PageProps) {
 
       <section className="nav-grid">
         <NavCard
-          href={`/emission/certificate-preview?scenario=${scenario.id}`}
+          href={
+            isPersistedMode && props.searchParams?.item
+              ? `/emission/certificate-preview?item=${props.searchParams.item}`
+              : `/emission/certificate-preview?scenario=${scenario.id}`
+          }
           eyebrow="Certificado"
           title="Abrir previa integral"
           description="Conferir cabecalho, identificacao, padroes, ambiente, resultados, decisao e rodape antes da assinatura."
@@ -209,7 +250,11 @@ export default async function EmissionDryRunPage(props: PageProps) {
         {scenarios.map((item) => (
           <NavCard
             key={item.id}
-            href={`/emission/dry-run?scenario=${item.id}`}
+            href={
+              isPersistedMode && props.searchParams?.item
+                ? `/emission/dry-run?item=${props.searchParams.item}`
+                : `/emission/dry-run?scenario=${item.id}`
+            }
             eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
             title={item.label}
             description={item.description}

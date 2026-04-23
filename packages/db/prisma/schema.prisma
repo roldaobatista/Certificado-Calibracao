@@ -47,6 +47,8 @@ model Organization {
   procedures              ProcedureRevision[]
   equipment               Equipment[]
   registryAuditEvents     RegistryAuditEvent[]
+  serviceOrders           ServiceOrder[]
+  emissionAuditEvents     EmissionAuditEvent[]
 
   @@map("organizations")
   @@schema("public")
@@ -71,6 +73,10 @@ model AppUser {
   competencies   UserCompetency[]
   sessions       AppSession[]
   registryEvents RegistryAuditEvent[] @relation("RegistryEventActor")
+  executedServiceOrders ServiceOrder[] @relation("ServiceOrderExecutor")
+  reviewedServiceOrders ServiceOrder[] @relation("ServiceOrderReviewer")
+  signedServiceOrders ServiceOrder[]   @relation("ServiceOrderSignatory")
+  emissionAuditEvents EmissionAuditEvent[] @relation("EmissionAuditEventActor")
 
   @@index([organizationId, status])
   @@map("app_users")
@@ -156,6 +162,7 @@ model Customer {
   updatedAt              DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   organization           Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   equipment              Equipment[]
+  serviceOrders          ServiceOrder[]
 
   @@index([organizationId, archivedAt])
   @@index([organizationId, tradeName])
@@ -191,6 +198,7 @@ model Standard {
   organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   calibrations        StandardCalibration[]
   equipment           Equipment[]          @relation("EquipmentPrimaryStandard")
+  serviceOrders       ServiceOrder[]       @relation("ServiceOrderPrimaryStandard")
 
   @@unique([organizationId, code])
   @@index([organizationId, archivedAt])
@@ -239,6 +247,7 @@ model ProcedureRevision {
   updatedAt             DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   equipment             Equipment[]  @relation("EquipmentProcedure")
+  serviceOrders         ServiceOrder[] @relation("ServiceOrderProcedure")
 
   @@unique([organizationId, code, revisionLabel])
   @@index([organizationId, code, archivedAt])
@@ -273,6 +282,7 @@ model Equipment {
   customer              Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
   procedure             ProcedureRevision? @relation("EquipmentProcedure", fields: [procedureId], references: [id], onDelete: SetNull)
   primaryStandard       Standard?         @relation("EquipmentPrimaryStandard", fields: [primaryStandardId], references: [id], onDelete: SetNull)
+  serviceOrders         ServiceOrder[]
 
   @@unique([organizationId, code])
   @@index([organizationId, customerId, archivedAt])
@@ -295,5 +305,95 @@ model RegistryAuditEvent {
 
   @@index([organizationId, entityType, entityId, createdAt])
   @@map("registry_audit_events")
+  @@schema("public")
+}
+
+model ServiceOrder {
+  id                  String            @id @default(uuid()) @db.Uuid
+  organizationId      String            @map("organization_id") @db.Uuid
+  customerId          String            @map("customer_id") @db.Uuid
+  equipmentId         String            @map("equipment_id") @db.Uuid
+  procedureId         String            @map("procedure_id") @db.Uuid
+  primaryStandardId   String            @map("primary_standard_id") @db.Uuid
+  executorUserId      String            @map("executor_user_id") @db.Uuid
+  reviewerUserId      String?           @map("reviewer_user_id") @db.Uuid
+  signatoryUserId     String?           @map("signatory_user_id") @db.Uuid
+  workOrderNumber     String            @map("work_order_number") @db.VarChar(64)
+  workflowStatus      String            @map("workflow_status") @db.VarChar(32)
+  environmentLabel    String            @map("environment_label") @db.VarChar(160)
+  curvePointsLabel    String            @map("curve_points_label") @db.VarChar(120)
+  evidenceLabel       String            @map("evidence_label") @db.VarChar(160)
+  uncertaintyLabel    String            @map("uncertainty_label") @db.VarChar(120)
+  conformityLabel     String            @map("conformity_label") @db.VarChar(160)
+  measurementResultValue              Float?    @map("measurement_result_value")
+  measurementExpandedUncertaintyValue Float?    @map("measurement_expanded_uncertainty_value")
+  measurementCoverageFactor           Float?    @map("measurement_coverage_factor")
+  measurementUnit                     String?   @map("measurement_unit") @db.VarChar(24)
+  decisionRuleLabel                   String?   @map("decision_rule_label") @db.VarChar(160)
+  decisionOutcomeLabel                String?   @map("decision_outcome_label") @db.VarChar(160)
+  freeTextStatement                   String?   @map("free_text_statement")
+  commentDraft        String            @default("") @map("comment_draft")
+  reviewDecision      String            @default("pending") @map("review_decision") @db.VarChar(24)
+  reviewDecisionComment String          @default("") @map("review_decision_comment")
+  reviewDeviceId      String?           @map("review_device_id") @db.VarChar(120)
+  signatureDeviceId   String?           @map("signature_device_id") @db.VarChar(120)
+  signatureStatement  String?           @map("signature_statement")
+  certificateNumber   String?           @map("certificate_number") @db.VarChar(64)
+  certificateRevision String?           @map("certificate_revision") @db.VarChar(16)
+  publicVerificationToken String?       @map("public_verification_token") @db.VarChar(80)
+  documentHash        String?           @map("document_hash") @db.VarChar(128)
+  qrHost              String?           @map("qr_host") @db.VarChar(160)
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  acceptedAt          DateTime?         @map("accepted_at") @db.Timestamptz(6)
+  executionStartedAt  DateTime?         @map("execution_started_at") @db.Timestamptz(6)
+  executedAt          DateTime?         @map("executed_at") @db.Timestamptz(6)
+  reviewStartedAt     DateTime?         @map("review_started_at") @db.Timestamptz(6)
+  reviewCompletedAt   DateTime?         @map("review_completed_at") @db.Timestamptz(6)
+  signatureStartedAt  DateTime?         @map("signature_started_at") @db.Timestamptz(6)
+  signedAt            DateTime?         @map("signed_at") @db.Timestamptz(6)
+  emittedAt           DateTime?         @map("emitted_at") @db.Timestamptz(6)
+  updatedAt           DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt          DateTime?         @map("archived_at") @db.Timestamptz(6)
+  organization        Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  customer            Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  equipment           Equipment         @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
+  procedure           ProcedureRevision @relation("ServiceOrderProcedure", fields: [procedureId], references: [id], onDelete: Restrict)
+  primaryStandard     Standard          @relation("ServiceOrderPrimaryStandard", fields: [primaryStandardId], references: [id], onDelete: Restrict)
+  executorUser        AppUser           @relation("ServiceOrderExecutor", fields: [executorUserId], references: [id], onDelete: Restrict)
+  reviewerUser        AppUser?          @relation("ServiceOrderReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
+  signatoryUser       AppUser?          @relation("ServiceOrderSignatory", fields: [signatoryUserId], references: [id], onDelete: SetNull)
+  emissionAuditEvents EmissionAuditEvent[]
+
+  @@unique([organizationId, workOrderNumber])
+  @@unique([organizationId, certificateNumber])
+  @@index([organizationId, workflowStatus, archivedAt])
+  @@index([organizationId, customerId, updatedAt])
+  @@index([organizationId, equipmentId, updatedAt])
+  @@map("service_orders")
+  @@schema("public")
+}
+
+model EmissionAuditEvent {
+  id                String       @id @default(uuid()) @db.Uuid
+  organizationId    String       @map("organization_id") @db.Uuid
+  serviceOrderId    String       @map("service_order_id") @db.Uuid
+  actorUserId       String?      @map("actor_user_id") @db.Uuid
+  action            String       @db.VarChar(64)
+  actorLabel        String       @map("actor_label") @db.VarChar(160)
+  entityLabel       String       @map("entity_label") @db.VarChar(160)
+  deviceId          String?      @map("device_id") @db.VarChar(120)
+  certificateNumber String?      @map("certificate_number") @db.VarChar(64)
+  prevHash          String       @map("prev_hash") @db.VarChar(64)
+  hash              String       @db.VarChar(64)
+  occurredAt        DateTime     @map("occurred_at") @db.Timestamptz(6)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  serviceOrder      ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+  actorUser         AppUser?     @relation("EmissionAuditEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@unique([serviceOrderId, hash])
+  @@index([organizationId, serviceOrderId, occurredAt])
+  @@index([organizationId, action, occurredAt])
+  @@map("emission_audit_events")
   @@schema("public")
 }

@@ -57,6 +57,13 @@ export const WORKSPACE_ALLOWED_ROLES: MembershipRole[] = [
   "technical_reviewer",
   "technician",
 ];
+export const SERVICE_ORDER_WRITE_ALLOWED_ROLES: MembershipRole[] = [
+  "admin",
+  "quality_manager",
+  "signatory",
+  "technical_reviewer",
+  "technician",
+];
 
 export async function registerAuthSessionRoutes(
   app: FastifyInstance,
@@ -179,6 +186,14 @@ export async function requireWorkspaceAccess(
   persistence: CorePersistence,
 ) {
   return requireAuthenticatedRequest(request, reply, persistence, WORKSPACE_ALLOWED_ROLES);
+}
+
+export async function requireServiceOrderWriteAccess(
+  request: Parameters<typeof requireAuthenticatedRequest>[0],
+  reply: Parameters<typeof requireAuthenticatedRequest>[1],
+  persistence: CorePersistence,
+) {
+  return requireAuthenticatedRequest(request, reply, persistence, SERVICE_ORDER_WRITE_ALLOWED_ROLES);
 }
 
 export async function requireRegistryAccess(

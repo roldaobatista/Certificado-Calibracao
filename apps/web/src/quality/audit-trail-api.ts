@@ -8,7 +8,9 @@ const DEFAULT_API_BASE_URL = "http://127.0.0.1:3000";
 export interface LoadAuditTrailCatalogOptions {
   scenarioId?: string;
   eventId?: string;
+  itemId?: string;
   apiBaseUrl?: string;
+  cookieHeader?: string;
   fetchImpl?: typeof fetch;
 }
 
@@ -20,6 +22,7 @@ export async function loadAuditTrailCatalog(
     options.apiBaseUrl ?? process.env.AFERE_API_BASE_URL ?? DEFAULT_API_BASE_URL,
     options.scenarioId,
     options.eventId,
+    options.itemId,
   );
 
   if (!endpoint) {
@@ -29,9 +32,7 @@ export async function loadAuditTrailCatalog(
   try {
     const response = await fetchImpl(endpoint, {
       method: "GET",
-      headers: {
-        accept: "application/json",
-      },
+      headers: buildHeaders(options.cookieHeader),
       cache: "no-store",
     });
 
@@ -51,6 +52,7 @@ function buildAuditTrailEndpoint(
   apiBaseUrl: string,
   scenarioId?: string,
   eventId?: string,
+  itemId?: string,
 ): string | null {
   try {
     const normalizedBaseUrl = apiBaseUrl.endsWith("/") ? apiBaseUrl : `${apiBaseUrl}/`;
@@ -64,8 +66,24 @@ function buildAuditTrailEndpoint(
       url.searchParams.set("event", eventId);
     }
 
+    if (itemId) {
+      url.searchParams.set("item", itemId);
+    }
+
     return url.toString();
   } catch {
     return null;
   }
+}
+
+function buildHeaders(cookieHeader?: string) {
+  const headers: Record<string, string> = {
+    accept: "application/json",
+  };
+
+  if (cookieHeader) {
+    headers.cookie = cookieHeader;
+  }
+
+  return headers;
 }

@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadAuditTrailCatalog } from "@/src/quality/audit-trail-api";
 import { buildAuditTrailCatalogView } from "@/src/quality/audit-trail-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -6,6 +9,7 @@ type PageProps = {
   searchParams?: {
     scenario?: string;
     event?: string;
+    item?: string;
   };
 };
 
@@ -57,10 +61,41 @@ function mapAuditTrailScenarioToComplaintContext(
 }
 
 export default async function AuditTrailPage(props: PageProps) {
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
   const catalog = await loadAuditTrailCatalog({
     scenarioId: props.searchParams?.scenario,
     eventId: props.searchParams?.event,
+    itemId: props.searchParams?.item,
+    cookieHeader,
   });
+  const isPersistedMode = authSession?.authenticated === true && !props.searchParams?.scenario;
+
+  if (!catalog && authSession?.authenticated === false && !props.searchParams?.scenario) {
+    return (
+      <AppShell
+        eyebrow="Qualidade - trilha de auditoria"
+        title="Trilha protegida por sessao"
+        description="A trilha crítica persistida do tenant exige autenticacao antes da leitura."
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Acesso atual</span>
+            <strong>Login necessario</strong>
+            <StatusPill tone="warn" label="RBAC ativo" />
+            <p>Entre com um papel operacional para auditar os eventos críticos reais da emissão.</p>
+          </div>
+        }
+      >
+        <section className="content-panel">
+          <div className="button-row">
+            <a className="button-primary" href="/auth/login">
+              Fazer login
+            </a>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
 
   if (!catalog) {
     return (
@@ -162,7 +197,11 @@ export default async function AuditTrailPage(props: PageProps) {
         {scenario.items.map((item) => (
           <NavCard
             key={item.eventId}
-            href={`/quality/audit-trail?scenario=${scenario.id}&event=${item.eventId}`}
+            href={
+              isPersistedMode && props.searchParams?.item
+                ? `/quality/audit-trail?item=${props.searchParams.item}&event=${item.eventId}`
+                : `/quality/audit-trail?scenario=${scenario.id}&event=${item.eventId}`
+            }
             eyebrow={item.eventId === selectedEvent.eventId ? "Selecionado" : item.occurredAtLabel}
             title={item.actionLabel}
             description={`${item.actorLabel} · ${item.entityLabel} · hash ${item.hashLabel}`}
@@ -241,7 +280,11 @@ export default async function AuditTrailPage(props: PageProps) {
         ) : null}
         {detail.links.serviceOrderScenarioId && detail.links.reviewItemId ? (
           <NavCard
-            href={`/emission/service-order-review?scenario=${detail.links.serviceOrderScenarioId}&item=${detail.links.reviewItemId}`}
+            href={
+              isPersistedMode
+                ? `/emission/service-order-review?item=${detail.links.reviewItemId}`
+                : `/emission/service-order-review?scenario=${detail.links.serviceOrderScenarioId}&item=${detail.links.reviewItemId}`
+            }
             eyebrow="OS"
             title="Abrir revisao tecnica da OS"
             description="Inspecionar a OS canônica vinculada ao evento ou chain selecionados."
@@ -250,7 +293,11 @@ export default async function AuditTrailPage(props: PageProps) {
         ) : null}
         {detail.links.dryRunScenarioId ? (
           <NavCard
-            href={`/emission/dry-run?scenario=${detail.links.dryRunScenarioId}`}
+            href={
+              isPersistedMode && detail.links.reviewItemId
+                ? `/emission/dry-run?item=${detail.links.reviewItemId}`
+                : `/emission/dry-run?scenario=${detail.links.dryRunScenarioId}`
+            }
             eyebrow="Dry-run"
             title="Abrir dry-run de emissao"
             description="Conferir o recorte de emissao que sustenta esta trilha de auditoria."
@@ -284,7 +331,11 @@ export default async function AuditTrailPage(props: PageProps) {
         {scenarios.map((item) => (
           <NavCard
             key={item.id}
-            href={`/quality/audit-trail?scenario=${item.id}&event=${item.selectedEvent.eventId}`}
+            href={
+              isPersistedMode && props.searchParams?.item
+                ? `/quality/audit-trail?item=${props.searchParams.item}&event=${item.selectedEvent.eventId}`
+                : `/quality/audit-trail?scenario=${item.id}&event=${item.selectedEvent.eventId}`
+            }
             eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
             title={item.label}
             description={item.summaryLabel}

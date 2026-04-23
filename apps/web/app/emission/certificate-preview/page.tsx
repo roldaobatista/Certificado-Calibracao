@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadCertificatePreviewCatalog } from "@/src/emission/certificate-preview-api";
 import { buildCertificatePreviewCatalogView } from "@/src/emission/certificate-preview-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -5,6 +8,7 @@ import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
 type PageProps = {
   searchParams?: {
     scenario?: string;
+    item?: string;
   };
 };
 
@@ -61,7 +65,40 @@ function renderSymbolLabel(symbolPolicy: string): string {
 }
 
 export default async function CertificatePreviewPage(props: PageProps) {
-  const catalog = await loadCertificatePreviewCatalog({ scenarioId: props.searchParams?.scenario });
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
+  const catalog = await loadCertificatePreviewCatalog({
+    scenarioId: props.searchParams?.scenario,
+    itemId: props.searchParams?.item,
+    cookieHeader,
+  });
+  const isPersistedMode = authSession?.authenticated === true && !props.searchParams?.scenario;
+
+  if (!catalog && authSession?.authenticated === false && !props.searchParams?.scenario) {
+    return (
+      <AppShell
+        eyebrow="Emissao - previa do certificado"
+        title="Previa protegida por sessao"
+        description="A previa persistida do tenant exige autenticacao antes da leitura."
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Acesso atual</span>
+            <strong>Login necessario</strong>
+            <StatusPill tone="warn" label="RBAC ativo" />
+            <p>Entre com um papel operacional para conferir a peça real antes da assinatura.</p>
+          </div>
+        }
+      >
+        <section className="content-panel">
+          <div className="button-row">
+            <a className="button-primary" href="/auth/login">
+              Fazer login
+            </a>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
 
   if (!catalog) {
     return (
@@ -218,7 +255,11 @@ export default async function CertificatePreviewPage(props: PageProps) {
 
       <section className="nav-grid">
         <NavCard
-          href={`/emission/dry-run?scenario=${scenario.id}`}
+          href={
+            isPersistedMode && props.searchParams?.item
+              ? `/emission/dry-run?item=${props.searchParams.item}`
+              : `/emission/dry-run?scenario=${scenario.id}`
+          }
           eyebrow="Dry-run"
           title="Abrir pipeline seco"
           description="Revisar os checks técnicos que alimentam esta previa."
@@ -232,7 +273,11 @@ export default async function CertificatePreviewPage(props: PageProps) {
           cta="Abrir workspace"
         />
         <NavCard
-          href={`/emission/signature-queue?scenario=${mapPreviewScenarioToQueueScenario(scenario.id)}`}
+          href={
+            isPersistedMode && props.searchParams?.item
+              ? `/emission/signature-queue?item=${props.searchParams.item}`
+              : `/emission/signature-queue?scenario=${mapPreviewScenarioToQueueScenario(scenario.id)}`
+          }
           eyebrow="Fila"
           title="Abrir fila de assinatura"
           description="Seguir para a fila canônica e revisar a tela final de assinatura."
@@ -241,7 +286,11 @@ export default async function CertificatePreviewPage(props: PageProps) {
         {scenarios.map((item) => (
           <NavCard
             key={item.id}
-            href={`/emission/certificate-preview?scenario=${item.id}`}
+            href={
+              isPersistedMode && props.searchParams?.item
+                ? `/emission/certificate-preview?item=${props.searchParams.item}`
+                : `/emission/certificate-preview?scenario=${item.id}`
+            }
             eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
             title={item.label}
             description={item.summaryLabel}

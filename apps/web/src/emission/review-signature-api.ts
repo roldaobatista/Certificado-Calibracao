@@ -4,7 +4,9 @@ const DEFAULT_API_BASE_URL = "http://127.0.0.1:3000";
 
 export interface LoadReviewSignatureCatalogOptions {
   scenarioId?: string;
+  itemId?: string;
   apiBaseUrl?: string;
+  cookieHeader?: string;
   fetchImpl?: typeof fetch;
 }
 
@@ -15,6 +17,7 @@ export async function loadReviewSignatureCatalog(
   const endpoint = buildReviewSignatureEndpoint(
     options.apiBaseUrl ?? process.env.AFERE_API_BASE_URL ?? DEFAULT_API_BASE_URL,
     options.scenarioId,
+    options.itemId,
   );
 
   if (!endpoint) {
@@ -24,9 +27,7 @@ export async function loadReviewSignatureCatalog(
   try {
     const response = await fetchImpl(endpoint, {
       method: "GET",
-      headers: {
-        accept: "application/json",
-      },
+      headers: buildHeaders(options.cookieHeader),
       cache: "no-store",
     });
 
@@ -42,7 +43,11 @@ export async function loadReviewSignatureCatalog(
   }
 }
 
-function buildReviewSignatureEndpoint(apiBaseUrl: string, scenarioId?: string): string | null {
+function buildReviewSignatureEndpoint(
+  apiBaseUrl: string,
+  scenarioId?: string,
+  itemId?: string,
+): string | null {
   try {
     const normalizedBaseUrl = apiBaseUrl.endsWith("/") ? apiBaseUrl : `${apiBaseUrl}/`;
     const url = new URL("emission/review-signature", normalizedBaseUrl);
@@ -51,8 +56,24 @@ function buildReviewSignatureEndpoint(apiBaseUrl: string, scenarioId?: string): 
       url.searchParams.set("scenario", scenarioId);
     }
 
+    if (itemId) {
+      url.searchParams.set("item", itemId);
+    }
+
     return url.toString();
   } catch {
     return null;
   }
+}
+
+function buildHeaders(cookieHeader?: string) {
+  const headers: Record<string, string> = {
+    accept: "application/json",
+  };
+
+  if (cookieHeader) {
+    headers.cookie = cookieHeader;
+  }
+
+  return headers;
 }

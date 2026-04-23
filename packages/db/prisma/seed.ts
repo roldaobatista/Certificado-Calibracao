@@ -1,4 +1,4 @@
-import { scryptSync } from "node:crypto";
+import { createHash, scryptSync } from "node:crypto";
 
 import { PrismaClient } from "@prisma/client";
 
@@ -37,6 +37,12 @@ const EQUIPMENT_IDS = {
   eq0008: "00000000-0000-4000-8000-000000000704",
   eq0404: "00000000-0000-4000-8000-000000000705",
 };
+const SERVICE_ORDER_IDS = {
+  os142: "00000000-0000-4000-8000-000000000801",
+  os141: "00000000-0000-4000-8000-000000000802",
+  os147: "00000000-0000-4000-8000-000000000803",
+};
+const GENESIS_HASH = "0".repeat(64);
 const DEFAULT_PASSWORD = "Afere@2026!";
 
 async function main() {
@@ -642,6 +648,243 @@ async function main() {
     archivedAt: null,
   });
 
+  await prisma.serviceOrder.deleteMany({
+    where: { organizationId: ORGANIZATION_ID },
+  });
+
+  await upsertServiceOrder({
+    id: SERVICE_ORDER_IDS.os142,
+    customerId: CUSTOMER_IDS.acme,
+    equipmentId: EQUIPMENT_IDS.eq0007,
+    procedureId: PROCEDURE_IDS.pt005r04,
+    primaryStandardId: STANDARD_IDS.peso1,
+    executorUserId: TECHNICIAN_ID,
+    reviewerUserId: SIGNATORY_ID,
+    signatoryUserId: SIGNATORY_ID,
+    workOrderNumber: "OS-2026-00142",
+    workflowStatus: "awaiting_signature",
+    environmentLabel: "22,1 C · 48% UR · pressao estavel",
+    curvePointsLabel: "5 pontos (10% / 25% / 50% / 75% / 100%)",
+    evidenceLabel: "12 evidencias anexadas",
+    uncertaintyLabel: "U = 0,12 kg (k=2)",
+    conformityLabel: "Aprovado com banda de guarda de 50%",
+    measurementResultValue: 100.02,
+    measurementExpandedUncertaintyValue: 0.12,
+    measurementCoverageFactor: 2,
+    measurementUnit: "kg",
+    decisionRuleLabel: "ILAC G8 com banda de guarda de 50%",
+    decisionOutcomeLabel: "Conforme",
+    freeTextStatement: "Resultado apto para seguir para assinatura apos revisao tecnica concluida.",
+    commentDraft: "Curva coerente com o historico do equipamento e pronta para revisao tecnica.",
+    reviewDecision: "approved",
+    reviewDecisionComment: "Checklist aprovado sem ressalvas impeditivas.",
+    reviewDeviceId: "device-review-01",
+    createdAt: new Date("2026-04-12T12:01:00.000Z"),
+    acceptedAt: new Date("2026-04-12T12:15:00.000Z"),
+    executionStartedAt: new Date("2026-04-19T14:00:00.000Z"),
+    executedAt: new Date("2026-04-19T17:22:00.000Z"),
+    reviewStartedAt: new Date("2026-04-23T11:30:00.000Z"),
+    reviewCompletedAt: new Date("2026-04-23T11:48:00.000Z"),
+    signatureStartedAt: null,
+    signedAt: null,
+    certificateNumber: null,
+    certificateRevision: null,
+    publicVerificationToken: null,
+    documentHash: null,
+    qrHost: null,
+    signatureDeviceId: null,
+    signatureStatement: null,
+    emittedAt: null,
+    archivedAt: null,
+  });
+
+  await upsertServiceOrder({
+    id: SERVICE_ORDER_IDS.os141,
+    customerId: CUSTOMER_IDS.paoDoce,
+    equipmentId: EQUIPMENT_IDS.eq0011,
+    procedureId: PROCEDURE_IDS.pt006r02,
+    primaryStandardId: STANDARD_IDS.peso2,
+    executorUserId: TECHNICIAN_ID,
+    reviewerUserId: SIGNATORY_ID,
+    signatoryUserId: SIGNATORY_ID,
+    workOrderNumber: "OS-2026-00141",
+    workflowStatus: "emitted",
+    environmentLabel: "23,0 C · 52% UR · atendimento antes da abertura",
+    curvePointsLabel: "4 pontos com repetibilidade em 50%",
+    evidenceLabel: "11 evidencias registradas",
+    uncertaintyLabel: "U = 0,08 kg (k=2)",
+    conformityLabel: "Aprovado sem restricoes adicionais",
+    measurementResultValue: 29.998,
+    measurementExpandedUncertaintyValue: 0.08,
+    measurementCoverageFactor: 2,
+    measurementUnit: "kg",
+    decisionRuleLabel: "ILAC G8 sem banda de guarda adicional",
+    decisionOutcomeLabel: "Conforme",
+    freeTextStatement: "Certificado emitido com base em revisao tecnica concluida e assinatura eletronica valida.",
+    commentDraft: "Historico estavel e repetibilidade dentro do criterio de aceitacao.",
+    reviewDecision: "approved",
+    reviewDecisionComment: "Revisao aprovada e liberada para emissao oficial.",
+    reviewDeviceId: "device-review-02",
+    createdAt: new Date("2026-04-12T11:42:00.000Z"),
+    acceptedAt: new Date("2026-04-12T12:03:00.000Z"),
+    executionStartedAt: new Date("2026-04-19T13:10:00.000Z"),
+    executedAt: new Date("2026-04-19T15:40:00.000Z"),
+    reviewStartedAt: new Date("2026-04-20T08:40:00.000Z"),
+    reviewCompletedAt: new Date("2026-04-20T09:10:00.000Z"),
+    signatureStartedAt: new Date("2026-04-20T09:18:00.000Z"),
+    signedAt: new Date("2026-04-20T09:22:00.000Z"),
+    certificateNumber: "LABDEMO-000001",
+    certificateRevision: "R0",
+    publicVerificationToken: "pubtok-os141",
+    documentHash: createHash("sha256").update("OS-2026-00141|LABDEMO-000001").digest("hex"),
+    qrHost: "lab-demo.afere.local",
+    signatureDeviceId: "device-sign-02",
+    signatureStatement: "Assinatura eletronica concluida por Bruno Signatario.",
+    emittedAt: new Date("2026-04-20T09:23:00.000Z"),
+    archivedAt: null,
+  });
+
+  await upsertServiceOrder({
+    id: SERVICE_ORDER_IDS.os147,
+    customerId: CUSTOMER_IDS.pendente,
+    equipmentId: EQUIPMENT_IDS.eq0404,
+    procedureId: PROCEDURE_IDS.pt009r02,
+    primaryStandardId: STANDARD_IDS.peso10,
+    executorUserId: TECHNICIAN_ID,
+    reviewerUserId: TECHNICIAN_ID,
+    signatoryUserId: null,
+    workOrderNumber: "OS-2026-00147",
+    workflowStatus: "blocked",
+    environmentLabel: "Faixa ambiental nao confirmada",
+    curvePointsLabel: "Curva interrompida no terceiro ponto",
+    evidenceLabel: "4 evidencias parciais",
+    uncertaintyLabel: "Calculo bloqueado por padrao vencido",
+    conformityLabel: "Bloqueado para revisao e emissao",
+    measurementResultValue: null,
+    measurementExpandedUncertaintyValue: null,
+    measurementCoverageFactor: null,
+    measurementUnit: null,
+    decisionRuleLabel: "Fluxo fail-closed por padrao vencido e revisor conflitado",
+    decisionOutcomeLabel: "Nao conforme",
+    freeTextStatement: "OS bloqueada ate regularizacao do padrao principal e segregacao de funcoes.",
+    commentDraft: "A OS precisa regularizar revisor segregado e padrao principal antes de prosseguir.",
+    reviewDecision: "rejected",
+    reviewDecisionComment: "Revisao rejeitada por conflito de papeis e padrao vencido.",
+    reviewDeviceId: "device-review-03",
+    createdAt: new Date("2026-04-18T11:10:00.000Z"),
+    acceptedAt: new Date("2026-04-18T11:28:00.000Z"),
+    executionStartedAt: new Date("2026-04-22T13:00:00.000Z"),
+    executedAt: new Date("2026-04-22T13:42:00.000Z"),
+    reviewStartedAt: new Date("2026-04-23T13:00:00.000Z"),
+    reviewCompletedAt: null,
+    signatureStartedAt: null,
+    signedAt: null,
+    certificateNumber: null,
+    certificateRevision: null,
+    publicVerificationToken: null,
+    documentHash: null,
+    qrHost: null,
+    signatureDeviceId: null,
+    signatureStatement: null,
+    emittedAt: null,
+    archivedAt: null,
+  });
+
+  await prisma.emissionAuditEvent.deleteMany({
+    where: { organizationId: ORGANIZATION_ID },
+  });
+
+  await prisma.emissionAuditEvent.createMany({
+    data: [
+      ...emissionAuditTrail({
+        serviceOrderId: SERVICE_ORDER_IDS.os142,
+        events: [
+          {
+            id: "00000000-0000-4000-8000-000000001001",
+            actorUserId: TECHNICIAN_ID,
+            actorLabel: "Carla Tecnica",
+            action: "calibration.executed",
+            entityLabel: "OS-2026-00142",
+            occurredAt: "2026-04-19T17:22:00.000Z",
+          },
+          {
+            id: "00000000-0000-4000-8000-000000001002",
+            actorUserId: SIGNATORY_ID,
+            actorLabel: "Bruno Signatario",
+            action: "technical_review.completed",
+            entityLabel: "OS-2026-00142",
+            deviceId: "device-review-01",
+            occurredAt: "2026-04-23T11:48:00.000Z",
+          },
+        ],
+      }),
+      ...emissionAuditTrail({
+        serviceOrderId: SERVICE_ORDER_IDS.os141,
+        events: [
+          {
+            id: "00000000-0000-4000-8000-000000001003",
+            actorUserId: TECHNICIAN_ID,
+            actorLabel: "Carla Tecnica",
+            action: "calibration.executed",
+            entityLabel: "OS-2026-00141",
+            occurredAt: "2026-04-19T15:40:00.000Z",
+          },
+          {
+            id: "00000000-0000-4000-8000-000000001004",
+            actorUserId: SIGNATORY_ID,
+            actorLabel: "Bruno Signatario",
+            action: "technical_review.completed",
+            entityLabel: "OS-2026-00141",
+            deviceId: "device-review-02",
+            occurredAt: "2026-04-20T09:10:00.000Z",
+          },
+          {
+            id: "00000000-0000-4000-8000-000000001005",
+            actorUserId: SIGNATORY_ID,
+            actorLabel: "Bruno Signatario",
+            action: "certificate.signed",
+            entityLabel: "OS-2026-00141",
+            deviceId: "device-sign-02",
+            certificateNumber: "LABDEMO-000001",
+            occurredAt: "2026-04-20T09:22:00.000Z",
+          },
+          {
+            id: "00000000-0000-4000-8000-000000001006",
+            actorUserId: SIGNATORY_ID,
+            actorLabel: "Bruno Signatario",
+            action: "certificate.emitted",
+            entityLabel: "OS-2026-00141",
+            deviceId: "device-sign-02",
+            certificateNumber: "LABDEMO-000001",
+            occurredAt: "2026-04-20T09:23:00.000Z",
+          },
+        ],
+      }),
+      ...emissionAuditTrail({
+        serviceOrderId: SERVICE_ORDER_IDS.os147,
+        events: [
+          {
+            id: "00000000-0000-4000-8000-000000001007",
+            actorUserId: TECHNICIAN_ID,
+            actorLabel: "Carla Tecnica",
+            action: "calibration.executed",
+            entityLabel: "OS-2026-00147",
+            occurredAt: "2026-04-22T13:42:00.000Z",
+          },
+          {
+            id: "00000000-0000-4000-8000-000000001008",
+            actorUserId: TECHNICIAN_ID,
+            actorLabel: "Carla Tecnica",
+            action: "technical_review.rejected",
+            entityLabel: "OS-2026-00147",
+            deviceId: "device-review-03",
+            occurredAt: "2026-04-23T13:12:00.000Z",
+          },
+        ],
+      }),
+    ],
+  });
+
   await prisma.registryAuditEvent.deleteMany({
     where: { organizationId: ORGANIZATION_ID },
   });
@@ -849,6 +1092,136 @@ async function upsertEquipment(input: {
       ...data,
     },
   });
+}
+
+async function upsertServiceOrder(input: {
+  id: string;
+  customerId: string;
+  equipmentId: string;
+  procedureId: string;
+  primaryStandardId: string;
+  executorUserId: string;
+  reviewerUserId: string | null;
+  signatoryUserId: string | null;
+  workOrderNumber: string;
+  workflowStatus: string;
+  environmentLabel: string;
+  curvePointsLabel: string;
+  evidenceLabel: string;
+  uncertaintyLabel: string;
+  conformityLabel: string;
+  measurementResultValue: number | null;
+  measurementExpandedUncertaintyValue: number | null;
+  measurementCoverageFactor: number | null;
+  measurementUnit: string | null;
+  decisionRuleLabel: string | null;
+  decisionOutcomeLabel: string | null;
+  freeTextStatement: string | null;
+  commentDraft: string;
+  reviewDecision: string;
+  reviewDecisionComment: string;
+  reviewDeviceId: string | null;
+  signatureDeviceId: string | null;
+  signatureStatement: string | null;
+  certificateNumber: string | null;
+  certificateRevision: string | null;
+  publicVerificationToken: string | null;
+  documentHash: string | null;
+  qrHost: string | null;
+  createdAt: Date;
+  acceptedAt: Date | null;
+  executionStartedAt: Date | null;
+  executedAt: Date | null;
+  reviewStartedAt: Date | null;
+  reviewCompletedAt: Date | null;
+  signatureStartedAt: Date | null;
+  signedAt: Date | null;
+  emittedAt: Date | null;
+  archivedAt: Date | null;
+}) {
+  const { id, ...data } = input;
+  await prisma.serviceOrder.upsert({
+    where: { id },
+    create: {
+      id,
+      organizationId: ORGANIZATION_ID,
+      ...data,
+    },
+    update: {
+      ...data,
+    },
+  });
+}
+
+function emissionAuditTrail(input: {
+  serviceOrderId: string;
+  events: Array<{
+    id: string;
+    actorUserId: string | null;
+    actorLabel: string;
+    action: string;
+    entityLabel: string;
+    deviceId?: string;
+    certificateNumber?: string;
+    occurredAt: string;
+  }>;
+}) {
+  let prevHash = GENESIS_HASH;
+
+  return input.events.map((event) => {
+    const payload = {
+      action: event.action,
+      actorId: event.actorUserId,
+      actorLabel: event.actorLabel,
+      certificateId: input.serviceOrderId,
+      certificateNumber: event.certificateNumber,
+      entityLabel: event.entityLabel,
+      timestampUtc: event.occurredAt,
+      deviceId: event.deviceId,
+    };
+    const hash = computeSeedAuditHash(prevHash, payload);
+    const row = {
+      id: event.id,
+      organizationId: ORGANIZATION_ID,
+      serviceOrderId: input.serviceOrderId,
+      actorUserId: event.actorUserId,
+      action: event.action,
+      actorLabel: event.actorLabel,
+      entityLabel: event.entityLabel,
+      deviceId: event.deviceId ?? null,
+      certificateNumber: event.certificateNumber ?? null,
+      prevHash,
+      hash,
+      occurredAt: new Date(event.occurredAt),
+    };
+
+    prevHash = hash;
+    return row;
+  });
+}
+
+function computeSeedAuditHash(prevHash: string, payload: unknown) {
+  return createHash("sha256").update(prevHash).update(canonicalJson(payload)).digest("hex");
+}
+
+function canonicalJson(value: unknown) {
+  return JSON.stringify(canonicalize(value));
+}
+
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => canonicalize(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => [key, canonicalize(item)]),
+    );
+  }
+
+  return value;
 }
 
 function calibration(

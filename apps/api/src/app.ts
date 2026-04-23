@@ -6,6 +6,10 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type { Env } from "./config/env.js";
 import { createPrismaCorePersistence, type CorePersistence } from "./domain/auth/core-persistence.js";
 import {
+  createPrismaServiceOrderPersistence,
+  type ServiceOrderPersistence,
+} from "./domain/emission/service-order-persistence.js";
+import {
   createPrismaRegistryPersistence,
   type RegistryPersistence,
 } from "./domain/registry/registry-persistence.js";
@@ -51,6 +55,7 @@ export type BuildAppOptions = {
   runtimeReadiness?: RuntimeReadiness;
   corePersistence?: CorePersistence;
   registryPersistence?: RegistryPersistence;
+  serviceOrderPersistence?: ServiceOrderPersistence;
 };
 
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
@@ -78,7 +83,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   });
 
   const prisma =
-    options.corePersistence && options.registryPersistence
+    options.corePersistence && options.registryPersistence && options.serviceOrderPersistence
       ? null
       : createPrismaClient(env.DATABASE_URL);
   const corePersistence =
@@ -86,6 +91,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   const registryPersistence =
     options.registryPersistence ??
     createPrismaRegistryPersistence(prisma ?? createPrismaClient(env.DATABASE_URL));
+  const serviceOrderPersistence =
+    options.serviceOrderPersistence ??
+    createPrismaServiceOrderPersistence(prisma ?? createPrismaClient(env.DATABASE_URL));
 
   if (prisma) {
     app.addHook("onClose", async () => {
@@ -101,11 +109,11 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   await app.register(trpcPlugin);
   await registerAuthSessionRoutes(app, corePersistence);
-  await registerAuditTrailRoutes(app);
-  await registerCertificatePreviewRoutes(app);
+  await registerAuditTrailRoutes(app, corePersistence, serviceOrderPersistence);
+  await registerCertificatePreviewRoutes(app, corePersistence, serviceOrderPersistence);
   await registerComplaintRoutes(app);
   await registerCustomerRegistryRoutes(app, corePersistence, registryPersistence);
-  await registerEmissionDryRunRoutes(app);
+  await registerEmissionDryRunRoutes(app, corePersistence, serviceOrderPersistence);
   await registerEmissionWorkspaceRoutes(app, corePersistence);
   await registerEquipmentRegistryRoutes(app, corePersistence, registryPersistence);
   await registerInternalAuditRoutes(app);
@@ -117,9 +125,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerQualityHubRoutes(app);
   await registerQualityIndicatorRoutes(app);
   await registerRiskRegisterRoutes(app);
-  await registerReviewSignatureRoutes(app);
-  await registerServiceOrderReviewRoutes(app);
-  await registerSignatureQueueRoutes(app);
+  await registerReviewSignatureRoutes(app, corePersistence, serviceOrderPersistence);
+  await registerServiceOrderReviewRoutes(app, corePersistence, serviceOrderPersistence);
+  await registerSignatureQueueRoutes(app, corePersistence, serviceOrderPersistence);
   await registerStandardRegistryRoutes(app, corePersistence, registryPersistence);
   await registerSelfSignupRoutes(app);
   await registerUserDirectoryRoutes(app, corePersistence);
