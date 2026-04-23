@@ -13,4 +13,4 @@ Primeira fatia de P0-2 implementada em `src/package.ts`:
 - `verifySignedNormativePackage` falha fechado quando `package.sha256`, `package.sig` ou chave pública estão ausentes;
 - `loadSignedNormativePackageFromDirectory(dir, publicKeyPem)` valida um diretório `package.yaml` + `package.sha256` + `package.sig`.
 
-O KMS real ainda entra em uma fatia posterior. Os testes usam chave Ed25519 efêmera para provar o contrato criptográfico sem armazenar chave privada no repositório.
+O baseline aprovado continua compatível com bootstrap offline, mas a biblioteca agora também expõe `signNormativePackageWithAwsKms()` para assinar novos pacotes com AWS KMS usando Ed25519 (`ED25519_SHA_512`). Os testes seguem usando chave efêmera/mocks para provar o contrato criptográfico sem armazenar chave privada no repositório.

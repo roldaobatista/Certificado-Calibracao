@@ -45,7 +45,18 @@ function generateKeys() {
   };
 }
 
-function writeSignedPackage(root: string, keys: ReturnType<typeof generateKeys>, keyId = "test-key-1") {
+function writeSignedPackage(
+  root: string,
+  keys: ReturnType<typeof generateKeys>,
+  keyId = "test-key-1",
+  metadataOverrides?: Partial<{
+    provider: "bootstrap-offline" | "aws-kms";
+    signing_algorithm: "ED25519_SHA_512";
+    kms_key_arn: string;
+    kms_region: string;
+    public_key_fingerprint_sha256: string;
+  }>,
+) {
   writeFileSync(
     join(root, "package.yaml"),
     [
@@ -74,6 +85,15 @@ function writeSignedPackage(root: string, keys: ReturnType<typeof generateKeys>,
       `key_id: ${keyId}`,
       "signer: test-suite",
       "signed_at: '2026-04-20T00:00:00.000Z'",
+      ...(metadataOverrides?.provider ? [`provider: ${metadataOverrides.provider}`] : []),
+      ...(metadataOverrides?.signing_algorithm
+        ? [`signing_algorithm: ${metadataOverrides.signing_algorithm}`]
+        : []),
+      ...(metadataOverrides?.kms_key_arn ? [`kms_key_arn: ${metadataOverrides.kms_key_arn}`] : []),
+      ...(metadataOverrides?.kms_region ? [`kms_region: ${metadataOverrides.kms_region}`] : []),
+      ...(metadataOverrides?.public_key_fingerprint_sha256
+        ? [`public_key_fingerprint_sha256: ${metadataOverrides.public_key_fingerprint_sha256}`]
+        : []),
     ].join("\n"),
   );
 }
@@ -186,6 +206,29 @@ test("loads approved packages with versioned public key and signature metadata s
     assert.equal(result.package?.version, "0.1.0");
     assert.equal(result.signatureMetadata?.algorithm, "ed25519");
     assert.equal(result.signatureMetadata?.key_id, "approved-key-1");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("accepts approved package metadata signed by AWS KMS", () => {
+  const keys = generateKeys();
+  const root = mkdtempSync(join(tmpdir(), "afere-approved-kms-normative-package-"));
+
+  try {
+    writeSignedPackage(root, keys, "kms-key-1", {
+      provider: "aws-kms",
+      signing_algorithm: "ED25519_SHA_512",
+      kms_key_arn: "arn:aws:kms:sa-east-1:111122223333:key/example",
+      kms_region: "sa-east-1",
+      public_key_fingerprint_sha256: "abc123",
+    });
+
+    const result = loadApprovedNormativePackageFromDirectory(root);
+
+    assert.equal(result.ok, true, result.errors.join("\n"));
+    assert.equal(result.signatureMetadata?.provider, "aws-kms");
+    assert.equal(result.signatureMetadata?.kms_region, "sa-east-1");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

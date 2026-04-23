@@ -35,6 +35,11 @@ export type NormativePackageSignatureMetadata = {
   key_id: string;
   signer: string;
   signed_at: string;
+  provider?: "bootstrap-offline" | "aws-kms";
+  signing_algorithm?: "ED25519_SHA_512";
+  kms_key_arn?: string;
+  kms_region?: string;
+  public_key_fingerprint_sha256?: string;
 };
 
 export type NormativePackageManifestEntry = {
@@ -72,12 +77,20 @@ export type ApprovedNormativePackageRepositoryVerification = {
 };
 
 export function hashNormativePackage(normativePackage: NormativePackage): string {
-  return createHash("sha256").update(canonicalJson(normativePackage)).digest("hex");
+  return createHash("sha256").update(serializeNormativePackageForSignature(normativePackage)).digest("hex");
 }
 
 export function signNormativePackage(normativePackage: NormativePackage, privateKeyPem: string): string {
-  const signature = sign(null, Buffer.from(canonicalJson(normativePackage), "utf8"), privateKeyPem);
+  const signature = sign(
+    null,
+    Buffer.from(serializeNormativePackageForSignature(normativePackage), "utf8"),
+    privateKeyPem,
+  );
   return signature.toString("base64");
+}
+
+export function serializeNormativePackageForSignature(normativePackage: NormativePackage): string {
+  return canonicalJson(normativePackage);
 }
 
 export function verifySignedNormativePackage(
@@ -107,7 +120,7 @@ export function verifySignedNormativePackage(
   if (errors.length === 0) {
     const validSignature = verify(
       null,
-      Buffer.from(canonicalJson(input.package), "utf8"),
+      Buffer.from(serializeNormativePackageForSignature(input.package), "utf8"),
       input.publicKeyPem,
       Buffer.from(input.signature.trim(), "base64"),
     );
@@ -296,6 +309,26 @@ function validateSignatureMetadata(metadata: NormativePackageSignatureMetadata):
   if (!metadata?.key_id) errors.push("signature_metadata_missing_key_id");
   if (!metadata?.signer) errors.push("signature_metadata_missing_signer");
   if (!metadata?.signed_at) errors.push("signature_metadata_missing_signed_at");
+  if (
+    metadata?.provider !== undefined &&
+    metadata.provider !== "bootstrap-offline" &&
+    metadata.provider !== "aws-kms"
+  ) {
+    errors.push("signature_metadata_provider_invalid");
+  }
+  if (metadata?.provider === "aws-kms") {
+    if (metadata.signing_algorithm !== "ED25519_SHA_512") {
+      errors.push("signature_metadata_kms_signing_algorithm_invalid");
+    }
+    if (!metadata.kms_key_arn) errors.push("signature_metadata_kms_key_arn_missing");
+    if (!metadata.kms_region) errors.push("signature_metadata_kms_region_missing");
+  }
+  if (
+    metadata?.provider !== "aws-kms" &&
+    (metadata?.kms_key_arn || metadata?.kms_region || metadata?.signing_algorithm)
+  ) {
+    errors.push("signature_metadata_kms_fields_without_provider");
+  }
   return errors;
 }
 

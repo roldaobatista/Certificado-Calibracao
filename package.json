@@ -59,6 +59,7 @@
     "budget:record": "tsx tools/budget-tracker.ts record",
     "budget:control": "tsx tools/budget-tracker.ts control",
     "budget:weekly": "tsx tools/budget-tracker.ts weekly-report",
+    "normative-package:kms-sign": "tsx tools/normative-package-kms-sign.ts",
     "validation-dossier:check": "tsx tools/validation-dossier.ts check",
     "validation-dossier:write": "tsx tools/validation-dossier.ts generate",
     "emit-cert-dry": "tsx tools/emit-cert-dry.ts",
