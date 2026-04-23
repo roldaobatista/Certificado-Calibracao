@@ -13,13 +13,14 @@
     }
   },
   "scripts": {
-    "build": "prisma generate && tsc",
+    "build": "pnpm exec prisma generate && tsc",
     "dev": "tsc --watch",
-    "typecheck": "prisma generate && tsc --noEmit",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate:dev": "prisma migrate dev",
-    "prisma:migrate:deploy": "prisma migrate deploy",
-    "prisma:studio": "prisma studio",
+    "typecheck": "pnpm exec prisma generate && tsc --noEmit",
+    "prisma:generate": "pnpm exec prisma generate",
+    "prisma:migrate:dev": "pnpm exec prisma migrate dev",
+    "prisma:migrate:deploy": "pnpm exec prisma migrate deploy",
+    "seed": "pnpm exec prisma generate && tsx prisma/seed.ts",
+    "prisma:studio": "pnpm exec prisma studio",
     "clean": "rm -rf dist .turbo node_modules/.prisma"
   },
   "dependencies": {
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "prisma": "^5.22.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.5.4"
   }
 }

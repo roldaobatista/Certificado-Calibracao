@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadOnboardingCatalog } from "@/src/onboarding/onboarding-api";
 import { buildOnboardingCatalogView } from "@/src/onboarding/onboarding-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -11,9 +14,79 @@ type PageProps = {
 export const dynamic = "force-dynamic";
 
 export default async function OnboardingPage(props: PageProps) {
-  const catalog = await loadOnboardingCatalog({ scenarioId: props.searchParams?.scenario });
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
+  const catalog = await loadOnboardingCatalog({
+    scenarioId: props.searchParams?.scenario,
+    cookieHeader,
+  });
+  const publicApiBaseUrl = resolvePublicApiBaseUrl();
 
   if (!catalog) {
+    if (authSession?.authenticated === false && !props.searchParams?.scenario) {
+      return (
+        <AppShell
+          eyebrow="Onboarding - bootstrap real"
+          title="Criar o tenant inicial"
+          description="Sem sessao autenticada, o onboarding entra no modo bootstrap para criar organizacao, admin e estado inicial persistido."
+          aside={
+            <div className="hero-stat">
+              <span className="eyebrow">Modo atual</span>
+              <strong>Bootstrap sem sessao</strong>
+              <StatusPill tone="warn" label="Criacao inicial" />
+              <p>Depois do bootstrap, voce volta para o login com o tenant ja persistido.</p>
+            </div>
+          }
+        >
+          <section className="content-panel">
+            <div className="section-copy">
+              <span className="eyebrow">Primeiro passo</span>
+              <h2>Provisionar organizacao e admin</h2>
+              <p>Este formulario grava organizacao, usuario administrador e estado inicial do onboarding no banco.</p>
+            </div>
+            <form className="form-grid" action={`${publicApiBaseUrl}/onboarding/bootstrap`} method="post">
+              <label className="field">
+                <span>Slug do tenant</span>
+                <input name="slug" placeholder="laboratorio-demo" required />
+              </label>
+              <label className="field">
+                <span>Razao social</span>
+                <input name="legalName" placeholder="Laboratorio Exemplo Ltda" required />
+              </label>
+              <label className="field">
+                <span>Perfil regulatorio</span>
+                <select name="regulatoryProfile" defaultValue="type_b">
+                  <option value="type_b">type_b</option>
+                  <option value="type_c">type_c</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>Nome do admin</span>
+                <input name="adminName" placeholder="Ana Responsavel" required />
+              </label>
+              <label className="field">
+                <span>E-mail do admin</span>
+                <input name="adminEmail" type="email" placeholder="admin@laboratorio.local" required />
+              </label>
+              <label className="field">
+                <span>Senha inicial</span>
+                <input name="password" type="password" minLength={8} required />
+              </label>
+              <input type="hidden" name="redirectTo" value="http://127.0.0.1:3002/auth/login?created=1" />
+              <div className="button-row">
+                <button className="button-primary" type="submit">
+                  Criar tenant
+                </button>
+                <a className="button-secondary" href="/auth/login">
+                  Ja tenho acesso
+                </a>
+              </div>
+            </form>
+          </section>
+        </AppShell>
+      );
+    }
+
     return (
       <AppShell
         eyebrow="Onboarding - PRD 13.12"
@@ -43,6 +116,7 @@ export default async function OnboardingPage(props: PageProps) {
   }
 
   const { selectedScenario: scenario, scenarios } = buildOnboardingCatalogView(catalog);
+  const checklist = scenario.checklist;
 
   return (
     <AppShell
@@ -101,6 +175,61 @@ export default async function OnboardingPage(props: PageProps) {
         </article>
       </section>
 
+      {checklist ? (
+        <section className="content-panel">
+          <div className="section-copy">
+            <span className="eyebrow">Wizard persistido</span>
+            <h2>Atualizar prerequisitos no banco</h2>
+            <p>
+              Os campos abaixo escrevem o estado real do tenant autenticado em `POST /onboarding/readiness`.
+            </p>
+          </div>
+          <form className="form-grid" action={`${publicApiBaseUrl}/onboarding/readiness`} method="post">
+            <label className="toggle-field">
+              <input
+                defaultChecked={checklist.organizationProfileCompleted}
+                name="organizationProfileCompleted"
+                type="checkbox"
+              />
+              <span>Perfil da organizacao concluido</span>
+            </label>
+            <label className="toggle-field">
+              <input
+                defaultChecked={checklist.primarySignatoryReady}
+                name="primarySignatoryReady"
+                type="checkbox"
+              />
+              <span>Signatario principal liberado</span>
+            </label>
+            <label className="toggle-field">
+              <input
+                defaultChecked={checklist.certificateNumberingConfigured}
+                name="certificateNumberingConfigured"
+                type="checkbox"
+              />
+              <span>Numeracao de certificados configurada</span>
+            </label>
+            <label className="toggle-field">
+              <input defaultChecked={checklist.scopeReviewCompleted} name="scopeReviewCompleted" type="checkbox" />
+              <span>Revisao de escopo concluida</span>
+            </label>
+            <label className="toggle-field">
+              <input defaultChecked={checklist.publicQrConfigured} name="publicQrConfigured" type="checkbox" />
+              <span>QR publico configurado</span>
+            </label>
+            <input type="hidden" name="redirectTo" value="http://127.0.0.1:3002/onboarding" />
+            <div className="button-row">
+              <button className="button-primary" type="submit">
+                Salvar onboarding
+              </button>
+              <a className="button-secondary" href="/auth/login">
+                Trocar sessao
+              </a>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
       <section className="section-header">
         <div className="section-copy">
           <span className="eyebrow">Cenarios</span>
@@ -123,4 +252,8 @@ export default async function OnboardingPage(props: PageProps) {
       </section>
     </AppShell>
   );
+}
+
+function resolvePublicApiBaseUrl() {
+  return process.env.AFERE_PUBLIC_API_BASE_URL ?? process.env.AFERE_API_BASE_URL ?? "http://127.0.0.1:3000";
 }

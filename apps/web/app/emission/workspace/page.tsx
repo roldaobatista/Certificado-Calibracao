@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadEmissionWorkspaceCatalog } from "@/src/emission/emission-workspace-api";
 import { buildEmissionWorkspaceCatalogView } from "@/src/emission/emission-workspace-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -180,9 +183,48 @@ function mapWorkspaceScenarioToOrganizationSettingsContext(workspaceScenarioId: 
 }
 
 export default async function EmissionWorkspacePage(props: PageProps) {
-  const catalog = await loadEmissionWorkspaceCatalog({ scenarioId: props.searchParams?.scenario });
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
+  const catalog = await loadEmissionWorkspaceCatalog({
+    scenarioId: props.searchParams?.scenario,
+    cookieHeader,
+  });
 
   if (!catalog) {
+    if (authSession?.authenticated === false && !props.searchParams?.scenario) {
+      return (
+        <AppShell
+          eyebrow="Emissao - workspace"
+          title="Workspace protegido por sessao"
+          description="A consolidacao real do workspace exige sessao valida antes de cruzar onboarding, equipe e readiness."
+          aside={
+            <div className="hero-stat">
+              <span className="eyebrow">Acesso atual</span>
+              <strong>Login necessario</strong>
+              <StatusPill tone="warn" label="Sessao obrigatoria" />
+              <p>Entre primeiro para abrir o workspace persistido do tenant.</p>
+            </div>
+          }
+        >
+          <section className="content-panel">
+            <div className="section-copy">
+              <span className="eyebrow">Proximo passo</span>
+              <h2>Autenticar o operador antes da consolidacao</h2>
+              <p>Sem cookie valido, o backend nao monta o resumo real do workspace nem expõe os bloqueios do tenant.</p>
+            </div>
+            <div className="button-row">
+              <a className="button-primary" href="/auth/login">
+                Fazer login
+              </a>
+              <a className="button-secondary" href="/onboarding">
+                Criar tenant
+              </a>
+            </div>
+          </section>
+        </AppShell>
+      );
+    }
+
     return (
       <AppShell
         eyebrow="Emissao - workspace"

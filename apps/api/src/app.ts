@@ -1,7 +1,10 @@
 import cors from "@fastify/cors";
+import formbody from "@fastify/formbody";
+import { createPrismaClient } from "@afere/db";
 import Fastify, { type FastifyInstance } from "fastify";
 
 import type { Env } from "./config/env.js";
+import { createPrismaCorePersistence, type CorePersistence } from "./domain/auth/core-persistence.js";
 import {
   checkRuntimeReadiness,
   createRuntimeReadiness,
@@ -11,6 +14,7 @@ import { registerAuditTrailRoutes } from "./interfaces/http/audit-trail.js";
 import { registerCertificatePreviewRoutes } from "./interfaces/http/certificate-preview.js";
 import { registerComplaintRoutes } from "./interfaces/http/complaints.js";
 import { registerCustomerRegistryRoutes } from "./interfaces/http/customer-registry.js";
+import { registerAuthSessionRoutes } from "./interfaces/http/auth-session.js";
 import { registerEmissionDryRunRoutes } from "./interfaces/http/emission-dry-run.js";
 import { registerEmissionWorkspaceRoutes } from "./interfaces/http/emission-workspace.js";
 import { registerEquipmentRegistryRoutes } from "./interfaces/http/equipment-registry.js";
@@ -41,6 +45,7 @@ import { trpcPlugin } from "./plugins/trpc.js";
 export type BuildAppOptions = {
   env: Env;
   runtimeReadiness?: RuntimeReadiness;
+  corePersistence?: CorePersistence;
 };
 
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
@@ -67,18 +72,30 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     await runtimeReadiness.close();
   });
 
+  const prismaForCore = options.corePersistence ? null : createPrismaClient(env.DATABASE_URL);
+  const corePersistence =
+    options.corePersistence ?? createPrismaCorePersistence(prismaForCore ?? createPrismaClient(env.DATABASE_URL));
+
+  if (prismaForCore) {
+    app.addHook("onClose", async () => {
+      await prismaForCore.$disconnect();
+    });
+  }
+
   await app.register(cors, {
     origin: env.CORS_ORIGINS.length > 0 ? env.CORS_ORIGINS : false,
     credentials: true,
   });
+  await app.register(formbody);
 
   await app.register(trpcPlugin);
+  await registerAuthSessionRoutes(app, corePersistence);
   await registerAuditTrailRoutes(app);
   await registerCertificatePreviewRoutes(app);
   await registerComplaintRoutes(app);
   await registerCustomerRegistryRoutes(app);
   await registerEmissionDryRunRoutes(app);
-  await registerEmissionWorkspaceRoutes(app);
+  await registerEmissionWorkspaceRoutes(app, corePersistence);
   await registerEquipmentRegistryRoutes(app);
   await registerInternalAuditRoutes(app);
   await registerManagementReviewRoutes(app);
@@ -94,8 +111,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerSignatureQueueRoutes(app);
   await registerStandardRegistryRoutes(app);
   await registerSelfSignupRoutes(app);
-  await registerUserDirectoryRoutes(app);
-  await registerOnboardingRoutes(app);
+  await registerUserDirectoryRoutes(app, corePersistence);
+  await registerOnboardingRoutes(app, corePersistence);
   await registerOrganizationSettingsRoutes(app);
   await registerPortalCertificateRoutes(app);
   await registerPortalDashboardRoutes(app);

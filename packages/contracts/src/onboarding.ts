@@ -24,6 +24,18 @@ export const onboardingWizardSummarySchema = z.object({
 });
 export type OnboardingWizardSummary = z.infer<typeof onboardingWizardSummarySchema>;
 
+export const onboardingChecklistSchema = z.object({
+  organizationName: z.string().min(1).optional(),
+  startedAtUtc: z.string().min(1).optional(),
+  completedAtUtc: z.string().min(1).optional(),
+  organizationProfileCompleted: z.boolean(),
+  primarySignatoryReady: z.boolean(),
+  certificateNumberingConfigured: z.boolean(),
+  scopeReviewCompleted: z.boolean(),
+  publicQrConfigured: z.boolean(),
+});
+export type OnboardingChecklist = z.infer<typeof onboardingChecklistSchema>;
+
 export const onboardingScenarioIdSchema = z.enum(["ready", "blocked"]);
 export type OnboardingScenarioId = z.infer<typeof onboardingScenarioIdSchema>;
 
@@ -32,6 +44,7 @@ export const onboardingScenarioSchema = z.object({
   label: z.string().min(1),
   description: z.string().min(1),
   result: onboardingReadinessResultSchema,
+  checklist: onboardingChecklistSchema.optional(),
 });
 export type OnboardingScenario = z.infer<typeof onboardingScenarioSchema>;
 

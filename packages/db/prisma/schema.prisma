@@ -4,9 +4,9 @@
 // Governed by: harness/05-guardrails.md (Gates 1, 2, 3, 4)
 // Referências: PRD §6.5, §7.10, §11
 //
-// Scaffold inicial P0-1. Modelos reais de domínio (organizations, users,
-// equipment, certificates, audit_log hash-chain, sync events) entram em
-// migrations numeradas conforme a fatia vertical V1.
+// V1 foundation. O nucleo abaixo materializa organizacoes, usuarios,
+// sessoes, competencias e onboarding multitenant com organization_id
+// explicito para os gates de tenancy.
 
 generator client {
   provider        = "prisma-client-js"
@@ -19,8 +19,6 @@ datasource db {
   schemas  = ["public"]
 }
 
-// Placeholder — valida wiring Prisma + Postgres no healthcheck.
-// Substituído por modelos de domínio na V1 (ver harness/10-roadmap.md).
 model HealthCheck {
   id        String   @id @default(uuid()) @db.Uuid
   component String   @db.VarChar(64)
@@ -28,5 +26,99 @@ model HealthCheck {
   checkedAt DateTime @default(now()) @map("checked_at") @db.Timestamptz(6)
 
   @@map("health_check")
+  @@schema("public")
+}
+
+model Organization {
+  id                      String            @id @default(uuid()) @db.Uuid
+  slug                    String            @unique @db.VarChar(64)
+  legalName               String            @map("legal_name") @db.VarChar(160)
+  regulatoryProfile       String            @default("type_b") @map("regulatory_profile") @db.VarChar(32)
+  normativePackageVersion String            @default("2026-04-20-baseline-v0.1.0") @map("normative_package_version") @db.VarChar(80)
+  createdAt               DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  users                   AppUser[]
+  sessions                AppSession[]
+  competencies            UserCompetency[]
+  onboardingState         OnboardingState?
+
+  @@map("organizations")
+  @@schema("public")
+}
+
+model AppUser {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  email          String           @unique @db.VarChar(255)
+  passwordHash   String           @map("password_hash")
+  displayName    String           @map("display_name") @db.VarChar(140)
+  roles          String[]         @default([])
+  status         String           @default("active") @db.VarChar(24)
+  teamName       String?          @map("team_name") @db.VarChar(120)
+  mfaEnforced    Boolean          @default(false) @map("mfa_enforced")
+  mfaEnrolled    Boolean          @default(false) @map("mfa_enrolled")
+  deviceCount    Int              @default(0) @map("device_count")
+  lastLoginAt    DateTime?        @map("last_login_at") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  competencies   UserCompetency[]
+  sessions       AppSession[]
+
+  @@index([organizationId, status])
+  @@map("app_users")
+  @@schema("public")
+}
+
+model UserCompetency {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  instrumentType String       @map("instrument_type") @db.VarChar(80)
+  roleLabel      String       @map("role_label") @db.VarChar(120)
+  status         String       @db.VarChar(24)
+  validUntil     DateTime     @map("valid_until") @db.Date
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user           AppUser      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, userId])
+  @@map("user_competencies")
+  @@schema("public")
+}
+
+model AppSession {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  tokenHash      String       @unique @map("token_hash")
+  expiresAt      DateTime     @map("expires_at") @db.Timestamptz(6)
+  revokedAt      DateTime?    @map("revoked_at") @db.Timestamptz(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user           AppUser      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, userId])
+  @@index([expiresAt])
+  @@map("app_sessions")
+  @@schema("public")
+}
+
+model OnboardingState {
+  id                              String       @id @default(uuid()) @db.Uuid
+  organizationId                  String       @unique @map("organization_id") @db.Uuid
+  startedAt                       DateTime     @map("started_at") @db.Timestamptz(6)
+  completedAt                     DateTime?    @map("completed_at") @db.Timestamptz(6)
+  organizationProfileCompleted    Boolean      @default(false) @map("organization_profile_completed")
+  primarySignatoryReady           Boolean      @default(false) @map("primary_signatory_ready")
+  certificateNumberingConfigured  Boolean      @default(false) @map("certificate_numbering_configured")
+  scopeReviewCompleted            Boolean      @default(false) @map("scope_review_completed")
+  publicQrConfigured              Boolean      @default(false) @map("public_qr_configured")
+  createdAt                       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization                    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("onboarding_states")
   @@schema("public")
 }

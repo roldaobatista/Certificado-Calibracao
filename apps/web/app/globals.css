@@ -256,6 +256,78 @@ a {
   padding: 22px;
 }
 
+.form-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.field,
+.toggle-field {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.field span,
+.toggle-field span {
+  font-size: 0.9rem;
+  color: var(--accent-deep);
+}
+
+.field input,
+.field select {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.8);
+  padding: 12px 14px;
+  color: var(--ink);
+  font: inherit;
+}
+
+.toggle-field {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.toggle-field input {
+  width: 18px;
+  height: 18px;
+}
+
+.button-row,
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.button-primary,
+.button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.button-primary {
+  color: var(--panel-strong);
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+}
+
+.button-secondary {
+  color: var(--accent-deep);
+  background: rgba(255, 249, 239, 0.92);
+  border-color: rgba(139, 69, 24, 0.16);
+}
+
 .detail-card dl {
   margin: 12px 0 0;
   display: grid;

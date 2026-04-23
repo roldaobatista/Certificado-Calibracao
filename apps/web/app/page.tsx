@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadSelfSignupCatalog } from "@/src/auth/self-signup-api";
 import { loadUserDirectoryCatalog } from "@/src/auth/user-directory-api";
 import { loadEmissionDryRunCatalog } from "@/src/emission/emission-dry-run-api";
@@ -14,6 +17,8 @@ import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
   const [
     emissionWorkspaceCatalog,
     selfSignupCatalog,
@@ -26,16 +31,16 @@ export default async function HomePage() {
     qualityHubCatalog,
     userDirectoryCatalog,
   ] = await Promise.all([
-    loadEmissionWorkspaceCatalog(),
+    loadEmissionWorkspaceCatalog({ cookieHeader }),
     loadSelfSignupCatalog(),
-    loadOnboardingCatalog(),
+    loadOnboardingCatalog({ cookieHeader }),
     loadEmissionDryRunCatalog(),
     loadServiceOrderReviewCatalog(),
     loadReviewSignatureCatalog(),
     loadSignatureQueueCatalog(),
     loadOfflineSyncCatalog(),
     loadQualityHubCatalog(),
-    loadUserDirectoryCatalog(),
+    loadUserDirectoryCatalog({ cookieHeader }),
   ]);
 
   const overview = buildOperationsOverviewModel({
@@ -77,6 +82,46 @@ export default async function HomePage() {
         </>
       }
     >
+      {!authSession?.authenticated ? (
+        <section className="content-panel">
+          <div className="section-copy">
+            <span className="eyebrow">Sessao</span>
+            <h2>Entrar para liberar as rotas protegidas de V1</h2>
+            <p>
+              A home continua lendo os catalogos publicos, mas onboarding, diretorio e workspace reais so aparecem com cookie valido.
+            </p>
+          </div>
+          <div className="button-row">
+            <a className="button-primary" href="/auth/login">
+              Fazer login
+            </a>
+            <a className="button-secondary" href="/onboarding">
+              Criar tenant
+            </a>
+          </div>
+        </section>
+      ) : (
+        <section className="content-panel">
+          <div className="section-copy">
+            <span className="eyebrow">Sessao ativa</span>
+            <h2>{authSession.user.organizationName}</h2>
+            <p>
+              {authSession.user.displayName} autenticado com {authSession.user.roles.length} papel(is) para o tenant atual.
+            </p>
+          </div>
+          <form
+            action={`${resolvePublicApiBaseUrl()}/auth/logout`}
+            className="inline-form"
+            method="post"
+          >
+            <input type="hidden" name="redirectTo" value="http://127.0.0.1:3002/auth/login" />
+            <button className="button-secondary" type="submit">
+              Encerrar sessao
+            </button>
+          </form>
+        </section>
+      )}
+
       <section className="section-header">
         <div className="section-copy">
           <span className="eyebrow">Painel operacional</span>
@@ -136,4 +181,8 @@ export default async function HomePage() {
       </section>
     </AppShell>
   );
+}
+
+function resolvePublicApiBaseUrl() {
+  return process.env.AFERE_PUBLIC_API_BASE_URL ?? process.env.AFERE_API_BASE_URL ?? "http://127.0.0.1:3000";
 }

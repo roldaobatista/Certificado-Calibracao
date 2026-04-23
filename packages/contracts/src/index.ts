@@ -9,6 +9,7 @@ export type AppRouter = typeof appRouter;
 
 export { createCallerFactory, type AppContext } from "./trpc.js";
 export * from "./audit-trail.js";
+export * from "./auth-session.js";
 export * from "./certificate-preview.js";
 export * from "./complaint-registry.js";
 export * from "./customer-registry.js";

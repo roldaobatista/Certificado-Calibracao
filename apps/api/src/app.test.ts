@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   auditTrailCatalogSchema,
+  authSessionSchema,
   certificatePreviewCatalogSchema,
   complaintRegistryCatalogSchema,
   customerRegistryCatalogSchema,
@@ -31,9 +32,12 @@ import {
   signatureQueueCatalogSchema,
   standardRegistryCatalogSchema,
   userDirectoryCatalogSchema,
+  type MembershipRole,
 } from "@afere/contracts";
 
 import type { Env } from "./config/env.js";
+import { createMemoryCorePersistence } from "./domain/auth/core-persistence.js";
+import { hashPassword } from "./domain/auth/password.js";
 import { RuntimeReadinessError, type RuntimeReadiness } from "./infra/runtime-readiness.js";
 import { buildApp } from "./app.js";
 
@@ -861,6 +865,122 @@ test("serves the canonical user directory catalog from the backend", async () =>
   }
 });
 
+test("creates a persisted session and exposes the authenticated tenant context", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV1MemorySeed()),
+  });
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+
+    assert.equal(login.statusCode, 200);
+    const setCookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(setCookie);
+
+    const sessionResponse = await app.inject({
+      method: "GET",
+      url: "/auth/session",
+      headers: {
+        cookie: setCookie,
+      },
+    });
+
+    assert.equal(sessionResponse.statusCode, 200);
+    const payload = authSessionSchema.parse(sessionResponse.json());
+    assert.equal(payload.authenticated, true);
+    if (payload.authenticated) {
+      assert.equal(payload.user.organizationName, "Laboratorio Persistido");
+      assert.equal(payload.user.roles.includes("admin"), true);
+    }
+  } finally {
+    await app.close();
+  }
+});
+
+test("requires session and RBAC for the persisted user directory and onboarding routes", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV1MemorySeed()),
+  });
+
+  try {
+    const denied = await app.inject({
+      method: "GET",
+      url: "/auth/users",
+    });
+    assert.equal(denied.statusCode, 401);
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "admin@afere.local",
+        password: "Afere@2026!",
+      },
+    });
+
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
+    const userDirectory = await app.inject({
+      method: "GET",
+      url: "/auth/users",
+      headers: {
+        cookie,
+      },
+    });
+
+    assert.equal(userDirectory.statusCode, 200);
+    const directoryPayload = userDirectoryCatalogSchema.parse(userDirectory.json());
+    assert.equal(directoryPayload.scenarios.length, 1);
+    assert.equal(directoryPayload.scenarios[0]?.summary.organizationName, "Laboratorio Persistido");
+
+    const update = await app.inject({
+      method: "POST",
+      url: "/onboarding/readiness",
+      headers: {
+        cookie,
+      },
+      payload: {
+        organizationProfileCompleted: true,
+        primarySignatoryReady: true,
+        certificateNumberingConfigured: true,
+        scopeReviewCompleted: true,
+        publicQrConfigured: true,
+      },
+    });
+
+    assert.equal(update.statusCode, 204);
+
+    const onboarding = await app.inject({
+      method: "GET",
+      url: "/onboarding/readiness",
+      headers: {
+        cookie,
+      },
+    });
+
+    assert.equal(onboarding.statusCode, 200);
+    const onboardingPayload = onboardingCatalogSchema.parse(onboarding.json());
+    assert.equal(onboardingPayload.selectedScenarioId, "ready");
+    assert.equal(onboardingPayload.scenarios[0]?.checklist?.organizationProfileCompleted, true);
+  } finally {
+    await app.close();
+  }
+});
+
 function createRuntimeReadinessStub(options: {
   postgresReason?: string;
   redisReason?: string;
@@ -892,5 +1012,81 @@ function createRuntimeReadinessStub(options: {
       },
     },
     wasClosed: () => closed,
+  };
+}
+
+function normalizeCookieHeader(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value[0]?.split(";")[0] ?? "";
+  }
+
+  return value?.split(";")[0] ?? "";
+}
+
+function createV1MemorySeed() {
+  return {
+    users: [
+      {
+        userId: "user-admin-1",
+        organizationId: "org-1",
+        organizationName: "Laboratorio Persistido",
+        organizationSlug: "lab-persistido",
+        email: "admin@afere.local",
+        passwordHash: hashPassword("Afere@2026!", "seed-admin"),
+        displayName: "Ana Administradora",
+        roles: ["admin", "quality_manager"] as MembershipRole[],
+        status: "active" as const,
+        teamName: "Gestao tecnica",
+        mfaEnforced: true,
+        mfaEnrolled: true,
+        deviceCount: 2,
+        competencies: [
+          {
+            instrumentType: "balanca",
+            roleLabel: "Gestao",
+            status: "authorized" as const,
+            validUntilUtc: "2027-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+      {
+        userId: "user-signatory-1",
+        organizationId: "org-1",
+        organizationName: "Laboratorio Persistido",
+        organizationSlug: "lab-persistido",
+        email: "signatario@afere.local",
+        passwordHash: hashPassword("Afere@2026!", "seed-signatory"),
+        displayName: "Bruno Signatario",
+        roles: ["signatory", "technical_reviewer"] as MembershipRole[],
+        status: "active" as const,
+        teamName: "Metrologia",
+        mfaEnforced: true,
+        mfaEnrolled: true,
+        deviceCount: 1,
+        competencies: [
+          {
+            instrumentType: "balanca",
+            roleLabel: "Signatario",
+            status: "authorized" as const,
+            validUntilUtc: "2027-02-01T00:00:00.000Z",
+          },
+        ],
+      },
+    ],
+    onboarding: [
+      {
+        organizationId: "org-1",
+        organizationName: "Laboratorio Persistido",
+        organizationSlug: "lab-persistido",
+        regulatoryProfile: "type_b",
+        normativePackageVersion: "2026-04-20-baseline-v0.1.0",
+        startedAtUtc: "2026-04-23T12:00:00.000Z",
+        organizationProfileCompleted: true,
+        primarySignatoryReady: false,
+        certificateNumberingConfigured: false,
+        scopeReviewCompleted: false,
+        publicQrConfigured: false,
+      },
+    ],
   };
 }

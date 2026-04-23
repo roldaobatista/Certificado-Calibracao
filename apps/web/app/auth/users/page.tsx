@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadUserDirectoryCatalog } from "@/src/auth/user-directory-api";
 import { buildUserDirectoryCatalogView } from "@/src/auth/user-directory-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -58,9 +61,48 @@ function formatCompetencyStatus(status: string): string {
 export const dynamic = "force-dynamic";
 
 export default async function UserDirectoryPage(props: PageProps) {
-  const catalog = await loadUserDirectoryCatalog({ scenarioId: props.searchParams?.scenario });
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
+  const catalog = await loadUserDirectoryCatalog({
+    scenarioId: props.searchParams?.scenario,
+    cookieHeader,
+  });
 
   if (!catalog) {
+    if (authSession?.authenticated === false && !props.searchParams?.scenario) {
+      return (
+        <AppShell
+          eyebrow="Auth - usuarios e competencias"
+          title="Diretorio protegido por sessao"
+          description="A lista real de usuarios exige cookie valido e papel com acesso ao diretorio."
+          aside={
+            <div className="hero-stat">
+              <span className="eyebrow">Acesso atual</span>
+              <strong>Login necessario</strong>
+              <StatusPill tone="warn" label="RBAC ativo" />
+              <p>Entre com um admin ou gestor da qualidade para abrir a equipe persistida.</p>
+            </div>
+          }
+        >
+          <section className="content-panel">
+            <div className="section-copy">
+              <span className="eyebrow">Proximo passo</span>
+              <h2>Autenticar antes de abrir o diretorio</h2>
+              <p>O endpoint `GET /auth/users` deixa de responder no modo real quando nao ha sessao autorizada.</p>
+            </div>
+            <div className="button-row">
+              <a className="button-primary" href="/auth/login">
+                Fazer login
+              </a>
+              <a className="button-secondary" href="/onboarding">
+                Criar tenant
+              </a>
+            </div>
+          </section>
+        </AppShell>
+      );
+    }
+
     return (
       <AppShell
         eyebrow="Auth - usuarios e competencias"
