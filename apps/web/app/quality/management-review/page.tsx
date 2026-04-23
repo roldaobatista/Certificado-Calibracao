@@ -5,6 +5,9 @@ import { loadManagementReviewCatalog } from "@/src/quality/management-review-api
 import { buildManagementReviewCatalogView } from "@/src/quality/management-review-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
 
+const API_BASE_URL = process.env.AFERE_API_BASE_URL ?? "http://127.0.0.1:3000";
+const WEB_BASE_URL = "http://127.0.0.1:3002";
+
 type PageProps = {
   searchParams?: {
     scenario?: string;
@@ -43,6 +46,10 @@ function mapManagementReviewScenarioToQualityHubScenario(
     default:
       return "operational-attention";
   }
+}
+
+function signatureTone(status: "pending" | "signed" | "blocked"): "ok" | "warn" {
+  return status === "signed" ? "ok" : "warn";
 }
 
 export default async function ManagementReviewPage(props: PageProps) {
@@ -112,6 +119,10 @@ export default async function ManagementReviewPage(props: PageProps) {
   const { selectedScenario: scenario, scenarios } = buildManagementReviewCatalogView(catalog);
   const detail = scenario.detail;
   const selectedMeeting = scenario.selectedMeeting;
+  const isPersistedMode = authSession?.authenticated === true && !props.searchParams?.scenario;
+  const canWriteSignature =
+    authSession?.authenticated === true &&
+    authSession.user.roles.some((role) => role === "admin" || role === "quality_manager");
 
   return (
       <AppShell
@@ -213,6 +224,79 @@ export default async function ManagementReviewPage(props: PageProps) {
           </div>
         </article>
       </section>
+
+      <section className="detail-grid">
+        <article className="detail-card">
+          <span className="eyebrow">Assinatura</span>
+          <strong>{detail.signature.statusLabel}</strong>
+          <StatusPill tone={signatureTone(detail.signature.status)} label={detail.signature.statusLabel} />
+          <p>{detail.signature.statementLabel}</p>
+        </article>
+
+        <article className="detail-card">
+          <span className="eyebrow">Signatario</span>
+          <strong>{detail.signature.signedByLabel}</strong>
+          <p>
+            Momento: {detail.signature.signedAtLabel} | Device: {detail.signature.deviceLabel}
+          </p>
+        </article>
+
+        <article className="detail-card">
+          <span className="eyebrow">Elegibilidade</span>
+          <strong>{detail.signature.canSign ? "Pronta para assinar" : "Aguardando liberacao"}</strong>
+          <ul>
+            {detail.signature.blockers.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+            {detail.signature.blockers.length === 0 ? <li>Sem bloqueios de assinatura neste momento.</li> : null}
+          </ul>
+        </article>
+      </section>
+
+      {isPersistedMode ? (
+        <section className="content-panel">
+          <div className="section-copy">
+            <span className="eyebrow">Acao persistida</span>
+            <h2>Assinar a ata da analise critica</h2>
+            <p>
+              A assinatura fica vinculada ao usuario autenticado, preserva device e metadados persistidos da reuniao
+              real do tenant.
+            </p>
+          </div>
+
+          <form className="form-grid" action={`${API_BASE_URL}/quality/management-review/manage`} method="post">
+            <input type="hidden" name="action" value="sign" />
+            <input type="hidden" name="meetingId" value={detail.meetingId} />
+            <input
+              type="hidden"
+              name="redirectTo"
+              value={`${WEB_BASE_URL}/quality/management-review?meeting=${detail.meetingId}`}
+            />
+
+            <label className="field">
+              <span>Device da assinatura</span>
+              <input defaultValue="device-quality-01" name="signatureDeviceId" required />
+            </label>
+
+            <div className="button-row">
+              <button
+                className="button-primary"
+                disabled={!canWriteSignature || !detail.signature.canSign || detail.signature.status === "signed"}
+                type="submit"
+              >
+                {detail.signature.status === "signed"
+                  ? "Ata ja assinada"
+                  : canWriteSignature && detail.signature.canSign
+                    ? "Assinar ata"
+                    : "Assinatura indisponivel"}
+              </button>
+            </div>
+            {!canWriteSignature ? (
+              <p>Somente perfis `admin` ou `quality_manager` podem persistir a assinatura da analise critica.</p>
+            ) : null}
+          </form>
+        </section>
+      ) : null}
 
       <section className="nav-grid">
         {detail.calendar.entries.map((entry) => (

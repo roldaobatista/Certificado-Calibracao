@@ -109,6 +109,11 @@ export type PersistedManagementReviewMeetingRecord = {
   warnings: string[];
   scheduledForUtc: string;
   heldAtUtc?: string;
+  signedByUserId?: string;
+  signedByLabel?: string;
+  signatureDeviceId?: string;
+  signatureStatement?: string;
+  signedAtUtc?: string;
 };
 
 export type PersistedComplianceProfileRecord = {
@@ -236,6 +241,16 @@ export type SaveManagementReviewMeetingInput = {
   heldAt?: Date;
 };
 
+export type SignManagementReviewMeetingInput = {
+  organizationId: string;
+  meetingId: string;
+  signedByUserId: string;
+  signedByLabel: string;
+  signatureDeviceId: string;
+  signatureStatement: string;
+  signedAt: Date;
+};
+
 export type SaveComplianceProfileInput = {
   organizationId: string;
   organizationCode: string;
@@ -283,6 +298,9 @@ export interface QualityPersistence {
   ): Promise<PersistedManagementReviewMeetingRecord[]>;
   saveManagementReviewMeeting(
     input: SaveManagementReviewMeetingInput,
+  ): Promise<PersistedManagementReviewMeetingRecord>;
+  signManagementReviewMeeting(
+    input: SignManagementReviewMeetingInput,
   ): Promise<PersistedManagementReviewMeetingRecord>;
   getComplianceProfileByOrganization(
     organizationId: string,
@@ -435,6 +453,7 @@ export function createMemoryQualityPersistence(seed: {
         .sort((left, right) => right.scheduledForUtc.localeCompare(left.scheduledForUtc));
     },
     async saveManagementReviewMeeting(input) {
+      const existing = input.meetingId ? managementReviewMeetings.get(input.meetingId) : undefined;
       const meetingId = input.meetingId ?? `memory-review-${managementReviewMeetings.size + 1}`;
       const record: PersistedManagementReviewMeetingRecord = {
         meetingId,
@@ -456,9 +475,39 @@ export function createMemoryQualityPersistence(seed: {
         warnings: sanitizeStringArray(input.warnings),
         scheduledForUtc: input.scheduledFor.toISOString(),
         heldAtUtc: input.heldAt?.toISOString(),
+        signedByUserId: existing?.signedByUserId,
+        signedByLabel: existing?.signedByLabel,
+        signatureDeviceId: existing?.signatureDeviceId,
+        signatureStatement: existing?.signatureStatement,
+        signedAtUtc: existing?.signedAtUtc,
       };
 
       managementReviewMeetings.set(meetingId, record);
+      return structuredClone(record);
+    },
+    async signManagementReviewMeeting(input) {
+      const existing = managementReviewMeetings.get(input.meetingId);
+      if (!existing || existing.organizationId !== input.organizationId) {
+        throw new Error("management_review_not_found");
+      }
+      if (!existing.heldAtUtc) {
+        throw new Error("management_review_signature_not_ready");
+      }
+      if (existing.signedAtUtc) {
+        throw new Error("management_review_already_signed");
+      }
+
+      const record: PersistedManagementReviewMeetingRecord = {
+        ...existing,
+        heldAtUtc: existing.heldAtUtc ?? input.signedAt.toISOString(),
+        signedByUserId: input.signedByUserId,
+        signedByLabel: input.signedByLabel.trim(),
+        signatureDeviceId: input.signatureDeviceId.trim(),
+        signatureStatement: input.signatureStatement.trim(),
+        signedAtUtc: input.signedAt.toISOString(),
+      };
+
+      managementReviewMeetings.set(input.meetingId, record);
       return structuredClone(record);
     },
     async getComplianceProfileByOrganization(organizationId) {
@@ -750,6 +799,11 @@ export function createPrismaQualityPersistence(prisma: PrismaClient): QualityPer
       if (input.meetingId) {
         await assertRecordOwnership(prisma.managementReviewMeeting, input.meetingId, input.organizationId);
       }
+      const existing = input.meetingId
+        ? await prisma.managementReviewMeeting.findUnique({
+            where: { id: input.meetingId },
+          })
+        : null;
       const data = {
         titleLabel: input.titleLabel.trim(),
         status: input.status,
@@ -768,6 +822,11 @@ export function createPrismaQualityPersistence(prisma: PrismaClient): QualityPer
         warnings: sanitizeStringArray(input.warnings),
         scheduledFor: input.scheduledFor,
         heldAt: input.heldAt ?? null,
+        signedByUserId: existing?.signedByUserId ?? null,
+        signedByLabel: existing?.signedByLabel ?? null,
+        signatureDeviceId: existing?.signatureDeviceId ?? null,
+        signatureStatement: existing?.signatureStatement ?? null,
+        signedAt: existing?.signedAt ?? null,
       };
 
       const record = input.meetingId
@@ -786,6 +845,35 @@ export function createPrismaQualityPersistence(prisma: PrismaClient): QualityPer
       if (record.organizationId !== input.organizationId) {
         throw new Error("management_review_organization_mismatch");
       }
+
+      return mapManagementReviewMeetingRecord(record);
+    },
+    async signManagementReviewMeeting(input) {
+      await assertRecordOwnership(prisma.managementReviewMeeting, input.meetingId, input.organizationId);
+      const existing = await prisma.managementReviewMeeting.findUnique({
+        where: { id: input.meetingId },
+      });
+
+      if (!existing || existing.organizationId !== input.organizationId) {
+        throw new Error("management_review_not_found");
+      }
+      if (!existing.heldAt) {
+        throw new Error("management_review_signature_not_ready");
+      }
+      if (existing.signedAt) {
+        throw new Error("management_review_already_signed");
+      }
+
+      const record = await prisma.managementReviewMeeting.update({
+        where: { id: input.meetingId },
+        data: {
+          signedByUserId: input.signedByUserId,
+          signedByLabel: input.signedByLabel.trim(),
+          signatureDeviceId: input.signatureDeviceId.trim(),
+          signatureStatement: input.signatureStatement.trim(),
+          signedAt: input.signedAt,
+        },
+      });
 
       return mapManagementReviewMeetingRecord(record);
     },
@@ -1182,6 +1270,11 @@ function mapManagementReviewMeetingRecord(
     warnings: string[];
     scheduledFor: Date;
     heldAt: Date | null;
+    signedByUserId: string | null;
+    signedByLabel: string | null;
+    signatureDeviceId: string | null;
+    signatureStatement: string | null;
+    signedAt: Date | null;
   },
 ): PersistedManagementReviewMeetingRecord {
   return {
@@ -1204,6 +1297,11 @@ function mapManagementReviewMeetingRecord(
     warnings: record.warnings,
     scheduledForUtc: record.scheduledFor.toISOString(),
     heldAtUtc: record.heldAt?.toISOString(),
+    signedByUserId: record.signedByUserId ?? undefined,
+    signedByLabel: record.signedByLabel ?? undefined,
+    signatureDeviceId: record.signatureDeviceId ?? undefined,
+    signatureStatement: record.signatureStatement ?? undefined,
+    signedAtUtc: record.signedAt?.toISOString(),
   };
 }
 

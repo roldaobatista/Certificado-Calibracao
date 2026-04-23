@@ -44,6 +44,18 @@ export const managementReviewDecisionItemSchema = z.object({
 });
 export type ManagementReviewDecisionItem = z.infer<typeof managementReviewDecisionItemSchema>;
 
+export const managementReviewSignatureSchema = z.object({
+  status: z.enum(["pending", "signed", "blocked"]),
+  statusLabel: z.string().min(1),
+  signedByLabel: z.string().min(1),
+  signedAtLabel: z.string().min(1),
+  deviceLabel: z.string().min(1),
+  statementLabel: z.string().min(1),
+  canSign: z.boolean(),
+  blockers: z.array(z.string().min(1)),
+});
+export type ManagementReviewSignature = z.infer<typeof managementReviewSignatureSchema>;
+
 export const managementReviewCalendarEntrySchema = z.object({
   meetingId: z.string().min(1),
   titleLabel: z.string().min(1),
@@ -74,6 +86,7 @@ export const managementReviewDetailSchema = z.object({
   evidenceLabel: z.string().min(1),
   calendarExportHref: z.string().min(1),
   calendar: managementReviewCalendarSchema,
+  signature: managementReviewSignatureSchema,
   agendaItems: z.array(managementReviewAgendaItemSchema).min(1),
   automaticInputs: z.array(managementReviewAutomaticInputSchema).min(1),
   decisions: z.array(managementReviewDecisionItemSchema).min(1),

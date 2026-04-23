@@ -70,6 +70,13 @@ const SaveBodySchema = z.object({
   redirectTo: z.preprocess(toOptionalString, z.string().min(1).optional()),
 });
 
+const SignBodySchema = z.object({
+  action: z.literal("sign"),
+  meetingId: z.string().min(1),
+  signatureDeviceId: z.string().min(3),
+  redirectTo: z.preprocess(toOptionalString, z.string().min(1).optional()),
+});
+
 export async function registerManagementReviewRoutes(
   app: FastifyInstance,
   corePersistence: CorePersistence,
@@ -169,37 +176,50 @@ export async function registerManagementReviewRoutes(
       return reply;
     }
 
-    const body = SaveBodySchema.safeParse(request.body);
+    const body = z.discriminatedUnion("action", [SaveBodySchema, SignBodySchema]).safeParse(request.body);
     if (!body.success) {
       return reply.code(400).send({ error: "invalid_body" });
     }
 
     try {
-      await qualityPersistence.saveManagementReviewMeeting({
-        organizationId: context.user.organizationId,
-        meetingId: body.data.meetingId,
-        titleLabel: body.data.titleLabel,
-        status: body.data.status,
-        dateLabel: body.data.dateLabel,
-        outcomeLabel: body.data.outcomeLabel,
-        noticeLabel: body.data.noticeLabel,
-        nextMeetingLabel: body.data.nextMeetingLabel,
-        chairLabel: body.data.chairLabel,
-        attendeesLabel: body.data.attendeesLabel,
-        periodLabel: body.data.periodLabel,
-        ataLabel: body.data.ataLabel,
-        evidenceLabel: body.data.evidenceLabel,
-        agendaItems: body.data.agendaItems,
-        decisions: body.data.decisions,
-        blockers: body.data.blockers,
-        warnings: body.data.warnings,
-        scheduledFor: body.data.scheduledFor,
-        heldAt: body.data.heldAt,
-      });
+      if (body.data.action === "save") {
+        await qualityPersistence.saveManagementReviewMeeting({
+          organizationId: context.user.organizationId,
+          meetingId: body.data.meetingId,
+          titleLabel: body.data.titleLabel,
+          status: body.data.status,
+          dateLabel: body.data.dateLabel,
+          outcomeLabel: body.data.outcomeLabel,
+          noticeLabel: body.data.noticeLabel,
+          nextMeetingLabel: body.data.nextMeetingLabel,
+          chairLabel: body.data.chairLabel,
+          attendeesLabel: body.data.attendeesLabel,
+          periodLabel: body.data.periodLabel,
+          ataLabel: body.data.ataLabel,
+          evidenceLabel: body.data.evidenceLabel,
+          agendaItems: body.data.agendaItems,
+          decisions: body.data.decisions,
+          blockers: body.data.blockers,
+          warnings: body.data.warnings,
+          scheduledFor: body.data.scheduledFor,
+          heldAt: body.data.heldAt,
+        });
+      } else {
+        await qualityPersistence.signManagementReviewMeeting({
+          organizationId: context.user.organizationId,
+          meetingId: body.data.meetingId,
+          signedByUserId: context.user.userId,
+          signedByLabel: context.user.displayName,
+          signatureDeviceId: body.data.signatureDeviceId,
+          signatureStatement: `Ata da analise critica assinada por ${context.user.displayName}.`,
+          signedAt: new Date(),
+        });
+      }
     } catch (error) {
       if (
         isConflictError(error) ||
-        (error instanceof Error && /mismatch|not_found|organization/i.test(error.message))
+        (error instanceof Error &&
+          /mismatch|not_found|organization|already_signed|signature_not_ready/i.test(error.message))
       ) {
         return reply.code(409).send({ error: "quality_management_review_conflict" });
       }

@@ -60,6 +60,16 @@ const CATALOG_FIXTURE = managementReviewCatalogSchema.parse({
             },
           ],
         },
+        signature: {
+          status: "blocked",
+          statusLabel: "Assinatura bloqueada",
+          signedByLabel: "Pendente",
+          signedAtLabel: "Pendente",
+          deviceLabel: "Pendente",
+          statementLabel: "Assinatura eletronica da analise critica ainda nao registrada.",
+          canSign: false,
+          blockers: ["A reuniao ainda nao foi registrada como realizada, entao a ata segue sem assinatura."],
+        },
         agendaItems: [
           { key: "corrective-actions", label: "Acoes corretivas", status: "attention" },
         ],
@@ -138,6 +148,16 @@ const CATALOG_FIXTURE = managementReviewCatalogSchema.parse({
                 "/quality/management-review/calendar.ics?meeting=review-extra-2026-04&scenario=extraordinary-response",
             },
           ],
+        },
+        signature: {
+          status: "pending",
+          statusLabel: "Pronta para assinatura",
+          signedByLabel: "Pendente",
+          signedAtLabel: "Pendente",
+          deviceLabel: "Pendente",
+          statementLabel: "Assinatura eletronica da analise critica ainda nao registrada.",
+          canSign: true,
+          blockers: [],
         },
         agendaItems: [
           { key: "critical-case", label: "Contencao do caso critico", status: "blocked" },
