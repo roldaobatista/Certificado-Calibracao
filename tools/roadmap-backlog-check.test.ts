@@ -132,7 +132,7 @@ test("passes for the canonical execution backlog", async () => {
     const result = checkRoadmapBacklog(root);
 
     assert.deepEqual(result.errors, []);
-    assert.equal(result.checkedItems, 26);
+  assert.equal(result.checkedItems, 30);
   } finally {
     cleanup();
   }
