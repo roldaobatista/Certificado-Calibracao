@@ -8,6 +8,7 @@ const DEFAULT_API_BASE_URL = "http://127.0.0.1:3000";
 export interface LoadInternalAuditCatalogOptions {
   scenarioId?: string;
   cycleId?: string;
+  cookieHeader?: string;
   apiBaseUrl?: string;
   fetchImpl?: typeof fetch;
 }
@@ -31,6 +32,7 @@ export async function loadInternalAuditCatalog(
       method: "GET",
       headers: {
         accept: "application/json",
+        ...(options.cookieHeader ? { cookie: options.cookieHeader } : {}),
       },
       cache: "no-store",
     });

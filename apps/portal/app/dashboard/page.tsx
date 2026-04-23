@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth-session-api";
 import { loadPortalDashboardCatalog } from "@/src/portal-dashboard-api";
 import { buildPortalDashboardCatalogView } from "@/src/portal-dashboard-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -39,7 +42,39 @@ function statusLabel(status: "ready" | "attention" | "blocked"): string {
 }
 
 export default async function DashboardPage(props: PageProps) {
-  const catalog = await loadPortalDashboardCatalog({ scenarioId: props.searchParams?.scenario });
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
+  const isPersistedMode = !props.searchParams?.scenario;
+  const catalog = await loadPortalDashboardCatalog({
+    scenarioId: props.searchParams?.scenario,
+    cookieHeader,
+  });
+
+  if (isPersistedMode && authSession?.authenticated === false) {
+    return (
+      <AppShell
+        eyebrow="Portal - dashboard do cliente"
+        title="Dashboard protegido por sessao"
+        description="O dashboard real do portal exige autenticacao do cliente antes de carregar a carteira vinculada."
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Acesso atual</span>
+            <strong>Login necessario</strong>
+            <StatusPill tone="warn" label="Sessao ausente" />
+            <p>Entre com um usuario `external_client` para liberar os dados reais do portal.</p>
+          </div>
+        }
+      >
+        <section className="content-panel">
+          <div className="button-row">
+            <a className="button-primary" href="/auth/login">
+              Fazer login
+            </a>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
 
   if (!catalog) {
     return (
@@ -129,7 +164,11 @@ export default async function DashboardPage(props: PageProps) {
           scenario.expiringEquipments.map((item) => (
             <NavCard
               key={item.equipmentId}
-              href={`/equipment?scenario=${scenario.id}&equipment=${item.equipmentId}`}
+              href={
+                isPersistedMode
+                  ? `/equipment?equipment=${item.equipmentId}`
+                  : `/equipment?scenario=${scenario.id}&equipment=${item.equipmentId}`
+              }
               eyebrow={item.tag}
               title={item.description}
               description={`${item.locationLabel} / prox. ${item.dueAtLabel}`}
@@ -153,7 +192,11 @@ export default async function DashboardPage(props: PageProps) {
         {scenario.recentCertificates.map((item) => (
           <NavCard
             key={item.certificateId}
-            href={`/certificate?scenario=${mapVerifyScenarioToCertificateScenario(item.verifyScenarioId)}&certificate=${item.certificateId}`}
+            href={
+              isPersistedMode
+                ? `/certificate?certificate=${item.certificateId}`
+                : `/certificate?scenario=${mapVerifyScenarioToCertificateScenario(item.verifyScenarioId)}&certificate=${item.certificateId}`
+            }
             eyebrow={item.certificateNumber}
             title={item.equipmentLabel}
             description={`${item.issuedAtLabel} / ${item.statusLabel}`}
@@ -208,7 +251,7 @@ export default async function DashboardPage(props: PageProps) {
         {scenarios.map((item) => (
           <NavCard
             key={item.id}
-            href={`/dashboard?scenario=${item.id}`}
+            href={isPersistedMode ? "/dashboard" : `/dashboard?scenario=${item.id}`}
             eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
             title={item.label}
             description={item.summaryLabel}

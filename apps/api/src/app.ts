@@ -6,6 +6,15 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type { Env } from "./config/env.js";
 import { createPrismaCorePersistence, type CorePersistence } from "./domain/auth/core-persistence.js";
 import {
+  createPrismaServiceOrderPersistence,
+  type ServiceOrderPersistence,
+} from "./domain/emission/service-order-persistence.js";
+import {
+  createMemoryQualityPersistence,
+  createPrismaQualityPersistence,
+  type QualityPersistence,
+} from "./domain/quality/quality-persistence.js";
+import {
   createPrismaRegistryPersistence,
   type RegistryPersistence,
 } from "./domain/registry/registry-persistence.js";
@@ -51,6 +60,8 @@ export type BuildAppOptions = {
   runtimeReadiness?: RuntimeReadiness;
   corePersistence?: CorePersistence;
   registryPersistence?: RegistryPersistence;
+  serviceOrderPersistence?: ServiceOrderPersistence;
+  qualityPersistence?: QualityPersistence;
 };
 
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
@@ -78,7 +89,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   });
 
   const prisma =
-    options.corePersistence && options.registryPersistence
+    options.corePersistence && options.registryPersistence && options.serviceOrderPersistence
       ? null
       : createPrismaClient(env.DATABASE_URL);
   const corePersistence =
@@ -86,6 +97,14 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   const registryPersistence =
     options.registryPersistence ??
     createPrismaRegistryPersistence(prisma ?? createPrismaClient(env.DATABASE_URL));
+  const serviceOrderPersistence =
+    options.serviceOrderPersistence ??
+    createPrismaServiceOrderPersistence(prisma ?? createPrismaClient(env.DATABASE_URL));
+  const qualityPersistence =
+    options.qualityPersistence ??
+    (options.corePersistence && options.registryPersistence && options.serviceOrderPersistence
+      ? createMemoryQualityPersistence()
+      : createPrismaQualityPersistence(prisma ?? createPrismaClient(env.DATABASE_URL)));
 
   if (prisma) {
     app.addHook("onClose", async () => {
@@ -101,35 +120,35 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   await app.register(trpcPlugin);
   await registerAuthSessionRoutes(app, corePersistence);
-  await registerAuditTrailRoutes(app);
-  await registerCertificatePreviewRoutes(app);
+  await registerAuditTrailRoutes(app, corePersistence, serviceOrderPersistence);
+  await registerCertificatePreviewRoutes(app, corePersistence, serviceOrderPersistence);
   await registerComplaintRoutes(app);
   await registerCustomerRegistryRoutes(app, corePersistence, registryPersistence);
-  await registerEmissionDryRunRoutes(app);
+  await registerEmissionDryRunRoutes(app, corePersistence, serviceOrderPersistence);
   await registerEmissionWorkspaceRoutes(app, corePersistence);
   await registerEquipmentRegistryRoutes(app, corePersistence, registryPersistence);
-  await registerInternalAuditRoutes(app);
-  await registerManagementReviewRoutes(app);
-  await registerNonconformingWorkRoutes(app);
-  await registerNonconformityRoutes(app);
+  await registerInternalAuditRoutes(app, corePersistence, qualityPersistence);
+  await registerManagementReviewRoutes(app, corePersistence, qualityPersistence, serviceOrderPersistence);
+  await registerNonconformingWorkRoutes(app, corePersistence, qualityPersistence);
+  await registerNonconformityRoutes(app, corePersistence, qualityPersistence);
   await registerOfflineSyncRoutes(app);
   await registerQualityDocumentRoutes(app);
-  await registerQualityHubRoutes(app);
-  await registerQualityIndicatorRoutes(app);
+  await registerQualityHubRoutes(app, corePersistence, qualityPersistence, serviceOrderPersistence);
+  await registerQualityIndicatorRoutes(app, corePersistence, qualityPersistence, serviceOrderPersistence);
   await registerRiskRegisterRoutes(app);
-  await registerReviewSignatureRoutes(app);
-  await registerServiceOrderReviewRoutes(app);
-  await registerSignatureQueueRoutes(app);
+  await registerReviewSignatureRoutes(app, corePersistence, serviceOrderPersistence);
+  await registerServiceOrderReviewRoutes(app, corePersistence, serviceOrderPersistence);
+  await registerSignatureQueueRoutes(app, corePersistence, serviceOrderPersistence);
   await registerStandardRegistryRoutes(app, corePersistence, registryPersistence);
   await registerSelfSignupRoutes(app);
   await registerUserDirectoryRoutes(app, corePersistence);
   await registerOnboardingRoutes(app, corePersistence);
-  await registerOrganizationSettingsRoutes(app);
-  await registerPortalCertificateRoutes(app);
-  await registerPortalDashboardRoutes(app);
-  await registerPortalEquipmentRoutes(app);
+  await registerOrganizationSettingsRoutes(app, corePersistence, qualityPersistence, serviceOrderPersistence);
+  await registerPortalCertificateRoutes(app, corePersistence, registryPersistence, serviceOrderPersistence);
+  await registerPortalDashboardRoutes(app, corePersistence, registryPersistence, serviceOrderPersistence);
+  await registerPortalEquipmentRoutes(app, corePersistence, registryPersistence, serviceOrderPersistence);
   await registerProcedureRegistryRoutes(app, corePersistence, registryPersistence);
-  await registerPublicCertificateRoutes(app);
+  await registerPublicCertificateRoutes(app, serviceOrderPersistence);
 
   app.get("/healthz", async () => ({
     status: "ok",

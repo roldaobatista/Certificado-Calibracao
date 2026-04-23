@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth-session-api";
 import { loadPortalEquipmentCatalog } from "@/src/portal-equipment-api";
 import { buildPortalEquipmentCatalogView } from "@/src/portal-equipment-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -40,10 +43,40 @@ function statusLabel(status: "ready" | "attention" | "blocked"): string {
 }
 
 export default async function PortalEquipmentPage(props: PageProps) {
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
+  const isPersistedMode = !props.searchParams?.scenario;
   const catalog = await loadPortalEquipmentCatalog({
     scenarioId: props.searchParams?.scenario,
     equipmentId: props.searchParams?.equipment,
+    cookieHeader,
   });
+
+  if (isPersistedMode && authSession?.authenticated === false) {
+    return (
+      <AppShell
+        eyebrow="Portal - meus equipamentos"
+        title="Carteira protegida por sessao"
+        description="A carteira real de equipamentos exige autenticacao do cliente antes de carregar os ativos vinculados."
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Acesso atual</span>
+            <strong>Login necessario</strong>
+            <StatusPill tone="warn" label="Sessao ausente" />
+            <p>Entre com um usuario `external_client` para abrir os equipamentos reais do cliente.</p>
+          </div>
+        }
+      >
+        <section className="content-panel">
+          <div className="button-row">
+            <a className="button-primary" href="/auth/login">
+              Fazer login
+            </a>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
 
   if (!catalog) {
     return (
@@ -118,7 +151,11 @@ export default async function PortalEquipmentPage(props: PageProps) {
         {scenario.items.map((item) => (
           <NavCard
             key={item.equipmentId}
-            href={`/equipment?scenario=${scenario.id}&equipment=${item.equipmentId}`}
+            href={
+              isPersistedMode
+                ? `/equipment?equipment=${item.equipmentId}`
+                : `/equipment?scenario=${scenario.id}&equipment=${item.equipmentId}`
+            }
             eyebrow={item.equipmentId === selectedEquipment.equipmentId ? "Selecionado" : item.tag}
             title={item.description}
             description={`${item.locationLabel} / prox. ${item.nextDueLabel}`}
@@ -201,7 +238,11 @@ export default async function PortalEquipmentPage(props: PageProps) {
         {detail.certificateHistory.map((item) => (
           <NavCard
             key={item.certificateId}
-            href={`/certificate?scenario=${mapVerifyScenarioToCertificateScenario(item.verifyScenarioId)}&certificate=${item.certificateId}`}
+            href={
+              isPersistedMode
+                ? `/certificate?certificate=${item.certificateId}`
+                : `/certificate?scenario=${mapVerifyScenarioToCertificateScenario(item.verifyScenarioId)}&certificate=${item.certificateId}`
+            }
             eyebrow={item.issuedAtLabel}
             title={item.certificateNumber}
             description={`${item.resultLabel} / U ${item.uncertaintyLabel}`}
@@ -222,7 +263,7 @@ export default async function PortalEquipmentPage(props: PageProps) {
 
       <section className="nav-grid">
         <NavCard
-          href={`/dashboard?scenario=${scenario.id}`}
+          href={isPersistedMode ? "/dashboard" : `/dashboard?scenario=${scenario.id}`}
           eyebrow="Dashboard"
           title="Abrir resumo do cliente"
           description="Voltar ao dashboard com o mesmo recorte canonico da carteira."
@@ -242,7 +283,11 @@ export default async function PortalEquipmentPage(props: PageProps) {
         {scenarios.map((item) => (
           <NavCard
             key={item.id}
-            href={`/equipment?scenario=${item.id}&equipment=${item.selectedEquipment.equipmentId}`}
+            href={
+              isPersistedMode
+                ? `/equipment?equipment=${item.selectedEquipment.equipmentId}`
+                : `/equipment?scenario=${item.id}&equipment=${item.selectedEquipment.equipmentId}`
+            }
             eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
             title={item.label}
             description={item.summaryLabel}

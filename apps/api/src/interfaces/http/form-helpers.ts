@@ -37,6 +37,24 @@ export function toNumber(value: unknown): number | undefined {
   return undefined;
 }
 
+export function toDate(value: unknown): Date | undefined {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  if (normalized.length === 0) {
+    return undefined;
+  }
+
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
 export function toStringArray(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
@@ -52,6 +70,63 @@ export function toStringArray(value: unknown): string[] {
     .split(/[\n,;]+/)
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);
+}
+
+export function toChecklistItems(value: unknown) {
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  return value
+    .split(/\r?\n+/)
+    .map((entry, index) => {
+      const [key, requirementLabel, evidenceLabel, status] = entry.split("|").map((item) => item.trim());
+      return {
+        key: key || `check-${index + 1}`,
+        requirementLabel: requirementLabel ?? "",
+        evidenceLabel: evidenceLabel ?? "",
+        status: status === "ready" || status === "blocked" ? status : "attention",
+      };
+    })
+    .filter((entry) => entry.requirementLabel.length > 0 && entry.evidenceLabel.length > 0);
+}
+
+export function toAgendaItems(value: unknown) {
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  return value
+    .split(/\r?\n+/)
+    .map((entry, index) => {
+      const [key, label, status] = entry.split("|").map((item) => item.trim());
+      return {
+        key: key || `agenda-${index + 1}`,
+        label: label ?? "",
+        status: status === "ready" || status === "blocked" ? status : "attention",
+      };
+    })
+    .filter((entry) => entry.label.length > 0);
+}
+
+export function toDecisionItems(value: unknown) {
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  return value
+    .split(/\r?\n+/)
+    .map((entry, index) => {
+      const [key, label, ownerLabel, dueDateLabel, status] = entry.split("|").map((item) => item.trim());
+      return {
+        key: key || `decision-${index + 1}`,
+        label: label ?? "",
+        ownerLabel: ownerLabel ?? "",
+        dueDateLabel: dueDateLabel ?? "",
+        status: status === "ready" || status === "blocked" ? status : "attention",
+      };
+    })
+    .filter((entry) => entry.label.length > 0 && entry.ownerLabel.length > 0);
 }
 
 export function readRedirectTarget(body: unknown): string | null {

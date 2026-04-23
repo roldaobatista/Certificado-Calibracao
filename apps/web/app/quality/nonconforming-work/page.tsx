@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadNonconformingWorkCatalog } from "@/src/quality/nonconforming-work-api";
 import { buildNonconformingWorkCatalogView } from "@/src/quality/nonconforming-work-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -43,12 +46,41 @@ function mapScenarioToQualityHubScenario(
 }
 
 export default async function NonconformingWorkPage(props: PageProps) {
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
   const catalog = await loadNonconformingWorkCatalog({
     scenarioId: props.searchParams?.scenario,
     caseId: props.searchParams?.case,
+    cookieHeader,
   });
 
   if (!catalog) {
+    if (authSession?.authenticated === false && !props.searchParams?.scenario) {
+      return (
+        <AppShell
+          eyebrow="Qualidade - trabalho nao conforme"
+          title="Modulo protegido por sessao"
+          description="Os casos persistidos da V5 exigem autenticacao antes da leitura."
+          aside={
+            <div className="hero-stat">
+              <span className="eyebrow">Acesso atual</span>
+              <strong>Login necessario</strong>
+              <StatusPill tone="warn" label="RBAC ativo" />
+              <p>Entre com um papel de Qualidade para abrir os casos reais do tenant.</p>
+            </div>
+          }
+        >
+          <section className="content-panel">
+            <div className="button-row">
+              <a className="button-primary" href="/auth/login">
+                Fazer login
+              </a>
+            </div>
+          </section>
+        </AppShell>
+      );
+    }
+
     return (
       <AppShell
         eyebrow="Qualidade - trabalho nao conforme"
@@ -81,13 +113,17 @@ export default async function NonconformingWorkPage(props: PageProps) {
   const detail = scenario.detail;
 
   return (
-    <AppShell
-      eyebrow="Qualidade - trabalho nao conforme"
-      title={scenario.summary.headline}
-      description={scenario.description}
-      aside={
-        <div className="hero-stat">
-          <span className="eyebrow">Cenario ativo</span>
+      <AppShell
+        eyebrow="Qualidade - trabalho nao conforme"
+        title={scenario.summary.headline}
+        description={
+          authSession?.authenticated === true && !props.searchParams?.scenario
+            ? `${scenario.description} Este modulo esta lendo a camada persistida da V5.`
+            : scenario.description
+        }
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Cenario ativo</span>
           <strong>{scenario.label}</strong>
           <StatusPill tone={statusTone(scenario.summary.status)} label={statusLabel(scenario.summary.status)} />
           <p>{scenario.summary.recommendedAction}</p>

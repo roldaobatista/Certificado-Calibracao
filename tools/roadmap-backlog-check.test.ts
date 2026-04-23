@@ -79,12 +79,21 @@ test("fails when an item links a requirement that does not belong to its slice",
   const { root, cleanup } = makeWorkspace();
   try {
     seedCanonicalWorkspace(root);
+    const backlogPath = join(root, "compliance", "roadmap", "execution-backlog.yaml");
+    const original = readFileSync(backlogPath, "utf8");
+    const mutated = original.replace(
+      /(\s+linked_requirements:\r?\n\s+- )REQ-PRD-13-11-AUTH-SSO-MFA/,
+      "$1REQ-PRD-13-16-CONTROLLED-REISSUE",
+    );
+    assert.notEqual(
+      mutated,
+      original,
+      "o fixture do backlog deve permitir trocar o requisito de V1 por um requisito de outra fatia.",
+    );
+
     writeFileSync(
-      join(root, "compliance", "roadmap", "execution-backlog.yaml"),
-      readFileSync(join(root, "compliance", "roadmap", "execution-backlog.yaml"), "utf8").replace(
-        "    linked_requirements:\n      - REQ-PRD-13-11-AUTH-SSO-MFA",
-        "    linked_requirements:\n      - REQ-PRD-13-16-CONTROLLED-REISSUE",
-      ),
+      backlogPath,
+      mutated,
     );
 
     const result = checkRoadmapBacklog(root);

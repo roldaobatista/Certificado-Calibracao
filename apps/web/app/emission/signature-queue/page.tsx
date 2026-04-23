@@ -1,6 +1,12 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
 import { loadSignatureQueueCatalog } from "@/src/emission/signature-queue-api";
 import { buildSignatureQueueCatalogView } from "@/src/emission/signature-queue-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
+
+const API_BASE_URL = process.env.AFERE_API_BASE_URL ?? "http://127.0.0.1:3000";
+const WEB_BASE_URL = "http://127.0.0.1:3002";
 
 type PageProps = {
   searchParams?: {
@@ -78,10 +84,40 @@ function requirementStatusLabel(status: "configured" | "missing"): string {
 }
 
 export default async function SignatureQueuePage(props: PageProps) {
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
   const catalog = await loadSignatureQueueCatalog({
     scenarioId: props.searchParams?.scenario,
     itemId: props.searchParams?.item,
+    cookieHeader,
   });
+  const isPersistedMode = authSession?.authenticated === true && !props.searchParams?.scenario;
+
+  if (!catalog && authSession?.authenticated === false && !props.searchParams?.scenario) {
+    return (
+      <AppShell
+        eyebrow="Emissao - fila de assinatura"
+        title="Fila protegida por sessao"
+        description="A fila persistida do tenant exige autenticacao antes da leitura."
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Acesso atual</span>
+            <strong>Login necessario</strong>
+            <StatusPill tone="warn" label="RBAC ativo" />
+            <p>Entre com um papel operacional para concluir a assinatura e a emissao oficial.</p>
+          </div>
+        }
+      >
+        <section className="content-panel">
+          <div className="button-row">
+            <a className="button-primary" href="/auth/login">
+              Fazer login
+            </a>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
 
   if (!catalog) {
     return (
@@ -170,7 +206,11 @@ export default async function SignatureQueuePage(props: PageProps) {
         {scenario.items.map((item) => (
           <NavCard
             key={item.itemId}
-            href={`/emission/signature-queue?scenario=${scenario.id}&item=${item.itemId}`}
+            href={
+              isPersistedMode
+                ? `/emission/signature-queue?item=${item.itemId}`
+                : `/emission/signature-queue?scenario=${scenario.id}&item=${item.itemId}`
+            }
             eyebrow={item.itemId === selectedItem.itemId ? "Selecionado" : "Pendente"}
             title={item.workOrderNumber}
             description={`${item.customerName} · ${item.waitingSinceLabel}. ${describeItemValidations(item)}`}
@@ -228,6 +268,36 @@ export default async function SignatureQueuePage(props: PageProps) {
           </article>
         </div>
       </section>
+
+      {isPersistedMode && props.searchParams?.item ? (
+        <section className="content-panel">
+          <div className="section-copy">
+            <span className="eyebrow">Emitir</span>
+            <h2>Assinatura eletrônica e emissão oficial</h2>
+            <p>A emissão persiste número sequencial, QR público, hash do documento e eventos críticos append-only.</p>
+          </div>
+
+          <form className="form-grid" action={`${API_BASE_URL}/emission/signature-queue/manage`} method="post">
+            <input type="hidden" name="action" value="emit" />
+            <input type="hidden" name="serviceOrderId" value={props.searchParams.item} />
+            <input
+              type="hidden"
+              name="redirectTo"
+              value={`${WEB_BASE_URL}/emission/signature-queue?item=${props.searchParams.item}`}
+            />
+
+            <label className="field">
+              <span>Device da assinatura</span>
+              <input defaultValue="device-sign-01" name="signatureDeviceId" required />
+            </label>
+            <div className="button-row">
+              <button className="button-primary" disabled={!scenario.approval.canSign} type="submit">
+                {scenario.approval.canSign ? "Assinar e emitir" : "Emissao bloqueada"}
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
 
       <section className="content-panel">
         <div className="section-copy">
@@ -308,21 +378,33 @@ export default async function SignatureQueuePage(props: PageProps) {
 
       <section className="nav-grid">
         <NavCard
-          href={`/emission/service-order-review?scenario=${mapQueueScenarioToServiceOrderScenario(scenario.id)}`}
+          href={
+            isPersistedMode && props.searchParams?.item
+              ? `/emission/service-order-review?item=${props.searchParams.item}`
+              : `/emission/service-order-review?scenario=${mapQueueScenarioToServiceOrderScenario(scenario.id)}`
+          }
           eyebrow="OS"
           title="Abrir detalhe da OS"
           description="Voltar ao detalhe canonico da OS que originou a fila de assinatura."
           cta="Abrir OS"
         />
         <NavCard
-          href={`/emission/certificate-preview?scenario=${selectedItem.previewScenarioId}`}
+          href={
+            isPersistedMode && props.searchParams?.item
+              ? `/emission/certificate-preview?item=${props.searchParams.item}`
+              : `/emission/certificate-preview?scenario=${selectedItem.previewScenarioId}`
+          }
           eyebrow="Previa"
           title="Abrir previa integral"
           description="Revisar a peca completa do certificado antes da assinatura final."
           cta="Abrir previa"
         />
         <NavCard
-          href={`/emission/review-signature?scenario=${selectedItem.reviewSignatureScenarioId}`}
+          href={
+            isPersistedMode && props.searchParams?.item
+              ? `/emission/review-signature?item=${props.searchParams.item}`
+              : `/emission/review-signature?scenario=${selectedItem.reviewSignatureScenarioId}`
+          }
           eyebrow="Workflow"
           title="Abrir revisao e assinatura"
           description="Voltar ao workflow canônico que liberou ou bloqueou este item."
@@ -338,7 +420,11 @@ export default async function SignatureQueuePage(props: PageProps) {
         {scenarios.map((item) => (
           <NavCard
             key={item.id}
-            href={`/emission/signature-queue?scenario=${item.id}&item=${item.selectedItem.itemId}`}
+            href={
+              isPersistedMode && props.searchParams?.item
+                ? `/emission/signature-queue?item=${item.selectedItem.itemId}`
+                : `/emission/signature-queue?scenario=${item.id}&item=${item.selectedItem.itemId}`
+            }
             eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
             title={item.label}
             description={item.summaryLabel}

@@ -1,10 +1,18 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth/session-api";
+import { loadUserDirectoryCatalog } from "@/src/auth/user-directory-api";
 import { loadReviewSignatureCatalog } from "@/src/emission/review-signature-api";
 import { buildReviewSignatureCatalogView } from "@/src/emission/review-signature-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
 
+const API_BASE_URL = process.env.AFERE_API_BASE_URL ?? "http://127.0.0.1:3000";
+const WEB_BASE_URL = "http://127.0.0.1:3002";
+
 type PageProps = {
   searchParams?: {
     scenario?: string;
+    item?: string;
   };
 };
 
@@ -62,7 +70,41 @@ function mapReviewScenarioToServiceOrderScenario(reviewScenarioId: string): stri
 }
 
 export default async function ReviewSignaturePage(props: PageProps) {
-  const catalog = await loadReviewSignatureCatalog({ scenarioId: props.searchParams?.scenario });
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
+  const catalog = await loadReviewSignatureCatalog({
+    scenarioId: props.searchParams?.scenario,
+    itemId: props.searchParams?.item,
+    cookieHeader,
+  });
+  const isPersistedMode = authSession?.authenticated === true && !props.searchParams?.scenario;
+  const userDirectoryCatalog = isPersistedMode ? await loadUserDirectoryCatalog({ cookieHeader }) : null;
+
+  if (!catalog && authSession?.authenticated === false && !props.searchParams?.scenario) {
+    return (
+      <AppShell
+        eyebrow="Emissao - revisao e assinatura"
+        title="Workflow protegido por sessao"
+        description="A revisao persistida do tenant exige autenticacao antes da leitura."
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Acesso atual</span>
+            <strong>Login necessario</strong>
+            <StatusPill tone="warn" label="RBAC ativo" />
+            <p>Entre com um papel operacional para atribuir atores e registrar a revisao tecnica.</p>
+          </div>
+        }
+      >
+        <section className="content-panel">
+          <div className="button-row">
+            <a className="button-primary" href="/auth/login">
+              Fazer login
+            </a>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
 
   if (!catalog) {
     return (
@@ -94,6 +136,7 @@ export default async function ReviewSignaturePage(props: PageProps) {
   }
 
   const { selectedScenario: scenario, scenarios } = buildReviewSignatureCatalogView(catalog);
+  const userOptions = userDirectoryCatalog?.scenarios[0]?.users.filter((user) => user.status === "active") ?? [];
 
   return (
     <AppShell
@@ -155,6 +198,85 @@ export default async function ReviewSignaturePage(props: PageProps) {
           </div>
         </article>
       </section>
+
+      {isPersistedMode && props.searchParams?.item ? (
+        <section className="content-panel">
+          <div className="section-copy">
+            <span className="eyebrow">Atualizar workflow</span>
+            <h2>Atribuir atores e registrar a decisao tecnica</h2>
+            <p>Esta acao persiste revisor, signatario, decisao e device da revisao na OS selecionada.</p>
+          </div>
+
+          <form className="form-grid" action={`${API_BASE_URL}/emission/review-signature/manage`} method="post">
+            <input type="hidden" name="action" value="review" />
+            <input type="hidden" name="serviceOrderId" value={props.searchParams.item} />
+            <input
+              type="hidden"
+              name="redirectTo"
+              value={`${WEB_BASE_URL}/emission/review-signature?item=${props.searchParams.item}`}
+            />
+
+            <label className="field">
+              <span>Revisor tecnico</span>
+              <select defaultValue={scenario.result.assignments.reviewer?.userId ?? ""} name="reviewerUserId">
+                <option value="">Selecionar</option>
+                {userOptions.map((user) => (
+                  <option key={user.userId} value={user.userId}>
+                    {user.displayName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Signatario</span>
+              <select defaultValue={scenario.result.assignments.signatory?.userId ?? ""} name="signatoryUserId">
+                <option value="">Selecionar</option>
+                {userOptions.map((user) => (
+                  <option key={user.userId} value={user.userId}>
+                    {user.displayName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Status operacional</span>
+              <select
+                defaultValue={scenario.result.stage === "approved" || scenario.result.stage === "emitted" ? "awaiting_signature" : "awaiting_review"}
+                name="workflowStatus"
+              >
+                <option value="awaiting_review">Aguardando revisao</option>
+                <option value="awaiting_signature">Aguardando assinatura</option>
+                <option value="blocked">Bloqueada</option>
+                <option value="emitted">Emitida</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Decisao da revisao</span>
+              <select
+                defaultValue={scenario.result.stage === "approved" || scenario.result.stage === "emitted" ? "approved" : "pending"}
+                name="reviewDecision"
+              >
+                <option value="pending">Pendente</option>
+                <option value="approved">Aprovar</option>
+                <option value="rejected">Reprovar</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Device da revisao</span>
+              <input defaultValue="device-review-01" name="reviewDeviceId" required />
+            </label>
+            <label className="field field-full">
+              <span>Comentario da revisao</span>
+              <textarea name="reviewDecisionComment" placeholder="Resumo tecnico da decisao." rows={4} />
+            </label>
+            <div className="button-row">
+              <button className="button-primary" type="submit">
+                Salvar workflow
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
 
       <section className="detail-grid">
         <article className="detail-card">
@@ -222,21 +344,33 @@ export default async function ReviewSignaturePage(props: PageProps) {
 
       <section className="nav-grid">
         <NavCard
-          href={`/emission/service-order-review?scenario=${mapReviewScenarioToServiceOrderScenario(scenario.id)}`}
+          href={
+            isPersistedMode && props.searchParams?.item
+              ? `/emission/service-order-review?item=${props.searchParams.item}`
+              : `/emission/service-order-review?scenario=${mapReviewScenarioToServiceOrderScenario(scenario.id)}`
+          }
           eyebrow="OS"
           title="Abrir detalhe da OS"
           description="Contextualizar o workflow com linha do tempo, checklist e dados de execucao."
           cta="Abrir OS"
         />
         <NavCard
-          href={`/emission/certificate-preview?scenario=${mapReviewScenarioToPreviewScenario(scenario.id)}`}
+          href={
+            isPersistedMode && props.searchParams?.item
+              ? `/emission/certificate-preview?item=${props.searchParams.item}`
+              : `/emission/certificate-preview?scenario=${mapReviewScenarioToPreviewScenario(scenario.id)}`
+          }
           eyebrow="Previa"
           title="Abrir previa do certificado"
           description="Revisar os campos que serao apresentados ao signatario antes da emissao."
           cta="Abrir previa"
         />
         <NavCard
-          href={`/emission/signature-queue?scenario=${mapReviewScenarioToQueueScenario(scenario.id)}`}
+          href={
+            isPersistedMode && props.searchParams?.item
+              ? `/emission/signature-queue?item=${props.searchParams.item}`
+              : `/emission/signature-queue?scenario=${mapReviewScenarioToQueueScenario(scenario.id)}`
+          }
           eyebrow="Fila"
           title="Abrir fila de assinatura"
           description="Conferir os itens prontos, em atencao ou bloqueados antes da assinatura final."
@@ -256,7 +390,11 @@ export default async function ReviewSignaturePage(props: PageProps) {
         {scenarios.map((item) => (
           <NavCard
             key={item.id}
-            href={`/emission/review-signature?scenario=${item.id}`}
+            href={
+              isPersistedMode && props.searchParams?.item
+                ? `/emission/review-signature?item=${props.searchParams.item}`
+                : `/emission/review-signature?scenario=${item.id}`
+            }
             eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
             title={item.label}
             description={item.description}

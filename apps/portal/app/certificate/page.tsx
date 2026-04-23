@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { loadAuthSession } from "@/src/auth-session-api";
 import { loadPortalCertificateCatalog } from "@/src/portal-certificate-api";
 import { buildPortalCertificateCatalogView } from "@/src/portal-certificate-scenarios";
 import { AppShell, NavCard, StatusPill } from "@/ui/components/chrome";
@@ -29,10 +32,40 @@ function statusLabel(status: "ready" | "attention" | "blocked"): string {
 }
 
 export default async function PortalCertificatePage(props: PageProps) {
+  const cookieHeader = cookies().toString();
+  const authSession = await loadAuthSession({ cookieHeader });
+  const isPersistedMode = !props.searchParams?.scenario;
   const catalog = await loadPortalCertificateCatalog({
     scenarioId: props.searchParams?.scenario,
     certificateId: props.searchParams?.certificate,
+    cookieHeader,
   });
+
+  if (isPersistedMode && authSession?.authenticated === false) {
+    return (
+      <AppShell
+        eyebrow="Portal - certificado"
+        title="Viewer protegido por sessao"
+        description="O viewer autenticado do certificado exige uma sessao valida do cliente antes de carregar a publicacao."
+        aside={
+          <div className="hero-stat">
+            <span className="eyebrow">Acesso atual</span>
+            <strong>Login necessario</strong>
+            <StatusPill tone="warn" label="Sessao ausente" />
+            <p>Entre com um usuario `external_client` para abrir os certificados reais do portal.</p>
+          </div>
+        }
+      >
+        <section className="content-panel">
+          <div className="button-row">
+            <a className="button-primary" href="/auth/login">
+              Fazer login
+            </a>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
 
   if (!catalog) {
     return (
@@ -104,7 +137,11 @@ export default async function PortalCertificatePage(props: PageProps) {
         {scenario.items.map((item) => (
           <NavCard
             key={item.certificateId}
-            href={`/certificate?scenario=${scenario.id}&certificate=${item.certificateId}`}
+            href={
+              isPersistedMode
+                ? `/certificate?certificate=${item.certificateId}`
+                : `/certificate?scenario=${scenario.id}&certificate=${item.certificateId}`
+            }
             eyebrow={item.certificateId === detail.certificateId ? "Selecionado" : item.issuedAtLabel}
             title={item.certificateNumber}
             description={`${item.equipmentLabel} / ${item.statusLabel}`}
@@ -196,21 +233,25 @@ export default async function PortalCertificatePage(props: PageProps) {
 
       <section className="nav-grid">
         <NavCard
-          href={`/verify?scenario=${detail.publicVerifyScenarioId}`}
+          href={isPersistedMode ? detail.publicLinkLabel : `/verify?scenario=${detail.publicVerifyScenarioId}`}
           eyebrow="Publico"
           title="Abrir verificacao minimizada"
           description="Conferir a autenticidade publica do mesmo certificado."
           cta="Abrir verificacao"
         />
         <NavCard
-          href={`/equipment?scenario=${detail.equipmentScenarioId}&equipment=${detail.equipmentId}`}
+          href={
+            isPersistedMode
+              ? `/equipment?equipment=${detail.equipmentId}`
+              : `/equipment?scenario=${detail.equipmentScenarioId}&equipment=${detail.equipmentId}`
+          }
           eyebrow="Equipamento"
           title="Voltar ao item do cliente"
           description="Retomar o equipamento associado a este certificado no mesmo recorte."
           cta="Abrir equipamento"
         />
         <NavCard
-          href={`/dashboard?scenario=${detail.dashboardScenarioId}`}
+          href={isPersistedMode ? "/dashboard" : `/dashboard?scenario=${detail.dashboardScenarioId}`}
           eyebrow="Dashboard"
           title="Voltar ao resumo do cliente"
           description="Retomar o dashboard com o mesmo contexto canonico."
@@ -230,7 +271,11 @@ export default async function PortalCertificatePage(props: PageProps) {
         {scenarios.map((item) => (
           <NavCard
             key={item.id}
-            href={`/certificate?scenario=${item.id}&certificate=${item.selectedCertificate.certificateId}`}
+            href={
+              isPersistedMode
+                ? `/certificate?certificate=${item.selectedCertificate.certificateId}`
+                : `/certificate?scenario=${item.id}&certificate=${item.selectedCertificate.certificateId}`
+            }
             eyebrow={item.id === scenario.id ? "Ativo" : "Disponivel"}
             title={item.label}
             description={item.summaryLabel}
