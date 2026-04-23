@@ -399,6 +399,8 @@ test("serves the canonical management review catalog from the backend", async ()
     assert.match(blockedScenario.detail.scheduledForLabel, /23\/04\/2026|04\/2026/i);
     assert.match(blockedScenario.detail.calendarExportHref, /calendar\.ics/i);
     assert.equal(blockedScenario.detail.calendar.entries.length >= 2, true);
+    assert.equal(blockedScenario.detail.signature.canSign, true);
+    assert.equal(blockedScenario.detail.signature.status, "pending");
     assert.match(blockedScenario.detail.blockers.join(" "), /extraordinaria|liberacao|trilha/i);
   } finally {
     await app.close();
@@ -1801,6 +1803,8 @@ test("serves the persisted V5 quality and governance catalogs for the authentica
     assert.equal(reviewPayload.scenarios[0]?.meetings[0]?.meetingId, "review-2026-q2");
     assert.match(reviewPayload.scenarios[0]?.detail.calendarExportHref ?? "", /calendar\.ics/i);
     assert.equal((reviewPayload.scenarios[0]?.detail.calendar.entries.length ?? 0) >= 1, true);
+    assert.equal(reviewPayload.scenarios[0]?.detail.signature.canSign, true);
+    assert.equal(reviewPayload.scenarios[0]?.detail.signature.status, "pending");
     assert.equal((hubPayload.scenarios[0]?.summary.implementedModuleCount ?? 0) >= 6, true);
     assert.equal(settingsPayload.scenarios[0]?.summary.organizationCode, "AFERE");
   } finally {
@@ -1852,7 +1856,7 @@ test("exports the persisted management review meeting as .ics only for the authe
   }
 });
 
-test("updates persisted V5 nonconformity, indicator history and compliance profile through manage endpoints", async () => {
+test("updates persisted V5 nonconformity, indicator history, management review signature and compliance profile through manage endpoints", async () => {
   const { runtimeReadiness } = createRuntimeReadinessStub();
   const qualityPersistence = createMemoryQualityPersistence(createV5QualitySeed());
   const app = await buildApp({
@@ -1876,7 +1880,7 @@ test("updates persisted V5 nonconformity, indicator history and compliance profi
     const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
     assert.ok(cookie);
 
-    const [ncManage, indicatorManage, settingsManage] = await Promise.all([
+    const [ncManage, indicatorManage, reviewManage, settingsManage] = await Promise.all([
       app.inject({
         method: "POST",
         url: "/quality/nonconformities/manage",
@@ -1918,6 +1922,16 @@ test("updates persisted V5 nonconformity, indicator history and compliance profi
       }),
       app.inject({
         method: "POST",
+        url: "/quality/management-review/manage",
+        headers: { cookie },
+        payload: {
+          action: "sign",
+          meetingId: "review-2026-q2",
+          signatureDeviceId: "device-quality-02",
+        },
+      }),
+      app.inject({
+        method: "POST",
         url: "/settings/organization/manage",
         headers: { cookie },
         payload: {
@@ -1947,16 +1961,19 @@ test("updates persisted V5 nonconformity, indicator history and compliance profi
 
     assert.equal(ncManage.statusCode, 204);
     assert.equal(indicatorManage.statusCode, 204);
+    assert.equal(reviewManage.statusCode, 204);
     assert.equal(settingsManage.statusCode, 204);
 
-    const [ncResponse, indicatorResponse, settingsResponse] = await Promise.all([
+    const [ncResponse, indicatorResponse, reviewResponse, settingsResponse] = await Promise.all([
       app.inject({ method: "GET", url: "/quality/nonconformities", headers: { cookie } }),
       app.inject({ method: "GET", url: "/quality/indicators?indicator=indicator-emission-completion", headers: { cookie } }),
+      app.inject({ method: "GET", url: "/quality/management-review", headers: { cookie } }),
       app.inject({ method: "GET", url: "/settings/organization", headers: { cookie } }),
     ]);
 
     const ncPayload = nonconformityRegistryCatalogSchema.parse(ncResponse.json());
     const indicatorPayload = qualityIndicatorRegistryCatalogSchema.parse(indicatorResponse.json());
+    const reviewPayload = managementReviewCatalogSchema.parse(reviewResponse.json());
     const settingsPayload = organizationSettingsCatalogSchema.parse(settingsResponse.json());
 
     assert.equal(ncPayload.scenarios[0]?.items[0]?.summary, "NC-014 · Segregacao revalidada");
@@ -1964,6 +1981,9 @@ test("updates persisted V5 nonconformity, indicator history and compliance profi
       indicatorPayload.scenarios.flatMap((scenario) => scenario.detail.snapshots.map((snapshot) => snapshot.monthLabel)).join(" "),
       /05\/2026/i,
     );
+    assert.equal(reviewPayload.scenarios[0]?.detail.signature.status, "signed");
+    assert.equal(reviewPayload.scenarios[0]?.detail.signature.signedByLabel, "Ana Administradora");
+    assert.equal(reviewPayload.scenarios[0]?.detail.signature.deviceLabel, "device-quality-02");
     assert.equal(
       settingsPayload.scenarios[0]?.summary.profileLabel.includes("Tipo A"),
       true,
@@ -2739,7 +2759,7 @@ function createV5QualitySeed() {
         organizationId: "org-1",
         titleLabel: "Analise critica Q2 2026",
         status: "attention" as const,
-        dateLabel: "30/06/2026",
+        dateLabel: "23/04/2026",
         outcomeLabel: "Pauta aberta com follow-up de Qualidade",
         noticeLabel: "A ata final depende do fechamento minimo da NC critica e do ciclo de auditoria.",
         nextMeetingLabel: "30/09/2026",
@@ -2763,7 +2783,8 @@ function createV5QualitySeed() {
         ],
         blockers: [],
         warnings: ["A ata nao deve ser arquivada antes do follow-up minimo da NC."],
-        scheduledForUtc: "2026-06-30T13:00:00.000Z",
+        scheduledForUtc: "2026-04-23T13:00:00.000Z",
+        heldAtUtc: "2026-04-23T14:10:00.000Z",
       },
     ],
     qualityIndicatorSnapshots: buildV5IndicatorHistorySeed(),

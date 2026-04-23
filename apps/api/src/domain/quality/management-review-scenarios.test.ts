@@ -36,6 +36,8 @@ test("blocks the management review module when an extraordinary meeting is requi
 
   assert.equal(scenario.detail.status, "blocked");
   assert.match(scenario.detail.blockers.join(" "), /extraordinaria|liberacao|trilha/i);
+  assert.equal(scenario.detail.signature.canSign, true);
+  assert.equal(scenario.detail.signature.status, "pending");
 });
 
 test("allows switching the selected meeting inside the same scenario", () => {
@@ -60,5 +62,9 @@ test("builds the canonical management review catalog with selected scenario", ()
     catalog.scenarios.find((scenario) => scenario.id === "extraordinary-response")
       ?.selectedMeetingId,
     "review-extra-2026-04",
+  );
+  assert.equal(
+    catalog.scenarios.find((scenario) => scenario.id === "ordinary-ready")?.detail.signature.status,
+    "signed",
   );
 });

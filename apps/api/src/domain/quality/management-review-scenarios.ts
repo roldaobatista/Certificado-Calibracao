@@ -16,6 +16,7 @@ import {
   formatManagementReviewSchedule,
   type ManagementReviewCalendarMeeting,
 } from "./management-review-calendar.js";
+import { buildManagementReviewSignature } from "./management-review-signature.js";
 
 type ScenarioMeetingState = {
   meetingId: string;
@@ -36,6 +37,11 @@ type ScenarioMeetingState = {
   blockers: string[];
   warnings: string[];
   scheduledForUtc: string;
+  heldAtUtc?: string;
+  signedByLabel?: string;
+  signatureDeviceId?: string;
+  signatureStatement?: string;
+  signedAtUtc?: string;
 };
 
 type ManagementReviewScenarioDefinition = {
@@ -134,6 +140,11 @@ const SCENARIOS: Record<ManagementReviewScenarioId, ManagementReviewScenarioDefi
         blockers: [],
         warnings: [],
         scheduledForUtc: "2026-03-31T13:00:00.000Z",
+        heldAtUtc: "2026-03-31T14:25:00.000Z",
+        signedByLabel: "Ana Costa",
+        signatureDeviceId: "device-quality-01",
+        signatureStatement: "Ata da analise critica Q1/2026 assinada e arquivada pela direcao.",
+        signedAtUtc: "2026-03-31T14:40:00.000Z",
       },
       {
         meetingId: "review-2026-q2",
@@ -216,6 +227,11 @@ const SCENARIOS: Record<ManagementReviewScenarioId, ManagementReviewScenarioDefi
         blockers: [],
         warnings: [],
         scheduledForUtc: "2026-03-31T13:00:00.000Z",
+        heldAtUtc: "2026-03-31T14:25:00.000Z",
+        signedByLabel: "Ana Costa",
+        signatureDeviceId: "device-quality-01",
+        signatureStatement: "Ata da analise critica Q1/2026 assinada e mantida como historico comparativo.",
+        signedAtUtc: "2026-03-31T14:40:00.000Z",
       },
       {
         meetingId: "review-2026-q2",
@@ -358,6 +374,11 @@ const SCENARIOS: Record<ManagementReviewScenarioId, ManagementReviewScenarioDefi
         blockers: [],
         warnings: [],
         scheduledForUtc: "2026-03-31T13:00:00.000Z",
+        heldAtUtc: "2026-03-31T14:25:00.000Z",
+        signedByLabel: "Ana Costa",
+        signatureDeviceId: "device-quality-01",
+        signatureStatement: "Ata da analise critica Q1/2026 assinada e preservada apenas para referencia.",
+        signedAtUtc: "2026-03-31T14:40:00.000Z",
       },
       {
         meetingId: "review-extra-2026-04",
@@ -460,6 +481,7 @@ const SCENARIOS: Record<ManagementReviewScenarioId, ManagementReviewScenarioDefi
         ],
         warnings: ["Os indicadores, a reclamacao e a auditoria extraordinaria precisam entrar na mesma ata."],
         scheduledForUtc: "2026-04-23T14:00:00.000Z",
+        heldAtUtc: "2026-04-23T15:30:00.000Z",
       },
     ],
   },
@@ -563,6 +585,13 @@ function buildMeetingDetail(
       scenarioId,
     }),
     calendar,
+    signature: buildManagementReviewSignature({
+      heldAtUtc: meeting.heldAtUtc,
+      signedAtUtc: meeting.signedAtUtc,
+      signedByLabel: meeting.signedByLabel,
+      signatureDeviceId: meeting.signatureDeviceId,
+      signatureStatement: meeting.signatureStatement,
+    }),
     agendaItems: meeting.agendaItems,
     automaticInputs: meeting.automaticInputs,
     decisions: meeting.decisions,

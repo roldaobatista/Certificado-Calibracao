@@ -26,6 +26,7 @@ import {
   buildManagementReviewCalendarExportHref,
   formatManagementReviewSchedule,
 } from "./management-review-calendar.js";
+import { buildManagementReviewSignature } from "./management-review-signature.js";
 
 type BuilderStatus = RegistryOperationalStatus;
 
@@ -713,6 +714,13 @@ function buildManagementReviewScenario(
         meetingId: selectedMeeting.meetingId,
       }),
       calendar,
+      signature: buildManagementReviewSignature({
+        heldAtUtc: selectedMeeting.heldAtUtc,
+        signedAtUtc: selectedMeeting.signedAtUtc,
+        signedByLabel: selectedMeeting.signedByLabel,
+        signatureDeviceId: selectedMeeting.signatureDeviceId,
+        signatureStatement: selectedMeeting.signatureStatement,
+      }),
       agendaItems: selectedMeeting.agendaItems,
       automaticInputs,
       decisions: selectedMeeting.decisions,

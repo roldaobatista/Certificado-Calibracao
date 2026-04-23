@@ -555,6 +555,11 @@ model ManagementReviewMeeting {
   warnings         String[]     @default([])
   scheduledFor     DateTime     @map("scheduled_for") @db.Timestamptz(6)
   heldAt           DateTime?    @map("held_at") @db.Timestamptz(6)
+  signedByUserId   String?      @map("signed_by_user_id") @db.Uuid
+  signedByLabel    String?      @map("signed_by_label") @db.VarChar(160)
+  signatureDeviceId String?     @map("signature_device_id") @db.VarChar(120)
+  signatureStatement String?    @map("signature_statement")
+  signedAt         DateTime?    @map("signed_at") @db.Timestamptz(6)
   createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
