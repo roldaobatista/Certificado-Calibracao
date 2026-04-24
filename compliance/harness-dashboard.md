@@ -23,6 +23,9 @@
 - `test:ac`
 - `test:regulatory`
 - `copy-lint:check`
+- `tenant-lint`
+- `test:tenancy`
+- `rls-policy-check`
 - `test:sync-simulator`
 - `worm-check`
 - `governance-gate`
@@ -50,7 +53,7 @@
 - P0-1 (P0): Backend apps/api como peça de 1ª classe + agente backend-api — [~] Em implementação (scaffold Fastify + tRPC + Prisma + Docker Compose; /healthz cobre liveness do processo, /readyz agora valida Postgres + Redis com 503 fail-closed e o container usa readiness real; lógica de domínio pendente para fatias V1+)
 - P0-2 (P0): Pipeline de normative package assinado e versionado — [~] Em implementação (@afere/normative-rules valida pacote normativo com hash canônico SHA-256, assinatura Ed25519, sidecars de chave pública/metadados e releases/manifest.yaml; baseline 2026-04-20-baseline-v0.1.0 aprovado por bootstrap offline; signer AWS KMS com Ed25519 e CLI canônica já existem no repositório, mas a ativação com infraestrutura/credenciais reais ainda segue pendente)
 - P0-3 (P0): Dossiê formal de validação contínua — [~] Em implementação (requirements.yaml, traceability-matrix.yaml, coverage-report.md e tools/validation-dossier.ts; 22/22 critérios do PRD §13 mapeados, 22/22 validados por teste ativo, demais seguem validation_status: planned)
-- P0-4 (P0): Hard gates de multitenancy e trilha imutável — [~] Em implementação (Gates 1, 2, 3, 4, 5 e 6 funcionais em primeiras fatias; Gate 7 agora regenera current/ e valida manifesto/hashes de 30 certificados canônicos em PDF determinístico, com 10 snapshots por perfil A/B/C, gera drafts automáticos de issue para CASCADE-003 no required-gates e mantém flake gate estrutural; a conformidade PDF/A formal ainda depende de validação externa e o workflow transacional completo de emissão segue pendente. Gate 5 cobre RLS, e o RBAC básico de revisão/assinatura agora também opera com sessão persistida e guards reais nas rotas fundacionais de auth/onboarding)
+- P0-4 (P0): Hard gates de multitenancy e trilha imutável — [~] Em implementação (Gates 1, 2, 3, 4, 5 e 6 funcionais em primeiras fatias; tenant-lint, test:tenancy e rls-policy-check agora rodam no check:all, e tools/rls-policy-check.ts bloqueia migrations com tabela organization_id sem RLS/policy; Gate 7 regenera current/ e valida manifesto/hashes de 30 certificados canônicos em PDF determinístico, com 10 snapshots por perfil A/B/C, gera drafts automáticos de issue para CASCADE-003 no required-gates e mantém flake gate estrutural; a conformidade PDF/A formal ainda depende de validação externa e o workflow transacional completo de emissão segue pendente. Gate 5 cobre RLS estrutural e testes smoke/fuzz, e o RBAC básico de revisão/assinatura opera com sessão persistida e guards reais nas rotas fundacionais de auth/onboarding)
 - P0-5 (P0): Copy-lint regulatório — [~] Em implementação (packages/copy-lint funcional com 8 regras, CLI, hook PreCommit fail-closed, slash /claim-check; finding de 4 claims proibidos em PRD.md fechado por correção de copy + tools/copy-lint-prd.test.ts; pnpm copy-lint:check varre o repo em check:all; claim-set completo segue draft até revisão jurídica humana)
 - P0-6 (P0): Agente product-governance + CODEOWNERS — [~] Em implementação (.github/CODEOWNERS, template de PR e pnpm governance-gate funcionais; pre-commit aciona o gate no delta; branch protection configurado em main exigindo required-gates; CODEOWNERS usa owner GitHub real e metadados agent-owners para papéis regulatórios; review obrigatório por CODEOWNERS depende de segundo colaborador/time GitHub real)
 - P0-8 (P0): Matriz de escalonamento e rito de desempate — [~] Em implementação (tools/escalation-check.ts valida registro/template/ADR, bloqueia escalations abertas e entrou em check:all; tiebreaker designado na ADR 0009)
