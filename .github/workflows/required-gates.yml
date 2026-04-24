@@ -39,9 +39,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run structural gates
-        run: pnpm check:all
-
       - name: Start Postgres for tenancy gates
         run: docker compose up -d postgres
 
@@ -64,8 +61,8 @@ jobs:
       - name: Show Postgres status
         run: docker compose ps postgres
 
-      - name: Run tenancy gates
-        run: pnpm test:tenancy
+      - name: Run structural gates
+        run: pnpm check:all
 
       - name: Generate verification issue drafts
         if: ${{ always() }}
