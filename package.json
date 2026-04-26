@@ -93,6 +93,6 @@
     "js-yaml": "^4.1.0",
     "tsx": "^4.19.2",
     "turbo": "^2.3.0",
-    "typescript": "^5.5.4"
+    "typescript": "^6.0.3"
   }
 }
