@@ -48,6 +48,7 @@ import {
   TEST_ENV,
   createRuntimeReadinessStub,
   normalizeCookieHeader,
+  completeLogin,
   createV1MemorySeed,
   createV2RegistrySeed,
   createV3CoreSeed,
@@ -85,12 +86,23 @@ test("exports the canonical management review meeting as .ics", async () => {
 
 test("serves the canonical offline sync review queue from the backend", async () => {
   const { runtimeReadiness } = createRuntimeReadinessStub();
-  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV1MemorySeed()),
+    registryPersistence: createMemoryRegistryPersistence(),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(),
+    qualityPersistence: createMemoryQualityPersistence(),
+  });
 
   try {
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
+    assert.ok(cookie);
+
     const response = await app.inject({
       method: "GET",
       url: "/sync/review-queue?scenario=human-review-open&item=sync-os-2026-0047&conflict=conflict-c1-0047",
+      headers: { cookie },
     });
 
     assert.equal(response.statusCode, 200);
@@ -121,15 +133,7 @@ test("renders the preliminary uncertainty budget in persisted review and preview
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const [reviewResponse, previewResponse] = await Promise.all([
@@ -251,15 +255,7 @@ test("blocks persisted review approval without an explicit official decision", a
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const response = await app.inject({
@@ -297,15 +293,7 @@ test("requires justification when the official decision diverges from the indica
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const response = await app.inject({
@@ -362,15 +350,7 @@ test("blocks direct emission when the persisted review lacks an official decisio
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const response = await app.inject({
@@ -419,15 +399,7 @@ test("blocks direct emission when a divergent official decision has no justifica
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const response = await app.inject({
@@ -464,15 +436,7 @@ test("approves and emits a persisted service order through the V3 workflow", asy
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const reviewResponse = await app.inject({
@@ -608,15 +572,7 @@ test("exports the persisted management review meeting as .ics only for the authe
     });
     assert.equal(anonymousResponse.statusCode, 401);
 
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const response = await app.inject({
@@ -648,15 +604,7 @@ test("updates persisted V5 nonconformity, indicator history, management review s
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const [ncManage, indicatorManage, reviewManage, settingsManage] = await Promise.all([

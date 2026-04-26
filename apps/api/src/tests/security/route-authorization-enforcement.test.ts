@@ -103,19 +103,55 @@ test("mutable route missing from matrix returns 503 fail-closed", async () => {
   }
 });
 
-test("GET routes bypass the authorization hook and rely on handlers", async () => {
+test("GET public route in matrix returns 200", async () => {
   const { runtimeReadiness } = createRuntimeReadinessStub();
   const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
 
   try {
-    // A GET route that is not in the matrix should be allowed by the hook
-    // (handlers may still enforce auth if they choose to).
     const response = await app.inject({
       method: "GET",
       url: "/healthz",
     });
 
     assert.equal(response.statusCode, 200);
+  } finally {
+    await app.close();
+  }
+});
+
+test("GET private route in matrix without session returns 401", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/emission/workspace",
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.json().error, "authentication_required");
+  } finally {
+    await app.close();
+  }
+});
+
+test("GET route missing from matrix returns 503 fail-closed", async () => {
+  const { runtimeReadiness } = createRuntimeReadinessStub();
+  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+
+  try {
+    app.get("/__test-unmapped-get", async (_request, reply) => {
+      return reply.code(200).send({ ok: true });
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/__test-unmapped-get",
+    });
+
+    assert.equal(response.statusCode, 503);
+    assert.equal(response.json().error, "route_not_in_authorization_matrix");
   } finally {
     await app.close();
   }

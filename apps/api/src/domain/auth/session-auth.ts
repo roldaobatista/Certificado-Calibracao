@@ -12,6 +12,7 @@ export type AuthenticatedRequestContext = {
   sessionId: string;
   tokenHash: string;
   expiresAtUtc: string;
+  authLevel: "full" | "partial";
   user: PersistedUserRecord;
 };
 
@@ -34,6 +35,7 @@ export async function resolveAuthenticatedRequest(
     sessionId: session.sessionId,
     tokenHash,
     expiresAtUtc: session.expiresAtUtc,
+    authLevel: session.authLevel,
     user: session.user,
   };
 }
@@ -43,11 +45,17 @@ export async function requireAuthenticatedRequest(
   reply: FastifyReply,
   persistence: CorePersistence,
   allowedRoles?: MembershipRole[],
+  minimumAuthLevel: "partial" | "full" = "full",
 ): Promise<AuthenticatedRequestContext | null> {
   const context = await resolveAuthenticatedRequest(request, persistence);
 
   if (!context) {
     await reply.code(401).send({ error: "authentication_required" });
+    return null;
+  }
+
+  if (minimumAuthLevel === "full" && context.authLevel !== "full") {
+    await reply.code(403).send({ error: "mfa_required" });
     return null;
   }
 
@@ -80,8 +88,17 @@ export function hashSessionToken(token: string) {
   return createHash("sha256").update(token).digest("base64url");
 }
 
-export function createSessionExpiry(now = new Date()) {
-  return new Date(now.getTime() + ONE_DAY_MS);
+export function createSessionExpiry(
+  roles: MembershipRole[],
+  nodeEnv: string,
+  now = new Date(),
+) {
+  const isPrivileged = hasPrivilegedRole(roles);
+  const durationMs =
+    nodeEnv === "production" && isPrivileged
+      ? 8 * 60 * 60 * 1000 // 8h para admin/signatory em produção
+      : ONE_DAY_MS;
+  return new Date(now.getTime() + durationMs);
 }
 
 export function toAuthSession(session: { user: PersistedUserRecord; expiresAtUtc: string }): AuthSession {

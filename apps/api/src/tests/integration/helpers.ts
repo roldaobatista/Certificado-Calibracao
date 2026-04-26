@@ -1,8 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { computeAuditHash } from "@afere/audit-log";
+import type { FastifyInstance } from "fastify";
 
 import type { Env } from "../../config/env.js";
 import { hashPassword } from "../../domain/auth/password.js";
+import { generateCurrentTotpCode } from "../../domain/auth/totp.js";
 import { RuntimeReadinessError, type RuntimeReadiness } from "../../infra/runtime-readiness.js";
 import type { MembershipRole } from "@afere/contracts";
 
@@ -13,6 +15,8 @@ export const TEST_ENV: Env = {
   PORT: 3000,
   CORS_ORIGINS: [],
   DATABASE_URL: "postgresql://afere:afere@localhost:5432/afere?schema=public",
+  DATABASE_APP_URL: "postgresql://afere_app:afere_app@localhost:5432/afere?schema=public",
+  DATABASE_OWNER_URL: "postgresql://afere:afere@localhost:5432/afere?schema=public",
   REDIS_URL: "redis://localhost:6379",
   ALLOW_SCENARIO_ROUTES: true,
   RATE_LIMIT_MAX: 100,
@@ -27,6 +31,7 @@ export const TEST_ENV: Env = {
     "/emission/signature-queue",
     "/dashboard",
   ],
+  BOOTSTRAP_ENABLED: true,
 };
 
 export function createRuntimeReadinessStub(
@@ -68,6 +73,60 @@ export function normalizeCookieHeader(value: string | string[] | undefined) {
   return value?.split(";")[0] ?? "";
 }
 
+/**
+ * Faz login e, se o backend exigir MFA (mfa_challenge), completa com TOTP.
+ * Retorna o cookie de sessão final.
+ */
+export async function completeLogin(
+  app: FastifyInstance,
+  email: string,
+  password: string,
+): Promise<string> {
+  const loginRes = await app.inject({
+    method: "POST",
+    url: "/auth/login",
+    payload: { email, password },
+  });
+  if (loginRes.statusCode === 200) {
+    return normalizeCookieHeader(loginRes.headers["set-cookie"]);
+  }
+  if (loginRes.statusCode === 403) {
+    const body = JSON.parse(loginRes.payload);
+    if (body.reason === "mfa_challenge") {
+      const cookie = normalizeCookieHeader(loginRes.headers["set-cookie"]);
+      const code = generateCurrentTotpCode("JBSWY3DPEHPK3PXP");
+      const verifyRes = await app.inject({
+        method: "POST",
+        url: "/auth/mfa/verify",
+        headers: { cookie },
+        payload: { code },
+      });
+      if (verifyRes.statusCode !== 200) {
+        throw new Error(`MFA verify failed: ${verifyRes.statusCode} ${verifyRes.payload}`);
+      }
+      return normalizeCookieHeader(verifyRes.headers["set-cookie"]);
+    }
+  }
+  throw new Error(`Login failed: ${loginRes.statusCode} ${loginRes.payload}`);
+}
+
+/**
+ * Obtém token CSRF para requests mutáveis subsequentes.
+ */
+export async function getCsrfToken(
+  app: FastifyInstance,
+  cookie: string,
+): Promise<string> {
+  const res = await app.inject({
+    method: "GET",
+    url: "/auth/session",
+    headers: { cookie },
+  });
+  const raw = res.headers["x-csrf-token"];
+  const csrfToken = Array.isArray(raw) ? raw[0] : typeof raw === "string" ? raw : undefined;
+  return csrfToken ?? "";
+}
+
 export function createV1MemorySeed() {
   return {
     users: [
@@ -106,7 +165,7 @@ export function createV1MemorySeed() {
         status: "active" as const,
         teamName: "Qualidade",
         mfaEnforced: true,
-        mfaEnrolled: true,
+        mfaEnrolled: false,
         deviceCount: 1,
         competencies: [
           {
@@ -140,6 +199,10 @@ export function createV1MemorySeed() {
           },
         ],
       },
+    ],
+    mfaCredentials: [
+      { userId: "user-admin-1", secret: "JBSWY3DPEHPK3PXP" },
+      { userId: "user-signatory-1", secret: "JBSWY3DPEHPK3PXP" },
     ],
     onboarding: [
       {

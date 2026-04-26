@@ -76,6 +76,12 @@
     "check:drift": "tsx tools/check-agents-drift.ts",
     "check:all": "pnpm typecheck && pnpm test:tools && pnpm test:ac && pnpm test:regulatory && pnpm copy-lint:check && pnpm tenant-lint && pnpm test:tenancy && pnpm rls-policy-check && pnpm rls-runtime-readiness-check && pnpm test:sync-simulator && pnpm worm-check && pnpm governance-gate && pnpm escalation-check && pnpm external-auditors-gate && pnpm roadmap-check && pnpm roadmap-backlog-check && pnpm sync-simulator-check && pnpm cloud-agents-policy-check && pnpm compliance-structure-check && pnpm agent-frontmatter-check && pnpm slash-commands-check && pnpm harness-design-tier3-check && pnpm harness-dashboard:check && pnpm runbook-check && pnpm snapshot-diff-check && pnpm redundancy-check && pnpm budget:check && tsx tools/validation-dossier.ts check --quiet && pnpm sync:agents:check && pnpm check:drift"
   },
+  "pnpm": {
+    "overrides": {
+      "zod": "3.23.8",
+      "@trpc/server": "11.0.0-rc.660"
+    }
+  },
   "devDependencies": {
     "@afere/audit-log": "workspace:*",
     "@afere/contracts": "workspace:*",

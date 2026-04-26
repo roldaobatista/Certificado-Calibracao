@@ -1,8 +1,12 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 import {
   authLoginResponseSchema,
   authSessionSchema,
+  mfaEnrollResponseSchema,
+  mfaVerifyBodySchema,
+  mfaConfirmEnrollBodySchema,
+  mfaRecoverBodySchema,
   type AuthLoginResponse,
   type AuthSession,
   type MembershipRole,
@@ -23,6 +27,7 @@ import {
   resolveAuthenticatedRequest,
   toAuthSession,
 } from "../../domain/auth/session-auth.js";
+import { generateTotpSecret, verifyTotp, generateTotpUri } from "../../domain/auth/totp.js";
 import type { Env } from "../../config/env.js";
 
 const LoginBodySchema = z.object({
@@ -41,25 +46,7 @@ const BootstrapBodySchema = z.object({
   redirectTo: z.string().min(1).optional(),
 });
 
-function isRedirectAllowed(target: string, allowlist: readonly string[]): boolean {
-  // Rejeitar esquemas perigosos e URLs sem protocolo explícito
-  if (/^(javascript|data|vbscript):/i.test(target) || target.startsWith("//")) {
-    return false;
-  }
-  if (target.startsWith("/")) {
-    return allowlist.some((allowed) => target === allowed || target.startsWith(`${allowed}/`));
-  }
-  try {
-    const url = new URL(target);
-    // Só permitir http/https; rejeitar outros protocolos
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return false;
-    }
-    return allowlist.includes(url.pathname) || allowlist.some((allowed) => url.pathname.startsWith(`${allowed}/`));
-  } catch {
-    return false;
-  }
-}
+import { isRedirectAllowed } from "./redirect-helpers.js";
 
 export const ONBOARDING_ALLOWED_ROLES: MembershipRole[] = ["admin", "quality_manager"];
 export const USER_DIRECTORY_ALLOWED_ROLES: MembershipRole[] = ["admin", "quality_manager"];
@@ -139,17 +126,29 @@ export async function registerAuthSessionRoutes(
       return reply.code(403).send(authLoginResponseSchema.parse(payload));
     }
 
+    // Rotação de sessão: invalidar sessões anteriores do mesmo usuário
+    await persistence.revokeSessionsByUserId(user.userId);
+
     const token = createSessionToken();
-    const expiresAt = createSessionExpiry();
+    const isMfaRequired = user.mfaEnrolled;
+    const expiresAt = isMfaRequired
+      ? new Date(Date.now() + 5 * 60 * 1000) // 5 min para sessão parcial
+      : createSessionExpiry(user.roles, env.NODE_ENV);
     const session = await persistence.createSession({
       organizationId: user.organizationId,
       userId: user.userId,
       tokenHash: hashSessionToken(token),
       expiresAt,
+      authLevel: isMfaRequired ? "partial" : "full",
     });
 
     await persistence.touchUserLogin(user.userId, new Date());
     issueSessionCookie(reply, token, expiresAt, cookieOpts);
+
+    if (isMfaRequired) {
+      const payload: AuthLoginResponse = { ok: false, reason: "mfa_challenge" };
+      return reply.code(403).send(authLoginResponseSchema.parse(payload));
+    }
 
     const payload: AuthLoginResponse = {
       ok: true,
@@ -183,6 +182,140 @@ export async function registerAuthSessionRoutes(
     },
   });
 
+  app.post("/auth/mfa/verify", {
+    config: { rateLimit: { max: 5, timeWindow: 60 * 1000 } },
+    handler: async (request, reply) => {
+      const session = await resolveAuthenticatedRequest(request, persistence);
+      if (!session || session.authLevel !== "partial") {
+        return reply.code(401).send({ error: "authentication_required" });
+      }
+
+      const body = mfaVerifyBodySchema.safeParse(request.body);
+      if (!body.success) {
+        return reply.code(400).send({ error: "invalid_body" });
+      }
+
+      const cred = await persistence.findMfaCredentialByUserId(session.user.userId);
+      if (!cred) {
+        return reply.code(403).send({ error: "mfa_not_configured" });
+      }
+
+      if (!verifyTotp(cred.secret, body.data.code)) {
+        return reply.code(403).send({ error: "invalid_mfa_code" });
+      }
+
+      await persistence.promoteSessionToFull(session.tokenHash);
+
+      const newExpiry = createSessionExpiry(session.user.roles, env.NODE_ENV);
+      // Atualizar cookie com nova expiração
+      const newToken = createSessionToken();
+      const newSession = await persistence.createSession({
+        organizationId: session.user.organizationId,
+        userId: session.user.userId,
+        tokenHash: hashSessionToken(newToken),
+        expiresAt: newExpiry,
+        authLevel: "full",
+      });
+      await persistence.revokeSessionByTokenHash(session.tokenHash);
+      issueSessionCookie(reply, newToken, newExpiry, cookieOpts);
+
+      return reply.code(200).send(authLoginResponseSchema.parse({
+        ok: true,
+        session: toAuthSession(newSession),
+      }));
+    },
+  });
+
+  app.post("/auth/mfa/recover", {
+    config: { rateLimit: { max: 3, timeWindow: 60 * 60 * 1000 } },
+    handler: async (request, reply) => {
+      const session = await resolveAuthenticatedRequest(request, persistence);
+      if (!session || session.authLevel !== "partial") {
+        return reply.code(401).send({ error: "authentication_required" });
+      }
+
+      const body = mfaRecoverBodySchema.safeParse(request.body);
+      if (!body.success) {
+        return reply.code(400).send({ error: "invalid_body" });
+      }
+
+      const codeHash = createHash("sha256").update(body.data.code).digest("hex");
+      const ok = await persistence.useRecoveryCode(session.user.userId, codeHash);
+      if (!ok) {
+        return reply.code(403).send({ error: "invalid_recovery_code" });
+      }
+
+      const newExpiry = createSessionExpiry(session.user.roles, env.NODE_ENV);
+      const newToken = createSessionToken();
+      const newSession = await persistence.createSession({
+        organizationId: session.user.organizationId,
+        userId: session.user.userId,
+        tokenHash: hashSessionToken(newToken),
+        expiresAt: newExpiry,
+        authLevel: "full",
+      });
+      await persistence.revokeSessionByTokenHash(session.tokenHash);
+      issueSessionCookie(reply, newToken, newExpiry, cookieOpts);
+
+      return reply.code(200).send(authLoginResponseSchema.parse({
+        ok: true,
+        session: toAuthSession(newSession),
+      }));
+    },
+  });
+
+  app.post("/auth/mfa/enroll", {
+    config: { rateLimit: { max: 5, timeWindow: 60 * 60 * 1000 } },
+    handler: async (request, reply) => {
+      const context = await requireAuthenticatedRequest(request, reply, persistence, undefined, "partial");
+      if (!context) return;
+
+      const secret = generateTotpSecret();
+      await persistence.createMfaCredential(context.user.userId, secret.base32);
+
+      return reply.code(200).send(mfaEnrollResponseSchema.parse({
+        secret: secret.base32,
+        uri: generateTotpUri(secret.base32, context.user.email, "Aferê"),
+      }));
+    },
+  });
+
+  app.post("/auth/mfa/confirm-enrollment", {
+    config: { rateLimit: { max: 5, timeWindow: 60 * 60 * 1000 } },
+    handler: async (request, reply) => {
+      const context = await requireAuthenticatedRequest(request, reply, persistence, undefined, "partial");
+      if (!context) return;
+
+      const body = mfaConfirmEnrollBodySchema.safeParse(request.body);
+      if (!body.success) {
+        return reply.code(400).send({ error: "invalid_body" });
+      }
+
+      const cred = await persistence.findMfaCredentialByUserId(context.user.userId);
+      if (!cred) {
+        return reply.code(400).send({ error: "enrollment_not_started" });
+      }
+
+      if (!verifyTotp(cred.secret, body.data.code)) {
+        return reply.code(403).send({ error: "invalid_mfa_code" });
+      }
+
+      await persistence.markMfaVerified(context.user.userId);
+
+      // Gerar recovery codes
+      const codes: string[] = [];
+      const codeHashes: string[] = [];
+      for (let i = 0; i < 8; i++) {
+        const code = randomBytes(4).toString("hex").toUpperCase();
+        codes.push(code);
+        codeHashes.push(createHash("sha256").update(code).digest("hex"));
+      }
+      await persistence.generateRecoveryCodes(context.user.userId, codeHashes);
+
+      return reply.code(200).send({ ok: true, recoveryCodes: codes });
+    },
+  });
+
   app.post("/onboarding/bootstrap", {
     config: { rateLimit: { max: 3, timeWindow: 60 * 60 * 1000 } },
     handler: async (request, reply) => {
@@ -191,10 +324,14 @@ export async function registerAuthSessionRoutes(
       return reply.code(400).send({ error: "invalid_body" });
     }
 
-    // Proteger bootstrap: só permitir se não houver nenhuma organização
+    // Proteger bootstrap: exigir flag explícita e impedir reexecução
+    if (!env.BOOTSTRAP_ENABLED) {
+      return reply.code(403).send({ error: "bootstrap_disabled" });
+    }
+
     const anyOrg = await persistence.hasAnyOrganization();
     if (anyOrg) {
-      return reply.code(403).send({ error: "bootstrap_disabled" });
+      return reply.code(403).send({ error: "bootstrap_already_completed" });
     }
 
     try {

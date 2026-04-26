@@ -16,12 +16,15 @@ const TEST_ENV: Env = {
   PORT: 3000,
   CORS_ORIGINS: [],
   DATABASE_URL: "postgresql://afere:afere@localhost:5432/afere?schema=public",
+  DATABASE_APP_URL: "postgresql://afere_app:afere_app@localhost:5432/afere?schema=public",
+  DATABASE_OWNER_URL: "postgresql://afere:afere@localhost:5432/afere?schema=public",
   REDIS_URL: "redis://localhost:6379",
   ALLOW_SCENARIO_ROUTES: true,
   RATE_LIMIT_MAX: 100,
   RATE_LIMIT_WINDOW_MS: 60000,
   COOKIE_SECRET: "test-cookie-secret-32-chars-long-ok",
   REDIRECT_ALLOWLIST: ["/auth/login", "/auth/logout", "/onboarding", "/emission/workspace", "/emission/review-signature", "/emission/signature-queue", "/dashboard"],
+  BOOTSTRAP_ENABLED: true,
 };
 
 test("auth negative: login with wrong password returns 401", async () => {
@@ -138,7 +141,7 @@ test("auth negative: bootstrap disabled after first organization", async () => {
   });
 
   assert.equal(second.statusCode, 403);
-  assert.equal(JSON.parse(second.payload).error, "bootstrap_disabled");
+  assert.equal(JSON.parse(second.payload).error, "bootstrap_already_completed");
 });
 
 test("auth negative: redirect to external URL is rejected", async () => {

@@ -102,8 +102,9 @@ test("every mutable matrix entry declares either public or authenticated", async
   const bad: Array<{ route: string; method: string }> = [];
   for (const entry of matrix) {
     if (mutableMethods.has(entry.method)) {
-      // Must be either public, or have explicit roles, or be explicitly authenticated without roles (e.g. logout)
-      if (!entry.public && entry.roles.length === 0 && entry.route !== "/auth/logout") {
+      // Must be either public, or have explicit roles, or be explicitly authenticated without roles (e.g. logout, mfa)
+      const authenticatedWithoutRoles = ["/auth/logout", "/auth/mfa/verify", "/auth/mfa/recover", "/auth/mfa/enroll", "/auth/mfa/confirm-enrollment"];
+      if (!entry.public && entry.roles.length === 0 && !authenticatedWithoutRoles.includes(entry.route)) {
         bad.push({ route: entry.route, method: entry.method });
       }
     }

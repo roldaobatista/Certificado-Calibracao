@@ -19,17 +19,7 @@ import {
 } from "./auth-session.js";
 import { isConflictError, readRedirectTarget, toOptionalString } from "./form-helpers.js";
 
-function isRedirectAllowed(target: string, allowlist: readonly string[]): boolean {
-  if (target.startsWith("/")) {
-    return allowlist.some((allowed) => target === allowed || target.startsWith(`${allowed}/`));
-  }
-  try {
-    const url = new URL(target);
-    return allowlist.includes(url.pathname) || allowlist.some((allowed) => url.pathname.startsWith(`${allowed}/`));
-  } catch {
-    return false;
-  }
-}
+import { isRedirectAllowed } from "./redirect-helpers.js";
 
 const QuerySchema = z.object({
   scenario: z.string().min(1).optional(),

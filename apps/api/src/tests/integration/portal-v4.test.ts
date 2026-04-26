@@ -44,6 +44,8 @@ import {
   TEST_ENV,
   createRuntimeReadinessStub,
   normalizeCookieHeader,
+  completeLogin,
+  getCsrfToken,
   createV1MemorySeed,
   createV2RegistrySeed,
   createV3CoreSeed,
@@ -70,26 +72,17 @@ test("reissues a persisted certificate and preserves the public QR history", asy
   });
 
   try {
-    const [adminLogin, portalLogin] = await Promise.all([
-      app.inject({
-        method: "POST",
-        url: "/auth/login",
-        payload: {
-          email: "admin@afere.local",
-          password: "Afere@2026!",
-        },
-      }),
-      app.inject({
-        method: "POST",
-        url: "/auth/login",
-        payload: {
-          email: "marcia@paodoce.com.br",
-          password: "Afere@2026!",
-        },
-      }),
-    ]);
+    const adminCookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
+    const adminCsrf = await getCsrfToken(app, adminCookie);
 
-    const adminCookie = normalizeCookieHeader(adminLogin.headers["set-cookie"]);
+    const portalLogin = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "marcia@paodoce.com.br",
+        password: "Afere@2026!",
+      },
+    });
     const portalCookie = normalizeCookieHeader(portalLogin.headers["set-cookie"]);
     assert.ok(adminCookie);
     assert.ok(portalCookie);
@@ -97,7 +90,7 @@ test("reissues a persisted certificate and preserves the public QR history", asy
     const reissueResponse = await app.inject({
       method: "POST",
       url: "/emission/signature-queue/manage",
-      headers: { cookie: adminCookie },
+      headers: { cookie: adminCookie, "X-CSRF-Token": adminCsrf },
       payload: {
         action: "reissue",
         serviceOrderId: "service-order-00141",

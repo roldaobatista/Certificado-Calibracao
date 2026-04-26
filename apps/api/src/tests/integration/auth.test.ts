@@ -44,6 +44,7 @@ import {
   TEST_ENV,
   createRuntimeReadinessStub,
   normalizeCookieHeader,
+  completeLogin,
   createV1MemorySeed,
   createV2RegistrySeed,
   createV3CoreSeed,
@@ -67,17 +68,7 @@ test("creates a persisted session and exposes the authenticated tenant context",
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-
-    assert.equal(login.statusCode, 200);
-    const setCookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const setCookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(setCookie);
 
     const sessionResponse = await app.inject({
@@ -116,16 +107,7 @@ test("requires session and RBAC for the persisted user directory and onboarding 
     });
     assert.equal(denied.statusCode, 401);
 
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const userDirectory = await app.inject({

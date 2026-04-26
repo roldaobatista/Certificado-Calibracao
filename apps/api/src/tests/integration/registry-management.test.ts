@@ -44,6 +44,7 @@ import {
   TEST_ENV,
   createRuntimeReadinessStub,
   normalizeCookieHeader,
+  completeLogin,
   createV1MemorySeed,
   createV2RegistrySeed,
   createV3CoreSeed,
@@ -68,16 +69,7 @@ test("allows admins to manage persisted users and v2 registry records", async ()
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const saveUser = await app.inject({

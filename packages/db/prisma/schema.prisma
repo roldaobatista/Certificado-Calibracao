@@ -79,6 +79,8 @@ model AppUser {
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   competencies   UserCompetency[]
   sessions       AppSession[]
+  mfaCredentials MfaCredential[]
+  recoveryCodes  MfaRecoveryCode[]
   registryEvents RegistryAuditEvent[] @relation("RegistryEventActor")
   executedServiceOrders ServiceOrder[] @relation("ServiceOrderExecutor")
   reviewedServiceOrders ServiceOrder[] @relation("ServiceOrderReviewer")
@@ -116,6 +118,7 @@ model AppSession {
   tokenHash      String       @unique @map("token_hash")
   expiresAt      DateTime     @map("expires_at") @db.Timestamptz(6)
   revokedAt      DateTime?    @map("revoked_at") @db.Timestamptz(6)
+  authLevel      String       @default("full") @map("auth_level") @db.VarChar(16)
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   user           AppUser      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -123,6 +126,34 @@ model AppSession {
   @@index([organizationId, userId])
   @@index([expiresAt])
   @@map("app_sessions")
+  @@schema("public")
+}
+
+model MfaCredential {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  type      String   @db.VarChar(16)
+  secret    String   @db.VarChar(64)
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mfa_credentials")
+  @@schema("public")
+}
+
+model MfaRecoveryCode {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  codeHash  String    @map("code_hash")
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      AppUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mfa_recovery_codes")
   @@schema("public")
 }
 
