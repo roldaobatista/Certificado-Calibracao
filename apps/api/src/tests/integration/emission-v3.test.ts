@@ -85,12 +85,28 @@ test("exports the canonical management review meeting as .ics", async () => {
 
 test("serves the canonical offline sync review queue from the backend", async () => {
   const { runtimeReadiness } = createRuntimeReadinessStub();
-  const app = await buildApp({ env: TEST_ENV, runtimeReadiness });
+  const app = await buildApp({
+    env: TEST_ENV,
+    runtimeReadiness,
+    corePersistence: createMemoryCorePersistence(createV1MemorySeed()),
+    registryPersistence: createMemoryRegistryPersistence(),
+    serviceOrderPersistence: createMemoryServiceOrderPersistence(),
+    qualityPersistence: createMemoryQualityPersistence(),
+  });
 
   try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: { email: "admin@afere.local", password: "Afere@2026!" },
+    });
+    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    assert.ok(cookie);
+
     const response = await app.inject({
       method: "GET",
       url: "/sync/review-queue?scenario=human-review-open&item=sync-os-2026-0047&conflict=conflict-c1-0047",
+      headers: { cookie },
     });
 
     assert.equal(response.statusCode, 200);

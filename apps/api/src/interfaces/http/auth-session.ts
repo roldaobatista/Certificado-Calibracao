@@ -191,10 +191,14 @@ export async function registerAuthSessionRoutes(
       return reply.code(400).send({ error: "invalid_body" });
     }
 
-    // Proteger bootstrap: só permitir se não houver nenhuma organização
+    // Proteger bootstrap: exigir flag explícita e impedir reexecução
+    if (!env.BOOTSTRAP_ENABLED) {
+      return reply.code(403).send({ error: "bootstrap_disabled" });
+    }
+
     const anyOrg = await persistence.hasAnyOrganization();
     if (anyOrg) {
-      return reply.code(403).send({ error: "bootstrap_disabled" });
+      return reply.code(403).send({ error: "bootstrap_already_completed" });
     }
 
     try {

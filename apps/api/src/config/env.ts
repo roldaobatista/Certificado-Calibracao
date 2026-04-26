@@ -19,11 +19,15 @@ const EnvSchema = z.object({
     .transform((v) => v === "true"),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),
-  COOKIE_SECRET: z.string().min(32).default("change-me-in-production-32-chars-min"),
+  COOKIE_SECRET: z.string().min(32),
   REDIRECT_ALLOWLIST: z
     .string()
     .default("/auth/login,/auth/logout,/onboarding,/emission/workspace,/emission/review-signature,/emission/signature-queue,/dashboard")
     .transform((s) => s.split(",").map((o) => o.trim()).filter(Boolean)),
+  BOOTSTRAP_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -37,5 +41,28 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     );
     process.exit(1);
   }
-  return parsed.data;
+
+  const data = parsed.data;
+
+  if (data.NODE_ENV === "production") {
+    const productionErrors: string[] = [];
+    if (!data.COOKIE_SECRET || data.COOKIE_SECRET.length < 32) {
+      productionErrors.push("COOKIE_SECRET deve ter pelo menos 32 caracteres em produção");
+    }
+    if (!data.DATABASE_APP_URL) {
+      productionErrors.push("DATABASE_APP_URL é obrigatória em produção");
+    }
+    if (!data.DATABASE_OWNER_URL) {
+      productionErrors.push("DATABASE_OWNER_URL é obrigatória em produção");
+    }
+    if (productionErrors.length > 0) {
+      console.error(
+        "[env] Configuração de produção inválida — fail-closed, abortando:",
+        productionErrors,
+      );
+      process.exit(1);
+    }
+  }
+
+  return data;
 }

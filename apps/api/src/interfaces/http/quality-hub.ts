@@ -7,6 +7,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import type { CorePersistence } from "../../domain/auth/core-persistence.js";
+import type { Env } from "../../config/env.js";
 import type { ServiceOrderPersistence } from "../../domain/emission/service-order-persistence.js";
 import {
   buildPersistedQualityHubCatalog,
@@ -25,11 +26,18 @@ export async function registerQualityHubRoutes(
   corePersistence: CorePersistence,
   qualityPersistence: QualityPersistence,
   serviceOrderPersistence: ServiceOrderPersistence,
+  env: Env,
 ) {
   app.get("/quality", async (request, reply) => {
     const query = QuerySchema.safeParse(request.query);
     if (!query.success) {
       return reply.code(400).send({ error: "invalid_query" });
+    }
+
+    if (query.data.scenario) {
+      if (!env.ALLOW_SCENARIO_ROUTES) {
+        return reply.code(403).send({ error: "scenario_not_allowed" });
+      }
     }
 
     if (!query.data.scenario) {

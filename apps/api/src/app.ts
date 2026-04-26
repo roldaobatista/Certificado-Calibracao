@@ -96,12 +96,18 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   const useMemory =
     options.corePersistence && options.registryPersistence && options.serviceOrderPersistence;
 
+  const isProduction = env.NODE_ENV === "production";
+
   const prismaAuth = useMemory
     ? null
-    : createPrismaClient(env.DATABASE_OWNER_URL ?? env.DATABASE_URL);
+    : createPrismaClient(
+        isProduction ? env.DATABASE_OWNER_URL! : (env.DATABASE_OWNER_URL ?? env.DATABASE_URL),
+      );
   const prismaApp = useMemory
     ? null
-    : createPrismaClient(env.DATABASE_APP_URL ?? env.DATABASE_URL);
+    : createPrismaClient(
+        isProduction ? env.DATABASE_APP_URL! : (env.DATABASE_APP_URL ?? env.DATABASE_URL),
+      );
 
   const corePersistence =
     options.corePersistence ?? createPrismaCorePersistence(
@@ -170,7 +176,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerAuditTrailRoutes(app, corePersistence, serviceOrderPersistence);
   await registerCertificatePreviewRoutes(app, corePersistence, serviceOrderPersistence);
   await registerComplaintRoutes(app);
-  await registerCustomerRegistryRoutes(app, corePersistence, registryPersistence);
+  await registerCustomerRegistryRoutes(app, corePersistence, registryPersistence, env);
   await registerEmissionDryRunRoutes(app, corePersistence, serviceOrderPersistence);
   await registerEmissionWorkspaceRoutes(app, corePersistence, env);
   await registerEquipmentRegistryRoutes(app, corePersistence, registryPersistence);
@@ -178,9 +184,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerManagementReviewRoutes(app, corePersistence, qualityPersistence, serviceOrderPersistence);
   await registerNonconformingWorkRoutes(app, corePersistence, qualityPersistence);
   await registerNonconformityRoutes(app, corePersistence, qualityPersistence);
-  await registerOfflineSyncRoutes(app);
+  await registerOfflineSyncRoutes(app, corePersistence);
   await registerQualityDocumentRoutes(app);
-  await registerQualityHubRoutes(app, corePersistence, qualityPersistence, serviceOrderPersistence);
+  await registerQualityHubRoutes(app, corePersistence, qualityPersistence, serviceOrderPersistence, env);
   await registerQualityIndicatorRoutes(app, corePersistence, qualityPersistence, serviceOrderPersistence);
   await registerRiskRegisterRoutes(app);
   await registerReviewSignatureRoutes(app, corePersistence, serviceOrderPersistence, env);

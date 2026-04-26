@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import type { CorePersistence } from "../../domain/auth/core-persistence.js";
+import type { Env } from "../../config/env.js";
 import {
   buildPersistedCustomerRegistryCatalog,
 } from "../../domain/registry/persisted-registry-catalogs.js";
@@ -55,6 +56,7 @@ export async function registerCustomerRegistryRoutes(
   app: FastifyInstance,
   corePersistence: CorePersistence,
   registryPersistence: RegistryPersistence,
+  env: Env,
 ) {
   app.get("/registry/customers", async (request, reply) => {
     const query = QuerySchema.safeParse(request.query);
@@ -63,6 +65,9 @@ export async function registerCustomerRegistryRoutes(
     }
 
     if (query.data.scenario) {
+      if (!env.ALLOW_SCENARIO_ROUTES) {
+        return reply.code(403).send({ error: "scenario_not_allowed" });
+      }
       const payload: CustomerRegistryCatalog = customerRegistryCatalogSchema.parse(
         buildCustomerRegistryCatalog(query.data.scenario, query.data.customer),
       );

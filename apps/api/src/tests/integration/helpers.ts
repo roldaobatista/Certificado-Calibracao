@@ -13,6 +13,8 @@ export const TEST_ENV: Env = {
   PORT: 3000,
   CORS_ORIGINS: [],
   DATABASE_URL: "postgresql://afere:afere@localhost:5432/afere?schema=public",
+  DATABASE_APP_URL: "postgresql://afere_app:afere_app@localhost:5432/afere?schema=public",
+  DATABASE_OWNER_URL: "postgresql://afere:afere@localhost:5432/afere?schema=public",
   REDIS_URL: "redis://localhost:6379",
   ALLOW_SCENARIO_ROUTES: true,
   RATE_LIMIT_MAX: 100,
@@ -27,6 +29,7 @@ export const TEST_ENV: Env = {
     "/emission/signature-queue",
     "/dashboard",
   ],
+  BOOTSTRAP_ENABLED: true,
 };
 
 export function createRuntimeReadinessStub(

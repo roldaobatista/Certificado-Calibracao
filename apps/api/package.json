@@ -10,6 +10,9 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
+    "test": "pnpm run test:integration && pnpm run test:security",
+    "test:integration": "tsx --test src/tests/integration/*.test.ts",
+    "test:security": "tsx --test src/tests/security/*.test.ts",
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {

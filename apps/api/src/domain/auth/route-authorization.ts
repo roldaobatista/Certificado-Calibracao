@@ -7,19 +7,10 @@ import {
 import type { CorePersistence } from "./core-persistence.js";
 import { hasAnyRole, resolveAuthenticatedRequest } from "./session-auth.js";
 
-const MUTABLE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-
 export function registerRouteAuthorizationHook(app: FastifyInstance, corePersistence: CorePersistence) {
   const matrix = loadRouteAuthorizationMatrix();
 
   app.addHook("onRequest", async (request: FastifyRequest, reply: FastifyReply) => {
-    // Only enforce mutable routes at this layer.
-    // GET/HEAD routes rely on per-handler authorization, which supports
-    // conditional public access (e.g. canonical catalog with ?scenario).
-    if (!MUTABLE_METHODS.has(request.method)) {
-      return;
-    }
-
     const routePath = request.routeOptions.url ?? "";
     const entry = findRouteEntry(matrix, routePath, request.method);
 
