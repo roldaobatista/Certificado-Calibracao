@@ -23,6 +23,16 @@
   - Escalação de privilégio via `SET ROLE` falha *fail-closed*.
 - CI: job `rls-tests` é **required check** para merge.
 
+### Gate 2.1 — Prontidão de runtime RLS
+
+**Regra:** `FORCE ROW LEVEL SECURITY` e `DATABASE_URL` com role de aplicação (`afere_app`) só podem entrar depois de existir contexto transacional por tenant (`app.current_organization_id`) no pacote DB.
+
+- Owner: `db-schema` + `lgpd-security`.
+- Implementação: `tools/rls-runtime-readiness-check.ts` + hook `.claude/hooks/rls-runtime-readiness-check.sh`.
+- Cobertura: `docker-compose.yml`, `.env.example`, migrations, spec/ADR/finding de owner-bypass e futuro `packages/db/src/tenant-context.ts`.
+- Falha de build com mensagem específica: `RUNTIME-RLS-*`.
+- Limitação honesta: até a fatia de `afere_app`, compose dev segue com owner DB documentado em `compliance/validation-dossier/findings/2026-04-24-rls-owner-bypass-risk.md`.
+
 ## Gate 3 — Audit log hash-chain verifier
 
 **Regra:** audit log é append-only com hash-chain; cada registro contém `hash(prev_hash || payload)`.

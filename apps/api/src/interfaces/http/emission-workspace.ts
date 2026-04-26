@@ -7,6 +7,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import type { CorePersistence } from "../../domain/auth/core-persistence.js";
+import type { Env } from "../../config/env.js";
 import { buildUserDirectory } from "../../domain/auth/user-directory.js";
 import { evaluateOnboardingReadiness } from "../../domain/onboarding/onboarding-readiness.js";
 import {
@@ -23,11 +24,16 @@ const QuerySchema = z.object({
 export async function registerEmissionWorkspaceRoutes(
   app: FastifyInstance,
   persistence: CorePersistence,
+  env: Env,
 ) {
   app.get("/emission/workspace", async (request, reply) => {
     const query = QuerySchema.safeParse(request.query);
     if (!query.success) {
       return reply.code(400).send({ error: "invalid_query" });
+    }
+
+    if (query.data.scenario && !env.ALLOW_SCENARIO_ROUTES) {
+      return reply.code(403).send({ error: "scenario_not_allowed" });
     }
 
     if (!query.data.scenario) {

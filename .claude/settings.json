@@ -74,6 +74,14 @@
         "command": "bash .claude/hooks/tenant-safe-sql.sh"
       },
       {
+        "description": "RLS policy coverage check no delta (harness/05-guardrails.md Gate 2).",
+        "command": "bash .claude/hooks/rls-policy-check.sh"
+      },
+      {
+        "description": "RLS runtime readiness check no delta (harness/05-guardrails.md Gate 2.1).",
+        "command": "bash .claude/hooks/rls-runtime-readiness-check.sh"
+      },
+      {
         "description": "Audit hash-chain verifier no delta (harness/05-guardrails.md Gate 3).",
         "command": "bash .claude/hooks/audit-hash-chain.sh"
       }

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { CompetencyStatus, MembershipRole, UserLifecycleStatus } from "@afere/contracts";
 import { membershipRoleSchema } from "@afere/contracts";
+import { withTenant } from "@afere/db";
 import type { PrismaClient } from "@prisma/client";
 
 export type PersistedCompetencyRecord = {
@@ -372,7 +373,7 @@ export function createPrismaCorePersistence(prisma: PrismaClient): CorePersisten
       return users.map((user) => mapUserRecord(user));
     },
     async saveUser(input) {
-      const saved = await prisma.$transaction(async (tx) => {
+      const saved = await withTenant(prisma, input.organizationId, async (tx) => {
         const existing = input.userId
           ? await tx.appUser.findUnique({
               where: { id: input.userId },

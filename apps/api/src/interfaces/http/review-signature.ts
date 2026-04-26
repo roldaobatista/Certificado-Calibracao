@@ -8,6 +8,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import type { CorePersistence } from "../../domain/auth/core-persistence.js";
+import type { Env } from "../../config/env.js";
 import { buildPersistedReviewSignatureCatalog } from "../../domain/emission/persisted-emission-flow.js";
 import {
   listReviewSignatureScenarios,
@@ -20,6 +21,18 @@ import {
   requireWorkspaceAccess,
 } from "./auth-session.js";
 import { isConflictError, readRedirectTarget, toOptionalString } from "./form-helpers.js";
+
+function isRedirectAllowed(target: string, allowlist: readonly string[]): boolean {
+  if (target.startsWith("/")) {
+    return allowlist.some((allowed) => target === allowed || target.startsWith(`${allowed}/`));
+  }
+  try {
+    const url = new URL(target);
+    return allowlist.includes(url.pathname) || allowlist.some((allowed) => url.pathname.startsWith(`${allowed}/`));
+  } catch {
+    return false;
+  }
+}
 
 const QuerySchema = z.object({
   scenario: z.string().min(1).optional(),
@@ -51,11 +64,17 @@ export async function registerReviewSignatureRoutes(
   app: FastifyInstance,
   corePersistence: CorePersistence,
   serviceOrderPersistence: ServiceOrderPersistence,
+  env: Env,
 ) {
+  const redirectAllowlist = env.REDIRECT_ALLOWLIST;
   app.get("/emission/review-signature", async (request, reply) => {
     const query = QuerySchema.safeParse(request.query);
     if (!query.success) {
       return reply.code(400).send({ error: "invalid_query" });
+    }
+
+    if (query.data.scenario && !env.ALLOW_SCENARIO_ROUTES) {
+      return reply.code(403).send({ error: "scenario_not_allowed" });
     }
 
     if (!query.data.scenario) {
@@ -143,7 +162,7 @@ export async function registerReviewSignatureRoutes(
     }
 
     const redirectTo = readRedirectTarget(request.body);
-    if (redirectTo) {
+    if (redirectTo && isRedirectAllowed(redirectTo, redirectAllowlist)) {
       return reply.redirect(redirectTo);
     }
 

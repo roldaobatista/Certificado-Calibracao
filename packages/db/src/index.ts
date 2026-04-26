@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 export type { PrismaClient } from "@prisma/client";
 export * from "./certificate-numbering.js";
+export * from "./tenant-context.js";
 
 export function createPrismaClient(databaseUrl: string): PrismaClient {
   return new PrismaClient({

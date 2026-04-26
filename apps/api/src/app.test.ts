@@ -53,6 +53,10 @@ const TEST_ENV: Env = {
   CORS_ORIGINS: [],
   DATABASE_URL: "postgresql://afere:afere@localhost:5432/afere?schema=public",
   REDIS_URL: "redis://localhost:6379",
+  ALLOW_SCENARIO_ROUTES: true,
+  RATE_LIMIT_MAX: 100,
+  RATE_LIMIT_WINDOW_MS: 60000,
+  REDIRECT_ALLOWLIST: ["/auth/login", "/auth/logout", "/onboarding", "/emission/workspace", "/emission/review-signature", "/emission/signature-queue", "/dashboard"],
 };
 
 test("keeps /healthz as process liveness even when runtime dependencies are not ready", async () => {
@@ -2319,7 +2323,7 @@ test("reissues a persisted certificate and preserves the public QR history", asy
     });
     assert.equal(reissueResponse.statusCode, 204);
 
-    const publications = await serviceOrderPersistence.listCertificatePublicationsByServiceOrder("service-order-00141");
+    const publications = await serviceOrderPersistence.listCertificatePublicationsByServiceOrder("service-order-00141", "org-1");
     const currentPublication = publications.find((item) => !item.supersededAtUtc);
     assert.ok(currentPublication);
     assert.equal(currentPublication?.revision, "R1");

@@ -1,5 +1,6 @@
 import cors from "@fastify/cors";
 import formbody from "@fastify/formbody";
+import rateLimit from "@fastify/rate-limit";
 import { createPrismaClient } from "@afere/db";
 import Fastify, { type FastifyInstance } from "fastify";
 
@@ -117,15 +118,24 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     credentials: true,
   });
   await app.register(formbody);
+  await app.register(rateLimit, {
+    max: env.RATE_LIMIT_MAX,
+    timeWindow: env.RATE_LIMIT_WINDOW_MS,
+    errorResponseBuilder: (_req, context) => ({
+      statusCode: 429,
+      error: "Too Many Requests",
+      message: `Rate limit exceeded. Retry in ${context.after}`,
+    }),
+  });
 
   await app.register(trpcPlugin);
-  await registerAuthSessionRoutes(app, corePersistence);
+  await registerAuthSessionRoutes(app, corePersistence, env);
   await registerAuditTrailRoutes(app, corePersistence, serviceOrderPersistence);
   await registerCertificatePreviewRoutes(app, corePersistence, serviceOrderPersistence);
   await registerComplaintRoutes(app);
   await registerCustomerRegistryRoutes(app, corePersistence, registryPersistence);
   await registerEmissionDryRunRoutes(app, corePersistence, serviceOrderPersistence);
-  await registerEmissionWorkspaceRoutes(app, corePersistence);
+  await registerEmissionWorkspaceRoutes(app, corePersistence, env);
   await registerEquipmentRegistryRoutes(app, corePersistence, registryPersistence);
   await registerInternalAuditRoutes(app, corePersistence, qualityPersistence);
   await registerManagementReviewRoutes(app, corePersistence, qualityPersistence, serviceOrderPersistence);
@@ -136,13 +146,13 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerQualityHubRoutes(app, corePersistence, qualityPersistence, serviceOrderPersistence);
   await registerQualityIndicatorRoutes(app, corePersistence, qualityPersistence, serviceOrderPersistence);
   await registerRiskRegisterRoutes(app);
-  await registerReviewSignatureRoutes(app, corePersistence, serviceOrderPersistence);
+  await registerReviewSignatureRoutes(app, corePersistence, serviceOrderPersistence, env);
   await registerServiceOrderReviewRoutes(app, corePersistence, serviceOrderPersistence);
-  await registerSignatureQueueRoutes(app, corePersistence, serviceOrderPersistence);
+  await registerSignatureQueueRoutes(app, corePersistence, serviceOrderPersistence, env);
   await registerStandardRegistryRoutes(app, corePersistence, registryPersistence);
   await registerSelfSignupRoutes(app);
   await registerUserDirectoryRoutes(app, corePersistence);
-  await registerOnboardingRoutes(app, corePersistence);
+  await registerOnboardingRoutes(app, corePersistence, env);
   await registerOrganizationSettingsRoutes(app, corePersistence, qualityPersistence, serviceOrderPersistence);
   await registerPortalCertificateRoutes(app, corePersistence, registryPersistence, serviceOrderPersistence);
   await registerPortalDashboardRoutes(app, corePersistence, registryPersistence, serviceOrderPersistence);

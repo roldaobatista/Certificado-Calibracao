@@ -7,6 +7,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import type { CorePersistence } from "../../domain/auth/core-persistence.js";
+import type { Env } from "../../config/env.js";
 import { evaluateOnboardingReadiness } from "../../domain/onboarding/onboarding-readiness.js";
 import {
   listOnboardingScenarios,
@@ -28,14 +29,32 @@ const UpdateBodySchema = z.object({
   redirectTo: z.string().min(1).optional(),
 });
 
+function isRedirectAllowed(target: string, allowlist: readonly string[]): boolean {
+  if (target.startsWith("/")) {
+    return allowlist.some((allowed) => target === allowed || target.startsWith(`${allowed}/`));
+  }
+  try {
+    const url = new URL(target);
+    return allowlist.includes(url.pathname) || allowlist.some((allowed) => url.pathname.startsWith(`${allowed}/`));
+  } catch {
+    return false;
+  }
+}
+
 export async function registerOnboardingRoutes(
   app: FastifyInstance,
   persistence: CorePersistence,
+  env: Env,
 ) {
+  const redirectAllowlist = env.REDIRECT_ALLOWLIST;
   app.get("/onboarding/readiness", async (request, reply) => {
     const query = QuerySchema.safeParse(request.query);
     if (!query.success) {
       return reply.code(400).send({ error: "invalid_query" });
+    }
+
+    if (query.data.scenario && !env.ALLOW_SCENARIO_ROUTES) {
+      return reply.code(403).send({ error: "scenario_not_allowed" });
     }
 
     if (!query.data.scenario) {
@@ -119,7 +138,7 @@ export async function registerOnboardingRoutes(
       publicQrConfigured: body.data.publicQrConfigured,
     });
 
-    if (body.data.redirectTo) {
+    if (body.data.redirectTo && isRedirectAllowed(body.data.redirectTo, redirectAllowlist)) {
       return reply.redirect(body.data.redirectTo);
     }
 

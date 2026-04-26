@@ -31,11 +31,14 @@ export async function registerPublicCertificateRoutes(
     }
 
     if (!query.data.scenario) {
-      const publications = query.data.certificate
-        ? await serviceOrderPersistence.listCertificatePublicationsByServiceOrder(query.data.certificate)
+      const organizationId = query.data.certificate
+        ? await serviceOrderPersistence.findOrganizationIdByServiceOrderId(query.data.certificate)
+        : null;
+      const publications = query.data.certificate && organizationId
+        ? await serviceOrderPersistence.listCertificatePublicationsByServiceOrder(query.data.certificate, organizationId)
         : [];
-      const auditEvents = query.data.certificate
-        ? await serviceOrderPersistence.listEmissionAuditEventsByServiceOrder(query.data.certificate)
+      const auditEvents = query.data.certificate && organizationId
+        ? await serviceOrderPersistence.listEmissionAuditEventsByServiceOrder(query.data.certificate, organizationId)
         : [];
       const payload: PublicCertificateCatalog = publicCertificateCatalogSchema.parse(
         buildPersistedPublicCertificateCatalog({

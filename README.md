@@ -62,7 +62,7 @@ pnpm db:seed
 
 ## Status
 
-Projeto em implementação ativa. O `check:all` executa typecheck, testes de domínio, critérios de aceite, regulatory evals, copy-lint, tenancy, RLS policy check, sync simulator, WORM, governança, dossiê, snapshots, redundancy e drift de agentes. Ainda há limitações honestas registradas no harness: Android Kotlin real, validação externa PDF/A, infraestrutura KMS real, drills de staging e piloto controlado de produção.
+Projeto em implementação ativa. O `check:all` executa typecheck, testes de domínio, critérios de aceite, regulatory evals, copy-lint, tenancy, RLS policy check, prontidão de runtime RLS, sync simulator, WORM, governança, dossiê, snapshots, redundancy e drift de agentes. Ainda há limitações honestas registradas no harness: Android Kotlin real, `FORCE ROW LEVEL SECURITY` com role `afere_app` ainda pendente de contexto transacional, validação externa PDF/A, infraestrutura KMS real, drills de staging e piloto controlado de produção.
 
 ## Contribuição
 

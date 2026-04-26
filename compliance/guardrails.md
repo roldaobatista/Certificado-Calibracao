@@ -26,6 +26,16 @@
 - **Owner:** `db-schema` + `qa-acceptance`.
 - **Falha:** release bloqueado.
 
+### Gate 2.1 — RLS runtime readiness
+
+**Regra:** `FORCE ROW LEVEL SECURITY` e runtime com role de aplicação só entram depois de contexto transacional por tenant.
+
+- **Implementação:** `tools/rls-runtime-readiness-check.ts` + hook PreCommit (`.claude/hooks/rls-runtime-readiness-check.sh`).
+- **Como rodar local:** `pnpm rls-runtime-readiness-check`.
+- **Owner:** `db-schema` + `lgpd-security`.
+- **Falha:** commit bloqueado com `RUNTIME-RLS-*`.
+- **Limitação honesta:** o compose dev ainda usa owner DB; o risco owner-bypass está registrado em `compliance/validation-dossier/findings/2026-04-24-rls-owner-bypass-risk.md` até a fatia de `afere_app` + `app.current_organization_id` transacional.
+
 ## Gate 3 — Audit log hash-chain verifier
 
 **Regra:** `audit_log` é append-only com `hash = hash(prev_hash || payload)`.

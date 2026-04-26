@@ -1,3 +1,4 @@
+import { withTenant } from "@afere/db";
 import type { PrismaClient } from "@prisma/client";
 
 export type PersistedNonconformityRecord = {
@@ -581,412 +582,438 @@ export function createMemoryQualityPersistence(seed: {
 export function createPrismaQualityPersistence(prisma: PrismaClient): QualityPersistence {
   return {
     async listNonconformitiesByOrganization(organizationId) {
-      const records = await prisma.nonconformity.findMany({
-        where: { organizationId },
-        include: {
-          ownerUser: true,
-          serviceOrder: {
-            select: {
-              workOrderNumber: true,
-              certificateNumber: true,
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.nonconformity.findMany({
+          where: { organizationId },
+          include: {
+            ownerUser: true,
+            serviceOrder: {
+              select: {
+                workOrderNumber: true,
+                certificateNumber: true,
+              },
             },
           },
-        },
-        orderBy: [{ dueAt: "asc" }, { openedAt: "desc" }],
-      });
+          orderBy: [{ dueAt: "asc" }, { openedAt: "desc" }],
+        });
 
-      return records.map((record) => mapNonconformityRecord(record));
+        return records.map((record) => mapNonconformityRecord(record));
+      });
     },
     async saveNonconformity(input) {
-      await assertTenantReferences(prisma, input.organizationId, {
-        serviceOrderId: input.serviceOrderId,
-        ownerUserId: input.ownerUserId,
+      return withTenant(prisma, input.organizationId, async (tx) => {
+        await assertTenantReferences(tx, input.organizationId, {
+          serviceOrderId: input.serviceOrderId,
+          ownerUserId: input.ownerUserId,
+        });
+        if (input.ncId) {
+          await assertRecordOwnership(tx.nonconformity, input.ncId, input.organizationId);
+        }
+
+        const data = {
+          serviceOrderId: input.serviceOrderId,
+          ownerUserId: input.ownerUserId,
+          title: input.title.trim(),
+          originLabel: input.originLabel.trim(),
+          severityLabel: input.severityLabel.trim(),
+          status: input.status,
+          noticeLabel: input.noticeLabel.trim(),
+          rootCauseLabel: input.rootCauseLabel.trim(),
+          containmentLabel: input.containmentLabel.trim(),
+          correctiveActionLabel: input.correctiveActionLabel.trim(),
+          evidenceLabel: input.evidenceLabel.trim(),
+          blockers: sanitizeStringArray(input.blockers),
+          warnings: sanitizeStringArray(input.warnings),
+          openedAt: input.openedAt,
+          dueAt: input.dueAt,
+          resolvedAt: input.resolvedAt ?? null,
+        };
+
+        const record = input.ncId
+          ? await tx.nonconformity.update({
+              where: { id: input.ncId },
+              data,
+              include: {
+                ownerUser: true,
+                serviceOrder: {
+                  select: {
+                    workOrderNumber: true,
+                    certificateNumber: true,
+                  },
+                },
+              },
+            })
+          : await tx.nonconformity.create({
+              data: {
+                id: crypto.randomUUID(),
+                organizationId: input.organizationId,
+                ...data,
+              },
+              include: {
+                ownerUser: true,
+                serviceOrder: {
+                  select: {
+                    workOrderNumber: true,
+                    certificateNumber: true,
+                  },
+                },
+              },
+            });
+
+        if (record.organizationId !== input.organizationId) {
+          throw new Error("nonconformity_organization_mismatch");
+        }
+
+        return mapNonconformityRecord(record);
       });
-      if (input.ncId) {
-        await assertRecordOwnership(prisma.nonconformity, input.ncId, input.organizationId);
-      }
-
-      const data = {
-        serviceOrderId: input.serviceOrderId,
-        ownerUserId: input.ownerUserId,
-        title: input.title.trim(),
-        originLabel: input.originLabel.trim(),
-        severityLabel: input.severityLabel.trim(),
-        status: input.status,
-        noticeLabel: input.noticeLabel.trim(),
-        rootCauseLabel: input.rootCauseLabel.trim(),
-        containmentLabel: input.containmentLabel.trim(),
-        correctiveActionLabel: input.correctiveActionLabel.trim(),
-        evidenceLabel: input.evidenceLabel.trim(),
-        blockers: sanitizeStringArray(input.blockers),
-        warnings: sanitizeStringArray(input.warnings),
-        openedAt: input.openedAt,
-        dueAt: input.dueAt,
-        resolvedAt: input.resolvedAt ?? null,
-      };
-
-      const record = input.ncId
-        ? await prisma.nonconformity.update({
-            where: { id: input.ncId },
-            data,
-            include: {
-              ownerUser: true,
-              serviceOrder: {
-                select: {
-                  workOrderNumber: true,
-                  certificateNumber: true,
-                },
-              },
-            },
-          })
-        : await prisma.nonconformity.create({
-            data: {
-              id: crypto.randomUUID(),
-              organizationId: input.organizationId,
-              ...data,
-            },
-            include: {
-              ownerUser: true,
-              serviceOrder: {
-                select: {
-                  workOrderNumber: true,
-                  certificateNumber: true,
-                },
-              },
-            },
-          });
-
-      if (record.organizationId !== input.organizationId) {
-        throw new Error("nonconformity_organization_mismatch");
-      }
-
-      return mapNonconformityRecord(record);
     },
     async listNonconformingWorkByOrganization(organizationId) {
-      const records = await prisma.nonconformingWorkCase.findMany({
-        where: { organizationId },
-        include: {
-          serviceOrder: {
-            select: {
-              workOrderNumber: true,
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.nonconformingWorkCase.findMany({
+          where: { organizationId },
+          include: {
+            serviceOrder: {
+              select: {
+                workOrderNumber: true,
+              },
             },
           },
-        },
-        orderBy: { updatedAt: "desc" },
-      });
+          orderBy: { updatedAt: "desc" },
+        });
 
-      return records.map((record) => mapNonconformingWorkRecord(record));
+        return records.map((record) => mapNonconformingWorkRecord(record));
+      });
     },
     async saveNonconformingWork(input) {
-      await assertTenantReferences(prisma, input.organizationId, {
-        serviceOrderId: input.serviceOrderId,
-        nonconformityId: input.nonconformityId,
+      return withTenant(prisma, input.organizationId, async (tx) => {
+        await assertTenantReferences(tx, input.organizationId, {
+          serviceOrderId: input.serviceOrderId,
+          nonconformityId: input.nonconformityId,
+        });
+        if (input.caseId) {
+          await assertRecordOwnership(tx.nonconformingWorkCase, input.caseId, input.organizationId);
+        }
+
+        const data = {
+          serviceOrderId: input.serviceOrderId,
+          nonconformityId: input.nonconformityId,
+          title: input.title.trim(),
+          classificationLabel: input.classificationLabel.trim(),
+          originLabel: input.originLabel.trim(),
+          affectedEntityLabel: input.affectedEntityLabel.trim(),
+          status: input.status,
+          noticeLabel: input.noticeLabel.trim(),
+          containmentLabel: input.containmentLabel.trim(),
+          releaseRuleLabel: input.releaseRuleLabel.trim(),
+          evidenceLabel: input.evidenceLabel.trim(),
+          restorationLabel: input.restorationLabel.trim(),
+          blockers: sanitizeStringArray(input.blockers),
+          warnings: sanitizeStringArray(input.warnings),
+        };
+
+        const record = input.caseId
+          ? await tx.nonconformingWorkCase.update({
+              where: { id: input.caseId },
+              data,
+              include: {
+                serviceOrder: {
+                  select: {
+                    workOrderNumber: true,
+                  },
+                },
+              },
+            })
+          : await tx.nonconformingWorkCase.create({
+              data: {
+                id: crypto.randomUUID(),
+                organizationId: input.organizationId,
+                ...data,
+              },
+              include: {
+                serviceOrder: {
+                  select: {
+                    workOrderNumber: true,
+                  },
+                },
+              },
+            });
+
+        if (record.organizationId !== input.organizationId) {
+          throw new Error("nonconforming_work_organization_mismatch");
+        }
+
+        return mapNonconformingWorkRecord(record);
       });
-      if (input.caseId) {
-        await assertRecordOwnership(prisma.nonconformingWorkCase, input.caseId, input.organizationId);
-      }
-
-      const data = {
-        serviceOrderId: input.serviceOrderId,
-        nonconformityId: input.nonconformityId,
-        title: input.title.trim(),
-        classificationLabel: input.classificationLabel.trim(),
-        originLabel: input.originLabel.trim(),
-        affectedEntityLabel: input.affectedEntityLabel.trim(),
-        status: input.status,
-        noticeLabel: input.noticeLabel.trim(),
-        containmentLabel: input.containmentLabel.trim(),
-        releaseRuleLabel: input.releaseRuleLabel.trim(),
-        evidenceLabel: input.evidenceLabel.trim(),
-        restorationLabel: input.restorationLabel.trim(),
-        blockers: sanitizeStringArray(input.blockers),
-        warnings: sanitizeStringArray(input.warnings),
-      };
-
-      const record = input.caseId
-        ? await prisma.nonconformingWorkCase.update({
-            where: { id: input.caseId },
-            data,
-            include: {
-              serviceOrder: {
-                select: {
-                  workOrderNumber: true,
-                },
-              },
-            },
-          })
-        : await prisma.nonconformingWorkCase.create({
-            data: {
-              id: crypto.randomUUID(),
-              organizationId: input.organizationId,
-              ...data,
-            },
-            include: {
-              serviceOrder: {
-                select: {
-                  workOrderNumber: true,
-                },
-              },
-            },
-          });
-
-      if (record.organizationId !== input.organizationId) {
-        throw new Error("nonconforming_work_organization_mismatch");
-      }
-
-      return mapNonconformingWorkRecord(record);
     },
     async listInternalAuditCyclesByOrganization(organizationId) {
-      const records = await prisma.internalAuditCycle.findMany({
-        where: { organizationId },
-        orderBy: { scheduledAt: "desc" },
-      });
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.internalAuditCycle.findMany({
+          where: { organizationId },
+          orderBy: { scheduledAt: "desc" },
+        });
 
-      return records.map((record) => mapInternalAuditCycleRecord(record));
+        return records.map((record) => mapInternalAuditCycleRecord(record));
+      });
     },
     async saveInternalAuditCycle(input) {
-      if (input.cycleId) {
-        await assertRecordOwnership(prisma.internalAuditCycle, input.cycleId, input.organizationId);
-      }
-      const data = {
-        cycleLabel: input.cycleLabel.trim(),
-        windowLabel: input.windowLabel.trim(),
-        scopeLabel: input.scopeLabel.trim(),
-        auditorLabel: input.auditorLabel.trim(),
-        auditeeLabel: input.auditeeLabel.trim(),
-        periodLabel: input.periodLabel.trim(),
-        reportLabel: input.reportLabel.trim(),
-        evidenceLabel: input.evidenceLabel.trim(),
-        nextReviewLabel: input.nextReviewLabel.trim(),
-        noticeLabel: input.noticeLabel.trim(),
-        status: input.status,
-        checklistItems: sanitizeChecklist(input.checklist) as unknown as object,
-        findingRefs: sanitizeStringArray(input.findingRefs),
-        blockers: sanitizeStringArray(input.blockers),
-        warnings: sanitizeStringArray(input.warnings),
-        scheduledAt: input.scheduledAt,
-        completedAt: input.completedAt ?? null,
-      };
+      return withTenant(prisma, input.organizationId, async (tx) => {
+        if (input.cycleId) {
+          await assertRecordOwnership(tx.internalAuditCycle, input.cycleId, input.organizationId);
+        }
+        const data = {
+          cycleLabel: input.cycleLabel.trim(),
+          windowLabel: input.windowLabel.trim(),
+          scopeLabel: input.scopeLabel.trim(),
+          auditorLabel: input.auditorLabel.trim(),
+          auditeeLabel: input.auditeeLabel.trim(),
+          periodLabel: input.periodLabel.trim(),
+          reportLabel: input.reportLabel.trim(),
+          evidenceLabel: input.evidenceLabel.trim(),
+          nextReviewLabel: input.nextReviewLabel.trim(),
+          noticeLabel: input.noticeLabel.trim(),
+          status: input.status,
+          checklistItems: sanitizeChecklist(input.checklist) as unknown as object,
+          findingRefs: sanitizeStringArray(input.findingRefs),
+          blockers: sanitizeStringArray(input.blockers),
+          warnings: sanitizeStringArray(input.warnings),
+          scheduledAt: input.scheduledAt,
+          completedAt: input.completedAt ?? null,
+        };
 
-      const record = input.cycleId
-        ? await prisma.internalAuditCycle.update({
-            where: { id: input.cycleId },
-            data,
-          })
-        : await prisma.internalAuditCycle.create({
-            data: {
-              id: crypto.randomUUID(),
-              organizationId: input.organizationId,
-              ...data,
-            },
-          });
+        const record = input.cycleId
+          ? await tx.internalAuditCycle.update({
+              where: { id: input.cycleId },
+              data,
+            })
+          : await tx.internalAuditCycle.create({
+              data: {
+                id: crypto.randomUUID(),
+                organizationId: input.organizationId,
+                ...data,
+              },
+            });
 
-      if (record.organizationId !== input.organizationId) {
-        throw new Error("internal_audit_organization_mismatch");
-      }
+        if (record.organizationId !== input.organizationId) {
+          throw new Error("internal_audit_organization_mismatch");
+        }
 
-      return mapInternalAuditCycleRecord(record);
+        return mapInternalAuditCycleRecord(record);
+      });
     },
     async listManagementReviewMeetingsByOrganization(organizationId) {
-      const records = await prisma.managementReviewMeeting.findMany({
-        where: { organizationId },
-        orderBy: { scheduledFor: "desc" },
-      });
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.managementReviewMeeting.findMany({
+          where: { organizationId },
+          orderBy: { scheduledFor: "desc" },
+        });
 
-      return records.map((record) => mapManagementReviewMeetingRecord(record));
+        return records.map((record) => mapManagementReviewMeetingRecord(record));
+      });
     },
     async saveManagementReviewMeeting(input) {
-      if (input.meetingId) {
-        await assertRecordOwnership(prisma.managementReviewMeeting, input.meetingId, input.organizationId);
-      }
-      const existing = input.meetingId
-        ? await prisma.managementReviewMeeting.findUnique({
-            where: { id: input.meetingId },
-          })
-        : null;
-      const data = {
-        titleLabel: input.titleLabel.trim(),
-        status: input.status,
-        dateLabel: input.dateLabel.trim(),
-        outcomeLabel: input.outcomeLabel.trim(),
-        noticeLabel: input.noticeLabel.trim(),
-        nextMeetingLabel: input.nextMeetingLabel.trim(),
-        chairLabel: input.chairLabel.trim(),
-        attendeesLabel: input.attendeesLabel.trim(),
-        periodLabel: input.periodLabel.trim(),
-        ataLabel: input.ataLabel.trim(),
-        evidenceLabel: input.evidenceLabel.trim(),
-        agendaItems: sanitizeAgendaItems(input.agendaItems) as unknown as object,
-        decisions: sanitizeDecisionItems(input.decisions) as unknown as object,
-        blockers: sanitizeStringArray(input.blockers),
-        warnings: sanitizeStringArray(input.warnings),
-        scheduledFor: input.scheduledFor,
-        heldAt: input.heldAt ?? null,
-        signedByUserId: existing?.signedByUserId ?? null,
-        signedByLabel: existing?.signedByLabel ?? null,
-        signatureDeviceId: existing?.signatureDeviceId ?? null,
-        signatureStatement: existing?.signatureStatement ?? null,
-        signedAt: existing?.signedAt ?? null,
-      };
+      return withTenant(prisma, input.organizationId, async (tx) => {
+        if (input.meetingId) {
+          await assertRecordOwnership(tx.managementReviewMeeting, input.meetingId, input.organizationId);
+        }
+        const existing = input.meetingId
+          ? await tx.managementReviewMeeting.findUnique({
+              where: { id: input.meetingId },
+            })
+          : null;
+        const data = {
+          titleLabel: input.titleLabel.trim(),
+          status: input.status,
+          dateLabel: input.dateLabel.trim(),
+          outcomeLabel: input.outcomeLabel.trim(),
+          noticeLabel: input.noticeLabel.trim(),
+          nextMeetingLabel: input.nextMeetingLabel.trim(),
+          chairLabel: input.chairLabel.trim(),
+          attendeesLabel: input.attendeesLabel.trim(),
+          periodLabel: input.periodLabel.trim(),
+          ataLabel: input.ataLabel.trim(),
+          evidenceLabel: input.evidenceLabel.trim(),
+          agendaItems: sanitizeAgendaItems(input.agendaItems) as unknown as object,
+          decisions: sanitizeDecisionItems(input.decisions) as unknown as object,
+          blockers: sanitizeStringArray(input.blockers),
+          warnings: sanitizeStringArray(input.warnings),
+          scheduledFor: input.scheduledFor,
+          heldAt: input.heldAt ?? null,
+          signedByUserId: existing?.signedByUserId ?? null,
+          signedByLabel: existing?.signedByLabel ?? null,
+          signatureDeviceId: existing?.signatureDeviceId ?? null,
+          signatureStatement: existing?.signatureStatement ?? null,
+          signedAt: existing?.signedAt ?? null,
+        };
 
-      const record = input.meetingId
-        ? await prisma.managementReviewMeeting.update({
-            where: { id: input.meetingId },
-            data,
-          })
-        : await prisma.managementReviewMeeting.create({
-            data: {
-              id: crypto.randomUUID(),
-              organizationId: input.organizationId,
-              ...data,
-            },
-          });
+        const record = input.meetingId
+          ? await tx.managementReviewMeeting.update({
+              where: { id: input.meetingId },
+              data,
+            })
+          : await tx.managementReviewMeeting.create({
+              data: {
+                id: crypto.randomUUID(),
+                organizationId: input.organizationId,
+                ...data,
+              },
+            });
 
-      if (record.organizationId !== input.organizationId) {
-        throw new Error("management_review_organization_mismatch");
-      }
+        if (record.organizationId !== input.organizationId) {
+          throw new Error("management_review_organization_mismatch");
+        }
 
-      return mapManagementReviewMeetingRecord(record);
+        return mapManagementReviewMeetingRecord(record);
+      });
     },
     async signManagementReviewMeeting(input) {
-      await assertRecordOwnership(prisma.managementReviewMeeting, input.meetingId, input.organizationId);
-      const existing = await prisma.managementReviewMeeting.findUnique({
-        where: { id: input.meetingId },
+      return withTenant(prisma, input.organizationId, async (tx) => {
+        await assertRecordOwnership(tx.managementReviewMeeting, input.meetingId, input.organizationId);
+        const existing = await tx.managementReviewMeeting.findUnique({
+          where: { id: input.meetingId },
+        });
+
+        if (!existing || existing.organizationId !== input.organizationId) {
+          throw new Error("management_review_not_found");
+        }
+        if (!existing.heldAt) {
+          throw new Error("management_review_signature_not_ready");
+        }
+        if (existing.signedAt) {
+          throw new Error("management_review_already_signed");
+        }
+
+        const record = await tx.managementReviewMeeting.update({
+          where: { id: input.meetingId },
+          data: {
+            signedByUserId: input.signedByUserId,
+            signedByLabel: input.signedByLabel.trim(),
+            signatureDeviceId: input.signatureDeviceId.trim(),
+            signatureStatement: input.signatureStatement.trim(),
+            signedAt: input.signedAt,
+          },
+        });
+
+        return mapManagementReviewMeetingRecord(record);
       });
-
-      if (!existing || existing.organizationId !== input.organizationId) {
-        throw new Error("management_review_not_found");
-      }
-      if (!existing.heldAt) {
-        throw new Error("management_review_signature_not_ready");
-      }
-      if (existing.signedAt) {
-        throw new Error("management_review_already_signed");
-      }
-
-      const record = await prisma.managementReviewMeeting.update({
-        where: { id: input.meetingId },
-        data: {
-          signedByUserId: input.signedByUserId,
-          signedByLabel: input.signedByLabel.trim(),
-          signatureDeviceId: input.signatureDeviceId.trim(),
-          signatureStatement: input.signatureStatement.trim(),
-          signedAt: input.signedAt,
-        },
-      });
-
-      return mapManagementReviewMeetingRecord(record);
     },
     async getComplianceProfileByOrganization(organizationId) {
-      const record = await prisma.organizationComplianceProfile.findUnique({
-        where: { organizationId },
-        include: {
-          organization: true,
-        },
-      });
+      return withTenant(prisma, organizationId, async (tx) => {
+        const record = await tx.organizationComplianceProfile.findUnique({
+          where: { organizationId },
+          include: {
+            organization: true,
+          },
+        });
 
-      return record ? mapComplianceProfileRecord(record) : null;
+        return record ? mapComplianceProfileRecord(record) : null;
+      });
     },
     async saveComplianceProfile(input) {
-      const record = await prisma.organizationComplianceProfile.upsert({
-        where: { organizationId: input.organizationId },
-        update: {
-          organizationCode: input.organizationCode.trim(),
-          planLabel: input.planLabel.trim(),
-          certificatePrefix: input.certificatePrefix.trim(),
-          accreditationNumber: trimOptional(input.accreditationNumber) ?? null,
-          accreditationValidUntil: input.accreditationValidUntil ?? null,
-          scopeSummary: input.scopeSummary.trim(),
-          cmcSummary: input.cmcSummary.trim(),
-          scopeItemCount: Math.max(0, input.scopeItemCount),
-          cmcItemCount: Math.max(0, input.cmcItemCount),
-          legalOpinionStatus: input.legalOpinionStatus.trim(),
-          legalOpinionReference: input.legalOpinionReference.trim(),
-          dpaReference: input.dpaReference.trim(),
-          normativeGovernanceStatus: input.normativeGovernanceStatus.trim(),
-          normativeGovernanceOwner: input.normativeGovernanceOwner.trim(),
-          normativeGovernanceReference: input.normativeGovernanceReference.trim(),
-          releaseNormVersion: input.releaseNormVersion.trim(),
-          releaseNormStatus: input.releaseNormStatus.trim(),
-          lastReviewedAt: input.lastReviewedAt,
-          organization: input.regulatoryProfile
-            ? {
-                update: {
-                  regulatoryProfile: input.regulatoryProfile.trim(),
-                },
-              }
-            : undefined,
-        },
-        create: {
-          id: crypto.randomUUID(),
-          organizationId: input.organizationId,
-          organizationCode: input.organizationCode.trim(),
-          planLabel: input.planLabel.trim(),
-          certificatePrefix: input.certificatePrefix.trim(),
-          accreditationNumber: trimOptional(input.accreditationNumber) ?? null,
-          accreditationValidUntil: input.accreditationValidUntil ?? null,
-          scopeSummary: input.scopeSummary.trim(),
-          cmcSummary: input.cmcSummary.trim(),
-          scopeItemCount: Math.max(0, input.scopeItemCount),
-          cmcItemCount: Math.max(0, input.cmcItemCount),
-          legalOpinionStatus: input.legalOpinionStatus.trim(),
-          legalOpinionReference: input.legalOpinionReference.trim(),
-          dpaReference: input.dpaReference.trim(),
-          normativeGovernanceStatus: input.normativeGovernanceStatus.trim(),
-          normativeGovernanceOwner: input.normativeGovernanceOwner.trim(),
-          normativeGovernanceReference: input.normativeGovernanceReference.trim(),
-          releaseNormVersion: input.releaseNormVersion.trim(),
-          releaseNormStatus: input.releaseNormStatus.trim(),
-          lastReviewedAt: input.lastReviewedAt,
-        },
-        include: {
-          organization: true,
-        },
-      });
+      return withTenant(prisma, input.organizationId, async (tx) => {
+        const record = await tx.organizationComplianceProfile.upsert({
+          where: { organizationId: input.organizationId },
+          update: {
+            organizationCode: input.organizationCode.trim(),
+            planLabel: input.planLabel.trim(),
+            certificatePrefix: input.certificatePrefix.trim(),
+            accreditationNumber: trimOptional(input.accreditationNumber) ?? null,
+            accreditationValidUntil: input.accreditationValidUntil ?? null,
+            scopeSummary: input.scopeSummary.trim(),
+            cmcSummary: input.cmcSummary.trim(),
+            scopeItemCount: Math.max(0, input.scopeItemCount),
+            cmcItemCount: Math.max(0, input.cmcItemCount),
+            legalOpinionStatus: input.legalOpinionStatus.trim(),
+            legalOpinionReference: input.legalOpinionReference.trim(),
+            dpaReference: input.dpaReference.trim(),
+            normativeGovernanceStatus: input.normativeGovernanceStatus.trim(),
+            normativeGovernanceOwner: input.normativeGovernanceOwner.trim(),
+            normativeGovernanceReference: input.normativeGovernanceReference.trim(),
+            releaseNormVersion: input.releaseNormVersion.trim(),
+            releaseNormStatus: input.releaseNormStatus.trim(),
+            lastReviewedAt: input.lastReviewedAt,
+            organization: input.regulatoryProfile
+              ? {
+                  update: {
+                    regulatoryProfile: input.regulatoryProfile.trim(),
+                  },
+                }
+              : undefined,
+          },
+          create: {
+            id: crypto.randomUUID(),
+            organizationId: input.organizationId,
+            organizationCode: input.organizationCode.trim(),
+            planLabel: input.planLabel.trim(),
+            certificatePrefix: input.certificatePrefix.trim(),
+            accreditationNumber: trimOptional(input.accreditationNumber) ?? null,
+            accreditationValidUntil: input.accreditationValidUntil ?? null,
+            scopeSummary: input.scopeSummary.trim(),
+            cmcSummary: input.cmcSummary.trim(),
+            scopeItemCount: Math.max(0, input.scopeItemCount),
+            cmcItemCount: Math.max(0, input.cmcItemCount),
+            legalOpinionStatus: input.legalOpinionStatus.trim(),
+            legalOpinionReference: input.legalOpinionReference.trim(),
+            dpaReference: input.dpaReference.trim(),
+            normativeGovernanceStatus: input.normativeGovernanceStatus.trim(),
+            normativeGovernanceOwner: input.normativeGovernanceOwner.trim(),
+            normativeGovernanceReference: input.normativeGovernanceReference.trim(),
+            releaseNormVersion: input.releaseNormVersion.trim(),
+            releaseNormStatus: input.releaseNormStatus.trim(),
+            lastReviewedAt: input.lastReviewedAt,
+          },
+          include: {
+            organization: true,
+          },
+        });
 
-      return mapComplianceProfileRecord(record);
+        return mapComplianceProfileRecord(record);
+      });
     },
     async listQualityIndicatorSnapshotsByOrganization(organizationId) {
-      const records = await prisma.qualityIndicatorSnapshot.findMany({
-        where: { organizationId },
-        orderBy: [{ indicatorId: "asc" }, { monthStart: "asc" }],
-      });
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.qualityIndicatorSnapshot.findMany({
+          where: { organizationId },
+          orderBy: [{ indicatorId: "asc" }, { monthStart: "asc" }],
+        });
 
-      return records.map((record) => mapQualityIndicatorSnapshotRecord(record));
+        return records.map((record) => mapQualityIndicatorSnapshotRecord(record));
+      });
     },
     async saveQualityIndicatorSnapshot(input) {
-      if (input.snapshotId) {
-        await assertRecordOwnership(prisma.qualityIndicatorSnapshot, input.snapshotId, input.organizationId);
-      }
+      return withTenant(prisma, input.organizationId, async (tx) => {
+        if (input.snapshotId) {
+          await assertRecordOwnership(tx.qualityIndicatorSnapshot, input.snapshotId, input.organizationId);
+        }
 
-      const data = {
-        indicatorId: input.indicatorId.trim(),
-        monthStart: input.monthStart,
-        valueNumeric: input.valueNumeric,
-        targetNumeric: input.targetNumeric ?? null,
-        status: input.status,
-        sourceLabel: input.sourceLabel.trim(),
-        evidenceLabel: input.evidenceLabel.trim(),
-      };
+        const data = {
+          indicatorId: input.indicatorId.trim(),
+          monthStart: input.monthStart,
+          valueNumeric: input.valueNumeric,
+          targetNumeric: input.targetNumeric ?? null,
+          status: input.status,
+          sourceLabel: input.sourceLabel.trim(),
+          evidenceLabel: input.evidenceLabel.trim(),
+        };
 
-      const record = input.snapshotId
-        ? await prisma.qualityIndicatorSnapshot.update({
-            where: { id: input.snapshotId },
-            data,
-          })
-        : await prisma.qualityIndicatorSnapshot.create({
-            data: {
-              id: crypto.randomUUID(),
-              organizationId: input.organizationId,
-              ...data,
-            },
-          });
+        const record = input.snapshotId
+          ? await tx.qualityIndicatorSnapshot.update({
+              where: { id: input.snapshotId },
+              data,
+            })
+          : await tx.qualityIndicatorSnapshot.create({
+              data: {
+                id: crypto.randomUUID(),
+                organizationId: input.organizationId,
+                ...data,
+              },
+            });
 
-      if (record.organizationId !== input.organizationId) {
-        throw new Error("quality_indicator_snapshot_organization_mismatch");
-      }
+        if (record.organizationId !== input.organizationId) {
+          throw new Error("quality_indicator_snapshot_organization_mismatch");
+        }
 
-      return mapQualityIndicatorSnapshotRecord(record);
+        return mapQualityIndicatorSnapshotRecord(record);
+      });
     },
   };
 }

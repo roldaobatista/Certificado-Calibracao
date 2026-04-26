@@ -31,6 +31,7 @@
     "copy-lint:check": "pnpm --filter @afere/copy-lint exec node --import tsx src/cli.ts",
     "tenant-lint": "tsx packages/db/tools/tenant-lint/src/cli.ts",
     "rls-policy-check": "tsx tools/rls-policy-check.ts",
+    "rls-runtime-readiness-check": "tsx tools/rls-runtime-readiness-check.ts",
     "audit-chain:verify": "tsx packages/audit-log/src/cli.ts",
     "worm-check": "tsx tools/worm-check.ts",
     "governance-gate": "tsx tools/governance-gate.ts",
@@ -68,7 +69,7 @@
     "sync:agents:check": "tsx tools/sync-agents.ts --check",
     "clean": "turbo run clean && rm -rf node_modules",
     "check:drift": "tsx tools/check-agents-drift.ts",
-    "check:all": "pnpm typecheck && pnpm test:tools && pnpm test:ac && pnpm test:regulatory && pnpm copy-lint:check && pnpm tenant-lint && pnpm test:tenancy && pnpm rls-policy-check && pnpm test:sync-simulator && pnpm worm-check && pnpm governance-gate && pnpm escalation-check && pnpm external-auditors-gate && pnpm roadmap-check && pnpm roadmap-backlog-check && pnpm sync-simulator-check && pnpm cloud-agents-policy-check && pnpm compliance-structure-check && pnpm agent-frontmatter-check && pnpm slash-commands-check && pnpm harness-design-tier3-check && pnpm harness-dashboard:check && pnpm runbook-check && pnpm snapshot-diff-check && pnpm redundancy-check && pnpm budget:check && tsx tools/validation-dossier.ts check --quiet && pnpm sync:agents:check && pnpm check:drift"
+    "check:all": "pnpm typecheck && pnpm test:tools && pnpm test:ac && pnpm test:regulatory && pnpm copy-lint:check && pnpm tenant-lint && pnpm test:tenancy && pnpm rls-policy-check && pnpm rls-runtime-readiness-check && pnpm test:sync-simulator && pnpm worm-check && pnpm governance-gate && pnpm escalation-check && pnpm external-auditors-gate && pnpm roadmap-check && pnpm roadmap-backlog-check && pnpm sync-simulator-check && pnpm cloud-agents-policy-check && pnpm compliance-structure-check && pnpm agent-frontmatter-check && pnpm slash-commands-check && pnpm harness-design-tier3-check && pnpm harness-dashboard:check && pnpm runbook-check && pnpm snapshot-diff-check && pnpm redundancy-check && pnpm budget:check && tsx tools/validation-dossier.ts check --quiet && pnpm sync:agents:check && pnpm check:drift"
   },
   "devDependencies": {
     "@afere/audit-log": "workspace:*",
