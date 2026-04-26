@@ -111,7 +111,7 @@ export function hasPrivilegedRole(roles: MembershipRole[]) {
   return hasAnyRole(roles, ["admin", "signatory"]);
 }
 
-function hasAnyRole(userRoles: MembershipRole[], allowedRoles: MembershipRole[]) {
+export function hasAnyRole(userRoles: MembershipRole[], allowedRoles: MembershipRole[]) {
   return allowedRoles.some((role) => userRoles.includes(role));
 }
 

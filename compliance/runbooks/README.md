@@ -10,6 +10,10 @@ Este diretório contém runbooks regulatórios/metrológicos para cenários em q
 - `r2-audit-hash-chain-divergence.md` — divergência de hash-chain no audit log.
 - `r3-worm-object-lock-violation.md` — violação de WORM/object lock.
 - `r4-normative-package-disaster-recovery.md` — recuperação de pacote normativo.
+- `r5-emission-revocation.md` — revogação de certificado emitido.
+- `r6-security-incident.md` — incidente de segurança (breach, acesso indevido).
+- `r7-backup-restore.md` — restauração de backup.
+- `r8-reemission-procedure.md` — reemissão controlada de certificado.
 
 ## Comandos
 

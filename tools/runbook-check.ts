@@ -13,6 +13,10 @@ const REQUIRED_RUNBOOKS = [
   { id: "R2", file: "r2-audit-hash-chain-divergence.md" },
   { id: "R3", file: "r3-worm-object-lock-violation.md" },
   { id: "R4", file: "r4-normative-package-disaster-recovery.md" },
+  { id: "R5", file: "r5-emission-revocation.md" },
+  { id: "R6", file: "r6-security-incident.md" },
+  { id: "R7", file: "r7-backup-restore.md" },
+  { id: "R8", file: "r8-reemission-procedure.md" },
 ] as const;
 
 const REQUIRED_SECTIONS = [
@@ -141,7 +145,7 @@ function escapeRegex(value: string) {
 
 function runCli() {
   const result = checkRunbooks();
-  console.log(`runbook-check: ${result.checkedRunbooks}/4 runbooks, ${result.checkedDrills}/4 drills.`);
+  console.log(`runbook-check: ${result.checkedRunbooks}/8 runbooks, ${result.checkedDrills}/8 drills.`);
   for (const error of result.errors) console.error(`ERROR ${error}`);
   return result.errors.length > 0 ? 1 : 0;
 }

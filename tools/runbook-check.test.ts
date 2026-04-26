@@ -69,6 +69,10 @@ function writeCompleteRunbookSet(root: string) {
   writeRunbook(root, "r2-audit-hash-chain-divergence.md", "R2");
   writeRunbook(root, "r3-worm-object-lock-violation.md", "R3");
   writeRunbook(root, "r4-normative-package-disaster-recovery.md", "R4");
+  writeRunbook(root, "r5-emission-revocation.md", "R5");
+  writeRunbook(root, "r6-security-incident.md", "R6");
+  writeRunbook(root, "r7-backup-restore.md", "R7");
+  writeRunbook(root, "r8-reemission-procedure.md", "R8");
   mkdirSync(join(root, "compliance", "runbooks", "executions"), { recursive: true });
   writeFileSync(join(root, "compliance", "runbooks", "executions", "README.md"), "# Execuções\n");
   writeFileSync(join(root, "compliance", "runbooks", "drill-schedule.yaml"), [
@@ -96,6 +100,30 @@ function writeCompleteRunbookSet(root: string) {
     "  next_due: 2026-10-20",
     "  owner: regulator",
     "  evidence_path: compliance/runbooks/executions/",
+    "- id: R5",
+    "  runbook: compliance/runbooks/r5-emission-revocation.md",
+    "  cadence: semiannual",
+    "  next_due: 2026-10-20",
+    "  owner: regulator",
+    "  evidence_path: compliance/runbooks/executions/",
+    "- id: R6",
+    "  runbook: compliance/runbooks/r6-security-incident.md",
+    "  cadence: semiannual",
+    "  next_due: 2026-10-20",
+    "  owner: lgpd-security",
+    "  evidence_path: compliance/runbooks/executions/",
+    "- id: R7",
+    "  runbook: compliance/runbooks/r7-backup-restore.md",
+    "  cadence: semiannual",
+    "  next_due: 2026-10-20",
+    "  owner: db-schema",
+    "  evidence_path: compliance/runbooks/executions/",
+    "- id: R8",
+    "  runbook: compliance/runbooks/r8-reemission-procedure.md",
+    "  cadence: annual",
+    "  next_due: 2027-04-20",
+    "  owner: regulator",
+    "  evidence_path: compliance/runbooks/executions/",
   ].join("\n"));
 }
 
@@ -106,6 +134,10 @@ test("fails when required recovery runbooks are missing", () => {
 
     assert.match(result.errors.join("\n"), /RUNBOOK-001/);
     assert.match(result.errors.join("\n"), /r1-kms-key-rotation\.md/);
+    assert.match(result.errors.join("\n"), /r5-emission-revocation\.md/);
+    assert.match(result.errors.join("\n"), /r6-security-incident\.md/);
+    assert.match(result.errors.join("\n"), /r7-backup-restore\.md/);
+    assert.match(result.errors.join("\n"), /r8-reemission-procedure\.md/);
     assert.match(result.errors.join("\n"), /drill-schedule\.yaml/);
   } finally {
     cleanup();
@@ -131,6 +163,10 @@ test("fails when drill schedule does not cover every required runbook", () => {
     assert.match(result.errors.join("\n"), /R2/);
     assert.match(result.errors.join("\n"), /R3/);
     assert.match(result.errors.join("\n"), /R4/);
+    assert.match(result.errors.join("\n"), /R5/);
+    assert.match(result.errors.join("\n"), /R6/);
+    assert.match(result.errors.join("\n"), /R7/);
+    assert.match(result.errors.join("\n"), /R8/);
   } finally {
     cleanup();
   }
@@ -144,8 +180,8 @@ test("passes for a complete recovery runbook set", () => {
     const result = checkRunbooks(root);
 
     assert.deepEqual(result.errors, []);
-    assert.equal(result.checkedRunbooks, 4);
-    assert.equal(result.checkedDrills, 4);
+    assert.equal(result.checkedRunbooks, 8);
+    assert.equal(result.checkedDrills, 8);
   } finally {
     cleanup();
   }
