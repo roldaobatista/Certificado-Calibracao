@@ -100,6 +100,7 @@ export interface CorePersistence {
   findSessionByTokenHash(tokenHash: string): Promise<PersistedSessionRecord | null>;
   createSession(input: CreateSessionInput): Promise<PersistedSessionRecord>;
   revokeSessionByTokenHash(tokenHash: string): Promise<void>;
+  revokeSessionsByUserId(userId: string): Promise<void>;
   touchUserLogin(userId: string, occurredAt: Date): Promise<void>;
   listUsersByOrganization(organizationId: string): Promise<PersistedUserRecord[]>;
   saveUser(input: SaveUserInput): Promise<PersistedUserRecord>;
@@ -167,6 +168,18 @@ export function createMemoryCorePersistence(seed: {
       if (sessionId) {
         sessions.delete(sessionId);
         tokenHashes.delete(tokenHash);
+      }
+    },
+    async revokeSessionsByUserId(userId) {
+      for (const [sessionId, session] of sessions.entries()) {
+        if (session.user.userId === userId) {
+          for (const [hash, sid] of tokenHashes.entries()) {
+            if (sid === sessionId) {
+              tokenHashes.delete(hash);
+            }
+          }
+          sessions.delete(sessionId);
+        }
       }
     },
     async touchUserLogin(userId, occurredAt) {
@@ -353,6 +366,17 @@ export function createPrismaCorePersistence(
       await prismaAuth.appSession.updateMany({
         where: {
           tokenHash,
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      });
+    },
+    async revokeSessionsByUserId(userId) {
+      await prismaAuth.appSession.updateMany({
+        where: {
+          userId,
           revokedAt: null,
         },
         data: {

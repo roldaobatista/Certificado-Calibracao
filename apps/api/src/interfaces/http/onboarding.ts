@@ -29,17 +29,7 @@ const UpdateBodySchema = z.object({
   redirectTo: z.string().min(1).optional(),
 });
 
-function isRedirectAllowed(target: string, allowlist: readonly string[]): boolean {
-  if (target.startsWith("/")) {
-    return allowlist.some((allowed) => target === allowed || target.startsWith(`${allowed}/`));
-  }
-  try {
-    const url = new URL(target);
-    return allowlist.includes(url.pathname) || allowlist.some((allowed) => url.pathname.startsWith(`${allowed}/`));
-  } catch {
-    return false;
-  }
-}
+import { isRedirectAllowed } from "./redirect-helpers.js";
 
 export async function registerOnboardingRoutes(
   app: FastifyInstance,

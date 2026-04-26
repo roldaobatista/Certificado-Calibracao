@@ -80,8 +80,17 @@ export function hashSessionToken(token: string) {
   return createHash("sha256").update(token).digest("base64url");
 }
 
-export function createSessionExpiry(now = new Date()) {
-  return new Date(now.getTime() + ONE_DAY_MS);
+export function createSessionExpiry(
+  roles: MembershipRole[],
+  nodeEnv: string,
+  now = new Date(),
+) {
+  const isPrivileged = hasPrivilegedRole(roles);
+  const durationMs =
+    nodeEnv === "production" && isPrivileged
+      ? 8 * 60 * 60 * 1000 // 8h para admin/signatory em produção
+      : ONE_DAY_MS;
+  return new Date(now.getTime() + durationMs);
 }
 
 export function toAuthSession(session: { user: PersistedUserRecord; expiresAtUtc: string }): AuthSession {

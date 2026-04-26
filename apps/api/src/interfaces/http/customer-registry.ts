@@ -10,6 +10,7 @@ import {
 import type { RegistryPersistence } from "../../domain/registry/registry-persistence.js";
 import { buildCustomerRegistryCatalog } from "../../domain/registry/customer-equipment-scenarios.js";
 import { requireRegistryAccess, requireRegistryWriteAccess } from "./auth-session.js";
+import { isRedirectAllowed } from "./redirect-helpers.js";
 import { isConflictError, readRedirectTarget, toOptionalString } from "./form-helpers.js";
 
 const QuerySchema = z.object({
@@ -160,7 +161,7 @@ export async function registerCustomerRegistryRoutes(
     }
 
     const redirectTo = readRedirectTarget(request.body);
-    if (redirectTo) {
+    if (redirectTo && isRedirectAllowed(redirectTo, env.REDIRECT_ALLOWLIST)) {
       return reply.redirect(redirectTo);
     }
 

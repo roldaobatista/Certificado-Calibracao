@@ -194,7 +194,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerSignatureQueueRoutes(app, corePersistence, serviceOrderPersistence, env);
   await registerStandardRegistryRoutes(app, corePersistence, registryPersistence);
   await registerSelfSignupRoutes(app);
-  await registerUserDirectoryRoutes(app, corePersistence);
+  await registerUserDirectoryRoutes(app, corePersistence, env);
   await registerOnboardingRoutes(app, corePersistence, env);
   await registerOrganizationSettingsRoutes(app, corePersistence, qualityPersistence, serviceOrderPersistence);
   await registerPortalCertificateRoutes(app, corePersistence, registryPersistence, serviceOrderPersistence);

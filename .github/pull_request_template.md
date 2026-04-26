@@ -11,6 +11,8 @@
 
 ## Pareceres dos 3 auditores externos
 
+> **Nota:** Os 3 auditores abaixo são agentes automatizados de pré-auditoria. Eles **não substituem** auditoria humana externa contratada, que continua sendo obrigatória nos 5 casos-limite (auditoria CGCRE real, processo judicial, incidente LGPD, acidente metrológico, reclamação em órgão regulador).
+
 - [ ] metrology-auditor: parecer PASS em compliance/audits/metrology/<release>.md
 - [ ] legal-counsel: parecer PASS em compliance/audits/legal/<release>.md
 - [ ] senior-reviewer: parecer PASS em compliance/audits/code/<release>.md ou compliance/audits/code/pr-<n>.md

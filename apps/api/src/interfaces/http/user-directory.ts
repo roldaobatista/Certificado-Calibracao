@@ -12,6 +12,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import type { CorePersistence } from "../../domain/auth/core-persistence.js";
+import type { Env } from "../../config/env.js";
 import { hashPassword } from "../../domain/auth/password.js";
 import { buildUserDirectory } from "../../domain/auth/user-directory.js";
 import {
@@ -20,6 +21,7 @@ import {
   type UserDirectoryScenarioDefinition,
 } from "../../domain/auth/user-directory-scenarios.js";
 import { requireUserDirectoryAccess } from "./auth-session.js";
+import { isRedirectAllowed } from "./redirect-helpers.js";
 import {
   isConflictError,
   readRedirectTarget,
@@ -63,6 +65,7 @@ const ManageUserBodySchema = z.discriminatedUnion("action", [
 export async function registerUserDirectoryRoutes(
   app: FastifyInstance,
   persistence: CorePersistence,
+  env: Env,
 ) {
   app.get("/auth/users", async (request, reply) => {
     const query = QuerySchema.safeParse(request.query);
@@ -180,7 +183,7 @@ export async function registerUserDirectoryRoutes(
     }
 
     const redirectTo = readRedirectTarget(request.body);
-    if (redirectTo) {
+    if (redirectTo && isRedirectAllowed(redirectTo, env.REDIRECT_ALLOWLIST)) {
       return reply.redirect(redirectTo);
     }
 
