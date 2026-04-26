@@ -4,6 +4,7 @@ import {
   type EquipmentMetrologyProfile,
   type StandardMetrologyProfile,
 } from "@afere/contracts";
+import { withTenant } from "@afere/db";
 import { Prisma, type PrismaClient } from "@prisma/client";
 
 export type RegistryEntityType = "customer" | "standard" | "procedure" | "equipment";
@@ -585,239 +586,265 @@ export function createMemoryRegistryPersistence(seed: {
 export function createPrismaRegistryPersistence(prisma: PrismaClient): RegistryPersistence {
   return {
     async listCustomersByOrganization(organizationId) {
-      const records = await prisma.customer.findMany({
-        where: { organizationId },
-        orderBy: [{ archivedAt: "asc" }, { tradeName: "asc" }],
-      });
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.customer.findMany({
+          where: { organizationId },
+          orderBy: [{ archivedAt: "asc" }, { tradeName: "asc" }],
+        });
 
-      return records.map(mapCustomerRecord);
+        return records.map(mapCustomerRecord);
+      });
     },
     async saveCustomer(input) {
-      const saved = input.customerId
-        ? await prisma.customer.update({
-            where: { id: input.customerId },
-            data: mapCustomerSaveData(input),
-          })
-        : await prisma.customer.create({
-            data: {
-              organizationId: input.organizationId,
-              ...mapCustomerSaveData(input),
-            },
-          });
+      return withTenant(prisma, input.organizationId, async (tx) => {
+        const saved = input.customerId
+          ? await tx.customer.update({
+              where: { id: input.customerId },
+              data: mapCustomerSaveData(input),
+            })
+          : await tx.customer.create({
+              data: {
+                organizationId: input.organizationId,
+                ...mapCustomerSaveData(input),
+              },
+            });
 
-      await recordRegistryAuditEvent(prisma, {
-        organizationId: input.organizationId,
-        entityType: "customer",
-        entityId: saved.id,
-        action: input.customerId ? "update" : "create",
-        summary: input.customerId
-          ? `Cadastro do cliente ${saved.tradeName} atualizado.`
-          : `Cadastro do cliente ${saved.tradeName} criado.`,
-        actorUserId: input.actorUserId,
+        await recordRegistryAuditEvent(tx, {
+          organizationId: input.organizationId,
+          entityType: "customer",
+          entityId: saved.id,
+          action: input.customerId ? "update" : "create",
+          summary: input.customerId
+            ? `Cadastro do cliente ${saved.tradeName} atualizado.`
+            : `Cadastro do cliente ${saved.tradeName} criado.`,
+          actorUserId: input.actorUserId,
+        });
+
+        return mapCustomerRecord(saved);
       });
-
-      return mapCustomerRecord(saved);
     },
     async setCustomerArchived(organizationId, customerId, archived, actorUserId) {
-      const updated = await prisma.customer.update({
-        where: { id: customerId },
-        data: {
-          archivedAt: archived ? new Date() : null,
-        },
-      });
+      return withTenant(prisma, organizationId, async (tx) => {
+        const updated = await tx.customer.update({
+          where: { id: customerId },
+          data: {
+            archivedAt: archived ? new Date() : null,
+          },
+        });
 
-      await recordRegistryAuditEvent(prisma, {
-        organizationId,
-        entityType: "customer",
-        entityId: customerId,
-        action: archived ? "archive" : "restore",
-        summary: archived
-          ? `Cliente ${updated.tradeName} arquivado.`
-          : `Cliente ${updated.tradeName} reativado.`,
-        actorUserId,
-      });
-    },
-    async listCustomerAuditEvents(organizationId, customerId) {
-      const records = await prisma.registryAuditEvent.findMany({
-        where: {
+        await recordRegistryAuditEvent(tx, {
           organizationId,
           entityType: "customer",
           entityId: customerId,
-        },
-        orderBy: { createdAt: "desc" },
+          action: archived ? "archive" : "restore",
+          summary: archived
+            ? `Cliente ${updated.tradeName} arquivado.`
+            : `Cliente ${updated.tradeName} reativado.`,
+          actorUserId,
+        });
       });
+    },
+    async listCustomerAuditEvents(organizationId, customerId) {
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.registryAuditEvent.findMany({
+          where: {
+            organizationId,
+            entityType: "customer",
+            entityId: customerId,
+          },
+          orderBy: { createdAt: "desc" },
+        });
 
-      return records.map(mapAuditRecord);
+        return records.map(mapAuditRecord);
+      });
     },
     async listStandardsByOrganization(organizationId) {
-      const records = await prisma.standard.findMany({
-        where: { organizationId },
-        include: {
-          calibrations: {
-            orderBy: { calibratedAt: "desc" },
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.standard.findMany({
+          where: { organizationId },
+          include: {
+            calibrations: {
+              orderBy: { calibratedAt: "desc" },
+            },
           },
-        },
-        orderBy: [{ archivedAt: "asc" }, { code: "asc" }],
-      });
+          orderBy: [{ archivedAt: "asc" }, { code: "asc" }],
+        });
 
-      return records.map(mapStandardRecord);
+        return records.map(mapStandardRecord);
+      });
     },
     async saveStandard(input) {
-      const now = new Date();
-      const saved = input.standardId
-        ? await prisma.standard.update({
-            where: { id: input.standardId },
-            data: mapStandardSaveData(input),
-          })
-        : await prisma.standard.create({
-            data: {
-              organizationId: input.organizationId,
-              ...mapStandardSaveData(input),
+      return withTenant(prisma, input.organizationId, async (tx) => {
+        const now = new Date();
+        const saved = input.standardId
+          ? await tx.standard.update({
+              where: { id: input.standardId },
+              data: mapStandardSaveData(input),
+            })
+          : await tx.standard.create({
+              data: {
+                organizationId: input.organizationId,
+                ...mapStandardSaveData(input),
+              },
+            });
+
+        await ensureLatestStandardCalibration(tx, saved.id, input.organizationId, input, now);
+        await recordRegistryAuditEvent(tx, {
+          organizationId: input.organizationId,
+          entityType: "standard",
+          entityId: saved.id,
+          action: input.standardId ? "update" : "create",
+          summary: input.standardId ? `Padrao ${saved.code} atualizado.` : `Padrao ${saved.code} cadastrado.`,
+          actorUserId: input.actorUserId,
+        });
+
+        const reloaded = await tx.standard.findUniqueOrThrow({
+          where: { id: saved.id },
+          include: {
+            calibrations: {
+              orderBy: { calibratedAt: "desc" },
             },
-          });
-
-      await ensureLatestStandardCalibration(prisma, saved.id, input.organizationId, input, now);
-      await recordRegistryAuditEvent(prisma, {
-        organizationId: input.organizationId,
-        entityType: "standard",
-        entityId: saved.id,
-        action: input.standardId ? "update" : "create",
-        summary: input.standardId ? `Padrao ${saved.code} atualizado.` : `Padrao ${saved.code} cadastrado.`,
-        actorUserId: input.actorUserId,
-      });
-
-      const reloaded = await prisma.standard.findUniqueOrThrow({
-        where: { id: saved.id },
-        include: {
-          calibrations: {
-            orderBy: { calibratedAt: "desc" },
           },
-        },
-      });
+        });
 
-      return mapStandardRecord(reloaded);
+        return mapStandardRecord(reloaded);
+      });
     },
     async setStandardArchived(organizationId, standardId, archived, actorUserId) {
-      const updated = await prisma.standard.update({
-        where: { id: standardId },
-        data: {
-          archivedAt: archived ? new Date() : null,
-        },
-      });
+      return withTenant(prisma, organizationId, async (tx) => {
+        const updated = await tx.standard.update({
+          where: { id: standardId },
+          data: {
+            archivedAt: archived ? new Date() : null,
+          },
+        });
 
-      await recordRegistryAuditEvent(prisma, {
-        organizationId,
-        entityType: "standard",
-        entityId: standardId,
-        action: archived ? "archive" : "restore",
-        summary: archived ? `Padrao ${updated.code} arquivado.` : `Padrao ${updated.code} reativado.`,
-        actorUserId,
+        await recordRegistryAuditEvent(tx, {
+          organizationId,
+          entityType: "standard",
+          entityId: standardId,
+          action: archived ? "archive" : "restore",
+          summary: archived ? `Padrao ${updated.code} arquivado.` : `Padrao ${updated.code} reativado.`,
+          actorUserId,
+        });
       });
     },
     async listProceduresByOrganization(organizationId) {
-      const records = await prisma.procedureRevision.findMany({
-        where: { organizationId },
-        orderBy: [{ archivedAt: "asc" }, { code: "asc" }, { revisionLabel: "desc" }],
-      });
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.procedureRevision.findMany({
+          where: { organizationId },
+          orderBy: [{ archivedAt: "asc" }, { code: "asc" }, { revisionLabel: "desc" }],
+        });
 
-      return records.map(mapProcedureRecord);
+        return records.map(mapProcedureRecord);
+      });
     },
     async saveProcedure(input) {
-      const saved = input.procedureId
-        ? await prisma.procedureRevision.update({
-            where: { id: input.procedureId },
-            data: mapProcedureSaveData(input),
-          })
-        : await prisma.procedureRevision.create({
-            data: {
-              organizationId: input.organizationId,
-              ...mapProcedureSaveData(input),
-            },
-          });
+      return withTenant(prisma, input.organizationId, async (tx) => {
+        const saved = input.procedureId
+          ? await tx.procedureRevision.update({
+              where: { id: input.procedureId },
+              data: mapProcedureSaveData(input),
+            })
+          : await tx.procedureRevision.create({
+              data: {
+                organizationId: input.organizationId,
+                ...mapProcedureSaveData(input),
+              },
+            });
 
-      await recordRegistryAuditEvent(prisma, {
-        organizationId: input.organizationId,
-        entityType: "procedure",
-        entityId: saved.id,
-        action: input.procedureId ? "update" : "create",
-        summary: input.procedureId
-          ? `Procedimento ${saved.code} rev.${saved.revisionLabel} atualizado.`
-          : `Procedimento ${saved.code} rev.${saved.revisionLabel} cadastrado.`,
-        actorUserId: input.actorUserId,
+        await recordRegistryAuditEvent(tx, {
+          organizationId: input.organizationId,
+          entityType: "procedure",
+          entityId: saved.id,
+          action: input.procedureId ? "update" : "create",
+          summary: input.procedureId
+            ? `Procedimento ${saved.code} rev.${saved.revisionLabel} atualizado.`
+            : `Procedimento ${saved.code} rev.${saved.revisionLabel} cadastrado.`,
+          actorUserId: input.actorUserId,
+        });
+
+        return mapProcedureRecord(saved);
       });
-
-      return mapProcedureRecord(saved);
     },
     async setProcedureArchived(organizationId, procedureId, archived, actorUserId) {
-      const updated = await prisma.procedureRevision.update({
-        where: { id: procedureId },
-        data: {
-          archivedAt: archived ? new Date() : null,
-        },
-      });
+      return withTenant(prisma, organizationId, async (tx) => {
+        const updated = await tx.procedureRevision.update({
+          where: { id: procedureId },
+          data: {
+            archivedAt: archived ? new Date() : null,
+          },
+        });
 
-      await recordRegistryAuditEvent(prisma, {
-        organizationId,
-        entityType: "procedure",
-        entityId: procedureId,
-        action: archived ? "archive" : "restore",
-        summary: archived
-          ? `Procedimento ${updated.code} rev.${updated.revisionLabel} arquivado.`
-          : `Procedimento ${updated.code} rev.${updated.revisionLabel} reativado.`,
-        actorUserId,
+        await recordRegistryAuditEvent(tx, {
+          organizationId,
+          entityType: "procedure",
+          entityId: procedureId,
+          action: archived ? "archive" : "restore",
+          summary: archived
+            ? `Procedimento ${updated.code} rev.${updated.revisionLabel} arquivado.`
+            : `Procedimento ${updated.code} rev.${updated.revisionLabel} reativado.`,
+          actorUserId,
+        });
       });
     },
     async listEquipmentByOrganization(organizationId) {
-      const records = await prisma.equipment.findMany({
-        where: { organizationId },
-        orderBy: [{ archivedAt: "asc" }, { code: "asc" }],
-      });
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.equipment.findMany({
+          where: { organizationId },
+          orderBy: [{ archivedAt: "asc" }, { code: "asc" }],
+        });
 
-      return records.map(mapEquipmentRecord);
+        return records.map(mapEquipmentRecord);
+      });
     },
     async saveEquipment(input) {
-      const saved = input.equipmentId
-        ? await prisma.equipment.update({
-            where: { id: input.equipmentId },
-            data: mapEquipmentSaveData(input),
-          })
-        : await prisma.equipment.create({
-            data: {
-              organizationId: input.organizationId,
-              ...mapEquipmentSaveData(input),
-            },
-          });
+      return withTenant(prisma, input.organizationId, async (tx) => {
+        const saved = input.equipmentId
+          ? await tx.equipment.update({
+              where: { id: input.equipmentId },
+              data: mapEquipmentSaveData(input),
+            })
+          : await tx.equipment.create({
+              data: {
+                organizationId: input.organizationId,
+                ...mapEquipmentSaveData(input),
+              },
+            });
 
-      await recordRegistryAuditEvent(prisma, {
-        organizationId: input.organizationId,
-        entityType: "equipment",
-        entityId: saved.id,
-        action: input.equipmentId ? "update" : "create",
-        summary: input.equipmentId
-          ? `Equipamento ${saved.code} atualizado.`
-          : `Equipamento ${saved.code} cadastrado.`,
-        actorUserId: input.actorUserId,
+        await recordRegistryAuditEvent(tx, {
+          organizationId: input.organizationId,
+          entityType: "equipment",
+          entityId: saved.id,
+          action: input.equipmentId ? "update" : "create",
+          summary: input.equipmentId
+            ? `Equipamento ${saved.code} atualizado.`
+            : `Equipamento ${saved.code} cadastrado.`,
+          actorUserId: input.actorUserId,
+        });
+
+        return mapEquipmentRecord(saved);
       });
-
-      return mapEquipmentRecord(saved);
     },
     async setEquipmentArchived(organizationId, equipmentId, archived, actorUserId) {
-      const updated = await prisma.equipment.update({
-        where: { id: equipmentId },
-        data: {
-          archivedAt: archived ? new Date() : null,
-        },
-      });
+      return withTenant(prisma, organizationId, async (tx) => {
+        const updated = await tx.equipment.update({
+          where: { id: equipmentId },
+          data: {
+            archivedAt: archived ? new Date() : null,
+          },
+        });
 
-      await recordRegistryAuditEvent(prisma, {
-        organizationId,
-        entityType: "equipment",
-        entityId: equipmentId,
-        action: archived ? "archive" : "restore",
-        summary: archived
-          ? `Equipamento ${updated.code} arquivado.`
-          : `Equipamento ${updated.code} reativado.`,
-        actorUserId,
+        await recordRegistryAuditEvent(tx, {
+          organizationId,
+          entityType: "equipment",
+          entityId: equipmentId,
+          action: archived ? "archive" : "restore",
+          summary: archived
+            ? `Equipamento ${updated.code} arquivado.`
+            : `Equipamento ${updated.code} reativado.`,
+          actorUserId,
+        });
       });
     },
   };

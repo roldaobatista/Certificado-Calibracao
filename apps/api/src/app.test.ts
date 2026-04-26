@@ -2323,7 +2323,7 @@ test("reissues a persisted certificate and preserves the public QR history", asy
     });
     assert.equal(reissueResponse.statusCode, 204);
 
-    const publications = await serviceOrderPersistence.listCertificatePublicationsByServiceOrder("service-order-00141");
+    const publications = await serviceOrderPersistence.listCertificatePublicationsByServiceOrder("service-order-00141", "org-1");
     const currentPublication = publications.find((item) => !item.supersededAtUtc);
     assert.ok(currentPublication);
     assert.equal(currentPublication?.revision, "R1");

@@ -1,6 +1,16 @@
 import { type PrismaClient } from "@prisma/client";
 
 /**
+ * SQL para configurar o tenant context no Postgres.
+ *
+ * Deve ser executado como primeira operação de uma transação,
+ * antes de qualquer query multitenant.
+ */
+export function tenantContextSql(organizationId: string): string {
+  return `SELECT set_config('app.current_organization_id', '${organizationId.replace(/'/g, "''")}', true)`;
+}
+
+/**
  * Tenant context transacional para RLS.
  *
  * Executa `SET LOCAL app.current_organization_id` dentro de uma transação Prisma,
@@ -15,9 +25,7 @@ export async function withTenant<T>(
   fn: (tx: PrismaClient) => Promise<T>,
 ): Promise<T> {
   return prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(
-      `SELECT set_config('app.current_organization_id', '${organizationId.replace(/'/g, "''")}', true)`,
-    );
+    await tx.$executeRawUnsafe(tenantContextSql(organizationId));
     return fn(tx as unknown as PrismaClient);
   });
 }

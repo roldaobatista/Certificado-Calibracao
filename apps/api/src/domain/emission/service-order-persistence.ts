@@ -1,4 +1,5 @@
 import { computeAuditHash } from "@afere/audit-log";
+import { withTenant } from "@afere/db";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import {
   analyzeRawMeasurementData,
@@ -290,16 +291,19 @@ type MutableAuditEventStore = {
 };
 
 export interface ServiceOrderPersistence {
+  findOrganizationIdByServiceOrderId(serviceOrderId: string): Promise<string | null>;
   listServiceOrdersByOrganization(organizationId: string): Promise<PersistedServiceOrderRecord[]>;
   listEmissionAuditEventsByOrganization(organizationId: string): Promise<PersistedEmissionAuditEvent[]>;
   listEmissionAuditEventsByServiceOrder(
     serviceOrderId: string,
+    organizationId: string,
   ): Promise<PersistedEmissionAuditEvent[]>;
   listCertificatePublicationsByOrganization(
     organizationId: string,
   ): Promise<PersistedCertificatePublicationRecord[]>;
   listCertificatePublicationsByServiceOrder(
     serviceOrderId: string,
+    organizationId: string,
   ): Promise<PersistedCertificatePublicationRecord[]>;
   saveServiceOrder(input: SaveServiceOrderInput): Promise<PersistedServiceOrderRecord>;
   saveServiceOrderWorkflow(input: SaveServiceOrderWorkflowInput): Promise<PersistedServiceOrderRecord>;
@@ -373,6 +377,10 @@ export function createMemoryServiceOrderPersistence(seed: {
   };
 
   return {
+    async findOrganizationIdByServiceOrderId(serviceOrderId) {
+      const record = serviceOrders.get(serviceOrderId);
+      return record?.organizationId ?? null;
+    },
     async listServiceOrdersByOrganization(organizationId) {
       return Array.from(serviceOrders.values())
         .filter((record) => record.organizationId === organizationId && !record.archivedAtUtc)
@@ -385,7 +393,7 @@ export function createMemoryServiceOrderPersistence(seed: {
         .sort(compareAuditEventsDesc)
         .map((event) => structuredClone(event));
     },
-    async listEmissionAuditEventsByServiceOrder(serviceOrderId) {
+    async listEmissionAuditEventsByServiceOrder(serviceOrderId, _organizationId) {
       return auditEvents
         .filter((event) => event.serviceOrderId === serviceOrderId)
         .sort(compareAuditEventsAsc)
@@ -397,7 +405,7 @@ export function createMemoryServiceOrderPersistence(seed: {
         .sort(compareCertificatePublicationsDesc)
         .map((record) => structuredClone(record));
     },
-    async listCertificatePublicationsByServiceOrder(serviceOrderId) {
+    async listCertificatePublicationsByServiceOrder(serviceOrderId, _organizationId) {
       return Array.from(certificatePublications.values())
         .filter((record) => record.serviceOrderId === serviceOrderId)
         .sort(compareCertificatePublicationsDesc)
@@ -832,100 +840,117 @@ export function createMemoryServiceOrderPersistence(seed: {
 
 export function createPrismaServiceOrderPersistence(prisma: PrismaClient): ServiceOrderPersistence {
   return {
-    async listServiceOrdersByOrganization(organizationId) {
-      const records = await prisma.serviceOrder.findMany({
-        where: {
-          organizationId,
-          archivedAt: null,
-        },
-        include: serviceOrderInclude,
-        orderBy: [{ updatedAt: "desc" }, { workOrderNumber: "desc" }],
+    async findOrganizationIdByServiceOrderId(serviceOrderId) {
+      const record = await prisma.serviceOrder.findUnique({
+        where: { id: serviceOrderId },
+        select: { organizationId: true },
       });
+      return record?.organizationId ?? null;
+    },
+    async listServiceOrdersByOrganization(organizationId) {
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.serviceOrder.findMany({
+          where: {
+            organizationId,
+            archivedAt: null,
+          },
+          include: serviceOrderInclude,
+          orderBy: [{ updatedAt: "desc" }, { workOrderNumber: "desc" }],
+        });
 
-      return records.map(mapServiceOrderRecord);
+        return records.map(mapServiceOrderRecord);
+      });
     },
     async listEmissionAuditEventsByOrganization(organizationId) {
-      const records = await prisma.emissionAuditEvent.findMany({
-        where: { organizationId },
-        include: {
-          serviceOrder: {
-            select: {
-              workOrderNumber: true,
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.emissionAuditEvent.findMany({
+          where: { organizationId },
+          include: {
+            serviceOrder: {
+              select: {
+                workOrderNumber: true,
+              },
             },
           },
-        },
-        orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
-      });
+          orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
+        });
 
-      return records.map((record) => ({
-        eventId: record.id,
-        organizationId: record.organizationId,
-        serviceOrderId: record.serviceOrderId,
-        workOrderNumber: record.serviceOrder.workOrderNumber,
-        actorUserId: record.actorUserId ?? undefined,
-        actorLabel: record.actorLabel,
-        action: record.action,
-        entityLabel: record.entityLabel,
-        deviceId: record.deviceId ?? undefined,
-        certificateNumber: record.certificateNumber ?? undefined,
-        metadata:
-          record.metadata && typeof record.metadata === "object" && !Array.isArray(record.metadata)
-            ? (record.metadata as Record<string, unknown>)
-            : undefined,
-        prevHash: record.prevHash,
-        hash: record.hash,
-        occurredAtUtc: record.occurredAt.toISOString(),
-      }));
+        return records.map((record) => ({
+          eventId: record.id,
+          organizationId: record.organizationId,
+          serviceOrderId: record.serviceOrderId,
+          workOrderNumber: record.serviceOrder.workOrderNumber,
+          actorUserId: record.actorUserId ?? undefined,
+          actorLabel: record.actorLabel,
+          action: record.action,
+          entityLabel: record.entityLabel,
+          deviceId: record.deviceId ?? undefined,
+          certificateNumber: record.certificateNumber ?? undefined,
+          metadata:
+            record.metadata && typeof record.metadata === "object" && !Array.isArray(record.metadata)
+              ? (record.metadata as Record<string, unknown>)
+              : undefined,
+          prevHash: record.prevHash,
+          hash: record.hash,
+          occurredAtUtc: record.occurredAt.toISOString(),
+        }));
+      });
     },
-    async listEmissionAuditEventsByServiceOrder(serviceOrderId) {
-      const records = await prisma.emissionAuditEvent.findMany({
-        where: { serviceOrderId },
-        include: {
-          serviceOrder: {
-            select: {
-              workOrderNumber: true,
+    async listEmissionAuditEventsByServiceOrder(serviceOrderId, organizationId) {
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.emissionAuditEvent.findMany({
+          where: { serviceOrderId },
+          include: {
+            serviceOrder: {
+              select: {
+                workOrderNumber: true,
+              },
             },
           },
-        },
-        orderBy: [{ occurredAt: "asc" }, { createdAt: "asc" }],
-      });
+          orderBy: [{ occurredAt: "asc" }, { createdAt: "asc" }],
+        });
 
-      return records.map((record) => ({
-        eventId: record.id,
-        organizationId: record.organizationId,
-        serviceOrderId: record.serviceOrderId,
-        workOrderNumber: record.serviceOrder.workOrderNumber,
-        actorUserId: record.actorUserId ?? undefined,
-        actorLabel: record.actorLabel,
-        action: record.action,
-        entityLabel: record.entityLabel,
-        deviceId: record.deviceId ?? undefined,
-        certificateNumber: record.certificateNumber ?? undefined,
-        prevHash: record.prevHash,
-        hash: record.hash,
-        occurredAtUtc: record.occurredAt.toISOString(),
-      }));
+        return records.map((record) => ({
+          eventId: record.id,
+          organizationId: record.organizationId,
+          serviceOrderId: record.serviceOrderId,
+          workOrderNumber: record.serviceOrder.workOrderNumber,
+          actorUserId: record.actorUserId ?? undefined,
+          actorLabel: record.actorLabel,
+          action: record.action,
+          entityLabel: record.entityLabel,
+          deviceId: record.deviceId ?? undefined,
+          certificateNumber: record.certificateNumber ?? undefined,
+          prevHash: record.prevHash,
+          hash: record.hash,
+          occurredAtUtc: record.occurredAt.toISOString(),
+        }));
+      });
     },
     async listCertificatePublicationsByOrganization(organizationId) {
-      const records = await prisma.certificatePublication.findMany({
-        where: { organizationId },
-        include: certificatePublicationInclude,
-        orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }],
-      });
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.certificatePublication.findMany({
+          where: { organizationId },
+          include: certificatePublicationInclude,
+          orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }],
+        });
 
-      return records.map(mapCertificatePublicationRecord);
+        return records.map(mapCertificatePublicationRecord);
+      });
     },
-    async listCertificatePublicationsByServiceOrder(serviceOrderId) {
-      const records = await prisma.certificatePublication.findMany({
-        where: { serviceOrderId },
-        include: certificatePublicationInclude,
-        orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }],
-      });
+    async listCertificatePublicationsByServiceOrder(serviceOrderId, organizationId) {
+      return withTenant(prisma, organizationId, async (tx) => {
+        const records = await tx.certificatePublication.findMany({
+          where: { serviceOrderId },
+          include: certificatePublicationInclude,
+          orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }],
+        });
 
-      return records.map(mapCertificatePublicationRecord);
+        return records.map(mapCertificatePublicationRecord);
+      });
     },
     async saveServiceOrder(input) {
-      return prisma.$transaction(async (tx) => {
+      return withTenant(prisma, input.organizationId, async (tx) => {
         const existing = input.serviceOrderId
           ? await tx.serviceOrder.findFirst({
               where: { id: input.serviceOrderId, organizationId: input.organizationId },
@@ -1083,7 +1108,7 @@ export function createPrismaServiceOrderPersistence(prisma: PrismaClient): Servi
       });
     },
     async saveServiceOrderWorkflow(input) {
-      return prisma.$transaction(async (tx) => {
+      return withTenant(prisma, input.organizationId, async (tx) => {
         const existing = await tx.serviceOrder.findFirst({
           where: { id: input.serviceOrderId, organizationId: input.organizationId },
           include: serviceOrderInclude,
@@ -1154,7 +1179,7 @@ export function createPrismaServiceOrderPersistence(prisma: PrismaClient): Servi
       });
     },
     async emitServiceOrder(input) {
-      return prisma.$transaction(async (tx) => {
+      return withTenant(prisma, input.organizationId, async (tx) => {
         const existing = await tx.serviceOrder.findFirst({
           where: { id: input.serviceOrderId, organizationId: input.organizationId },
           include: serviceOrderInclude,
@@ -1225,7 +1250,7 @@ export function createPrismaServiceOrderPersistence(prisma: PrismaClient): Servi
       });
     },
     async reissueServiceOrder(input) {
-      return prisma.$transaction(async (tx) => {
+      return withTenant(prisma, input.organizationId, async (tx) => {
         const existing = await tx.serviceOrder.findFirst({
           where: { id: input.serviceOrderId, organizationId: input.organizationId },
           include: serviceOrderInclude,
