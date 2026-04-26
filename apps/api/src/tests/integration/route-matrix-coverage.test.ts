@@ -21,16 +21,16 @@ function extractRoutesFromPrintRoutes(printOutput: string): Array<{ method: stri
     const match = line.match(/^(\s*)(?:├──|└──|──)\s*(\S+)\s*\(([A-Z,\s]+)\)/);
     if (!match) continue;
 
-    const indent = match[1].length;
-    const segment = match[2];
-    const methods = match[3].split(",").map((m) => m.trim());
+    const indent = match[1]!.length;
+    const segment = match[2]!;
+    const methods = match[3]!.split(",").map((m) => m.trim());
 
     // Pop stack while current indent is <= previous indent
-    while (stack.length > 0 && indent <= stack[stack.length - 1].indent) {
+    while (stack.length > 0 && indent <= stack[stack.length - 1]!.indent) {
       stack.pop();
     }
 
-    const parentPrefix = stack.length > 0 ? stack[stack.length - 1].prefix : "";
+    const parentPrefix = stack.length > 0 ? stack[stack.length - 1]!.prefix : "";
     const fullPath = parentPrefix + segment;
     stack.push({ prefix: fullPath, indent });
 
