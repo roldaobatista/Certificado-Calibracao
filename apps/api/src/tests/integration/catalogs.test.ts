@@ -44,6 +44,7 @@ import {
   TEST_ENV,
   createRuntimeReadinessStub,
   normalizeCookieHeader,
+  completeLogin,
   createV1MemorySeed,
   createV2RegistrySeed,
   createV3CoreSeed,
@@ -831,16 +832,7 @@ test("requires session and exposes the persisted v2 registry catalogs", async ()
     });
     assert.equal(denied.statusCode, 401);
 
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const customers = await app.inject({
@@ -899,15 +891,7 @@ test("derives execution labels from raw measurement data when manual labels are 
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const createResponse = await app.inject({
@@ -980,15 +964,7 @@ test("serves the persisted V3 emission catalogs for the authenticated tenant", a
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const [dryRunResponse, reviewResponse, queueResponse, auditResponse, serviceOrderResponse] =
@@ -1128,15 +1104,7 @@ test("serves the persisted V5 quality and governance catalogs for the authentica
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const [ncResponse, workResponse, auditResponse, indicatorResponse, reviewResponse, hubResponse, settingsResponse] =

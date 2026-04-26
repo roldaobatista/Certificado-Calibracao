@@ -15,6 +15,7 @@ export function registerRouteAuthorizationHook(app: FastifyInstance, corePersist
     const entry = findRouteEntry(matrix, routePath, request.method);
 
     if (!entry) {
+      console.log("[hook] route not in matrix:", routePath, request.method);
       reply.code(503).send({ error: "route_not_in_authorization_matrix" });
       return;
     }

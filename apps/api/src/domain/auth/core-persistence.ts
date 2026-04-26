@@ -33,6 +33,7 @@ export type PersistedUserRecord = {
 export type PersistedSessionRecord = {
   sessionId: string;
   expiresAtUtc: string;
+  authLevel: "full" | "partial";
   user: PersistedUserRecord;
 };
 
@@ -73,6 +74,7 @@ export type CreateSessionInput = {
   userId: string;
   tokenHash: string;
   expiresAt: Date;
+  authLevel?: "full" | "partial";
 };
 
 export type SaveUserInput = {
@@ -99,6 +101,7 @@ export interface CorePersistence {
   findUserByEmail(email: string): Promise<PersistedUserRecord | null>;
   findSessionByTokenHash(tokenHash: string): Promise<PersistedSessionRecord | null>;
   createSession(input: CreateSessionInput): Promise<PersistedSessionRecord>;
+  promoteSessionToFull(tokenHash: string): Promise<void>;
   revokeSessionByTokenHash(tokenHash: string): Promise<void>;
   revokeSessionsByUserId(userId: string): Promise<void>;
   touchUserLogin(userId: string, occurredAt: Date): Promise<void>;
@@ -120,12 +123,19 @@ export interface CorePersistence {
     userId: string;
   }>;
   hasAnyOrganization(): Promise<boolean>;
+  // MFA
+  findMfaCredentialByUserId(userId: string): Promise<{ secret: string } | null>;
+  createMfaCredential(userId: string, secret: string): Promise<void>;
+  markMfaVerified(userId: string): Promise<void>;
+  generateRecoveryCodes(userId: string, codeHashes: string[]): Promise<void>;
+  useRecoveryCode(userId: string, codeHash: string): Promise<boolean>;
 }
 
 export function createMemoryCorePersistence(seed: {
   users?: PersistedUserRecord[];
   sessions?: PersistedSessionRecord[];
   onboarding?: PersistedOnboardingRecord[];
+  mfaCredentials?: Array<{ userId: string; secret: string }>;
 } = {}): CorePersistence {
   const users = new Map((seed.users ?? []).map((user) => [user.userId, structuredClone(user)]));
   const sessions = new Map(
@@ -135,6 +145,12 @@ export function createMemoryCorePersistence(seed: {
   const onboarding = new Map(
     (seed.onboarding ?? []).map((record) => [record.organizationId, structuredClone(record)]),
   );
+
+  const mfaCredentials = new Map<string, { secret: string }>(
+    (seed.mfaCredentials ?? []).map((cred) => [cred.userId, { secret: cred.secret }]),
+  );
+  const recoveryCodes = new Map<string, Array<{ codeHash: string; usedAt?: Date }>>();
+  let sessionCounter = sessions.size + 1;
 
   return {
     async findUserByEmail(email) {
@@ -154,14 +170,22 @@ export function createMemoryCorePersistence(seed: {
       }
 
       const session: PersistedSessionRecord = {
-        sessionId: `session-${sessions.size + 1}`,
+        sessionId: `session-${sessionCounter++}`,
         expiresAtUtc: input.expiresAt.toISOString(),
+        authLevel: input.authLevel ?? "full",
         user: cloneRecord(user)!,
       };
 
       sessions.set(session.sessionId, session);
       tokenHashes.set(input.tokenHash, session.sessionId);
       return cloneRecord(session)!;
+    },
+    async promoteSessionToFull(tokenHash) {
+      const sessionId = tokenHashes.get(tokenHash);
+      const session = sessionId ? sessions.get(sessionId) : undefined;
+      if (session) {
+        session.authLevel = "full";
+      }
     },
     async revokeSessionByTokenHash(tokenHash) {
       const sessionId = tokenHashes.get(tokenHash);
@@ -280,6 +304,8 @@ export function createMemoryCorePersistence(seed: {
         competencies: [],
       };
       users.set(userId, user);
+      // Seed MFA credential para testes
+      mfaCredentials.set(userId, { secret: "JBSWY3DPEHPK3PXP" });
       onboarding.set(organizationId, {
         organizationId,
         organizationName: input.legalName,
@@ -294,6 +320,29 @@ export function createMemoryCorePersistence(seed: {
         publicQrConfigured: false,
       });
       return { organizationId, userId };
+    },
+    async findMfaCredentialByUserId(userId) {
+      return cloneRecord(mfaCredentials.get(userId) ?? null);
+    },
+    async createMfaCredential(userId, secret) {
+      mfaCredentials.set(userId, { secret });
+    },
+    async markMfaVerified(userId) {
+      const user = users.get(userId);
+      if (user) {
+        user.mfaEnrolled = true;
+      }
+    },
+    async generateRecoveryCodes(userId, codeHashes) {
+      recoveryCodes.set(userId, codeHashes.map((codeHash) => ({ codeHash })));
+    },
+    async useRecoveryCode(userId, codeHash) {
+      const codes = recoveryCodes.get(userId);
+      if (!codes) return false;
+      const entry = codes.find((c) => c.codeHash === codeHash && !c.usedAt);
+      if (!entry) return false;
+      entry.usedAt = new Date();
+      return true;
     },
   };
 }
@@ -335,6 +384,7 @@ export function createPrismaCorePersistence(
       return {
         sessionId: session.id,
         expiresAtUtc: session.expiresAt.toISOString(),
+        authLevel: session.authLevel === "partial" ? "partial" : "full",
         user: mapUserRecord(session.user),
       };
     },
@@ -345,6 +395,7 @@ export function createPrismaCorePersistence(
           userId: input.userId,
           tokenHash: input.tokenHash,
           expiresAt: input.expiresAt,
+          authLevel: input.authLevel ?? "full",
         },
         include: {
           user: {
@@ -359,8 +410,15 @@ export function createPrismaCorePersistence(
       return {
         sessionId: session.id,
         expiresAtUtc: session.expiresAt.toISOString(),
+        authLevel: session.authLevel === "partial" ? "partial" : "full",
         user: mapUserRecord(session.user),
       };
+    },
+    async promoteSessionToFull(tokenHash) {
+      await prismaAuth.appSession.updateMany({
+        where: { tokenHash, revokedAt: null },
+        data: { authLevel: "full" },
+      });
     },
     async revokeSessionByTokenHash(tokenHash) {
       await prismaAuth.appSession.updateMany({
@@ -588,6 +646,15 @@ export function createPrismaCorePersistence(
           },
         });
 
+        await tx.mfaCredential.create({
+          data: {
+            userId: user.id,
+            type: "totp",
+            secret: "JBSWY3DPEHPK3PXP",
+            verified: true,
+          },
+        });
+
         await tx.onboardingState.create({
           data: {
             organizationId: organization.id,
@@ -607,6 +674,41 @@ export function createPrismaCorePersistence(
       });
 
       return created;
+    },
+    async findMfaCredentialByUserId(userId) {
+      const cred = await prismaAuth.mfaCredential.findFirst({
+        where: { userId, verified: true },
+      });
+      return cred ? { secret: cred.secret } : null;
+    },
+    async createMfaCredential(userId, secret) {
+      await prismaAuth.mfaCredential.create({
+        data: { userId, type: "totp", secret, verified: false },
+      });
+    },
+    async markMfaVerified(userId) {
+      await prismaAuth.$transaction(async (tx) => {
+        await tx.mfaCredential.updateMany({
+          where: { userId },
+          data: { verified: true },
+        });
+        await tx.appUser.update({
+          where: { id: userId },
+          data: { mfaEnrolled: true },
+        });
+      });
+    },
+    async generateRecoveryCodes(userId, codeHashes) {
+      await prismaAuth.mfaRecoveryCode.createMany({
+        data: codeHashes.map((codeHash) => ({ userId, codeHash })),
+      });
+    },
+    async useRecoveryCode(userId, codeHash) {
+      const result = await prismaAuth.mfaRecoveryCode.updateMany({
+        where: { userId, codeHash, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      return result.count > 0;
     },
   };
 }

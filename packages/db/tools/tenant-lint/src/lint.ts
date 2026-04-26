@@ -132,6 +132,9 @@ function scanCrud(file: string, content: string): Finding[] {
       const table = normalizeTable(match[1] ?? "");
       const statement = match[0];
       if (!table || isSingleTenant(table) || isCatalogTable(table) || hasTenantScope(statement)) continue;
+      // Ignora ON UPDATE / ON DELETE de foreign-key constraints (DDL, não DML)
+      const before = content.slice(Math.max(0, match.index - 3), match.index);
+      if (/\bON\s+$/i.test(before)) continue;
       findings.push(makeFinding(file, content, match.index, "TENANT-SQL-001", table, statement));
     }
   }

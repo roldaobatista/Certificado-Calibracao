@@ -44,6 +44,7 @@ import {
   TEST_ENV,
   createRuntimeReadinessStub,
   normalizeCookieHeader,
+  completeLogin,
   createV1MemorySeed,
   createV2RegistrySeed,
   createV3CoreSeed,
@@ -69,15 +70,7 @@ test("serves persisted service orders when the tenant is authenticated", async (
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const response = await app.inject({
@@ -113,15 +106,7 @@ test("creates and updates persisted service orders through the manage route", as
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const createResponse = await app.inject({
@@ -226,15 +211,7 @@ test("rejects invalid raw measurement JSON when saving a service order", async (
   });
 
   try {
-    const login = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: {
-        email: "admin@afere.local",
-        password: "Afere@2026!",
-      },
-    });
-    const cookie = normalizeCookieHeader(login.headers["set-cookie"]);
+    const cookie = await completeLogin(app, "admin@afere.local", "Afere@2026!");
     assert.ok(cookie);
 
     const response = await app.inject({
