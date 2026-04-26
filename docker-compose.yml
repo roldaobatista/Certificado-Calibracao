@@ -1,3 +1,5 @@
+# AMBIENTE DE DESENVOLVIMENTO — NÃO USAR EM PRODUÇÃO
+# Produção exige: secrets manager, TLS, backups, WAF, KMS, observabilidade, etc.
 name: afere-dev
 
 services:
@@ -14,6 +16,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./infra/dev-init-scripts:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U afere -d afere"]
       interval: 5s
@@ -60,6 +63,8 @@ services:
       PORT: 3000
       CORS_ORIGINS: http://127.0.0.1:3002,http://127.0.0.1:3003,http://localhost:3002,http://localhost:3003
       DATABASE_URL: postgresql://afere:afere@postgres:5432/afere?schema=public
+      DATABASE_APP_URL: postgresql://afere_app:afere_app@postgres:5432/afere?schema=public
+      DATABASE_OWNER_URL: postgresql://afere:afere@postgres:5432/afere?schema=public
       REDIS_URL: redis://redis:6379
     ports:
       - "3000:3000"

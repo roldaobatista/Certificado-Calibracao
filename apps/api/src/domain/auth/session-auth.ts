@@ -6,7 +6,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import type { CorePersistence, PersistedSessionRecord, PersistedUserRecord } from "./core-persistence.js";
 
 export const SESSION_COOKIE_NAME = "afere_session";
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export type AuthenticatedRequestContext = {
   sessionId: string;
@@ -81,7 +81,7 @@ export function hashSessionToken(token: string) {
 }
 
 export function createSessionExpiry(now = new Date()) {
-  return new Date(now.getTime() + THIRTY_DAYS_MS);
+  return new Date(now.getTime() + ONE_DAY_MS);
 }
 
 export function toAuthSession(session: { user: PersistedUserRecord; expiresAtUtc: string }): AuthSession {
@@ -136,12 +136,14 @@ function readSessionToken(cookieHeader: string | string[] | undefined): string |
 }
 
 function serializeSessionCookie(token: string, expiresAt: Date, opts?: { secure?: boolean; sameSite?: "Strict" | "Lax" | "None" }) {
+  const maxAgeSec = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
   const flags = [
     `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}`,
     "Path=/",
     "HttpOnly",
     `SameSite=${opts?.sameSite ?? "Lax"}`,
     `Expires=${expiresAt.toUTCString()}`,
+    `Max-Age=${maxAgeSec}`,
   ];
   if (opts?.secure) {
     flags.push("Secure");

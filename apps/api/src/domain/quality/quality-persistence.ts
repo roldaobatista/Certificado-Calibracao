@@ -1,5 +1,5 @@
 import { withTenant } from "@afere/db";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 
 export type PersistedNonconformityRecord = {
   ncId: string;
@@ -149,8 +149,8 @@ export type PersistedQualityIndicatorSnapshotRecord = {
   organizationId: string;
   indicatorId: string;
   monthStartUtc: string;
-  valueNumeric: number;
-  targetNumeric?: number;
+  valueNumeric: Prisma.Decimal;
+  targetNumeric?: Prisma.Decimal;
   status: "ready" | "attention" | "blocked";
   sourceLabel: string;
   evidenceLabel: string;
@@ -280,8 +280,8 @@ export type SaveQualityIndicatorSnapshotInput = {
   snapshotId?: string;
   indicatorId: string;
   monthStart: Date;
-  valueNumeric: number;
-  targetNumeric?: number;
+  valueNumeric: Prisma.Decimal;
+  targetNumeric?: Prisma.Decimal;
   status: "ready" | "attention" | "blocked";
   sourceLabel: string;
   evidenceLabel: string;
@@ -1396,8 +1396,8 @@ function mapQualityIndicatorSnapshotRecord(
     organizationId: string;
     indicatorId: string;
     monthStart: Date;
-    valueNumeric: number;
-    targetNumeric: number | null;
+    valueNumeric: Prisma.Decimal;
+    targetNumeric: Prisma.Decimal | null;
     status: string;
     sourceLabel: string;
     evidenceLabel: string;

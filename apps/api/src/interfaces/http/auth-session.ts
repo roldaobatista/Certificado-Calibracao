@@ -42,11 +42,19 @@ const BootstrapBodySchema = z.object({
 });
 
 function isRedirectAllowed(target: string, allowlist: readonly string[]): boolean {
+  // Rejeitar esquemas perigosos e URLs sem protocolo explícito
+  if (/^(javascript|data|vbscript):/i.test(target) || target.startsWith("//")) {
+    return false;
+  }
   if (target.startsWith("/")) {
     return allowlist.some((allowed) => target === allowed || target.startsWith(`${allowed}/`));
   }
   try {
     const url = new URL(target);
+    // Só permitir http/https; rejeitar outros protocolos
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return false;
+    }
     return allowlist.includes(url.pathname) || allowlist.some((allowed) => url.pathname.startsWith(`${allowed}/`));
   } catch {
     return false;
@@ -101,10 +109,15 @@ export async function registerAuthSessionRoutes(
   app.get("/auth/session", async (request, reply) => {
     const session = await resolveAuthenticatedRequest(request, persistence);
     const payload: AuthSession = session ? toAuthSession(session) : { authenticated: false };
+    // Gerar token CSRF para requests mutáveis subsequentes
+    const csrfToken = reply.generateCsrf();
+    reply.header("X-CSRF-Token", csrfToken);
     return reply.code(200).send(authSessionSchema.parse(payload));
   });
 
-  app.post("/auth/login", async (request, reply) => {
+  app.post("/auth/login", {
+    config: { rateLimit: { max: 5, timeWindow: 15 * 60 * 1000 } },
+    handler: async (request, reply) => {
     const body = LoginBodySchema.safeParse(request.body);
     if (!body.success) {
       return reply.code(400).send({ error: "invalid_body" });
@@ -148,9 +161,12 @@ export async function registerAuthSessionRoutes(
     }
 
     return reply.code(200).send(authLoginResponseSchema.parse(payload));
+    },
   });
 
-  app.post("/auth/logout", async (request, reply) => {
+  app.post("/auth/logout", {
+    config: { rateLimit: { max: 20, timeWindow: 60 * 1000 } },
+    handler: async (request, reply) => {
     const session = await resolveAuthenticatedRequest(request, persistence);
     if (session) {
       await persistence.revokeSessionByTokenHash(session.tokenHash);
@@ -164,12 +180,21 @@ export async function registerAuthSessionRoutes(
     }
 
     return reply.code(204).send();
+    },
   });
 
-  app.post("/onboarding/bootstrap", async (request, reply) => {
+  app.post("/onboarding/bootstrap", {
+    config: { rateLimit: { max: 3, timeWindow: 60 * 60 * 1000 } },
+    handler: async (request, reply) => {
     const body = BootstrapBodySchema.safeParse(request.body);
     if (!body.success) {
       return reply.code(400).send({ error: "invalid_body" });
+    }
+
+    // Proteger bootstrap: só permitir se não houver nenhuma organização
+    const anyOrg = await persistence.hasAnyOrganization();
+    if (anyOrg) {
+      return reply.code(403).send({ error: "bootstrap_disabled" });
     }
 
     try {
@@ -197,6 +222,7 @@ export async function registerAuthSessionRoutes(
       : fallbackRedirect;
 
     return reply.redirect(target);
+    },
   });
 }
 

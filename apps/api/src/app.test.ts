@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { computeAuditHash } from "@afere/audit-log";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -56,6 +57,7 @@ const TEST_ENV: Env = {
   ALLOW_SCENARIO_ROUTES: true,
   RATE_LIMIT_MAX: 100,
   RATE_LIMIT_WINDOW_MS: 60000,
+  COOKIE_SECRET: "test-cookie-secret-32-chars-long-ok",
   REDIRECT_ALLOWLIST: ["/auth/login", "/auth/logout", "/onboarding", "/emission/workspace", "/emission/review-signature", "/emission/signature-queue", "/dashboard"],
 };
 
@@ -3630,8 +3632,8 @@ function buildIndicatorHistorySeed(input: {
     organizationId: "org-1",
     indicatorId: input.indicatorId,
     monthStartUtc,
-    valueNumeric,
-    targetNumeric: input.targetNumeric,
+    valueNumeric: new Prisma.Decimal(valueNumeric),
+    targetNumeric: new Prisma.Decimal(input.targetNumeric),
     status,
     sourceLabel: `${input.sourcePrefix} ${monthStartUtc.slice(5, 7)}/${monthStartUtc.slice(0, 4)}`,
     evidenceLabel: input.evidenceLabel,

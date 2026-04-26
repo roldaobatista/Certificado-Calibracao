@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import type {
   InternalAuditCatalog,
   InternalAuditChecklistItem,
@@ -1263,8 +1264,8 @@ function applyHistoricalSnapshots(
 
   return {
     ...indicator,
-    currentValue: latestValue,
-    targetValue: latestTarget,
+    currentValue: typeof latestValue === "number" ? latestValue : latestValue.toNumber(),
+    targetValue: typeof latestTarget === "number" ? latestTarget : latestTarget.toNumber(),
     status: latest.status,
     trendLabel: describeHistoricalTrend(indicator.unitLabel, previous?.valueNumeric, latestValue, latest.status),
     periodLabel: `Historico mensal persistido de ${formatMonthLabel(ordered[0]!.monthStartUtc)} a ${formatMonthLabel(latest.monthStartUtc)}`,
@@ -1284,8 +1285,8 @@ function applyHistoricalSnapshots(
 
 function describeHistoricalTrend(
   unitLabel: string,
-  previousValue: number | undefined,
-  currentValue: number,
+  previousValue: number | Prisma.Decimal | undefined,
+  currentValue: number | Prisma.Decimal,
   status: BuilderStatus,
 ) {
   if (previousValue === undefined) {
@@ -1296,7 +1297,9 @@ function describeHistoricalTrend(
         : "Primeiro fechamento mensal registrado";
   }
 
-  const delta = round(currentValue - previousValue);
+  const prev = typeof previousValue === "number" ? previousValue : previousValue.toNumber();
+  const curr = typeof currentValue === "number" ? currentValue : currentValue.toNumber();
+  const delta = round(curr - prev);
   const signedDelta = delta > 0 ? `+${delta}` : `${delta}`;
   const normalizedUnit = unitLabel.trim();
 
@@ -1442,11 +1445,12 @@ function humanizeAge(openedAtUtc: string, resolvedAtUtc?: string) {
   return `${days} dia(s)`;
 }
 
-function formatIndicatorValue(value: number, unitLabel: string) {
+function formatIndicatorValue(value: number | Prisma.Decimal, unitLabel: string) {
+  const num = typeof value === "number" ? value : value.toNumber();
   if (unitLabel === "%") {
-    return `${round(value)}%`;
+    return `${round(num)}%`;
   }
-  return `${round(value)}${unitLabel}`;
+  return `${round(num)}${unitLabel}`;
 }
 
 function round(value: number) {

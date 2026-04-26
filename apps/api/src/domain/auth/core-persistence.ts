@@ -118,6 +118,7 @@ export interface CorePersistence {
     organizationId: string;
     userId: string;
   }>;
+  hasAnyOrganization(): Promise<boolean>;
 }
 
 export function createMemoryCorePersistence(seed: {
@@ -243,6 +244,9 @@ export function createMemoryCorePersistence(seed: {
       onboarding.set(organizationId, updated);
       return cloneRecord(updated)!;
     },
+    async hasAnyOrganization() {
+      return onboarding.size > 0;
+    },
     async bootstrapOrganization(input) {
       const organizationId = `memory-org-${onboarding.size + 1}`;
       const userId = `memory-user-${users.size + 1}`;
@@ -281,10 +285,14 @@ export function createMemoryCorePersistence(seed: {
   };
 }
 
-export function createPrismaCorePersistence(prisma: PrismaClient): CorePersistence {
+export function createPrismaCorePersistence(
+  prismaAuth: PrismaClient,
+  prismaApp?: PrismaClient,
+): CorePersistence {
+  const prisma = prismaApp ?? prismaAuth;
   return {
     async findUserByEmail(email) {
-      const user = await prisma.appUser.findUnique({
+      const user = await prismaAuth.appUser.findUnique({
         where: { email: email.trim().toLowerCase() },
         include: {
           organization: true,
@@ -295,7 +303,7 @@ export function createPrismaCorePersistence(prisma: PrismaClient): CorePersisten
       return user ? mapUserRecord(user) : null;
     },
     async findSessionByTokenHash(tokenHash) {
-      const session = await prisma.appSession.findUnique({
+      const session = await prismaAuth.appSession.findUnique({
         where: { tokenHash },
         include: {
           user: {
@@ -318,7 +326,7 @@ export function createPrismaCorePersistence(prisma: PrismaClient): CorePersisten
       };
     },
     async createSession(input) {
-      const session = await prisma.appSession.create({
+      const session = await prismaAuth.appSession.create({
         data: {
           organizationId: input.organizationId,
           userId: input.userId,
@@ -342,7 +350,7 @@ export function createPrismaCorePersistence(prisma: PrismaClient): CorePersisten
       };
     },
     async revokeSessionByTokenHash(tokenHash) {
-      await prisma.appSession.updateMany({
+      await prismaAuth.appSession.updateMany({
         where: {
           tokenHash,
           revokedAt: null,
@@ -353,7 +361,7 @@ export function createPrismaCorePersistence(prisma: PrismaClient): CorePersisten
       });
     },
     async touchUserLogin(userId, occurredAt) {
-      await prisma.appUser.update({
+      await prismaAuth.appUser.update({
         where: { id: userId },
         data: {
           lastLoginAt: occurredAt,
@@ -361,13 +369,15 @@ export function createPrismaCorePersistence(prisma: PrismaClient): CorePersisten
       });
     },
     async listUsersByOrganization(organizationId) {
-      const users = await prisma.appUser.findMany({
-        where: { organizationId },
-        include: {
-          organization: true,
-          competencies: true,
-        },
-        orderBy: [{ status: "asc" }, { displayName: "asc" }],
+      const users = await withTenant(prisma, organizationId, async (tx) => {
+        return tx.appUser.findMany({
+          where: { organizationId },
+          include: {
+            organization: true,
+            competencies: true,
+          },
+          orderBy: [{ status: "asc" }, { displayName: "asc" }],
+        });
       });
 
       return users.map((user) => mapUserRecord(user));
@@ -471,53 +481,65 @@ export function createPrismaCorePersistence(prisma: PrismaClient): CorePersisten
       return mapUserRecord(saved);
     },
     async setUserStatus(organizationId, userId, status, actorUserId) {
-      const updated = await prisma.appUser.update({
-        where: { id: userId },
-        data: { status },
-      });
+      const updated = await withTenant(prisma, organizationId, async (tx) => {
+        const user = await tx.appUser.update({
+          where: { id: userId },
+          data: { status },
+        });
 
-      await prisma.registryAuditEvent.create({
-        data: {
-          organizationId,
-          entityType: "user",
-          entityId: userId,
-          action: status === "suspended" ? "archive" : "update",
-          actorUserId,
-          summary:
-            status === "suspended"
-              ? `Usuario ${updated.displayName} suspenso.`
-              : `Status do usuario ${updated.displayName} alterado para ${status}.`,
-        },
+        await tx.registryAuditEvent.create({
+          data: {
+            organizationId,
+            entityType: "user",
+            entityId: userId,
+            action: status === "suspended" ? "archive" : "update",
+            actorUserId,
+            summary:
+              status === "suspended"
+                ? `Usuario ${user.displayName} suspenso.`
+                : `Status do usuario ${user.displayName} alterado para ${status}.`,
+          },
+        });
+
+        return user;
       });
     },
     async getOnboardingByOrganization(organizationId) {
-      const record = await prisma.onboardingState.findUnique({
-        where: { organizationId },
-        include: { organization: true },
+      const record = await withTenant(prisma, organizationId, async (tx) => {
+        return tx.onboardingState.findUnique({
+          where: { organizationId },
+          include: { organization: true },
+        });
       });
 
       return record ? mapOnboardingRecord(record) : null;
     },
     async updateOnboardingByOrganization(organizationId, input) {
-      const updated = await prisma.onboardingState.upsert({
-        where: { organizationId },
-        create: {
-          organizationId,
-          startedAt: new Date(),
-          completedAt: allOnboardingFlagsComplete(input) ? new Date() : null,
-          ...input,
-        },
-        update: {
-          ...input,
-          completedAt: allOnboardingFlagsComplete(input) ? new Date() : null,
-        },
-        include: { organization: true },
+      const updated = await withTenant(prisma, organizationId, async (tx) => {
+        return tx.onboardingState.upsert({
+          where: { organizationId },
+          create: {
+            organizationId,
+            startedAt: new Date(),
+            completedAt: allOnboardingFlagsComplete(input) ? new Date() : null,
+            ...input,
+          },
+          update: {
+            ...input,
+            completedAt: allOnboardingFlagsComplete(input) ? new Date() : null,
+          },
+          include: { organization: true },
+        });
       });
 
       return mapOnboardingRecord(updated);
     },
+    async hasAnyOrganization() {
+      const count = await prismaAuth.organization.count();
+      return count > 0;
+    },
     async bootstrapOrganization(input) {
-      const created = await prisma.$transaction(async (tx) => {
+      const created = await prismaAuth.$transaction(async (tx) => {
         const organization = await tx.organization.create({
           data: {
             slug: input.slug.trim().toLowerCase(),

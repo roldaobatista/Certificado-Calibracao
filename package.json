@@ -21,6 +21,7 @@
     "test:fuzz": "tsx --test evals/tenancy/fuzz/*.test.ts",
     "test:sync-simulator": "tsx --test evals/sync-simulator/*.test.ts",
     "test:tenancy": "pnpm test:rls && pnpm test:fuzz",
+    "test:security": "pnpm exec tsx --test apps/api/src/tests/security/*.test.ts",
     "dev:deps": "docker compose up -d postgres redis",
     "dev:api": "pnpm --filter @afere/api dev",
     "dev:web": "pnpm --filter @afere/web dev -- --hostname 127.0.0.1 --port 3002",
