@@ -57,6 +57,7 @@ import { registerServiceOrderReviewRoutes } from "./interfaces/http/service-orde
 import { registerSignatureQueueRoutes } from "./interfaces/http/signature-queue.js";
 import { registerStandardRegistryRoutes } from "./interfaces/http/standard-registry.js";
 import { registerUserDirectoryRoutes } from "./interfaces/http/user-directory.js";
+import { registerRouteAuthorizationHook } from "./domain/auth/route-authorization.js";
 import { trpcPlugin } from "./plugins/trpc.js";
 
 export type BuildAppOptions = {
@@ -164,6 +165,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   });
 
   await app.register(trpcPlugin);
+  registerRouteAuthorizationHook(app, corePersistence);
   await registerAuthSessionRoutes(app, corePersistence, env);
   await registerAuditTrailRoutes(app, corePersistence, serviceOrderPersistence);
   await registerCertificatePreviewRoutes(app, corePersistence, serviceOrderPersistence);
