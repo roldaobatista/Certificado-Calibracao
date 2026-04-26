@@ -63,12 +63,13 @@ export function issueSessionCookie(
   reply: FastifyReply,
   sessionToken: string,
   expiresAt: Date,
+  opts?: { secure?: boolean; sameSite?: "Strict" | "Lax" | "None" },
 ) {
-  reply.header("set-cookie", serializeSessionCookie(sessionToken, expiresAt));
+  reply.header("set-cookie", serializeSessionCookie(sessionToken, expiresAt, opts));
 }
 
-export function clearSessionCookie(reply: FastifyReply) {
-  reply.header("set-cookie", clearSessionCookieValue());
+export function clearSessionCookie(reply: FastifyReply, opts?: { secure?: boolean; sameSite?: "Strict" | "Lax" | "None" }) {
+  reply.header("set-cookie", clearSessionCookieValue(opts));
 }
 
 export function createSessionToken() {
@@ -134,23 +135,31 @@ function readSessionToken(cookieHeader: string | string[] | undefined): string |
   return null;
 }
 
-function serializeSessionCookie(token: string, expiresAt: Date) {
-  return [
+function serializeSessionCookie(token: string, expiresAt: Date, opts?: { secure?: boolean; sameSite?: "Strict" | "Lax" | "None" }) {
+  const flags = [
     `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}`,
     "Path=/",
     "HttpOnly",
-    "SameSite=Lax",
+    `SameSite=${opts?.sameSite ?? "Lax"}`,
     `Expires=${expiresAt.toUTCString()}`,
-  ].join("; ");
+  ];
+  if (opts?.secure) {
+    flags.push("Secure");
+  }
+  return flags.join("; ");
 }
 
-function clearSessionCookieValue() {
-  return [
+function clearSessionCookieValue(opts?: { secure?: boolean; sameSite?: "Strict" | "Lax" | "None" }) {
+  const flags = [
     `${SESSION_COOKIE_NAME}=`,
     "Path=/",
     "HttpOnly",
-    "SameSite=Lax",
+    `SameSite=${opts?.sameSite ?? "Lax"}`,
     "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
     "Max-Age=0",
-  ].join("; ");
+  ];
+  if (opts?.secure) {
+    flags.push("Secure");
+  }
+  return flags.join("; ");
 }

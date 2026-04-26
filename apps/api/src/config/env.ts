@@ -11,6 +11,16 @@ const EnvSchema = z.object({
     .transform((s) => s.split(",").map((o) => o.trim()).filter(Boolean)),
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
+  ALLOW_SCENARIO_ROUTES: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),
+  REDIRECT_ALLOWLIST: z
+    .string()
+    .default("/auth/login,/auth/logout,/onboarding,/emission/workspace,/emission/review-signature,/emission/signature-queue,/dashboard")
+    .transform((s) => s.split(",").map((o) => o.trim()).filter(Boolean)),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

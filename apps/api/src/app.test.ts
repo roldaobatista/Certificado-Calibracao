@@ -53,6 +53,10 @@ const TEST_ENV: Env = {
   CORS_ORIGINS: [],
   DATABASE_URL: "postgresql://afere:afere@localhost:5432/afere?schema=public",
   REDIS_URL: "redis://localhost:6379",
+  ALLOW_SCENARIO_ROUTES: true,
+  RATE_LIMIT_MAX: 100,
+  RATE_LIMIT_WINDOW_MS: 60000,
+  REDIRECT_ALLOWLIST: ["/auth/login", "/auth/logout", "/onboarding", "/emission/workspace", "/emission/review-signature", "/emission/signature-queue", "/dashboard"],
 };
 
 test("keeps /healthz as process liveness even when runtime dependencies are not ready", async () => {

@@ -1940,9 +1940,9 @@ function mapServiceOrderRecord(record: {
   evidenceLabel: string;
   uncertaintyLabel: string;
   conformityLabel: string;
-  measurementResultValue: number | null;
-  measurementExpandedUncertaintyValue: number | null;
-  measurementCoverageFactor: number | null;
+  measurementResultValue: Prisma.Decimal | null;
+  measurementExpandedUncertaintyValue: Prisma.Decimal | null;
+  measurementCoverageFactor: Prisma.Decimal | null;
   measurementUnit: string | null;
   measurementRawData: Prisma.JsonValue | null;
   equipmentMetrologySnapshot: Prisma.JsonValue | null;
@@ -2057,10 +2057,15 @@ function mapServiceOrderRecord(record: {
     evidenceLabel: record.evidenceLabel,
     uncertaintyLabel: record.uncertaintyLabel,
     conformityLabel: record.conformityLabel,
-    measurementResultValue: record.measurementResultValue ?? undefined,
-    measurementExpandedUncertaintyValue:
-      record.measurementExpandedUncertaintyValue ?? undefined,
-    measurementCoverageFactor: record.measurementCoverageFactor ?? undefined,
+    measurementResultValue: record.measurementResultValue
+      ? Number(record.measurementResultValue.toString())
+      : undefined,
+    measurementExpandedUncertaintyValue: record.measurementExpandedUncertaintyValue
+      ? Number(record.measurementExpandedUncertaintyValue.toString())
+      : undefined,
+    measurementCoverageFactor: record.measurementCoverageFactor
+      ? Number(record.measurementCoverageFactor.toString())
+      : undefined,
     measurementUnit: record.measurementUnit ?? undefined,
     measurementRawData: parseMeasurementRawData(record.measurementRawData),
     decisionRuleLabel: record.decisionRuleLabel ?? undefined,

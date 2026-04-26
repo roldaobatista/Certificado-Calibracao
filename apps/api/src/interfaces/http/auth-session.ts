@@ -23,6 +23,7 @@ import {
   resolveAuthenticatedRequest,
   toAuthSession,
 } from "../../domain/auth/session-auth.js";
+import type { Env } from "../../config/env.js";
 
 const LoginBodySchema = z.object({
   email: z.string().email(),
@@ -39,6 +40,18 @@ const BootstrapBodySchema = z.object({
   password: z.string().min(8),
   redirectTo: z.string().min(1).optional(),
 });
+
+function isRedirectAllowed(target: string, allowlist: readonly string[]): boolean {
+  if (target.startsWith("/")) {
+    return allowlist.some((allowed) => target === allowed || target.startsWith(`${allowed}/`));
+  }
+  try {
+    const url = new URL(target);
+    return allowlist.includes(url.pathname) || allowlist.some((allowed) => url.pathname.startsWith(`${allowed}/`));
+  } catch {
+    return false;
+  }
+}
 
 export const ONBOARDING_ALLOWED_ROLES: MembershipRole[] = ["admin", "quality_manager"];
 export const USER_DIRECTORY_ALLOWED_ROLES: MembershipRole[] = ["admin", "quality_manager"];
@@ -78,7 +91,13 @@ export const SETTINGS_WRITE_ALLOWED_ROLES: MembershipRole[] = QUALITY_WRITE_ALLO
 export async function registerAuthSessionRoutes(
   app: FastifyInstance,
   persistence: CorePersistence,
+  env: Env,
 ) {
+  const cookieOpts = {
+    secure: env.NODE_ENV === "production",
+    sameSite: "Strict" as const,
+  };
+  const redirectAllowlist = env.REDIRECT_ALLOWLIST;
   app.get("/auth/session", async (request, reply) => {
     const session = await resolveAuthenticatedRequest(request, persistence);
     const payload: AuthSession = session ? toAuthSession(session) : { authenticated: false };
@@ -117,14 +136,14 @@ export async function registerAuthSessionRoutes(
     });
 
     await persistence.touchUserLogin(user.userId, new Date());
-    issueSessionCookie(reply, token, expiresAt);
+    issueSessionCookie(reply, token, expiresAt, cookieOpts);
 
     const payload: AuthLoginResponse = {
       ok: true,
       session: toAuthSession(session),
     };
 
-    if (body.data.redirectTo) {
+    if (body.data.redirectTo && isRedirectAllowed(body.data.redirectTo, redirectAllowlist)) {
       return reply.redirect(body.data.redirectTo);
     }
 
@@ -137,10 +156,10 @@ export async function registerAuthSessionRoutes(
       await persistence.revokeSessionByTokenHash(session.tokenHash);
     }
 
-    clearSessionCookie(reply);
+    clearSessionCookie(reply, cookieOpts);
     const redirectTo = readRedirectTarget(request.body);
 
-    if (redirectTo) {
+    if (redirectTo && isRedirectAllowed(redirectTo, redirectAllowlist)) {
       return reply.redirect(redirectTo);
     }
 
@@ -170,7 +189,14 @@ export async function registerAuthSessionRoutes(
       throw error;
     }
 
-    return reply.redirect(body.data.redirectTo ?? "http://127.0.0.1:3002/auth/login?created=1");
+    const fallbackRedirect = env.NODE_ENV === "production"
+      ? "/auth/login?created=1"
+      : "http://127.0.0.1:3002/auth/login?created=1";
+    const target = body.data.redirectTo && isRedirectAllowed(body.data.redirectTo, redirectAllowlist)
+      ? body.data.redirectTo
+      : fallbackRedirect;
+
+    return reply.redirect(target);
   });
 }
 

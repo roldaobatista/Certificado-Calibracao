@@ -335,9 +335,9 @@ model ServiceOrder {
   evidenceLabel       String            @map("evidence_label") @db.VarChar(160)
   uncertaintyLabel    String            @map("uncertainty_label") @db.VarChar(120)
   conformityLabel     String            @map("conformity_label") @db.VarChar(160)
-  measurementResultValue              Float?    @map("measurement_result_value")
-  measurementExpandedUncertaintyValue Float?    @map("measurement_expanded_uncertainty_value")
-  measurementCoverageFactor           Float?    @map("measurement_coverage_factor")
+  measurementResultValue              Decimal?  @map("measurement_result_value") @db.Decimal(28, 12)
+  measurementExpandedUncertaintyValue Decimal?  @map("measurement_expanded_uncertainty_value") @db.Decimal(28, 12)
+  measurementCoverageFactor           Decimal?  @map("measurement_coverage_factor") @db.Decimal(28, 12)
   measurementUnit                     String?   @map("measurement_unit") @db.VarChar(24)
   measurementRawData                  Json?     @map("measurement_raw_data") @db.JsonB
   equipmentMetrologySnapshot          Json?     @map("equipment_metrology_snapshot") @db.JsonB
