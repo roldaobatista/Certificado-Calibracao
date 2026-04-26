@@ -1,0 +1,410 @@
+# Route Authorization Matrix
+# Every mutable route (POST/PUT/PATCH/DELETE) MUST have an entry here.
+# Adding a new mutable route without updating this file causes CI failure.
+
+- route: /healthz
+  method: GET
+  public: true
+  csrf: false
+  audit: false
+  tenant: false
+
+- route: /readyz
+  method: GET
+  public: true
+  csrf: false
+  audit: false
+  tenant: false
+
+- route: /auth/session
+  method: GET
+  public: true
+  csrf: false
+  audit: false
+  tenant: false
+
+- route: /auth/login
+  method: POST
+  public: true
+  csrf: false
+  audit: false
+  tenant: false
+  rateLimit:
+    max: 5
+    windowMs: 900000
+
+- route: /auth/logout
+  method: POST
+  public: false
+  roles: []
+  csrf: false
+  audit: true
+  tenant: false
+  rateLimit:
+    max: 20
+    windowMs: 60000
+
+- route: /auth/self-signup
+  method: GET
+  public: true
+  csrf: false
+  audit: false
+  tenant: false
+
+- route: /auth/users
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /auth/users/manage
+  method: POST
+  public: false
+  roles: [admin]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /onboarding/bootstrap
+  method: POST
+  public: true
+  csrf: false
+  audit: true
+  tenant: false
+  rateLimit:
+    max: 3
+    windowMs: 3600000
+
+- route: /onboarding/readiness
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer, technician]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /onboarding/readiness
+  method: POST
+  public: false
+  roles: [admin]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /registry/customers
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer, technician]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /registry/customers/manage
+  method: POST
+  public: false
+  roles: [admin, quality_manager, technical_reviewer]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /registry/equipment
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer, technician]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /registry/equipment/manage
+  method: POST
+  public: false
+  roles: [admin, quality_manager, technical_reviewer]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /registry/standards
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer, technician]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /registry/standards/manage
+  method: POST
+  public: false
+  roles: [admin, quality_manager, technical_reviewer]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /registry/procedures
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer, technician]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /registry/procedures/manage
+  method: POST
+  public: false
+  roles: [admin, quality_manager, technical_reviewer]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /emission/dry-run
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer, technician]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /emission/workspace
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer, technician]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /emission/service-order-review
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer, technician]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /emission/service-order-review/manage
+  method: POST
+  public: false
+  roles: [admin, quality_manager, technical_reviewer, technician]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /emission/review-signature
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /emission/review-signature/manage
+  method: POST
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /emission/signature-queue
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /emission/signature-queue/manage
+  method: POST
+  public: false
+  roles: [admin, quality_manager, signatory]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /emission/certificate-preview
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer, technician]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /quality
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer, technician]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /quality/audit-trail
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /quality/complaints
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /quality/documents
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer, technician]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /quality/indicators
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /quality/indicators/manage
+  method: POST
+  public: false
+  roles: [admin, quality_manager]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /quality/internal-audit
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /quality/internal-audit/manage
+  method: POST
+  public: false
+  roles: [admin, quality_manager]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /quality/management-review
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /quality/management-review/calendar.ics
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /quality/management-review/manage
+  method: POST
+  public: false
+  roles: [admin, quality_manager]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /quality/nonconformities
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer, technician]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /quality/nonconformities/manage
+  method: POST
+  public: false
+  roles: [admin, quality_manager, technical_reviewer]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /quality/nonconforming-work
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer, technician]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /quality/nonconforming-work/manage
+  method: POST
+  public: false
+  roles: [admin, quality_manager, technical_reviewer]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /quality/risk-register
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /settings/organization
+  method: GET
+  public: false
+  roles: [admin, quality_manager]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /settings/organization/manage
+  method: POST
+  public: false
+  roles: [admin]
+  csrf: true
+  audit: true
+  tenant: true
+
+- route: /sync/review-queue
+  method: GET
+  public: false
+  roles: [admin, quality_manager, signatory, technical_reviewer, technician]
+  csrf: false
+  audit: false
+  tenant: true
+
+- route: /portal/dashboard
+  method: GET
+  public: true
+  csrf: false
+  audit: false
+  tenant: false
+
+- route: /portal/certificate
+  method: GET
+  public: true
+  csrf: false
+  audit: false
+  tenant: false
+
+- route: /portal/equipment
+  method: GET
+  public: true
+  csrf: false
+  audit: false
+  tenant: false
+
+- route: /portal/verify
+  method: GET
+  public: true
+  csrf: false
+  audit: false
+  tenant: false

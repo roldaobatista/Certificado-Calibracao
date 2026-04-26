@@ -339,7 +339,7 @@ export function createMemoryQualityPersistence(seed: {
     (seed.complianceProfiles ?? []).map((record) => [record.organizationId, structuredClone(record)]),
   );
   const qualityIndicatorSnapshots = new Map(
-    (seed.qualityIndicatorSnapshots ?? []).map((record) => [record.snapshotId, structuredClone(record)]),
+    (seed.qualityIndicatorSnapshots ?? []).map((record) => [record.snapshotId, { ...record }]),
   );
 
   return {
@@ -549,7 +549,7 @@ export function createMemoryQualityPersistence(seed: {
     async listQualityIndicatorSnapshotsByOrganization(organizationId) {
       return Array.from(qualityIndicatorSnapshots.values())
         .filter((record) => record.organizationId === organizationId)
-        .map((record) => structuredClone(record))
+        .map((record) => ({ ...record }))
         .sort((left, right) => {
           if (left.indicatorId !== right.indicatorId) {
             return left.indicatorId.localeCompare(right.indicatorId);
@@ -574,7 +574,7 @@ export function createMemoryQualityPersistence(seed: {
       };
 
       qualityIndicatorSnapshots.set(snapshotId, record);
-      return structuredClone(record);
+      return { ...record };
     },
   };
 }
