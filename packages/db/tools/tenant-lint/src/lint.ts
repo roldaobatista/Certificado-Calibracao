@@ -131,7 +131,7 @@ function scanCrud(file: string, content: string): Finding[] {
     while ((match = regex.exec(content)) !== null) {
       const table = normalizeTable(match[1] ?? "");
       const statement = match[0];
-      if (!table || isSingleTenant(table) || hasTenantScope(statement)) continue;
+      if (!table || isSingleTenant(table) || isCatalogTable(table) || hasTenantScope(statement)) continue;
       findings.push(makeFinding(file, content, match.index, "TENANT-SQL-001", table, statement));
     }
   }
@@ -142,7 +142,7 @@ function scanCrud(file: string, content: string): Finding[] {
     const table = normalizeTable(insertMatch[1] ?? "");
     const columns = insertMatch[2] ?? "";
     const statement = insertMatch[0];
-    if (!table || isSingleTenant(table) || hasTenantScope(columns) || hasTenantScope(statement)) continue;
+    if (!table || isSingleTenant(table) || isCatalogTable(table) || hasTenantScope(columns) || hasTenantScope(statement)) continue;
     findings.push(makeFinding(file, content, insertMatch.index, "TENANT-SQL-001", table, statement));
   }
 
@@ -157,6 +157,10 @@ function normalizeTable(raw: string): string {
 
 function isSingleTenant(table: string): boolean {
   return SINGLE_TENANT_TABLES.has(table);
+}
+
+function isCatalogTable(table: string): boolean {
+  return table.startsWith("pg_") || table.startsWith("information_schema");
 }
 
 function hasTenantScope(sql: string): boolean {

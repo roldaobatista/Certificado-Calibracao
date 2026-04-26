@@ -1,5 +1,5 @@
 import { withTenant } from "@afere/db";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 
 export type PersistedNonconformityRecord = {
   ncId: string;
@@ -149,8 +149,8 @@ export type PersistedQualityIndicatorSnapshotRecord = {
   organizationId: string;
   indicatorId: string;
   monthStartUtc: string;
-  valueNumeric: number;
-  targetNumeric?: number;
+  valueNumeric: Prisma.Decimal;
+  targetNumeric?: Prisma.Decimal;
   status: "ready" | "attention" | "blocked";
   sourceLabel: string;
   evidenceLabel: string;
@@ -280,8 +280,8 @@ export type SaveQualityIndicatorSnapshotInput = {
   snapshotId?: string;
   indicatorId: string;
   monthStart: Date;
-  valueNumeric: number;
-  targetNumeric?: number;
+  valueNumeric: Prisma.Decimal;
+  targetNumeric?: Prisma.Decimal;
   status: "ready" | "attention" | "blocked";
   sourceLabel: string;
   evidenceLabel: string;
@@ -339,7 +339,7 @@ export function createMemoryQualityPersistence(seed: {
     (seed.complianceProfiles ?? []).map((record) => [record.organizationId, structuredClone(record)]),
   );
   const qualityIndicatorSnapshots = new Map(
-    (seed.qualityIndicatorSnapshots ?? []).map((record) => [record.snapshotId, structuredClone(record)]),
+    (seed.qualityIndicatorSnapshots ?? []).map((record) => [record.snapshotId, { ...record }]),
   );
 
   return {
@@ -549,7 +549,7 @@ export function createMemoryQualityPersistence(seed: {
     async listQualityIndicatorSnapshotsByOrganization(organizationId) {
       return Array.from(qualityIndicatorSnapshots.values())
         .filter((record) => record.organizationId === organizationId)
-        .map((record) => structuredClone(record))
+        .map((record) => ({ ...record }))
         .sort((left, right) => {
           if (left.indicatorId !== right.indicatorId) {
             return left.indicatorId.localeCompare(right.indicatorId);
@@ -574,7 +574,7 @@ export function createMemoryQualityPersistence(seed: {
       };
 
       qualityIndicatorSnapshots.set(snapshotId, record);
-      return structuredClone(record);
+      return { ...record };
     },
   };
 }
@@ -1396,8 +1396,8 @@ function mapQualityIndicatorSnapshotRecord(
     organizationId: string;
     indicatorId: string;
     monthStart: Date;
-    valueNumeric: number;
-    targetNumeric: number | null;
+    valueNumeric: Prisma.Decimal;
+    targetNumeric: Prisma.Decimal | null;
     status: string;
     sourceLabel: string;
     evidenceLabel: string;

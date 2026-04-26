@@ -37,33 +37,41 @@ export function checkRlsRuntimeReadiness(root = process.cwd()): RlsRuntimeReadin
 
   const ownerUser = dockerCompose ? extractPostgresOwnerUser(dockerCompose) : null;
   const runtimeUsers = dockerCompose ? extractRuntimeDatabaseUsers(dockerCompose) : [];
-  const ownerRuntimeUsers = ownerUser ? runtimeUsers.filter((user) => user === ownerUser) : [];
   const appRuntimeUsers = ownerUser ? runtimeUsers.filter((user) => user !== ownerUser) : [];
-  const forceRlsMigrations = migrationFiles.filter((file) => /\bFORCE\s+ROW\s+LEVEL\s+SECURITY\b/i.test(readFileSync(file, "utf8")));
+  const forceRlsMigrations = migrationFiles.filter((file) =>
+    /\bFORCE\s+ROW\s+LEVEL\s+SECURITY\b/i.test(readFileSync(file, "utf8")),
+  );
   const tenantContextImplemented = hasTenantContextImplementation(tenantContextPath);
 
-  if (ownerRuntimeUsers.length > 0) {
+  // 001: Se docker-compose usa owner na DATABASE_URL, exigir documentação de bypass
+  //      exceto se DATABASE_APP_URL também estiver configurada (role não-owner separada).
+  const hasAppUrlInCompose = dockerCompose ? /DATABASE_APP_URL:/.test(dockerCompose) : false;
+  if (ownerUser && runtimeUsers.includes(ownerUser) && !hasAppUrlInCompose) {
     const missingDocs = checkRequiredDocs(root);
     checkedFiles += REQUIRED_DOCS.length;
     if (missingDocs.length > 0) {
       errors.push(
-        `RUNTIME-RLS-001: docker-compose usa DATABASE_URL com o dono do banco (${ownerRuntimeUsers.join(", ")}), mas a exceção owner-bypass não está documentada: ${missingDocs.join(", ")}.`,
+        `RUNTIME-RLS-001: docker-compose usa DATABASE_URL com o dono do banco (${ownerUser}), mas a exceção owner-bypass não está documentada: ${missingDocs.join(", ")}.`,
       );
     }
   }
 
+  // 002: FORCE RLS só é seguro com tenant context transacional implementado.
   if (forceRlsMigrations.length > 0 && !tenantContextImplemented) {
     errors.push(
       `RUNTIME-RLS-002: FORCE ROW LEVEL SECURITY apareceu antes de ${TENANT_CONTEXT_FILE} implementar app.current_organization_id transacional (${forceRlsMigrations.map((file) => displayPath(root, file)).join(", ")}).`,
     );
   }
 
-  if (appRuntimeUsers.length > 0 && !tenantContextImplemented) {
+  // 003: Se DATABASE_APP_URL está presente, tenant context deve estar implementado.
+  const hasAppUrlInEnv = envExample ? envExample.includes("DATABASE_APP_URL") : false;
+  if (hasAppUrlInEnv && !tenantContextImplemented) {
     errors.push(
-      `RUNTIME-RLS-003: DATABASE_URL já usa role de aplicação (${appRuntimeUsers.join(", ")}), mas ${TENANT_CONTEXT_FILE} ainda não existe; isso quebraria login/bootstrap sem contexto RLS transacional.`,
+      `RUNTIME-RLS-003: DATABASE_APP_URL está configurada, mas ${TENANT_CONTEXT_FILE} não implementa app.current_organization_id transacional.`,
     );
   }
 
+  // 004: .env.example deve documentar separação owner/app e contexto RLS.
   if (!envExample) {
     errors.push("RUNTIME-RLS-004: .env.example ausente; não há registro das URLs owner/app para RLS runtime.");
   } else {
@@ -73,6 +81,14 @@ export function checkRlsRuntimeReadiness(root = process.cwd()): RlsRuntimeReadin
     if (missingEnvMarkers.length > 0) {
       errors.push(`RUNTIME-RLS-004: .env.example deve documentar separação owner/app e contexto RLS: ${missingEnvMarkers.join(", ")}.`);
     }
+  }
+
+  // 005: Verificar que pelo menos uma migration cria ou referencia a role afere_app.
+  const hasAppRoleInMigrations = migrationFiles.some((file) =>
+    /\bafere_app\b/i.test(readFileSync(file, "utf8")),
+  );
+  if (!hasAppRoleInMigrations) {
+    errors.push("RUNTIME-RLS-005: Nenhuma migration cria ou referencia a role afere_app.");
   }
 
   return {
@@ -117,7 +133,7 @@ function extractRuntimeDatabaseUsers(compose: string): string[] {
 function hasTenantContextImplementation(path: string): boolean {
   const content = readOptionalFile(path);
   if (!content) return false;
-  return /\bwithTenant(?:Context|Prisma)\b/.test(content) && /app\.current_organization_id/.test(content);
+  return /\bwithTenant(?:Context|Prisma)?\b/.test(content) && /app\.current_organization_id/.test(content);
 }
 
 function checkRequiredDocs(root: string): string[] {

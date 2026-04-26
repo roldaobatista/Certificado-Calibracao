@@ -838,10 +838,14 @@ export function createMemoryServiceOrderPersistence(seed: {
   };
 }
 
-export function createPrismaServiceOrderPersistence(prisma: PrismaClient): ServiceOrderPersistence {
+export function createPrismaServiceOrderPersistence(
+  prisma: PrismaClient,
+  prismaAuth?: PrismaClient,
+): ServiceOrderPersistence {
+  const authPrisma = prismaAuth ?? prisma;
   return {
     async findOrganizationIdByServiceOrderId(serviceOrderId) {
-      const record = await prisma.serviceOrder.findUnique({
+      const record = await authPrisma.serviceOrder.findUnique({
         where: { id: serviceOrderId },
         select: { organizationId: true },
       });

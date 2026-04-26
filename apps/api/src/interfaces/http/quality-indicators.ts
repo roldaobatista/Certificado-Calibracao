@@ -3,6 +3,7 @@ import {
   type QualityIndicatorRegistryCatalog,
 } from "@afere/contracts";
 import type { FastifyInstance } from "fastify";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import type { CorePersistence } from "../../domain/auth/core-persistence.js";
@@ -31,8 +32,8 @@ const SaveBodySchema = z.object({
   snapshotId: z.preprocess(toOptionalString, z.string().min(1).optional()),
   indicatorId: z.string().min(3),
   monthStart: z.preprocess(toDate, z.date()),
-  valueNumeric: z.preprocess(toNumber, z.number().finite()),
-  targetNumeric: z.preprocess(toNumber, z.number().finite().optional()),
+  valueNumeric: z.preprocess(toNumber, z.number().finite()).transform((v) => new Prisma.Decimal(v)),
+  targetNumeric: z.preprocess(toNumber, z.number().finite().optional()).transform((v) => v === undefined ? undefined : new Prisma.Decimal(v)),
   status: z.enum(["ready", "attention", "blocked"]),
   sourceLabel: z.string().min(3),
   evidenceLabel: z.string().min(3),

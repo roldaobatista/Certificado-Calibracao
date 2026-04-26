@@ -10,6 +10,11 @@ packages/engine-uncertainty/**        @roldaobatista
 packages/normative-rules/**           @roldaobatista
 # agent-owners packages/audit-log/** @product-governance @db-schema @lgpd-security
 packages/audit-log/**                 @roldaobatista
+# agent-owners packages/db/prisma/migrations/** @db-schema
+packages/db/prisma/migrations/**      @roldaobatista
+# agent-owners evals/security/** @security-lgpd
+apps/api/src/tests/security/**        @roldaobatista
+evals/security/**                     @roldaobatista
 # agent-owners compliance/** @product-governance
 compliance/**                         @roldaobatista
 # agent-owners PRD.md @product-governance

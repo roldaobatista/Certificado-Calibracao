@@ -1,5 +1,8 @@
+import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
+import csrfProtection from "@fastify/csrf-protection";
 import formbody from "@fastify/formbody";
+import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import { createPrismaClient } from "@afere/db";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -89,33 +92,65 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     await runtimeReadiness.close();
   });
 
-  const prisma =
-    options.corePersistence && options.registryPersistence && options.serviceOrderPersistence
-      ? null
-      : createPrismaClient(env.DATABASE_URL);
+  const useMemory =
+    options.corePersistence && options.registryPersistence && options.serviceOrderPersistence;
+
+  const prismaAuth = useMemory
+    ? null
+    : createPrismaClient(env.DATABASE_OWNER_URL ?? env.DATABASE_URL);
+  const prismaApp = useMemory
+    ? null
+    : createPrismaClient(env.DATABASE_APP_URL ?? env.DATABASE_URL);
+
   const corePersistence =
-    options.corePersistence ?? createPrismaCorePersistence(prisma ?? createPrismaClient(env.DATABASE_URL));
+    options.corePersistence ?? createPrismaCorePersistence(
+      prismaAuth ?? createPrismaClient(env.DATABASE_URL),
+      prismaApp ?? undefined,
+    );
   const registryPersistence =
     options.registryPersistence ??
-    createPrismaRegistryPersistence(prisma ?? createPrismaClient(env.DATABASE_URL));
+    createPrismaRegistryPersistence(prismaApp ?? createPrismaClient(env.DATABASE_URL));
   const serviceOrderPersistence =
     options.serviceOrderPersistence ??
-    createPrismaServiceOrderPersistence(prisma ?? createPrismaClient(env.DATABASE_URL));
+    createPrismaServiceOrderPersistence(
+      prismaApp ?? createPrismaClient(env.DATABASE_URL),
+      prismaAuth ?? undefined,
+    );
   const qualityPersistence =
     options.qualityPersistence ??
-    (options.corePersistence && options.registryPersistence && options.serviceOrderPersistence
+    (useMemory
       ? createMemoryQualityPersistence()
-      : createPrismaQualityPersistence(prisma ?? createPrismaClient(env.DATABASE_URL)));
+      : createPrismaQualityPersistence(prismaApp ?? createPrismaClient(env.DATABASE_URL)));
 
-  if (prisma) {
+  if (prismaAuth) {
     app.addHook("onClose", async () => {
-      await prisma.$disconnect();
+      await prismaAuth.$disconnect();
+    });
+  }
+  if (prismaApp) {
+    app.addHook("onClose", async () => {
+      await prismaApp.$disconnect();
     });
   }
 
+  await app.register(helmet);
   await app.register(cors, {
     origin: env.CORS_ORIGINS.length > 0 ? env.CORS_ORIGINS : false,
     credentials: true,
+  });
+  await app.register(cookie, {
+    secret: env.COOKIE_SECRET,
+    parseOptions: {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: env.NODE_ENV === "production",
+    },
+  });
+  await app.register(csrfProtection, {
+    cookieOpts: { signed: true },
+    getToken: (req) => {
+      return (req.headers["x-csrf-token"] as string | undefined) ?? "";
+    },
   });
   await app.register(formbody);
   await app.register(rateLimit, {

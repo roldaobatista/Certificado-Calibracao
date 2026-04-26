@@ -224,7 +224,7 @@ requirements:
     linked_specs:
       - specs/0045-backend-runtime-readiness.md
     linked_tests:
-      - apps/api/src/app.test.ts
+      - apps/api/src/tests/integration/health.test.ts
       - apps/api/src/infra/runtime-readiness.test.ts
     planned_tests: []
     evidence_path: compliance/validation-dossier/evidence/REQ-HARNESS-P0-1-BACKEND-READINESS/

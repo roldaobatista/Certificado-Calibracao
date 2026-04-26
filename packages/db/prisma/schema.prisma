@@ -584,8 +584,8 @@ model QualityIndicatorSnapshot {
   organizationId String      @map("organization_id") @db.Uuid
   indicatorId   String       @map("indicator_id") @db.VarChar(80)
   monthStart    DateTime     @map("month_start") @db.Date
-  valueNumeric  Float        @map("value_numeric")
-  targetNumeric Float?       @map("target_numeric")
+  valueNumeric  Decimal      @map("value_numeric") @db.Decimal(18, 6)
+  targetNumeric Decimal?     @map("target_numeric") @db.Decimal(18, 6)
   status        String       @db.VarChar(24)
   sourceLabel   String       @map("source_label") @db.VarChar(160)
   evidenceLabel String       @map("evidence_label")
