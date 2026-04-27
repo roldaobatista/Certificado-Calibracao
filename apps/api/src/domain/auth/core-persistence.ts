@@ -545,6 +545,7 @@ export function createPrismaCorePersistence(
             entityId: user.id,
             action: input.userId ? "update" : "create",
             actorUserId: input.actorUserId,
+            actorType: "human",
             summary: input.userId
               ? `Usuario ${input.displayName.trim()} atualizado.`
               : `Usuario ${input.displayName.trim()} cadastrado.`,
@@ -576,6 +577,7 @@ export function createPrismaCorePersistence(
             entityId: userId,
             action: status === "suspended" ? "archive" : "update",
             actorUserId,
+            actorType: "human",
             summary:
               status === "suspended"
                 ? `Usuario ${user.displayName} suspenso.`
