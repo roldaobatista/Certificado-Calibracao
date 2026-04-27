@@ -16,6 +16,7 @@ export type PersistedRegistryAuditEventRecord = {
   summary: string;
   createdAtUtc: string;
   actorUserId?: string;
+  actorType?: "human" | "agent" | "system";
 };
 
 export type PersistedCustomerRecord = {
@@ -329,6 +330,7 @@ export function createMemoryRegistryPersistence(seed: {
           ? `Cadastro do cliente ${saved.tradeName} atualizado.`
           : `Cadastro do cliente ${saved.tradeName} criado.`,
         actorUserId: input.actorUserId,
+        actorType: "human",
         createdAtUtc: nowUtc,
       });
       return structuredClone(saved);
@@ -353,6 +355,7 @@ export function createMemoryRegistryPersistence(seed: {
           ? `Cliente ${existing.tradeName} arquivado.`
           : `Cliente ${existing.tradeName} reativado.`,
         actorUserId,
+        actorType: "human",
         createdAtUtc: updated.updatedAtUtc,
       });
     },
@@ -415,6 +418,7 @@ export function createMemoryRegistryPersistence(seed: {
           ? `Padrao ${saved.code} atualizado.`
           : `Padrao ${saved.code} cadastrado.`,
         actorUserId: input.actorUserId,
+        actorType: "human",
         createdAtUtc: nowUtc,
       });
       return structuredClone(saved);
@@ -439,6 +443,7 @@ export function createMemoryRegistryPersistence(seed: {
           ? `Padrao ${existing.code} arquivado.`
           : `Padrao ${existing.code} reativado.`,
         actorUserId,
+        actorType: "human",
         createdAtUtc: updated.updatedAtUtc,
       });
     },
@@ -482,6 +487,7 @@ export function createMemoryRegistryPersistence(seed: {
           ? `Procedimento ${saved.code} rev.${saved.revisionLabel} atualizado.`
           : `Procedimento ${saved.code} rev.${saved.revisionLabel} cadastrado.`,
         actorUserId: input.actorUserId,
+        actorType: "human",
         createdAtUtc: nowUtc,
       });
       return structuredClone(saved);
@@ -506,6 +512,7 @@ export function createMemoryRegistryPersistence(seed: {
           ? `Procedimento ${existing.code} rev.${existing.revisionLabel} arquivado.`
           : `Procedimento ${existing.code} rev.${existing.revisionLabel} reativado.`,
         actorUserId,
+        actorType: "human",
         createdAtUtc: updated.updatedAtUtc,
       });
     },
@@ -553,6 +560,7 @@ export function createMemoryRegistryPersistence(seed: {
           ? `Equipamento ${saved.code} atualizado.`
           : `Equipamento ${saved.code} cadastrado.`,
         actorUserId: input.actorUserId,
+        actorType: "human",
         createdAtUtc: nowUtc,
       });
       return structuredClone(saved);
@@ -577,6 +585,7 @@ export function createMemoryRegistryPersistence(seed: {
           ? `Equipamento ${existing.code} arquivado.`
           : `Equipamento ${existing.code} reativado.`,
         actorUserId,
+        actorType: "human",
         createdAtUtc: updated.updatedAtUtc,
       });
     },
@@ -618,6 +627,7 @@ export function createPrismaRegistryPersistence(prisma: PrismaClient): RegistryP
             ? `Cadastro do cliente ${saved.tradeName} atualizado.`
             : `Cadastro do cliente ${saved.tradeName} criado.`,
           actorUserId: input.actorUserId,
+          actorType: "human",
         });
 
         return mapCustomerRecord(saved);
@@ -641,6 +651,7 @@ export function createPrismaRegistryPersistence(prisma: PrismaClient): RegistryP
             ? `Cliente ${updated.tradeName} arquivado.`
             : `Cliente ${updated.tradeName} reativado.`,
           actorUserId,
+          actorType: "human",
         });
       });
     },
@@ -696,6 +707,7 @@ export function createPrismaRegistryPersistence(prisma: PrismaClient): RegistryP
           action: input.standardId ? "update" : "create",
           summary: input.standardId ? `Padrao ${saved.code} atualizado.` : `Padrao ${saved.code} cadastrado.`,
           actorUserId: input.actorUserId,
+          actorType: "human",
         });
 
         const reloaded = await tx.standard.findUniqueOrThrow({
@@ -726,6 +738,7 @@ export function createPrismaRegistryPersistence(prisma: PrismaClient): RegistryP
           action: archived ? "archive" : "restore",
           summary: archived ? `Padrao ${updated.code} arquivado.` : `Padrao ${updated.code} reativado.`,
           actorUserId,
+          actorType: "human",
         });
       });
     },
@@ -762,6 +775,7 @@ export function createPrismaRegistryPersistence(prisma: PrismaClient): RegistryP
             ? `Procedimento ${saved.code} rev.${saved.revisionLabel} atualizado.`
             : `Procedimento ${saved.code} rev.${saved.revisionLabel} cadastrado.`,
           actorUserId: input.actorUserId,
+          actorType: "human",
         });
 
         return mapProcedureRecord(saved);
@@ -785,6 +799,7 @@ export function createPrismaRegistryPersistence(prisma: PrismaClient): RegistryP
             ? `Procedimento ${updated.code} rev.${updated.revisionLabel} arquivado.`
             : `Procedimento ${updated.code} rev.${updated.revisionLabel} reativado.`,
           actorUserId,
+          actorType: "human",
         });
       });
     },
@@ -821,6 +836,7 @@ export function createPrismaRegistryPersistence(prisma: PrismaClient): RegistryP
             ? `Equipamento ${saved.code} atualizado.`
             : `Equipamento ${saved.code} cadastrado.`,
           actorUserId: input.actorUserId,
+          actorType: "human",
         });
 
         return mapEquipmentRecord(saved);
@@ -844,6 +860,7 @@ export function createPrismaRegistryPersistence(prisma: PrismaClient): RegistryP
             ? `Equipamento ${updated.code} arquivado.`
             : `Equipamento ${updated.code} reativado.`,
           actorUserId,
+          actorType: "human",
         });
       });
     },
@@ -901,6 +918,7 @@ async function recordRegistryAuditEvent(
     action: string;
     summary: string;
     actorUserId?: string;
+    actorType?: "human" | "agent" | "system";
   },
 ) {
   await prisma.registryAuditEvent.create({
@@ -909,7 +927,8 @@ async function recordRegistryAuditEvent(
       entityType: input.entityType,
       entityId: input.entityId,
       action: input.action,
-      actorUserId: input.actorUserId,
+      actorUserId: input.actorUserId ?? null,
+      actorType: input.actorType ?? null,
       summary: input.summary,
     },
   });
@@ -1236,6 +1255,7 @@ function mapAuditRecord(record: {
   summary: string;
   createdAt: Date;
   actorUserId: string | null;
+  actorType: string | null;
 }): PersistedRegistryAuditEventRecord {
   return {
     entityType: record.entityType as RegistryEntityType,
@@ -1244,6 +1264,7 @@ function mapAuditRecord(record: {
     summary: record.summary,
     createdAtUtc: record.createdAt.toISOString(),
     actorUserId: record.actorUserId ?? undefined,
+    actorType: (record.actorType ?? undefined) as PersistedRegistryAuditEventRecord["actorType"],
   };
 }
 

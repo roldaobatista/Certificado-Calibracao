@@ -339,6 +339,7 @@ model RegistryAuditEvent {
   entityId       String       @map("entity_id") @db.Uuid
   action         String       @db.VarChar(40)
   actorUserId    String?      @map("actor_user_id") @db.Uuid
+  actorType      String?      @map("actor_type") @db.VarChar(16)
   summary        String       @db.VarChar(240)
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
@@ -459,6 +460,7 @@ model EmissionAuditEvent {
   organizationId    String       @map("organization_id") @db.Uuid
   serviceOrderId    String       @map("service_order_id") @db.Uuid
   actorUserId       String?      @map("actor_user_id") @db.Uuid
+  actorType         String?      @map("actor_type") @db.VarChar(16)
   action            String       @db.VarChar(64)
   actorLabel        String       @map("actor_label") @db.VarChar(160)
   entityLabel       String       @map("entity_label") @db.VarChar(160)

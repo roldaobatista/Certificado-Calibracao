@@ -28,6 +28,7 @@ export type PersistedEmissionAuditEvent = {
   serviceOrderId: string;
   workOrderNumber: string;
   actorUserId?: string;
+  actorType?: "human" | "agent" | "system";
   actorLabel: string;
   action: string;
   entityLabel: string;
@@ -280,6 +281,7 @@ type MutableAuditEventStore = {
     serviceOrderId: string;
     workOrderNumber: string;
     actorUserId?: string;
+    actorType?: "human" | "agent" | "system";
     actorLabel: string;
     action: string;
     entityLabel: string;
@@ -361,6 +363,7 @@ export function createMemoryServiceOrderPersistence(seed: {
         serviceOrderId: input.serviceOrderId,
         workOrderNumber: input.workOrderNumber,
         actorUserId: input.actorUserId,
+        actorType: input.actorType,
         actorLabel: input.actorLabel,
         action: input.action,
         entityLabel: input.entityLabel,
@@ -651,6 +654,7 @@ export function createMemoryServiceOrderPersistence(seed: {
       await ensureAuditEvent(auditStore, updated, {
         action: "certificate.signed",
         actorUserId: signatory.userId,
+        actorType: "human",
         actorLabel: signatory.displayName,
         deviceId: updated.signatureDeviceId,
         certificateNumber: updated.certificateNumber,
@@ -660,6 +664,7 @@ export function createMemoryServiceOrderPersistence(seed: {
       await ensureAuditEvent(auditStore, updated, {
         action: "certificate.emitted",
         actorUserId: signatory.userId,
+        actorType: "human",
         actorLabel: signatory.displayName,
         deviceId: updated.signatureDeviceId,
         certificateNumber: updated.certificateNumber,
@@ -770,6 +775,7 @@ export function createMemoryServiceOrderPersistence(seed: {
           serviceOrderId: updated.serviceOrderId,
           workOrderNumber: updated.workOrderNumber,
           actorUserId: approver.userId,
+          actorType: "human",
           actorLabel: approver.displayName,
           action: "certificate.reissue.approved",
           entityLabel: formatCertificateDisplayNumber(updated.certificateNumber, nextRevision),
@@ -782,6 +788,7 @@ export function createMemoryServiceOrderPersistence(seed: {
         serviceOrderId: updated.serviceOrderId,
         workOrderNumber: updated.workOrderNumber,
         actorUserId: signatory.userId,
+        actorType: "human",
         actorLabel: signatory.displayName,
         action: "certificate.reissued",
         entityLabel: formatCertificateDisplayNumber(updated.certificateNumber, nextRevision),
@@ -799,6 +806,7 @@ export function createMemoryServiceOrderPersistence(seed: {
         serviceOrderId: updated.serviceOrderId,
         workOrderNumber: updated.workOrderNumber,
         actorUserId: signatory.userId,
+        actorType: "human",
         actorLabel: signatory.displayName,
         action: "certificate.signed",
         entityLabel: formatCertificateDisplayNumber(updated.certificateNumber, nextRevision),
@@ -811,6 +819,7 @@ export function createMemoryServiceOrderPersistence(seed: {
         serviceOrderId: updated.serviceOrderId,
         workOrderNumber: updated.workOrderNumber,
         actorUserId: signatory.userId,
+        actorType: "human",
         actorLabel: signatory.displayName,
         action: "certificate.emitted",
         entityLabel: formatCertificateDisplayNumber(updated.certificateNumber, nextRevision),
@@ -1234,6 +1243,7 @@ export function createPrismaServiceOrderPersistence(
         await ensureAuditEvent(auditStore, mapped, {
           action: "certificate.signed",
           actorUserId: signatory.id,
+          actorType: "human",
           actorLabel: signatory.displayName,
           deviceId: input.signatureDeviceId.trim(),
           certificateNumber: input.certificateNumber,
@@ -1243,6 +1253,7 @@ export function createPrismaServiceOrderPersistence(
         await ensureAuditEvent(auditStore, mapped, {
           action: "certificate.emitted",
           actorUserId: signatory.id,
+          actorType: "human",
           actorLabel: signatory.displayName,
           deviceId: input.signatureDeviceId.trim(),
           certificateNumber: input.certificateNumber,
@@ -1370,6 +1381,7 @@ export function createPrismaServiceOrderPersistence(
           serviceOrderId: mapped.serviceOrderId,
           workOrderNumber: mapped.workOrderNumber,
           actorUserId: signatory.id,
+          actorType: "human",
           actorLabel: signatory.displayName,
           action: "certificate.reissued",
           entityLabel: formatCertificateDisplayNumber(mapped.certificateNumber, nextRevision),
@@ -1387,6 +1399,7 @@ export function createPrismaServiceOrderPersistence(
           serviceOrderId: mapped.serviceOrderId,
           workOrderNumber: mapped.workOrderNumber,
           actorUserId: signatory.id,
+          actorType: "human",
           actorLabel: signatory.displayName,
           action: "certificate.signed",
           entityLabel: formatCertificateDisplayNumber(mapped.certificateNumber, nextRevision),
@@ -1399,6 +1412,7 @@ export function createPrismaServiceOrderPersistence(
           serviceOrderId: mapped.serviceOrderId,
           workOrderNumber: mapped.workOrderNumber,
           actorUserId: signatory.id,
+          actorType: "human",
           actorLabel: signatory.displayName,
           action: "certificate.emitted",
           entityLabel: formatCertificateDisplayNumber(mapped.certificateNumber, nextRevision),
@@ -1411,6 +1425,7 @@ export function createPrismaServiceOrderPersistence(
           serviceOrderId: mapped.serviceOrderId,
           workOrderNumber: mapped.workOrderNumber,
           actorUserId: signatory.id,
+          actorType: "human",
           actorLabel: signatory.displayName,
           action: "certificate.reissue.notified",
           entityLabel: input.notificationRecipient.trim().toLowerCase(),
@@ -1462,6 +1477,7 @@ async function ensureDerivedAuditEvents(
     await ensureAuditEvent(auditStore, record, {
       action: "calibration.executed",
       actorUserId: record.executorUserId,
+      actorType: "human",
       actorLabel: record.executorName,
       entityLabel: record.workOrderNumber,
       occurredAtUtc: record.executedAtUtc,
@@ -1477,6 +1493,7 @@ async function ensureDerivedAuditEvents(
     await ensureAuditEvent(auditStore, record, {
       action: "technical_review.completed",
       actorUserId: record.reviewerUserId,
+      actorType: "human",
       actorLabel: record.reviewerName,
       deviceId: record.reviewDeviceId,
       entityLabel: record.workOrderNumber,
@@ -1497,6 +1514,7 @@ async function ensureDerivedAuditEvents(
     await ensureAuditEvent(auditStore, record, {
       action: "technical_review.rejected",
       actorUserId: record.reviewerUserId,
+      actorType: "human",
       actorLabel: record.reviewerName,
       deviceId: record.reviewDeviceId,
       entityLabel: record.workOrderNumber,
@@ -1517,6 +1535,7 @@ async function ensureAuditEvent(
   input: {
     action: string;
     actorUserId?: string;
+    actorType?: "human" | "agent" | "system";
     actorLabel: string;
     entityLabel: string;
     deviceId?: string;
@@ -1535,6 +1554,7 @@ async function ensureAuditEvent(
     serviceOrderId: record.serviceOrderId,
     workOrderNumber: record.workOrderNumber,
     actorUserId: input.actorUserId,
+    actorType: input.actorType,
     actorLabel: input.actorLabel,
     action: input.action,
     entityLabel: input.entityLabel,
@@ -1572,6 +1592,7 @@ function createPrismaAuditStore(
         serviceOrderId: record.serviceOrderId,
         workOrderNumber: record.serviceOrder.workOrderNumber,
         actorUserId: record.actorUserId ?? undefined,
+        actorType: (record.actorType as "human" | "agent" | "system" | undefined) ?? undefined,
         actorLabel: record.actorLabel,
         action: record.action,
         entityLabel: record.entityLabel,
@@ -1594,6 +1615,7 @@ function createPrismaAuditStore(
           organizationId,
           serviceOrderId: input.serviceOrderId,
           actorUserId: input.actorUserId ?? null,
+          actorType: input.actorType ?? null,
           action: input.action,
           actorLabel: input.actorLabel,
           entityLabel: input.entityLabel,
@@ -1784,6 +1806,7 @@ function buildAuditPayload(input: {
   serviceOrderId: string;
   action: string;
   actorUserId?: string;
+  actorType?: "human" | "agent" | "system";
   actorLabel: string;
   entityLabel: string;
   deviceId?: string;
@@ -1794,6 +1817,7 @@ function buildAuditPayload(input: {
   return {
     action: input.action,
     actorId: input.actorUserId,
+    actorType: input.actorType,
     actorLabel: input.actorLabel,
     certificateId: input.serviceOrderId,
     certificateNumber: input.certificateNumber,

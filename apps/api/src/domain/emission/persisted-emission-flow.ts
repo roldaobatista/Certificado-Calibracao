@@ -1383,6 +1383,7 @@ function toAuditEntry(event: PersistedEmissionAuditEvent): AuditChainEntry {
     payload: {
       action: event.action,
       actorId: event.actorUserId,
+      actorType: event.actorType,
       actorLabel: event.actorLabel,
       certificateId: event.serviceOrderId,
       certificateNumber: event.certificateNumber,
