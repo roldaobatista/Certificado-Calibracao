@@ -1,8 +1,11 @@
 # Estudo: ambiente Claude Code antes de qualquer linha de código
 
-> **Versão 2** — passou por auditoria de 5 agentes isolados (fatos, omissões, ordem, Windows/segurança, coerência) contra a documentação oficial https://code.claude.com/docs/en/overview. Achados aplicados no corpo do texto.
+> **Versão 3** — passou por auditoria de 5 agentes isolados (fatos, omissões, ordem, Windows/segurança, coerência) e por um 6º agente cirúrgico que fechou os 4 pontos duvidosos. Achados aplicados no corpo do texto.
 >
-> Itens marcados com **`[TODO-VERIFICAR]`** são pontos que os auditores não conseguiram confirmar 100% na doc — usar com cautela e validar antes de depender.
+> Histórico de versões:
+> - v1: estudo inicial baseado em 10 agentes pesquisando a doc oficial.
+> - v2: auditoria por 5 agentes isolados; correções de fato, omissões, ordem, Windows e coerência.
+> - v3: agente cirúrgico fechou os 4 TODOs. Resultado abaixo.
 
 ---
 
@@ -33,7 +36,7 @@ Certificado de calibracao/
 │   ├── skills/                        ← procedimentos repetíveis (substituem commands)
 │   │   └── <nome>/SKILL.md
 │   ├── hooks/                         ← scripts bash de automação
-│   ├── output-styles/                 ← [TODO-VERIFICAR] estrutura como pasta não confirmada na doc; pode ser só campo outputStyle em settings.json
+│   ├── output-styles/                 ← CONFIRMADO: pasta com arquivos .md, frontmatter name+description. Built-in: Default, Proactive, Explanatory, Learning
 │   └── rules/                         ← regras por pasta
 │       ├── <nome>.md                  ← sem `paths:` → carrega em todo turno (eager)
 │       └── <nome>.md                  ← com `paths: [src/**/*.ts]` → só carrega ao tocar arquivos match (lazy)
@@ -196,13 +199,15 @@ A pasta `memory/` (memória pessoal acumulada gerada pelo próprio Claude) **fic
 | `.claude/settings.json` | Permissões do projeto, hooks, MCP habilitados | **Sim** |
 | `.claude/settings.local.json` | Tokens, paths absolutos, preferência pessoal | **Não** (entra no `.gitignore`) |
 
-**Modos de permissão (lista completa corrigida após auditoria):**
+**Modos de permissão:**
 - `default` — pergunta antes de cada ação sensível
 - `acceptEdits` — aprova edições automaticamente, só pergunta em shell
 - `plan` — só lê e propõe, espera aprovação
-- `auto` — modo automático (verificar comportamento na doc)
+- `auto` — modo automático
 - `dontAsk` — não pergunta (cuidado)
 - `bypassPermissions` — **nunca use** em projeto compartilhado
+
+**Atenção (descoberta em v3):** `permissions.defaultMode` **NÃO É CAMPO VÁLIDO** em `settings.json`. A doc só lista `permissions.allow`, `permissions.deny`, `permissions.ask`. Pra forçar um modo, usar CLI: `claude --permission-mode plan` (ou similar). Em settings.json, controlar comportamento via allow/deny granulares.
 
 **Allowlist recomendada inicial** (`permissions.allow`): `git status`, `git diff`, `git log`, `npm run lint`, `npm run test`, `npm run build`, `ls`, `node -v`.
 
@@ -215,7 +220,9 @@ A pasta `memory/` (memória pessoal acumulada gerada pelo próprio Claude) **fic
 - `Bash(chmod 777*)`
 - `Read(.env*)`, `Read(secrets/**)`, `Read(~/.ssh/**)`
 
-**[TODO-VERIFICAR]:** confirmar nomes exatos de campos como `enableAllProjectMcpServers`, `autoMemoryEnabled` — auditores não acharam confirmação 100% na doc. Validar antes de usar.
+**Campos confirmados na doc (v3):** `enableAllProjectMcpServers` (boolean), `autoMemoryEnabled` (boolean, default true), `autoMemoryDirectory` (path), `effortLevel` ("low"/"medium"/"high"/"xhigh"), `statusLine` (object), `editorMode` ("normal"/"vim"), `tui` ("fullscreen"/"default"), `language` (string), `model` (string com ID do modelo).
+
+**Campos que NÃO existem (v3):** `permissions.defaultMode`, `apiKeyHelper`. Se aparecerem em algum exemplo, ignorar.
 
 ---
 
@@ -241,7 +248,7 @@ A pasta `memory/` (memória pessoal acumulada gerada pelo próprio Claude) **fic
 
 | Item | Onde | Recomendação (revisada após auditoria) |
 |---|---|---|
-| **Output style** | `outputStyle` em settings.json + **[TODO-VERIFICAR]** se `.claude/output-styles/` como pasta é estrutura oficial | Criar um único estilo PT-BR sem jargão |
+| **Output style** | `.claude/output-styles/<nome>.md` (pasta confirmada em v3) com frontmatter `name` + `description`. Built-in disponíveis: Default, Proactive, Explanatory, Learning. Trocar via `/config` | Criar um único estilo PT-BR sem jargão |
 | **Statusline** | `~/.claude/settings.json` campo `statusLine` | Opcional; ligar se ajudar visualizar modelo/branch (recomendação original "desligar" era opinião sem base na doc) |
 | **Plan mode** | `Shift+Tab` ou `defaultMode: "plan"` | **Recomendado como default pro Roldão** (perfil não-técnico + regra "investigar antes de mexer" do CLAUDE.md global = plan mode é o casamento natural). Recomendação original "opt-in" contradiz o próprio perfil do usuário. |
 | **Modelo** | `model` em settings | **Sonnet** como padrão; `/model opus` em arquitetura/segurança; haiku em varreduras |
@@ -255,7 +262,7 @@ A pasta `memory/` (memória pessoal acumulada gerada pelo próprio Claude) **fic
 - `CLAUDE.md` = instruções que você escreve e **sempre carregam**
 - `CLAUDE.local.md` = memória pessoal, não versionada (análogo a `settings.local.json`)
 - `~/.claude/projects/<projeto>/memory/` = aprendizados que o Claude grava sozinho. **Não versionar** — é por máquina
-- **[TODO-VERIFICAR]:** comando `#` pra gravar memória rápida na conversa — auditor não confirmou na doc oficial. `/memory` (abrir editor) é confirmado.
+- **Comando `#` NÃO existe** (descoberto em v3 — o agente verificou a tabela completa de comandos da doc oficial). Pra gerenciar memória, usar `/memory` (abre editor).
 
 **Gestão de contexto:** `/context`, `/compact`, `/clear`.
 
@@ -346,10 +353,9 @@ Camadas seguintes (MCP servers, agentes, skills) entram só quando o primeiro pa
 
 Esta versão 2 incorpora achados de 5 auditores isolados que checaram o plano original contra https://code.claude.com/docs/en/overview:
 
-- **Fatos/alucinações**: corrigida hierarquia de settings, modos de permissão completos, eventos de hook completos, esclarecimento sobre `AGENTS.md` precisar de `@import`
-- **Omissões**: adicionados `/init`, Plugins, Routines, modo headless, `paths:` em rules, validação de ambiente, `CLAUDE.local.md`, decisão de stack como passo zero
-- **Ordem**: ordem revisada com 13 passos, validação de ambiente no fim
-- **Windows/segurança**: `jq` ausente, paths com espaços, `CLAUDE_CODE_GIT_BASH_PATH`, denylist com matchers amplos, sandboxing limitação WSL2
-- **Coerência**: inventários enxugados (removidos `security-auditor`, `db-migration-reviewer`, `dependency-auditor`, `ux-copy-reviewer` por redundância), `context7` movido pra escopo project, plan mode recomendado como default, statusline neutralizado, pegadinhas e armadilhas consolidadas
-
-Itens marcados **`[TODO-VERIFICAR]`** são pontos que auditores não confirmaram 100% e devem ser validados antes de virar dependência forte.
+- **v2 — Fatos/alucinações**: corrigida hierarquia de settings, modos de permissão, eventos de hook, esclarecimento sobre `AGENTS.md` precisar de `@import`
+- **v2 — Omissões**: adicionados `/init`, Plugins, Routines, modo headless, `paths:` em rules, validação de ambiente, `CLAUDE.local.md`, decisão de stack como passo zero
+- **v2 — Ordem**: ordem revisada com 13 passos, validação de ambiente no fim
+- **v2 — Windows/segurança**: `jq` ausente, paths com espaços, `CLAUDE_CODE_GIT_BASH_PATH`, denylist com matchers amplos, sandboxing limitação WSL2
+- **v2 — Coerência**: inventários enxugados, `context7` movido pra escopo project, statusline neutralizado, pegadinhas e armadilhas consolidadas
+- **v3 — TODOs fechados**: comando `#` confirmado como **inexistente** (remover); `enableAllProjectMcpServers` validado como real; `.claude/output-styles/` confirmado como pasta de `.md` com frontmatter `name`+`description` e 4 estilos built-in (Default, Proactive, Explanatory, Learning); `permissions.defaultMode` e `apiKeyHelper` identificados como **campos inválidos** que não existem na doc (não usar).
