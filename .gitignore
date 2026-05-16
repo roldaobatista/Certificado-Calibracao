@@ -1,31 +1,68 @@
-# Aferê — .gitignore
-
-# Claude Code — arquivos locais do usuário
+# =============================================================
+# Claude Code — arquivos pessoais/sensíveis, NÃO versionar
+# =============================================================
 .claude/settings.local.json
-.claude/worktrees/
+.claude/.credentials.json
+.claude/logs/
+.claude/conversations/
+.claude/cache/
+CLAUDE.local.md
 
-# Codex CLI — arquivos locais
-.codex/settings.local.toml
+# =============================================================
+# Segredos e variáveis de ambiente
+# =============================================================
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_rsa.*
 
-# Node/pnpm
+# =============================================================
+# Dependências e builds (genéricos, ativam quando produto entrar)
+# =============================================================
 node_modules/
-.pnpm-store/
-.turbo/
 dist/
 build/
+out/
 .next/
-coverage/
-*.tsbuildinfo
+.nuxt/
+target/
+__pycache__/
+*.pyc
+.venv/
+venv/
 
-# Logs e temporários
+# =============================================================
+# Logs
+# =============================================================
 *.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# =============================================================
+# Editores e SO
+# =============================================================
 .DS_Store
 Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
 
-# Variáveis de ambiente
-.env
-.env.local
-.env.*.local
-
-# Budget log (diário, pode inchar rápido — revisar política em P0-7)
-# compliance/budget-log/  # mantém versionado por enquanto; reavaliar se crescer
+# =============================================================
+# Banco de dados locais e dumps (ativam quando produto entrar)
+# =============================================================
+*.sqlite
+*.sqlite3
+*.db
+dumps/

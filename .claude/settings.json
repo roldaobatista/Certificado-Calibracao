@@ -1,178 +1,77 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "description": "Aferê — harness de desenvolvimento. Fonte canônica: AGENTS.md. Detalhamento: harness/02, 05, 06, 11.",
-
-  "agents": {
-    "allowlist": [
-      "backend-api",
-      "regulator",
-      "metrology-calc",
-      "web-ui",
-      "android",
-      "db-schema",
-      "qa-acceptance",
-      "lgpd-security",
-      "copy-compliance",
-      "product-governance",
-      "metrology-auditor",
-      "legal-counsel",
-      "senior-reviewer"
+  "permissions": {
+    "defaultMode": "plan",
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(ls*)",
+      "Bash(cat*)",
+      "Bash(pwd)",
+      "Bash(node -v*)",
+      "Bash(npm -v*)",
+      "Bash(npm list*)",
+      "Bash(echo*)",
+      "Bash(which*)"
     ],
-    "denySpawnOutsideAllowlist": true
+    "deny": [
+      "Bash(rm -rf*)",
+      "Bash(rm -fr*)",
+      "Bash(rm -r *)",
+      "Bash(rm -f *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -fd*)",
+      "Bash(git clean -fdx*)",
+      "Bash(git branch -D *)",
+      "Bash(chmod 777*)",
+      "Bash(curl * | bash*)",
+      "Bash(curl * | sh*)",
+      "Bash(wget * | bash*)",
+      "Bash(wget * | sh*)",
+      "Bash(mkfs*)",
+      "Bash(dd if=*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(./**/credentials.json)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./**/id_rsa*)",
+      "Write(./.env)",
+      "Write(./.env.*)",
+      "Write(./secrets/**)"
+    ]
   },
-
   "hooks": {
-    "SessionStart": [
-      {
-        "description": "Garante leitura obrigatória de CLAUDE.md e AGENTS.md e valida que harness/STATUS.md existe.",
-        "command": "bash .claude/hooks/session-start.sh"
-      }
-    ],
-
     "PreToolUse": [
       {
         "matcher": "Bash",
-        "description": "Bloqueia git push --force, rm -rf, --no-verify e outras ações destrutivas não autorizadas.",
-        "command": "bash .claude/hooks/block-destructive.sh"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/block-destructive.sh\"",
+            "timeout": 10
+          }
+        ]
       },
       {
-        "matcher": "Edit|Write",
-        "description": "Valida ownership: agente só escreve em paths permitidos em .claude/agents/<agente>.md.",
-        "command": "bash .claude/hooks/check-ownership.sh"
-      },
-      {
-        "matcher": "*",
-        "description": "Verifica budget de tokens/custo acumulado (harness/11-budgets.md). Fail-closed em hard cap.",
-        "command": "bash .claude/hooks/check-budget.sh"
-      }
-    ],
-
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "description": "Roda lint/type do pacote tocado (quality gates). Falha = agente deve corrigir antes de próximo passo.",
-        "command": "bash .claude/hooks/quality-gates.sh"
-      },
-      {
-        "matcher": "*",
-        "description": "Atualiza contador de tokens/custo em compliance/budget-log/.",
-        "command": "bash .claude/hooks/cost-tracker.sh"
-      }
-    ],
-
-    "PreCommit": [
-      {
-        "description": "Copy-lint regulatório no delta (harness/06-copy-lint.md). Claim proibido = commit bloqueado.",
-        "command": "bash .claude/hooks/copy-lint.sh"
-      },
-      {
-        "description": "Gate 6 — ownership-lint no delta (harness/05-guardrails.md). Import proibido cruzando boundaries = commit bloqueado.",
-        "command": "bash .claude/hooks/ownership-lint.sh"
-      },
-      {
-        "description": "Tenant-safe SQL linter no delta (harness/05-guardrails.md Gate 1).",
-        "command": "bash .claude/hooks/tenant-safe-sql.sh"
-      },
-      {
-        "description": "RLS policy coverage check no delta (harness/05-guardrails.md Gate 2).",
-        "command": "bash .claude/hooks/rls-policy-check.sh"
-      },
-      {
-        "description": "RLS runtime readiness check no delta (harness/05-guardrails.md Gate 2.1).",
-        "command": "bash .claude/hooks/rls-runtime-readiness-check.sh"
-      },
-      {
-        "description": "Audit hash-chain verifier no delta (harness/05-guardrails.md Gate 3).",
-        "command": "bash .claude/hooks/audit-hash-chain.sh"
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/secrets-scanner.sh\"",
+            "timeout": 10
+          }
+        ]
       }
     ]
-  },
-
-  "permissions": {
-    "deny": [
-      "Bash(git push --force*)",
-      "Bash(git push -f*)",
-      "Bash(rm -rf /)",
-      "Bash(rm -rf ~)",
-      "Bash(rm -rf C:/*)",
-      "Bash(rm -rf /*)",
-      "Bash(git commit*--no-verify*)",
-      "Bash(git rebase -i*)",
-      "Bash(git add -i*)",
-      "Bash(git reset --hard origin/main)",
-      "Bash(git reset --hard origin/master)"
-    ],
-    "allow": [
-      "Read(**)",
-      "Grep(**)",
-      "Glob(**)"
-    ]
-  },
-
-  "mcpServers": {
-    "context-mode": {
-      "description": "Gestão de context window (batch execute, search, execute em sandbox)."
-    },
-    "github": {
-      "description": "PRs, issues, CODEOWNERS, releases."
-    },
-    "postgres": {
-      "description": "Schema introspection, RLS policies.",
-      "env": {
-        "POSTGRES_URL": "${POSTGRES_URL}"
-      }
-    },
-    "context7": {
-      "description": "Docs atualizados de Next.js, Prisma, Kotlin, libs metrológicas."
-    },
-    "playwright": {
-      "description": "E2E de apps/web e apps/portal."
-    },
-    "vitest": {
-      "description": "Execução e cobertura de testes."
-    }
-  },
-
-  "budgets": {
-    "tokens": {
-      "perToolCallSoft": 20000,
-      "perToolCallHard": 50000,
-      "perTaskSoft": 100000,
-      "perTaskHard": 200000,
-      "perPrSoft": 350000,
-      "perPrHard": 500000,
-      "contextRotSoft": 300000,
-      "contextRotHard": 400000
-    },
-    "costUSD": {
-      "perDevPerDaySoft": 15,
-      "perDevPerDayHard": 30,
-      "perDevPerWeekSoft": 60,
-      "perDevPerWeekHard": 120,
-      "perPrSoft": 8,
-      "perPrHard": 15,
-      "perCloudTaskSoft": 3,
-      "perCloudTaskHard": 5
-    },
-    "concurrency": {
-      "tier1Subagents": 5,
-      "tier2Worktrees": 3,
-      "tier3CloudAgents": 2
-    },
-    "circuitBreakers": {
-      "consecutiveToolErrors": 3,
-      "sameFileEdits": 5,
-      "sameFileEditWindowMinutes": 10,
-      "regulatoryFailures": 2,
-      "tenancyFailures": 1,
-      "hashChainDivergences": 1,
-      "worktreeHeartbeatHours": 4
-    },
-    "timeouts": {
-      "toolCallMs": 120000,
-      "bashLongRunMs": 600000,
-      "subagentTaskMs": 1800000,
-      "cloudTaskMs": 7200000
-    }
   }
 }
