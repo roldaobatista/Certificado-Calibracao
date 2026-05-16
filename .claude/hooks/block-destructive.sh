@@ -6,34 +6,50 @@
 #
 # Como funciona:
 #   - Claude Code envia JSON via stdin com {tool_input: {command: "..."}}
-#   - Este script lê o stdin, extrai o comando com bash puro (sem jq),
-#     compara com lista de padrões proibidos.
+#   - Este script usa perl (JSON::PP, nativo desde Perl 5.14) pra
+#     decodificar o JSON corretamente, inclusive aspas escapadas
+#     como `command: "sqlite3 db \"DROP TABLE x\""`. Não usar sed
+#     puro pra isso: a regex quebra na primeira aspa e bypassa o filtro.
+#   - Compara o comando decodificado com lista de padrões proibidos.
 #   - Exit 0 = permite | Exit 2 = bloqueia.
 #
-# Como testar manualmente (antes de plugar):
+# Como testar manualmente:
 #   echo '{"tool_input":{"command":"rm -rf /"}}' | bash .claude/hooks/block-destructive.sh
 #   echo $?    # esperar 2 (bloqueou)
 #
 #   echo '{"tool_input":{"command":"ls"}}' | bash .claude/hooks/block-destructive.sh
 #   echo $?    # esperar 0 (permitiu)
+#
+#   echo '{"tool_input":{"command":"sqlite3 db.sqlite \"DROP TABLE x\""}}' | bash .claude/hooks/block-destructive.sh
+#   echo $?    # esperar 2 (regressão: bypass via aspas escapadas)
 # =============================================================
 
 set -u
 
-# Lê o JSON inteiro do stdin
 input=$(cat)
 
-# Extrai o campo .tool_input.command usando bash puro (sem jq).
-# Estratégia: procurar "command":"..." e capturar o conteúdo até a próxima aspa não-escapada.
-# Funciona pra casos comuns; comandos com aspas escapadas no JSON precisariam de jq.
-command=$(printf '%s' "$input" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
+# Extrai .tool_input.command via perl + JSON::PP.
+# Se perl não existir OU o JSON for inválido, falha aberta (exit 0) —
+# bloqueador mais conservador romperia até `ls`. A defesa secundária
+# fica nos padrões `permissions.deny` do settings.json.
+command=$(printf '%s' "$input" | perl -MJSON::PP -e '
+    local $/;
+    my $raw = <STDIN>;
+    my $j;
+    eval { $j = JSON::PP->new->decode($raw); 1 } or exit 0;
+    my $cmd = $j->{tool_input}{command};
+    print $cmd if defined $cmd;
+' 2>/dev/null)
 
-# Se não conseguiu extrair o comando, deixa passar (não é nosso problema bloquear)
 if [ -z "$command" ]; then
     exit 0
 fi
 
-# Padrões proibidos — usar regex bash (=~)
+# Padrões proibidos — regex bash (=~), case-insensitive via lowercase.
+# Caracteres aceitos ANTES de drop/truncate incluem aspas e `=` porque
+# DROP/TRUNCATE quase sempre aparecem dentro de string passada a cliente
+# de banco: `sqlite3 db "DROP TABLE x"`, `psql -c 'DROP TABLE x'`,
+# `mysql --execute=DROP TABLE x`.
 blocked_patterns=(
     '^[[:space:]]*rm[[:space:]]+-rf?[[:space:]]'
     '^[[:space:]]*rm[[:space:]]+-fr?[[:space:]]'
@@ -43,8 +59,8 @@ blocked_patterns=(
     'git[[:space:]]+reset[[:space:]]+--hard'
     'git[[:space:]]+clean[[:space:]]+-fdx?'
     'git[[:space:]]+branch[[:space:]]+-D[[:space:]]'
-    '(^|[[:space:];|&])drop[[:space:]]+table'
-    '(^|[[:space:];|&])truncate[[:space:]]'
+    '(^|[[:space:];|&="'\''`(])drop[[:space:]]+table'
+    '(^|[[:space:];|&="'\''`(])truncate[[:space:]]+(table[[:space:]]+)?[a-z_]'
     'chmod[[:space:]]+777'
     'curl[[:space:]]+.*\|[[:space:]]*(ba)?sh'
     'wget[[:space:]]+.*\|[[:space:]]*(ba)?sh'
@@ -53,17 +69,14 @@ blocked_patterns=(
     '>[[:space:]]*/dev/sd'
 )
 
-# Converter pra lowercase pra match case-insensitive
 command_lower=$(printf '%s' "$command" | tr '[:upper:]' '[:lower:]')
 
 for pattern in "${blocked_patterns[@]}"; do
     if [[ "$command_lower" =~ $pattern ]]; then
-        # Mensagem em stderr (não polui stdout, que é onde Claude lê resposta)
-        echo "❌ Comando bloqueado por block-destructive: $command" >&2
-        echo "Padrão proibido detectado." >&2
+        echo "Comando bloqueado por block-destructive: $command" >&2
+        echo "Padrao proibido detectado." >&2
         exit 2
     fi
 done
 
-# Permite
 exit 0

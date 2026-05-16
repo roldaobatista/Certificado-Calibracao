@@ -108,7 +108,8 @@ docs/
 ## Notas sobre Windows + Git Bash
 
 A máquina é Windows 11. Hooks rodam via Git Bash. Considerar:
-- `jq` **não vem por padrão** no Git Bash — hooks devem usar bash puro.
+- `jq` **não vem por padrão** no Git Bash. Hooks usam `perl -MJSON::PP` (perl 5.14+, sempre presente) pra parsear o JSON enviado pelo Claude Code. Tentativa anterior com `sed` puro vazava: quebrava na primeira aspa escapada, deixando comandos como `sqlite3 db "DROP TABLE x"` passarem sem bloqueio.
 - Path com espaços (`C:\PROJETOS\Certificado de calibracao`) — sempre usar `"${CLAUDE_PROJECT_DIR}"` com aspas.
 - `chmod +x` não é confiável no Windows — invocar hooks via `bash script.sh`.
 - Sandboxing nativo não suportado (só WSL2).
+- Validar mudanças nos hooks rodando `bash .claude/hooks/_test-runner.sh` — 23 casos cobrindo bypass conhecidos e regressões.
