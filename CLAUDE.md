@@ -1,90 +1,114 @@
-# CLAUDE.md — Aferê
+# Contrato Claude Code — projeto
 
-> Thin wrapper para Claude Code. Fonte de verdade: [`AGENTS.md`](./AGENTS.md) (padrão aberto multi-tool).
-> Em `.codex/` há espelho equivalente para Codex CLI.
+> **Status atual:** ambiente Claude Code em construção. Produto, stack técnica e decisões arquiteturais ainda **não definidos** — serão registradas em `AGENTS.md` quando decidirmos.
 
-## Leitura obrigatória ao iniciar sessão
+---
 
-1. [`AGENTS.md`](./AGENTS.md) — contexto canônico do projeto (produto, princípios, agentes, estrutura, regras duras).
-2. [`PRD.md`](./PRD.md) — requisitos do produto (v1.8).
-3. [`harness/README.md`](./harness/README.md) — índice dos 17 arquivos de design operacional; ler os relevantes para a task.
-4. [`harness/STATUS.md`](./harness/STATUS.md) — status de aprovação de cada decisão P0/P1/P2.
+## Perfil do usuário (CRÍTICO — ler sempre)
 
-## Leitura por papel (antes de agir em área sensível)
+**Roldão NÃO programa.** É dono/idealizador de produto, não desenvolvedor. A regra abaixo vale em qualquer interação:
 
-- Agente toca `apps/api/src/domain/emission/**` ou `audit/**` → ler `harness/04-compliance-pipeline.md` + `harness/05-guardrails.md` + `compliance/guardrails.md`.
-- Agente toca `packages/normative-rules/**` → ler `harness/04-compliance-pipeline.md` Parte A + `compliance/normative-packages/README.md`.
-- Agente toca `packages/engine-uncertainty/**` → ler PRD §7.8 + `harness/14-verification-cascade.md`.
-- Agente toca copy (`apps/web/**`, `apps/portal/**`, e-mails, README, PRD) → ler `harness/06-copy-lint.md` + `compliance/approved-claims.md`.
-- Agente toca `compliance/**` → exige ADR em `adr/` + aprovação de `product-governance`.
+### Linguagem obrigatória
+- **NUNCA usar jargão técnico** sem traduzir.
+- **Tabela de tradução:**
+  - "salvei a correção no sistema" em vez de "fiz commit/push"
+  - "está funcionando, validei" em vez de "CI verde / testes passando"
+  - "tem erro, vou investigar" em vez de "tests failing / build red"
+  - "voltar pra versão anterior" em vez de "rollback / revert"
+  - "subir pro servidor que o cliente usa" em vez de "deploy em produção"
+  - "robô que simula o usuário" em vez de "E2E tests"
+  - "reorganizar essa parte (sem mudar o que aparece pro usuário)" em vez de "refactor"
+  - "mudança na estrutura dos dados salvos" em vez de "migration"
+  - "dados falsos pros testes" em vez de "mock/fixture"
+- Ao reportar erro: dizer **efeito visível** ("a tela X não carrega"), nunca stack trace cru.
+- Ao terminar: dizer o que mudou na prática + se o cliente vai ver diferença.
 
-## Subagentes
+### Pró-atividade total — NÃO perguntar permissão
+- Ao identificar gap, erro, débito, bug ou inconsistência: **resolver imediatamente**, nunca perguntar "quer que eu corrija?".
+- Ao terminar tarefa: NÃO perguntar "o que faço agora?" — seguir próximo passo lógico.
+- Reportar SEMPRE no formato: "fiz X, resolvi Y, já comecei Z" (nunca "posso fazer Y?").
+- **Confirmar antes APENAS para:** deletar dados de produção, drop table, rotação de credenciais, mudanças legais públicas, gastos com terceiros pagos, push --force, reset --hard, rm -rf, migration destrutiva.
 
-Definições em [`.claude/agents/`](./.claude/agents/). Allowlist dura — invocar apenas:
+---
 
-`backend-api`, `regulator`, `metrology-calc`, `web-ui`, `android`, `db-schema`, `qa-acceptance`, `lgpd-security`, `copy-compliance`, `product-governance`, `metrology-auditor`, `legal-counsel`, `senior-reviewer`.
+## Regra #0 — Investigar antes de mexer em lógica de negócio
 
-Auditores (`metrology-auditor`, `legal-counsel`, `senior-reviewer`) **nunca** editam o artefato que auditam. Emitem parecer em `compliance/audits/<area>/<slug>.md`; executor corrige e resubmete.
+Quando o usuário reportar bug em comportamento (tela errada, cálculo errado, mensagem confusa, dado salvo errado):
 
-## Hooks e gates
+1. **NÃO mexer no código antes de entender a causa.** Mudar template/UI sem investigar o que está nos dados já produziu 3 voltas em uma mesma sessão em projetos anteriores.
+2. **Primeiro: ler o estado real.** Banco (`sqlite3` / SELECT direto), logs do app, payload de IPC, console do navegador, arquivo de configuração. O que está **salvo** lá?
+3. **Segundo: rastrear o fluxo.** Onde o dado é gerado? Onde é salvo? Onde é lido? Existem dois caminhos ou builders duplicados?
+4. **Terceiro: confirmar entendimento com o usuário antes de mudar** se houver ambiguidade. Uma pergunta curta economiza 10 idas e voltas.
+5. **Só então: implementar.** E mexer no **ponto raiz** — não no sintoma. Se a flag está 0 no banco quando devia estar 1, conserte **onde a flag é gravada errada**. Não conserte mudando o template pra ignorar a flag.
 
-Configurados em [`.claude/settings.json`](./.claude/settings.json):
+---
 
-- `SessionStart` — valida leitura deste arquivo + specs sincronizadas.
-- `PreToolUse` — bloqueia `git push --force`, `rm -rf`, edição cross-ownership, budget tokens/custo excedido.
-- `PostToolUse` — dispara quality gates do pacote tocado (lint, type, test).
-- `PreCommit` (git hook) — `copy-lint`, `tenant-safe-sql`, `audit-hash-chain` no delta.
+## Idioma
 
-Gates duros em git hooks + CI rodam independentes da ferramenta de IA usada. Ver `harness/05-guardrails.md` (7 gates) e `harness/06-copy-lint.md`.
+Comunicar em **Português (Brasil)** por padrão.
 
-## Regras duras (repetidas de AGENTS.md — fail-closed)
+---
 
-- Nunca `git push --force` em branches protegidas.
-- Nunca `--no-verify` em commits.
-- `compliance/**` e `PRD.md` só mudam com PR + ADR.
-- Regra de emissão só existe em `apps/api/src/domain/emission/**`. Web/Android/Portal consomem via `packages/contracts`, nunca via `packages/normative-rules` direto.
-- Verificar antes de afirmar: rodar o comando de verificação antes de dizer "pronto"/"implementado".
+## Estado do ambiente
 
-## Roteamento entre ferramentas
+Este projeto ainda **não tem** stack técnica decidida nem código de produto. O ambiente Claude Code está sendo construído primeiro:
 
-| Tarefa | Preferência |
-|--------|-------------|
-| Raciocínio regulatório profundo, épico novo, release de fatia, Agent Teams | **Claude Code** |
-| Refactor mecânico, teste em lote, DevOps, backlog autônomo, cloud exec | **Codex CLI** |
-| Code review crítico em área blocker | **Ambos** (dupla checagem) |
+- `.gitignore` ✅ — regras Claude + segredos + builds genéricos
+- `CLAUDE.md` ✅ — este arquivo
+- `.claude/settings.json` ✅ — permissões e hooks
+- `.claude/hooks/` ✅ — bloqueios de segurança
+- `AGENTS.md` ⏳ — será criado quando stack técnica for decidida
+- `.mcp.json` ⏳ — será criado quando primeira ferramenta externa for plugada
+- `.claude/agents/`, `.claude/skills/`, `.claude/commands/`, `.claude/rules/` ⏳ — vazios; criar entradas só quando padrão repetir 3 vezes
 
-## Primeira execução após clone
-
-```bash
-# 1. Instala dependências do workspace
-pnpm install
-
-# 2. Instala git hooks canônicos (core.hooksPath → .githooks/)
-#    Ativa PreCommit para copy-lint + ownership-lint em QUALQUER CLI
-bash tools/install-hooks.sh
-
-# 3. Registra MCP servers (só Claude, ou só Codex, ou ambos)
-bash tools/install-mcp.sh both      # ver tools/setup-mcp.md para detalhes
-
-# 4. Sobe dev stack (Postgres + Redis) se for trabalhar em apps/api
-docker compose up -d postgres redis
-
-# 5. Valida:
-pnpm check:all                      # typecheck + agents drift
+**Quando criar `AGENTS.md`**, adicionar no topo deste arquivo:
+```
+@AGENTS.md
 ```
 
-## Como iniciar sessão
+---
 
-```bash
-cd "Certificado de calibracao"
-claude
+## Princípios universais (defaults)
+
+### Verificar antes de afirmar
+NUNCA dizer "pronto", "implementado" ou "corrigido" sem ter rodado o comando de verificação e mostrado o resultado. Evidência antes de afirmação.
+
+### Causa raiz, nunca sintoma
+Teste falhou = problema no sistema. Corrigir o código, nunca mascarar (skip, `assertTrue(true)`, `eslint-disable`, `@ts-ignore`, regra desligada, `--quiet`, `|| true`).
+
+### Commits atômicos
+Cada commit com propósito único e claro. Não misturar correção + funcionalidade nova + reorganização no mesmo commit. Adicionar arquivos de forma seletiva — nunca `git add .` cego com outras frentes sujas.
+
+### Perguntar antes de destruir
+Confirmar antes de operações irreversíveis: `git reset --hard`, `git push --force`, `git branch -D`, `rm -rf`, `drop table`, migration destrutiva.
+
+---
+
+## Estrutura de pastas Claude Code neste projeto
+
+```
+.claude/
+├── settings.json          ← permissões + hooks (versionado)
+├── settings.local.json    ← pessoal (NÃO versionar)
+├── agents/                ← subagentes especialistas (vazio agora)
+├── skills/                ← procedimentos repetíveis (vazio agora)
+├── commands/              ← atalhos /comando, legado (vazio agora)
+├── hooks/                 ← scripts bash de segurança
+│   ├── block-destructive.sh
+│   └── secrets-scanner.sh
+├── rules/                 ← regras por pasta com `paths:` frontmatter (vazio agora)
+└── output-styles/         ← estilos de resposta (vazio agora)
+
+docs/
+└── ambiente-claude-code.md   ← estudo de referência do ambiente
 ```
 
-Claude Code carrega CLAUDE.md → `AGENTS.md` → `.claude/agents/*.md` → `.claude/settings.json`.
+---
 
-## Sanidade contínua
+## Notas sobre Windows + Git Bash
 
-- `pnpm check:drift` — garante que `.claude/agents/*.md` e `.codex/agents/*.toml` estão em sincronia após edições manuais.
-- `pnpm --filter @afere/copy-lint exec node --import tsx src/cli.ts` — roda copy-lint em toda a cobertura.
-- `pnpm --filter @afere/ownership-lint exec node --import tsx src/cli.ts` — roda Gate 6.
-- `SKIP_GATES=1 git commit ...` — emergência apenas; justifique na commit message.
+A máquina é Windows 11. Hooks rodam via Git Bash. Considerar:
+- `jq` **não vem por padrão** no Git Bash — hooks devem usar bash puro.
+- Path com espaços (`C:\PROJETOS\Certificado de calibracao`) — sempre usar `"${CLAUDE_PROJECT_DIR}"` com aspas.
+- `chmod +x` não é confiável no Windows — invocar hooks via `bash script.sh`.
+- Sandboxing nativo não suportado (só WSL2).
