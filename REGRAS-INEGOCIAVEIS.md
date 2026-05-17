@@ -20,17 +20,39 @@
 
 ---
 
-## INV-* — Invariantes de negócio (vazio até regras concretas aparecerem)
+## INV-* — Invariantes de negócio
 
-| ID | Regra | Hook que valida | Consequência de violar |
-|---|---|---|---|
-| (vazio — primeiro INV virá quando spec de feature aparecer) | | | |
+> **Migrado em 17/05/2026 (3ª auditoria de 10 agentes — Auditor 6 compliance):** INV-001..020 estavam só em `docs/discovery/normas-e-regulacao.md` (capítulo discovery, fora do arquivo canônico). Sem migração, hooks de validação não disparavam porque o catálogo canônico estava vazio. Migração completa pra cá; hooks correspondentes a criar progressivamente.
 
-**Candidatos comprovados em domínio (a virar INV-001+ quando entrarem no MVP-1):**
-- Certificado emitido é WORM — não editável, só substituível por nova versão.
-- Padrão fora de validade não pode emitir certificado.
-- OS encerrada não pode ter item alterado (só nova OS).
-- Cliente inativo não pode receber novo orçamento.
+| ID | Regra | Base normativa | Hook que valida | Escopo por perfil | Consequência de violar |
+|---|---|---|---|---|---|
+| INV-001 | Trilha de auditoria imutável (`quem, quando, antes, depois`) com hash encadeado, em toda operação que toca certificado de calibração ou documento fiscal | 17025 cl. 7.11 + 8.4 + Marco Civil art. 15 + LGPD art. 37 | Banco com WORM + hash em append-only | Absoluta (todos perfis) | Falha de auditoria CGCRE + processo LGPD ANPD |
+| INV-002 | Toda emissão de certificado grava cadeia de rastreabilidade completa (instrumento → padrão → certificado do padrão → incerteza). Sem cadeia, emissão bloqueia | NIT-DICLA-030 rev. 15 item 8.2.6 + 17025 cl. 6.5 | Pre-commit hook na emissão | Absoluta em A; configurável em B/C/D | Rejeição em supervisão Cgcre (R-018 score 25) |
+| INV-003 | Signatário só assina dentro do **escopo de autorização vigente na data da assinatura** | 17025 cl. 6.2 + NIT-DICLA-021 | Validação no momento de assinar; congelar autorização vigente | Absoluta em A; configurável em B/C/D | Certificado nulo retroativo (R-060) |
+| INV-004a | Nenhum deploy em produção sem aprovação documentada do responsável técnico do laboratório | 17025 cl. 7.11 | CI bloqueia merge/deploy sem registro | Absoluta em A; configurável em B/C/D | NC em auditoria |
+| INV-004b | Toda alteração em rotina de cálculo de incerteza requer revalidação registrada | 17025 cl. 7.11 + EA-4/02 | Hook detecta mudança em arquivos da rotina; bloqueia merge | Absoluta em A; configurável em B/C/D | Incerteza não-rastreável |
+| INV-004c | A versão do software fica gravada em cada certificado emitido | 17025 cl. 7.11 + boa prática (recall) | Campo obrigatório no template do certificado | Absoluta (todos perfis) | Recall impossível |
+| INV-005 | Comunicação de incidente LGPD em ≤3 dias úteis (ANPD + titular) + registro de TODOS incidentes por ≥5 anos. ATPP tem prazo dobrado | Res. CD/ANPD 15/2024 art. 6º, 9º, 10 | Workflow obrigatório no painel de incidente | Absoluta (todos perfis) | Multa ANPD (R-014) |
+| INV-006 | DPO publicado no site (identidade + contato em local de destaque) + canal de titular funcional. ATPP dispensado de DPO mas mantém canal | Res. CD/ANPD 18/2024 | Validação no setup do tenant | Absoluta (todos perfis) | Não-conformidade LGPD |
+| INV-007 | NF-e: arquitetura preparada pra SVC-AN/SVC-RS desde dia 0 (não como contingência tardia) | NT 2013/007 + boa prática | Cliente sem SVC configurado: deploy de NF-e bloqueado | Absoluta (todos perfis) | Sistema fiscal indisponível em contingência |
+| INV-008 | Logs de acesso à aplicação retidos por ≥6 meses (recomendado 12 meses) com sigilo | Marco Civil art. 15 | Política de retenção no banco de logs | Absoluta (todos perfis) | Impossibilidade de investigar incidente |
+| INV-009 | MFA pra usuários com acesso ao CDE (Cardholder Data Environment) — não só admins | PCI 4.0.1 (expansão) | Validação no login | Absoluta quando PCI aplica | Não-conformidade PCI |
+| INV-010 | Registros 17025 com retenção ≥ ciclo de calibração do cliente + 1 ciclo (tipicamente 5–25 anos) | 17025 cl. 8.4 | Política de retenção por tipo de registro; LGPD base "obrigação legal" | Absoluta em A; configurável em B/C/D | Perda de rastreabilidade histórica |
+| INV-011 | Emissão de certificado bloqueia se padrão usado tem calibração vencida | 17025 cl. 6.5 + 7.2 | Pre-commit hook na emissão | Absoluta em A; configurável em B/C/D | Certificado nulo (Dor #06) |
+| INV-012 | Workflow de Não Conformidade (cl. 7.10 + 8.7) com bloqueio de emissão até resolução documentada | 17025 cl. 7.10 + 8.7 | NC aberta no instrumento → bloqueio na emissão | Absoluta em A; configurável em B/C/D | NC reincidente em supervisão |
+| INV-013 | Confidencialidade cl. 4.2: acesso a dados de cliente do laboratório só com permissão explícita + log de toda visualização (incluindo admins) | 17025 cl. 4.2 | RBAC + audit trail visualização | Absoluta (todos perfis) | Vazamento intra-tenant (Dor #23 nova) |
+| INV-014 | Aceitação de certificado de calibração de padrão externo bloqueada se omitir resultado de medição + incerteza | NIT-DICLA-030 rev. 15 item 8.2.6 | Validação no cadastro de padrão | Absoluta em A; configurável em B/C/D | Cadeia de rastreabilidade quebrada |
+| INV-015 | **Tenant não pode emitir certificado de tipo superior ao perfil declarado.** Perfil B/C/D não pode emitir com selo RBC; perfil D não pode emitir declarando "rastreável ao RBC" se não tem padrão RBC. Upgrade de perfil exige prova documental | INMETRO + LGPD + CDC | Validação no momento de gerar PDF do certificado + no upgrade de perfil | Absoluta (todos perfis) — invariante que SEPARA os perfis | Fraude regulatória + Roldão responde solidariamente (R-039) |
+| INV-016 | **Conformidade WCAG 2.1 AA + PDF/UA em toda interface visível pra usuário.** Portal cliente, app mobile, certificado PDF, telas de cadastro | Lei 13.146/2015 (LBI) art. 63 + e-MAG + WCAG 2.1 AA + Lei 14.133/2021 | axe-core ou Lighthouse no CI; PDF/UA conformance no gerador; revisão manual a cada release | Absoluta (todos perfis) | Multa MP + reprovação em licitação (R-048) |
+| INV-017 | **Assinatura digital ICP-Brasil A3/A1 + carimbo do tempo ITI em toda emissão de certificado de calibração.** Sem assinatura + carimbo válidos, emissão bloqueia | MP 2.200-2/2001 art. 10 + Lei 14.063/2020 | Hook bloqueia emissão sem A3 em A; mínimo A1 em B; carimbo ITI absoluto | A: A3 obrigatório. B: A1 mínimo. C/D: A1 ou ITI isolado | Certificado sem valor legal |
+| INV-018 | **Vendor (Aferê) mantém RT técnico publicado no site** (engenheiro CREA com competência metrológica). Substituição em até 60 dias máximo. RT assina dossiê de validação por release. **DECISÃO 17/05/2026 (Roldão):** Aferê opera SEM RT no MVP-1, com R-065 score 20 aceito conscientemente; RT entra em V2-V3 quando produto estiver pronto. Não atender cliente farma TOP no MVP-1. | ISO 17025 cl. 7.11 + boa prática auditoria | Página pública mostra RT vigente; dashboard interno mostra status | Absoluta a partir de V2-V3 (decisão dependente) | Cliente farma TOP recusa fornecedor sem RT (R-065 score 20 — aceito) |
+| INV-019 | **Dossiê de validação por release pública.** Toda release gera URS + casos de teste + change log + assinatura digital do RT-vendor + carimbo ITI. Disponibilizado pra tenant em até 48h | ISO/IEC 17025 cl. 7.11.2 + NIT-DICLA-016 item 5.8 | CI bloqueia deploy de release pública sem dossiê assinado anexado; portal do tenant disponibiliza | Absoluta a partir de V2-V3 (depende de INV-018) | Tenant não consegue submeter o software em auditoria do próprio tenant |
+| INV-020 | **Jornada de motorista UMC conforme Lei 13.103/2015 + CLT 235-C.** 30 min descanso a cada 5h30 de direção; 11h ininterruptas entre jornadas; tempo-espera = sobreaviso 1/3 | Lei 13.103/2015 + CLT art. 235-C §9 | Hook valida agenda da UMC; bloqueia agendamento que infringe | Aplicável a tenants que operam UMC (todos perfis quando operam UMC) | Passivo trabalhista no tenant + Roldão arrolado solidariamente (R-058) |
+
+**Notas operacionais:**
+- INV-001..017, 019, 020: hooks a criar progressivamente conforme módulo correspondente entra no MVP-1
+- INV-018: PENDENTE — aceita conscientemente, dispara em V2-V3
+- TST-004 valida automaticamente: todo INV-NNN crítico deve ter ≥1 teste cujo nome cita o ID
 
 ---
 

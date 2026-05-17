@@ -48,7 +48,17 @@ Perfil A (laboratório acreditado RBC) exige certificado digital ICP-Brasil — 
 
 A1 pode ser server-side ou cliente-side conforme preferência do tenant.
 
-### 1. Fluxo de assinatura A3 cliente-side
+### 1. Fluxo de assinatura A3 cliente-side (com defesa anti-replay)
+
+**Atualização pós-3ª auditoria 17/05/2026 (Auditor 5):** o fluxo abaixo agora inclui **nonce + signing-time server-controlled + one-shot invalidation** pra impedir replay attack. Sem isso, atacante MITM que captura um CMS válido poderia reapresentar em outra request.
+
+**Defesas adicionadas:**
+- **Nonce server-side:** servidor gera UUID v4 + HMAC com chave KMS, inclui no payload como `signedAttributes.nonce`
+- **Signing-time server-controlled:** servidor controla `signing-time` no `signedAttributes` (cliente não pode forjar timestamp passado/futuro)
+- **One-shot invalidation:** servidor armazena nonces consumidos em Redis com TTL 5min; nonce reapresentado = 403
+- **Document-bound:** nonce vincula a `(document_hash, tenant_id, signer_cpf, session_id)` — não vale pra outro doc
+- **Signature-policy-id:** `signedAttributes.signaturePolicyIdentifier` referencia política pública ICP-Brasil aceita
+
 
 ```
 ┌──────────────┐         ┌──────────────┐         ┌──────────────┐
@@ -218,6 +228,34 @@ Custo: ~R$ 0,10-0,50 por carimbo (depende do volume). Negociar pacote anual.
 | Flutter FFI vs Flutter + WebView Web PKI | FFI primeiro | Sem dependência de rede no desktop; migrar pra WebView se FFI inviabilizar |
 | A1 server-side com KMS vs cliente-side | Server-side default + cliente-side opcional | UX melhor pra perfil B/C/D; perfil A pode escolher |
 | Carimbo do tempo ITI via REST vs lib direta | REST | Adapter REST é trivial; lib RFC 3161 em Python é desatualizada |
+
+---
+
+## 21 CFR Part 11 / e-signature operacional (gap reconhecido)
+
+**Adicionado pós-3ª auditoria 17/05/2026 (Auditor 6 compliance).**
+
+ADR-0009 cobre **assinatura digital de documento final** (certificado de calibração, NFS-e). Mas cliente farma TOP-3 (BPF + 21 CFR Part 11-equivalente) exige **e-signature operacional intra-sistema** em ações críticas:
+
+- Aprovação de lote / liberação de OS
+- Fechamento de Não Conformidade (cl. 7.10)
+- Mudança de calibração de padrão
+- Aprovação de relatório de incerteza
+
+Requisitos:
+- 2 componentes de autenticação por ação (login + senha OU biometria)
+- Captura de **"reason for change"** pelo usuário antes da ação
+- Captura de **manifestação de intenção** ("eu estou assinando porque...")
+- Revisão eletrônica antes do release final
+- Audit trail incluindo o motivo declarado
+
+**Decisão Roldão 17/05/2026 (item 4 da síntese):** **NÃO implementar 21 CFR Part 11 operacional no MVP-1** (Aferê não atende farma TOP no MVP-1). INV-001 (audit trail imutável com hash chain) + INV-013 (RBAC + audit visualização) cobrem requisito básico.
+
+**Pendência registrada pra V2-V3:** quando produto for atender farma TOP, novo ADR (ADR-0010 candidato) define:
+- Component electronic signature operacional (django-otp + reason for change)
+- Workflow de aprovação eletrônica
+- Captura de manifestação de intenção em UI
+- Vinculação audit-trail ↔ e-signature ↔ usuário
 
 ---
 

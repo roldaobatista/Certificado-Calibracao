@@ -236,7 +236,7 @@ class QueueProvider(Protocol):
 
 **Implementações:**
 - `CeleryRedisProvider` — Celery + Redis (1ª implementação)
-- `PgBossProvider` — fallback sem Redis se VPS apertar
+- `ProcrastinateProvider` — fallback sem Redis (Postgres-based, Python puro — substitui o equivocado pg-boss que é Node/JavaScript, identificado por Auditor 7 da 3ª auditoria de 10 agentes em 17/05/2026)
 - `MockQueueProvider` — testes
 
 **Regras:**

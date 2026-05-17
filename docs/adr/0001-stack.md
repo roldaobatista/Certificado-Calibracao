@@ -36,8 +36,9 @@ Antes de qualquer linha de código de produto:
 - [ ] **Spike F-1 com escopo recortado** (não Foundation completa) — só Django + DRF + PG + RLS + pytest. Mobile, fiscal, LLM em spikes irmãos. 4-6 semanas máx.
 - [ ] **Critério de mortalidade falsificável:** ≤2 intervenções de código/semana do Roldão, ≤3 bugs SEV-1 em prod, token cap R$ 1.500/spike. Se falhar, dispara plano B (tech-lead consultivo R$ 8-15k/mês) — NÃO reverte pra TS.
 - [ ] **Taxonomia de bug obrigatória por commit** (`lang | spec-drift | hipotese-produto | infra | seguranca`) — sem isso, falha de F-1 vira discussão religiosa (Parecer 3).
-- [ ] **Drills cronometrados mensais antes do 1º tenant pago** (Parecer 8):
+- [ ] **1 drill obrigatório mensal antes do 1º tenant pago** (auditoria 17/05/2026 reduziu de 4 → 1):
   - Restore pgBackRest em provedor B testado
+- [ ] **Outros 3 drills disparam quando 5 tenants pagos ativos:**
   - Failover KMS sa-east-1 → us-east-1
   - Swap fiscal PlugNotas → Focus (smoke test)
   - Cross-tenant canary com fuzz concorrente
@@ -133,7 +134,7 @@ Adotar **Python (Django) + Dart (Flutter) + PostgreSQL** rodando em Docker Compo
 | **IaC servidor** | Ansible playbook único | Reprodutibilidade; Auditor 7 exige antes do 1º tenant pago |
 | **Observabilidade** | OpenTelemetry → Grafana Cloud + Axiom + B2 (WORM logs longos) | Vendor-neutro; retenção 7 anos via B2 (Auditor 7) |
 | **WORM (PDFs + audit)** | Backblaze B2 Object Lock — **região EU Central** (não US) | Cliente farma exige BR-compat; EU + DPA é o mais próximo (Auditor 5) |
-| **Crypto crítica** | AWS KMS sa-east-1 + replicação us-east-1 | SPOF criptográfico mitigado (Auditor 7) |
+| **Crypto crítica** | AWS KMS **Multi-Region Key (MRK)** primária sa-east-1 + replica us-east-1 — não cópia manual, ciphertext portável entre regiões sem recriptografar (correção pós-3ª auditoria 17/05/2026 — Auditor 7 alertou que "replica" sem MRK significa recriptografar tudo em fallback) | SPOF criptográfico mitigado de verdade |
 | **Backup PG** | pgBackRest (PITR contínuo) → B2 criptografado com chave em KMS | RPO ≤ 15min, restore mensal testado (Auditor 6 + 7) |
 | **Email transacional** | Resend (free 3k/mês → Pro depois) | SPF/DKIM/DMARC ok |
 | **WhatsApp BSP** | A definir em ADR-0004 (Z-API ou Meta direto) | Volume MVP cabe em Z-API básico |
@@ -273,7 +274,7 @@ Auditor 1 + Auditor 10 alertaram que Django é território onde agentes IA erram
 - **Agentes IA produzem mais bug em Django+Flutter que em TS-fullstack** — não dramático, mas mensurável. Mitigação: convenções rígidas + scaffold + plano B armado.
 - **2 linguagens (Python + Dart)** — contexto cognitivo pros agentes dobra parcialmente vs TS único. Aceitável trade-off pelo ganho de negócio.
 - **Web admin/operacional não é SPA moderna** — HTMX + Alpine não é o futuro brilhante. Mas atende. Migrar pra SPA depois é trabalho linear.
-- **Celery + Redis** = 2 containers a mais que pg-boss. Vale: ecossistema maduro.
+- **Celery + Redis** = 2 containers a mais que procrastinate (Python; pg-boss é Node, correção pós-3ª auditoria 17/05/2026). Vale: ecossistema maduro.
 
 ### Trade-offs explícitos
 
@@ -283,7 +284,7 @@ Auditor 1 + Auditor 10 alertaram que Django é território onde agentes IA erram
 | Linguagem única vs admin grátis | Admin grátis (Django) | 6-12 meses economizados; trade-off invertido vs v1 |
 | Flutter vs RN | Flutter | Sem "mesma linguagem do back", offline robusto vence |
 | Auth caseiro vs django-allauth | django-allauth | OWASP A07 #1; agentes IA não deveriam fazer crypto-auth |
-| pg-boss (1 container) vs Celery+Redis (2) | Celery+Redis | Maturidade vale 1 container |
+| procrastinate (Python; pg-boss é Node, correção pós-3ª auditoria 17/05/2026) (1 container) vs Celery+Redis (2) | Celery+Redis | Maturidade vale 1 container |
 | SPA moderna vs HTMX | HTMX | Menos JS = menos coisa pra agente errar; migrar depois |
 | BaaS fiscal (PlugNotas) vs construir | PlugNotas | Deadline 01/09/2026 não permite construir |
 | Build próprio assinatura vs SaaS | pyhanko (open source) | Vence porque é open source — sem custo recorrente |

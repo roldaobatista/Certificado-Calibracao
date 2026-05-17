@@ -233,14 +233,19 @@ Pipeline `export_tenant(tenant_id: UUID) -> ZipFile`:
 
 ---
 
-## Drill cronograma obrigatório
+## Drill cronograma obrigatório (revisado pós-auditoria 17/05/2026)
 
-Após F-A, drills mensais cronometrados:
+**Antes do 1º tenant pago** (apenas 1 obrigatório):
 
 1. **Drill RLS bypass** — agente tenta deliberadamente esquecer `WHERE tenant_id` em query; mede se RLS bloqueia. Cronômetro: deve ser bloqueado em <100ms.
+
+**Quando 5 tenants pagos ativos** (mais 3 disparam):
+
 2. **Drill Celery sem wrapper** — agente roda task sem `run_in_tenant_context`; mede se FALHA (não vaza). Cronômetro: deve falhar em <500ms.
 3. **Drill export-por-tenant** — exporta tenant_canary; mede tamanho do ZIP + tempo. Cronômetro: <60s pra tenant com 10k registros.
 4. **Drill cross-tenant fuzzing** — 1000 queries randômicas com tenant_id trocado; mede vazamentos. Cronômetro: 0 vazamentos.
+
+**Razão da redução:** Auditor 4 (sobre-engenharia) + 9 (vs concorrentes BR) da 3ª auditoria de 10 agentes (17/05/2026) alertaram que 4 drills mensais pré-cliente-pago = teatro consumindo 2-3 dias/mês do Roldão sem cliente real reclamando. 1 drill obrigatório mantém defesa essencial (RLS) sem inflar trabalho operacional.
 
 ---
 

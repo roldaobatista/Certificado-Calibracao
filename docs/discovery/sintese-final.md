@@ -261,15 +261,20 @@ Esta síntese só fecha como definitiva quando os 3 últimos forem concluídos.
 - **Roldão:** dono não-técnico, 1º cliente, decisor de produto. Founder is customer — R-001 score 12 pós-validação documental.
 - **Claude Code + Codex CLI (agentes IA):** principais executores do código. LEAP F-1.
 
-### Roles obrigatórios pendentes (gap pré-MVP-1)
+### Roles obrigatórios pendentes — atualizado 17/05/2026 noite final
 
-- **RT do vendor com CREA + competência metrológica** (R-065 score 20 — gap crítico). Sem ele, cliente farma reprova due diligence técnica.
-- **DPO (LGPD em larga escala)** — pode ser advogado especializado ou contratação fracionada
-- **Advogado SaaS regulado** (R$ 8-15k pacote, R-042 score 20) — contrato vendor↔tenant + cláusula penal + DPA-modelo
-- **Corretora de seguros** — RC profissional + cibernético (~R$ 200-600/mês)
-- **Consultor RBC** (R$ 5-8k) — validar dossiê 17025 do software (F-12)
-- **Contador especializado em SaaS** — ajustes fiscais ano 1
-- **Signatário técnico de calibração (RBC NIT-DICLA-021)** — Roldão se habilitado OU contratar
+**Decisão Roldão 17/05/2026:** modelo "agentes especializados + humano licenciado pontual sob demanda" em vez de pacote E-4 com contratação fixa.
+
+- **RT do vendor com CREA + competência metrológica:** **DIFERIDO pra V2-V3** ("terá quando o produto estiver pronto"). R-065 score 20 aceito conscientemente. Aferê NÃO atende cliente farma TOP no MVP-1. INV-018 vira ativa em V2-V3.
+- **DPO (LGPD):** subagente `advogado-saas-regulado` prepara minutas/playbooks; designação formal de DPO humano dispara em V2 ou quando 1º incidente real chegar.
+- **Advogado SaaS regulado:** subagente `advogado-saas-regulado` (criado 17/05/2026) faz 80% do trabalho — minutas, mapeamento de riscos, comparação de propostas. Humano licenciado contratado APENAS sob demanda (1º cliente farma com DPA, processo judicial, parecer formal) — ~R$ 800-2.500 pontual.
+- **Corretora de seguros:** subagente `corretora-seguros-saas` (criado 17/05/2026) faz planejamento + briefing + comparativo. Corretora SUSEP humana contratada quando precisar emitir apólice real (1º tenant pago = obrigatório).
+- **Consultor RBC:** subagente `consultor-rbc-iso17025` (criado 17/05/2026) redige URS/IQ/OQ/PQ, simula auditoria CGCRE. Humano credenciado contratado APENAS antes da 1ª auditoria CGCRE real ou submissão de homologação CERTI — ~R$ 5-15k pontual.
+- **Contador especializado em SaaS:** humano contratado (não-IA) — exige conhecimento operacional/fiscal específico.
+- **Signatário técnico de calibração (RBC NIT-DICLA-021):** Roldão se habilitado OU contratar (decisão diferida com RT).
+- **Tech-lead consultivo:** subagente `tech-lead-saas-regulado` (criado 17/05/2026) faz code review semanal de PRs em código sensível. Humano contratado apenas SE LEAP F-1 falhar nos critérios de mortalidade.
+
+**Pacote E-4 originalmente estimado em R$ 18-60k → reduzido pra R$ 3-15k em consultas pontuais sob demanda** (corretora SUSEP em apólice + advogado em parecer formal + consultor CGCRE em auditoria + tech-lead se F-1 falhar).
 
 ### CS L1 (suporte ao tenant) — gap crítico
 
@@ -399,3 +404,4 @@ A síntese só fecha como definitiva quando:
 | 2026-05-16 | Criação do template | Agente |
 | 2026-05-17 (noite tarde) | DRAFT v1 preenchida com validação documental 4 buckets; R-001 rebaixado 20→12; 12 dores novas mapeadas; bloqueios pra fechamento explicitados | Claude Code + Roldão |
 | 2026-05-17 (noite tarde +2h) | DRAFT v2 incorpora mystery shopping documental + estudo monográfico Calibre.Software. Nova seção 9 "CONCORRENTES — leitura pós-mystery shopping" com reordenação da ameaça: Metroex/ForLogic é #1, Calibre.Software é nicho (não startup), FP2 reclassificado como adjacente. | Claude Code + Roldão |
+| 2026-05-17 (noite final) | DRAFT v3 incorpora 3ª auditoria de 10 agentes nas 6 decisões técnicas (Portão 2) + decisões do Roldão: cliente piloto = Balanças Solution (dogfooding); E-4 vira agentes especializados (4 subagentes criados) + humano licenciado pontual; RT do vendor diferido pra V2-V3; 7 de 8 decisões da auditoria mantidas conscientemente + 1 reduzida (drills 4→1); 6 erros técnicos da auditoria corrigidos (pg-boss→procrastinate, KMS MRK, A3 nonce, INV-001..020 migrados, RDC 658/972 registrado, 21 CFR Part 11 diferido). | Claude Code + Roldão |

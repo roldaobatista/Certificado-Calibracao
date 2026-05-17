@@ -248,6 +248,25 @@ class CircuitBreakerFiscalProvider:
 
 ---
 
+## Anvisa RDC 658/2022 + RDC 972/2025 (cliente farma) — gap reconhecido
+
+**Adicionado pós-3ª auditoria 17/05/2026 (Auditor 6 compliance).**
+
+RDC ANVISA 658/2022 (BPF) + RDC 972/2025 exigem **qualificação formal de fornecedor de software** pra atender cliente farma TOP-3 (Eurofarma, EMS, Aché). Requisitos:
+
+- URS escrito + IQ/OQ/PQ documentados
+- Change control formal
+- RT do vendor com CREA + competência metrológica (INV-018)
+- Direito de auditoria pelo cliente
+- Sub-processadores transparentes
+- DPA assinada
+
+**Decisão Roldão 17/05/2026 (item 4 da síntese):** **Aferê NÃO atende cliente farma TOP no MVP-1.** R-065 (vendor sem RT) score 20 aceito conscientemente. INV-018 dispara só em V2-V3 quando produto estiver pronto pra esse mercado.
+
+**Implicação pro fiscal:** MVP-1 mira perfis B/C/D + farma pequena (que não faz due diligence rigorosa). PlugNotas + Focus NFe atendem esse mercado sem precisar de dossiê BPF complexo. Quando V2-V3 atacar farma TOP, ADR-0008 vai precisar add-on: módulo de qualificação de fornecedor + dossiê BPF por release.
+
+---
+
 ## Critérios de reversão
 
 | Sinal | Resposta |
