@@ -156,7 +156,7 @@ Errar a fronteira entre esses ciclos (ex: emitir certificado sem fechar OS, ou f
 | ID | Perfil | Selo do certificado | Padrões usados | Regras 17025 | Mercado típico |
 |---|---|---|---|---|---|
 | **A** | **Acreditada ISO/IEC 17025 + RBC** | Marca combinada Cgcre + ILAC MRA (RBC) | Padrões calibrados RBC ou rastreáveis ao SI | **Todas as invariantes ATIVAS e não-editáveis** — auditoria Cgcre exige | Lab acreditado pra emitir certificado válido pra cliente farma/automotivo/aeroespacial regulado |
-| **B** | **Não-acreditada, com padrões RBC** | Sem selo RBC; **"Certificado de calibração rastreável ao RBC"** com declaração explícita de rastreabilidade | Padrões calibrados RBC (com certificado-pai válido) | Invariantes de **rastreabilidade ATIVAS e não-editáveis** (cadeia, padrão vencido, incerteza); demais opcionais | Empresa que quer credibilidade técnica sem investir em acreditação completa |
+| **B** | **Não-acreditada, com padrões RBC** | Sem selo RBC; **"Certificado de calibração rastreável ao RBC"** com declaração explícita de rastreabilidade | Padrões calibrados RBC (com certificado-pai válido) | **Todas as regras 17025 são CONFIGURÁVEIS pelo dono do tenant** — empresa B pode escolher rodar com regras 17025 totalmente ativas (preparando-se pra futura acreditação) OU com regras leves. Única trava absoluta: INV-015 (não pode emitir com selo RBC sem ser acreditada) | Empresa que quer credibilidade técnica sem ter passado por acreditação completa (ou que está só em preparação inicial) |
 | **C** | **Quer trabalhar no padrão ISO pra futura homologação** | Configurável: pode emitir "Certificado rastreável ao RBC" ou "Certificado de calibração interno" | Padrões rastreados (RBC ou outros) | **Todas as invariantes ATIVAS por padrão, MAS editáveis** — funciona como trilha de evolução: empresa começa em C com algumas regras relaxadas e vai endurecendo conforme amadurece. **Ao migrar pra A, todas viram ativas e não-editáveis automaticamente** | Lab em preparação pra acreditação Cgcre (período típico: 12-24 meses) |
 | **D** | **Calibração comercial básica** (nem ISO 17025 nem padrões RBC) | "Certificado de aferição" (NUNCA "calibração rastreável ao RBC" — proibido pelo INMETRO se não houver rastreabilidade) | Padrões próprios ou de origem variada | **Invariantes desativadas ou editáveis** (exceto integridade de dados e auditoria); sistema imita ERP "leve" de OS de manutenção | Assistência técnica que faz "calibração de balança" sem pretensão metrológica formal |
 
@@ -167,25 +167,33 @@ Errar a fronteira entre esses ciclos (ex: emitir certificado sem fechar OS, ou f
 - **Perfil C é diferencial competitivo único:** software como **trilha de evolução** pra acreditação. Cliente entra simples, vai apertando regras conforme prepara documentação. Migração final pra perfil A é só virar um flag.
 - **Sem distinguir perfis, o sistema vira "OU rigoroso demais pra D OU frouxo demais pra A".** Os dois extremos perdem.
 
-### Regras e travas configuráveis (perfis B, C, D)
+### Regras e travas configuráveis por perfil (corrigido 16/05/2026)
 
-- **Sempre absolutas (não-editáveis em nenhum perfil):**
+> **Princípio (correção Roldão):** apenas o **perfil A** tem regras totalmente travadas (porque Cgcre audita; afrouxar = perde acreditação). **Perfis B, C e D escolhem** quais regras 17025 querem aplicar — pode ser nenhuma, algumas ou todas. Setup do tenant pergunta isso como checklist editável.
+
+- **Sempre absolutas (não-editáveis em NENHUM perfil — universais de produto):**
   - INV-001 (trilha de auditoria imutável)
+  - INV-004c (versão do software gravada em cada certificado)
+  - INV-005 (incidente LGPD em ≤3 dias úteis)
+  - INV-006 (DPO publicado)
+  - INV-007 (NF-e arquitetura SVC)
   - INV-008 (logs de acesso ≥6 meses)
-  - INV-009 (MFA pra acesso ao CDE quando aplicável)
+  - INV-009 (MFA quando PCI aplica)
   - INV-013 (confidencialidade cláusula 4.2 com log de visualização)
-  - **INV-015 (NOVO) — Tenant não emite certificado de tipo superior ao perfil declarado** (perfil B não emite com selo RBC; perfil D não declara rastreabilidade)
-- **Absolutas em perfil A e B (não-editáveis); editáveis em C e D:**
-  - INV-002 (cadeia de rastreabilidade)
-  - INV-011 (padrão vencido bloqueia emissão)
-  - INV-014 (certificado externo sem incerteza bloqueia)
-- **Absolutas em perfil A (não-editáveis); recomendadas/editáveis em B, C, D:**
+  - **INV-015 — Tenant não emite certificado de tipo superior ao perfil declarado** (perfil B/C/D não pode emitir com selo RBC; perfil D não pode declarar rastreabilidade que não tem). **Esse é o único invariante que SEPARA os perfis — quebrá-lo é fraude regulatória.**
+- **Absolutas em perfil A (não-editáveis); CONFIGURÁVEIS pelo dono do tenant em B, C, D:**
+  - INV-002 (cadeia de rastreabilidade na emissão)
   - INV-003 (signatário por escopo)
-  - INV-004a/b/c (validação de software)
+  - INV-004a (deploy só com aprovação RT)
+  - INV-004b (revalidação de cálculo de incerteza)
   - INV-010 (retenção 17025)
+  - INV-011 (padrão vencido bloqueia emissão)
   - INV-012 (workflow NC bloqueia emissão)
+  - INV-014 (certificado externo sem incerteza bloqueia)
 - **Sempre configuráveis (todos os perfis podem ligar/desligar):**
-  - Pesquisa de satisfação automática, alerta de validade, formato de PDF, idioma do certificado
+  - Pesquisa de satisfação automática, alerta de validade, formato de PDF, idioma do certificado, templates personalizados
+
+**Implicação prática:** o setup do tenant B/C/D tem checklist "quais regras 17025 você quer aplicar?" — empresa escolhe à la carte. Empresa B com ambição de acreditação ativa tudo (vira `B-rigoroso`, equivalente a A sem o selo). Empresa D pode desativar tudo (vira ERP de OS comum). Mudanças são auditadas (log de quem mudou + quando).
 
 ### Implicações pra arquitetura
 
@@ -196,13 +204,22 @@ Errar a fronteira entre esses ciclos (ex: emitir certificado sem fechar OS, ou f
 
 ---
 
-## Tipos de balança calibrada (escopo confirmado)
+## Tipos de instrumento atendidos (configurável no setup) ⭐
 
-> **Confirmado pelo Roldão (16/05/2026):** o produto cobre **TODOS os tipos de balança**. Resolve D-aud-7: **Metrologia Legal ENTRA no MVP** (pelo menos pra balança comercial e rodoviária).
+> **Confirmado pelo Roldão (16/05/2026):** o produto cobre **TODOS os tipos de balança + instrumentos correlatos**. Mas o **tenant escolhe no setup quais tipos atende** — pode ser 1, 2, 3 ou todos, e a configuração é **editável a qualquer momento** (empresa começa atendendo balança comercial, depois expande pra rodoviária, depois adiciona manômetro, etc.).
+>
+> **Implicação:**
+> - Setup do tenant tem checklist "tipos atendidos" (marcar 1 ou mais).
+> - Empresa só vê dashboards/filtros/relatórios dos tipos que marcou (UI limpa).
+> - Adicionar tipo novo depois é self-service (sem entrar em contato com suporte).
+> - Pricing pode estar atrelado (mais tipos = mais módulos = tier maior — a confirmar no `precificacao-mercado.md`).
+> - Sistema sugere/recomenda regras 17025 específicas por tipo (ex: balança rodoviária ativa INV-014 obrigatoriamente; manômetro ativa diferente).
+>
+> **Resolve D-aud-7:** Metrologia Legal ENTRA no MVP (balança comercial + rodoviária são reguladas).
 
 | Tipo | Onde se usa | Regulamentação dominante | Implicação pro produto |
 |---|---|---|---|
-| **Balança comercial** | Açougue, padaria, supermercado, feira, varejo em geral | **INMETRO Portaria 157/2022** (substitui Portaria 236/1994 — verificação metrológica legal via IPEM/RBMLQ-I; selo INMETRO obrigatório) | Sistema precisa de calendário de **verificação periódica** (anual via IPEM) + emissão de "atestado de verificação" complementar à calibração |
+| **Balança comercial** | Açougue, padaria, supermercado, feira, varejo em geral | **INMETRO Portaria 157/2022** (substitui Portaria 236/1994 — verificação metrológica legal via IPEM/RBMLQ-I) | Sistema precisa de calendário de **obrigação de verificação periódica** (anual via IPEM). **Atenção:** a marca/selo INMETRO colocado na balança **NÃO tem vencimento estampado** — o que existe é a obrigação legal de submeter à verificação periódica anual. Marca/selo é prova de que verificação foi feita, não tem prazo próprio |
 | **Balança industrial** | Linha de produção, dosadora, pesagem em lote | Geralmente **rastreabilidade ao SI** via padrões RBC; opcional acreditação ISO 17025 | Calibração + cálculo de incerteza em múltiplos pontos da faixa; pode emitir certificado RBC se cliente quiser |
 | **Balança rodoviária** | Pesagem de caminhão (postos fiscais, pedágio, mina, usina, frigorífico) | **INMETRO Portaria 102/2017** (rodoviária) + DNIT (fiscalização) + INMETRO Portaria 157/2022 | Calibração com cargas-padrão grandes (100kg a 30 ton); logística pesada; certificado pode ter implicação tributária (peso de carga = ICMS) |
 | **Balança de processo / dosadora** | Química, farma, alimentos, cosmética | **Anvisa RDC 658/2022** (BPF) + ISO 17025 + IQ/OQ/PQ pra farma | Calibração + validação do sistema computadorizado da balança (FDA 21 CFR Part 11 quando exporta pra cliente farma EUA) |

@@ -51,9 +51,15 @@ Aplicado em `dominio-de-negocio.md` §Perfis de empresa + `normas-e-regulacao.md
 
 **Tipos de balança calibrada** — comercial, industrial, rodoviária, processos, analítica, bancada, contadora, gancho, plataforma + outros instrumentos (manômetro, termômetro, paquímetro etc.). Confirmou Metrologia Legal no MVP.
 
-**2 riscos novos:**
+**3 riscos novos:**
 - **R-039** — Tenant declara perfil A sem acreditação real (fraude; score 15)
-- **R-040** — Verificação INMETRO vencida em balança comercial (score 12)
+- **R-040** — Cliente final esquece verificação periódica INMETRO obrigatória (score 12) — **selo INMETRO em si não vence; o que vence é a obrigação de verificação anual**
+- **R-041** — Tenant marca tipo de instrumento no setup que não atende tecnicamente (score 9)
+
+**3 correções aplicadas em 16/05/2026 (Roldão corrigiu o agente):**
+1. Selo INMETRO/IPEM **não tem vencimento estampado** — o que vence é a obrigação de verificação periódica anual
+2. **Perfil B** tem regras 17025 **totalmente configuráveis** (não absolutas) — empresa B com ambição de acreditação pode ativar tudo; "B-leve" pode desativar quase tudo
+3. **Tipos de instrumento atendidos** são **configuráveis no setup** — empresa marca 1, alguns ou todos; pode adicionar depois (self-service)
 
 ### Decisões anteriores que continuam pendentes
 

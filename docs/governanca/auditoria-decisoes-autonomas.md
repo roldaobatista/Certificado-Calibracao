@@ -24,6 +24,28 @@
 
 ## Entradas (cronológico reverso)
 
+### 2026-05-16 — 3 correções do Roldão sobre perfis + selo INMETRO + tipos configuráveis
+- **Decisão (correção da decisão anterior):**
+  1. **Selo INMETRO/IPEM em balança comercial NÃO tem vencimento estampado** — o que vence é a obrigação legal de verificação periódica (anual). Risco R-040 corrigido pra refletir isso (era "selo vencido", virou "verificação periódica não feita pelo cliente final").
+  2. **Perfil B tem regras 17025 TOTALMENTE configuráveis** (não absolutas como eu havia descrito). Empresa B com ambição de acreditação pode ativar tudo; empresa B "leve" pode desativar quase tudo. Apenas perfil A tem regras absolutamente travadas. Tabela "Escopo por perfil" das 14 invariantes corrigida.
+  3. **Tipos de instrumento atendidos** (balança comercial / industrial / rodoviária / processo / analítica / bancada / contadora / gancho / plataforma / outros) **são configuráveis no setup do tenant** — empresa marca 1, alguns ou todos; pode adicionar tipos novos depois (self-service). UI/filtros/dashboards mostram só tipos marcados.
+- **Aplicado em:**
+  - `dominio-de-negocio.md` — perfil B reescrito (configurável); seção "Regras configuráveis" simplificada (só A é absoluto); seção "Tipos de instrumento" agora começa com configurabilidade explícita do setup
+  - `normas-e-regulacao.md` §8.1 — 7 invariantes mudaram "Escopo por perfil" pra "Absoluta em A; configurável em B, C, D" (era "Absoluta em A e B" ou "recomendada em B")
+  - `riscos.md` — R-040 reformulado (não é "selo vencido"; é "verificação periódica obrigatória não feita pelo cliente final"); **R-041 novo** (tenant marca tipo no setup que não atende tecnicamente; operação falha no campo)
+- **Por quê:** Roldão é dono do setor e corrigiu 3 erros conceituais que eu havia introduzido. Aplicação direta sem auditor — ele é fonte de verdade do domínio.
+- **Quem decidiu:** Roldão (decisor + know-how do setor)
+- **Sessão:** ver `.agent/SESSION.md` (2026-05-16 batch 1 + decisão de perfis + 3 correções)
+- **Impacto:** alta — afeta tabela de invariantes (7 mudanças) + descrição do perfil B + introduz config de "tipos atendidos" no setup como decisão fundadora separada
+- **Caso-limite?** Não — foi correção direta do decisor de produto
+- **Achados:**
+  - **Perfil B mais flexível que eu havia desenhado** — vira "B-leve" ou "B-rigoroso" conforme o dono escolher; sistema deve nomear essas variantes no setup
+  - **Setup tem 3 dimensões de configuração principais:** (1) perfil (A/B/C/D), (2) tipos de instrumento atendidos (checklist multi), (3) regras 17025 ativadas (quando perfil ≠ A)
+  - **R-041 introduz risco operacional:** sistema permite operação que tenant não tem capacidade técnica — wizard de setup precisa pedir prova de capacidade por tipo marcado
+- **Roldão revisou?** ✅ ele é o decisor desta decisão
+
+---
+
 ### 2026-05-16 — Decisão fundadora: 4 perfis de empresa + tipos de balança + 2 riscos novos
 - **Decisão:** Roldão definiu que o **setup do tenant** precisa suportar 4 perfis distintos (A acreditada / B com padrão RBC / C em preparação / D comercial básica) com **regras configuráveis por perfil**. Também confirmou escopo de calibração de balanças (todos os tipos: comercial, industrial, rodoviária, processos), o que confirma D-aud-7 (Metrologia Legal no MVP).
 - **Aplicado em:**
