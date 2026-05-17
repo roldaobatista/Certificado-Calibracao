@@ -15,7 +15,35 @@
 
 ---
 
-## 📋 Inventário (21 artefatos)
+## 📋 Inventário (29 artefatos pós-auditoria 12 agentes 17/05/2026 noite)
+
+### ADRs novas exigidas pela auditoria (Aud-21)
+
+| # | Artefato | Caminho | Status | Prio | Bloqueia |
+|---|---|---|---|---|---|
+| **A1** | ADR-0001 stack técnica | `docs/adr/0001-stack.md` | ⏳ | 🔴 | Spike F-1 (LEAP #1) |
+| **A2** | ADR-0004 cobrança SaaS (PSP + dunning + bloqueio gradual) | `docs/adr/0004-cobranca-saas.md` | ⏳ | 🔴 | Pré-checkout |
+| **A3** | ADR-0005 DR (replica B2 regional + restore drill mensal) | `docs/adr/0005-disaster-recovery.md` | ⏳ | 🔴 | Pré-deploy MVP-1 |
+| **A4** | ADR-0006 versionamento + changelog + validação por release | `docs/adr/0006-versionamento.md` | ⏳ | 🔴 | INV-019 dossiê 7.11 |
+| **A5** | ADR-0007 distribuição mobile (PWA vs lojas) | `docs/adr/0007-mobile-distribuicao.md` | ⏳ | 🟡 | MVP-1 mobile |
+| **A6** | ADR-0008 estrutura fiscal do Aferê (CNPJ + regime + ISS) | `docs/adr/0008-fiscal-vendor.md` | ⏳ | 🔴 | 1º faturamento |
+
+### Operação pós-MVP exigida pela auditoria (Aud-21)
+
+| # | Artefato | Caminho | Status | Bloqueia |
+|---|---|---|---|---|
+| **O1** | Customer Success playbook (SLA + escalada + horário) | `docs/operacao/customer-success-playbook.md` | ⏳ | Pré-MVP-1 piloto (R-062 score 20) |
+| **O2** | Onboarding tenant (cronograma 8h + checklists) | `docs/operacao/onboarding-tenant.md` | ⏳ | Pré-MVP-1 piloto (F-17 LEAP) |
+| **O3** | Cobrança SaaS Aferê (dunning + LGPD retenção) | `docs/operacao/cobranca-saas-afere.md` | ⏳ | Pré-MVP-1 piloto |
+| **O4** | DR plan (3 cenários + restore drill mensal) | `docs/operacao/dr-plan.md` | ⏳ | Pré-deploy MVP-1 |
+| **O5** | Incidente comunicação pública (PR + Reclame Aqui) | `docs/operacao/incidente-comunicacao-publica.md` | ⏳ | Pré-MVP-1 piloto |
+| **O6** | Analytics instrumentation (PostHog dia 0) | `docs/produto/analytics-instrumentation.md` | ⏳ | MVP-1 |
+| **O7** | Conselho informal (3 advisors + cadência) | `docs/governanca/conselho-informal.md` | ⏳ | MVP-1 |
+| **O8** | Marca Aferê busca INPI + domínio | `docs/marca/afere-busca-inpi-domain.md` | ⏳ | Antes de landing pública |
+
+---
+
+## 📋 Inventário original (21 artefatos)
 
 ### Discovery (Família 0)
 

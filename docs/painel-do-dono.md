@@ -23,12 +23,29 @@
 
 ---
 
-## ⏱️ Estado em 2026-05-17 (atualizado pós batch 3 — sessão da tarde)
+## ⏱️ Estado em 2026-05-17 NOITE (pós-auditoria 12 agentes + 24 correções aplicadas)
 
-**Fase:** **Rodada 0 Discovery — batch 3 CONCLUÍDO. Lado do agente esgotado.**
-**Última atividade:** sessão da tarde 17/05/2026 — Roldão escolheu Opção A (revisão) → ratificou as 4 decisões fundadoras + 27 decisões da auditoria; pulou revisão do glossário pra sob demanda. Em seguida autorizou batch 3, executado por 3 subagentes em paralelo: **dores-mapeadas.md (20 dores ranqueadas em 6 dimensões)** + **opportunity-solution-tree.md (1 outcome + 8 opportunities + 24 solutions + 24 experiments)** + **assumption-map.md (57 premissas testáveis + 12 LEAPs priorizados)**.
-**Bloqueio:** **entrevistas reais** com 5-10 OUTRAS empresas (mitigação do R-001 founder-is-customer) — agente NÃO faz isso, Roldão precisa conduzir. + Ação pendente com terceiros (D-aud7-1: advogado+seguro+DPA+consultor, R$ 18-60k).
-**Próximo passo recomendado pelo agente:** preparar `treinamento-entrevista-roldao.md` (já existe placeholder) + roteiro de entrevista por persona + lista de empresas candidatas (Onda 1 = 5 entrevistas).
+**Fase:** **Rodada 0 Discovery — batch 3 EXECUTADO + auditoria 12 agentes + 24 achados aplicados em lote**
+**Última atividade:** sessão da noite 17/05/2026 — Roldão pediu auditoria com 12 agentes em ângulos novos (sem repetir batches 1+2). Disparados 12 auditores em paralelo cobrindo: Pricing, Sequenciamento MVP, Calibração scores, Defensibilidade, Testabilidade, ICP, Legal/trabalhista, GTM, Founder bias, Cross-doc, Blind spots, LEAP #1. **24 achados (12 críticos + 12 altos).** Roldão aprovou ACEITAR TUDO. 4 subagentes em paralelo aplicaram as 24 correções em 9 docs do Discovery.
+
+**O que mudou nos docs (delta total: ~3.500 linhas):**
+- **OST:** 12 Opportunities (era 8); Foundation explícita pré-MVP; re-sequenciamento Wave A (OP7+OP2+OP10) → Wave B (OP1+OP4+OP5+OP8+OP3); 4 OPs novas (OP9 BIG-03 + OP10 BIG-06 + OP11 cobrança + OP12 painel); Confidence dual-axis (dono × mercado); pricing reconciliado mix A=10%/B=55%/C=25%/D=10%; IDs canônicos R-049..R-057
+- **Dores:** Top 5 corrigido removendo halo founder-customer: #10 NFS-e → #02 recalibração (15k era 28,5k) → #04 NIT-DICLA-030 → #01 cadastro → #05 status OS (promovida). Dor #19 frota desceu pra top 8. 8 scores recalibrados.
+- **Assumption-map:** 61 premissas (+ V-15 CAC, F-17 onboarding, F-18 CS, F-19 CERTI). F-1 com 10 kill switches + planos B/C/D explícitos. Van Westendorp N=30 → N=5-8.
+- **Riscos:** 65 riscos (8 novos R-058..R-065). R-001 elevado pra 20 (severidade reforçada por 3 auditores). R-034 promovido 4→12 (CERTI). R-046 elevado 10→15 (UMC roubo).
+- **Normas:** 20 invariantes (+INV-017 ICP-Brasil + INV-018 RT vendor + INV-019 dossiê 7.11 + INV-020 Lei 13.103/2015)
+- **Personas:** 16 personas (+ Persona 15 Diego Consultor RBC = canal #1 + Persona 16 Andréia/CS L1)
+- **Concorrentes:** Auvo virou ameaça #1 (9-12 meses), não Visma (18 meses). Pricing reconciliado. 3 dos 9 gaps reclassificados como backlog.
+- **Domínio:** "decisão fundadora" desambiguada (PRODUTO Roldão 17/05 vs ENGENHARIA D1-D6)
+- **Glossário:** 236 termos (+9: RICE, Van Westendorp, fake door, smoke test, ride-along, time-trial, leap-of-faith, conjoint analysis, decisão fundadora)
+
+**Bloqueio:** **entrevistas reais** com 5-10 OUTRAS empresas (mitigação R-001 reforçada após Aud-13+18+19); ação D-aud7-1 com terceiros (advogado+seguro+DPA+consultor, R$ 18-60k); **ADR-0001 stack técnica DEVE ser decidida antes do spike F-1**.
+
+**Próximo passo recomendado pelo agente:**
+1. Listar 20 telefones quentes do Roldão (Aud-18 não-negociável)
+2. ADR-0001 stack (Aud-22 bloqueia spike F-1)
+3. Preparar Onda 1 — roteiro por persona + 5 entrevistas "anti-Roldão" pra imunizar contra founder bias
+4. Iniciar D-aud7-1 em paralelo (advogado leva 4-6 sem)
 
 ### ✨ Achados consolidados pós-auditoria + 4 decisões fundadoras
 

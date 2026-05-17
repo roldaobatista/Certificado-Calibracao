@@ -4,7 +4,7 @@
 >
 > **Como usar:** quando ler um termo em qualquer doc e não entender, vir aqui. Ordem alfabética.
 >
-> **Atualizado:** 2026-05-17
+> **Atualizado:** 2026-05-17 (versão pós-auditoria 12 agentes). 236 termos (era 227 + 9 novos).
 
 ---
 
@@ -82,6 +82,7 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **Commit** — em humano: cada "save" individual do código no sistema de versões. A gente fala "fiz commit" como vocês diriam "salvei a alteração".
 - **Compliance** — conformidade com regras (LGPD, ISO 17025, Bacen). Significa "cumprir o que a lei/norma manda".
 - **ComprasNet** — portal de compras do governo federal. Pra vender pro setor público, é onde licitação acontece.
+- **Conjoint analysis** — método de pesquisa de mercado que mede o quanto cada característica de um produto contribui pra disposição a pagar (WTP). Ex: "quanto vale, em R$/mês, ter portal de cliente vs ter app mobile vs ter NFS-e integrada?". Usado em V-2 (WTP test do `validacao-ativa.md`) numa versão simplificada via Typeform.
 - **Coupa** — concorrente do Ariba (portal de compras corporativas).
 - **CSAT** — Customer Satisfaction Score. Pesquisa rápida "deu 1 a 5 estrelas, gostou do atendimento?".
 - **CSRT** — Código de Segurança do Responsável Técnico (NF-e). Obrigatório em algumas UFs (PR desde 04/2025).
@@ -92,6 +93,9 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **DANFE** — Documento Auxiliar da NF-e (a "espelhada" em PDF da nota fiscal eletrônica).
 - **DANFSe** — versão DANFE pra NFS-e (nota fiscal de serviço).
 - **DCTFWeb** — declaração federal de tributos. Aparece se a empresa tem folha de pagamento.
+- **Decisão fundadora** — o projeto usa em **DOIS sentidos**. Cuidado pra não confundir:
+  - **De PRODUTO** (Roldão 17/05/2026): os **4 blocos canônicos de escopo** — Frota+UMC+Caixa do técnico; Comissões configuráveis; Cliente 360°/CRM contínuo; Estoque multi-local com lacre + selo INMETRO. Esses 4 blocos não saem do escopo do MVP/produto sem ADR formal.
+  - **De ENGENHARIA** (D1–D6, 16/05/2026): princípios de processo — D1 Spec Kit; D2 spec-as-source; D3 nomenclatura híbrida; D4 devcontainer; D5 CODEOWNERS; D6 operação dual (Claude Code + Codex CLI sobre AGENTS.md canônico).
 - **Deploy** — em humano: subir uma nova versão do sistema pro servidor onde os clientes acessam. Pra Roldão: "fui ao ar com a correção / com a feature nova".
 - **Deriva (drift)** — variação contínua da medição do instrumento ao longo do tempo. *(você sabe — só pra referência)*
 - **Devcontainer** — ambiente de desenvolvimento padronizado dentro de uma "caixinha" (container). Garante que todo mundo trabalhe com mesmas versões. Decisão fundadora D4.
@@ -118,6 +122,7 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 ### F
 
 - **FAPI 2.0** — padrão técnico de segurança usado em Open Finance (Financial-grade API).
+- **Fake door** — em humano: "testar interesse antes de construir". Cria-se botão/link pra uma feature que ainda **não existe**; mede-se quantos cliques; se for alto, vale construir. É um tipo de smoke test. Risco ético: usuário clica esperando funcionar, frustra se receber "em breve" — então usa-se em landing pública, não em sistema de cliente pagante.
 - **Fluxo de caixa** — relatório financeiro de "quando entra dinheiro e quando sai".
 - **Folha (folha de pagamento)** — calcular salário, INSS, FGTS, IR de funcionários. Anti-job do nosso produto — vai por integração com Pontomais/Senior/Sankhya RH.
 - **Founder is customer** — situação onde o fundador do produto é o cliente típico. É risco #1 do projeto (R-001): produto vira customização disfarçada da empresa do Roldão e não generaliza pra outras.
@@ -172,6 +177,7 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 
 - **LBI** — Lei Brasileira de Inclusão (Lei 13.146/2015). Obriga sites/apps a serem acessíveis.
 - **Lead** — possível cliente que demonstrou interesse mas ainda não comprou.
+- **Leap-of-faith (LEAP)** — premissa crítica de **baixa confiança**. Se for falsa, a empresa morre. Marcar uma hipótese como LEAP força priorizar a validação dela **antes** de comprometer recursos. Ex no Aferê: F-1 (modelo 100% agentes substitui consultor humano) é um LEAP central — se falhar, todo o plano de defesas anti-erro precisa ser refeito.
 - **LIMS / ELN / LES** — softwares de laboratório (Laboratory Information Management System / Electronic Lab Notebook / Laboratory Execution System). Concorrentes/adjacentes ao nosso produto.
 - **Lint** — verificação automática de "estilo" do código. Garante padronização. Pra Roldão: "corretor ortográfico do código".
 - **LGPD** — Lei Geral de Proteção de Dados (Lei 13.709/2018). Equivalente brasileiro do GDPR europeu.
@@ -248,6 +254,8 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **Refactor** — em humano: reorganizar o código sem mudar o que aparece pro usuário. Pra Roldão: "reorganizar essa parte por dentro — cliente não vê diferença".
 - **REGRAS-INEGOCIAVEIS.md** — arquivo onde a gente lista todas as invariantes do produto. Roldão lê esse no painel-do-dono.
 - **REST** — estilo de API. A grande maioria das APIs modernas é REST.
+- **RICE** — método de **priorização** que combina 4 fatores: **R**each (quantas pessoas afeta) × **I**mpact (quão forte é o efeito) × **C**onfidence (quão certa é a estimativa) **÷ E**ffort (quanto custa fazer). Resultado = score em "pontos por mês de esforço". Usado no `opportunity-solution-tree.md` pra ranquear as 12 Opportunities por ordem de ataque.
+- **Ride-along** — pesquisador acompanha funcionário em **trabalho real** (técnico em campo, atendente em ligação, motorista em viagem). Revela dores que entrevista nunca pega ("aí o sinal cai e eu refaço a OS toda no papel"). Em setor de calibração é socialmente difícil de fazer com concorrente direto — limitado a empresa amiga ou própria.
 - **RIPD** — Relatório de Impacto à Proteção de Dados Pessoais. Documento exigido pela LGPD pra tratamentos de risco.
 - **RLS** — Row-Level Security. Técnica no banco de dados que garante "cada linha da tabela só é visível pra quem tem permissão". Defesa principal contra vazamento entre tenants.
 - **RNTRC** — Registro Nacional de Transportadores Rodoviários de Cargas (ANTT). UMC acima de 12 ton pode exigir.
@@ -265,8 +273,9 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **Signatário (técnico autorizado)** — pessoa que assina o certificado de calibração. Tem que ser autorizada por escopo (cl. 6.2 da 17025). *(você sabe — só pra referência)*
 - **Sidoq** — Sistema de Documentos do INMETRO. Portal onde a gente baixa NIT, DOQ etc.
 - **SLA** — Service Level Agreement. Acordo de "em X horas a gente responde / em Y dias a gente conclui".
+- **Smoke test** — teste rápido com **landing page + tráfego pago** pra medir interesse de mercado **antes** de construir o produto. Em B2B nicho (lab calibrador), costuma dar **sinal fraco** porque o ICP é pequeno demais pra anúncio em massa funcionar — ride-along + entrevista qualitativa rendem mais. Mas serve pra validar mensagem/posicionamento.
 - **SPED** — Sistema Público de Escrituração Digital. Obrigação fiscal federal.
-- **Spike (técnico)** — investigação rápida pra descobrir se uma solução técnica é viável. "Vou fazer um spike de 2 dias pra testar X".
+- **Spike (técnico)** — investigação rápida pra descobrir se uma solução técnica é viável (ou se uma hipótese de negócio se sustenta). "Vou fazer um spike de 2 dias pra testar X". É a forma natural de derrubar um LEAP antes de comprometer recursos. O **spike F-1 do Aferê** (modelo 100% agentes substitui consultor humano) é um dos LEAPs centrais do projeto — precisa de spike formal antes do MVP-1.
 - **Spec Kit** — framework de "spec-as-source" da Microsoft que vamos usar. Decisão fundadora D1.
 - **Story** — descrição curta de uma feature do ponto de vista do usuário ("Como atendente, quero abrir chamado em 1 min...").
 - **SVC-AN / SVC-RS** — SEFAZ Virtual de Contingência (Ambiente Nacional / Rio Grande do Sul). Plano B quando SEFAZ do estado cai.
@@ -279,6 +288,7 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **TecnoSpeed / PlugNotas / Focus NFe** — provedores BaaS fiscais mais maduros do mercado BR.
 - **Tenant** — em humano: cada cliente que usa o nosso SaaS. Ex: laboratório Calix é um tenant; laboratório XYZ é outro tenant. Não confundir com "cliente final" — esse é o cliente do tenant.
 - **Tipo de cargo (signatário)** — só pessoas autorizadas pelo escopo da acreditação podem assinar certificados. INV-003 garante isso.
+- **Time-trial** — comparação **cronometrada**: o mesmo usuário faz a mesma tarefa no **sistema atual** (Cali/Excel) e no **novo sistema** (Aferê). Mede ganho real de tempo (ex: "emitir certificado caiu de 18 min pra 4 min"). Exige protótipo funcional + usuário-cobaia disposto a topar. É uma das técnicas mais convincentes de venda pra perfil A/B.
 - **Trail / Audit trail** — ver "Audit trail".
 
 ### U
@@ -289,6 +299,7 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 ### V
 
 - **Validação de software** — exigência da cláusula 7.11 da 17025: o software de cálculo de incerteza tem que ser validado antes de uso. Referências: WELMEC 7.2, OIML D 31.
+- **Van Westendorp** — método de pesquisa de disposição a pagar (WTP) com **4 perguntas**: (1) "qual preço você considera **caro demais** que não compraria?"; (2) "qual preço é **barato demais** ao ponto de sugerir má qualidade?"; (3) "qual preço você considera **caro mas ainda compraria**?"; (4) "qual preço você considera **uma barganha**?". O cruzamento das 4 curvas dá uma **faixa de preço aceitável** (Point of Marginal Cheapness até Point of Marginal Expensiveness). Usado em V-2 (`validacao-ativa.md`).
 - **Verificação** — comparação de medição contra um requisito específico, com decisão "passa / não passa". Diferente de "calibração". *(você sabe — só pra referência)*
 - **Verificação metrológica legal** — verificação obrigatória feita pelo IPEM (balança comercial anual, bomba de combustível, etc.). Diferente da calibração RBC voluntária.
 - **VIM** — Vocabulário Internacional de Metrologia (JCGM 200). Vigente em 05/2026: JCGM 200:2012 (3ª ed). 4ª ed ainda em rascunho. *(você sabe — só pra referência)*
@@ -311,11 +322,17 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 
 ## Termos compostos / decisões fundadoras
 
+**Decisões fundadoras de ENGENHARIA (D1–D6, 16/05/2026):**
+
 - **D1 — Spec Kit** — framework de "spec-as-source" da Microsoft. Decidimos em 2026-05-16.
 - **D2 — Spec-as-source** — princípio: a especificação **é** a fonte da verdade; código é derivado dela.
 - **D3 — Nomenclatura híbrida** — padrão de nomes de arquivo/pasta. PT-BR pra conteúdo de negócio, EN pra termos técnicos consagrados.
 - **D4 — Devcontainer obrigatório** — todo dev mexe num ambiente padronizado.
 - **D5 — CODEOWNERS** — arquivo que define "quem aprova mudança em cada parte do código".
+- **D6 — Operação dual** — Claude Code + Codex CLI sobre `AGENTS.md` canônico (roteamento por tipo de tarefa).
+
+**Decisões fundadoras de PRODUTO (Roldão 17/05/2026):** ver verbete "Decisão fundadora" na seção D do glossário alfabético + `dominios/dominio-de-negocio.md`.
+
 - **MVP-1 / MVP-2 / MVP-3** — Minimum Viable Product. Versão mínima viável, em fases. MVP-1 = conjunto mínimo pra lançar pro 1º cliente externo.
 
 ---

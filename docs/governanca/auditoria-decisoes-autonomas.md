@@ -24,6 +24,29 @@
 
 ## Entradas (cronológico reverso)
 
+### 2026-05-17 NOITE — Auditoria de 12 agentes sobre batch 3 + 24 correções aplicadas em lote
+- **Decisão:** Roldão pediu "auditoria com 12 agentes em ângulos novos (diferente de batches 1 e 2)". Disparei 12 auditores independentes em paralelo cobrindo: (11) Pricing & Unit Economics, (12) Sequenciamento MVP, (13) Calibração de scores/RICE, (14) Defensibilidade competitiva/moats, (15) Testabilidade de premissas, (16) Filtros de ICP, (17) Riscos legais/trabalhistas, (18) Go-to-market/canal aquisição, (19) Founder-customer deep dive R-001, (20) Conflitos internos cross-doc, (21) Blind spots, (22) Defesa LEAP #1 modelo agentes.
+- **24 achados consolidados** (12 críticos + 12 altos). Os 5 mais graves:
+  - **Modelo 100% agentes (LEAP F-1) sem critério de mortalidade** (Aud-22)
+  - **OP1 não pode ser primeiro do MVP-1** — OP7 NFS-e tem deadline 01/09/2026 (Aud-12, Aud-20)
+  - **Foundation invisível no OST** — multi-tenant/RBAC/RLS/auth escondidos como premissas (Aud-12)
+  - **4 das 8 OPs do MVP-1 viraram canon antes de entrevistas** — founder bias materializado (Aud-13, Aud-19)
+  - **Apenas 3 dos 9 "gaps defensáveis" são moats reais** (Aud-14); Auvo > Visma como ameaça #1
+- **Roldão aprovou "ACEITAR TUDO".**
+- **Aplicado em lote por 4 subagentes paralelos:**
+  - Subagente A: OST → 12 OPs (era 8); Foundation pré-MVP; Wave A (OP7+OP2+OP10) → Wave B (OP1+OP4+OP5+OP8+OP3); Confidence dual-axis; IDs canônicos R-049..R-057; pricing reconciliado; OP4 simplificado (1 fórmula no MVP-1); BIG-03 + BIG-06 ganham OP dedicada
+  - Subagente B: dores-mapeadas → Top 5 corrigido (#05 promovida; #19 desce); 8 scores recalibrados; segunda deflação em DAPs de DFs; 4 marcações [INFERÊNCIA] novas; seção "Imunização contra founder bias"
+  - Subagente C: assumption-map → 61 premissas (+V-15, F-17, F-18, F-19); F-1 com 10 kill switches + planos B/C/D; Van Westendorp N=30→5-8. riscos → 65 riscos (8 novos R-058..R-065); R-001 elevado pra 20; R-034 4→12; R-046 10→15
+  - Subagente D: normas (20 INVs com INV-017 ICP-Brasil + INV-018 RT vendor + INV-019 dossiê 7.11 + INV-020 Lei 13.103/2015); personas (16 com Persona 15 Diego Consultor RBC + Persona 16 Andréia CS L1); concorrentes (Auvo #1 ameaça); domínio (desambiguação "decisão fundadora"); glossário (236 termos)
+- **Total delta:** ~3.500 linhas alteradas em 9 docs do Discovery + glossário
+- **Quem decidiu:** Roldão (aprovou em bloco) + Claude Code (orquestrador) + 12 subagentes auditores + 4 subagentes de aplicação
+- **Impacto:** MUITO ALTO — reescreveu MVP-1 (era 8 OPs, virou 12 com Foundation explícita), promoveu 2 riscos críticos (R-001 + R-034), criou 4 invariantes legais (INV-017..INV-020), adicionou 2 personas (Consultor RBC + CS L1)
+- **Caso-limite?** Não — todas as 24 decisões tiveram veredito explícito do Roldão "ACEITAR TUDO"
+- **Próximas ações:** (1) Listar 20 telefones quentes Roldão antes de codar; (2) ADR-0001 stack antes do spike F-1; (3) Preparar Onda 1 com 5 entrevistas "anti-Roldão"; (4) D-aud7-1 em paralelo
+- **Roldão revisou?** ✅ aprovou em bloco; revisão de qualidade da aplicação pendente
+
+---
+
 ### 2026-05-17 — 4 decisões fundadoras do Roldão (Frota/UMC + Comissões + CRM 360° + Estoque)
 - **Decisão:** Roldão registrou 4 grandes blocos de especificação como textos canônicos diretamente em `dominio-de-negocio.md`:
   1. **Controle de Técnico em Campo, Despesas, Frota e UMC** — operação de campo (OS multi-equipamento, 3 modalidades de transporte do técnico, caixa do técnico com adiantamento+prestação de contas, UMC com motorista próprio + pesos-padrão, controle total de frota carros+UMC)

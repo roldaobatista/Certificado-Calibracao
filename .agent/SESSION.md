@@ -9,8 +9,36 @@
 
 ## Última sessão
 
-**Data:** 2026-05-17 (sessão da tarde) — **batch 3 do Discovery CONCLUÍDO**
-**Agente:** Claude Code (Opus 4.7) + 4 subagentes general-purpose
+**Data:** 2026-05-17 NOITE — **batch 3 + auditoria 12 agentes + 24 correções aplicadas em lote**
+**Agente:** Claude Code (Opus 4.7) + 12 subagentes auditores + 4 subagentes de aplicação
+
+### O que aconteceu (sessão noite — esta)
+1. Roldão pediu auditoria com 12 agentes em ângulos novos (diferente de batches 1 e 2)
+2. 12 auditores rodaram em paralelo: Pricing / Sequenciamento / Scores / Defensibilidade / Testabilidade / ICP / Legal-trabalhista / GTM / Founder bias / Cross-doc / Blind spots / LEAP F-1
+3. **24 achados consolidados** (12 críticos + 12 altos). Top 5 mais graves: F-1 sem critério de mortalidade, OP7 deve vir antes de OP1 (deadline NFS-e 01/09/2026), Foundation invisível, 4 das 8 OPs canon antes de entrevistas, apenas 3 de 9 gaps são moats reais.
+4. **Roldão ACEITOU TUDO** em bloco
+5. 4 subagentes aplicaram em paralelo (~3.500 linhas alteradas em 9 docs)
+6. **Estado final dos artefatos pós-noite 17/05:**
+   - OST: 12 OPs (era 8) + Foundation explícita + Wave A/B sequenciado por deadline regulatório
+   - Dores: top 5 corrigido removendo halo founder-customer
+   - Assumption: 61 premissas + 15 LEAPs + F-1 com kill switches
+   - Riscos: 65 (8 novos)
+   - Invariantes: 20 (4 novas legais)
+   - Personas: 16 (Consultor RBC + CS L1)
+   - Concorrentes: Auvo virou ameaça #1
+   - Domínio: "decisão fundadora" desambiguada
+   - Glossário: 236 termos (9 novos)
+
+### Próximo passo lógico (pra próxima sessão)
+Caminhos abertos que dependem do Roldão:
+1. **Listar 20 telefones quentes Roldão** (Aud-18 não-negociável antes de codar)
+2. **ADR-0001 stack técnica** (Aud-22 bloqueia spike F-1)
+3. **Preparar Onda 1 entrevistas** — roteiro por persona + 5 "anti-Roldão" pra imunizar founder bias
+4. **D-aud7-1 com terceiros** em paralelo (advogado 4-6 sem, seguro exige histórico)
+
+### Histórico antigo desta sessão (manhã + tarde 17/05/2026) — preservado abaixo
+
+---
 
 ### O que aconteceu nesta sessão
 1. Roldão escolheu **Opção A (revisar o que foi feito na sessão da manhã)** — apresentei 3 blocos:

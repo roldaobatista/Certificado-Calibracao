@@ -543,7 +543,8 @@ A busca trouxe **3 empresas brasileiras** usando "AutoLab" — atenção pra nã
 | Metroex (ForLogic) | 3/2 | BIG-01, BIG-03, BIG-04, BIG-06, BIG-08, BIG-09, BIG-10, BIG-11 (parcial em BIG-12) |
 | FP2 Tecnologia | 3/1 (regional) | BIG-03, BIG-05, BIG-06, BIG-08, BIG-09, BIG-10, BIG-11, BIG-12; BIG-04 só RS |
 | Qualer/MasterControl | 3/1 | BIG-01, BIG-03, BIG-04 (sem fiscal BR), BIG-06, BIG-08, BIG-09, BIG-10 parcial, BIG-11, BIG-12 parcial |
-| Auvo | 1/3 | BIG-02, BIG-03, BIG-04 parcial, BIG-06, BIG-08 parcial, BIG-09, BIG-10 parcial, BIG-11 parcial, BIG-12 parcial |
+| Auvo (hoje) | 1/3 | BIG-02, BIG-03, BIG-04 parcial, BIG-06, BIG-08 parcial, BIG-09, BIG-10 parcial, BIG-11 parcial, BIG-12 parcial |
+| **Auvo (em 9–12 meses — Aud-14)** | **2/3** (BIG-08 vira pleno c/ caixa+preventiva) | BIG-02, BIG-03, BIG-06, BIG-09, BIG-10 parcial, BIG-11 parcial, BIG-12 parcial — **BIG-08 deixa de ser gap defensável** |
 | TOTVS Protheus (enterprise) | 3/4 (R$ 50k+ implementação) | BIG-02 RBC profundo, BIG-03, BIG-04 parcial, BIG-06, BIG-07 (sem portal calibração) |
 | Bling/Conta Azul/Omie | 1/1 | BIG-02, BIG-03, BIG-05, BIG-06, BIG-08, BIG-09 (só CRM básico), BIG-10 (não cobre calibração), BIG-11 parcial, BIG-12 (sem multi-local) |
 | **Aferê (alvo MVP-1)** | **12/0** | nenhum (tese) |
@@ -577,6 +578,10 @@ Legenda: ⚠️ = não destacado / não documentado publicamente.
 ---
 
 ## 6. Gaps de mercado que o nosso produto pode explorar
+
+> **⚠️ Reclassificação Aud-14 (17/05/2026 noite):** dos 9 gaps abaixo, **apenas 3 são moats reais** (BIG-06 Metrologia Legal IPEM + BIG-08 Frota/UMC com rastreabilidade RBC + BIG-12 Estoque/selo INMETRO/lacre); **3 são diferenciais temporários** que duram 6–12 meses até concorrente reagir (UX moderna, mobile offline pt-BR, preço transparente); **3 são backlog disfarçado de moat** que qualquer ERP horizontal monta em 6 meses se priorizar (BIG-03 perfis configuráveis, BIG-07 portal cliente, BIG-10 CRM 360°). **Reposicionar a narrativa Aferê** de "12/12 cobertura de Big Jobs" pra "**3 moats profundos + 6 must-haves modernos**" — mais defensável estrategicamente e mais honesta no pitch.
+
+> **Promoção R-034 (Aud-14):** **Homologação CERTI/INMETRO** (que Cali já tem) leva **18–36 meses pra obter** — barreira de entrada legal/política que Bling/Omie/Auvo nunca vão buscar (mercado pequeno demais pra esforço regulatório). **R-034 promovido de risco competitivo pra moat de longo prazo, score 12.** Iniciar processo de homologação CERTI **no ano 1 do Aferê** (paralelo ao MVP-1) — se demora 24 meses em média, o cronograma fecha pra MVP-2 ter selo. Custo estimado: R$ 80k–150k em consultoria + R$ 200k–400k em adequações documentais + 6–12 meses de RH dedicado parcial. **Ver `riscos.md` pra detalhe.**
 
 1. **NFS-e multi-município nativa** — gap absoluto entre vendors nacionais com penetração nacional (FP2 cobre mas é regional). **Esta é a tese central.**
 2. **Cloud-first SaaS pt-BR** — Cali ainda é desktop-first; Metroex/Calibre estão mais modernos mas Cali domina a base instalada de RBC.
@@ -640,6 +645,23 @@ Legenda: ⚠️ = não destacado / não documentado publicamente.
 **Por que subimos o piso (era R$ 300):** lab calibrador tem volume MUITO menor que e-commerce (Bling cobra R$ 55 e tem 300 mil clientes). Entrada R$ 300 cria expectativa de "barato" difícil de corrigir e abre mão de receita real. R$ 500 com 1 mês grátis dá percepção de valor + tempo de validação pro cliente.
 
 Preço **transparente** em tabela pública é diferencial defensável.
+
+> **Reconciliação Aud-11 (17/05/2026 noite) — pricing × North Star do OST:** a janela acima reflete leitura de mercado por persona-alvo, mas o **North Star do `opportunity-solution-tree.md`** trabalha com **MRR médio R$ 900/tenant** — pra fechar a conta, o mix-alvo é **A=10% / B=55% / C=25% / D=10%** com tabela:
+>
+> | Perfil | Tabela MRR | Peso no mix | Contribuição média |
+> |---|---|---|---|
+> | A (acreditado RBC) | R$ 2.500/mês | 10% | R$ 250 |
+> | B (rastreável formal) | R$ 900/mês | 55% | R$ 495 |
+> | C (em preparação) | R$ 600/mês | 25% | R$ 150 |
+> | D (comercial) | R$ 400/mês | 10% | R$ 40 |
+> | **Total ponderado** | | **100%** | **R$ 935** ≈ R$ 900 |
+>
+> **Como conciliar com a janela R$ 500–6.500 acima:**
+> - **Tier "Pro" R$ 3.000–6.500** fica preservado **pra perfis A com escopo amplo** (farma/multi-CNPJ/multi-site/escopo dimensional+elétrico+térmico). Não é o miolo do mercado, mas é o teto contratável.
+> - **Tier "Crescimento" R$ 1.500–3.000** vira a faixa onde **perfil A médio** entra (~R$ 2.500 alinha com peso A do mix).
+> - **Tier "Entrada" R$ 500–1.000** vira a faixa de **perfil B/C** — B em ~R$ 900, C em ~R$ 600.
+> - **Perfil D (R$ 400)** fica abaixo do piso "Entrada" — é o tier ultra-básico, focado em assistência técnica não-regulada pura.
+> - **Trial 1 mês grátis substituído** pra perfil A/B por **setup pago R$ 1.500–3.000 (one-time)** + **14 dias trial pós-setup** (perfil regulado precisa de implementação assistida, não auto-serviço cego — protege ambos os lados). **Trial puro 14 dias mantido** pra perfis C/D (auto-serviço viável). **Decisão: ADR comercial pendente.**
 
 ---
 
@@ -821,6 +843,8 @@ Preço **transparente** em tabela pública é diferencial defensável.
 | Reclamações | "Problemas com app — sincronização e GPS" • "Notas fiscais indevidas" • "Preconceituosos e utópicos (recusa operação <4 func)" — Reclame Aqui |
 
 **Posicionamento provável vs Aferê:** **concorrente horizontal de field service** — forte em OS/campo genérico, mas zero cobertura de calibração 17025/incerteza/rastreabilidade. Em assistência técnica de manutenção corretiva, **Auvo é provavelmente o concorrente mais perigoso do lado de OS de campo** (mais maduro que módulos de OS de Bling/Omie/Conta Azul). Se Roldão atender muito cliente com técnico de campo, Auvo é referência.
+
+> **Reposicionamento pós-Aud-14 (17/05/2026 noite):** **Auvo elevada de "tangencial" pra "ameaça #1 em 9–12 meses".** Auvo já tem app mobile maduro + GPS + base PME instalada (~8 mil clientes, 80 mil usuários). Adicionar **caixa do técnico + manutenção preventiva = 6-9 meses** de roadmap pra eles. **Quando isso acontecer, a OP3 inteira do Aferê (Frota + UMC + Caixa do técnico) evapora como diferencial vs Auvo** — vira commodity de field service. Próximo concorrente a matar diferencial do Aferê — chega **ANTES** da aquisição Visma/Cali (R-035, horizonte 18-24 meses). **Defesa estratégica:** integrar Frota+UMC com cadeia de rastreabilidade RBC + cláusula 7.11 + INV-002 — Auvo nunca vai fazer isso (não é o mercado deles). Diferenciação real do Aferê = **OS de campo amarrada à evidência metrológica auditável**, não OS de campo isolada.
 
 **Fontes:** https://www.auvo.com • https://scinova.com.br/com-escritorio-em-sc-auvo-tecnologia-recebe-investimento-da-cloud9-capital/ • https://empreenderemgoias.com.br/2024/04/02/empresa-goiana-para-gestao-de-equipes-se-consolida-na-america/ • https://www.reclameaqui.com.br/empresa/auvo-tecnologia/ • https://www.capterra.pt/software/201778/auvo
 

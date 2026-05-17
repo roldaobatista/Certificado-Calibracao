@@ -3,6 +3,8 @@
 > **Artefato Rodada 0 / Batch 2** (Auditor 6 v2 — NOVO). Framework David Bland (Testing Business Ideas). Separa premissas em 4 quadrantes × 2 níveis de confiança. Destaca **leap-of-faith** (premissas críticas + baixa confiança).
 > **Atualizado:** 2026-05-17 — primeira versão DENSA pós-batch 2 do discovery (riscos R-001..R-057 consolidados, 14 personas, 12 Big Jobs, 109 JTBDs, 9 gaps defensáveis, 4 decisões fundadoras D1–D5, custo do status quo R$ 35–50k/mês mapeado).
 > **Versão pré-entrevistas.** Nenhuma entrevista com cliente externo aconteceu ainda. Toda premissa marcada "Sabemos" se apoia em fonte secundária (relatório de mercado, regulação publicada, decisão fundadora documentada). LEAPs serão validados em `validacao-ativa.md` pelos experimentos propostos abaixo.
+>
+> **Versão pós-auditoria 12 agentes (17/05/2026 noite).** F-1 ganhou critérios de mortalidade explícitos + planos B/C/D. 3 LEAPs novos (V-15, F-17, F-18) + 1 LEAP de promoção (F-19, homologação CERTI). Van Westendorp N=30 cortado pra N=5-8 em entrevistas. **Total premissas: 61** (era 57; +V-15, +F-17, +F-18, +F-19). LEAPs priorizados: 15 (era 12).
 
 ---
 
@@ -53,12 +55,12 @@ Cada premissa do projeto se encaixa em:
 
 ---
 
-### Viabilidade — 14 premissas
+### Viabilidade — 15 premissas (era 14; +V-15)
 
 | # | Premissa | Confiança | Evidência (se sabemos) / Experiment (se não) |
 |---|---|---|---|
-| V-1 | **TAM de laboratórios RBC + assistência técnica BR é suficiente pra sustentar SaaS: existem ≥ 5.000 empresas no ICP A/B/C com WTP ≥ R$ 600/mês = ARR potencial ≥ R$ 36M** | Não sabemos LEAP | Pesquisa secundária: lista CGCRE de RBC acreditados (~600), IPEM/INMETRO assistência técnica com selo (~2.000–10.000), CNAE 7120-1 (Testes e Análises Técnicas) IBGE. Custo P, prazo 2 semanas |
-| V-2 | **WTP do perfil B (ICP nuclear) está entre R$ 700–1.500/mês — não R$ 300 nem R$ 3.000** | Não sabemos LEAP | Van Westendorp + WTP test pago. Roldão diz "R$ 500/mês já não topo" mas é viés do dono não-comprador. Validar com 10 donos perfil B reais em entrevista paga. Custo M, prazo 1 mês |
+| V-1 | **TAM de laboratórios RBC + assistência técnica BR — 5.000 estimado bruto. TAM ICP convertível (perfis A+B com WTP confirmado) pode ser 1.500-2.000.** Se TAM convertível < 1.000, MVP-1 inteiro precisa repensar pricing. | Não sabemos LEAP | Pesquisa secundária: lista CGCRE de RBC acreditados (~600), IPEM/INMETRO assistência técnica com selo (~2.000–10.000), CNAE 7120-1 (Testes e Análises Técnicas) IBGE + filtro geográfico SP/MG/RS/SC. Custo P, prazo 2 semanas. (refinado pós-auditoria Aud-18 batch 3) |
+| V-2 | **WTP do perfil B (ICP nuclear) está entre R$ 700–1.500/mês — não R$ 300 nem R$ 3.000** | Não sabemos LEAP | **Van Westendorp em 4 perguntas DENTRO das entrevistas Onda 1 (custo marginal zero), N=5-8 donos perfil B.** Aceitar como sinal direcional, não estatístico. Se Roldão quiser N=30 com rigor estatístico, contratar Provokers/MindMiners B2B (R$ 15-25k). Custo P (era M), prazo 1 mês. (corrigido pós-auditoria: N=30 a R$ 2k era irreal — N=30 B2B custa R$ 15-25k) |
 | V-3 | **Setor de calibração BR aceita modelo SaaS multi-tenant (não exige on-premise/desktop)** | Sabemos (parcial) | Cali ainda é desktop-first; Metroex/Calibre são SaaS; Qualer (internacional) é SaaS. Sandra (RT) tem objeção de soberania de dados (R-028). Sabemos que aceita; falta confirmar **prêmio de preço** que pagam por on-premise |
 | V-4 | **CAC < LTV/3: cobranças R$ 600–1.500/mês × LTV 30 meses = R$ 18–45k → CAC viável até R$ 6–15k via inbound + indicação** | Não sabemos LEAP | Smoke test pago R$ 5k: landing + Google Ads + LinkedIn → métrica CAC de visitante MQL e SQL. Custo M, prazo 1 mês |
 | V-5 | **Aquisição: dentro de 18 meses, Visma (que comprou Conta Azul em 08/2025, US$ 300M) compra Cali ou Metroex e clona vertical fiscal/NFS-e (R-035 score 20)** | Sabemos (parcial) | Visma fez 140+ aquisições, 50 só em 2024; Conta Azul + Cali = BIG-01+BIG-04 em 18 meses. Cenário plausível. Mitigação: chegar a 50+ clientes antes da aquisição |
@@ -71,14 +73,15 @@ Cada premissa do projeto se encaixa em:
 | V-12 | **Modelo "1 mês grátis + R$ 500–1.000 entrada" gera conversão ≥ 30% trial → pagante** | Não sabemos | Smoke test: landing + trial 30 dias × 20 prospects. Métrica: 6/20 = 30%. Custo M, prazo 2 meses |
 | V-13 | **Mercado regulado farma (Patrícia, persona 11) paga ADD-ON 21 CFR Part 11-equivalente + RDC 658 + RDC 786 a R$ 1.000–3.000/mês extra** | Não sabemos | Entrevista 3 gerentes farma BR. Custo P |
 | V-14 | **Existem ao menos 200 prospects qualificados no ICP perfil A/B em SP+MG+RS+SC (eixo industrial onde Roldão opera) — não precisa mercado nacional pra primeiros 50 clientes** | Não sabemos | Lista CGCRE + filtros geográficos. Custo P |
+| V-15 ⭐ NOVO | **CAC blended ≤ R$ 4.500 nos primeiros 50 tenants** — sub-itens por canal: inbound R$ 2k, indicação R$ 500, outbound R$ 8k (média ponderada). Se CAC > R$ 6k, LTV/CAC quebra abaixo de 3:1 e modelo SaaS sangra. | Não sabemos LEAP | Smoke test pago Meta Ads + Google Ads + LinkedIn por 4 semanas, R$ 5k total. Métrica: CAC blended ≤ R$ 4.500. Custo M, prazo 1 mês | (origem: Aud-21 batch 3 — 17/05/2026)
 
 ---
 
-### Factibilidade — 16 premissas
+### Factibilidade — 19 premissas (era 16; +F-17, F-18, F-19)
 
 | # | Premissa | Confiança | Evidência (se sabemos) / Experiment (se não) |
 |---|---|---|---|
-| F-1 | **Modelo 100% agentes funciona: 1 não-programador (Roldão) + Claude Code + Codex CLI + 3 auditores entregam ERP de 12 Big Jobs em ≤ 24 meses sem dev humano** | Não sabemos LEAP CRÍTICO | **PREMISSA MÃE.** Spike de 4 semanas em 1 módulo completo (sugestão: BIG-12 estoque com lacre/selo INMETRO — escopo bem definido, baixa regulação) → métrica: módulo em produção com hooks bloqueantes + testes + dossiê em 4 semanas, 0 bugs críticos. Custo G, prazo 1 mês |
+| F-1 | **Modelo 100% agentes funciona em ERP regulado** — PREMISSA MÃE (LEAP CRÍTICO #1). Ver detalhamento expandido com gates de sucesso, kill switches e planos B/C/D abaixo da matriz (seção "F-1 detalhado"). | Não sabemos LEAP CRÍTICO | Spike controlado em BIG-12 Estoque (RECORTADO — SEM mobile, mobile é F-10 separado), 4 semanas, custo G (R$ 5-10k tokens). Ver seção "F-1 detalhado" pra critérios mortalidade completos. |
 | F-2 | **Stack escolhida aguenta multi-tenant em Hostinger VPS KVM 4 SP/BR (4 vCPU, 8GB RAM) com 50 tenants ativos sem degradação de performance** | Não sabemos LEAP | Spike `spikes-tecnicos/multi-tenant.md`: provisionar VPS + RLS PostgreSQL + carga sintética 50 tenants × 10 usuários simultâneos. Métrica: p95 < 500ms. Custo M, prazo 2 semanas |
 | F-3 | **NF-e/NFS-e multi-município (15+ prefeituras + Padrão Nacional CGSN 189/2026) funciona via BaaS único (Focus/PlugNotas/TecnoSpeed) com ≥ 95% das prefeituras dos primeiros 50 clientes** | Não sabemos LEAP | Spike `spikes-tecnicos/nfe-municipio-proprio.md`: lista 15 municípios prioritários × 3 BaaS, demo de cada, custo por NFS-e. Métrica: 1 BaaS cobre ≥ 12/15. Custo M, prazo 1 mês |
 | F-4 | **WhatsApp Business API (Meta Cloud API oficial OU 360dialog/Z-API) integra com inbox unificada do produto sem violar termos da Meta e sem custo proibitivo (≤ R$ 0,50/conversa)** | Não sabemos | Spike WhatsApp: aprovar template Meta + enviar 100 mensagens × 3 templates. Métrica: aprovação Meta ≤ 7 dias; custo médio ≤ R$ 0,30. Custo M, prazo 3 semanas |
@@ -94,6 +97,9 @@ Cada premissa do projeto se encaixa em:
 | F-14 | **Spike de 4 semanas em 1 módulo (F-1) prova ou refuta o modelo agente sem queimar > R$ 10k em custos diretos (tokens + cloud + ferramentas)** | Sabemos (parcial) | Hard cap R$ 50/dia × 28 dias = R$ 1.400 tokens + R$ 1k cloud + R$ 2k ferramentas = ~R$ 5k. Sabemos viável |
 | F-15 | **Assinatura digital ICP-Brasil (A1/A3) integra no PDF do certificado sem dor (via API LACUNA/BRy ou stack equivalente)** | Não sabemos | Spike: assinar 10 PDFs com certificado A1 do Roldão. Métrica: 10/10 válidos no Adobe Reader. Custo P, prazo 1 semana |
 | F-16 | **Migração de dados de Cali/Bling/Planilha pra Aferê é factível em ≤ 8h de onboarding por cliente — não vira consultoria de R$ 20k+** | Não sabemos | Spike: importador genérico Cali (export XML/Access) + Bling (API) + planilha (CSV template). Métrica: 8/10 clientes onboarding ≤ 8h. Custo G, prazo 4 semanas |
+| F-17 ⭐ NOVO | **Onboarding de tenant novo ≤ 8h até 1ª NFS-e real emitida** — sem isso, área que MORRE é receita unitária: onboarding > 40h vira consultoria escondida e mata margem SaaS. | Não sabemos LEAP | Ride-along com piloto interno (Roldão), cronômetro do "criou conta" até "emitiu NFS-e válida". Métrica: ≤ 8h total. Custo P, prazo 2 semanas | (origem: Aud-21 batch 3 — 17/05/2026)
+| F-18 ⭐ NOVO | **CS L1 (suporte ao tenant) cabe em modelo 100% agentes — bot + Roldão como fallback humano** — sem isso, churn dispara mês 2 e modelo SaaS sangra. | Não sabemos LEAP | Bot mock (chatbot com FAQ + escalonamento) + 10 simulações de ticket reais com Roldão como árbitro. Métrica: bot resolve ≥ 70% sem intervenção humana. Custo M, prazo 3 semanas | (origem: Aud-21 batch 3 — 17/05/2026)
+| F-19 ⭐ NOVO | **Homologação CERTI/INMETRO obtida em ≤ 36 meses** — sem isso, perdemos diferencial vs Cali (que tem) em concorrências de cliente regulado/grande. Processo leva 18-36 meses e exige iniciar no ano 1. | Não sabemos LEAP | Iniciar processo de homologação ainda no ano 1 (paralelo ao MVP-1). Custo G (R$ 30-80k em consultoria + testes), prazo 18-36 meses. **R-034 elevado de score 4 → 12 nos riscos.** | (origem: promoção de R-034 pós-auditoria 12 agentes batch 3)
 
 ---
 
@@ -114,7 +120,53 @@ Cada premissa do projeto se encaixa em:
 
 ---
 
-## Leap-of-Faith priorizado — 12 LEAPs
+## F-1 detalhado — critérios de mortalidade explícitos
+
+> Pós-auditoria 12 agentes (17/05/2026 noite). F-1 (modelo 100% agentes) é a PREMISSA MÃE — se falsa, projeto inteiro precisa repensar. Auditoria exigiu critérios objetivos e antecipados de "quando matar a hipótese".
+
+### Experiment
+Spike controlado em **BIG-12 Estoque** (RECORTADO — SEM mobile; mobile vira spike próprio em F-10), 4 semanas, custo G (R$ 5-10k em tokens + cloud).
+
+### Gates de sucesso (todos precisam bater pra F-1 ser CONFIRMADO)
+
+**Funcionais:**
+- 50 instrumentos cadastrados no módulo Estoque com cadeia de rastreabilidade
+- 50 selos INMETRO emitidos com rastreio individual (número de série único)
+- Hook bloqueante de "selo em equipamento errado" funciona 100% (zero falso-negativo em 20 testes adversariais)
+- 30 transferências em 2 etapas (almoxarife → técnico → cliente) sem perda
+- Drill multi-tenant com 3 tenants paralelos: 0 vazamento entre tenants
+
+**Não-funcionais (qualidade do processo de agente):**
+- Tempo de iteração mediana ≤ 45 min, p90 ≤ 2h. **Se p90 > 4h, vira LEAP-balança (precisa decidir).**
+- Custo de tokens ≤ R$ 1.500 no spike total (hard cap R$ 50/dia × 28 dias = R$ 1.400 + 100 de folga)
+- Roldão intervém em código manualmente ≤ 2 vezes por semana
+- 0 `push --force`, 0 hook desligado, 0 `--no-verify`
+- Cobertura de testes ≥ 60% no módulo
+- 0 SEV-1 em homologação após 7 dias de uso real pelo Roldão
+
+### Kill switches (sinais antecipados de fracasso)
+Se QUALQUER um dos 10 abaixo acontecer, parar o spike e reavaliar F-1:
+
+1. Roldão LÊ código pra desbloquear agente > 2× em 1 semana
+2. Bug recorrente sem solução em 3 tentativas seguidas do agente
+3. Drift de spec (spec virou "spec-as-suggestion") em > 10% dos commits
+4. Custo de tokens > R$ 70/dia em 3 dias consecutivos
+5. p90 > 4h por feature pequena
+6. Conflito Claude × Codex no mesmo arquivo > 2× em 1 semana
+7. Hook bloqueia > 15% das ações do agente (falso-positivo mata produtividade)
+8. Roldão não consegue VERIFICAR sozinho se a feature está certa
+9. Multi-tenant drill falha (qualquer vazamento)
+10. **Gate dia 14:** "se eu parasse hoje, esse módulo entrega em ≤ 4 semanas extras?" — se resposta for "mais de 4 semanas", abortar
+
+### Planos B/C/D (se F-1 falhar)
+
+- **Plano B (preferido):** Tech-lead consultivo part-time 10h/semana, R$ 8-15k/mês. Preserva 70% da economia do modelo 100% agentes — agentes continuam fazendo o grosso, humano só revisa decisão técnica e desbloqueia.
+- **Plano C (rejeitado):** Migrar pra low-code (Bubble, Retool, Adalo). **NÃO atende ISO 17025 cláusula 7.11** (dossiê de validação de software). Mantido só como referência.
+- **Plano D:** Pivotar de ERP completo pra **gestor de qualidade 17025 puro** (só BIG-02). Escopo menor, menos LEAPs, viável com modelo mais conservador.
+
+---
+
+## Leap-of-Faith priorizado — 15 LEAPs (era 12; +V-15, F-17, F-18)
 
 > Ranqueados por severidade (combinação: probabilidade-de-ser-falsa × impacto-se-falsa × proximidade-na-decisão). Validar TODOS antes de comprometer recurso significativo em MVP-1.
 
@@ -132,13 +184,21 @@ Cada premissa do projeto se encaixa em:
 | **#10** | **F-7 — Dual tooling Claude Code + Codex CLI sobre AGENTS.md canônico não diverge (D6)** | **Velocidade de entrega.** Se 2 agentes produzem código inconsistente, Roldão vira mediador 24/7 e velocidade colapsa. | 2 agentes em paralelo × 5 tarefas equivalentes × medir conflitos | P | 2 semanas |
 | **#11** | **F-2 — Stack aguenta 50 tenants multi-tenant em Hostinger VPS KVM 4 SP** | **Hospedagem.** Se não aguenta, precisa migrar pra cloud premium (AWS/GCP) e custo explode 5×. | Spike multi-tenant: carga sintética 50 tenants × 10 users simultâneos. p95 < 500ms | M | 2 semanas |
 | **#12** | **F-10 — App mobile offline-first viável sem time mobile dedicado (PWA + Capacitor ou Flutter)** | **BIG-05 + BIG-08.** Sem mobile offline, técnico/motorista não usa e dado de campo continua em papel/WhatsApp pessoal. | Spike mobile: protótipo OS offline + sync 3 semanas. 100 OS criadas offline + sync sem perda | G | 3 semanas |
+| **#13** ⭐ NOVO | **V-15 — CAC blended ≤ R$ 4.500 nos primeiros 50 tenants** | **Aquisição inteira.** Se CAC > R$ 6k, LTV/CAC < 3:1, modelo SaaS sangra. | Smoke test pago Meta+Google+LinkedIn 4 semanas R$ 5k | M | 1 mês |
+| **#14** ⭐ NOVO | **F-17 — Onboarding tenant novo ≤ 8h até 1ª NFS-e real emitida** | **Receita unitária.** Onboarding > 40h vira consultoria escondida e mata margem SaaS. | Ride-along com piloto interno (Roldão), cronômetro | P | 2 semanas |
+| **#15** ⭐ NOVO | **F-18 — CS L1 cabe em modelo 100% agentes (bot + Roldão fallback)** | **Churn.** Sem CS L1, 1º cliente abre ticket sexta 22h, ninguém responde, churna mês 2. | Bot mock + 10 simulações de ticket com Roldão como árbitro | M | 3 semanas |
 
-> **Top 5 prioritários** (a serem rodados em paralelo na semana 1 da Rodada 1):
-> 1. F-1 (modelo agentes) — spike de 4 semanas em BIG-12 estoque
-> 2. D-1 (compra unificada) — 5 entrevistas + landing
-> 3. V-1 (TAM real) — pesquisa CGCRE/IBGE
-> 4. V-2 (WTP) — Van Westendorp pago
-> 5. E-4 (contrato + seguro) — advogado + corretora
+> **Top 5 pós-auditoria 12 agentes (17/05/2026 noite)** (a serem rodados em paralelo na semana 1 da Rodada 1):
+> 1. **F-1 (modelo agentes)** — spike 4 semanas em BIG-12 estoque, **agora com critérios de mortalidade explícitos** (10 kill switches, 6 gates, planos B/C/D) — ver seção "F-1 detalhado"
+> 2. **D-1 (compra unificada)** — 5 entrevistas + landing
+> 3. **V-1 (TAM real)** — pesquisa CGCRE/IBGE, agora com **TAM convertível 1.500-2.000** (era estimado 5.000 bruto)
+> 4. **V-2 (WTP)** — Van Westendorp **N=5-8 dentro das entrevistas Onda 1** (cortado de N=30 pago — N=30 B2B custa R$ 15-25k, não R$ 2k)
+> 5. **E-4 (contrato + seguro)** — advogado + corretora
+>
+> **Top 8 pós-auditoria** (adiciona aos Top 5 acima):
+> 6. **F-5 (cálculo incerteza)** — spike 3 procedimentos + metrologista externo
+> 7. **F-17 (onboarding ≤ 8h)** — ride-along piloto interno (NOVO)
+> 8. **V-15 (CAC blended)** — smoke test pago Meta/Google/LinkedIn (NOVO)
 
 ---
 

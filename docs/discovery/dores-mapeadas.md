@@ -3,6 +3,8 @@
 > **Artefato Rodada 0** (agente sintetiza, a partir das entrevistas). Dores ranqueadas por **6 dimensões** (Auditor 6 v2):
 >
 > **Versão pré-entrevistas, baseada em síntese.** Esta primeira passagem cruza `jornada-atual-sem-produto.md` (4 ciclos + 14 dores D-NNN + custo R$ 35-50k/mês), `jobs-to-be-done.md` (~109 JTBDs + 12 Big Jobs), `personas-detalhadas.md` (14 personas) e `riscos.md` (57 riscos R-NNN). **Nenhuma entrevista real ainda foi feita.** Tudo abaixo é inferência rastreada a evidência interna (ciclo/passo da jornada + JTBD + risco). **Top dores serão re-rankeadas após Onda 1 com citações literais.**
+>
+> **⚠️ Versão pós-auditoria 12 agentes (17/05/2026 noite).** Top 5 re-rankeado: removido halo founder-customer (Aud-13 + Aud-19). Reach deflacionado 20% onde Reach ≥ 0,80 sem citação literal. Segunda deflação DAP 30% em dores vinculadas a decisões fundadoras (DF-1 Frota+UMC+Caixa, DF-2 Comissões, DF-3 Cliente 360°, DF-4 Estoque com lacre/selo). Top 5 antes: 4 das 5 eram dores vinculadas a DF (improbabilidade estatística < 5%). Top 5 corrigido: apenas 1 dor-DF permanece (#02, e ainda assim com Reach deflacionado).
 
 ---
 
@@ -25,6 +27,7 @@ Cada dor é avaliada em 6 dimensões:
 > - Frequência convertida em número (≈) pra entrar na fórmula: <1 → 0,5 ; 1–4 → 2 ; 5–20 → 10 ; >20 → 30.
 > - Reach convertido em fração decimal (0,40 = 40% do TAM).
 > - DAP em centenas de R$ (deflacionado 50% do auto-reportado-inferido) — ex: DAP "150" = R$ 150/mês.
+> - **Segunda deflação DAP 30% adicional** aplicada em dores vinculadas a decisões fundadoras (Aud-13 + Aud-19, 17/05/2026): vínculo com DF pode ter inflado o palpite original.
 > - Evitabilidade "sim" = 2 (workaround existe), "não" = 1 (não existe ou viola norma).
 > - Score: (A × F × R × DAP) ÷ (S × E) — divisão usa Solvability como custo de implementação e Evitabilidade como urgência inversa.
 > - **Marcação `[INFERÊNCIA — validar em onda 1]`:** dor cuja existência é razoavelmente garantida pela jornada, mas cujos números (frequência, DAP, reach) são palpite. **Toda dor abaixo está marcada porque não temos entrevista real ainda** — a marcação distingue "inferência forte com 3+ fontes internas" de "inferência fraca com 1 fonte".
@@ -33,7 +36,7 @@ Ranking não é cego ao score — sempre justificar com citação literal da ent
 
 ---
 
-## Dores ranqueadas (20 dores — pré-entrevistas)
+## Dores ranqueadas (20 dores — pré-entrevistas, pós-auditoria 17/05/2026)
 
 > **Cobertura por ciclo:** 4 dores no Ciclo Comercial · 5 dores no Ciclo Operacional · 5 dores no Ciclo Metrológico · 3 dores no Ciclo Financeiro · 3 dores transversais.
 > **Cobertura por decisão fundadora:** Frota+UMC+Caixa do Técnico (Dor #08, #16) · Comissões Configuráveis (Dor #15) · Cliente 360°+Automações (Dor #02, #05, #20) · Estoque com lacre/selo INMETRO (Dor #18).
@@ -44,14 +47,14 @@ Ranking não é cego ao score — sempre justificar com citação literal da ent
 - **Origem (jornada):** Ciclo Comercial §4.8 — "MESMO DADO digitado de 4 a 6 vezes... pior ponto de duplicação da jornada" + violação silenciosa de §6.bis (LGPD art. 33 — sem DPA entre Bling/Cali/Drive)
 - **Sintoma observável:** atendente Letícia leva 20 a 45 minutos por cliente novo, criando o mesmo CNPJ em planilha "Clientes.xlsx" + Bling + Cali/Metroex + planilha de OS + grupo WhatsApp; erro de digitação trava NFS-e dias depois, endereço diferente entre sistemas manda técnico pro lugar errado
 - **Personas mais afetadas:** Letícia (atendente, sente todos os dias), Cláudia (financeiro, herda o erro fiscal), Roldão (dono, paga horas perdidas), Sandra (RT, perde rastreabilidade), Bruno (técnico, vai pra endereço errado)
-- **Dimensões:**
+- **Dimensões (pós-auditoria):**
   - **Agudez 3/5** — não paralisa empresa mas drena 1-3h por cadastro novo + erros caros depois
   - **Frequência >20/mês** — 5 a 15 clientes novos/mês × 4-6 sistemas; atualizações de dado existente diárias
-  - **DAP 200/mês inferido** (auto-reportado-estimado R$ 400 → deflacionado R$ 200) — dor universal mas mal-quantificada pelo dono ("é assim mesmo")
+  - **DAP 150/mês inferido** (auto-reportado-estimado R$ 400 → deflacionado R$ 200 → revisado pra R$ 150 pós-auditoria) — dor universal mas mal-quantificada pelo dono ("é assim mesmo")
   - **Solvability 2/5** — modelo de dados com cliente como entidade única + integração com NFS-e (BaaS Focus/PlugNotas) é viável em poucos sprints
-  - **Reach 90%** — observado em jornada §2.2 como característica de "100% das empresas BR" do ICP
+  - **Reach 80%** (era 90% — deflação 20% Aud-13 por ausência de citação literal) — observado em jornada §2.2 como característica de "100% das empresas BR" do ICP, mas alvo de viés do dono que enxerga ICP estreito
   - **Evitabilidade não (=1)** — workaround é o problema; planilha não substitui integração
-- **Score:** (3 × 30 × 0,90 × 200) ÷ (2 × 1) = **8.100**
+- **Score:** (3 × 30 × 0,80 × 150) ÷ (2 × 1) = **5.400** (era 8.100 — recalibrado)
 - **Citações:** `[INFERÊNCIA — validar em onda 1]` Jornada §4.8 "MESMO DADO digitado de 4 a 6 vezes — pior ponto de duplicação da jornada" + Persona Letícia §"O que a deixa louca": "Cliente é cadastrado 4 vezes — em 4 telas diferentes — e ainda assim quando vou achar, sumiu" + JTBD-054 + D-001 + BIG-07 (promovido a Big Job)
 - **Implicação pra MVP:** ENTRA (foundation — Cliente 360° começa aqui)
 - **Módulo provável:** Cliente / Cadastros base
@@ -63,14 +66,14 @@ Ranking não é cego ao score — sempre justificar com citação literal da ent
 - **Origem (jornada):** Ciclo Metrológico §6.12 — "NÃO é sistemático. Empresa-modelo perde 30-50% das recalibrações por esquecimento" + Ciclo Comercial §4.11 (contrato anual farma sem lembrete automático)
 - **Sintoma observável:** planilha "Validades.xlsx" + Google Calendar; Rogério (vendedor) e Letícia (atendente) "quando lembram" mandam mensagem manual; cliente final recebe lembrete do concorrente antes; empresa perde 30-50% das recalibrações que tinha direito a renovar
 - **Personas mais afetadas:** Roldão (perde receita recorrente), Rogério (perde comissão de renovação), Sandra (não fecha ciclo de qualidade), João (cliente final fica sem certificado válido)
-- **Dimensões:**
+- **Dimensões (pós-auditoria):**
   - **Agudez 5/5** — receita perdida direta; dor canônica do setor de calibração
   - **Frequência 10-30/mês** — 60-180 certificados/mês × 30-50% esquecimento → ~30 oportunidades perdidas/mês na empresa-modelo
-  - **DAP 400/mês inferido** (auto-reportado-estimado R$ 800 → deflacionado R$ 400) — alto porque o dono SENTE a receita perdida quando contam pra ele
+  - **DAP 250/mês inferido** (auto-reportado-estimado R$ 800 → deflacionado R$ 400 → segunda deflação 30% pra R$ 250) — ⚠️ **Segunda deflação aplicada (auditoria 17/05/2026 — Aud-13): vínculo com DF-3 (Cliente 360°+Automações) pode ter inflado DAP no primeiro palpite.**
   - **Solvability 2/5** — calendário de recalibração + WhatsApp template aprovado + automação simples
-  - **Reach 95%** — universal em calibração; observado em Jornada §1 e §8 como R$ 8-12k/mês de receita perdida
+  - **Reach 75%** (era 95% — deflação 20% Aud-13 por Reach inflacionado sem citação literal) — universal em calibração; observado em Jornada §1 e §8 como R$ 8-12k/mês de receita perdida
   - **Evitabilidade não (=1)** — workaround atual (planilha) é exatamente o que falha
-- **Score:** (5 × 30 × 0,95 × 400) ÷ (2 × 1) = **28.500**
+- **Score:** (5 × 30 × 0,75 × 250) ÷ (2 × 1) = **14.062** (era 28.500 — recalibrado; aproximadamente 15.000)
 - **Citações:** `[INFERÊNCIA — validar em onda 1]` Jornada §1 "30-50% das recalibrações são perdidas por esquecimento" + Jornada §8 "Receita perdida em recalibração R$ 8.000 a R$ 12.000/mês" + JTBD-084 (renovação automática) + JTBD-044 (alerta 60-90 dias) + D-002 + BIG-10/BIG-11
 - **Implicação pra MVP:** ENTRA (uma das duas vendas-engatilho do produto — junto com NFS-e)
 - **Módulo provável:** CRM (BIG-10) + Automações (BIG-11)
@@ -125,11 +128,11 @@ Ranking não é cego ao score — sempre justificar com citação literal da ent
   - **Frequência >20/mês** (=30) — 10-30 perguntas/dia × 20 dias úteis = 200-600/mês
   - **DAP 150/mês inferido** (auto-reportado-estimado R$ 300 → deflacionado R$ 150) — moderado; dono frequentemente subestima essa dor
   - **Solvability 2/5** — portal cliente + envio WhatsApp template "OS XPTO está na fase Y" é POC simples; já existe em Cali WEB embora "feio que ninguém usa"
-  - **Reach 85%** — universal em PME 5-10 pessoas; pode cair em perfil D pequeno
+  - **Reach 85%** — universal em PME 5-10 pessoas; pode cair em perfil D pequeno. **Reach NÃO deflacionado: Letícia é persona presente em qualquer empresa do ICP — dor visível em entrevista direta com atendente.**
   - **Evitabilidade sim (=2)** — workaround atual (responder manualmente) é cansativo mas funciona
 - **Score:** (3 × 30 × 0,85 × 150) ÷ (2 × 2) = **2.869**
 - **Citações:** `[INFERÊNCIA — validar em onda 1]` Jornada §5.8 explicitamente "10-30 perguntas/dia" + Persona Letícia §"O que a deixa louca": "10 vezes por dia: 'cadê o orçamento que mandei segunda?'. Eu não sei. Procuro no e-mail, na pasta, no WhatsApp do Roldão" + JTBD-017 (responder cadê certificado sem levantar) + JTBD-091 (Cliente 360° em 1 tela) + D-005
-- **Implicação pra MVP:** ENTRA (portal cliente lite + automação de notificação de mudança de status — quick win)
+- **Implicação pra MVP:** ENTRA (portal cliente lite + automação de notificação de mudança de status — quick win). **Promovida ao top 5 pós-auditoria (não-DF, persona universal, viés founder-customer baixo).**
 - **Módulo provável:** Portal do cliente + Automações
 - **Vínculo com JTBD:** JTBD-017, JTBD-091, JTBD-089, BIG-10
 
@@ -218,13 +221,13 @@ Ranking não é cego ao score — sempre justificar com citação literal da ent
 - **Dimensões:**
   - **Agudez 5/5** — cutover obrigatório com data; quem não migrar não fatura; multa fiscal
   - **Frequência >20/mês** (=30) — 60-180 NFS-e/mês na empresa-modelo
-  - **DAP 350/mês inferido** (auto-reportado-estimado R$ 700 → deflacionado R$ 350) — alto; já pagam Bling/Omie/Conta Azul justamente pra isso
+  - **DAP 350/mês inferido** (auto-reportado-estimado R$ 700 → deflacionado R$ 350) — alto; já pagam Bling/Omie/Conta Azul justamente pra isso. **NÃO recebe segunda deflação: não é DF, é fato regulatório com data fixa.**
   - **Solvability 3/5** — BaaS fiscal (Focus, PlugNotas, TecnoSpeed) resolve a parte BR; integração com OS é nossa
-  - **Reach 100%** — universal: toda empresa do ICP emite NFS-e
+  - **Reach 100%** — universal: toda empresa do ICP emite NFS-e. **Reach NÃO deflacionado: cutover atinge todos.**
   - **Evitabilidade sim (=2)** — Bling/Omie já fazem; gap é integrar com OS de calibração
 - **Score:** (5 × 30 × 1,00 × 350) ÷ (3 × 2) = **8.750**
 - **Citações:** `[INFERÊNCIA — validar em onda 1]` Jornada §7.1 (R-016) + Concorrentes §3-4 "GAP CONFIRMADO" — nenhum dos 14 concorrentes nacionais (Cali, Metroex, Calibre, Q-MAN, ConfLab, etc.) tem NFS-e nativa; FP2 cobre só Santa Maria/RS + JTBD-034 + BIG-04 + D-021 + R-016 score 20
-- **Implicação pra MVP:** ENTRA (uma das duas vendas-engatilho — junto com Dor #02; tese central do produto per Concorrentes §6)
+- **Implicação pra MVP:** ENTRA (uma das duas vendas-engatilho — junto com Dor #02; tese central do produto per Concorrentes §6). **Top 1 pós-auditoria: fato regulatório com data (01/09/2026) imune a viés founder-customer.**
 - **Módulo provável:** Fiscal/NFS-e (BIG-04)
 - **Vínculo com JTBD:** JTBD-034, BIG-04
 
@@ -234,6 +237,7 @@ Ranking não é cego ao score — sempre justificar com citação literal da ent
 - **Origem (jornada):** Ciclo Financeiro §7.5 + §7.6 — "Cobrança vira problema pessoal do dono. Cliente inadimplente é também cliente operacional ativo → conflito interno: cobrar e perder cliente OU atender e nunca receber"
 - **Sintoma observável:** Cláudia identifica boleto vencido na planilha "Inadimplentes.xlsx"; manda WhatsApp constrangedor pro cliente; cliente nega ("já paguei!"); escala pro Roldão que liga pessoalmente; Letícia abre nova OS pra cliente bloqueado porque ninguém avisou; receita continua sendo entregue sem entrar
 - **Personas mais afetadas:** Roldão (peso emocional), Cláudia (drenagem + sentir-se "chata"), Letícia (erro por desinformação), Rogério (vendedor descobre tarde)
+- **⭐ Dor universal NÃO-FUNDADORA — virou Opportunity própria (OP11 Cobrança) no OST pós-auditoria 17/05/2026**
 - **Dimensões:**
   - **Agudez 4/5** — alta — emocional + financeira
   - **Frequência 5-20/mês** (=10) — média de 5-15 inadimplências ativas por mês na empresa-modelo
@@ -253,6 +257,7 @@ Ranking não é cego ao score — sempre justificar com citação literal da ent
 - **Origem (jornada):** Ciclo Financeiro §7.8 + transversal — "Dono vê DRE com 30-45 dias de atraso → decide com info defasada. Sem visão de margem por serviço/cliente/grandeza → não sabe o que é rentável" + §8 "2-4h/dia do dono apagando incêndio"
 - **Sintoma observável:** Roldão chega 7h, abre 40 WhatsApps da madrugada, atende fornecedor + cliente irritado + financeiro + técnico com dúvida; à noite "fecha caixa" no extrato bancário contra planilha do financeiro; trabalha 60-70h/semana; toma decisão de aceitar contrato sem saber margem; descobre prejuízo invisível no fim do trimestre
 - **Personas mais afetadas:** Roldão (burnout iminente — R-011 score 15 + R-029 score 15), família, sócio se houver
+- **⭐ Dor universal NÃO-FUNDADORA — virou Opportunity própria (OP12 Painel do Dono) no OST pós-auditoria 17/05/2026**
 - **Dimensões:**
   - **Agudez 5/5** — burnout = perda do produto inteiro; bus factor catastrófico
   - **Frequência >20/mês** (=30) — diário
@@ -310,14 +315,14 @@ Ranking não é cego ao score — sempre justificar com citação literal da ent
 - **Origem (jornada):** decisão fundadora Roldão 17/05/2026 (`dominio-de-negocio.md` §"Módulo de Comissões Configuráveis") — não está explícita na Jornada §1-12 porque a Jornada foca em fluxo cliente, mas é decisão fundadora canônica
 - **Sintoma observável:** Cláudia (financeiro) passa 3-5 dias do mês mexendo em planilha mestre com fórmulas frágeis; cada colaborador questiona o número ("eu fiz X OS, não fui pago direito"); Roldão paga comissão R$ 500 sobre OS que deu R$ 1.200 de prejuízo invisível (descobre só no DRE do trimestre); regra mudou em maio mas planilha de junho usa regra antiga
 - **Personas mais afetadas:** Cláudia (esgotamento mensal), Roldão (paga comissão errada), Rogério (briga por número), Bruno (não confia no holerite), Carlos (motorista UMC mais ainda sem visibilidade)
-- **Dimensões:**
+- **Dimensões (pós-auditoria):**
   - **Agudez 4/5** — alta — drenante + financeiro + risco trabalhista (R-055 score 12)
   - **Frequência 5-20/mês** (=10) — fechamento mensal + brigas semanais
-  - **DAP 350/mês inferido** (auto-reportado-estimado R$ 700 → deflacionado R$ 350) — alto entre empresas com 5+ colaboradores comissionados
-  - **Solvability 4/5** — DSL de regra configurável + 8 formas de cálculo (bruto, líquido, valor fixo, etc.) + gatilho por recebimento + simulador "se rodasse hoje" + auditoria de ajuste é trabalho substancial
-  - **Reach 75%** — universal entre PME 5-10 pessoas com técnicos/vendedores comissionados
+  - **DAP 245/mês inferido** (auto-reportado-estimado R$ 700 → deflacionado R$ 350 → segunda deflação 30% pra R$ 245) — ⚠️ **Segunda deflação aplicada (auditoria 17/05/2026 — Aud-13): vínculo com DF-2 (Comissões Configuráveis) pode ter inflado DAP no primeiro palpite.**
+  - **Solvability 4/5** — DSL de regra configurável + 8 formas de cálculo + simulador é trabalho substancial
+  - **Reach 55%** (era 75% — deflação 20% Aud-13) — só labs que comissionam tecnicamente — [INFERÊNCIA — só labs que comissionam tecnicamente]
   - **Evitabilidade sim (=2)** — workaround atual (planilha) "funciona" com dor
-- **Score:** (4 × 10 × 0,75 × 350) ÷ (4 × 2) = **1.312**
+- **Score:** (4 × 10 × 0,55 × 245) ÷ (4 × 2) = **674** (era 1.312 — recalibrado)
 - **Citações:** `[INFERÊNCIA — validar em onda 1]` Decisão fundadora Roldão 17/05/2026 + `dominio-de-negocio.md` §"Módulo de Comissões Configuráveis" + JTBD-071 a JTBD-082 (12 jobs) + BIG-09 + R-055/R-056/R-057
 - **Implicação pra MVP:** ENTRA (7º gap defensável; configuração + fechamento mensal + auditoria MVP-1; previsões em pipeline MVP-2)
 - **Módulo provável:** Comissões (BIG-09)
@@ -329,16 +334,16 @@ Ranking não é cego ao score — sempre justificar com citação literal da ent
 - **Origem (jornada):** decisão fundadora Roldão 17/05/2026 (`dominio-de-negocio.md` §"Controle de Técnico em Campo, Despesas, Frota e UMC") + Ciclo Operacional §5.4-5.5
 - **Sintoma observável:** Bruno (técnico) sai pra viagem de 3 dias, pede R$ 500 de adiantamento no WhatsApp da Cláudia; volta com bolso cheio de papel amassado; 30% dos comprovantes somem; planilha do RH não bate; carro X com manutenção atrasada quebra na BR; multa chega 2 meses depois, vira protesto + CNH suspensa de Bruno; UMC com pesos-padrão de R$ 100-300k roda sem rastreamento
 - **Personas mais afetadas:** Bruno (não-mendigar, não-ser-acusado), Cláudia (planilha lateral interminável), Carlos (motorista UMC com baixo letramento digital), Roldão (custo invisível + risco patrimonial)
-- **Dimensões:**
-  - **Agudez 4/5** — alta — operacional + financeira + patrimonial (UMC) + jurídica (multa não paga vira protesto, CNH suspensa)
+- **Dimensões (pós-auditoria):**
+  - **Agudez 4/5** — alta — operacional + financeira + patrimonial (UMC) + jurídica
   - **Frequência >20/mês** (=30) — diário/semanal contínuo
-  - **DAP 300/mês inferido** (auto-reportado-estimado R$ 600 → deflacionado R$ 300) — alto entre operações com 2+ técnicos de campo
-  - **Solvability 4/5** — app mobile + foto + categorização + workflow de aprovação + integração frota (KM, manutenção, multa) é trabalho substancial; integração SENATRAN incerta
-  - **Reach 70%** — universal em quem opera campo (perfil A/B/C/D que faz campo); irrelevante em lab puro de bancada
+  - **DAP 210/mês inferido** (auto-reportado-estimado R$ 600 → deflacionado R$ 300 → segunda deflação 30% pra R$ 210) — ⚠️ **Segunda deflação aplicada (auditoria 17/05/2026 — Aud-13): vínculo com DF-1 (Frota+UMC+Caixa) pode ter inflado DAP no primeiro palpite.**
+  - **Solvability 4/5** — app mobile + foto + categorização + workflow + integração frota é trabalho substancial
+  - **Reach 55%** (era 70% — deflação 20% Aud-13) — só labs com 3+ técnicos de campo + frota própria + UMC — [INFERÊNCIA — só labs com 3+ técnicos de campo + frota própria + UMC]
   - **Evitabilidade não (=1)** — workaround atual é precisamente o que produz R-043 + R-044 + R-045 + R-046 + R-047
-- **Score:** (4 × 30 × 0,70 × 300) ÷ (4 × 1) = **6.300**
-- **Citações:** `[INFERÊNCIA — validar em onda 1]` Decisão fundadora Roldão 17/05/2026 + `dominio-de-negocio.md` §"Controle de Técnico em Campo" + Jornada §5.4-5.5 + JTBD-060 a JTBD-070 (11 jobs) + BIG-08 + R-043 a R-047 (5 riscos novos da decisão)
-- **Implicação pra MVP:** ENTRA (6º gap defensável; adiantamento + prestação + KM + manutenção alerta MVP-1; TCO consolidado MVP-2)
+- **Score:** (4 × 30 × 0,55 × 210) ÷ (4 × 1) = **3.465** (era 6.300 — recalibrado)
+- **Citações:** `[INFERÊNCIA — validar em onda 1]` Decisão fundadora Roldão 17/05/2026 + `dominio-de-negocio.md` §"Controle de Técnico em Campo" + Jornada §5.4-5.5 + JTBD-060 a JTBD-070 (11 jobs) + BIG-08 + R-043 a R-047
+- **Implicação pra MVP:** ENTRA parcial pós-auditoria (adiantamento + prestação + KM MVP-1; **TCO consolidado e frota completa movem pra MVP-2**)
 - **Módulo provável:** Frota+UMC+Caixa do Técnico (BIG-08)
 - **Vínculo com JTBD:** JTBD-060 a JTBD-070, BIG-08
 
@@ -352,11 +357,11 @@ Ranking não é cego ao score — sempre justificar com citação literal da ent
   - **Agudez 4/5** — perda de cliente + Reclame Aqui + dano reputacional
   - **Frequência 1-4/mês** (=2) — 1-3 casos/mês na empresa-modelo que atende balança comercial
   - **DAP 100/mês inferido** (auto-reportado-estimado R$ 200 → deflacionado R$ 100) — baixo-moderado porque o dono geralmente NÃO percebe que isso é dor evitável
-  - **Solvability 1/5** — calendário de verificação periódica IPEM separado de calibração + nota no certificado "esta calibração NÃO substitui a verificação INMETRO obrigatória" + alerta 90/60/30 dias é trivial
+  - **Solvability 1/5** — calendário de verificação periódica IPEM separado de calibração + nota no certificado + alerta 90/60/30 dias é trivial
   - **Reach 60%** — só atinge labs que atendem balança comercial (varejo); mas é fração grande do mercado BR
   - **Evitabilidade sim (=2)** — workaround atual ("ninguém faz") tolera a dor
 - **Score:** (4 × 2 × 0,60 × 100) ÷ (1 × 2) = **240**
-- **Citações:** `[INFERÊNCIA — validar em onda 1]` R-040 score 12 + Jornada §10.1 + Persona João-Sênior §"Frase-chave" (a confirmar) + JTBD-012 (saber a hora de cobrar verificação IPEM) + BIG-06 (Metrologia Legal + Voluntária no mesmo pacote) + D-019
+- **Citações:** `[INFERÊNCIA — validar em onda 1]` R-040 score 12 + Jornada §10.1 + Persona João-Sênior §"Frase-chave" (a confirmar) + JTBD-012 (saber a hora de cobrar verificação IPEM) + BIG-06 + D-019
 - **Implicação pra MVP:** ENTRA (BIG-06 é decisão fundadora MVP-1; aviso no certificado é POC de 1 dia)
 - **Módulo provável:** Metrologia + CRM (calendário de verificação)
 - **Vínculo com JTBD:** JTBD-012, BIG-06
@@ -367,35 +372,35 @@ Ranking não é cego ao score — sempre justificar com citação literal da ent
 - **Origem (decisão fundadora):** Roldão 17/05/2026 (`dominio-de-negocio.md` §"Módulo de Estoque Completo para Assistência Técnica") + R-051 + R-052
 - **Sintoma observável:** Bruno aplica lacre na balança do cliente após reparo; anota número em papel; foto fica solta no WhatsApp; controle de estoque de lacre só na cabeça do técnico; IPEM aparece "cadê o selo 12345 que vocês aplicaram em maio?"; Sandra vasculha 30 minutos sob pressão de fiscal na sala; risco real de multa + responsabilidade legal (selo aplicado em equipamento errado = fraude metrológica — R-052)
 - **Personas mais afetadas:** Bruno (técnico aplicador), Sandra (RT responde fiscal), Roldão (responsabilidade), Auditor IPEM (fiscaliza)
-- **Dimensões:**
+- **Dimensões (pós-auditoria):**
   - **Agudez 5/5** — multa IPEM + risco jurídico (fraude metrológica é crime)
   - **Frequência 1-4/mês** (=2) — fiscalização IPEM esporádica mas alta-consequência
-  - **DAP 150/mês inferido** (auto-reportado-estimado R$ 300 → deflacionado R$ 150) — moderado entre quem aplica selo INMETRO (subset do ICP)
+  - **DAP 105/mês inferido** (auto-reportado-estimado R$ 300 → deflacionado R$ 150 → segunda deflação 30% pra R$ 105) — ⚠️ **Segunda deflação aplicada (auditoria 17/05/2026 — Aud-13): vínculo com DF-4 (Estoque com lacre/selo) pode ter inflado DAP no primeiro palpite.**
   - **Solvability 2/5** — controle individual por número de série + foto obrigatória + workflow de perda + busca por número é POC moderado
-  - **Reach 50%** — só atinge labs que aplicam lacre/selo INMETRO (assistência técnica de balança comercial); fora do escopo de lab puro de bancada
+  - **Reach 50%** (mantido — Aud-13 considerou reconhecido como subset realista) — só atinge labs que aplicam lacre/selo INMETRO
   - **Evitabilidade não (=1)** — workaround atual (planilha lateral) não resiste a fiscalização
-- **Score:** (5 × 2 × 0,50 × 150) ÷ (2 × 1) = **375**
-- **Citações:** `[INFERÊNCIA — validar em onda 1]` Decisão fundadora Roldão 17/05/2026 + `dominio-de-negocio.md` §"Módulo de Estoque…" + JTBD-101 a JTBD-103 + JTBD-108 (responder fiscal em 30s) + BIG-12 + R-051/R-052
+- **Score:** (5 × 2 × 0,50 × 105) ÷ (2 × 1) = **262** (era 375 — recalibrado)
+- **Citações:** `[INFERÊNCIA — validar em onda 1]` Decisão fundadora Roldão 17/05/2026 + `dominio-de-negocio.md` §"Módulo de Estoque…" + JTBD-101 a JTBD-103 + JTBD-108 + BIG-12 + R-051/R-052
 - **Implicação pra MVP:** ENTRA (9º gap defensável; rastreabilidade individual + foto obrigatória + busca por número MVP-1)
 - **Módulo provável:** Estoque com lacre/selo (BIG-12)
 - **Vínculo com JTBD:** JTBD-101, JTBD-103, JTBD-108, BIG-12
 
 ---
 
-### Dor #19: Registro técnico em WhatsApp/caderno viola cláusula 7.5.1 (NC permanente silenciosa)
-- **Origem (jornada):** §6.bis (Violações regulatórias silenciosas) — "Registro em WhatsApp NÃO cumpre cláusula 7.5.1 — mensagem pode ser apagada, conta encerrada, conversa exportada com perda. Caderno físico também viola (não tem timestamp confiável nem assinatura inequívoca). Violação silenciosa permanente"
-- **Sintoma observável:** Bruno em campo manda foto + áudio "achei isso, posso seguir?" pro Marcos no WhatsApp; Marcos responde "sim"; 6 meses depois cliente reclama, foto sumiu do WhatsApp (conta encerrada / exportação perde metadado); auditor Cgcre pede evidência → não tem; OU caderno de campo do Bruno tem anotação a lápis ilegível
+### Dor #19: Registro técnico em WhatsApp/caderno viola cláusula 7.5.1 (NC permanente silenciosa) + frota sem TCO
+- **Origem (jornada):** §6.bis (Violações regulatórias silenciosas) — "Registro em WhatsApp NÃO cumpre cláusula 7.5.1 — mensagem pode ser apagada, conta encerrada, conversa exportada com perda. Caderno físico também viola"
+- **Sintoma observável:** Bruno em campo manda foto + áudio "achei isso, posso seguir?" pro Marcos no WhatsApp; Marcos responde "sim"; 6 meses depois cliente reclama, foto sumiu do WhatsApp; auditor Cgcre pede evidência → não tem; OU caderno de campo do Bruno tem anotação a lápis ilegível. **Aspecto frota TCO (custo total de operação por veículo) também herda halo founder-customer.**
 - **Personas mais afetadas:** Bruno (executor), Marcos (signatário aprova), Sandra (RT testemunha NC), Roldão (responsabilidade), Auditor Cgcre
-- **Dimensões:**
+- **Dimensões (pós-auditoria):**
   - **Agudez 4/5** — NC ativa permanente como Dor #04, mas em fluxo de campo (não cálculo)
   - **Frequência >20/mês** (=30) — todo dia de campo gera registro em WhatsApp/caderno
-  - **DAP 150/mês inferido** (auto-reportado-estimado R$ 300 → deflacionado R$ 150) — moderado; muitos donos não percebem o risco até auditoria
-  - **Solvability 2/5** — app mobile com timestamp confiável + foto com metadado + assinatura técnica é viável; offline-first robusto é mais complexo (MVP-2)
-  - **Reach 70%** — universal em quem opera campo (perfil A/B/C); irrelevante em D puro
+  - **DAP 105/mês inferido** (auto-reportado-estimado R$ 300 → deflacionado R$ 150 → segunda deflação 30% pra R$ 105) — ⚠️ **Segunda deflação aplicada (auditoria 17/05/2026 — Aud-13): vínculo com DF-1 (Frota TCO) pode ter inflado DAP no primeiro palpite.**
+  - **Solvability 2/5** — app mobile com timestamp confiável + foto com metadado é viável; offline-first robusto é MVP-2
+  - **Reach 55%** (era 70% — deflação 20% Aud-13) — só labs com frota — [INFERÊNCIA — só labs com frota própria + técnicos campo]
   - **Evitabilidade não (=1)** — workaround atual é a violação
-- **Score:** (4 × 30 × 0,70 × 150) ÷ (2 × 1) = **6.300**
-- **Citações:** `[INFERÊNCIA — validar em onda 1]` Jornada §5.5 + §6.bis (cláusula 7.5.1) + JTBD-022 (offline) + JTBD-024 (assinatura no celular) + JTBD-109 (registro offline com sincronização) + BIG-05
-- **Implicação pra MVP:** ENTRA (app web responsivo + foto com metadado + assinatura touch MVP-1; offline-first robusto MVP-2)
+- **Score:** (4 × 30 × 0,55 × 105) ÷ (2 × 1) = **3.465** (era 6.300 — recalibrado)
+- **Citações:** `[INFERÊNCIA — validar em onda 1]` Jornada §5.5 + §6.bis (cláusula 7.5.1) + JTBD-022 (offline) + JTBD-024 (assinatura no celular) + JTBD-109 + BIG-05
+- **Implicação pra MVP:** ENTRA (app web responsivo + foto com metadado + assinatura touch MVP-1; offline-first robusto MVP-2). **Pós-auditoria: desceu do top 5 (era #5) pra top 8 — removido halo founder-customer.**
 - **Módulo provável:** Operação (mobile/campo) + Metrologia (registros)
 - **Vínculo com JTBD:** JTBD-022, JTBD-024, JTBD-109, BIG-05
 
@@ -405,124 +410,162 @@ Ranking não é cego ao score — sempre justificar com citação literal da ent
 - **Origem (decisão fundadora):** Roldão 17/05/2026 (`dominio-de-negocio.md` §"Cliente 360°, CRM Contínuo e Automações") + Jornada §1 "1 a 3 clientes finais perdidos por trimestre"
 - **Sintoma observável:** João (cliente final) calibra em janeiro; recebe certificado; lab "esquece" dele; em janeiro do ano seguinte João renova com concorrente que mandou WhatsApp; Roldão descobre 1 ano depois quando puxa lista do ano "ué, cadê esse?"; sem alerta de cliente inativo >180d; sem oportunidade automática de "equipamento sem manutenção >12 meses"
 - **Personas mais afetadas:** Roldão (perda silenciosa de receita), Rogério (vendedor não recebe alerta), Sandra (não monitora ciclo cliente), todas as personas internas
-- **Dimensões:**
+- **Dimensões (pós-auditoria):**
   - **Agudez 4/5** — alta; 1-3 clientes/trimestre × LTV médio = R$ 30-90k/ano em receita perdida silenciosamente
   - **Frequência 5-20/mês** (=10) — clientes inativando-se continuamente
-  - **DAP 300/mês inferido** (auto-reportado-estimado R$ 600 → deflacionado R$ 300) — alto entre quem PERCEBE; dono geralmente subestima
-  - **Solvability 3/5** — Cliente 360° em 1 tela + alerta de inativo >180d + oportunidade automática "equipamento sem manutenção" é trabalho moderado; depende de BIG-10 + BIG-11
-  - **Reach 90%** — universal em PME
+  - **DAP 210/mês inferido** (auto-reportado-estimado R$ 600 → deflacionado R$ 300 → segunda deflação 30% pra R$ 210) — ⚠️ **Segunda deflação aplicada (auditoria 17/05/2026 — Aud-13): vínculo com DF-4/DF-3 (Estoque + Cliente 360°) pode ter inflado DAP no primeiro palpite.**
+  - **Solvability 3/5** — Cliente 360° em 1 tela + alerta de inativo >180d + oportunidade automática é trabalho moderado
+  - **Reach 90%** — universal em PME (Reach mantido — dor não exige perfil específico, atinge qualquer PME)
   - **Evitabilidade sim (=2)** — workaround atual (cabeça do dono + planilha) tolera
-- **Score:** (4 × 10 × 0,90 × 300) ÷ (3 × 2) = **1.800**
-- **Citações:** `[INFERÊNCIA — validar em onda 1]` Decisão fundadora Roldão 17/05/2026 + `dominio-de-negocio.md` §"Cliente 360°…" + Jornada §1 "1 a 3 clientes finais perdidos por trimestre" + JTBD-083 (lista priorizada) + JTBD-090 (alerta cliente inativo) + JTBD-096 (oportunidade auto pós-12m) + JTBD-091 (Cliente 360° em 1 tela) + BIG-10
+- **Score:** (4 × 10 × 0,90 × 210) ÷ (3 × 2) = **1.260** (era 1.800 — recalibrado)
+- **Citações:** `[INFERÊNCIA — validar em onda 1]` Decisão fundadora Roldão 17/05/2026 + `dominio-de-negocio.md` §"Cliente 360°…" + Jornada §1 "1 a 3 clientes finais perdidos por trimestre" + JTBD-083 + JTBD-090 + JTBD-096 + JTBD-091 + BIG-10
 - **Implicação pra MVP:** ENTRA (8º gap defensável; Cliente 360° em 1 tela + alerta inativo MVP-1; campanha de reativação MVP-2)
 - **Módulo provável:** CRM (BIG-10)
 - **Vínculo com JTBD:** JTBD-083, JTBD-090, JTBD-091, JTBD-096, BIG-10
 
 ---
 
-## Por persona — top 3 dores e score médio
+## Por persona — top 3 dores e score médio (pós-auditoria)
 
-> Score médio calculado sobre as dores que afetam diretamente a persona (não inclui dores onde a persona aparece como afetada secundária).
+> Score médio calculado sobre as dores que afetam diretamente a persona (não inclui dores onde a persona aparece como afetada secundária). **Tabela atualizada com scores pós-auditoria 17/05/2026.**
 
 | Persona | Top 3 dores (por ID) | Score médio das top 3 |
 |---|---|---|
-| **Roldão (dono)** | #02 (28.500), #10 (8.750), #04 (8.250) | **15.166** |
-| **Sandra (RT/gerente)** | #07 (3.000), #13 (400), #03 (2.400) | **1.933** |
-| **Letícia (atendente)** | #01 (8.100), #05 (2.869), #20 (1.800) | **4.256** |
-| **Bruno (técnico campo)** | #16 (6.300), #19 (6.300), #08 (1.000) | **4.533** |
+| **Roldão (dono)** | #02 (14.062), #10 (8.750), #04 (8.250) | **10.354** |
+| **Sandra (RT/gerente)** | #07 (3.000), #03 (2.400), #13 (400) | **1.933** |
+| **Letícia (atendente)** | #01 (5.400), #05 (2.869), #20 (1.260) | **3.176** |
+| **Bruno (técnico campo)** | #16 (3.465), #19 (3.465), #08 (1.000) | **2.643** |
 | **Marcos (metrologista/signatário)** | #04 (8.250), #07 (3.000), #03 (2.400) | **4.550** |
-| **Cláudia (financeiro)** | #09 (3.187), #11 (2.000), #15 (1.312) | **2.166** |
-| **Rogério (vendedor)** | #02 (28.500), #20 (1.800), #15 (1.312) | **10.537** |
-| **Carlos (motorista UMC)** | #16 (6.300), #15 (1.312), #08 (1.000) | **2.870** |
-| **João (cliente final eng.)** | #05 (2.869), #02 (28.500), #20 (1.800) | **11.056** |
-| **Auditor Cgcre/IPEM** | #03 (2.400), #06 (3.000), #18 (375) | **1.925** |
-| **Patrícia (farma)** | #13 (400), #14 (933), #03 (2.400) | **1.244** |
-| **João-Sênior (low-tech açougue)** | #17 (240), #02 (28.500), #05 (2.869) | **10.536** |
-| **Bruna (técnica)** | #19 (6.300), #16 (6.300), #08 (1.000) | **4.533** |
-| **Roldão Sênior 65+ (PME veterano)** | #12 (4.500), #02 (28.500), #09 (3.187) | **12.062** |
+| **Cláudia (financeiro)** | #09 (3.187), #11 (2.000), #15 (674) | **1.953** |
+| **Rogério (vendedor)** | #02 (14.062), #20 (1.260), #15 (674) | **5.332** |
+| **Carlos (motorista UMC)** | #16 (3.465), #15 (674), #08 (1.000) | **1.713** |
+| **João (cliente final eng.)** | #02 (14.062), #05 (2.869), #20 (1.260) | **6.063** |
+| **Auditor Cgcre/IPEM** | #06 (3.000), #03 (2.400), #18 (262) | **1.887** |
+| **Patrícia (farma)** | #14 (933), #13 (400), #03 (2.400) | **1.244** |
+| **João-Sênior (low-tech açougue)** | #02 (14.062), #05 (2.869), #17 (240) | **5.723** |
+| **Bruna (técnica)** | #16 (3.465), #19 (3.465), #05 (2.869) | **3.266** |
+| **Roldão Sênior 65+ (PME veterano)** | #02 (14.062), #12 (4.500), #09 (3.187) | **7.249** |
 
-**Leitura:**
-- **Persona com maior dor agregada:** Roldão (15.166) — confirma "founder is customer" e Painel do Dono como diferencial estratégico.
-- **Personas com dor agregada >10k:** Roldão Sênior 65+ (12.062), João eng (11.056), Rogério (10.537), João-Sênior (10.536) — quatro perfis cuja dor é resolvida primariamente pela Dor #02 (recalibração esquecida). Confirma que CRM contínuo + automação é o eixo de venda transversal.
-- **Persona com dor agregada mais baixa:** Patrícia (1.244) — não porque ela "dói pouco", mas porque atinge subset minoritário (40% Reach); quando atinge, é decisivo (cliente farma).
-- **Carlos (motorista UMC)** entrou no mapa em 17/05/2026 e ainda é sub-representado em JTBDs — risco de cobertura na onda 1 de entrevistas.
+**Leitura pós-auditoria:**
+- **Roldão (10.354) continua maior dor agregada** — mas a diferença pra outras personas caiu significativamente após remoção do halo founder-customer. Saudável.
+- **Personas com dor agregada >5k:** Roldão (10.354), Roldão Sênior (7.249), João eng (6.063), João-Sênior (5.723), Rogério (5.332). **Antes da auditoria, eram 4 personas >10k; agora só 1 — o achatamento confirma que o viés founder-customer estava inflando scores.**
+- **Patrícia (1.244) mantém perfil de "dor decisiva quando atinge"** — Reach baixo (35-40%) mas alto valor por cliente farma.
+- **Bruna e Roldão Sênior 65+:** ambas eram sub-cobertas no doc original; tabela atualizada inclui-as com clareza.
 
 ---
 
-## Por módulo provável — dores relacionadas e score acumulado
+## Por módulo provável — dores relacionadas e score acumulado (pós-auditoria)
 
 | Módulo | Dores relacionadas (ID) | Score acumulado |
 |---|---|---|
-| **CRM / Cliente 360° (BIG-10)** | #02 (28.500), #05 (2.869), #14 (933), #20 (1.800), #11 (parcial 1.000) | **35.102** |
-| **Cadastros base / Cliente** | #01 (8.100) | **8.100** |
+| **CRM / Cliente 360° (BIG-10)** | #02 (14.062), #05 (2.869), #14 (933), #20 (1.260), #11 (parcial 1.000) | **20.124** |
+| **Cadastros base / Cliente** | #01 (5.400) | **5.400** |
 | **Fiscal / NFS-e (BIG-04)** | #10 (8.750), #09 (parcial 1.593) | **10.343** |
 | **Metrologia (cálculo + emissão + padrões + assinatura)** | #03 (2.400), #04 (8.250), #06 (3.000), #07 (3.000) | **16.650** |
-| **Frota + UMC + Caixa do técnico (BIG-08)** | #16 (6.300), #08 (parcial 500) | **6.800** |
-| **Comissões (BIG-09)** | #15 (1.312) | **1.312** |
-| **Estoque com lacre/selo (BIG-12)** | #18 (375) | **375** |
-| **Operação (OS + agenda + mobile)** | #05 (parcial 1.434), #08 (parcial 500), #19 (6.300) | **8.234** |
+| **Frota + UMC + Caixa do técnico (BIG-08)** | #16 (3.465), #08 (parcial 500) | **3.965** |
+| **Comissões (BIG-09)** | #15 (674) | **674** |
+| **Estoque com lacre/selo (BIG-12)** | #18 (262) | **262** |
+| **Operação (OS + agenda + mobile)** | #05 (parcial 1.434), #08 (parcial 500), #19 (3.465) | **5.399** |
 | **Financeiro (conciliação + cobrança)** | #09 (1.593), #11 (1.000) | **2.593** |
 | **Qualidade (NC, auditoria, reclamação 7.9, competência)** | #13 (400), #07 (parcial 1.500) | **1.900** |
 | **Painel do Dono (transversal)** | #12 (4.500) | **4.500** |
-| **Automações (BIG-11)** | #02 (parcial 14.250), #11 (parcial 1.000), #20 (parcial 900) | **16.150** |
+| **Automações (BIG-11)** | #02 (parcial 7.031), #11 (parcial 1.000), #20 (parcial 630) | **8.661** |
 | **Metrologia Legal (BIG-06)** | #17 (240) | **240** |
 
-**Leitura:**
-- **Módulo com maior score acumulado:** CRM/Cliente 360° (35.102) + Automações (16.150) — somam 51.252; coração da venda. **Decisão fundadora confirmada.**
-- **Metrologia (16.650)** vem em 3º — pilar técnico defensável (BIG-02).
-- **Fiscal/NFS-e (10.343)** com cutover 01/09/2026 — escassez de oferta no mercado (gap confirmado em Concorrentes §3-4).
-- **Cadastros base (8.100)** — foundation que destrava CRM + Fiscal + Operação.
-- Módulos baixos (Estoque 375, Metrologia Legal 240) NÃO indicam pouca importância — indicam Reach menor (subset do TAM) com Agudez alta quando ativa.
+**Leitura pós-auditoria:**
+- **Módulo com maior score acumulado:** CRM/Cliente 360° (20.124) + Automações (8.661) — somam 28.785 (era 51.252). **Confirmação enfraquecida da DF-3, mas ainda topo do ranking.**
+- **Metrologia (16.650)** vem em 2º — pilar técnico defensável (BIG-02) **agora compete de igual pra igual com CRM**, contraponto saudável.
+- **Fiscal/NFS-e (10.343)** com cutover 01/09/2026 — escassez de oferta no mercado (gap confirmado).
+- **Frota+UMC (3.965) e Comissões (674)** caíram pesado — sinal de que precisam de validação forte na Onda 1 antes de ocupar tanto espaço no MVP-1.
 
 ---
 
-## Top 5 dores prioritárias com recomendação MVP
+## Top 5 dores prioritárias com recomendação MVP (pós-auditoria 17/05/2026)
+
+> **⚠️ Top 5 RECALIBRADO removendo halo founder-customer.** Top 5 original tinha 4 das 5 dores vinculadas a decisões fundadoras (improbabilidade estatística <5%). Top 5 corrigido:
 
 | # | Dor | Score | Recomendação MVP | Justificativa |
 |---|---|---|---|---|
-| 1 | **#02 — Esquecimento de recalibração (30-50% receita perdida)** | **28.500** | **ENTRA MVP-1 (eixo primário de venda)** | Receita perdida direta R$ 8-12k/mês (Jornada §8). Universal (95% Reach). Solvability baixa (calendário + WhatsApp template). É uma das duas vendas-engatilho (junto com NFS-e). Resolve drama emocional do Roldão #49. Casa com BIG-10 + BIG-11. |
-| 2 | **#10 — NFS-e municipal cutover 01/09/2026** | **8.750** | **ENTRA MVP-1 (deadline duro)** | Cutover obrigatório R-016. Gap absoluto BR confirmado (Concorrentes §4 — só FP2 cobre, regional). 100% Reach. Tese central do produto. BaaS fiscal (Focus/PlugNotas) reduz Solvability pra 3. Sem isso, lab perde capacidade fiscal em 01/09/2026. |
-| 3 | **#04 — Word/Excel/macros = NC permanente cláusula 7.11** | **8.250** | **ENTRA MVP-1 (pitch real do produto)** | Jornada §6.5 define explicitamente como "o pitch real do Aferê — tirar o lab da NC, não 'facilitar o cálculo'". Atinge 55% Reach (planilha + Cali sem dossiê). Frequência altíssima (todo certificado emitido). Sem isso, o produto não tem narrativa metrológica defensável. |
-| 4 | **#01 — Cadastro digitado 4-6 vezes** | **8.100** | **ENTRA MVP-1 (foundation)** | Foundation. Sem cliente único, CRM (#02 e #20), NFS-e (#10) e Cobrança (#11) não funcionam. Solvability baixa (2/5). 90% Reach. Promovido a BIG-07. Resolver isso destrava 5 outras dores. |
-| 5 | **#19 — Registro técnico em WhatsApp = NC 7.5.1 silenciosa** | **6.300** | **ENTRA MVP-1 parcial (web responsivo + foto com metadado; offline robusto = MVP-2)** | Universal em quem opera campo (70% Reach). Frequência altíssima (todo dia de campo). Violação ativa permanente como #04 — narrativa de NC silenciosa vende. Cobertura mínima MVP-1 (app web + foto + assinatura touch) é o que faz BIG-05; offline-first verdadeiro fica MVP-2 conforme `jobs-to-be-done.md` §BIG-05. |
+| 1 | **#10 — NFS-e municipal cutover 01/09/2026** | **8.750** | **ENTRA MVP-1 (deadline duro)** | **Fato regulatório com data fixa — imune a viés founder-customer.** Cutover obrigatório R-016. Gap absoluto BR confirmado (Concorrentes §4). 100% Reach. Tese central do produto. |
+| 2 | **#02 — Esquecimento de recalibração (30-50% receita perdida)** | **~14.062** | **ENTRA MVP-1 (eixo primário de venda)** | Receita perdida direta R$ 8-12k/mês. Universal (75% Reach pós-deflação). Mantém Top 1-2 mesmo após dupla deflação — sinal forte. Resolve drama emocional do Roldão. Única dor-DF no top 5. |
+| 3 | **#04 — Word/Excel/macros = NC permanente cláusula 7.11** | **8.250** | **ENTRA MVP-1 (pitch real do produto)** | **Não-DF, validável por auditor metrológico independente.** Jornada §6.5 define como "o pitch real do Aferê". Atinge 55% Reach. Frequência altíssima. Sem isso, o produto não tem narrativa metrológica defensável. |
+| 4 | **#01 — Cadastro digitado 4-6 vezes** | **~5.400** | **ENTRA MVP-1 (foundation)** | Foundation. Sem cliente único, CRM (#02 e #20), NFS-e (#10) e Cobrança (#11) não funcionam. Solvability baixa (2/5). 80% Reach pós-deflação. Promovido a BIG-07. |
+| 5 | **#05 — Status de OS perguntado 10-30x/dia** | **2.869** | **ENTRA MVP-1 (quick win, não-DF)** | **Promovido ao top 5 pós-auditoria.** Persona Letícia universal em qualquer empresa do ICP — viés founder-customer mínimo. Dor visível em entrevista direta com atendente. Quick win com portal cliente lite + automação WhatsApp. |
+
+> **Mudança chave:** Dor #19 (Registro WhatsApp + Frota TCO) **desceu do top 5 (#5) pra top 8** porque carrega halo founder-customer (DF-1 Frota TCO). O score original (6.300) inflava por Reach 0,70 sem citação literal e DAP sem deflação DF.
+
+---
+
+## Top 6-8 (referência para MVP-1 parcial)
+
+| # | Dor | Score | Notas |
+|---|---|---|---|
+| 6 | **#12 — Dono apaga incêndio (Painel do Dono)** | 4.500 | ⭐ **Não-DF, virou OP12 Painel do Dono no OST pós-auditoria** |
+| 7 | **#16 — Caixa do técnico + frota** | 3.465 | DF-1 com dupla deflação aplicada |
+| 8 | **#19 — Registro WhatsApp + frota TCO** | 3.465 | DF-1 com dupla deflação; desceu do top 5 |
 
 ---
 
 ## Dores que NÃO entram no MVP (non-goals)
 
 > Pelo menos 5 dores reais que ficam fora do MVP-1. Alinha com Anti-jobs ANTI-01 a ANTI-11 (`jobs-to-be-done.md` §5).
+>
+> **⚠️ Nota Aud-20:** ANTI-11 (customização individual por tenant) **é mantido como real** neste doc — sincronizar com `jobs-to-be-done.md` §5 que atualmente lista só ANTI-01..ANTI-10. **Pendência atribuída ao subagente D na divisão de trabalho pós-auditoria 17/05/2026.**
 
 | Dor (descrição curta) | Origem | Por que NÃO entra no MVP-1 | Tratamento futuro |
 |---|---|---|---|
-| **Folha de pagamento + ponto + holerite + férias da equipe** | Jornada §2.2 (acúmulo de papel + RH) + Persona Cláudia menciona "RH é problema" | **ANTI-01**: domínio RH completo é mercado próprio (Senior, ADP, Sankhya RH); ROI baixo pro ICP; complexidade trabalhista alta | Integração externa com Pontomais/Sankhya RH (MVP-3+). Comissões (#15) NÃO entra aqui — é módulo próprio BIG-09. |
-| **Pagamento online com cartão direto (gateway próprio)** | Jornada §7.2 + R-025 (PCI-DSS 4.0.1) | **ANTI-02**: vira PCI-DSS escopo full; custo de auditoria anual desproporcional ao ticket; risco regulatório alto | Usar PSP terceiro (Asaas, Pagar.me, Stripe) — escopo SAQ A; integração leve no MVP-2 |
-| **BI sofisticado / dashboards customizáveis / query SQL pelo usuário** | Persona Roldão pediria em algum momento "quero ver gráfico de X por Y" | **ANTI-05 + ANTI-09**: gigantes resolvem melhor (Metabase, PowerBI, Looker); custo de UX alto; vira plataforma e não produto opinativo | Dashboards fixos por papel no MVP-1 (JTBD-013, JTBD-097); export CSV/Parquet pra BI externo via API no MVP-2 |
-| **Mensageria interna entre técnicos / chat / Slack-mini** | Jornada §5 grupo WhatsApp interno + Persona Bruna menciona "comunicação difícil" | **ANTI-08**: mercado saturado (WhatsApp já usado); custo de UX alto; baixo valor diferencial | Equipes continuam usando WhatsApp pessoal/grupo; produto só notifica eventos relevantes |
-| **Calendário/agenda como produto (não só integração)** | Jornada §5.3 Google Calendar individual + JTBD-009 | **ANTI-10**: Google Calendar e Outlook resolvem; reinventar não agrega; UX é caro | Integração bidirecional Google Calendar (técnico vê agenda da OS no calendário pessoal) — MVP-2 |
-| **Customização individual por tenant ("o cliente X precisa de uma tela diferente")** | Risco R-001 + Persona Roldão tendência natural | **ANTI-11 CRÍTICO**: customização individual mata produto opinativo + dispara dívida técnica exponencial + materializa R-001 (founder is customer virando "cada cliente é customer") | Única forma: **configuração estruturada** (switches, perfis, checklists). Cliente que quer mais paga **setup** que vira config **nativa pra todos** — não código exclusivo. |
-| **Treinamento de técnico júnior / trilha de procedimento embutida** | JTBD-033 + JTBD-050 + JTBD-055 | Solvability 5/5 (exige curadoria técnica especializada de centenas de procedimentos por grandeza/faixa); ROI MVP-1 baixo | MVP-3 — biblioteca de procedimentos PT-BR é diferencial estratégico de longo prazo |
-| **Pesquisa NPS estruturada + relatórios de satisfação** | Jornada §5.10 (pós-venda inexistente) + JTBD-085 (parcial — só disparo de retenção) | Solvability moderada (3/5) mas Reach baixo no MVP-1 (donos PME geralmente NÃO sabem operar NPS); risco de feature "ninguém usa" | MVP-2 — disparo de tarefa de retenção em NPS negativo entra com BIG-11, mas formulário NPS estruturado fica MVP-2 |
-| **Hardware proprietário (calibrador, sensor, dispositivo de coleta)** | JTBD-023 (OCR/conexão direta) + Concorrentes Beamex/Fluke | **ANTI-06**: não somos fabricante; Beamex/Fluke/Presys já fazem | Integrar via Bluetooth/USB com hardware existente — MVP-2/3 |
-| **Gestão clínica/análises clínicas humanas (LIS)** | Patrícia (farma) pode pedir; cliente hospital pode pedir | **ANTI-03**: domínio próprio (CFM 1821/2007, SBIS-CFM); ABNT NBR ISO 15189 ≠ 17025 | Fora de escopo permanente; se cliente farma exigir, integração leitura-only |
+| **Folha de pagamento + ponto + holerite + férias da equipe** | Jornada §2.2 + Persona Cláudia | **ANTI-01**: domínio RH completo é mercado próprio | Integração externa com Pontomais/Sankhya RH (MVP-3+). |
+| **Pagamento online com cartão direto (gateway próprio)** | Jornada §7.2 + R-025 (PCI-DSS 4.0.1) | **ANTI-02**: vira PCI-DSS escopo full | Usar PSP terceiro (Asaas, Pagar.me, Stripe) — MVP-2 |
+| **BI sofisticado / dashboards customizáveis / query SQL** | Persona Roldão pediria em algum momento | **ANTI-05 + ANTI-09**: gigantes resolvem melhor | Dashboards fixos por papel no MVP-1; export CSV/Parquet via API no MVP-2 |
+| **Mensageria interna entre técnicos / chat** | Jornada §5 + Persona Bruna | **ANTI-08**: mercado saturado (WhatsApp já usado) | Equipes continuam usando WhatsApp pessoal; produto só notifica eventos |
+| **Calendário/agenda como produto (não só integração)** | Jornada §5.3 Google Calendar individual | **ANTI-10**: Google Calendar e Outlook resolvem | Integração bidirecional Google Calendar — MVP-2 |
+| **Customização individual por tenant** | Risco R-001 + Persona Roldão tendência natural | **ANTI-11 CRÍTICO**: customização individual mata produto opinativo + dispara dívida técnica exponencial. *(Nota Aud-20: a ser sincronizado com `jobs-to-be-done.md` §5 pelo subagente D)* | Única forma: **configuração estruturada** (switches, perfis, checklists). Cliente que quer mais paga **setup** que vira config **nativa pra todos**. |
+| **Treinamento de técnico júnior / trilha de procedimento embutida** | JTBD-033 + JTBD-050 + JTBD-055 | Solvability 5/5 + ROI MVP-1 baixo | MVP-3 — biblioteca de procedimentos PT-BR é diferencial de longo prazo |
+| **Pesquisa NPS estruturada + relatórios de satisfação** | Jornada §5.10 + JTBD-085 (parcial) | Solvability moderada mas Reach baixo no MVP-1 | MVP-2 — disparo de tarefa de retenção em NPS negativo entra com BIG-11 |
+| **Hardware proprietário (calibrador, sensor, dispositivo)** | JTBD-023 + Concorrentes Beamex/Fluke | **ANTI-06**: não somos fabricante | Integrar via Bluetooth/USB com hardware existente — MVP-2/3 |
+| **Gestão clínica/análises clínicas humanas (LIS)** | Patrícia (farma) pode pedir | **ANTI-03**: domínio próprio (CFM 1821/2007, SBIS-CFM) | Fora de escopo permanente; integração leitura-only se exigido |
+
+---
+
+## Imunização contra founder bias
+
+> **Seção nova pós-auditoria 17/05/2026.** Cinco entrevistas-tipo que MAIS expõem viés founder-customer e que devem ser priorizadas na Onda 1 para evitar que o produto se torne "customização disfarçada" do laboratório do Roldão.
+
+| Entrevista-tipo | Por que expõe viés | O que testar |
+|---|---|---|
+| **Lab de bancada-only para indústria farma** (sem campo, sem UMC) | Anti-perfil de Roldão (que tem campo + UMC). Se essa empresa pagar pelo produto, BIG-08 (Frota) é mesmo opcional. | DAP por Dor #04 e #03 isoladas; Reach real de Dor #16/#19 (deve cair pra <40%) |
+| **Perfil C acreditando-se agora** (em processo de Cgcre) | Anti-perfil de Roldão (já acreditado). Foco em pré-acreditação muda o pitch. | Quanto pagaria por matriz competência (#07) e dossiê validação (#04) vs portal cliente (#05) |
+| **Operação 2-3 técnicos PJ** (sem CLT) | Anti-perfil de Roldão (CLT + comissão). PJ não tem comissão, não tem férias gargalo. | Reach real de Dor #15 (Comissões) — deve cair pra <30% |
+| **Lab que atende açougueiro/varejo low-tech puro** (sem farma, sem indústria) | Anti-perfil de Roldão (cliente farma é forte). Confirma se BIG-06 (Metrologia Legal) é vendável sozinho. | DAP por Dor #17 isolada; rejeição de Dor #13 (modo auditoria farma) |
+| **Lab CLT puro sem comissão técnica** (técnico recebe salário fixo) | Anti-perfil direto da DF-2 (Comissões). | Reach real de Dor #15 — provavelmente 0 — confirma que DF-2 é opcional, não core |
+
+**Regra de gatilho:** se 3 das 5 entrevistas-tipo confirmarem que uma DF é "opcional, não core", a DF é **rebaixada de obrigatória pra módulo opcional MVP-2** sem perda de produto.
 
 ---
 
 ## Saída esperada
 
-- **Top 5 dores prioritárias com score:** ver tabela acima — #02 (28.500), #10 (8.750), #04 (8.250), #01 (8.100), #19 (6.300).
-- **Recomendação de MVP-1 baseada em score:** 5 dores acima ENTRAM. 7 dores adicionais (#02 já listada; #06, #07, #12, #15, #16, #18, #20) ENTRAM total OU parcial conforme tabela ranqueada. **13 dores no MVP-1; 7 no MVP-2/3.**
-- **Lista de dores fora de escopo:** ver §"Dores que NÃO entram no MVP" acima — 10 categorias alinhadas a ANTI-01 a ANTI-11.
+- **Top 5 dores prioritárias com score (pós-auditoria):**
+  - #10 NFS-e (8.750)
+  - #02 Recalibração (~14.062 / 15.000)
+  - #04 Word/Excel NC 7.11 (8.250)
+  - #01 Cadastro 4-6x (~5.400 / 5.500)
+  - #05 Status OS 10-30x/dia (2.869)
+- **Recomendação de MVP-1 baseada em score:** **12 dores entram** (era 13). **Dor #19 (frota TCO + WhatsApp) move pra MVP-2** mantendo OP3 só com app + caixa no MVP-1; aspecto cláusula 7.5.1 (registro técnico com foto+timestamp) fica MVP-1 como POC mínimo.
+- **Total de dores no documento:** 20.
+- **Lista de dores fora de escopo:** ver §"Dores que NÃO entram no MVP" — 10 categorias alinhadas a ANTI-01 a ANTI-11.
 
 ---
 
 ## Próximos passos (re-rankear pós-Onda 1)
 
-1. **Validar números na Onda 1 de entrevistas** (3-5 empresas). Cada dor acima precisa de pelo menos:
+1. **Validar números na Onda 1 de entrevistas** (3-5 empresas). Priorizar as **5 entrevistas-tipo anti-Roldão** da seção "Imunização contra founder bias". Cada dor acima precisa de pelo menos:
    - 1 citação literal substituindo `[INFERÊNCIA — validar em onda 1]`.
    - Frequência real auto-reportada.
-   - DAP real auto-reportada (deflacionar 50% como regra Auditor 6).
+   - DAP real auto-reportada (deflacionar 50% como regra Auditor 6, com possível segunda deflação 30% se dor vinculada a DF).
    - Reach corrigido após mapear o ICP real.
-2. **Re-rankear top 5.** Score atual é palpite ponderado por evidência interna; pós-entrevistas pode mudar ordem (especialmente Dor #02 vs #10 — qual é o gatilho de compra real?).
-3. **Detectar dores omitidas.** As 20 acima cobrem 4 ciclos + 4 decisões fundadoras + 14 personas; entrevista pode revelar uma 21ª (provável áreas: contrato anual farma, licitação pública §4.10, atestado de capacidade técnica §4.12).
+2. **Re-rankear top 5.** Score atual é palpite ponderado por evidência interna pós-auditoria; pós-entrevistas pode mudar ordem.
+3. **Detectar dores omitidas.** As 20 acima cobrem 4 ciclos + 4 decisões fundadoras + 14 personas; entrevista pode revelar uma 21ª.
 4. **Alimentar `sintese-final.md`** com top 5 + recomendação MVP-1.
 5. **Alimentar `validacao-ativa.md`** com perguntas-chave por dor (já tem rascunho em Jornada §15).
+6. **Sincronizar ANTI-11 com `jobs-to-be-done.md` §5** (pendência Aud-20 — subagente D).

@@ -2,6 +2,8 @@
 
 > **Artefato Rodada 0** (agente + Roldão). Inventário do que pode dar errado. Categorizado por tipo + probabilidade × impacto.
 > **Atualizado:** 2026-05-16 — padronização de IDs pós-auditoria (Auditor 4). Todos os riscos agora em formato R-NNN sequencial único; coluna "Origem" rastreia de onde veio cada um. Total: 38 riscos consolidados (29 originais + 9 importados de `concorrentes.md` §7).
+>
+> **Versão pós-auditoria 12 agentes (17/05/2026 noite).** 8 riscos novos (R-058..R-065) + 2 promoções (R-034 score 4→12, R-046 score 10→15). **Total: 65 riscos.**
 
 ---
 
@@ -27,7 +29,7 @@
 
 ---
 
-## Matriz Probabilidade × Impacto (38 riscos)
+## Matriz Probabilidade × Impacto (65 riscos)
 
 | ID | Risco (resumo) | Categoria | P | I | Score | Mitigação | Owner | Origem |
 |---|---|---|---|---|---|---|---|---|
@@ -64,7 +66,7 @@
 | **R-031** | FP2 expande nacional (variante de R-020) | Mercado | 2 | 4 | **8** | Ver R-020 | Roldão | concorrentes (era RC-02) |
 | **R-032** | Qualer/MasterControl lança versão pt-BR + fiscal | Mercado | 1 | 3 | **3** | Foco em PME BR; gigantes entram pelo enterprise primeiro | Roldão | concorrentes (era RC-03) |
 | **R-033** | ERP horizontal (Omie/Bling/Conta Azul/Tiny) lança vertical calibração ISO 17025 | Mercado | 2 | 5 | **10** | Profundidade técnica ISO 17025 (incerteza GUM, rastreabilidade, ILAC G8) que generalistas não dominam; foco em RBC | Roldão | concorrentes (era RC-04) + original R-021 |
-| **R-034** | Fundação CERTI homologa só Cali e cria barreira política | Mercado | 1 | 4 | **4** | Buscar homologação CERTI cedo; caso de uso comparativo técnico | Roldão | concorrentes (era RC-05) |
+| **R-034** ⭐ PROMOVIDO | **Homologação CERTI/INMETRO não obtida → barreira de entrada legal vs Cali** — processo de homologação leva 18-36 meses pra obter; sem isso, perdemos diferencial em concorrência com cliente regulado/grande. Promovido de score 4 → 12 pós-auditoria 12 agentes (17/05/2026). | Mercado/Regulatório | 4 | 3 | **12** | Iniciar processo de homologação ainda no ano 1 (paralelo ao MVP-1); buscar homologação CERTI cedo; caso de uso comparativo técnico; ver F-19 em assumption-map | Roldão | concorrentes (era RC-05) + promoção Aud-12 agentes batch 3 |
 | **R-035** ⭐ ELEVADO | Visma (dona da Conta Azul desde 08/2025) compra Cali/Metroex — **score elevado pra 20 em 17/05/2026** (Auditor 9): Visma tem 140+ aquisições, ARR enterprise, Conta Azul+Cali = BIG-01+BIG-04 em 18 meses | Mercado | 4 | 5 | **20** | Monitorar M&A Visma na BR (alerta mensal); ir a mercado rápido (chegar a 50+ clientes antes da próxima aquisição); lockar com integração bancária mais profunda + Frota/UMC + CRM 360° (que Visma+Cali não fariam em 12 meses) | Roldão | concorrentes (era RC-06) + Auditor 9 batch 2 |
 | **R-036** | TOTVS lança vertical de calibração via SIGAMNT/SIGAQMT melhorado | Mercado | 2 | 4 | **8** | Profundidade técnica RBC + UX moderna SaaS que TOTVS Protheus não consegue replicar | Roldão | concorrentes (era RC-07) |
 | **R-037** | CGCRE muda paradigma pra acreditação baseada em riscos | Mercado/Regulatório | 3 | 3 | **9** | Modelar audit trail extensível ao novo modelo desde dia 0; acompanhar discussões CGCRE | Auditor Conformidade | concorrentes (era RC-08) |
@@ -76,7 +78,7 @@
 | **R-043** | Caixa do técnico não prestada (técnico sumiu com adiantamento R$ 500-5.000) | Financeiro/Operacional | 3 | 3 | **9** | Limite de adiantamento + workflow de prestação de contas em N dias + alerta gerente | Cláudia financeiro | decisão Roldão Frota/UMC 17/05/2026 |
 | **R-044** | Manutenção de frota atrasada (carro quebra na viagem, cliente perde dia, OS atrasa) | Operacional | 4 | 3 | **12** | Alerta de manutenção próxima por KM/data + bloqueio de uso se documento vencido | Gerente frota | decisão Roldão Frota/UMC 17/05/2026 |
 | **R-045** | Multa não paga vira protesto + CNH suspensa do condutor → técnico não pode dirigir | Operacional/Jurídico | 3 | 3 | **9** | Alerta de vencimento de multa + integração com SENATRAN (a confirmar) | Gerente frota | decisão Roldão Frota/UMC 17/05/2026 |
-| **R-046** ⭐ | **UMC com peso-padrão roubado ou batido** = perda de R$ 100-300 mil em massas + parada operacional por semanas + contratos perdidos | Operacional/Financeiro | 2 | 5 | **10** | Seguro de carga + rastreamento veicular + protocolo de segurança em viagem + plano de UMC reserva | Roldão | decisão Roldão Frota/UMC 17/05/2026 |
+| **R-046** ⭐ ELEVADO | **UMC com peso-padrão roubado ou batido** = perda de R$ 100-300 mil em massas + parada operacional por semanas + contratos perdidos. Score elevado de 10 → 15 pós-auditoria 12 agentes (Brasil teve 22 mil roubos de carga em 2024 — NTC&Logística; probabilidade real 3, não 2). | Operacional/Financeiro | 3 | 5 | **15** | Seguro de carga + rastreamento veicular + protocolo de segurança em viagem + plano de UMC reserva | Roldão | decisão Roldão Frota/UMC 17/05/2026 + elevação Aud-12 agentes batch 3 |
 | **R-047** | Motorista UMC perde validade CNH/MOPP/toxicológico → UMC parada → contratos perdidos | Operacional/Regulatório | 3 | 4 | **12** | Alerta de vencimento + plano de motorista substituto + acordo com motorista freelance pra emergência | RH/Cláudia | decisão Roldão Frota/UMC 17/05/2026 |
 | **R-048** ⭐ | **Acessibilidade WCAG 2.1 AA ausente** — portal cliente / app mobile / PDF de certificado violam Lei 13.146/2015 art. 63. Multa MP + responsabilidade solidária Aferê/tenant + reprovação em licitação pública (Lei 14.133/2021) | Regulatório/Jurídico | 3 | 4 | **12** | INV-016 absoluta (WCAG 2.1 AA + PDF/UA); auditoria axe-core em CI; revisão manual em cada release; selo de conformidade no site | Auditor Acessibilidade | Auditor 2 batch 2 (17/05/2026) |
 | **R-049** | Automação dispara mensagem indevida em massa pro cliente errado → reclamação Reclame Aqui + LGPD oposição art. 18 | Operacional/Regulatório | 3 | 4 | **12** | Sandbox de teste antes de ativar regra; aprovação humana antes de mass-send; opt-out granular por tipo de mensagem; rate limiting | Auditor Segurança | decisão Roldão CRM/Automações 17/05/2026 |
@@ -88,32 +90,75 @@
 | **R-055** | Erro de configuração de regra de comissão (% errado, regra duplicada) → cálculo errado em escala → reclamação trabalhista | Operacional/Financeiro | 3 | 4 | **12** | Simulador "se rodasse hoje" antes de ativar; auditoria de toda mudança de regra; revisão por gerente antes de fechamento | Cláudia/Roldão | decisão Roldão Comissões 17/05/2026 |
 | **R-056** | Vendedor descobre brecha (desconto pra elevar margem aparente + ganhar mais comissão sobre líquido) → fraude interna | Operacional/Financeiro | 3 | 3 | **9** | Bloqueio de desconto acima de N% sem aprovação; alerta de padrão suspeito; auditoria por vendedor | Auditor Interno | decisão Roldão Comissões 17/05/2026 |
 | **R-057** | Comissão paga sobre fatura que cliente depois não pagou (inadimplência) | Financeiro | 3 | 3 | **9** | Regra "comissão só sobre recebido" + estorno automático em caso de cancelamento + provisão financeira | Cláudia | decisão Roldão Comissões 17/05/2026 |
+| **R-058** ⭐ NOVO | **Jornada do motorista UMC (Lei 13.103/2015) não modelada no sistema.** Logs do Aferê viram prova contra o tenant em ação trabalhista (tempo-espera = sobreaviso 1/3; jornada > 11h sem pausa = adicional). Roldão arrolado como réu solidário (vendor que forneceu a ferramenta de controle). | Jurídico/Regulatório/Operacional | 4 | 4 | **16** | Criar INV-020 (módulo Frota+UMC contém ponto eletrônico + cálculo tempo-espera = sobreaviso 1/3 + alerta de violação de jornada antes do fim do turno) | Auditor Conformidade + jurídico | Aud-17 batch 3 (17/05/2026 noite) |
+| **R-059** ⭐ NOVO | **Caixa do técnico vira "salário-utilidade" (Receita Federal + INSS).** "Adiantamento genérico do mês" sem prestação de contas vinculada a viagem é gatilho de autuação (Súmula 367 TST). Vira passivo trabalhista + tributário no tenant. | Jurídico/Regulatório/Financeiro | 4 | 4 | **16** | Prazo máximo de prestação de contas: 5 dias úteis após retorno; vedação a adiantamento sem viagem vinculada; devolução de saldo positivo registrada no caixa; relatório mensal por técnico | Cláudia + jurídico | Aud-17 batch 3 (17/05/2026 noite) |
+| **R-060** ⭐ NOVO | **Signatário descredenciado individualmente pela Cgcre sem bloqueio automático.** Cgcre pode suspender signatário (não o lab inteiro) — certificados emitidos APÓS o descredenciamento são nulos. Sem alerta automático, tenant continua emitindo e descobre meses depois. | Regulatório | 3 | 5 | **15** | Scraping/API diária do portal Cgcre; rebaixamento automático do signatário no Aferê quando suspenso; alerta imediato ao RT do tenant; bloqueio de novas emissões com aquele signatário | Auditor Conformidade | Aud-17 batch 3 (17/05/2026 noite) |
+| **R-061** ⭐ NOVO | **Inadimplência SaaS > 12% sangra caixa.** Tenant não paga assinatura do Aferê; sem política de bloqueio gradual, vira sangria silenciosa (CS L1 não monitora). | Financeiro | 4 | 3 | **12** | ADR-0004 a criar: política de cobrança + dunning automatizado (lembrete D-3, D+1, D+7) + read-only no dia D+15 + apagar conforme LGPD após retenção legal | Cláudia/Roldão | Aud-21 batch 3 (17/05/2026 noite) |
+| **R-062** ⭐ NOVO CRÍTICO | **CS L1 (suporte ao tenant) inexistente = churn 90 dias > 40%.** 1º cliente abre ticket sexta 22h, ninguém responde, churna mês 2. Modelo SaaS sem CS L1 (mesmo que seja bot) não fecha. | Operacional/Cliente | 5 | 4 | **20** | Persona 16 (Operador CS) a criar; playbook de CS L1; SLA escrito por categoria de ticket; bot com FAQ + escalonamento; Roldão como fallback humano até primeiros 20 clientes; ver F-18 em assumption-map | Roldão | Aud-21 batch 3 (17/05/2026 noite) |
+| **R-063** ⭐ NOVO | **Migração de dados Cali/Bling/Excel vira consultoria escondida.** Cada onboarding = 40h custom; mata margem SaaS (LTV não sustenta R$ 8k+ de implementação grátis). | Operacional/Financeiro | 4 | 4 | **16** | Spike F-16 promovido a Top 8 LEAP; importador padronizado pra Cali (XML/Access) + Bling (API) + planilha (CSV template); ver F-17 (onboarding ≤ 8h) | Roldão | Aud-21 batch 3 (17/05/2026 noite) |
+| **R-064** ⭐ NOVO | **Auvo expande pra Frota + Caixa em 9-12 meses (não Visma em 18 meses).** Auvo já tem GPS + OS + app + base PME de assistência técnica; cobrir OP3 (Operação de Campo) inteira é incremento natural. Mata diferencial #1 do Aferê. | Mercado | 4 | 4 | **16** | Integrar Frota com cadeia de rastreabilidade RBC (Auvo nunca vai fazer — não é metrologia); vender "Frota com rastreabilidade RBC" como bundle; chegar a 50 clientes antes da expansão deles | Roldão | Aud-14 batch 3 (17/05/2026 noite) |
+| **R-065** ⭐ NOVO CRÍTICO | **Vendor (Roldão) não tem RT registrado com formação metrológica.** Cliente farma audita o lab (tenant) e pede o RT do vendor da plataforma; Roldão não tem CREA + competência metrológica registrada → fornecedor reprovado em qualificação. | Regulatório/Jurídico/Mercado | 5 | 4 | **20** | Contratar RT (engenheiro com CREA + competência metrológica comprovada via cursos INMETRO/RBC); criar INV-018 (RT obrigatório no Aferê); ADR documentando a contratação | Roldão + RH | Aud-17 batch 3 (17/05/2026 noite) |
 
 ---
 
-## Top 15 prioritários (Score ≥ 12) — atualizado pós-padronização
+## Top 15 prioritários (Score ≥ 12) — atualizado pós-auditoria 12 agentes (17/05/2026 noite)
 
 > R-018 e R-027 empatam em 25; **R-027 fica no #1** porque NÃO tem mitigação implementada ainda (ADR-0000 escrita mas hooks pendentes); R-018 já tem hook planejado em `REGRAS-INEGOCIAVEIS.md` (INV-002).
+> R-001 mantém pontuação 20 mas severidade reforçada por 3 auditores (Aud-13, 18, 19) — pode subir para 25 numa próxima revisão.
 
+**Score 25:**
 1. **R-027** — Prompt injection cliente final — 25
 2. **R-018** — Certificado sem cadeia rejeitado por Cgcre — 25
-3. **R-001** — Customização disfarçada (founder is customer) — 20
+
+**Score 20:**
+3. **R-001** — Customização disfarçada (founder is customer) — 20 (severidade reforçada Aud-13+18+19)
 4. **R-002** — Família 5 vaporware — 20
 5. **R-005** — ERP N módulos com 1 pessoa = anos — 20
 6. **R-007** — Conflito tríplice retenção — 20
 7. **R-016** — Cutover NFS-e Padrão Nacional 01/09/2026 — 20
-8. **R-006** — NFS-e em município com padrão próprio — 16
-9. **R-028** — Soberania de dados Anthropic — 16
-10. **R-003** — Multi-tenant vazamento — 15
-11. **R-004** — TAM ridículo — 15
-12. **R-011** — Roldão burnout — 15
-13. **R-014** — LGPD: vazamento → multa ANPD — 15
-14. **R-015** — Signatário técnico indisponível — 15
-15. **R-023** — Stack incapaz de validar software metrológico — 15
-16. **R-029** — Bus factor Roldão — 15
-17. **R-035** — Visma compra Cali/Metroex — 15
-18. **R-039** — Tenant declara perfil A sem acreditação real (fraude) — 15
-19. **R-040** — Cliente final esquece verificação periódica INMETRO obrigatória — 12
+8. **R-035** — Visma compra Cali/Metroex — 20
+9. **R-042** — Transferência risco vendor↔tenant não tratada contratualmente — 20
+10. **R-062** ⭐ NOVO — CS L1 inexistente = churn 90 dias > 40% — 20
+11. **R-065** ⭐ NOVO — Vendor sem RT registrado — 20
+
+**Score 16:**
+12. **R-006** — NFS-e em município com padrão próprio — 16
+13. **R-028** — Soberania de dados Anthropic — 16
+14. **R-058** ⭐ NOVO — Jornada motorista UMC (Lei 13.103/2015) não modelada — 16
+15. **R-059** ⭐ NOVO — Caixa do técnico vira salário-utilidade — 16
+16. **R-063** ⭐ NOVO — Migração Cali/Bling/Excel vira consultoria escondida — 16
+17. **R-064** ⭐ NOVO — Auvo expande pra Frota+Caixa em 9-12 meses — 16
+
+**Score 15:**
+18. **R-003** — Multi-tenant vazamento — 15
+19. **R-004** — TAM ridículo — 15
+20. **R-011** — Roldão burnout — 15
+21. **R-014** — LGPD: vazamento → multa ANPD — 15
+22. **R-015** — Signatário técnico indisponível — 15
+23. **R-023** — Stack incapaz de validar software metrológico — 15
+24. **R-029** — Bus factor Roldão — 15
+25. **R-039** — Tenant declara perfil A sem acreditação real (fraude) — 15
+26. **R-046** ⭐ ELEVADO (era 10) — UMC com peso-padrão roubado/batido — 15
+27. **R-060** ⭐ NOVO — Signatário descredenciado pela Cgcre sem bloqueio automático — 15
+
+**Score 12:**
+28. **R-008** — Prompt injection via MCP GitHub — 12
+29. **R-017** — Porto Alegre desliga DANFSe local 01/07/2026 — 12
+30. **R-019** — Cali lança fiscal/NFS-e antes do MVP — 12
+31. **R-022** — Mito 72h GDPR vs 3 dias úteis ANPD — 12
+32. **R-025** — PCI-DSS 4.0.1 se aceitar cartão direto — 12
+33. **R-030** — Cali lança fiscal via parceria — 12
+34. **R-034** ⭐ PROMOVIDO (era 4) — Homologação CERTI/INMETRO não obtida — 12
+35. **R-040** — Cliente final esquece verificação periódica INMETRO — 12
+36. **R-044** — Manutenção de frota atrasada — 12
+37. **R-047** — Motorista UMC perde CNH/MOPP/toxicológico — 12
+38. **R-048** — Acessibilidade WCAG 2.1 AA ausente — 12
+39. **R-049** — Automação dispara mensagem indevida em massa — 12
+40. **R-050** — Cliente reclama de spam (LGPD art. 18) — 12
+41. **R-051** — Selo INMETRO perdido — 12
+42. **R-054** — Inventário com divergência sistemática (fraude interna) — 12
+43. **R-055** — Erro de regra de comissão em escala — 12
+44. **R-061** ⭐ NOVO — Inadimplência SaaS > 12% sangra caixa — 12
 
 ---
 

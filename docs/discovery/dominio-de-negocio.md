@@ -1,7 +1,31 @@
 # Discovery — Domínio de negócio
 
 > **Artefato Rodada 0** (agente faz sozinho, Roldão valida). Modelo conceitual de "como uma empresa de assistência técnica + calibração funciona" + glossário operacional do setor. **Base do glossário comum** (Família 2).
-> **Atualizado:** 2026-05-16 — primeira passagem do agente, base pra Roldão complementar com vivência da empresa dele. Marcações `[Roldão validar]` apontam onde precisa de input direto antes de virar invariante de produto.
+> **Atualizado:** 2026-05-17 (auditoria batch 3 noite — desambiguação "decisão fundadora" aplicada). Marcações `[Roldão validar]` apontam onde precisa de input direto antes de virar invariante de produto.
+
+---
+
+> ## Nomenclatura — desambiguação "decisão fundadora" (pós-auditoria 17/05/2026 noite, Aud-20)
+>
+> O projeto usa "decisão fundadora" em **DOIS sentidos distintos**. Não confundir:
+>
+> **Decisões fundadoras de PRODUTO (Roldão 17/05/2026)** — 4 blocos canônicos de escopo (etiquetados ⭐ neste doc):
+> 1. **Frota + UMC + Caixa do Técnico** (seção "Controle de Técnico em Campo, Despesas, Frota e UMC")
+> 2. **Comissões Configuráveis** (seção "Módulo de Comissões Configuráveis")
+> 3. **Cliente 360° + CRM Contínuo + Automações** (seção "Cliente 360°, CRM Contínuo e Automações")
+> 4. **Estoque Multi-local com lacre + selo INMETRO** (seção "Módulo de Estoque Completo para Assistência Técnica")
+>
+> A seção de **perfis de empresa A/B/C/D** também está marcada como decisão fundadora de produto — separa o que o tenant pode ou não emitir (ver INV-015 em `normas-e-regulacao.md`).
+>
+> **Decisões fundadoras de ENGENHARIA (D1–D6, tomadas 2026-05-16)** — princípios de processo, **não** de escopo de produto:
+> - **D1** — Spec Kit (framework Microsoft de spec-driven development)
+> - **D2** — spec-as-source (a especificação é a fonte da verdade; código é derivado)
+> - **D3** — nomenclatura híbrida (PT-BR pra termos de negócio; EN pra termos técnicos)
+> - **D4** — devcontainer obrigatório
+> - **D5** — CODEOWNERS por pasta
+> - **D6** — operação dual (Claude Code + Codex CLI sobre `AGENTS.md` canônico)
+>
+> Quando este doc fala "⭐ DECISÃO FUNDADORA DE PRODUTO (Roldão 17/05/2026)" trata-se sempre do **bloco de escopo**, nunca dos princípios D1–D6.
 
 ---
 
@@ -147,7 +171,7 @@ Errar a fronteira entre esses ciclos (ex: emitir certificado sem fechar OS, ou f
 
 ---
 
-## Controle de Técnico em Campo, Despesas, Frota e UMC ⭐ DECISÃO FUNDADORA DO PRODUTO
+## Controle de Técnico em Campo, Despesas, Frota e UMC ⭐ DECISÃO FUNDADORA DE PRODUTO (Roldão 17/05/2026)
 
 > **Registrado em 17/05/2026** (texto redigido pelo Roldão — fonte de verdade). Outra dimensão estrutural do produto — operação de campo não é "tema acessório", é módulo central com sub-domínios próprios.
 
@@ -278,7 +302,7 @@ Dessa forma, o sistema deverá permitir uma visão completa do **custo real de c
 
 ---
 
-## Módulo de Comissões Configuráveis ⭐ DECISÃO FUNDADORA DO PRODUTO
+## Módulo de Comissões Configuráveis ⭐ DECISÃO FUNDADORA DE PRODUTO (Roldão 17/05/2026)
 
 > **Registrado em 17/05/2026** (texto redigido pelo Roldão — fonte de verdade). Módulo central do produto, **não pode ser opcional nem genérico**. Cobre comissões complexas que ERPs horizontais (Bling/Omie/Conta Azul) e softwares de calibração (Cali/Metroex) não cobrem.
 
@@ -449,7 +473,7 @@ Empresa deve configurar comissões simples ou complexas **sem depender de altera
 
 ---
 
-## Cliente 360°, CRM Contínuo e Automações ⭐ DECISÃO FUNDADORA DO PRODUTO
+## Cliente 360°, CRM Contínuo e Automações ⭐ DECISÃO FUNDADORA DE PRODUTO (Roldão 17/05/2026)
 
 > **Registrado em 17/05/2026** (texto redigido pelo Roldão — fonte de verdade). Define a **filosofia integrada** do sistema. Todo módulo conversa com todos.
 
@@ -562,7 +586,7 @@ Tudo lançado em um módulo alimenta os demais — sem duplicidade.
 
 ---
 
-## Módulo de Estoque Completo para Assistência Técnica ⭐ DECISÃO FUNDADORA DO PRODUTO
+## Módulo de Estoque Completo para Assistência Técnica ⭐ DECISÃO FUNDADORA DE PRODUTO (Roldão 17/05/2026)
 
 > **Registrado em 17/05/2026** (texto redigido pelo Roldão — fonte de verdade). Estoque NÃO é "feature acessória" — é módulo central com rastreabilidade rigorosa de peças, lacres e selos INMETRO.
 
@@ -730,7 +754,7 @@ Alertas automáticos: estoque mínimo atingido, peça crítica em falta, técnic
 
 ---
 
-## Perfis de empresa (setup do tenant) ⭐ DECISÃO FUNDADORA DO PRODUTO
+## Perfis de empresa (setup do tenant) ⭐ DECISÃO FUNDADORA DE PRODUTO (Roldão 17/05/2026)
 
 > **Registrado em 16/05/2026** (decisão Roldão). Esta é decisão estrutural do produto, NÃO opcional. O setup do tenant DEVE pedir o perfil; o sistema ativa/desativa regras (invariantes) com base nele. Implica também que **algumas invariantes deixam de ser absolutas** e viram **condicionais ao perfil**.
 

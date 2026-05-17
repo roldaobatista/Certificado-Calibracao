@@ -9,7 +9,7 @@
 
 ## 1. Resumo executivo
 
-**14 personas (13 ativas + 1 quase-persona externa).** Nota: o bloco original era "8 personas (7 ativas + 1 quase-persona externa)"; a v2 (17/05/2026) adiciona 6 personas novas (9-14) cobrindo motorista da UMC, regulador, cliente regulado farma, cliente final low-tech, técnica de campo mulher e dono PME 65+.
+**16 personas (15 ativas + 1 quase-persona externa).** Nota: o bloco original era "8 personas (7 ativas + 1 quase-persona externa)"; a v2 (17/05/2026) adiciona 6 personas novas (9-14) cobrindo motorista da UMC, regulador, cliente regulado farma, cliente final low-tech, técnica de campo mulher e dono PME 65+; a auditoria batch 3 (Aud-18 e Aud-21, 17/05/2026 noite) adiciona mais 2 personas críticas (15 = Diego consultor RBC PJ canal #1 de aquisição; 16 = Andréia operadora de CS L1 do vendor Aferê — blind spot que estava omitido).
 
 | # | Nome / papel | Perfil de empresa dominante | Frase-chave |
 |---|---|---|---|
@@ -27,6 +27,8 @@
 | 12 | **João-Sênior — Cliente final low-tech (açougue)** | N/A (cliente do tenant) | "Manda no WhatsApp por áudio, fia. Esse negócio de portal eu não mexo." |
 | 13 | **Bruna — Técnica de campo (mulher)** | B / C / D + A in loco | "Refinaria não tem vestiário feminino. Eu calibro com o EPI emprestado." |
 | 14 | **Roldão Sênior 65+ — Dono PME veterano** | A / B / C (5–50 pessoas) | "Letra grande, botão grande, e me explica devagar. Eu compro." |
+| 15 | **Diego — Consultor RBC PJ (canal de aquisição #1)** ⭐ NOVO 17/05/2026 noite (Aud-18) | Atende A (forte), B (frequente), C (em formação) | "Em B2B regulado, o lab confia mais no consultor do que no vendedor de software. Esquece comissão pra mim, perde o cliente." |
+| 16 | **Andréia (ou Roldão temporariamente) — Operador de CS L1 do Aferê** ⭐ NOVO 17/05/2026 noite (Aud-21) | N/A (interna do vendor Aferê) | "Ticket entrou agora. SLA é 30 min. Sem doc clara e sem Roldão por perto, eu sou a marca." |
 
 > **Nota de diversidade (Aud-2):** "dona Roldina existe" — empresa fundada por engenheira química que migrou de cliente final a empresária do setor é caso real (RS, MG, SP); persona Roldão é gender-neutral. Distribuição racial e regional: forte presença NE industrial (Suape/PE, Camaçari/BA, Mossoró/RN) e N (Manaus/ZFM, Belém) em personas operacionais.
 
@@ -1178,6 +1180,161 @@ D-001, D-002, D-010 (compartilhadas com Roldão principal). **D-NOVO-sênior** (
 - "Suporte: telefone, chat, ticket — qual você prefere?"
 - "Se filho/neto te ajudar com SaaS — o quê ele faz mais?"
 - "Treinamento online ou presencial — qual funciona pra você?"
+
+---
+
+## Persona 15 — Diego (Consultor RBC PJ — canal de aquisição #1) ⭐ NOVO POR DECISÃO AUDITORIA 17/05/2026 (Aud-18)
+
+> **Contexto:** consultor independente que orienta laboratórios a passar/manter acreditação Cgcre. **É o canal #1 de aquisição em B2B regulado** — o lab confia mais no padrinho técnico do que em vendedor de software SaaS. Diego foi omissão crítica do Discovery anterior — sem ele no mapa, todo o GTM premium do Aferê fica órfão.
+
+### Identidade
+- **Nome fictício:** Diego (PJ individual ou pequena consultoria)
+- **Idade típica:** 45–55 anos
+- **Formação típica:** engenharia (mecânica/elétrica/química/produção) + curso técnico de metrologia; pós em qualidade; **ex-INMETRO** ou **ex-RT de laboratório acreditado grande** (Petrobras, Vale, Embraer, Furnas) que migrou pra consultoria PJ aos 40+ anos.
+- **Anos de experiência:** 15–25 anos no setor (10+ em lab grande, 5–15 como consultor)
+- **Remuneração típica BR:** **R$ 15k–40k/mês** (varia muito por carteira); modelo misto **hora-cliente (R$ 250–500/h) + retainer mensal (R$ 3k–8k por cliente)**; consultor independente roda 5–20 clientes/ano. `[a confirmar via entrevista — faixa pode ser conservadora pra capital SP/RJ]`
+- **Localização típica:** capital de estado industrial (SP capital, BH, Curitiba, POA, Recife, Salvador) com viagens nacionais.
+- **Status formal:** PJ MEI/ME ou pequena consultoria (I9 Qualidade, Docnix, ACT Brasil, ou independente unipessoal).
+
+### Empresa típica
+- **Tamanho:** 1–3 consultores (Diego + secretária + estagiário, ou totalmente solo).
+- **Carteira:** 5–20 laboratórios/ano (a maioria perfil A acreditado, mas atende C migrando pra A também).
+- **Ferramentas internas:** Excel pesado, planilhas de gap analysis, Word pra procedimentos, e-mail, WhatsApp Business, ZIM/Google Drive.
+- **Conhece de cor:** Cali LAB, Metroex, Calibre.Software, ISOLAB, Q-Pulse — sabe NC clássica de cada um, sabe argumentar com auditor da Cgcre como cada sistema atende cláusula tal.
+
+### O que ele quer
+- **Cliente passa auditoria Cgcre sem NC maior** — reputação dele depende disso. NC maior no cliente vira "consultor não fez o trabalho".
+- **Base de clientes recorrente** — retainer mensal pra manutenção do SGQ (~R$ 3k–8k/mês fixo por cliente) é o que paga conta no fim do mês.
+- **Bônus de indicação de software** — comissão R$ 1k–3k por cliente referido + R$ 500–1500 por renovação anual.
+- **Ferramenta que reduza horas dele** — gap analysis automatizado, geração de procedimento por template, dashboard de NC consolidado dos clientes dele.
+
+### JTBDs principais (do ponto de vista do Diego)
+- "Passar auditoria Cgcre do cliente X em janeiro/fevereiro sem nenhuma NC sistêmica."
+- "Manter os 12 clientes da minha carteira em conformidade contínua, mesmo sem visitar cada um todo mês."
+- "Indicar software que me reduz trabalho (não me dá retrabalho) e me paga comissão decente."
+- "Treinar metrologista júnior do cliente em 2 semanas sem precisar voltar 5 vezes."
+
+### Frustrations / dores específicas
+- **"Software RBC desatualizado obriga workaround manual"** — Diego conhece todos os bugs do Cali e do Metroex; cada workaround que precisa documentar é hora dele que não vira faturamento.
+- **"Cliente sai do sistema atual e perde histórico"** — 8 anos de calibração em Cali, lab quer mudar pra Aferê, e Diego é quem vai apanhar pra migrar (importação, validação cruzada, normalização).
+- **"Vendor de software ignora consultor"** — Cali, Metroex e similares nunca chamaram Diego pra programa de canal; tratam consultor como ruído. Aferê pode ganhar mercado SÓ por tratar bem.
+- **"Cliente diz 'meu consultor falou que eu posso fazer X' e fala bobagem"** — Diego entra em call pra corrigir; mas pra isso o software tem que dar pista clara.
+- **"Aplicar mudança regulatória (NIT-DICLA rev 15) em 12 clientes ao mesmo tempo é caos"** — sem consolidação, é planilha por cliente, e-mail por cliente, telefonema por cliente.
+
+### O que daria sucesso visível pra Diego
+- "Programa de canal Aferê me dá portal de parceiro com **comissão recorrente** (R$ 1k–3k entrada + 10–15% MRR do cliente por 12 meses), treinamento gratuito (selo Aferê Partner Certified), e suporte preferencial (canal direto, fila prioritária)."
+- "Dashboard multi-tenant me deixa ver os 12 clientes da minha carteira numa tela — NC abertas, certificados pendentes, padrões vencendo, auditoria agendada. Eu vendo isso como **manutenção remota** R$ 1.500/mês por cliente."
+- "Quando NIT-DICLA muda revisão, Aferê me notifica em 7 dias com guia 'o que muda no cluster A' + template de e-mail pros meus clientes. Eu sou rei."
+- "Mig­ração assistida do Cali pro Aferê com importador testado + período de duplo-rodando 30 dias + validação de cadeia de rastreabilidade preservada. Eu não preciso defender o vendor; ele se defende sozinho."
+
+### O que vai resistir a aceitar
+- "Já tive comissão prometida que nunca pagaram." — Diego só topa se contrato de canal é claro, com pagamento mensal automático.
+- "Software 'novo' geralmente quebra meses depois quando a startup pivota." — exige garantia de continuidade (12 meses mínimo, RT vendor publicado — INV-018).
+- "Migração de Cali já fiz 3 vezes e em todas deu pau." — exige caso de sucesso documentado + 1ª migração com suporte presencial do vendor.
+- "Comissão de 5% do MRR é pouco." — média de mercado SaaS B2B nicho é 15–25% recorrente; Aferê precisa ser competitivo.
+
+### Big Jobs cobertos (do mapa de 12 Big Jobs)
+- **BIG-03 (perfis A/B/C/D)** — Diego é especialista em transição C→B→A; vê todos os perfis na carteira.
+- **BIG-06 (Metrologia Legal IPEM)** — vários clientes dele atendem balança comercial (mix de RBC + IPEM).
+- **BIG-02 (acreditação RBC)** — core do trabalho dele.
+- **BIG-01 (ciclo completo OS→certificado)** — Diego avalia o fluxo do cliente; se sistema impede ciclo limpo, ele veta.
+
+### Por que é canal #1 (justificativa de mercado)
+- **B2B regulado é vendido por confiança, não por feature.** Lab acreditado não compra software por anúncio no Google Ads; compra porque "Diego falou que Aferê é bom".
+- **Diego visita cliente em janeiro pra auditoria de manutenção** — é a janela natural pra recomendar troca de sistema (cliente "queimado" com problema do Cali no ano anterior).
+- **Cali entendeu isso 10 anos atrás** — tem programa de canal informal com consultores; quem chega depois precisa entrar nesse mercado pelo mesmo caminho.
+
+### Modelo de remuneração proposto (entrada pra ADR comercial)
+- **Comissão de entrada:** R$ 1k–3k por cliente novo (depende do tier: A = R$ 3k, B = R$ 2k, C = R$ 1k, D = R$ 500).
+- **Comissão recorrente:** 15% do MRR por 12 meses (clientes A/B); 10% MRR por 12 meses (C/D).
+- **Bônus de renovação:** R$ 500–1.500 por cliente que renova ano 2 (anti-churn).
+- **Bônus de upgrade:** R$ 1k se cliente C vira B, R$ 2k se B vira A.
+- **Decisão pendente:** Aferê implementa programa de canal no MVP-1 ou só no MVP-2? (Aud-18 sugere MVP-1 já com versão mínima — formulário "indique um lab" + tracking + pagamento manual mensal.)
+
+### Frase-chave
+> "Em B2B regulado, o lab confia mais no consultor do que no vendedor de software. Esquece comissão pra mim, perde o cliente."
+
+### Sinais pra entrevista qualitativa (Onda 2 — 3-5 consultores RBC PJ)
+- "Quantos sistemas de calibração você opera por semana na sua carteira?"
+- "Como você é remunerado quando indica software pro cliente?"
+- "O que te faria deixar de recomendar Cali e passar a recomendar uma startup?"
+- "Que dashboard você sonha em ter sobre os clientes da sua carteira?"
+- "Quanto vale teu 'sim' pro vendor de software? (entrada vs recorrente vs treinamento gratuito)"
+
+---
+
+## Persona 16 — Andréia (ou Roldão temporariamente) — Operador de CS L1 do Aferê ⭐ NOVO POR DECISÃO AUDITORIA 17/05/2026 (Aud-21)
+
+> **Contexto:** atendente de Customer Success nível 1 do **próprio vendor Aferê** (interna, não cliente). Blind spot crítico #1 da auditoria batch 3: **o Discovery anterior tinha personas só do lado tenant; ninguém do lado vendor**. Sem CS L1 cadastrada como persona, MVP-1 vira plano de "lançar e rezar" — cliente abre ticket, ninguém responde, NPS afunda, NC do cliente vira NC reputacional do produto.
+
+### Identidade
+- **Nome fictício:** Andréia (cenário ideal: pessoa contratada) — OU **Roldão temporariamente** (cenário transitório, pré-contratação, MVP-1 só com Roldão respondendo)
+- **Idade típica:** 25–35 anos (perfil contratado)
+- **Formação típica:** técnico em informática + experiência de atendimento técnico em software/SaaS (suporte N1 em ERP, e-commerce, fintech). Fala português claro, paciência alta, escreve sem erro grosso.
+- **Anos de experiência:** 2–5 anos em atendimento técnico SaaS.
+- **Remuneração típica BR:** **R$ 3k–5k CLT** + benefícios (VR/VA + plano de saúde básico), ou **R$ 4k–6k PJ**; com bônus por NPS (~10% variável). `[a confirmar — varia muito por cidade e por modelo de jornada (presencial/híbrido/remoto)]`
+- **Localização típica:** remoto BR (qualquer região com banda larga decente); cidade-base preferencial = Recife, Florianópolis, BH, Curitiba (custo-benefício pro vendor).
+- **Status formal:** **PRÉ-MVP-1 obrigatório:** ou Aferê contrata 1 CS L1 antes do go-live OU Roldão assume com bot de fallback + horário declarado (8h–18h dias úteis).
+
+### Empresa típica
+- **Tamanho:** vendor Aferê — neste momento (2026-05) ainda é solo (só Roldão + agentes IA). Persona 16 é o **primeiro funcionário humano operacional** depois do programador (se houver).
+- **Ferramentas previstas (a definir em ADR de stack de CS):**
+  - **Plataforma de ticketing:** Intercom OU Freshdesk OU Zendesk (decisão = ADR de CS pendente).
+  - **Comunicação interna:** Slack OU Discord (decisão = ADR de stack interno).
+  - **WhatsApp Business API integrado** ao ticketing (quase obrigatório pro mercado BR).
+  - **Base de conhecimento:** Notion público OU Helpscout Docs OU Intercom Articles (parte do mesmo ADR).
+  - **Acesso à plataforma Aferê** em modo "impersonação" (com log de auditoria — INV-013 cl. 4.2 confidencialidade).
+
+### O que ela quer
+- **Resolver 70% dos tickets em L1 sem escalar** — bom pra ela (bate meta), bom pro tenant (resolve rápido), bom pro vendor (Roldão não vira gargalo).
+- **Responder ticket em < 30 min no horário comercial** — SLA agressivo proposto; Aferê não compete com a Visma em volume, então compete em velocidade.
+- **Transformar bug em melhoria de produto** — cada ticket de tipo "como faço X?" vira candidato a tooltip / docs; cada ticket "tá quebrado" vira candidato a hotfix / issue.
+- **Não pisar em conformidade do tenant** — confidencialidade cl. 4.2: ela vê dado de cliente do laboratório só com autorização registrada + log; LGPD: respeita base legal e finalidade.
+- **NPS / CSAT alto** — meta provisória NPS ≥ 50 (bom em B2B SaaS BR), CSAT ≥ 4.5/5.
+
+### JTBDs principais
+- "Fechar 20–40 tickets/dia mantendo SLA de 30 min resposta horário comercial."
+- "Identificar padrão de ticket recorrente e abrir issue no produto (não só responder; resolver na raiz)."
+- "Atualizar base de conhecimento toda semana com 2–3 artigos novos baseados em ticket recorrente."
+- "Escalar pra Roldão / engenharia em < 10% dos tickets, com contexto bem montado (não 'tá quebrado, socorro')."
+
+### Frustrations / dores específicas
+- **"Documentação ruim faz cliente abrir ticket bobo"** — se docs cobrissem 80% dos casos, volume de ticket cairia 50%; mas docs sempre atrasa em relação a release.
+- **"Agente IA sugere errado e cliente fica irritado"** — chat bot diz "vou criar uma OS pra você" e cria pelado, sem campo obrigatório; Andréia precisa apagar e refazer manual + pedir desculpa.
+- **"Roldão sumiu pra reunião comercial às 14h"** — ticket SEV-1 entra às 15h, Andréia não pode escalar, fica segurando cliente irritado por 2 horas até Roldão voltar.
+- **"Cliente A regulado exige resposta formal por e-mail com ata"** — Andréia não pode resolver por WhatsApp; precisa abrir ticket formal, anexar log, gerar PDF de comunicação — toma 3x mais tempo.
+- **"Tenant pede coisa fora do escopo"** — "configura aí meu certificado pra ficar com logo gigante" = customização disfarçada (R-002); Andréia precisa dizer não e explicar de forma diplomática.
+
+### SLA proposto (entrada pra contrato comercial + ADR de CS)
+- **Horário comercial (8h–18h dias úteis):** resposta inicial em **30 min**, resolução tier 1 em **4h**.
+- **Horário não comercial:** resposta inicial em **2h** (apenas SEV-1 ou SEV-2); SEV-3 e SEV-4 = próximo dia útil.
+- **SEV-1 (sistema inteiro fora ou bloqueia emissão de certificado em auditoria):** resposta em **1h sempre**, 24/7, escalação imediata pra Roldão + engenheiro plantão (depois do MVP-2).
+- **SEV-2 (módulo crítico parcialmente quebrado):** resposta em 1h horário comercial; 2h fora.
+- **SEV-3 (feature secundária quebrada):** próximo dia útil.
+- **SEV-4 (dúvida/treinamento):** próximo dia útil.
+
+### Pré-MVP-1 obrigatório (decisão executiva pendente)
+- **Opção A — Contratar Andréia antes do go-live (preferida):** 1 CS L1 CLT R$ 3k–5k, treinada 4 semanas pré-go-live, com base de conhecimento de 50+ artigos. Custo total ano 1: ~R$ 60k–80k.
+- **Opção B — Roldão acumula CS L1 (transitória):** Roldão atende sozinho, declara horário (8h–18h), bot de fallback fora do horário ("respondo amanhã 8h"), KB mínima 20 artigos. Limite: 5 tenants ativos (acima disso é insustentável).
+- **Opção C — CS terceirizado PJ por hora (híbrida):** contrato com freelancer R$ 50–80/h, ativa só nos picos. Custo variável + risco de qualidade. Não recomendado em produto regulado.
+
+### Big Jobs cobertos
+- **Nenhum dos 12 originais (são jobs de tenant)** — Andréia é função interna do vendor. Mas ela **viabiliza** todos os Big Jobs do tenant (sem CS funcional, tenant fica órfão).
+- Job interno do vendor: **"manter NPS ≥ 50 e CSAT ≥ 4.5"** + **"reduzir churn por insatisfação operacional pra < 5% ano"**.
+
+### Risco se persona 16 não for resolvida pré-MVP-1
+- **R-NOVO-CS:** ticket sem resposta em horário regulado → tenant A perde auditoria Cgcre → NC vira reputacional do Aferê → consultor RBC (persona 15) deixa de recomendar → mercado premium fecha.
+- **Mitigação imediata:** Roldão assume CS L1 transitoriamente + horário declarado público + bot fallback. ADR de stack de ticketing em até 60 dias do go-live.
+
+### Frase-chave
+> "Ticket entrou agora. SLA é 30 min. Sem doc clara e sem Roldão por perto, eu sou a marca."
+
+### Sinais pra entrevista qualitativa (Onda 2 — 2-3 CS L1 em SaaS BR)
+- "Qual SLA é viável de cumprir com 1 pessoa atendendo 5/10/20 tenants?"
+- "Qual ferramenta de ticketing vc usou e recomendou ou descartou?"
+- "Quanto tempo gasta por ticket em média (categorizar, responder, escalar, fechar)?"
+- "Quanto vale base de conhecimento boa vs ruim — em horas economizadas por semana?"
+- "Como gerencia tenant ansioso quando Roldão/dev não responde a escalação?"
 
 ---
 
