@@ -178,11 +178,23 @@ Por enquanto, comandos disponíveis:
 
 ## 12. O que está pendente (gates)
 
-- **Portão 1 da ADR-0001:** cliente externo pago sob NDA; R-001 founder-is-customer baixar de 12 → ≤9
-- **Sintese-final discovery:** sair de DRAFT v3 → STABLE
-- **PRD do produto** (`docs/prd.md`) — ainda não escrito
-- **Faseamento dos módulos** (`docs/faseamento-modulos.md`) — define qual é MVP-1
-- **Base de conformidade MVP-1** — lgpd-rat, seguranca-dados, isolamento-multi-tenant, retencao-matriz
-- **3 prompts dos auditores Família 5** — catálogo existe, prompts ainda não
+> **Atualizado em 2026-05-17:** revisado após auditoria de drift que identificou 4 itens declarados pendentes quando já estavam feitos. Lista enxuta abaixo.
+
+### Pendências reais
+
+- **Síntese-final discovery:** sair de DRAFT v3 → STABLE (decisão "sem cliente externo agora" precisa ser cravada explicitamente como input, não pendência aberta)
+- **`isolamento-multi-tenant.md`** em `docs/conformidade/comum/` — único doc-base de conformidade MVP-1 que ainda falta (lgpd-rat ✅, seguranca-dados ✅, retencao-matriz ✅, fiscal ✅, dpa-modelo ✅, ripd-modelo ✅, dpia-modulos-novos ✅, incidente-anpd-modelo ✅, pci-dss ✅, open-banking ✅, transferencia-internacional ✅, fiscal-contingencia ✅)
+- **Foundation F-A** — código real ainda não começou; Portão 2/3 da ADR-0001 dependem dele
+- **Hooks complementares** declarados em INV-INT/INV-AUTHZ: `bus-envelope-validator`, `authz-check.sh`, `provisioning-checkpoint-check`, `tenant-id-validator`, anti-mascaramento — só `block-destructive.sh` + `secrets-scanner.sh` existem hoje
+
+### Diferido por decisão (não tratar como pendência)
+
+- **Portão 1 da ADR-0001** — cliente externo pago sob NDA. Roldão decidiu em 2026-05-17 (memória `project_sem_cliente_externo_agora`) que não busca cliente externo na janela atual. MVP-1 sai dogfooding-only. R-001 fica mitigado por Discovery 15/15 + mystery shopping documental + estudo Calibre.
+
+### Já feito (removido da lista anterior — estava em drift)
+
+- ~~PRD do produto~~ → `docs/prd.md` (draft, status correto pré-Foundation)
+- ~~Faseamento dos módulos~~ → `docs/faseamento-modulos.md` v8 (48 módulos, Foundation + Wave A + Wave B)
+- ~~3 prompts auditores Família 5~~ → `docs/governanca/auditor-{seguranca,qualidade,produto}-prompt.md` v1.0.0 (commit 238fa45)
 
 Ver também: `docs/INDICE.md` (sitemap) + `docs/documentos-do-projeto.md` (mapa de docs).
