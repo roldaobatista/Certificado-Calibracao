@@ -535,6 +535,25 @@ A busca trouxe **3 empresas brasileiras** usando "AutoLab" — atenção pra nã
 
 ## 5. Matriz comparativa síntese (calibração ISO 17025)
 
+> **Coluna "Big Jobs cobertos" adicionada 17/05/2026** (sugestão Auditor 9). Hoje temos 12 Big Jobs identificados (BIG-01 a BIG-12). Notação: `X/Y` onde X = pleno, Y = parcial. **Aferê alvo MVP-1 = 12/0** (tese).
+
+| Concorrente | Big Jobs (plenos/parciais) | Falha em |
+|---|---|---|
+| Cali LAB/WEB | 3/2 | BIG-01, BIG-03, BIG-04, BIG-06, BIG-08, BIG-09, BIG-10, BIG-11, BIG-12 |
+| Metroex (ForLogic) | 3/2 | BIG-01, BIG-03, BIG-04, BIG-06, BIG-08, BIG-09, BIG-10, BIG-11 (parcial em BIG-12) |
+| FP2 Tecnologia | 3/1 (regional) | BIG-03, BIG-05, BIG-06, BIG-08, BIG-09, BIG-10, BIG-11, BIG-12; BIG-04 só RS |
+| Qualer/MasterControl | 3/1 | BIG-01, BIG-03, BIG-04 (sem fiscal BR), BIG-06, BIG-08, BIG-09, BIG-10 parcial, BIG-11, BIG-12 parcial |
+| Auvo | 1/3 | BIG-02, BIG-03, BIG-04 parcial, BIG-06, BIG-08 parcial, BIG-09, BIG-10 parcial, BIG-11 parcial, BIG-12 parcial |
+| TOTVS Protheus (enterprise) | 3/4 (R$ 50k+ implementação) | BIG-02 RBC profundo, BIG-03, BIG-04 parcial, BIG-06, BIG-07 (sem portal calibração) |
+| Bling/Conta Azul/Omie | 1/1 | BIG-02, BIG-03, BIG-05, BIG-06, BIG-08, BIG-09 (só CRM básico), BIG-10 (não cobre calibração), BIG-11 parcial, BIG-12 (sem multi-local) |
+| **Aferê (alvo MVP-1)** | **12/0** | nenhum (tese) |
+
+**Conclusão:** nenhum concorrente cobre mais que **5/12 Big Jobs**. Aferê propõe cobrir 12/12 — tese ambiciosa, mas defensável porque cada Big Job individual ataca um gap real e diferentes concorrentes têm cobertura parcial.
+
+---
+
+## 5.1 Matriz feature × Big Job
+
 | Vendor | Origem | Cloud | Mobile | ISO 17025 | 21 CFR Part 11 | Multi-grandeza | NFS-e BR | Integração ERP | Mercado-alvo |
 |---|---|---|---|---|---|---|---|---|---|
 | Beamex CMX | FI | + LOGiCAL | bMobile | ✅ | ✅ | ✅ | ❌ | SAP/Maximo | Farma, O&G, energia |
@@ -594,10 +613,12 @@ Legenda: ⚠️ = não destacado / não documentado publicamente.
 
 ## 8. Posicionamento sugerido (1 frase por concorrente)
 
-- **vs Beamex/Fluke/IndySoft/ProCalV5/Qualer/LabWare/STARLIMS:** "feito no Brasil, com fiscal brasileiro embutido — sem você precisar contratar consultoria de US$ 50k pra adaptar um produto americano".
-- **vs Cali LAB:** "moderno, cloud e mobile-first, com fiscal NFS-e integrado — você emite OS, faz calibração, gera certificado e fatura no mesmo lugar, sem segundo sistema".
-- **vs Metroex/ForLogic:** "mesma cobertura técnica, mas com NFS-e nativa multi-município e onboarding em dias, não meses".
-- **vs Calibre.Software:** "mesmo conceito modular e SaaS, mas com fiscal completo, integração bancária PIX/boleto e foco em laboratório acreditado RBC".
+- **vs Beamex/Fluke/IndySoft/ProCalV5/Qualer/LabWare/STARLIMS:** "feito no Brasil, com fiscal brasileiro embutido E perfis A/B/C/D que crescem com sua empresa — sem você pagar consultoria pra adaptar produto americano".
+- **vs Cali LAB:** "moderno, cloud e mobile-first, com fiscal NFS-e nativo E portal que seu cliente final realmente usa — você emite OS, calibra, certifica e fatura num lugar só, sem segundo sistema".
+- **vs Metroex/ForLogic:** "mesma cobertura técnica, NFS-e multi-município nativa, Metrologia Legal IPEM embutida E controle de Frota+UMC+Caixa do técnico que ninguém mais entrega — onboarding em dias, não meses".
+- **vs Calibre.Software:** "mesmo conceito modular e SaaS, mas com fiscal completo, integração bancária PIX/boleto, comissões configuráveis e foco em laboratório acreditado RBC".
+- **vs Auvo (NOVO — Aud-9):** "Mesma força em OS de campo e GPS, mas com calibração ISO 17025 + cálculo de incerteza GUM + Frota+UMC integrada — não somos genéricos de field service."
+- **vs Bling/Conta Azul/Omie/Tiny (ERPs horizontais — NOVO Aud-9):** "Faz tudo que eles fazem pro financeiro/NFS-e, e ainda faz o ciclo completo de calibração ISO 17025 + Metrologia Legal + Frota/UMC + CRM 360° + comissões complexas que nenhum deles toca."
 - **vs Q-MAN/Portal ISO/Qualiex/8Quali:** "produto desenhado pra **laboratório calibrador prestador de serviço**, não pra indústria com calibração interna — ciclo comercial completo (orçamento → OS → certificado → NFS-e → recebimento)".
 - **vs FP2:** "cobertura nacional NFS-e (Padrão Nacional + ABRASF + integradores), não regional — e UX moderna SaaS, não desktop tradicional".
 

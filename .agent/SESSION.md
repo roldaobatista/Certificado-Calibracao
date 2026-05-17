@@ -9,7 +9,7 @@
 
 ## Última sessão
 
-**Data:** 2026-05-17 (sessão Rodada 0 batch 2)
+**Data:** 2026-05-17 (sessão Rodada 0 batch 2 + auditoria 10 agentes + 4 decisões fundadoras do Roldão)
 **Agente:** Claude Code (Opus 4.7) + 4 subagentes auditores
 **Roldão presente:** sim, ativo — contribuiu com:
 - Lista de 6 concorrentes adicionais (CalibraFácil, ABC71, SoftExpert, myLIMS, AutoLab×3, ConfLab)
@@ -28,7 +28,46 @@
 5. ✅ `docs/discovery/proximos-artefatos.md` — **NOVO.** Checklist consolidada dos 29 documentos referenciados mas ainda inexistentes (inclui ADR-IA recomendado).
 6. ✅ `docs/governanca/auditoria-decisoes-autonomas.md` — entrada nova com auditoria + correções aplicadas + 9 decisões pendentes pro Roldão.
 
-### Onde paramos (17/05/2026)
+### Onde paramos (17/05/2026 — fim do dia)
+
+**✅ MUITA coisa entregue. Resumo executivo:**
+
+1. **Batch 2 do Discovery executado** (3 artefatos: personas, JTBDs, jornada — ~2.400 linhas)
+2. **10 auditores rodaram em paralelo** sobre batch 2 — 10 relatórios densos com erros factuais + lacunas + sugestões estratégicas
+3. **Roldão aprovou "ACEITO TUDO"** das 27 decisões consolidadas dos auditores
+4. **Aplicação em lote**: 11 correções factuais + 27 decisões estratégicas (5 personas novas + reescrita 5 Big Jobs + Job Map 8 fases + 8 jobs emocionais + 5 anti-jobs + recalibração empresa-modelo + 3 fluxos comerciais + 6 etapas metrológicas + glossário roldao 227 termos + INV-016 WCAG + R-035 elevado + R-042 transferência risco)
+5. **4 decisões fundadoras do Roldão** no `dominio-de-negocio.md` (texto canônico dele):
+   - **Controle de Técnico em Campo, Despesas, Frota e UMC** (caminhão com pesos-padrão, modalidades de transporte do técnico, caixa do técnico, prestação de contas)
+   - **Módulo de Comissões Configuráveis** (8 formas de cálculo, múltiplos participantes na OS, gatilho por recebimento, fechamento bloqueado com auditoria)
+   - **Cliente 360°, CRM Contínuo, Automações** (cliente nunca "morre", engine gatilho→condição→ação configurável)
+   - **Módulo de Estoque Completo** (multi-local: central/técnico/motorista/UMC; transferência 2 etapas com aceite; controle individual de lacre + selo INMETRO com rastreabilidade + foto obrigatória)
+
+**Artefatos do Discovery agora:**
+- ✅ `concorrentes.md` (atualizado: 2 frases novas posicionamento + coluna Big Jobs cobertos)
+- ✅ `normas-e-regulacao.md` (16 invariantes: INV-016 WCAG novo)
+- ✅ `dominio-de-negocio.md` (4 seções canônicas novas escritas pelo Roldão)
+- ✅ `riscos.md` (57 riscos: R-001..R-057; R-035 elevado pra score 20)
+- ✅ `personas-detalhadas.md` (14 personas: 13 ativas + 1 quase-persona, incluindo Carlos motorista UMC)
+- ✅ `jobs-to-be-done.md` (~109 JTBDs + 12 Big Jobs; ~2.139 linhas)
+- ✅ `jornada-atual-sem-produto.md` (4 ciclos detalhados, ~800 linhas)
+- ✅ `proximos-artefatos.md` (consolidação)
+- ✅ `docs/comum/glossario-roldao.md` (NOVO — 227 termos traduzidos PT-BR)
+- ✅ `painel-do-dono.md` (incluindo D-aud7-1 ação pendente com terceiros: advogado+seguro+DPA+dossiê = R$ 18-60k)
+- ✅ `governanca/auditoria-decisoes-autonomas.md` (entradas atualizadas)
+
+### Próximo passo lógico
+
+**Aguardando Roldão revisar:**
+1. As 4 seções canônicas novas em `dominio-de-negocio.md` (texto dele — só conferir se ficou bem encaixado)
+2. Glossário `docs/comum/glossario-roldao.md` (227 termos — se algum tá errado)
+3. Decisão sobre D-aud7-1 (ação com advogado+corretora+consultor — não é trabalho de agente)
+
+**Depois disso, batch 3:**
+- `dores-mapeadas.md`, `opportunity-solution-tree.md`, `assumption-map.md` — agente faz sozinho
+
+---
+
+### Detalhe do batch 2 original (mantido pra histórico)
 **✅ Batch 2 do Discovery EXECUTADO.** 3 artefatos novos preenchidos por subagentes em paralelo:
 - ✅ `personas-detalhadas.md` (~780 linhas) — 8 personas (Roldão dono + Sandra RT/Qualidade + Letícia atendente + Bruno técnico campo + Marcos metrologista + Cláudia financeiro + Rogério comercial + João cliente final) com identidade, goals, frustrations, ferramentas atuais, variações por perfil A/B/C/D, perguntas pra entrevista
 - ✅ `jobs-to-be-done.md` (~830 linhas) — 45 jobs individuais (JTBD-001 a JTBD-045) + 7 Big Jobs + 6 Anti-jobs; cortes por perfil e por tipo de instrumento

@@ -24,6 +24,63 @@
 
 ## Entradas (cronológico reverso)
 
+### 2026-05-17 — 4 decisões fundadoras do Roldão (Frota/UMC + Comissões + CRM 360° + Estoque)
+- **Decisão:** Roldão registrou 4 grandes blocos de especificação como textos canônicos diretamente em `dominio-de-negocio.md`:
+  1. **Controle de Técnico em Campo, Despesas, Frota e UMC** — operação de campo (OS multi-equipamento, 3 modalidades de transporte do técnico, caixa do técnico com adiantamento+prestação de contas, UMC com motorista próprio + pesos-padrão, controle total de frota carros+UMC)
+  2. **Módulo de Comissões Configuráveis** — 8 formas de cálculo (bruto, mão de obra, peças+serviços com %, produtos, líquido, fixo, por tipo de serviço, por equipamento), múltiplos participantes na mesma OS, períodos configuráveis, gatilho por recebimento, controle de descontos/margem, aprovação/auditoria, integração com todos os módulos
+  3. **Cliente 360°, CRM Contínuo, Automações** — filosofia integrada (cliente nunca "morre"), visão 360°, engine de automação configurável (gatilho→condição→ação), múltiplos funis (venda/calibração/manutenção/contratos/pós-venda/renovação/inativos/recuperação)
+  4. **Módulo de Estoque Completo** — multi-local (central, filial, técnico, veículo, caminhão, UMC, motorista, sucata, RMA), transferência 2 etapas com aceite, controle individual de lacre e selo INMETRO com rastreabilidade + foto obrigatória, app mobile pra técnico+motorista, integração com OS, alertas de reposição
+- **Aplicado em:**
+  - `dominio-de-negocio.md` — 4 seções canônicas novas (texto do Roldão preservado integralmente como fonte de verdade)
+  - `jobs-to-be-done.md` — 5 Big Jobs novos (BIG-08 Frota/UMC + BIG-09 Comissões + BIG-10 CRM 360° + BIG-11 Automações + BIG-12 Estoque); ~40 JTBDs novos (JTBD-060..109); top 10 re-rankeado 4ª vez
+  - `riscos.md` — 15 riscos novos (R-042 a R-057) cobrindo: transferência risco vendor↔tenant (CRÍTICO), caixa do técnico, frota, UMC, acessibilidade, automação errada, LGPD spam, selo INMETRO perdido, lacre fraude, inventário divergente, comissão errada/fraude
+  - `concorrentes.md` — coluna "Big Jobs cobertos" na matriz §5 + 2 frases novas posicionamento (vs Auvo + vs ERPs horizontais) + posicionamento atualizado com mention de Frota/UMC + Comissões + CRM 360°
+  - `painel-do-dono.md` — D-aud7-1 destacado (ação com terceiros: advogado+seguro+DPA+dossiê = R$ 18-60k); 9 gaps defensáveis listados (era 5)
+- **Por quê:** Roldão é o decisor de produto + dono do setor. Texto dele = fonte de verdade. Agente apenas executou aplicação técnica + desdobramentos pra arquitetura/concorrentes/riscos.
+- **Quem decidiu:** Roldão (produto) + Claude Code (executor) + subagentes (reescrita de JTBDs)
+- **Sessão:** ver `.agent/SESSION.md` entrada 2026-05-17
+- **Impacto:** **DECISÕES FUNDADORAS** — afetam todo o produto. Reverter exige ADR.
+- **Caso-limite?** Não — foi decisão direta do decisor de produto
+- **Achados:**
+  - Gaps de mercado defensáveis subiram de 5 pra **9** — Aferê propõe cobrir 12/12 Big Jobs onde concorrentes cobrem no máximo 5/12
+  - **9º gap defensável** (Estoque multi-local com lacre/selo INMETRO) é nicho regulatório intocado por todos
+  - R-035 (Visma) elevado pra score 20 — janela competitiva confirmada estreita
+  - R-042 (transferência risco vendor↔tenant) é existencial — Roldão precisa contratar advogado+seguro+DPA+consultor (R$ 18-60k)
+- **Roldão revisou?** ✅ ele é o decisor; revisão da aplicação técnica pendente
+
+---
+
+### 2026-05-17 — Auditoria interna de 10 agentes sobre batch 2 + correções aplicadas
+- **Decisão:** Roldão pediu "lance 10 agentes auditando batch 2". Disparei 10 auditores independentes em paralelo cobrindo: (1) fidelidade BR personas, (2) inclusão/acessibilidade, (3) framework JTBD, (4) priorização/MVP fit, (5) anti-jobs/scope creep, (6) realismo operacional BR, (7) regulatório nas jornadas, (8) cross-check entre 7 artefatos, (9) gap competitivo reforçado, (10) linguagem pro Roldão não-técnico.
+- **Achados consolidados (5 mais sérios):** transferência risco vendor↔tenant não mapeada (Aud-7); acessibilidade ausente nas personas (Aud-2); custo do status quo subestimado 2-3x (Aud-6); janela competitiva curta — Visma+Cali em 18 meses (Aud-9); Roldão não consegue ler os 3 docs (Aud-10).
+- **Roldão aprovou "ACEITO TUDO"** das 27 decisões consolidadas.
+- **Aplicado** (alguns por mim, outros por subagentes em paralelo):
+  - 11 correções factuais (data, NIT-DICLA-021→016+019, instituições formação, salários CBO 2026, calibradores, Cláudia/Bling SP, Bruno caderno 70-80%, Marcos Cali resistência, contagem personas, ferramentas, recalibração 30-50%)
+  - 5 personas novas (Carlos motorista UMC, Auditor Cgcre, Patrícia farma, João-Sênior, Bruna, Roldão Sênior — total 14)
+  - 5 Big Jobs reescritos (BIG-01/03/05/06/07) + Job Map de 8 fases por Big Job + 8 jobs emocionais/sociais
+  - JTBDs novos (Sandra RT, JTBD-046/047 + 8 emocionais + 12 frota/UMC/caixa + 12 comissões + 15 CRM/automação + 12 estoque/lacre/selo)
+  - Anti-jobs novos (ANTI-07 a ANTI-11) + princípios "vertical thin" + "produto não plataforma"
+  - Top 10 re-rankeado com BIG-08/09/10/11/12 + JTBD-044 (alerta renovação) no top 3
+  - Reescrita §1 dos 3 docs do batch 2 (PT-BR humano sem jargão)
+  - Títulos PT-BR (Goals→"O que quer", Frustrations→"O que deixa louca", Reluctance→"O que vai resistir")
+  - Tradução inline de códigos cifrados (R-NNN, INV-NNN, ADR-NNN)
+  - Costura nominal persona ↔ JTBD ↔ dor
+  - INV-016 (WCAG 2.1 AA + PDF/UA) absoluto pra todos perfis
+  - R-035 (Visma) elevado pra score 20
+  - R-042 (transferência risco vendor↔tenant) novo score 20
+  - `docs/comum/glossario-roldao.md` criado com 227 termos traduzidos PT-BR
+  - Empresa-modelo recalibrada pra 5-10 funcionários (era 10-20)
+  - 3 fluxos comerciais novos (licitação pública, contrato anual, atestado capacidade técnica)
+  - 6 etapas metrológicas faltantes (aceitabilidade, estabilização, condições ambientais, revisão 2º signatário, selo, as found/as left)
+  - Custo do status quo corrigido pra R$ 35-50k/mês
+- **Itens pendentes pra terceiros (D-aud7-1):** advogado (contrato + DPA), corretora de seguros (RC profissional + cibernética), consultor de qualidade (dossiê de validação 17025). Custo total R$ 18-60k. Registrado em destaque no `painel-do-dono.md`.
+- **Quem decidiu:** Roldão (aprovou em bloco) + Claude Code (orquestrador) + 10 subagentes auditores + 4 subagentes de reescrita
+- **Impacto:** alta — reescreveu/expandiu 7 docs (~6.000+ linhas de delta), criou 1 doc novo (glossário), aplicou 4 decisões fundadoras
+- **Caso-limite?** Não — todas as 27 decisões tinham veredito explícito do Roldão "ACEITO TUDO"
+- **Roldão revisou?** ✅ aprovou em bloco; revisão de qualidade da aplicação pendente
+
+---
+
 ### 2026-05-17 — Rodada 0 batch 2 executado (3 artefatos novos)
 - **Decisão:** Roldão autorizou execução do batch 2. Disparei 3 subagentes em paralelo, cada um responsável por 1 artefato:
   - `personas-detalhadas.md` (~780 linhas) — 8 personas com identidade, goals, frustrations, ferramentas atuais, variações por perfil A/B/C/D

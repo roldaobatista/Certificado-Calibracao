@@ -6,18 +6,38 @@
 
 ---
 
-## ⏱️ Estado em 2026-05-17 (atualizado pós Rodada 0 batch 2)
+## 🚨 AÇÃO PENDENTE COM TERCEIROS (D-aud7-1 — CRÍTICO)
 
-**Fase:** **Rodada 0 Discovery — batch 2 CONCLUÍDO** (7 de 15 artefatos preenchidos)
-**Última atividade:** batch 2 — 3 artefatos novos (personas detalhadas, jobs-to-be-done, jornada atual sem produto). ~2.400 linhas de conteúdo gerado por 3 subagentes em paralelo.
-**Bloqueio:** nenhum — pronto pra você revisar batch 2 ou autorizar batch 3.
-**Próximo passo recomendado pelo agente:** autorizar **batch 3** (`dores-mapeadas.md` + `opportunity-solution-tree.md` + `assumption-map.md`). Esses 3 também o agente faz sozinho.
+**Auditor 7 do batch 2 alertou:** antes do MVP-1 ir pra produção, Roldão precisa contratar **3 itens com terceiros externos** (não é trabalho de agente, é decisão de negócio com fornecedores pagos):
 
-### ✨ 3 achados do batch 2
+| Item | Quem contratar | Custo estimado | Por que é crítico |
+|---|---|---|---|
+| **Contrato vendor↔tenant com limitação de responsabilidade** | Advogado especializado em SaaS BR + LGPD | R$ 5-15k (one-time) | Sem limitação, Roldão responde solidariamente por bug de cálculo de incerteza. R-042 score 20. |
+| **Seguro RC profissional + RC cibernética** | Corretora de seguros (Tokio Marine, Mapfre, Porto Seguro, Allianz) | R$ 3-15k/ano (dependendo cobertura) | Sem isso, 1 incidente pode quebrar a empresa. R-042 + R-014. |
+| **DPA-modelo pra tenant repassar ao cliente farma** | Mesmo advogado do item 1 | R$ 2-5k (one-time) | Cliente farma audita lab e pede DPA com vendor. R-024 + R-028. |
+| **Dossiê de validação 17025 do próprio software** | Internamente, mas exige consultor de qualidade pra revisar | R$ 8-25k (consultor) | Tenant precisa anexar em auditoria Cgcre. Sem isso, NC do tenant cai na conta do vendor. |
 
-1. **5 gaps defensáveis simultâneos identificados** — BIG-01 (ciclo completo num só sistema) + BIG-03 (perfis A/B/C/D) + BIG-04 (NFS-e multi-município) + BIG-06 (Metrologia Legal) + BIG-07 (Portal do cliente). Nenhum concorrente fecha mais de 2 desses.
-2. **Receita escondida grande:** D-002 (esquecimento de recalibração) custa **R$ 3-8 mil/mês** pra empresa-modelo. Vira argumento de ROI direto pra vender o produto.
-3. **WhatsApp Business é universal (~100% das empresas):** integração via WhatsApp Business API tem que estar no MVP — não é "feature legal", é "se não tiver, não vendo".
+**Total estimado:** R$ 18-60k pra deixar o vendor (você) blindado antes de ter 1º cliente pagante.
+
+**Próxima ação sua:** marcar conversa com advogado + corretora de seguros nas próximas 2-4 semanas. Sem essa blindagem, MVP-1 em produção é apostar a casa.
+
+---
+
+## ⏱️ Estado em 2026-05-17 (atualizado pós Rodada 0 batch 2 + 10 auditores + 4 decisões fundadoras)
+
+**Fase:** **Rodada 0 Discovery — batch 2 CONCLUÍDO + auditoria 10 agentes + 4 decisões fundadoras aplicadas**
+**Última atividade:** auditoria 10 agentes batch 2 + correções aplicadas + 4 decisões fundadoras do Roldão: (1) Frota+UMC+Caixa Técnico, (2) Módulo de Comissões configuráveis, (3) Cliente 360°+CRM Contínuo+Automações, (4) Estoque multi-local com lacre+selo INMETRO.
+**Bloqueio:** ação pendente com terceiros (advogado+seguro+DPA — D-aud7-1 acima); revisão sua dos novos textos canônicos do `dominio-de-negocio.md`.
+**Próximo passo recomendado pelo agente:** revisar as 4 seções novas em `dominio-de-negocio.md` + autorizar **batch 3** (`dores-mapeadas.md` + `opportunity-solution-tree.md` + `assumption-map.md`).
+
+### ✨ Achados consolidados pós-auditoria + 4 decisões fundadoras
+
+1. **9 gaps defensáveis simultâneos** (era 5 — agora 9 após decisões fundadoras): BIG-01 ciclo completo + BIG-03 perfis A/B/C/D + BIG-04 NFS-e multi-município + BIG-06 Metrologia Legal + BIG-07 portal cliente + **BIG-08 Frota+UMC+Caixa** + **BIG-09 Comissões configuráveis** + **BIG-10 CRM 360°+Automações** + **BIG-12 Estoque multi-local com lacre/selo INMETRO**. Nenhum concorrente cobre mais de 5/12.
+2. **Custo do status quo corrigido pra R$ 35-50k/mês** (era R$ 10-22k subestimado). Esse é o número que vende.
+3. **WhatsApp Business universal (~100%):** integração obrigatória no MVP.
+4. **Janela competitiva curta:** R-035 (Visma compra Cali/Metroex) elevado pra score 20. Chegar a 50+ clientes antes da próxima aquisição da Visma.
+5. **Acessibilidade INV-016 obrigatória** (LBI Lei 13.146/2015). Sem WCAG 2.1 AA, ação MP + reprovação em licitação.
+6. **Transferência de risco vendor↔tenant** (R-042 score 20) é existencial — sem contrato/seguro/DPA/dossiê, qualquer bug pode falir o vendor.
 
 ### ✨ 3 achados estratégicos pra você ler primeiro
 

@@ -290,7 +290,7 @@ Endpoints **devem ser obtidos do Portal Nacional** (www.nfe.fazenda.gov.br → S
 
 ### 8.1 Invariantes a criar (de produto/sistema) — atualizada pós-auditoria + perfis
 
-> **Versão pós-auditoria + decisão de perfis (16/05/2026 — Auditor 2 + Roldão):** invariante #4 quebrado em 3 sub-regras testáveis; invariante #7 movido pra ADR; invariantes #11-#15 adicionados; **INV-015 novo (perfil de empresa)**; coluna "Escopo por perfil" adicionada porque algumas invariantes deixam de ser absolutas e viram condicionais ao perfil declarado no setup (A/B/C/D — ver `dominio-de-negocio.md` §Perfis de empresa). Total: **15 invariantes**.
+> **Versão pós-auditoria + decisão de perfis (16/05/2026 — Auditor 2 + Roldão) + auditoria batch 2 (17/05/2026 — Auditor 2 acessibilidade):** invariante #4 quebrado em 3 sub-regras testáveis; invariante #7 movido pra ADR; invariantes #10-#14 adicionados; **INV-015 novo (perfil de empresa)**; **INV-016 novo (WCAG 2.1 AA + PDF/UA — Lei 13.146/2015)**; coluna "Escopo por perfil" adicionada. Total: **16 invariantes**.
 
 | # | Invariante | Base normativa | Como vira hook | Escopo por perfil |
 |---|---|---|---|---|
@@ -311,6 +311,7 @@ Endpoints **devem ser obtidos do Portal Nacional** (www.nfe.fazenda.gov.br → S
 | **INV-013** | Confidencialidade cl. 4.2: acesso a dados de cliente do laboratório só com permissão explícita + log de toda visualização (incluindo admins) | 17025 cl. 4.2 | RBAC + audit trail visualização | **Absoluta (todos perfis)** |
 | **INV-014** | Aceitação de certificado de calibração de padrão externo bloqueada se omitir resultado de medição + incerteza | NIT-DICLA-030 rev. 15 item 8.2.6 | Validação no cadastro de padrão | **Absoluta em A; configurável em B, C, D** |
 | **INV-015** ⭐ | **Tenant não pode emitir certificado de tipo superior ao perfil declarado.** Perfil B/C/D não pode emitir com selo RBC; perfil D não pode emitir declarando "rastreável ao RBC" se não tem padrão RBC. Upgrade de perfil exige prova documental | INMETRO + LGPD + CDC (proteção do cliente final contra fraude) | Validação no momento de gerar PDF do certificado + no upgrade de perfil | **Absoluta (todos perfis)** — esse é o invariante que SEPARA os perfis |
+| **INV-016** ⭐ NOVO | **Conformidade WCAG 2.1 AA + PDF/UA em toda interface visível pra usuário.** Portal do cliente (BIG-07), app mobile do técnico (BIG-05), certificado PDF, telas de cadastro. | Lei 13.146/2015 (LBI) art. 63 + e-MAG + WCAG 2.1 AA + Lei 14.133/2021 (licitações) | Audit automatizado de acessibilidade no CI (axe-core ou Lighthouse); PDF/UA conformance no gerador de certificado; revisão manual em cada release | **Absoluta (todos perfis)** — Lei não é opcional |
 
 **Movido pra ADR (não é invariante):**
 - ~~Invariante #7 — NFS-e via BaaS único~~ → **ADR fiscal** (decisão de arquitetura, não regra de conformidade). Risco de amarrar produto a fornecedor sem análise custo/SLA.

@@ -1,7 +1,7 @@
 # Discovery — Personas detalhadas
 
 > **Artefato Rodada 0 / Batch 2** (agente faz primeira versão; Roldão valida; entrevistas Onda 1+2 refinam).
-> **Atualizado:** 2026-05-16 — primeira versão profunda das 7 personas-base do produto Aferê (ERP brasileiro de assistência técnica + laboratório de calibração ISO 17025), com base em `dominio-de-negocio.md`, `concorrentes.md`, `riscos.md` e `normas-e-regulacao.md`.
+> **Atualizado:** 2026-05-17 — primeira versão profunda das personas-base do produto Aferê (ERP brasileiro de assistência técnica + laboratório de calibração ISO 17025), com base em `dominio-de-negocio.md`, `concorrentes.md`, `riscos.md` e `normas-e-regulacao.md`.
 > **Status de cada persona:** versão de referência inferida do material disponível + experiência reportada de mercado. Toda inferência **não confirmada** está marcada com `[a confirmar via entrevista]`.
 > **Pra que serve este doc:** (a) script-base pra entrevistas qualitativas Onda 1 (Roldão) e Onda 2 (5–10 empresas externas); (b) insumo de decisão pra UI/feature do MVP; (c) priorização de jobs-to-be-done em `jobs-to-be-done.md`.
 
@@ -9,18 +9,26 @@
 
 ## 1. Resumo executivo
 
-7 personas-base + 1 quase-persona externa (cliente final do tenant — recebe certificado e usa portal, mas não opera o ERP).
+**14 personas (13 ativas + 1 quase-persona externa).** Nota: o bloco original era "8 personas (7 ativas + 1 quase-persona externa)"; a v2 (17/05/2026) adiciona 6 personas novas (9-14) cobrindo motorista da UMC, regulador, cliente regulado farma, cliente final low-tech, técnica de campo mulher e dono PME 65+.
 
 | # | Nome / papel | Perfil de empresa dominante | Frase-chave |
 |---|---|---|---|
 | 1 | **Roldão — Dono / sócio fundador** | A / B / C (PME 5–50 pessoas) | "Eu não programo, mas sei exatamente onde minha empresa sangra dinheiro." |
 | 2 | **Sandra — Gerente / RT da Qualidade** | A (obrigatório), B (frequente), C (em formação) | "Se a Cgcre aparece amanhã, eu preciso ter o procedimento, o registro e a evidência — agora, não depois do almoço." |
 | 3 | **Letícia — Atendente / SAC** | Todos (A/B/C/D) | "Tudo entra pelo meu WhatsApp e some pelo meu WhatsApp." |
-| 4 | **Bruno — Técnico de campo** | B / C / D (forte) + A (quando lab faz calibração in loco) | "Eu tô numa balança rodoviária, debaixo de sol, sem internet, e preciso preencher 14 campos num celular." |
+| 4 | **Bruno dos Santos — Técnico de campo** | B / C / D (forte) + A (quando lab faz calibração in loco) | "Eu tô numa balança rodoviária, debaixo de sol, sem internet, e preciso preencher 14 campos num celular." |
 | 5 | **Eng. Marcos — Metrologista / signatário técnico** | A (regulado 17025 cl. 6.2), B (sombra do A) | "Meu CPF assina o certificado. Se tiver número errado, é minha cabeça que vai ser cobrada pelo Inmetro." |
-| 6 | **Cláudia — Financeiro** | Todos (com peso D/C maior) | "Eu fecho o mês olhando pra extrato bancário em uma tela, planilha em outra, Bling em uma terceira, e contando no dedo." |
+| 6 | **Cláudia Nascimento — Financeiro** | Todos (com peso D/C maior) | "Eu fecho o mês olhando pra extrato bancário em uma tela, planilha em outra, Bling em uma terceira, e contando no dedo." |
 | 7 | **Rogério — Vendedor / comercial** | B / C / D (forte) + A (orçamento) | "Cliente pergunta preço, eu prometo 'mando hoje à tarde', e mando daqui a 3 dias porque tô esperando o técnico me passar o tempo." |
-| 8 | **Quase-persona: João — Cliente final do tenant** (responsável pela balança no cliente) | N/A (é o cliente do nosso cliente) | "Eu só quero o PDF do certificado pra mostrar pro auditor da ANVISA quando ele chegar." |
+| 8 | **Quase-persona: João Eng./qualidade — Cliente final do tenant** (responsável pela balança no cliente) | N/A (é o cliente do nosso cliente) | "Eu só quero o PDF do certificado pra mostrar pro auditor da ANVISA quando ele chegar." |
+| 9 | **Carlos — Motorista da UMC** ⭐ NOVO 17/05/2026 | A / B (que operam UMC) | "Eu dirijo, o resto é problema do escritório." |
+| 10 | **Auditor Cgcre/IPEM — Regulador em campo** | N/A (fiscaliza o tenant) | "Me mostre a evidência — não me conte a história." |
+| 11 | **Patrícia — Gerente de Qualidade em cliente farma regulado** | N/A (cliente do tenant, exige IQ/OQ/PQ) | "Sem 21 CFR Part 11 e RDC 658/2022 atendidos, não passa pelo meu fornecedor homologado." |
+| 12 | **João-Sênior — Cliente final low-tech (açougue)** | N/A (cliente do tenant) | "Manda no WhatsApp por áudio, fia. Esse negócio de portal eu não mexo." |
+| 13 | **Bruna — Técnica de campo (mulher)** | B / C / D + A in loco | "Refinaria não tem vestiário feminino. Eu calibro com o EPI emprestado." |
+| 14 | **Roldão Sênior 65+ — Dono PME veterano** | A / B / C (5–50 pessoas) | "Letra grande, botão grande, e me explica devagar. Eu compro." |
+
+> **Nota de diversidade (Aud-2):** "dona Roldina existe" — empresa fundada por engenheira química que migrou de cliente final a empresária do setor é caso real (RS, MG, SP); persona Roldão é gender-neutral. Distribuição racial e regional: forte presença NE industrial (Suape/PE, Camaçari/BA, Mossoró/RN) e N (Manaus/ZFM, Belém) em personas operacionais.
 
 ---
 
@@ -37,7 +45,7 @@
 - **Idade típica:** 45–55 anos
 - **Formação típica:** técnica industrial (Senai/Cefet) ou superior incompleto em engenharia/administração; conhecimento de chão de fábrica somado a curso livre de gestão. **Não programa.**
 - **Anos de experiência:** 15–30 anos no setor (geralmente começou como técnico, depois abriu empresa)
-- **Remuneração típica BR:** pró-labore R$ 12k–25k/mês + distribuição de lucros variável. Em empresa pequena (perfil C/D), pode ser R$ 6k–12k. `[a confirmar via entrevista]`
+- **Remuneração típica BR:** pró-labore **R$ 5k–10k em PME 5–15 funcionários (perfil C/D)**; **R$ 12k–25k só em PME 30–50 (perfil A/B)** + distribuição de lucros variável. `[a confirmar via entrevista]`
 - **Localização típica:** interior industrial (Caxias do Sul, Joinville, Campinas, Sorocaba, Sertãozinho, Volta Redonda, Recife, Curitiba) ou periferia metropolitana (ABC paulista, Grande BH, Grande POA). Capital pura é minoria.
 
 ### Contexto de trabalho
@@ -47,17 +55,23 @@
 - **Equipe sob ele:** entre 5 e 50 pessoas — gerente operacional, atendente, 2–8 técnicos, metrologista, financeiro, comercial. Empresa pequena: papéis acumulados (a mesma pessoa é atendente + financeiro).
 - **Perfil de empresa:** opera em **A**, **B** ou **C** (não em D — empresa D dificilmente é o ICP do Aferê porque cabe num ERP genérico de OS).
 
-### Goals
+### O que ele quer
 - **Faturar de forma previsível** — sair da montanha-russa de mês bom / mês ruim por falta de funil organizado.
 - **Não perder acreditação RBC** (se perfil A) ou **conquistar acreditação** (se perfil C migrando para A).
 - **Reduzir dependência operacional dele mesmo** — empresa rodar sem ele estar olhando o tempo todo (bus factor — R-029).
 - **Conhecer custo real de cada OS** — hoje só sabe o faturado, não sabe a margem por instrumento/cliente.
 - **Profissionalizar a imagem da empresa** com cliente — orçamento bonito, certificado padronizado, portal com cara de software sério, não Word de 2003.
 
-### Frustrations
+### JTBDs principais
+JTBD-001 (saber se mês vai fechar no azul), JTBD-004 (não depender de uma pessoa), JTBD-006 (histórico do negócio na mão), JTBD-013 (visão consolidada sem 5 telas), JTBD-039 (saber fluxo 30 dias).
+
+### Dores principais
+D-001 (cadastro digitado 4-6x), D-002 (recalibração esquecida), D-010 (dono sem visão estratégica).
+
+### O que o deixa louco
 - "Mando o orçamento por WhatsApp e o cliente esquece. Não sei quem viu, quem aprovou, quem ficou em dúvida."
 - "Tenho 3 sistemas: Bling pra NFS-e, Cali pro certificado, planilha pra controle de OS. Cada um fala uma língua, e eu digito o mesmo número 4 vezes."
-- "Tô em auditoria Cgcre e o auditor pede 'me mostre o histórico de calibração desse padrão' — vou na planilha, na pasta de PDFs, no e-mail e em 2 cadernos físicos. Ele me olha com cara de pena."
+- "Tô em auditoria Cgcre e o auditor pede 'me mostre o histórico de calibração desse padrão' — vou na planilha, na pasta de PDFs, no e-mail e em 2 cadernos físicos. Ele me olha com cara de pena." (R-018 = risco 018: certificado sem cadeia de rastreabilidade rejeitado por Cgcre)
 - "Técnico volta do campo com a OS no celular dele, em foto, e essa foto pode sumir."
 - "Não consigo tirar férias de 7 dias. Algo trava sem mim."
 - "Cliente cobra: 'cadê o certificado da calibração de janeiro?'. Eu não acho. Mando refazer? Cobro de novo? Quem comeu essa OS?"
@@ -80,6 +94,7 @@
 
 ### O que NÃO funciona hoje (gap específico)
 - **Cali não fala com Bling** — copia-cola entre os dois (R-018 + risco operacional).
+
 - **WhatsApp não tem histórico estruturado de chamado** — atendente abre nova conversa do zero a cada vez; histórico do cliente está espalhado em 5 conversas paralelas.
 - **Bling não tem campo "OS de origem"** numa NFS-e — relação OS↔NFS-e fica no campo "descrição" e no cérebro do Roldão.
 - **Planilha de padrão não alerta vencimento** — Roldão descobre que padrão venceu quando metrologista pergunta "posso usar o paquímetro X?".
@@ -91,7 +106,7 @@
 - "Eu tiro 5 dias de férias e a empresa funciona — porque o gerente operacional vê o mesmo painel e age sem me ligar."
 - "Auditor Cgcre pede histórico, eu clico 2 vezes e mostro tudo encadeado: instrumento → padrão usado → certificado-pai → metrologista → data → assinatura."
 
-### Reluctance / objeções típicas a mudar
+### O que vai resistir a aceitar
 - "Outro sistema pra aprender? Já cansei. Bling foi caro de implantar."
 - "Vou perder os 8 anos de histórico que tem na planilha."
 - "Meu metrologista vai resistir — ele AMA o Cali e não quer mexer."
@@ -124,7 +139,7 @@
 ### Identidade
 - **Nome fictício:** Sandra Oliveira
 - **Idade típica:** 35–50 anos
-- **Formação típica:** engenharia (química, elétrica, mecânica, controle e automação) ou tecnólogo em metrologia (poucos cursos no BR — Cefet-MG, IFRS, IFSC). Pós-graduação em gestão da qualidade é comum.
+- **Formação típica:** caminho dominante é **engenharia química/mecânica/elétrica + pós-graduação em metrologia/qualidade**. Formação técnica BR concentrada em: **IFRJ Volta Redonda, INMETRO/IFF, colégio estadual do PI, EaD nacional IFRJ, cursos livres SBM/CECT**. Tecnólogo em metrologia puro é raro.
 - **Anos de experiência:** 8–20 anos, sendo pelo menos 3–5 em laboratório acreditado
 - **Remuneração típica BR:** R$ 7k–14k/mês CLT em PME; R$ 12k–20k em laboratório acreditado de porte médio. `[a confirmar]`
 - **Localização típica:** mesmo eixo industrial do Roldão (interior SP/RS/SC/MG/PR)
@@ -136,14 +151,20 @@
 - **Equipe:** geralmente 0 subordinados diretos (em PME) — ela é "exército de uma mulher só". Em lab acreditado maior, pode coordenar 2–3 metrologistas + auxiliares.
 - **Perfil dominante:** **A (obrigatório)**. Aparece em B (preparação pra A) e C (formação). Em D, raramente.
 
-### Goals
+### O que ela quer
 - **Manter a acreditação RBC vigente** — nenhuma NC maior em auditoria Cgcre.
-- **Garantir que TODO certificado emitido tenha cadeia de rastreabilidade completa** (INV-002 / NIT-DICLA-030 rev. 15 item 8.2.6).
+- **Garantir que TODO certificado emitido tenha cadeia de rastreabilidade completa** (INV-002 — regra fixa: emissão exige cadeia completa / NIT-DICLA-030 rev. 15 item 8.2.6).
 - **Manter sistema de gestão da qualidade vivo** (cl. 8 da 17025): procedimentos atualizados, NC tratadas, auditorias internas feitas.
 - **Treinar e autorizar pessoal por escopo** (cl. 6.2 + INV-003) com evidência documentada.
 - **Implementar melhoria contínua** (cl. 8.6) — analisar feedback, indicador de tendência, ação corretiva eficaz.
 
-### Frustrations
+### JTBDs principais
+JTBD-002 (não tomar multa nem perder acreditação), JTBD-028 (rastreabilidade automática), JTBD-029 (NC pendente bloqueia emissão), JTBD-032 (gestão de padrões), JTBD-033 (treinar técnico júnior).
+
+### Dores principais
+D-003 (padrão vencido sem perceber), D-007 (certificado sem campo NIT-DICLA-030), D-016 (documentação 17025 só na véspera).
+
+### O que a deixa louca
 - "Eu tenho 47 procedimentos em Word, numa pasta de rede, com versão controlada no nome do arquivo (Proc_17_v3.2_FINAL_REVISADO.docx). É medieval."
 - "Pra mostrar pro auditor a matriz competência × signatário × validade, eu monto uma planilha NA HORA, do zero, na frente dele. Em 2026."
 - "Workflow de NC é WhatsApp + e-mail + planilha. Quando NC é fechada, eu apago a entrada. Aí o auditor pergunta 'me mostre evidência da ação corretiva' e eu suo frio."
@@ -177,7 +198,7 @@
 - "Padrão vencendo dispara alerta + bloqueia automaticamente OS nova com aquele padrão (INV-011)."
 - "Procedimento revisado dispara workflow de aprovação + treinamento + autorização — versão antiga vira read-only com selo 'OBSOLETO'."
 
-### Reluctance / objeções típicas a mudar
+### O que vai resistir a aceitar
 - "Já sofri 2 implantações de software de qualidade. Levou 18 meses e ainda usamos planilha pra metade das coisas."
 - "Cgcre auditou meu Cali em 2024 e aceitou. Se eu trocar, vai gerar NC na próxima auditoria?"
 - "O sistema novo é validado conforme cláusula 7.11? Tem documento de validação que eu posso apresentar?"
@@ -210,7 +231,7 @@
 - **Idade típica:** 22–35 anos
 - **Formação típica:** ensino médio completo + curso técnico (administração, secretariado) ou superior em andamento (administração, comunicação). Eventualmente já trabalhou em call center.
 - **Anos de experiência:** 2–8 anos
-- **Remuneração típica BR:** R$ 1.800–3.200/mês CLT + VR/VT. `[a confirmar]`
+- **Remuneração típica BR:** **R$ 1.910–2.500/mês CLT (CCT regional); até R$ 2.800 com acúmulo SAC/admin em PME maior** (CBO 422105) + VR/VT. `[a confirmar]`
 - **Localização típica:** sempre na sede da empresa, capital ou interior
 
 ### Contexto de trabalho
@@ -220,14 +241,20 @@
 - **Equipe:** geralmente sozinha (PME pequena) ou em equipe de 2–3 (PME maior).
 - **Perfil:** **todos os perfis (A/B/C/D)** — papel universal. Em D pode acumular com financeiro.
 
-### Goals
+### O que ela quer
 - **Atender rápido** — cliente não esperar mais de 2 minutos por resposta no WhatsApp.
 - **Não esquecer follow-up** — chamado sem retorno = cliente perdido.
 - **Abrir OS sem erro de digitação** — endereço errado, instrumento errado, técnico errado custam horas de retrabalho.
 - **Saber onde está cada cliente no funil** (orçamento enviado? aprovado? OS aberta? técnico foi? certificado emitido? cobrança feita?) sem perguntar pra ninguém.
 - **Encerrar o dia com inbox zero** (WhatsApp + e-mail respondidos).
 
-### Frustrations
+### JTBDs principais
+JTBD-015 (identificar cliente em 5s), JTBD-016 (abrir chamado em 1min), JTBD-017 (responder "cadê meu certificado"), JTBD-019 (enviar orçamento na hora), JTBD-020 (não copiar info 3 vezes).
+
+### Dores principais
+D-001 (cadastro digitado 4-6x), D-005 (cliente pergunta status), D-019 (foto de campo ilegível).
+
+### O que a deixa louca
 - "Recebo 200+ mensagens de WhatsApp por dia. Algumas são cliente, algumas são fornecedor, algumas são família. Cliente novo me manda foto da balança quebrada — eu tenho que copiar, colar em e-mail, anexar na planilha de chamado, abrir o número de OS no Excel."
 - "Cliente liga e fala 'soltei a balança da minha açougue mês passado'. Eu pergunto 'qual sua empresa?' — abro 3 sistemas pra achar. Cliente reclama 'mas eu sou cliente há 5 anos'."
 - "Técnico volta do campo, me manda foto da OS preenchida à mão. Tenho que digitar na planilha. Letra ruim, digito errado, gera retrabalho."
@@ -261,7 +288,7 @@
 - "Cliente cobra status, eu vejo na hora: 'técnico Bruno saiu agora há 30 min, ETA 14h30'."
 - "Boleto sai da OS aprovada com 2 cliques — não digito o cliente de novo."
 
-### Reluctance / objeções típicas a mudar
+### O que vai resistir a aceitar
 - "Vou ter que largar meu WhatsApp Business? Cliente já me conhece nesse número."
 - "Vai ser MAIS coisa pra preencher? Não tenho tempo."
 - "E se travar no meio do atendimento — o que eu falo pro cliente?"
@@ -284,12 +311,12 @@
 
 ---
 
-## Persona 4 — Bruno (Técnico de campo)
+## Persona 4 — Bruno dos Santos (Técnico de campo)
 
 > **Contexto:** vai ao cliente executar OS (manutenção e/ou calibração in loco). Trabalha em **balança rodoviária em pátio de usina**, **balança comercial em açougue**, **manômetro em refinaria**, **balança industrial em frigorífico**. **Mobile-first obrigatório** (ADR-0003). Conexão de internet variável (4G ruim em mina, zona rural, dentro de galpão metálico).
 
 ### Identidade
-- **Nome fictício:** Bruno Almeida
+- **Nome fictício:** Bruno dos Santos
 - **Idade típica:** 25–45 anos
 - **Formação típica:** técnico em eletrônica, mecânica, mecatrônica ou metrologia (Senai/Cefet). Muito raramente superior — quase sempre formação técnica + experiência prática.
 - **Anos de experiência:** 3–15 anos
@@ -303,14 +330,20 @@
 - **Equipe:** dupla com auxiliar, ou solo.
 - **Perfil dominante:** **B/C/D** (forte) + **A** quando o lab faz calibração in loco.
 
-### Goals
+### O que ele quer
 - **Fechar OS no mesmo dia da visita** — não voltar pra empresa com OS aberta.
 - **Coletar evidência clara** (foto antes/depois, leitura, número de série) pra metrologista poder emitir certificado depois.
 - **Não preencher papel** — odeia preencher OS em papel carbono.
 - **Saber qual é a próxima OS sem ligar pro gerente** — pega celular, vê a agenda.
 - **Receber sua diária / comissão sem disputa** — registro claro do que executou.
 
-### Frustrations
+### JTBDs principais
+JTBD-021 (saber tudo da próxima OS), JTBD-022 (executar sem internet), JTBD-023 (coletar leitura pelo celular), JTBD-024 (assinatura no celular), JTBD-025 (não voltar pra "encerrar OS").
+
+### Dores principais
+D-005 (status perguntado o tempo todo), D-006 (roteirização no escuro), D-019 (foto/anotação ilegível).
+
+### O que o deixa louco
 - "Tô numa balança rodoviária no pátio de uma usina, debaixo de sol, 39°C, óculos embaçado, sem 4G. O sistema da empresa abre só com internet."
 - "OS chegou no meu WhatsApp como foto de Excel — não tenho onde marcar o que executei. Faço no caderno e digito depois (perdendo info)."
 - "Cliente assina na minha prancheta com caneta — assinatura some no carbono. Aí auditor cobra evidência de aceite e a gente não tem."
@@ -327,8 +360,9 @@
 - **Fim do dia (17h–20h):** chega na empresa, "fecha OS" no Excel (ou manda foto pra Letícia), entrega papelada física se houver, vai embora.
 
 ### Ferramentas que usa HOJE
-- **Celular pessoal (Android, R$ 800–1.500)** — WhatsApp, foto, ligação: **constante** (8h+ tela ligada)
-- **Caderno físico / prancheta com OS impressa** — preenchimento durante visita: **constante**
+- **Caderno físico + prancheta com OS impressa** — preenchimento em **70-80% das visitas** (instrumento principal de coleta): **constante**
+- **Celular pessoal (Android, R$ 800–1.500)** — WhatsApp, foto, ligação (uso universal mas pra foto/comunicação, não pra coleta estruturada): **constante** (8h+ tela ligada)
+- **Tablet corporativo** — **5-10% das visitas apenas** (não é padrão; só em lab maior ou contrato grande)
 - **WhatsApp** — comunicação com Letícia, gerente, cliente: **~2h/dia**
 - **Câmera do celular** — foto do antes/depois, número de série, plaqueta INMETRO: **constante**
 - **Aplicativo do banco** — receber diária via PIX: **~1x/dia**
@@ -348,7 +382,7 @@
 - "Fim do dia, OS fechada automática. Não preciso 'lançar no sistema' chegando em casa."
 - "Vejo minha diária do mês acumulada em tempo real."
 
-### Reluctance / objeções típicas a mudar
+### O que vai resistir a aceitar
 - "Meu celular é simples — vai funcionar?"
 - "Cliente vai aceitar assinar em tela? Tem cliente velho que não confia."
 - "Se travar no meio do cliente, o que faço?"
@@ -373,14 +407,14 @@
 
 ## Persona 5 — Eng. Marcos (Metrologista / signatário técnico)
 
-> **Contexto:** assina o certificado de calibração; em perfil A é **regulado pela ISO/IEC 17025 cl. 6.2 + NIT-DICLA-021** (autorização documentada por escopo, vigência, evidência de competência). Em perfil B/C pode ser informal mas tecnicamente competente. Persona com **maior peso técnico e ego profissional** — defendê-lo cuida do produto.
+> **Contexto:** assina o certificado de calibração; em perfil A é **regulado pela ISO/IEC 17025 cl. 6.2 + NIT-DICLA-016 + DOQ-CGCRE-019** (autorização documentada por escopo, vigência, evidência de competência — NIT-DICLA-021 trata de incerteza, não de signatário). Em perfil B/C pode ser informal mas tecnicamente competente. Persona com **maior peso técnico e ego profissional** — defendê-lo cuida do produto.
 
 ### Identidade
 - **Nome fictício:** Eng. Marcos Cardoso
 - **Idade típica:** 35–55 anos
 - **Formação típica:** engenharia (mecânica, elétrica, química, controle e automação, materiais) ou física. Frequentemente com pós em metrologia (curso INMETRO ou Cefet-MG). Em lab pequeno pode ser técnico sênior com 20+ anos de chão.
 - **Anos de experiência:** 10–30 anos, sendo **mínimo 3 em escopo específico** pra ser autorizado RBC.
-- **Remuneração típica BR:** R$ 8k–18k/mês CLT. Em consultoria, R$ 200–400/h. `[a confirmar]`
+- **Remuneração típica BR:** **R$ 6.500–12.000/mês CLT (PME); até R$ 15k+ em lab acreditado médio-grande** (fonte: CBO 2012-10 + CAGED 2026). Em consultoria, R$ 200–400/h. `[a confirmar]`
 - **Localização típica:** mesmo eixo industrial. Pode trabalhar remoto parcialmente em PJ.
 
 ### Contexto de trabalho
@@ -390,14 +424,20 @@
 - **Equipe:** geralmente sozinho ou com 1 auxiliar de laboratório.
 - **Perfil dominante:** **A (regulado)** e **B (sombra)**. Em C/D existe metrologista informal.
 
-### Goals
+### O que ele quer
 - **Emitir certificado tecnicamente impecável** — número certo, incerteza correta, cadeia rastreada.
 - **Proteger sua autorização como signatário** — não assinar nada fora de escopo (risco profissional + regulatório).
 - **Reduzir tempo de cálculo de incerteza** — hoje gasta 30–60 min por instrumento mais complexo na planilha GUM.
-- **Garantir padrão sempre válido** — não usar padrão com calibração vencida (INV-011).
+- **Garantir padrão sempre válido** — não usar padrão com calibração vencida (INV-011 — regra fixa: padrão vencido bloqueia emissão).
 - **Documentar método com clareza** — evitar ambiguidade na próxima auditoria.
 
-### Frustrations
+### JTBDs principais
+JTBD-027 (cálculo incerteza embutido), JTBD-028 (rastreabilidade automática), JTBD-029 (NC pendente bloqueia), JTBD-030 (assinar digitalmente sem ritual), JTBD-031 (provar validação software).
+
+### Dores principais
+D-003 (padrão com calibração vencida), D-004 (signatário-gargalo), D-007 (cadeia incompleta no certificado).
+
+### O que o deixa louco
 - "Cali calcula incerteza, mas pra instrumento atípico eu tenho que sair pra planilha minha. Aí dou copia-cola do número, o que é fonte de erro."
 - "Cliente quer 'certificado pra ontem'. Eu não posso correr — incerteza precisa ser revisada por segundo caminho (cl. 7.7)."
 - "Auditor pediu evidência de validação do método de calibração de balança industrial — eu tinha em PDF de 2019, ele queria a versão de 2023. Tive que justificar."
@@ -415,7 +455,7 @@
 - **Excel + planilhas próprias de cálculo de incerteza** (GUM) — herdadas, customizadas: **~1h/dia**
 - **Word** — relatório técnico, procedimento, parecer: **~30min/dia**
 - **E-mail** — comunicação técnica com cliente, fornecedor de padrão, par revisor: **~30min/dia**
-- **Instrumento físico** — calibrador documentador, padrão, multímetro, peso-padrão: **constante**
+- **Instrumento físico** — calibrador documentador (**Druck/GE, Additel, Wika** em pressão; **Crystal Engineering** em pressão de precisão; **Time Electronics, Beamex, Fluke, Presys** em elétrica/multifunção), padrão, multímetro, peso-padrão: **constante**
 
 ### O que NÃO funciona hoje (gap específico)
 - **Cali não cobre TODOS os tipos de instrumento com cálculo embutido** — frequentemente Marcos cai em planilha lateral.
@@ -430,12 +470,13 @@
 - "Assinatura ICP-Brasil real (e-CPF A3) integrada — certificado tem hash + carimbo do tempo."
 - "Histórico do instrumento mostra deriva ao longo das calibrações — ajuda recomendar intervalo de recalibração (ILAC G24)."
 
-### Reluctance / objeções típicas a mudar
+### O que vai resistir a aceitar
 - "Vou ter que validar o software novo conforme cl. 7.11. Quem paga essa validação?"
 - "Minha planilha GUM eu sei de cor — não confio em motor de cálculo de terceiro sem auditar."
 - "Cali eu já briguei com a Cgcre e venci. Sistema novo vai gerar NC."
 - "Documento de validação do software (IQ/OQ/PQ) — você tem? Sem isso eu não migro."
 - "Quem é o vendor? Tem RT? Em qual escopo?"
+- **Cali há 5-15 anos, conhece de cor; resistência REAL à mudança (não retórica)** — migração exige plano de mudança organizacional, não só UI melhor. Marcos cresceu junto com a ferramenta e tem orgulho técnico de dominá-la.
 
 ### Frase-chave
 > "Meu CPF assina o certificado. Se tiver número errado, é minha cabeça que vai ser cobrada pelo Inmetro — não a do dono nem a do dev."
@@ -461,11 +502,11 @@
 > **Contexto:** controla contas a pagar/receber, emite NFS-e, faz conciliação bancária, cobra cliente. Em PME pequena pode acumular com Letícia (atendente) ou com o próprio dono. Em perfil A maior, é cargo dedicado. **Tem foco fiscal forte** — vive cutover NFS-e Padrão Nacional 01/09/2026 (R-016).
 
 ### Identidade
-- **Nome fictício:** Cláudia Mendes
+- **Nome fictício:** Cláudia Nascimento
 - **Idade típica:** 30–50 anos
 - **Formação típica:** técnico em contabilidade, superior em ciências contábeis ou administração. Geralmente fez mais cursos livres (Sebrae, Senac) ao longo dos anos.
 - **Anos de experiência:** 5–20 anos, frequentemente em mais de um setor antes (varejo, serviço).
-- **Remuneração típica BR:** R$ 3.500–7.500/mês CLT. Em PME maior com responsabilidade fiscal, R$ 6k–10k. `[a confirmar]`
+- **Remuneração típica BR (2 cenários):** **(a) PME pequena/perfil D-C com Auxiliar Financeiro:** R$ 2.500–4.000 (CBO 413110). **(b) PME média/perfil B-A com Analista Financeiro:** R$ 5.000–8.000 (CBO 252210). `[a confirmar]`
 - **Localização típica:** sede da empresa, capital ou interior.
 
 ### Contexto de trabalho
@@ -475,15 +516,21 @@
 - **Equipe:** geralmente sozinha + contador externo (escritório terceirizado).
 - **Perfil dominante:** **todos** — em D/C mais informal, em A/B mais estruturada.
 
-### Goals
+### O que ela quer
 - **Receber em dia** — DSO (dias de recebimento) baixo; baixar inadimplência.
 - **Emitir NFS-e sem erro** — recusa de prefeitura = retrabalho + cliente irritado.
 - **Conciliar 100% do extrato** — sem "valor não identificado" pendurado.
 - **Fechar mês limpo** — DRE simples confiável pra contador.
 - **Não levar multa de prefeitura** por NFS-e fora do padrão (Padrão Nacional 01/09/2026).
 
-### Frustrations
-- "Bling emite NFS-e, mas pra cada município que tem padrão próprio (SP, Goiânia, Porto Alegre) eu preciso configurar diferente. Já tive recusa silenciosa em SP."
+### JTBDs principais
+JTBD-018 (não cobrar quem já pagou), JTBD-034 (NFS-e do município certo), JTBD-035 (conciliar PIX/boleto), JTBD-036 (cobrar atrasado), JTBD-039 (saber 30 dias adiante).
+
+### Dores principais
+D-008 (conciliação manual), D-009 (cobrança constrangedora), D-017 (cutover NFS-e 09/2026).
+
+### O que a deixa louca
+- "Bling emite NFS-e, mas pra cada município que tem padrão próprio eu preciso configurar diferente. **NFS-e SP tem padrão próprio TSS, e cada atualização da prefeitura quebra a integração — já fiquei 3 dias sem emitir.**"
 - "OS fechada na operação não vira nota automaticamente — preciso pegar lista da Letícia, abrir cliente por cliente no Bling, digitar valor, prazo, descrição."
 - "Cliente pediu boleto, eu emiti no Bling; cliente pagou no PIX direto na conta sem aviso. Eu não fecho o título com o pagamento — fica pendurado 15 dias."
 - "Extrato bancário sai em OFX, mas o software de OS não importa — Excel manual."
@@ -518,7 +565,7 @@
 - "Régua de cobrança automática: D+0 lembrete; D+3 e-mail; D+7 WhatsApp; D+15 escalação."
 - "1 tela: 'estes 8 clientes devem R$ 23k, atraso médio 12 dias'."
 
-### Reluctance / objeções típicas a mudar
+### O que vai resistir a aceitar
 - "Bling eu já implantei. Não vou trocar de novo sem ver retorno claro."
 - "Cutover NFS-e Padrão Nacional é em 09/2026 — não dá pra trocar de sistema agora (R-016)."
 - "Meu contador externo só sabe Bling — ele vai resistir."
@@ -561,14 +608,20 @@
 - **Equipe:** sozinho, ou em equipe de 2–4 vendedores (lab maior).
 - **Perfil dominante:** **B/C/D** (forte) + **A** (orçamento padrão).
 
-### Goals
+### O que ele quer
 - **Bater meta mensal de fechamento** (R$ ou número de propostas aprovadas).
 - **Encurtar ciclo de vendas** — orçamento → aprovação em < 14 dias.
 - **Não perder lead** — todo prospect responder em < 24h.
 - **Conhecer histórico do cliente** antes de visitar (o que ele já comprou, último problema reportado).
 - **Negociar com base em margem real** — saber até onde pode descontar.
 
-### Frustrations
+### JTBDs principais
+JTBD-019 (orçamento na hora pedido), JTBD-040 (qual prospect tem maior chance), JTBD-041 (orçamento profissional), JTBD-043 (calcular comissão sem brigar), JTBD-044 (renovação de contratos recorrentes).
+
+### Dores principais
+D-002 (recalibração esquecida = lead perdido), D-011 (versão de orçamento errada), D-018 (tabela de preço desatualizada).
+
+### O que o deixa louco
 - "Orçamento eu faço em Word, exporto PDF, mando por WhatsApp ou e-mail. Cliente não responde. Não sei se viu."
 - "Pra fazer orçamento eu preciso perguntar pro técnico 'quanto tempo demora calibrar essa balança rodoviária' — espero 2h pela resposta. Cliente já esfriou."
 - "Cliente novo me liga, pede preço de manutenção de balança industrial — eu não tenho tabela; pergunto pro Roldão; ele responde 'cobra X'; cobro X; cliente fecha; outro vendedor cobrou X+30% pro mesmo serviço outro dia. Perdi margem."
@@ -605,7 +658,7 @@
 - "Comissão calculada automaticamente: 'esse mês você vai receber R$ 3.200, baseado nestas 5 OS faturadas'."
 - "Cliente novo entra, sistema marca 'esse cliente é seu' (proteção de carteira)."
 
-### Reluctance / objeções típicas a mudar
+### O que vai resistir a aceitar
 - "Mais 1 sistema pra preencher? Eu mal abro CRM hoje."
 - "Cliente vai receber proposta menos personalizada — vai parecer robô."
 - "E se travar e eu não conseguir mandar proposta na hora?"
@@ -629,7 +682,7 @@
 
 ---
 
-## Persona 8 — João (Cliente final do tenant — quase-persona)
+## Persona 8 — João Eng./qualidade (Cliente final do tenant — quase-persona)
 
 > **Contexto:** **NÃO é usuário do ERP Aferê.** É o **cliente do nosso cliente** (PME que pagou a calibração). Recebe certificado em PDF. Em alguns casos acessa portal do cliente pra baixar histórico. Relevante porque (a) é quem realmente "consome" o produto-fim (certificado), (b) decide se cobra portal do fornecedor, (c) influencia a próxima recompra. **Não desenvolver com a mesma profundidade das 7 anteriores** — é referência pra design do Portal do Cliente (módulo "Atendimento ao cliente" no mapa).
 
@@ -647,13 +700,19 @@
 - **Reporta a:** gerente de qualidade / produção do cliente final.
 - **Perfil:** cliente do tenant — todos os perfis (mas perfil A do tenant tende a atender cliente final mais regulado, ex: farma).
 
-### Goals (do ponto de vista DELE, cliente final)
+### O que ele quer (do ponto de vista DELE, cliente final)
 - **Ter o certificado em mãos quando o auditor (ANVISA, Cgcre, ISO 9001) chegar** — sem caçar em e-mail antigo.
 - **Saber quando próximo instrumento vence** — não levar multa IPEM (R-040) nem rejeição de auditoria.
 - **Receber lembrete de recalibração** com antecedência razoável (60–90 dias) — pra negociar agenda interna.
 - **Pagar o que combinou** — sem surpresa fora do orçamento aprovado.
 
-### Frustrations
+### JTBDs principais
+JTBD-017 (achar certificado quando precisa), JTBD-012 (lembrete de recalibração / verificação IPEM).
+
+### Dores principais
+D-002 (recalibração esquecida pelo lado dele), D-015 (confusão calibração vs verificação INMETRO).
+
+### O que o deixa louco
 - "O certificado da balança do meu açougue veio por e-mail em 2024. Acabei de mudar de notebook. Cadê?"
 - "Eu pago R$ 800 pra calibrar uma balança. Auditor pediu evidência, eu mandei foto da plaqueta. Auditor pediu certificado. Eu fui procurar e demorei 2 dias."
 - "Fornecedor (Roldão) me cobrou 30% a mais do que combinado. Eu não tinha o orçamento aprovado em mãos."
@@ -665,7 +724,7 @@
 - "Entro num portal com meu CNPJ, vejo histórico completo de tudo que o Roldão calibrou pra mim, baixo PDF a qualquer momento."
 - "Vejo cadeia de rastreabilidade clicando 1x — instrumento → padrão → certificado-pai do padrão."
 
-### Reluctance
+### O que vai resistir a aceitar
 - "Mais 1 portal pra logar? Eu tenho 14 portais de fornecedor já."
 - "Não vou ensinar nada novo pro auditor. Continua mandando o PDF."
 
@@ -679,32 +738,512 @@
 
 ---
 
+---
+
+## Persona 9 — Carlos (Motorista da UMC) ⭐ NOVO POR DECISÃO ROLDÃO 17/05/2026
+
+> **Contexto:** dirige a **UMC — Unidade Móvel de Calibração** (caminhão truck/toco 6-12 ton que transporta pesos-padrão pra calibração de balança rodoviária). Persona introduzida a partir da decisão fundadora **Frota + UMC + Caixa do Técnico** (ver `dominio-de-negocio.md` §"Controle de Técnico em Campo, Despesas, Frota e UMC"). Atua exclusivamente em **perfis A e B** (que operam UMC); perfil C/D raramente tem UMC. `[a confirmar via entrevista]`
+
+### Identidade
+- **Nome fictício:** Carlos / Antônio / Sebastião Souza
+- **Idade típica:** 35–60 anos
+- **Formação típica:** ensino fundamental ou médio + **CNH D ou E** + **curso MOPP** (se carga sensível) + experiência prévia em transporte de carga ou ônibus. Exames toxicológicos obrigatórios em dia.
+- **Anos de experiência:** 10–30 anos no volante (raramente menos)
+- **Remuneração típica BR:** **R$ 2.500–4.500/mês CLT + diária de viagem (R$ 80–200/dia) + ajuda de custo de hospedagem/refeição** (CBO 7825). `[a confirmar]`
+- **Localização típica:** mora perto da garagem da UMC (geralmente cidade-sede do lab); **viaja por todo o Brasil** (a UMC atende contratos a 1.500-2.500 km da base; comum atravessar regiões NE/N pra usina, frigorífico, mina, porto).
+
+### Contexto de trabalho
+- **Onde trabalha fisicamente:** **dentro do caminhão UMC** (cabine + boléia) e na operação de descarga/recarga dos pesos-padrão no cliente (com guincho, empilhadeira, ou ajudante).
+- **Horário típico:** sai 4–6h da garagem; dirige 6–10h; espera a calibração 4–12h; volta dirigindo. Pernoite em hotel barato de beira de estrada. Viagem típica: 2–5 dias fora de casa.
+- **Reporta a:** gerente operacional / supervisor de frota / dono.
+- **Equipe:** geralmente solo no caminhão; encontra técnico no cliente (que pode ter ido em carro pequeno separado).
+- **Perfil dominante:** **A e B** (perfis com UMC operante).
+
+### O que ele quer
+- **Dirigir seguro** — chegar inteiro, voltar inteiro.
+- **Não estragar peso-padrão** (R$ 100-300 mil em massas calibradas — perda catastrófica se cair, batida, roubo — risco-novo registrado em `dominio-de-negocio.md`).
+- **Chegar no horário combinado** com o cliente (atraso = técnico parado, cliente irritado).
+- **Prestação de contas rápida** (diária + comprovante de combustível/pedágio/hotel processados sem burocracia).
+- **Documentação em dia** (TAC ANTT, RNTRC, CNH, MOPP, toxicológico — vencimento de qualquer um desses = UMC parada).
+
+### JTBDs principais
+JTBD-022 (executar sem internet — caminhão em estrada perde 4G), JTBD-025 (não voltar pra "encerrar" — prestação de contas no celular), **JTBD-frota-NOVO** (registrar abastecimento + KM + despesa em 1 clique), **JTBD-frota-NOVO-2** (foto de comprovante anexada à viagem). `[IDs definitivos serão criados quando jobs-to-be-done.md for refatorado pra incluir Frota+UMC]`
+
+### Dores principais
+D-005 (status perguntado o tempo todo — gerente liga "cadê o caminhão?"), D-006 (roteirização no escuro — Carlos descobre desvio de obra na BR-364 só quando chega), D-019 (foto/comprovante perdido). **D-NOVO-frota** (caixa do motorista não prestada/não conciliada).
+
+### O que o deixa louco
+- "Estrada ruim — BR-101 NE cheia de buraco; BR-364 N alagada em janeiro; BR-116 quase intransitável em alguns trechos."
+- "Posto de combustível com preço abusivo no meio do nada — sou obrigado a abastecer ou paro o caminhão."
+- "Refeição ruim na rodovia — comi marmita estragada na BR-040, perdi 1 dia de viagem doente."
+- "Fiscal PRF/IPEM parando sem motivo claro — perco 2-3h por blitz; tenho que mostrar TAC, RNTRC, CNH, MOPP, toxicológico, nota da carga (pesos-padrão), DUT do caminhão. Se faltar UM papel é multa + UMC apreendida."
+- "Técnico atrasado pra carregar o caminhão — saio 2h depois do previsto, perco janela de cliente."
+- "Esqueci documento na garagem — RNTRC venceu e eu não vi; quase fui autuado."
+- "Caixa do motorista — gerente cobra 'cadê comprovante do hotel?' e eu mando foto pelo WhatsApp; foto some; eu pago do meu bolso."
+
+### Dia típico
+- **Madrugada (4h–6h):** sai da garagem com caminhão carregado (pesos-padrão + ajudante eventual); confere documentação; abastece se necessário.
+- **Manhã (6h–12h):** dirige 6h direto (com paradas obrigatórias de descanso conforme Lei do Motorista 13.103/2015 — 30 min a cada 5h30 de direção).
+- **Almoço:** restaurante de beira de estrada (1h); foto da nota.
+- **Tarde (13h–17h):** chega no cliente (usina/mina/frigorífico/porto); ajuda técnico a descarregar pesos com guincho/empilhadeira (1-2h); aguarda calibração (4-12h, frequentemente noite adentro).
+- **Pernoite:** hotel barato perto do cliente; foto da nota; jantar simples.
+- **Dia seguinte:** carrega de volta; volta dirigindo (mesma rota, ou desvio se contrato múltiplo); chega na garagem 1-2 dias depois.
+
+### Ferramentas que usa HOJE
+- **Caminhão UMC** — instrumento principal (cabine, hodômetro, painel): **constante**
+- **Waze + Google Maps** — rota e desvios: **constante**
+- **WhatsApp** — pro gerente avisar onde tá ("passei Feira de Santana", "cheguei em Mossoró", "saindo agora"): **~1h/dia**
+- **Câmera do celular** — foto do hodômetro, nota de posto, nota de hotel, nota de pedágio: **~5x/dia**
+- **Papel mesmo** — prestação de contas com envelope de notas físicas entregues à empresa na volta: **constante**
+- **Aplicativo do banco** — receber diária via PIX: **~1x/dia**
+- **Rastreador veicular** — instalado no caminhão (obrigatório por seguro de carga); ele NÃO opera, só é monitorado: **passivo**
+
+### O que NÃO funciona hoje (gap específico)
+- **Caixa do motorista é planilha + envelope** — comprovante físico se perde, valor diverge entre o que Carlos lembra e o que o financeiro registra.
+- **Nenhum dos concorrentes BR (Cali, Metroex, Calibre) tem gestão de frota nem UMC** — gap absoluto confirmado em `concorrentes.md`.
+- **Auvo cobre OS de campo + GPS** mas NÃO tem caixa do motorista, manutenção de frota, vínculo com OS de calibração ISO 17025.
+- **Foto de comprovante pelo WhatsApp** — qualidade ruim, não-OCR, gerente não consegue reembolsar sem digitar tudo.
+- **KM rodado** — Carlos anota no caderno; financeiro retransfere pra planilha; erros frequentes (R$ por KM diverge).
+
+### O que daria sucesso visível pra essa persona
+- "Abro app no celular, vejo 'sua viagem de hoje: garagem → Mossoró/RN, cliente Frigorífico X, 1.450 km, descarregar 12 ton de pesos'."
+- "Abasteço, tiro foto do bico/nota — sistema reconhece valor, KM, posto, lança no caixa da viagem."
+- "Pago hotel R$ 90, foto da nota, sistema lança como hospedagem da viagem XYZ."
+- "Chego na garagem — prestação de contas pronta; financeiro só confere e libera saldo (positivo me devolvem, negativo eu devolvo)."
+- "Documentação vence em 30 dias? Sistema me avisa + avisa gerente."
+
+### O que vai resistir a aceitar
+- "Outro app na minha vida? Já tenho 15 no celular e mal sei usar."
+- "Mais coisa pra preencher — eu dirijo, não sou escritório."
+- "Login com senha complicada — esqueço; MFA com SMS não chega na estrada (sem sinal)."
+- "Se travar no posto e eu não conseguir abastecer porque não registrou — paro a viagem?"
+- "Geolocalização me incomoda — não quero patrão sabendo onde paro pra dormir."
+- "Tela pequena — meu celular é simples (R$ 600)."
+
+### Frase-chave
+> "Eu dirijo, o resto é problema do escritório."
+
+### Variações por perfil de empresa
+- **Perfil A:** UMC dedicada, motorista CLT formal, processo de prestação rigoroso; rastreador veicular obrigatório por contrato (cliente farma/petroquímico exige); auditoria interna de viagens.
+- **Perfil B:** UMC compartilhada com outra função (transporte de instrumento entre lab e cliente); motorista pode acumular com técnico se tiver CNH D.
+- **Perfil C/D:** **raramente tem UMC** — calibração de balança rodoviária é nicho que exige investimento alto (R$ 500k+ em pesos-padrão + caminhão); persona inativa.
+
+### Sinais pra entrevista qualitativa (Onda 2 — fora da empresa Roldão)
+- "Quantas viagens por mês? Quantos km na média?"
+- "Caixa do motorista — como funciona hoje? Quanto te devem agora?"
+- "Última documentação vencida — o que aconteceu?"
+- "Você usa que app no dia a dia? Qual te ajuda mais?"
+- "Geolocalização te incomoda?"
+- "Se eu te der app que faz a prestação de contas no celular — você usa?"
+
+---
+
+## Persona 10 — Auditor Cgcre/IPEM (Reguladores em campo)
+
+> **Contexto:** persona composta — combina **Auditor Cgcre** (avaliação RBC de laboratório acreditado, conforme ABNT NBR ISO/IEC 17011 + NIT-DICLA-031) com **RT IPEM (RBMLQ-I)** (verificação metrológica legal de balança comercial, bomba de combustível, taxímetro, etilômetro). Fluxos distintos mas comportamento e psicologia de fiscalização similares. **NÃO é usuário do ERP Aferê** — é quem o tenant precisa **convencer com evidência**. `[a confirmar via entrevista — possível parceria com associação de signatários ou ex-auditores Cgcre]`
+
+### Identidade
+- **Nome fictício:** Eng. Roberto Mendes (Cgcre) / Eng. Patrícia Lopes (IPEM-SP)
+- **Idade típica:** 40–60 anos
+- **Formação típica:** engenharia (mecânica, elétrica, química) + pós em metrologia/qualidade + treinamento Cgcre/Inmetro. Frequentemente ex-técnico de lab acreditado que virou auditor.
+- **Anos de experiência:** 15–30 anos no setor (mín. 5 como auditor Cgcre); RT IPEM costuma ter 10+ anos no órgão.
+- **Remuneração típica BR:** auditor Cgcre PJ contratado R$ 300-600/h + diária; RT IPEM concursado R$ 8-15k CLT. `[a confirmar]`
+- **Localização típica:** Cgcre tem sede em Xerém/RJ + auditores PJ espalhados pelo BR (avaliam onde o lab está); IPEM é estadual (26 órgãos delegados).
+
+### Contexto de trabalho
+- **Onde trabalha fisicamente:** no laboratório do tenant durante auditoria (1-3 dias presenciais por ciclo).
+- **Horário típico:** comercial — auditoria começa 8h, termina 17h com reunião de fechamento.
+- **Reporta a:** Cgcre/Inmetro central / direção do IPEM estadual.
+- **Equipe:** geralmente sozinho ou em dupla (auditor líder + auditor técnico do escopo).
+
+### O que ele quer
+- **Verificar conformidade com a norma** sem perder tempo procurando evidência.
+- **Coletar evidência objetiva** — não aceitar "a gente faz assim, é confiável" — quer ver registro datado e assinado.
+- **Fechar auditoria com NC bem documentadas** (NC maior, menor, observação) pra justificar parecer.
+- **Não ser enganado** — sistemas que "maquiam" pra auditoria geram NC séria.
+- **Cumprir cronograma** (auditoria de 2 dias não pode virar 4).
+
+### JTBDs principais (do ponto de vista de quem opera o tenant — Sandra/Marcos)
+JTBD-002 (não perder acreditação), JTBD-028 (rastreabilidade automática), JTBD-029 (NC pendente bloqueia emissão), **JTBD-aud-NOVO** (modo auditoria do sistema — 1 clique mostra tudo do período).
+
+### Dores principais (do tenant ao receber este auditor)
+D-007 (cadeia incompleta no certificado), D-016 (documentação 17025 só na véspera). **D-NOVO-aud** (auditor pede evidência que sistema não consegue mostrar de imediato).
+
+### O que ele rejeita (do ponto de vista do auditor)
+- **Evidência não-datada ou retroativa** — "imprimir tudo na véspera" é red flag.
+- **Sistema que permite editar registro sem trilha** — auditor procura `INV-001` (trilha imutável) sem nem saber o nome técnico; se ele duvida, abre NC.
+- **PDF com assinatura-imagem** — não vale como assinatura técnica; precisa ser ICP-Brasil A3 ou equivalente.
+- **Procedimento sem versão controlada** ("Proc_v3_FINAL_REVISADO.docx") — NC menor automática.
+- **Falar mais que mostrar** — auditor desconfia de tenant que apresenta narrativa em vez de evidência.
+
+### Como aceita evidência digital vs física
+- **Aceita digital se:** sistema tem versionamento, timestamp confiável, trilha de auditoria visível, assinatura ICP-Brasil ou hash, possibilidade de exportar relatório auditável.
+- **Aceita físico se:** procedimento impresso com assinatura física datada, organizado em pasta-arquivo com índice.
+- **Híbrido (mais comum em PME):** auditor aceita digital pra registro de calibração + físico pra ata de reunião e procedimento assinado pelo RT.
+
+### Como interage com "modo auditoria" do sistema (feature crítica do Aferê)
+- **Quer:** filtro por período + tipo de instrumento + signatário; export de tudo em 1 PDF; possibilidade de clicar em certificado → ver cadeia até o SI sem trocar de tela.
+- **Não tolera:** sistema que precisa de "exportar relatório customizado" demorado; precisa de "modo somente leitura" pra ele navegar sozinho enquanto Sandra atende outra demanda.
+
+### Frase-chave
+> "Me mostre a evidência — não me conte a história."
+
+### Variações Cgcre vs IPEM
+- **Cgcre (RBC):** foco em sistema de gestão da qualidade + cadeia de rastreabilidade + competência do signatário + cálculo de incerteza. Auditoria de 1-3 dias, ciclo de 4 anos com supervisões.
+- **IPEM (RBMLQ-I):** foco em conformidade legal metrológica (selo INMETRO presente, dentro de prazo, balança/bomba em tolerância). Visita rápida (1-3h), sem agendamento prévio em alguns casos. Multa imediata se irregular.
+
+### Por que essa persona importa pro produto
+- **"Modo auditoria" é feature de venda Tier-1** — sem ela, Sandra (decisora técnica) rejeita o sistema.
+- **R-039 (tenant declarar perfil A sem ser acreditado e emitir falso RBC):** auditor é quem descobre + autua + denuncia ao MP. Sistema precisa impedir tecnicamente antes de chegar nele.
+- **Diferencial competitivo:** se o produto entrega "abre, audita, fecha em 1 dia" vs concorrentes que entregam "auditor leva 3 dias procurando", venda fica fácil.
+
+### Sinais pra entrevista qualitativa (Onda 2 — buscar 2-3 ex-auditores Cgcre ou ex-RT IPEM)
+- "Auditoria que você fez no último ano — o que mais te incomodou no sistema do tenant?"
+- "Software de calibração que você já avaliou — qual é melhor pra auditar? Por quê?"
+- "Que evidência você sempre pede e quase nunca recebe pronta?"
+- "Se o tenant te entregasse 1 PDF com tudo do período — você confia ou desconfia?"
+
+---
+
+## Persona 11 — Patrícia (Gerente de Qualidade em cliente farma regulado)
+
+> **Contexto:** **NÃO é usuária do ERP Aferê.** É **cliente DO TENANT** (compra calibração do lab que usa o Aferê). Trabalha em indústria farma/biotech regulada (ANVISA RDC 658/2022 + GMP + FDA 21 CFR Part 11 se exporta pros EUA). **Decisora de compra do tenant** — manda RFP com 80 perguntas técnicas; pode auditar fornecedor (o lab) presencialmente. **Influenciadora de feature do Aferê** — porque o que ela exige do lab, o lab exige do software. `[a confirmar via entrevista — 1-2 gerentes de qualidade farma]`
+
+### Identidade
+- **Nome fictício:** Patrícia Almeida
+- **Idade típica:** 35–55 anos
+- **Formação típica:** farmácia, química, engenharia química/bioquímica + pós em qualidade/regulamentação farmacêutica + certificações (RAC, RAPS, GMP).
+- **Anos de experiência:** 10–25 anos em farma regulada (laboratório, validação, qualidade).
+- **Remuneração típica BR:** R$ 15-30k/mês CLT em multinacional farma; R$ 10-18k em farma nacional. `[a confirmar]`
+- **Localização típica:** polo farma (Anápolis/GO, Hortolândia/SP, Jaguariúna/SP, Manaus/AM ZFM, Suape/PE, Rio de Janeiro).
+
+### Contexto de trabalho
+- **Onde trabalha fisicamente:** indústria farma (sala de qualidade + sala limpa + bancada de QC).
+- **Horário típico:** comercial estrito; pico em pré-inspeção ANVISA/FDA.
+- **Reporta a:** diretor de qualidade / regulatório / planta.
+- **Equipe:** coordena 3-10 analistas de qualidade + auditores internos.
+
+### O que ela quer (impactando o tenant)
+- **Fornecedor (lab de calibração) homologado** — qualificação inicial + reavaliação anual + auditoria presencial periódica.
+- **Certificado de calibração com IQ/OQ/PQ documentado** quando o instrumento é GxP-crítico.
+- **Cadeia de rastreabilidade rastreável ao SI** — sem isso, instrumento "perde GMP".
+- **21 CFR Part 11 compliance** se o instrumento exporta dado pra sistema validado FDA (electronic records + electronic signatures + audit trail).
+- **RDC 658/2022 atendida** (registros gravados, assinatura eletrônica equivalente, validade legal).
+- **Evidência de competência do signatário** — ela exige o currículo do Marcos antes de aceitar certificado.
+
+### O que ela rejeita (e bloqueia compra)
+- **Lab perfil B/C/D** — não compra de quem não é acreditado RBC.
+- **Certificado em PDF com assinatura-imagem** — rejeita; exige ICP-Brasil A3 ou equivalente.
+- **Software do lab sem documento de validação (cl. 7.11)** — RFP elimina automaticamente.
+- **Vendor do software sem RT registrado / sem ART** — pergunta direta da RFP.
+- **Lab que não aceita auditoria presencial** — elimina.
+- **Falta de cadeia até INMETRO/SI documentada** — elimina.
+
+### JTBDs principais (impacto no Aferê via Sandra/Marcos)
+JTBD-002 (não perder acreditação RBC), JTBD-028 (rastreabilidade automática), JTBD-031 (provar validação do software). **JTBD-NOVO-pharma** (atender RFP de cliente farma com 1 export documentado).
+
+### Dores principais (do tenant em atender Patrícia)
+D-007 (cadeia incompleta no certificado), D-016 (documentação 17025 só na véspera), **D-NOVO-pharma** (RFP de cliente farma exige documento que o lab não tem pronto).
+
+### O que a deixa louca (vendo do lado do cliente farma)
+- "Recebi certificado do meu fornecedor sem o número de série do padrão-pai. Tive que devolver e exigir reemissão. Atrasou validação."
+- "Lab terceirizado mandou PDF com 'assinatura digital' que era imagem do nome do RT. ANVISA rejeitou na pré-inspeção."
+- "Fornecedor de calibração mudou de software no meio do contrato — sem me avisar — e o novo não tinha documento de validação. Tive que requalificar o fornecedor."
+- "Auditei lab presencialmente, pedi 'me mostre o procedimento de validação do método de calibração da minha balança analítica em uso há 2 anos' — RT abriu 3 sistemas e não achou. Abri NC e troquei de fornecedor."
+
+### Como Patrícia interage com o tenant
+1. **Qualificação inicial** (1ª compra): manda RFP com 60-80 perguntas; pede ART, RT registrado, acreditação Cgcre vigente, política de qualidade, último relatório de auditoria interna do lab, certificados-modelo, política de validação de software, evidência de IQ/OQ/PQ do sistema computadorizado.
+2. **Auditoria presencial** (1ª compra + anual): 1 dia no lab; "modo auditoria" do sistema é testado.
+3. **Renovação anual** (questionário curto + amostragem).
+4. **Cada certificado novo:** confere assinatura ICP-Brasil + cadeia + incerteza + signatário autorizado.
+
+### Como ela aceita evidência do software
+- **Documento de validação do software (IQ/OQ/PQ)** assinado pelo vendor com data e versão.
+- **Trilha de auditoria exportável** mostrando quem fez o quê quando.
+- **Assinatura ICP-Brasil A3** no certificado (não imagem; não ICP-Brasil A1).
+- **Cadeia de rastreabilidade clicável** — ela quer ver no portal: instrumento → padrão → certificado-pai → ... → SI.
+
+### Frase-chave
+> "Sem 21 CFR Part 11 e RDC 658/2022 atendidos, não passa pelo meu fornecedor homologado."
+
+### Por que essa persona importa pro produto
+- **Define teto de qualidade** que o Aferê precisa entregar pra Sandra/Marcos atenderem o cliente farma.
+- **Influencia roadmap:** features como "documento de validação do software exportável", "21 CFR Part 11 compliance kit", "ICP-Brasil A3 integrado" nascem dela.
+- **Risco competitivo:** Cali tem cliente farma; se Aferê não atende esse nível, perde mercado A premium.
+
+### Sinais pra entrevista qualitativa (Onda 2 — 1-2 gerentes farma)
+- "Última qualificação de fornecedor de calibração que você fez — o que mais demorou?"
+- "RFP que você manda — quantas perguntas? Qual a mais difícil pro fornecedor responder?"
+- "Lab que você desqualificou — por quê?"
+- "Sistema computadorizado do lab — como você valida?"
+
+---
+
+## Persona 12 — João-Sênior (Cliente final low-tech — açougue)
+
+> **Contexto:** **NÃO é usuário do ERP Aferê.** É variação da quase-persona "João Eng./qualidade" (Persona 8) — mas no extremo oposto do espectro: **cliente final de baixa alfabetização digital**, idoso, dono de pequeno comércio (açougue, padaria, mercadinho de bairro). **Decisor da recompra de calibração** mas **NÃO vai usar Portal do Cliente** — exige fluxo zero-login alternativo (WhatsApp, SMS, e-mail simples). Renomeação implícita: a Persona 8 "João Eng./qualidade" cobre o cliente final corporativo/regulado; **João-Sênior cobre o cliente final pequeno comerciante**. `[a confirmar via entrevista — falar com 3-5 açougueiros/padeiros sobre calibração]`
+
+### Identidade
+- **Nome fictício:** João Pereira (dono do "Açougue do João" no bairro)
+- **Idade típica:** 60–75 anos
+- **Formação típica:** ensino fundamental incompleto ou completo; aprendeu o ofício na prática.
+- **Anos de experiência:** 30-50 anos no comércio.
+- **Remuneração típica BR:** retira do caixa do açougue R$ 4-8k/mês (rendimento variável); patrimônio em imóvel.
+- **Localização típica:** bairro periférico ou cidade do interior; capital também (açougue de bairro).
+
+### Contexto de trabalho
+- **Onde trabalha fisicamente:** balcão do açougue; câmara fria; pequena salinha de fundo onde fica o computador (raramente usado).
+- **Horário típico:** abre 7h, fecha 19h, segunda a sábado.
+- **Reporta a:** ele mesmo (dono).
+- **Equipe:** 1-3 funcionários (esposa/filho/funcionário fixo).
+
+### O que ele quer
+- **Não levar multa do IPEM** — verificação metrológica anual da balança comercial (INMETRO Portaria 157/2022) precisa estar em dia. Multa pode ser R$ 800-3.000.
+- **Pagar pouco pela calibração/verificação** — sensível a preço; troca de fornecedor por R$ 50 de diferença.
+- **Resolver no WhatsApp** — não baixa app, não acessa portal, não cria senha.
+- **Receber lembrete antes do vencimento** — esquece datas; já levou multa por isso.
+- **Confiar no fornecedor** — relação de anos, "fia, vai lá e faz".
+
+### O que ele rejeita
+- **Portal do cliente com login + senha + MFA** — desiste antes de tentar.
+- **E-mail formal** — abre 1x por semana, perde.
+- **App pra baixar** — celular dele é simples (R$ 600, Android 6 ou Whatsapp-only); memória cheia.
+- **PDF complicado** — não consegue baixar; pede pro filho ou pro técnico do fornecedor.
+
+### JTBDs principais (impacto no Aferê pelo lado do tenant)
+JTBD-012 (lembrete de recalibração / verificação IPEM), JTBD-017 (achar certificado quando precisa). **JTBD-NOVO-low-tech** (receber certificado por WhatsApp sem precisar de app/portal).
+
+### Dores principais (do tenant em atender João-Sênior)
+D-002 (recalibração esquecida), D-015 (confusão calibração vs verificação INMETRO), **D-NOVO-low-tech** (cliente final não usa portal — comunicação só por WhatsApp/SMS, o que sobrecarrega a Letícia).
+
+### O que o deixa louco
+- "Esqueci da verificação da balança. IPEM veio, multou R$ 1.200. Pago em 3x e tô puto."
+- "Mandaram PDF do certificado no meu e-mail. Não sei abrir, não sei imprimir. Fui no Casas Bahia pedir pra imprimir."
+- "Filho me mostrou portal — pediram pra eu fazer senha. Eu desisti. Liguei pro fornecedor."
+- "Fornecedor mudou e o novo não me lembrou da próxima verificação. Levei multa de novo."
+
+### Como ele interage com o tenant
+- **Canal único:** WhatsApp do fornecedor (PJ ou pessoal do Roldão / Letícia).
+- **Lembrete:** áudio de WhatsApp ("seu Roldão, dia 15 venço a balança, marca?") ou ligação.
+- **Recebe certificado:** WhatsApp como imagem JPG (não PDF — JPG ele vê na hora) ou impresso entregue na mão pelo técnico.
+- **Paga:** PIX (aprendeu na pandemia) ou dinheiro pro técnico no ato.
+
+### Frase-chave
+> "Manda no WhatsApp por áudio, fia. Esse negócio de portal eu não mexo."
+
+### Por que essa persona importa pro produto
+- **Define o piso de UX do canal externo** — se sistema só oferece portal, perde toda essa fatia (estimada em 30-50% dos clientes finais de balança comercial em bairro).
+- **Implica feature obrigatória:** **WhatsApp Business API** integrada ao sistema do tenant, com fluxo "envio de certificado como imagem + áudio de lembrete + confirmação por reply 'OK'".
+- **Mitigação de R-040** (cliente final esquece verificação periódica e culpa o software do tenant): lembrete proativo via canal que ele usa.
+- **Diferencial vs Cali/Metroex** (que só têm portal web tradicional): tenant que serve João-Sênior fica preso ao Aferê.
+
+### Sinais pra entrevista qualitativa (Onda 2 — 3-5 donos de comércio pequeno)
+- "Última vez que precisou de calibração — como soube?"
+- "Você acessa portal de fornecedor?"
+- "Certificado em PDF — você baixa e guarda? Como?"
+- "Lembrete da próxima verificação IPEM — chega como?"
+
+---
+
+## Persona 13 — Bruna (Técnica de campo mulher)
+
+> **Contexto:** variação da Persona 4 (Bruno dos Santos). **Mesma faixa salarial, mesmas atribuições, mesmas ferramentas**, mas com pautas adicionais de gênero e segurança que o sistema deve contemplar. Reflete crescimento real (~5-15% em RS/SP/MG segundo CAGED 2025 setor metrologia/calibração; números mais altos em farma e alimentos). `[a confirmar via entrevista — 2-3 técnicas mulheres em lab de calibração]`
+
+### Identidade
+- **Nome fictício:** Bruna Soares
+- **Idade típica:** 25–45 anos
+- **Formação típica:** mesma do Bruno — técnico em eletrônica, mecânica, mecatrônica ou metrologia (Senai/Cefet/IFs). Alguns casos de superior em engenharia (mais comum em farma e alimentos).
+- **Anos de experiência:** 3–15 anos.
+- **Remuneração típica BR:** **mesma do Bruno** — R$ 2.500–5.500/mês CLT + diária + comissão; sênior R$ 5-8k. **Gap salarial observado em campo:** 5-12% a menos pra mulher em mesma função (CAGED 2025; mitigação via política interna do tenant). `[a confirmar]`
+- **Localização típica:** mesmo eixo industrial; **concentração em RS/SP/MG/farma de Anápolis-GO**.
+
+### Contexto de trabalho — pautas extras vs Bruno
+- **Mesmo trabalho de campo** (balança rodoviária, manômetro em refinaria, balança em frigorífico) com **considerações adicionais**:
+  - **Vestiário feminino** raramente disponível em refinaria, mina, frigorífico antigo, usina sucroenergética — Bruna troca roupa no carro, banheiro improvisado, ou usa o masculino com "guarda" de colega.
+  - **EPI feminino** (botina, capacete, óculos, luva, macacão) ainda não é padrão em todo cliente — Bruna recebe EPI masculino que não veste bem, atrapalha agilidade e segurança.
+  - **Segurança em campo:** evitar entrar sozinha em obra/cliente com ambiente machista; dupla sempre que possível; check-in com gerente a cada chegada.
+  - **Gestante temporária:** restrição de calibração em ambiente de risco químico (refinaria, farma com solvente, frigorífico com amônia); precisa de **alocação alternativa por 9 meses + puerpério** — sistema deve permitir flag de restrição temporária no perfil do técnico.
+
+### O que ela quer (além do que Bruno quer)
+- **Vestiário e EPI adequados** declarados pelo cliente ANTES de ela aceitar a OS.
+- **Dupla técnica** em cliente novo/inseguro (sistema sugere par automaticamente).
+- **Possibilidade de recusar OS** em cliente com histórico de assédio (sistema permite flag confidencial).
+- **Status "gestante" no perfil** (oculto pra cliente, visível pra gerente) que recalibra automaticamente roteiros pra ambientes seguros.
+- **Equilíbrio jornada/maternidade** — folga sexta com filho doente, sem disputa.
+
+### JTBDs principais
+Mesmos do Bruno: JTBD-021 (saber tudo da próxima OS), JTBD-022 (executar offline), JTBD-023 (coletar leitura pelo celular), JTBD-024 (assinatura no celular), JTBD-025 (não voltar pra "encerrar OS"). **JTBD-NOVO-bruna** (perfil do técnico declara restrições temporárias — gestante, lesão, EPI especial).
+
+### Dores principais
+D-005, D-006, D-019 (compartilhadas com Bruno). **D-NOVO-bruna** (sistema não modela restrições temporárias / segurança de gênero em campo).
+
+### O que a deixa louca (além das dores do Bruno)
+- "Refinaria não tem vestiário feminino. Eu calibro com o EPI emprestado de um cara que tem o pé 4 números maior."
+- "Frigorífico antigo só tem 1 banheiro misto na entrada — fila de 30 funcionários homens. Eu seguro 8h."
+- "Cliente novo no interior — fui sozinha, o gerente flertou o tempo todo, ambiente péssimo. Avisei o Roldão; ele falou 'aguenta, contrato é grande'."
+- "Engravidei e tive que sair da operação de campo por 9 meses — sistema não tem como marcar 'restrição temporária', minhas OS continuaram caindo pra mim, gerente esquecia."
+- "Volto da licença, sou alocada em OS de bancada interna por 3 meses — sem aviso, sem combinado."
+
+### Como o sistema deve responder (features específicas)
+- **Perfil do técnico com campos:** restrições temporárias (gestante, lesão, retorno gradual), EPI especial necessário, preferência por dupla.
+- **Cadastro do cliente final:** marcar "vestiário feminino disponível?", "EPI feminino disponível?", "histórico de incidente de segurança?" — sistema bloqueia atribuição de OS pra Bruna em cliente sem condições mínimas, ou alerta o gerente.
+- **Modo "dupla obrigatória"** — checkbox por OS / por cliente.
+- **Flag confidencial "não enviar"** — Bruna pode marcar cliente como "recusado" sem ter que justificar pra gerente homem.
+
+### Frase-chave
+> "Refinaria não tem vestiário feminino. Eu calibro com o EPI emprestado."
+
+### Variações por perfil de empresa
+- **Perfil A em farma/alimentos:** ambiente mais favorável (cliente já tem EPI feminino, vestiário, política DEI); Bruna mais presente.
+- **Perfil B/C/D:** ambiente inconsistente; Bruna mais rara mas crescendo.
+- **Refinaria/petroquímica/mina:** ainda muito masculino; Bruna minoritária; pautas de segurança críticas.
+
+### Sinais pra entrevista qualitativa (Onda 2 — 2-3 técnicas)
+- "Última vez que você não teve vestiário no cliente — o que fez?"
+- "Cliente onde você se sentiu insegura — como sinalizou pro gerente?"
+- "EPI feminino — quem fornece, lab ou cliente?"
+- "Sistema do seu lab atual modela alguma restrição temporária?"
+- "Se eu te der app que sinaliza 'esse cliente tem vestiário' — você usa?"
+
+---
+
+## Persona 14 — Roldão Sênior 65+ (Dono PME veterano)
+
+> **Contexto:** variação da Persona 1 (Roldão principal). **Dono que abriu a empresa nos anos 80-90 e nunca passou pra filho**, mantém-se no comando aos 65+. **Decisor de compra** mas com necessidades de acessibilidade marcantes — óculos bifocal, dificuldade com formulário longo, baixa familiaridade com SaaS moderno. **Crítico pra UX:** se o sistema não funcionar pra ele, ele não compra (e bloqueia compra de qualquer concorrente também). `[a confirmar via entrevista — 2-3 donos PME 65+ do setor]`
+
+### Identidade
+- **Nome fictício:** Roldão Mendes Sênior (Sr. Roldão pros funcionários)
+- **Idade típica:** 65–78 anos
+- **Formação típica:** técnico em eletrônica ou mecânica (Senai dos anos 70-80) + cursos livres ao longo de 40 anos de operação. Frequentemente não tem ensino superior; conhecimento técnico profundo construído na prática.
+- **Anos de experiência:** **35–55 anos** no setor (abriu empresa nos anos 80-90; era técnico antes).
+- **Remuneração típica BR:** pró-labore + distribuição de lucros — varia muito; em PME consolidada R$ 15-30k/mês equivalente; patrimônio em imóvel + maquinário.
+- **Localização típica:** mesmo eixo industrial do Roldão principal — interior consolidado (Caxias do Sul, Joinville, Sorocaba, Volta Redonda).
+
+### Contexto de trabalho
+- **Onde trabalha fisicamente:** sala dele com computador desktop (não usa notebook), monitor grande (24"), teclado/mouse físicos.
+- **Horário típico:** comercial mais curto (8h–17h); às vezes só meio período; nunca mais "plantão emocional 24/7" como o Roldão principal — delega WhatsApp ao filho ou ao gerente.
+- **Reporta a:** ele mesmo + esposa/sócia.
+- **Equipe:** 10-50 funcionários; estrutura mais formalizada que o Roldão principal.
+
+### O que ele quer (igual ao Roldão principal + extras de acessibilidade)
+- **Igual ao Roldão principal:** faturar previsível, não perder acreditação, reduzir dependência operacional, conhecer custo real, profissionalizar imagem.
+- **Extras desta persona:**
+  - **Fonte grande** — sistema com texto < 12pt ele não consegue ler com o óculos bifocal.
+  - **Botões grandes e bem espaçados** — toque preciso é difícil; clique acidental frequente.
+  - **Fluxo curto e linear** — formulário com 30 campos em 5 abas ele abandona; prefere wizard de 3 telas.
+  - **Suporte por telefone humano** — não suporta "abra ticket no portal"; quer voz.
+  - **Sistema que "lembra" dele** — esqueceu senha 4x essa semana; quer login simples ou biométrico no desktop.
+
+### O que ele rejeita
+- **Tela carregada de informação** (dashboard com 20 KPIs).
+- **Ícones sem rótulo** (texto sob ícone é regra).
+- **Modal/popup que aparece sem aviso**.
+- **Cor como único indicador** (daltonismo masculino comum + visão deteriorada).
+- **Treinamento online de 4h** — abandona em 30 min; prefere visita presencial.
+- **Preço acima de R$ 800/mês** — sensível; valor de SaaS ainda é desconfiável.
+
+### JTBDs principais
+Mesmos do Roldão principal: JTBD-001 (saber se mês vai fechar no azul), JTBD-004 (não depender de uma pessoa), JTBD-006 (histórico do negócio na mão), JTBD-013 (visão consolidada), JTBD-039 (saber fluxo 30 dias). **JTBD-NOVO-sênior** (fluxo zero-fricção pra dono que não vai virar power user).
+
+### Dores principais
+D-001, D-002, D-010 (compartilhadas com Roldão principal). **D-NOVO-sênior** (sistema moderno desenhado pra geração Z é hostil pra dono 65+).
+
+### O que o deixa louco
+- "Esse sistema novo tá em letra miúda — preciso aumentar o navegador. Quando aumento, layout quebra."
+- "Tem 7 botões em cima e eu não sei qual usar. Antes tinha 1 botão grande 'Calibrar'."
+- "Esqueci senha de novo. Pedi nova; chegou no e-mail; demoro 10 min pra abrir Gmail; perdi o link."
+- "Filho me mostrou — 'arrasta pra cima, clica nos 3 pontinhos'. Eu não enxergo os 3 pontinhos."
+- "Suporte por chat — eu prefiro telefone. Voz humana resolve."
+
+### Como o sistema deve responder (features específicas — INV-016 WCAG)
+- **Fonte escalonável até 200%** sem quebra de layout (responsive type).
+- **Contraste forte** (mínimo WCAG 2.1 AA — relação 4.5:1 pra texto normal).
+- **Modo de alto contraste** + tema claro tradicional (Roldão Sênior não gosta de dark mode).
+- **Botões mín. 44x44px** (recomendado 60x60 pra essa persona).
+- **Wizards lineares** com "voltar/avançar" claro (não SPA com 30 abas).
+- **Login biométrico** desktop (Windows Hello) ou cookie persistente.
+- **Suporte por telefone** humano em horário comercial (não só chat).
+
+### Frase-chave
+> "Letra grande, botão grande, e me explica devagar. Eu compro."
+
+### Por que essa persona importa pro produto
+- **Define o piso de acessibilidade** que o Aferê deve garantir (INV-016 WCAG 2.1 AA + Lei 13.146/2015 LBI).
+- **Mercado real:** ~20-30% dos donos PME do setor calibração no BR têm 60+ anos (estimativa CAGED dono de CNAE 7120-1/00); fatia não-trivial.
+- **Risco competitivo:** Cali e concorrentes têm UI dos anos 2010 — pesada, ícones sem rótulo, fluxos longos. Aferê pode liderar em "ERP-pra-dono-veterano" se priorizar acessibilidade.
+
+### Sinais pra entrevista qualitativa (Onda 2 — 2-3 donos PME 60+)
+- "Sistema que você usa hoje — o que mais te incomoda na tela?"
+- "Já desistiu de algum software por causa de letra/botão pequeno?"
+- "Suporte: telefone, chat, ticket — qual você prefere?"
+- "Se filho/neto te ajudar com SaaS — o quê ele faz mais?"
+- "Treinamento online ou presencial — qual funciona pra você?"
+
+---
+
+## 2.5 Acessibilidade por persona (WCAG 2.1 AA + Lei 13.146/2015 + INV-016)
+
+> **Adição Aud-2 (17/05/2026):** acessibilidade não é "feature extra" — é requisito legal (Lei Brasileira de Inclusão 13.146/2015) + invariante de produto (**INV-016** — sistema deve atender WCAG 2.1 nível AA, ver `normas-e-regulacao.md`). Cada persona tem necessidade específica que o design DEVE contemplar; ignorar = excluir parte do mercado + exposição a ação judicial LGPD/MP-Consumidor.
+
+| Persona | Necessidade prioritária de acessibilidade | Feature obrigatória do produto |
+|---|---|---|
+| **Bruno (técnico campo)** | Tela legível sob sol forte (outdoor 5.000+ lux); precisão de toque com luva/dedo molhado/sujo; uso em rotação retrato/paisagem | **Contraste forte** (relação ≥ 7:1 modo outdoor), **target size ≥ 48x48px**, **rotação automática**, modo "alto brilho" toggleável |
+| **Cláudia (financeiro)** | Trabalho prolongado de tela (8h/dia); fadiga ocular; atalhos pra ganhar produtividade | **Modo escuro/claro/auto**, **atalhos de teclado** pra ações repetitivas (Tab navigation completa), redimensionamento de fonte |
+| **Marcos (metrologista)** | Daltonismo masculino comum (~8% pop. masculina BR — deuteranopia/protanopia) | **Cor NUNCA como indicador único** (ex: status de calibração não pode ser só "verde/amarelo/vermelho" — precisa ícone + texto), paleta dalton-safe |
+| **Letícia (atendente)** | Multitarefa pesada com áudio (telefone + WhatsApp áudio); ruído ambiente | **Controle de áudio** em notificações, **transcrição automática** de áudio do WhatsApp (integração); legendas em vídeo |
+| **Bruno + Bruna (técnicos)** | Trabalho com EPI (luva/capacete/óculos de proteção); destreza fina reduzida | Target size ≥ 60x60px no app mobile; **comando de voz** pra "OK", "próximo", "anexar foto" |
+| **João-Sênior (cliente final low-tech)** | Baixa alfabetização digital + idade; aversão a portal/senha | **Fluxo zero-login alternativo** (WhatsApp Business API + SMS + e-mail simples); certificado entregue como imagem JPG, não só PDF |
+| **Roldão Sênior 65+ (dono veterano)** | Visão presbiopia + dificuldade motora fina + baixa familiaridade SaaS | **Fonte escalonável até 200%** sem quebra de layout; **contraste forte AA mín / AAA recomendado**; **botões ≥ 44x44px** (60x60 ideal); wizards lineares (não SPA); login biométrico desktop |
+| **Carlos (motorista UMC)** | Mobile simplíssimo na cabine do caminhão (1 mão livre); offline na estrada; tela suja de combustível/poeira | **Mobile simplíssimo**, target size 60x60px, **comando de voz** pra confirmar "OK / abasteci R$ X / cheguei", funciona offline 100%, sincroniza ao ter sinal |
+| **Sandra (RT qualidade)** | Trabalho com leitor de tela eventual (acessibilidade pra auditor que pode ter deficiência); modo auditoria | **Compatibilidade leitor de tela** (NVDA/JAWS) em todas as telas; navegação por teclado completa; semântica HTML correta |
+| **Patrícia (cliente farma)** | Acessibilidade de portal do cliente em ambiente regulado (21 CFR Part 11 + RDC 658/2022 também exigem usabilidade) | Portal cliente WCAG 2.1 AA; exportações PDF/A acessíveis (estrutura semântica preservada) |
+| **Auditor Cgcre/IPEM** | Pode ter qualquer condição (presbita, daltônica, etc.); precisa navegar sistema do tenant que não é dele | "Modo auditoria" simplificado + acessível por padrão |
+| **Rogério (vendedor)** | Uso em carro (não dirigindo) entre visitas; multitarefa | App mobile responsive; modo offline pra ver pipeline sem internet |
+| **Roldão principal (dono)** | Uso em desktop + mobile alternado; pouca paciência com fricção | Atalhos + dashboard configurável + onboarding incremental (não bombardear no dia 1) |
+| **Bruna (técnica mulher)** | Compartilha necessidades do Bruno + perfil com flag confidencial visível só pra gerente | Privacidade UI (campo "restrição temporária" oculto pra cliente) |
+
+**Referências normativas:**
+- **Lei 13.146/2015** (Lei Brasileira de Inclusão — LBI): art. 63 — acessibilidade de sítios eletrônicos é obrigação legal pra empresas com sede ou representação no BR.
+- **WCAG 2.1 nível AA** (W3C, recomendação 2018) — padrão técnico universalmente aceito.
+- **WCAG 2.2** (W3C, recomendação 2023) — incrementos opcionais (Aferê pode mirar AA da 2.2 como meta v2).
+- **INV-016 (novo)** — invariante de produto: sistema atende WCAG 2.1 AA em **todas as telas críticas** (auth, dashboard, OS, certificado, portal cliente, mobile do técnico). Ver `normas-e-regulacao.md` (pendente: aplicar INV-016 lá).
+- **eMAG 3.1** (Modelo de Acessibilidade em Governo Eletrônico) — referência adicional pro mercado público (se Aferê quiser atender lab acreditado de universidade federal / órgão público).
+
+**Conexão com R-NOVO-acessibilidade:** Aferê processado por MP-Consumidor ou ação coletiva por violação de Lei 13.146/2015 — risco real, especialmente se cliente farma/hospital depende do produto e funcionário com deficiência visual não consegue operar.
+
+---
+
 ## 3. Síntese cruzada
 
 ### 3.1 Quem usa quais módulos do mapa de domínios
 
-| Módulo (do `dominio-de-negocio.md`) | Roldão | Sandra | Letícia | Bruno | Marcos | Cláudia | Rogério |
-|---|---|---|---|---|---|---|---|
-| CRM | ◐ olha relatório | — | ◐ atualiza ficha | — | — | — | ● principal |
-| Orçamentos | ◐ aprova preço | — | ◐ envia | — | — | — | ● principal |
-| Chamados/OS | ◐ olha dashboard | — | ● principal | ● executa | — | — | ◐ inicia |
-| Agenda do técnico | ◐ aprova | — | ● cria | ● consome | — | — | — |
-| Mobile do técnico | — | — | — | ● principal | — | — | — |
-| Estoque/peças | ◐ aprova compra | — | — | ◐ consome | — | ◐ controla | — |
-| Calibração (execução) | — | ◐ supervisiona | — | ◐ executa em campo | ● principal (lab) | — | — |
-| Padrões/rastreabilidade | — | ● principal | — | — | ● consome | — | — |
-| Garantia de validade (cartas controle) | — | ● principal | — | — | ● gera dado | — | — |
-| Metrologia Legal (IPEM) | ◐ alerta cliente | ◐ procedimento | ● alerta vencimento | ◐ executa | — | — | ◐ vende renovação |
-| NFS-e / NF-e | ◐ aprova faturamento | — | — | — | — | ● principal | — |
-| Contas a pagar/receber | ◐ aprova pagamento | — | — | — | — | ● principal | — |
-| Conciliação bancária | — | — | — | — | — | ● principal | — |
-| Cobrança | ◐ escalonamento | — | ◐ cobra cliente conhecido | — | — | ● principal | ◐ informalmente |
-| RBAC / configurações tenant | ● principal | ◐ aprova mudança regra qualidade | — | — | — | — | — |
-| Gestão de competências/autorização | — | ● principal | — | — | ● objeto autorizado | — | — |
-| Conformidade/NC | — | ● principal | — | ◐ reporta NC de campo | ◐ reporta NC técnica | — | — |
-| Portal do cliente final | — | — | ◐ orienta cliente a usar | — | — | — | ◐ vende como diferencial |
+> **Nota:** tabela atualizada 17/05/2026 com personas 9-14. Personas externas (não usuárias diretas do ERP, mas que **interagem com o sistema via canal externo OU exigem features específicas**) também aparecem na matriz pra clareza de design.
 
-**Legenda:** ● = usuário principal; ◐ = usuário secundário; — = não usa.
+| Módulo (do `dominio-de-negocio.md`) | Roldão | Sandra | Letícia | Bruno | Marcos | Cláudia | Rogério | Carlos (motorista) | Auditor Cgcre/IPEM | Patrícia (farma) | João-Sênior | Bruna | Roldão Sênior |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| CRM | ◐ relatório | — | ◐ ficha | — | — | — | ● principal | — | — | ◐ recebe RFP | — | — | ◐ relatório |
+| Orçamentos | ◐ aprova preço | — | ◐ envia | — | — | — | ● principal | — | — | ◐ recebe | — | — | ◐ aprova |
+| Chamados/OS | ◐ dashboard | — | ● principal | ● executa | — | — | ◐ inicia | ◐ consome viagem | — | — | — | ● executa | ◐ dashboard |
+| Agenda do técnico | ◐ aprova | — | ● cria | ● consome | — | — | — | ◐ consome | — | — | — | ● consome | ◐ aprova |
+| Mobile do técnico | — | — | — | ● principal | — | — | — | — | — | — | — | ● principal | — |
+| **Frota + UMC** (NOVO) | ◐ aprova compras | — | — | ◐ usa carro | — | ◐ custo | — | ● principal UMC | — | — | — | ◐ usa carro | ◐ aprova |
+| **Caixa do técnico/motorista** (NOVO) | ◐ aprova | — | — | ● principal | — | ● concilia | — | ● principal | — | — | — | ● principal | ◐ aprova |
+| Estoque/peças | ◐ aprova compra | — | — | ◐ consome | — | ◐ controla | — | — | — | — | — | ◐ consome | ◐ aprova |
+| Calibração (execução) | — | ◐ supervisiona | — | ◐ campo | ● lab | — | — | — | ◐ audita | ◐ recebe certif. | ◐ recebe certif. | ◐ campo | — |
+| Padrões/rastreabilidade | — | ● principal | — | — | ● consome | — | — | ◐ transporta | ● audita | ● exige | — | — | — |
+| Garantia validade (cartas) | — | ● principal | — | — | ● gera dado | — | — | — | ● audita | ◐ exige | — | — | — |
+| Metrologia Legal (IPEM) | ◐ alerta cliente | ◐ proced. | ● alerta venc. | ◐ executa | — | — | ◐ vende renov. | — | ● audita (IPEM) | — | ● recebe verif. | ◐ executa | ◐ alerta |
+| NFS-e / NF-e | ◐ aprova fat. | — | — | — | — | ● principal | — | — | — | ◐ recebe | ◐ recebe img | — | ◐ aprova |
+| Contas a pagar/receber | ◐ aprova pgto | — | — | — | — | ● principal | — | — | — | — | — | — | ◐ aprova |
+| Conciliação bancária | — | — | — | — | — | ● principal | — | — | — | — | — | — | — |
+| Cobrança | ◐ escalonamento | — | ◐ cliente conhec. | — | — | ● principal | ◐ informal | — | — | — | ◐ alvo WhatsApp | — | ◐ escalonam. |
+| RBAC / config tenant | ● principal | ◐ aprova regra | — | — | — | — | — | — | — | — | — | — | ● principal |
+| Gestão competências/autorização | — | ● principal | — | — | ● objeto autoriz. | — | — | ◐ doc motorista | ● audita | ◐ exige | — | ● objeto autoriz. | — |
+| Conformidade/NC | — | ● principal | — | ◐ reporta campo | ◐ reporta técn. | — | — | ◐ reporta viagem | ● audita | ◐ exige report | — | ◐ reporta campo | — |
+| Portal do cliente final | — | — | ◐ orienta uso | — | — | — | ◐ vende diferenc. | — | — | ● usuário principal | **NÃO usa** (canal WhatsApp/SMS) | — | — |
+| **Acessibilidade (transversal — INV-016)** | ● beneficiário | ● beneficiária | ● beneficiária | ● contraste outdoor | ● cor não-única | ● escuro/atalhos | ● mobile carro | ● simplíssimo+voz | ● leitor tela | ● portal AA | ● zero-login | ● privacidade UI | ● fonte 200%+botão grande |
+
+**Legenda:** ● = usuário/beneficiário principal; ◐ = usuário/beneficiário secundário; — = não usa / não se aplica.
 
 ### 3.2 Quem é signatário em cada perfil
 
@@ -726,24 +1265,28 @@
 
 | Persona | Papel na compra |
 |---|---|
-| **Roldão** | **Decisor final** (assina contrato, paga) |
+| **Roldão** (ou **Roldão Sênior 65+**) | **Decisor final** (assina contrato, paga). Roldão Sênior tem **veto adicional de acessibilidade** — se UI não funciona pra ele, ele recusa por experiência própria |
 | **Sandra** | **Veto técnico** (perfil A) — se diz "não valida cl. 7.11", Roldão não compra |
 | **Marcos** | **Veto técnico** (perfil A) — se diz "não confio no cálculo de incerteza", Roldão não compra |
+| **Patrícia (cliente farma)** | **Veto externo** — se ela rejeita o lab que usa Aferê em RFP, Roldão perde contrato; influencia roadmap (21 CFR Part 11, IQ/OQ/PQ) |
 | **Cláudia** | **Influenciadora forte** — se diz "vai parar minha NFS-e no dia 5", Roldão adia |
 | **Letícia** | **Usuária diária crítica** — adoção dela faz ou desfaz |
-| **Bruno** | **Usuária diária crítica em campo** — se app travar, todos param |
+| **Bruno + Bruna** | **Usuários diários críticos em campo** — se app travar, todos param |
+| **Carlos (motorista UMC)** | **Usuário operacional** (em tenant A/B com UMC) — se prestação de contas frustrar, motorista sabota uso, frota fica sem controle |
+| **Auditor Cgcre/IPEM** | **Veto externo regulatório** — auditoria que dá NC maior por causa do sistema = Roldão troca de sistema imediatamente |
+| **João Eng. / João-Sênior** (cliente final) | **Influenciador retentivo** — bom portal/canal externo = cliente final feliz = Roldão renova SaaS; canal ruim = Roldão troca |
 | **Rogério** | **Influenciador moderado** — se ajuda comissão, ele vira advogado interno |
 
-**Implicação:** demo de venda precisa endereçar **Roldão (visão dono) + Sandra/Marcos (técnico) + Cláudia (fiscal)** em paralelo. Vender só pro Roldão e cair no veto técnico do Marcos é fracasso recorrente do mercado (Cali entendeu isso e tem demo "técnica" separada).
+**Implicação:** demo de venda precisa endereçar **Roldão (visão dono) + Sandra/Marcos (técnico) + Cláudia (fiscal) + Patrícia (cliente farma quando aplicável)** em paralelo. Vender só pro Roldão e cair no veto técnico do Marcos é fracasso recorrente do mercado (Cali entendeu isso e tem demo "técnica" separada). Vender pra perfil A sem responder Patrícia (cliente farma) = perda de mercado premium.
 
 ### 3.5 Quem é mais relevante por perfil de empresa
 
 | Perfil | Personas mais ativas | Personas inativas / acumuladas |
 |---|---|---|
-| **A (acreditado RBC)** | Roldão + Sandra + Marcos + Cláudia + Rogério + Letícia + Bruno (todas dedicadas) | — |
-| **B (rastreável)** | Roldão (acumula Sandra), Marcos (informal), Letícia, Bruno, Cláudia, Rogério | Sandra inexiste como cargo formal |
-| **C (em preparação)** | Roldão (acumula Sandra + Marcos + Cláudia), Letícia, Bruno, Rogério | Sandra e Marcos formais inexistem |
-| **D (comercial)** | Roldão (acumula quase tudo), Letícia, Bruno | Sandra, Marcos não existem |
+| **A (acreditado RBC)** | Roldão (ou Roldão Sênior) + Sandra + Marcos + Cláudia + Rogério + Letícia + Bruno + Bruna + **Carlos (se opera UMC)**; **Auditor Cgcre** entra periodicamente; **Patrícia** (cliente farma) influencia compra | — |
+| **B (rastreável)** | Roldão (acumula Sandra), Marcos (informal), Letícia, Bruno+Bruna, Cláudia, Rogério, **Carlos (raro — só se opera UMC)**; **Auditor IPEM** entra se atende balança comercial; **João-Sênior** comum no mix de clientes finais | Sandra inexiste como cargo formal |
+| **C (em preparação)** | Roldão (acumula Sandra + Marcos + Cláudia), Letícia, Bruno+Bruna, Rogério; **João-Sênior** dominante em clientes finais | Sandra e Marcos formais inexistem; Carlos/UMC quase nunca |
+| **D (comercial)** | Roldão (acumula quase tudo), Letícia, Bruno+Bruna; **João-Sênior** dominante em clientes finais | Sandra, Marcos, Carlos não existem; Patrícia (farma) não compra deste perfil |
 
 ---
 
@@ -752,8 +1295,8 @@
 ### 4.1 Validação via entrevistas qualitativas
 
 - **Onda 1 (Roldão como sujeito):** validar persona 1 (Roldão) com profundidade. Usar `treinamento-entrevista-roldao.md` como guia.
-- **Onda 2 (5–10 empresas externas):** entrevistar 1–2 representantes por persona (especialmente Sandra, Marcos, Letícia, Bruno) em outras empresas — mitigação obrigatória de **R-001 (founder is customer)** e **R-004 (TAM ridículo)**.
-- **Mínimo aceitável antes de "personas v1.0":** 2 entrevistas por persona em empresas que NÃO são a do Roldão.
+- **Onda 2 (5–10 empresas externas):** entrevistar 1–2 representantes por persona (especialmente Sandra, Marcos, Letícia, Bruno+Bruna, **Carlos motorista UMC**, **Auditor Cgcre/IPEM ex-funcionário**, **Patrícia farma**, **João-Sênior açougueiro**, **Roldão Sênior 65+**) em outras empresas — mitigação obrigatória de **R-001 (founder is customer)** e **R-004 (TAM ridículo)**.
+- **Mínimo aceitável antes de "personas v1.0":** 2 entrevistas por persona em empresas que NÃO são a do Roldão. Para as 6 personas novas (9-14), mínimo aceitável é **1 entrevista cada** na primeira passada (orçamento de discovery limitado), com meta de chegar a 2 antes de virar input pra UI/feature.
 
 ### 4.2 Refinamento iterativo
 
