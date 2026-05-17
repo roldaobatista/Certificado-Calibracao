@@ -147,6 +147,80 @@ Errar a fronteira entre esses ciclos (ex: emitir certificado sem fechar OS, ou f
 
 ---
 
+## Perfis de empresa (setup do tenant) ⭐ DECISÃO FUNDADORA DO PRODUTO
+
+> **Registrado em 16/05/2026** (decisão Roldão). Esta é decisão estrutural do produto, NÃO opcional. O setup do tenant DEVE pedir o perfil; o sistema ativa/desativa regras (invariantes) com base nele. Implica também que **algumas invariantes deixam de ser absolutas** e viram **condicionais ao perfil**.
+
+### Os 4 perfis de empresa
+
+| ID | Perfil | Selo do certificado | Padrões usados | Regras 17025 | Mercado típico |
+|---|---|---|---|---|---|
+| **A** | **Acreditada ISO/IEC 17025 + RBC** | Marca combinada Cgcre + ILAC MRA (RBC) | Padrões calibrados RBC ou rastreáveis ao SI | **Todas as invariantes ATIVAS e não-editáveis** — auditoria Cgcre exige | Lab acreditado pra emitir certificado válido pra cliente farma/automotivo/aeroespacial regulado |
+| **B** | **Não-acreditada, com padrões RBC** | Sem selo RBC; **"Certificado de calibração rastreável ao RBC"** com declaração explícita de rastreabilidade | Padrões calibrados RBC (com certificado-pai válido) | Invariantes de **rastreabilidade ATIVAS e não-editáveis** (cadeia, padrão vencido, incerteza); demais opcionais | Empresa que quer credibilidade técnica sem investir em acreditação completa |
+| **C** | **Quer trabalhar no padrão ISO pra futura homologação** | Configurável: pode emitir "Certificado rastreável ao RBC" ou "Certificado de calibração interno" | Padrões rastreados (RBC ou outros) | **Todas as invariantes ATIVAS por padrão, MAS editáveis** — funciona como trilha de evolução: empresa começa em C com algumas regras relaxadas e vai endurecendo conforme amadurece. **Ao migrar pra A, todas viram ativas e não-editáveis automaticamente** | Lab em preparação pra acreditação Cgcre (período típico: 12-24 meses) |
+| **D** | **Calibração comercial básica** (nem ISO 17025 nem padrões RBC) | "Certificado de aferição" (NUNCA "calibração rastreável ao RBC" — proibido pelo INMETRO se não houver rastreabilidade) | Padrões próprios ou de origem variada | **Invariantes desativadas ou editáveis** (exceto integridade de dados e auditoria); sistema imita ERP "leve" de OS de manutenção | Assistência técnica que faz "calibração de balança" sem pretensão metrológica formal |
+
+### Por que esses 4 perfis
+
+- **A maioria dos concorrentes (Cali, Metroex, Calibre) atende só perfil A.** Eles assumem que o cliente é lab acreditado. Quem não é fica usando planilha + Word.
+- **Perfis B, C e D são o GAP REAL não atendido.** É grande parte das empresas BR de assistência técnica que ainda quer profissionalizar mas não consegue (ou não quer) entrar na 17025.
+- **Perfil C é diferencial competitivo único:** software como **trilha de evolução** pra acreditação. Cliente entra simples, vai apertando regras conforme prepara documentação. Migração final pra perfil A é só virar um flag.
+- **Sem distinguir perfis, o sistema vira "OU rigoroso demais pra D OU frouxo demais pra A".** Os dois extremos perdem.
+
+### Regras e travas configuráveis (perfis B, C, D)
+
+- **Sempre absolutas (não-editáveis em nenhum perfil):**
+  - INV-001 (trilha de auditoria imutável)
+  - INV-008 (logs de acesso ≥6 meses)
+  - INV-009 (MFA pra acesso ao CDE quando aplicável)
+  - INV-013 (confidencialidade cláusula 4.2 com log de visualização)
+  - **INV-015 (NOVO) — Tenant não emite certificado de tipo superior ao perfil declarado** (perfil B não emite com selo RBC; perfil D não declara rastreabilidade)
+- **Absolutas em perfil A e B (não-editáveis); editáveis em C e D:**
+  - INV-002 (cadeia de rastreabilidade)
+  - INV-011 (padrão vencido bloqueia emissão)
+  - INV-014 (certificado externo sem incerteza bloqueia)
+- **Absolutas em perfil A (não-editáveis); recomendadas/editáveis em B, C, D:**
+  - INV-003 (signatário por escopo)
+  - INV-004a/b/c (validação de software)
+  - INV-010 (retenção 17025)
+  - INV-012 (workflow NC bloqueia emissão)
+- **Sempre configuráveis (todos os perfis podem ligar/desligar):**
+  - Pesquisa de satisfação automática, alerta de validade, formato de PDF, idioma do certificado
+
+### Implicações pra arquitetura
+
+- Setup do tenant tem step obrigatório "qual o perfil da sua empresa?" com explicação de cada um.
+- Perfil é **mutável** (cliente pode migrar C→A quando se acreditar) mas **com auditoria** (todas as mudanças ficam no log).
+- **Modelo do certificado depende do perfil:** templates A e B têm campos obrigatórios diferentes (B obrigatoriamente exibe declaração "RASTREÁVEL AO RBC, mas SEM acreditação Cgcre"); template D não menciona RBC.
+- **Risco regulatório novo (R-039):** tenant declarar perfil A sem ter acreditação real e emitir certificado com selo RBC falso = fraude. Sistema precisa pedir prova documental no upgrade pra perfil A.
+
+---
+
+## Tipos de balança calibrada (escopo confirmado)
+
+> **Confirmado pelo Roldão (16/05/2026):** o produto cobre **TODOS os tipos de balança**. Resolve D-aud-7: **Metrologia Legal ENTRA no MVP** (pelo menos pra balança comercial e rodoviária).
+
+| Tipo | Onde se usa | Regulamentação dominante | Implicação pro produto |
+|---|---|---|---|
+| **Balança comercial** | Açougue, padaria, supermercado, feira, varejo em geral | **INMETRO Portaria 157/2022** (substitui Portaria 236/1994 — verificação metrológica legal via IPEM/RBMLQ-I; selo INMETRO obrigatório) | Sistema precisa de calendário de **verificação periódica** (anual via IPEM) + emissão de "atestado de verificação" complementar à calibração |
+| **Balança industrial** | Linha de produção, dosadora, pesagem em lote | Geralmente **rastreabilidade ao SI** via padrões RBC; opcional acreditação ISO 17025 | Calibração + cálculo de incerteza em múltiplos pontos da faixa; pode emitir certificado RBC se cliente quiser |
+| **Balança rodoviária** | Pesagem de caminhão (postos fiscais, pedágio, mina, usina, frigorífico) | **INMETRO Portaria 102/2017** (rodoviária) + DNIT (fiscalização) + INMETRO Portaria 157/2022 | Calibração com cargas-padrão grandes (100kg a 30 ton); logística pesada; certificado pode ter implicação tributária (peso de carga = ICMS) |
+| **Balança de processo / dosadora** | Química, farma, alimentos, cosmética | **Anvisa RDC 658/2022** (BPF) + ISO 17025 + IQ/OQ/PQ pra farma | Calibração + validação do sistema computadorizado da balança (FDA 21 CFR Part 11 quando exporta pra cliente farma EUA) |
+| **Balança analítica / semi-analítica** | Laboratório (química, farma, P&D) | **Resolução RDC ANVISA** + ISO 17025 + EURACHEM/CITAC (incerteza) | Faixa de pesagem pequena (mg-g); incerteza expandida exigida; calibração em vários pontos |
+| **Balança de bancada** | Geral (oficina, loja, lab interno) | Variável conforme uso | Mais simples; perfil D ou C costuma servir |
+| **Balança contadora de peças** | Logística, almoxarifado | Variável; geralmente sem regulação específica | Calibração de pesagem + verificação da função de contagem |
+| **Balança de gancho / suspensa** | Movimentação de carga, frigorífico | Pode ter regulamentação setorial (ex: MAPA pra frigorífico) | Calibração com células de carga; cuidado com segurança operacional |
+| **Balança plataforma** | Indústria, logística | Similar à industrial | Faixa média (até 1-3 ton) |
+| **Outros instrumentos correlatos** (frequentes em assistência técnica) | Manômetros, termômetros, termo-higrômetros, paquímetros, micrômetros, multímetros, células de carga | Variável por grandeza | O produto deve modelar instrumento genérico, não só balança |
+
+### Implicação pro mapa de domínios
+
+- **Domínio "Metrologia Legal"** foi adicionado no v5 anterior — **agora confirmado como MVP-1 obrigatório**, com base no escopo "balança comercial + rodoviária".
+- **Sub-domínio "Verificação periódica"** dentro de Metrologia Legal: agenda de verificação INMETRO/IPEM por estado, geração de aviso ao cliente com 60-90 dias de antecedência, integração com layout de comunicação IPEM se houver.
+- **Domínio "Estoque e Suprimentos"** (já adicionado) atende peças de reposição (célula de carga, mostrador, fonte, cabo, indicador).
+
+---
+
 ## Mapa preliminar de domínios → módulos prováveis (entrada pra `faseamento-modulos.md` e `sintese-final.md`)
 
 > **Bordas a confirmar nas entrevistas** (Onda 1+2). Este mapa não fixa N nem ordem — só lista os candidatos identificáveis pela observação do setor.

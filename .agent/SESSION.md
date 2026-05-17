@@ -29,7 +29,15 @@
 6. ✅ `docs/governanca/auditoria-decisoes-autonomas.md` — entrada nova com auditoria + correções aplicadas + 9 decisões pendentes pro Roldão.
 
 ### Próximo passo lógico
-**✅ Todas as 9 decisões da auditoria foram aceitas pelo Roldão e aplicadas em 16/05/2026.** Resumo do que mudou:
+**✅ Todas as 9 decisões da auditoria + decisão fundadora de perfis aplicadas em 16/05/2026.**
+
+**Decisão fundadora nova (pós-auditoria):**
+- **4 perfis de empresa no setup do tenant** (A acreditada / B com padrão RBC / C em preparação / D comercial básica) com regras configuráveis/absolutas por perfil
+- **Tipos de balança calibrada** mapeados (comercial, industrial, rodoviária, processos, analítica, etc.) — confirma Metrologia Legal no MVP
+- **INV-015 novo** — separa os perfis (bloqueio de emissão de tipo superior ao perfil declarado)
+- **R-039 + R-040 novos** — fraude por perfil declarado + verificação INMETRO vencida
+
+Resumo das outras 9 decisões aplicadas:
 - D-aud-1: pricing R$ 500-1.000 com 1 mês grátis (era R$ 300)
 - D-aud-2: 3 fichas novas (TOTVS Protheus + Qualyteam + SAP B1)
 - D-aud-3+4: 14 invariantes (era 10); INV-004 dividido em a/b/c; INV-007 movido pra ADR; INV-010 a INV-014 novos

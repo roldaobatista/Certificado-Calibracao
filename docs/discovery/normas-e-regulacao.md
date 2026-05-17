@@ -288,28 +288,29 @@ Endpoints **devem ser obtidos do Portal Nacional** (www.nfe.fazenda.gov.br → S
 
 ## 8. Próximos passos (entrada pra `REGRAS-INEGOCIAVEIS.md` e backlog)
 
-### 8.1 Invariantes a criar (de produto/sistema) — atualizada pós-auditoria
+### 8.1 Invariantes a criar (de produto/sistema) — atualizada pós-auditoria + perfis
 
-> **Versão pós-auditoria (16/05/2026 — Auditor 2):** invariante #4 quebrado em 3 sub-regras testáveis; invariante #7 movido pra ADR de arquitetura (não é regra de conformidade); invariantes #11-#15 adicionados pra fechar lacunas críticas. Total agora: **14 invariantes** numerados.
+> **Versão pós-auditoria + decisão de perfis (16/05/2026 — Auditor 2 + Roldão):** invariante #4 quebrado em 3 sub-regras testáveis; invariante #7 movido pra ADR; invariantes #11-#15 adicionados; **INV-015 novo (perfil de empresa)**; coluna "Escopo por perfil" adicionada porque algumas invariantes deixam de ser absolutas e viram condicionais ao perfil declarado no setup (A/B/C/D — ver `dominio-de-negocio.md` §Perfis de empresa). Total: **15 invariantes**.
 
-| # | Invariante | Base normativa | Como vira hook |
-|---|---|---|---|
-| **INV-001** | Trilha de auditoria imutável (`quem, quando, antes, depois`) com hash encadeado, em toda operação que toca certificado de calibração ou documento fiscal | 17025 cl. 7.11 + 8.4 + Marco Civil art. 15 + LGPD art. 37 | Banco com WORM + hash em append-only |
-| **INV-002** | Toda emissão de certificado grava cadeia de rastreabilidade completa (instrumento → padrão → certificado do padrão → incerteza). Sem cadeia, emissão bloqueia | NIT-DICLA-030 rev. 15 item 8.2.6 + 17025 cl. 6.5 | Pre-commit hook na emissão |
-| **INV-003** | Signatário só assina dentro do **escopo de autorização vigente na data da assinatura** | 17025 cl. 6.2 + NIT-DICLA-021 | Validação no momento de assinar; congelar autorização vigente |
-| **INV-004a** | Nenhum deploy em produção sem aprovação documentada do responsável técnico do laboratório | 17025 cl. 7.11 | CI bloqueia merge/deploy sem registro |
-| **INV-004b** | Toda alteração em rotina de cálculo de incerteza requer revalidação registrada | 17025 cl. 7.11 + EA-4/02 | Hook detecta mudança em arquivos da rotina; bloqueia merge |
-| **INV-004c** | A versão do software fica gravada em cada certificado emitido | 17025 cl. 7.11 + boa prática (recall) | Campo obrigatório no template do certificado |
-| **INV-005** | Comunicação de incidente LGPD em ≤3 dias úteis (ANPD + titular) + registro de TODOS incidentes por ≥5 anos. ATPP tem prazo dobrado | Res. CD/ANPD 15/2024 art. 6º, 9º, 10 | Workflow obrigatório no painel de incidente |
-| **INV-006** | DPO publicado no site (identidade + contato em local de destaque) + canal de titular funcional. ATPP dispensado de DPO mas mantém canal | Res. CD/ANPD 18/2024 | Validação no setup do tenant |
-| **INV-007** | NF-e: arquitetura preparada pra SVC-AN/SVC-RS desde dia 0 (não como contingência tardia) | NT 2013/007 + boa prática | Cliente sem SVC configurado: deploy de NF-e bloqueado |
-| **INV-008** | Logs de acesso à aplicação retidos por ≥6 meses (recomendado 12 meses) com sigilo | Marco Civil art. 15 | Política de retenção no banco de logs |
-| **INV-009** | MFA pra usuários com acesso ao CDE (Cardholder Data Environment) — não só admins | PCI 4.0.1 (expansão) | Validação no login |
-| **INV-010** | Registros 17025 com retenção ≥ ciclo de calibração do cliente + 1 ciclo (tipicamente 5–25 anos) | 17025 cl. 8.4 | Política de retenção por tipo de registro; LGPD base "obrigação legal" |
-| **INV-011** | Emissão de certificado bloqueia se padrão usado tem calibração vencida | 17025 cl. 6.5 + 7.2 | Pre-commit hook na emissão |
-| **INV-012** | Workflow de Não Conformidade (cl. 7.10 + 8.7) com bloqueio de emissão até resolução documentada | 17025 cl. 7.10 + 8.7 | NC aberta no instrumento → bloqueio na emissão |
-| **INV-013** | Confidencialidade cl. 4.2: acesso a dados de cliente do laboratório só com permissão explícita + log de toda visualização (incluindo admins) | 17025 cl. 4.2 | RBAC + audit trail visualização |
-| **INV-014** | Aceitação de certificado de calibração de padrão externo bloqueada se omitir resultado de medição + incerteza | NIT-DICLA-030 rev. 15 item 8.2.6 | Validação no cadastro de padrão |
+| # | Invariante | Base normativa | Como vira hook | Escopo por perfil |
+|---|---|---|---|---|
+| **INV-001** | Trilha de auditoria imutável (`quem, quando, antes, depois`) com hash encadeado, em toda operação que toca certificado de calibração ou documento fiscal | 17025 cl. 7.11 + 8.4 + Marco Civil art. 15 + LGPD art. 37 | Banco com WORM + hash em append-only | **Absoluta (todos perfis)** |
+| **INV-002** | Toda emissão de certificado grava cadeia de rastreabilidade completa (instrumento → padrão → certificado do padrão → incerteza). Sem cadeia, emissão bloqueia | NIT-DICLA-030 rev. 15 item 8.2.6 + 17025 cl. 6.5 | Pre-commit hook na emissão | **Absoluta em A e B; editável em C e D** |
+| **INV-003** | Signatário só assina dentro do **escopo de autorização vigente na data da assinatura** | 17025 cl. 6.2 + NIT-DICLA-021 | Validação no momento de assinar; congelar autorização vigente | **Absoluta em A; recomendada em B, C, D** |
+| **INV-004a** | Nenhum deploy em produção sem aprovação documentada do responsável técnico do laboratório | 17025 cl. 7.11 | CI bloqueia merge/deploy sem registro | **Absoluta em A; recomendada em B, C, D** |
+| **INV-004b** | Toda alteração em rotina de cálculo de incerteza requer revalidação registrada | 17025 cl. 7.11 + EA-4/02 | Hook detecta mudança em arquivos da rotina; bloqueia merge | **Absoluta em A; recomendada em B, C, D** |
+| **INV-004c** | A versão do software fica gravada em cada certificado emitido | 17025 cl. 7.11 + boa prática (recall) | Campo obrigatório no template do certificado | **Absoluta (todos perfis)** |
+| **INV-005** | Comunicação de incidente LGPD em ≤3 dias úteis (ANPD + titular) + registro de TODOS incidentes por ≥5 anos. ATPP tem prazo dobrado | Res. CD/ANPD 15/2024 art. 6º, 9º, 10 | Workflow obrigatório no painel de incidente | **Absoluta (todos perfis)** |
+| **INV-006** | DPO publicado no site (identidade + contato em local de destaque) + canal de titular funcional. ATPP dispensado de DPO mas mantém canal | Res. CD/ANPD 18/2024 | Validação no setup do tenant | **Absoluta (todos perfis)** |
+| **INV-007** | NF-e: arquitetura preparada pra SVC-AN/SVC-RS desde dia 0 (não como contingência tardia) | NT 2013/007 + boa prática | Cliente sem SVC configurado: deploy de NF-e bloqueado | **Absoluta (todos perfis)** |
+| **INV-008** | Logs de acesso à aplicação retidos por ≥6 meses (recomendado 12 meses) com sigilo | Marco Civil art. 15 | Política de retenção no banco de logs | **Absoluta (todos perfis)** |
+| **INV-009** | MFA pra usuários com acesso ao CDE (Cardholder Data Environment) — não só admins | PCI 4.0.1 (expansão) | Validação no login | **Absoluta quando PCI aplica** |
+| **INV-010** | Registros 17025 com retenção ≥ ciclo de calibração do cliente + 1 ciclo (tipicamente 5–25 anos) | 17025 cl. 8.4 | Política de retenção por tipo de registro; LGPD base "obrigação legal" | **Absoluta em A; recomendada em B, C, D** |
+| **INV-011** | Emissão de certificado bloqueia se padrão usado tem calibração vencida | 17025 cl. 6.5 + 7.2 | Pre-commit hook na emissão | **Absoluta em A e B; editável em C e D** |
+| **INV-012** | Workflow de Não Conformidade (cl. 7.10 + 8.7) com bloqueio de emissão até resolução documentada | 17025 cl. 7.10 + 8.7 | NC aberta no instrumento → bloqueio na emissão | **Absoluta em A; recomendada em B, C, D** |
+| **INV-013** | Confidencialidade cl. 4.2: acesso a dados de cliente do laboratório só com permissão explícita + log de toda visualização (incluindo admins) | 17025 cl. 4.2 | RBAC + audit trail visualização | **Absoluta (todos perfis)** |
+| **INV-014** | Aceitação de certificado de calibração de padrão externo bloqueada se omitir resultado de medição + incerteza | NIT-DICLA-030 rev. 15 item 8.2.6 | Validação no cadastro de padrão | **Absoluta em A e B; editável em C e D** |
+| **INV-015** ⭐ | **Tenant não pode emitir certificado de tipo superior ao perfil declarado.** Perfil B/C/D não pode emitir com selo RBC; perfil D não pode emitir declarando "rastreável ao RBC" se não tem padrão RBC. Upgrade de perfil exige prova documental | INMETRO + LGPD + CDC (proteção do cliente final contra fraude) | Validação no momento de gerar PDF do certificado + no upgrade de perfil | **Absoluta (todos perfis)** — esse é o invariante que SEPARA os perfis |
 
 **Movido pra ADR (não é invariante):**
 - ~~Invariante #7 — NFS-e via BaaS único~~ → **ADR fiscal** (decisão de arquitetura, não regra de conformidade). Risco de amarrar produto a fornecedor sem análise custo/SLA.

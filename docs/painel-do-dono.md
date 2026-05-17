@@ -35,9 +35,25 @@
 | **D-aud-4** | Invariante #7 (BaaS) movido pra ADR fiscal; INV-010 a INV-014 adicionados | ✅ aplicado em `normas-e-regulacao.md` §8.1 (total 14 invariantes) |
 | **D-aud-5** | Domínio Metrologia subdividido em 3 (Execução / Padrões / Garantia) | ✅ aplicado em `dominio-de-negocio.md` §Mapa |
 | **D-aud-6** | "Gestão de Competências e Autorizações" promovido pra MVP-1 obrigatório | ✅ aplicado em `dominio-de-negocio.md` §Mapa |
-| **D-aud-7** | Metrologia Legal (IPEMs, balanças, bombas) adicionado como domínio novo | ✅ aplicado em `dominio-de-negocio.md` §Mapa (confirmar se está no escopo do MVP nas entrevistas) |
+| **D-aud-7** | Metrologia Legal (IPEMs, balanças, bombas) adicionado como domínio novo | ✅ **CONFIRMADO NO MVP** — Roldão confirmou em 16/05/2026 que calibra TODOS os tipos de balança (comercial, industrial, rodoviária, processos), portanto Metrologia Legal entra obrigatoriamente |
 | **D-aud-8** | IDs de risco padronizados pra R-001..R-038 (38 riscos consolidados) | ✅ aplicado em `riscos.md` + `concorrentes.md` §7 |
 | **D-aud-9** | ADR-0000 (Uso de IA) criada com 5 princípios fundadores | ✅ aplicado em `docs/adr/0000-uso-de-ia.md` |
+
+### 🆕 Decisão fundadora de produto (16/05/2026)
+
+**Perfis de empresa no setup do tenant** — Roldão definiu que o sistema precisa suportar **4 perfis** distintos:
+- **A** — Acreditada ISO 17025 + RBC (selo Cgcre + ILAC MRA)
+- **B** — Não-acreditada, mas usa padrões RBC (certificado "rastreável ao RBC")
+- **C** — Quer migrar pra ISO/acreditação no futuro (regras editáveis, trilha de evolução)
+- **D** — Calibração comercial básica (sem rastreabilidade RBC)
+
+Aplicado em `dominio-de-negocio.md` §Perfis de empresa + `normas-e-regulacao.md` §8.1 (invariantes ganharam coluna "Escopo por perfil"; INV-015 novo bloqueia emissão de certificado de tipo superior ao perfil declarado).
+
+**Tipos de balança calibrada** — comercial, industrial, rodoviária, processos, analítica, bancada, contadora, gancho, plataforma + outros instrumentos (manômetro, termômetro, paquímetro etc.). Confirmou Metrologia Legal no MVP.
+
+**2 riscos novos:**
+- **R-039** — Tenant declara perfil A sem acreditação real (fraude; score 15)
+- **R-040** — Verificação INMETRO vencida em balança comercial (score 12)
 
 ### Decisões anteriores que continuam pendentes
 

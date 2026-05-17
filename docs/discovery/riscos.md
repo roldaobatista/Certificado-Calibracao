@@ -69,6 +69,8 @@
 | **R-036** | TOTVS lança vertical de calibração via SIGAMNT/SIGAQMT melhorado | Mercado | 2 | 4 | **8** | Profundidade técnica RBC + UX moderna SaaS que TOTVS Protheus não consegue replicar | Roldão | concorrentes (era RC-07) |
 | **R-037** | CGCRE muda paradigma pra acreditação baseada em riscos | Mercado/Regulatório | 3 | 3 | **9** | Modelar audit trail extensível ao novo modelo desde dia 0; acompanhar discussões CGCRE | Auditor Conformidade | concorrentes (era RC-08) |
 | **R-038** | INMETRO/CGCRE oferece plataforma estatal grátis pra labs acreditados | Mercado | 1 | 5 | **5** | Sem ação ativa; gatilho seria comunicado oficial | Roldão | concorrentes (era RC-09) |
+| **R-039** ⭐ | **Tenant declara perfil A (ISO 17025 acreditado) sem ter acreditação Cgcre real e emite certificados com selo RBC falso.** Fraude regulatória. Roldão (como vendor do SaaS) pode responder solidariamente | Jurídico/Regulatório | 3 | 5 | **15** | INV-015 (bloqueio por perfil); upgrade pra perfil A exige prova documental (certificado Cgcre + escopo de acreditação); revisão periódica automática consultando portal Cgcre (web scraping ou API se houver); cláusula contratual de responsabilização do tenant | Auditor Conformidade | decisão Roldão perfis 16/05/2026 |
+| **R-040** | **Balança comercial calibrada pelo tenant tem verificação INMETRO/IPEM vencida** (perfil de uso comercial) e mesmo assim cliente final usa pra cobrar. Lacre INMETRO vence anualmente; calibração interna não substitui verificação legal. Cliente é multado e culpa o software | Regulatório/Mercado | 3 | 4 | **12** | Sistema diferencia explicitamente "calibração" (rastreabilidade) de "verificação metrológica legal" (selo INMETRO); calendário de verificação IPEM por instrumento; alerta 90/60/30 dias antes; certificado de calibração comercial leva nota "ESTA CALIBRAÇÃO NÃO SUBSTITUI A VERIFICAÇÃO INMETRO OBRIGATÓRIA — Portaria 157/2022" | Auditor Conformidade | decisão Roldão tipos de balança 16/05/2026 |
 
 ---
 
@@ -93,6 +95,8 @@
 15. **R-023** — Stack incapaz de validar software metrológico — 15
 16. **R-029** — Bus factor Roldão — 15
 17. **R-035** — Visma compra Cali/Metroex — 15
+18. **R-039** — Tenant declara perfil A sem acreditação real (fraude) — 15
+19. **R-040** — Verificação INMETRO vencida em balança comercial — 12
 
 ---
 

@@ -24,6 +24,28 @@
 
 ## Entradas (cronológico reverso)
 
+### 2026-05-16 — Decisão fundadora: 4 perfis de empresa + tipos de balança + 2 riscos novos
+- **Decisão:** Roldão definiu que o **setup do tenant** precisa suportar 4 perfis distintos (A acreditada / B com padrão RBC / C em preparação / D comercial básica) com **regras configuráveis por perfil**. Também confirmou escopo de calibração de balanças (todos os tipos: comercial, industrial, rodoviária, processos), o que confirma D-aud-7 (Metrologia Legal no MVP).
+- **Aplicado em:**
+  - `dominio-de-negocio.md` — nova seção "Perfis de empresa (setup)" com 4 perfis A/B/C/D + tabela de regras absolutas/condicionais + implicações pra arquitetura
+  - `dominio-de-negocio.md` — nova seção "Tipos de balança calibrada" com 9+ tipos mapeados + regulamentação aplicável + implicações pro produto
+  - `normas-e-regulacao.md` §8.1 — coluna "Escopo por perfil" adicionada em todas as invariantes (algumas viraram condicionais); **INV-015 novo** (bloqueio por perfil: tenant não pode emitir certificado de tipo superior ao perfil declarado)
+  - `riscos.md` — **R-039 novo** (tenant declara perfil A sem acreditação real e emite com selo RBC falso; score 15); **R-040 novo** (verificação INMETRO/IPEM vencida em balança comercial; score 12)
+  - `painel-do-dono.md` — D-aud-7 marcado RESOLVIDO; decisão de perfis registrada
+- **Por quê:** Roldão é dono de empresa do setor; viu durante a aplicação que o produto precisa atender mais que só perfil A (que é o que TODOS os concorrentes nacionais assumem). Perfis B+C+D são o GAP REAL não atendido por Cali/Metroex/Calibre — eles assumem que cliente é lab acreditado. Perfil C como "trilha de evolução" é diferencial único no mercado.
+- **Quem decidiu:** Roldão (decisor de produto + know-how do setor) + Claude Code (executor)
+- **Sessão:** ver `.agent/SESSION.md` (2026-05-16 batch 1 + decisão de perfis)
+- **Impacto:** **DECISÃO FUNDADORA DO PRODUTO** — afeta setup, modelo de dados (campo `perfil` em tenant), modelo do certificado (template por perfil), hooks de validação (INV-015), marketing (mensagem segmentada por perfil), pricing (talvez perfil C/D precise de tier menor). Reversível só com ADR.
+- **Caso-limite?** **Sim** — é decisão de produto/escopo, NÃO faz parte da autonomia operacional. Mas Roldão deu a decisão direta (não foi agente decidindo sozinho). Por isso registrado como decisão DELE com agente como executor.
+- **Achados estratégicos:**
+  - Perfil C ("trilha de evolução") é diferencial competitivo único — nenhum concorrente (Cali/Metroex/Calibre/CalibraFácil/AUTOLAB) oferece isso
+  - INV-015 é o invariante que **separa os perfis** — sem ele, perfil B podia emitir certificado falso com selo RBC e configurar fraude regulatória
+  - Tipos de balança expandido confirma que **Metrologia Legal** vira módulo importante (não apenas flag)
+  - R-039 (fraude por perfil mal-declarado) tem implicação jurídica — Roldão (vendor) pode responder solidariamente. Cláusula contratual obrigatória
+- **Roldão revisou?** ✅ ele é o decisor desta decisão
+
+---
+
 ### 2026-05-16 — Roldão aprovou as 9 decisões da auditoria; aplicadas autonomamente
 - **Decisão:** Roldão respondeu "ACEITO TUDO" pras 9 decisões pendentes da auditoria do batch 1. Aplicadas em sequência:
   - **D-aud-1** Pricing: R$ 300 → **R$ 500-1.000/mês** com 1 mês grátis. Faixas crescimento (R$ 1.500-3.000) e Pro (R$ 3.000-6.500) também subiram.
