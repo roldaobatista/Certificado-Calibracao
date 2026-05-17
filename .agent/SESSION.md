@@ -9,7 +9,7 @@
 
 ## Última sessão
 
-**Data:** 2026-05-16 (sessão Rodada 0 batch 1 + auditoria)
+**Data:** 2026-05-17 (sessão Rodada 0 batch 2)
 **Agente:** Claude Code (Opus 4.7) + 4 subagentes auditores
 **Roldão presente:** sim, ativo — contribuiu com:
 - Lista de 6 concorrentes adicionais (CalibraFácil, ABC71, SoftExpert, myLIMS, AutoLab×3, ConfLab)
@@ -28,8 +28,27 @@
 5. ✅ `docs/discovery/proximos-artefatos.md` — **NOVO.** Checklist consolidada dos 29 documentos referenciados mas ainda inexistentes (inclui ADR-IA recomendado).
 6. ✅ `docs/governanca/auditoria-decisoes-autonomas.md` — entrada nova com auditoria + correções aplicadas + 9 decisões pendentes pro Roldão.
 
+### Onde paramos (17/05/2026)
+**✅ Batch 2 do Discovery EXECUTADO.** 3 artefatos novos preenchidos por subagentes em paralelo:
+- ✅ `personas-detalhadas.md` (~780 linhas) — 8 personas (Roldão dono + Sandra RT/Qualidade + Letícia atendente + Bruno técnico campo + Marcos metrologista + Cláudia financeiro + Rogério comercial + João cliente final) com identidade, goals, frustrations, ferramentas atuais, variações por perfil A/B/C/D, perguntas pra entrevista
+- ✅ `jobs-to-be-done.md` (~830 linhas) — 45 jobs individuais (JTBD-001 a JTBD-045) + 7 Big Jobs + 6 Anti-jobs; cortes por perfil e por tipo de instrumento
+- ✅ `jornada-atual-sem-produto.md` (~800 linhas) — 4 ciclos detalhados (comercial / operacional / metrológico / financeiro) com 8-12 etapas cada; top 10 dores; 16 ferramentas BR mapeadas; estimativas quantitativas
+
+**Achados-chave do batch 2:**
+- **5 gaps de mercado defensáveis simultaneamente** identificados nos Big Jobs: BIG-01 ciclo completo + BIG-03 perfis A/B/C/D + BIG-04 NFS-e multi-município + BIG-06 Metrologia Legal + BIG-07 Portal do cliente
+- **3 dores mais graves** (input pra `dores-mapeadas.md`): D-007 certificado sem campo obrigatório NIT-DICLA-030 (R-018 score 25), D-002 esquecimento de recalibração (R$ 3-8k/mês de receita perdida), D-010 dono operando no nível diário (R-011 + R-029)
+- **Ferramentas BR onipresentes** (a confirmar): WhatsApp Business (~100%), Excel/Sheets (~95%), Cali+Metroex (~65-90%), Bling+Conta Azul+Omie (~65-95%), caderno+celular (~80-100%)
+- **Variações por perfil** materializadas em todas as personas + jobs
+
 ### Próximo passo lógico
-**✅ Todas as 9 decisões da auditoria + decisão fundadora de perfis aplicadas em 16/05/2026.**
+Bloco que era esperado pós-batch-2: `dores-mapeadas.md` (input pra priorização do MVP-1) + posteriormente `opportunity-solution-tree.md` + `assumption-map.md` (todos do batch 3 do Discovery).
+
+**Antes:** Roldão precisa decidir se autoriza batch 3 OU se quer revisar os 3 artefatos do batch 2 primeiro.
+
+---
+
+### Histórico anterior — batch 1 + auditoria (16/05/2026)
+**✅ Todas as 9 decisões da auditoria + decisão fundadora de perfis + 3 correções aplicadas em 16/05/2026.**
 
 **Decisão fundadora nova (pós-auditoria):**
 - **4 perfis de empresa no setup do tenant** (A acreditada / B com padrão RBC / C em preparação / D comercial básica) com regras configuráveis/absolutas por perfil

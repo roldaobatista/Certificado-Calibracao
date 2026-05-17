@@ -6,12 +6,18 @@
 
 ---
 
-## ⏱️ Estado em 2026-05-16 (atualizado pós Rodada 0 batch 1)
+## ⏱️ Estado em 2026-05-17 (atualizado pós Rodada 0 batch 2)
 
-**Fase:** **Rodada 0 Discovery — batch 1 CONCLUÍDO** (4 de 15 artefatos)
-**Última atividade:** pesquisa de concorrentes (24 mapeados — 16 BR + 8 internacionais), normas/regulação (15 municípios + ISO 17025 + LGPD 2024-26 + Bacen/PIX 2025 + PCI-DSS 4.0.1), domínio de negócio (mapa preliminar de domínios → módulos), riscos (11 novos adicionados).
-**Bloqueio:** nenhum — pronto pra você revisar batch 1 ou autorizar batch 2.
-**Próximo passo recomendado pelo agente:** autorizar **Rodada 0 batch 2** (personas-detalhadas + jobs-to-be-done + jornada-atual-sem-produto). Todas as 9 decisões da auditoria foram aceitas e aplicadas.
+**Fase:** **Rodada 0 Discovery — batch 2 CONCLUÍDO** (7 de 15 artefatos preenchidos)
+**Última atividade:** batch 2 — 3 artefatos novos (personas detalhadas, jobs-to-be-done, jornada atual sem produto). ~2.400 linhas de conteúdo gerado por 3 subagentes em paralelo.
+**Bloqueio:** nenhum — pronto pra você revisar batch 2 ou autorizar batch 3.
+**Próximo passo recomendado pelo agente:** autorizar **batch 3** (`dores-mapeadas.md` + `opportunity-solution-tree.md` + `assumption-map.md`). Esses 3 também o agente faz sozinho.
+
+### ✨ 3 achados do batch 2
+
+1. **5 gaps defensáveis simultâneos identificados** — BIG-01 (ciclo completo num só sistema) + BIG-03 (perfis A/B/C/D) + BIG-04 (NFS-e multi-município) + BIG-06 (Metrologia Legal) + BIG-07 (Portal do cliente). Nenhum concorrente fecha mais de 2 desses.
+2. **Receita escondida grande:** D-002 (esquecimento de recalibração) custa **R$ 3-8 mil/mês** pra empresa-modelo. Vira argumento de ROI direto pra vender o produto.
+3. **WhatsApp Business é universal (~100% das empresas):** integração via WhatsApp Business API tem que estar no MVP — não é "feature legal", é "se não tiver, não vendo".
 
 ### ✨ 3 achados estratégicos pra você ler primeiro
 

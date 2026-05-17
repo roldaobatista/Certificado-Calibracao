@@ -21,10 +21,10 @@
 
 | # | Artefato | Caminho | Status | Prio | Referenciado em | Bloqueia |
 |---|---|---|---|---|---|---|
-| 1 | `personas-detalhadas.md` | `docs/discovery/` | ⏳ | 🔴 | `dominio-de-negocio.md` §Saída | Onda 1 de entrevistas |
-| 2 | `dores-mapeadas.md` | `docs/discovery/` | ⏳ | 🔴 | `dominio-de-negocio.md` §Saída | Priorização do MVP-1 |
-| 3 | `jobs-to-be-done.md` | `docs/discovery/` | ⏳ | 🟡 | `documentos-do-projeto.md` v5 §Família 0 | — |
-| 4 | `jornada-atual-sem-produto.md` | `docs/discovery/` | ⏳ | 🔴 | `documentos-do-projeto.md` v5 §Família 0 | Validação de status quo |
+| 1 | `personas-detalhadas.md` | `docs/discovery/` | ✅ **criado 17/05/2026** | 🔴 | `dominio-de-negocio.md` §Saída | (resolvido) |
+| 2 | `dores-mapeadas.md` | `docs/discovery/` | ⏳ | 🔴 | `dominio-de-negocio.md` §Saída + insights da jornada atual | Priorização do MVP-1 |
+| 3 | `jobs-to-be-done.md` | `docs/discovery/` | ✅ **criado 17/05/2026** | 🟡 | `documentos-do-projeto.md` v5 §Família 0 | (resolvido) |
+| 4 | `jornada-atual-sem-produto.md` | `docs/discovery/` | ✅ **criado 17/05/2026** | 🔴 | `documentos-do-projeto.md` v5 §Família 0 | (resolvido) |
 | 5 | `opportunity-solution-tree.md` | `docs/discovery/` | ⏳ | 🔴 | `documentos-do-projeto.md` v5 §Família 0 | Síntese final |
 | 6 | `assumption-map.md` | `docs/discovery/` | ⏳ | 🔴 | `documentos-do-projeto.md` v5 §Família 0 | Leap-of-faith identificados |
 | 7 | `validacao-ativa.md` | `docs/discovery/` | ⏳ | 🔴 | `riscos.md` (TAM) + `dominio-de-negocio.md` (Portal cliente) | Decisão de seguir/parar |

@@ -24,6 +24,33 @@
 
 ## Entradas (cronológico reverso)
 
+### 2026-05-17 — Rodada 0 batch 2 executado (3 artefatos novos)
+- **Decisão:** Roldão autorizou execução do batch 2. Disparei 3 subagentes em paralelo, cada um responsável por 1 artefato:
+  - `personas-detalhadas.md` (~780 linhas) — 8 personas com identidade, goals, frustrations, ferramentas atuais, variações por perfil A/B/C/D
+  - `jobs-to-be-done.md` (~830 linhas) — 45 jobs individuais + 7 Big Jobs + 6 Anti-jobs; corte por perfil e tipo de instrumento
+  - `jornada-atual-sem-produto.md` (~800 linhas) — 4 ciclos detalhados + top 10 dores + 16 ferramentas BR mapeadas
+- **Total:** ~2.400 linhas geradas em paralelo (~30 min de trabalho de agente).
+- **Por quê:** Roldão autorizou ("SIM"). Pesquisa secundária sem entrevista está dentro da autonomia. Base usada: os 4 artefatos do batch 1 + decisões posteriores (perfis A/B/C/D + tipos configuráveis + selo INMETRO sem vencimento).
+- **Quem decidiu:** Claude Code (orquestrador) + 3 subagentes general-purpose (executores)
+- **Sessão:** ver `.agent/SESSION.md` entrada 2026-05-17
+- **Impacto:** reversível (todos versionados); decisões fundadoras não tocadas
+- **Caso-limite?** Não — pesquisa secundária sem mudança de stack/invariante
+- **Achados estratégicos:**
+  - **5 gaps de mercado defensáveis simultaneamente** confirmados nos Big Jobs (BIG-01, BIG-03, BIG-04, BIG-06, BIG-07). Nenhum concorrente cobre mais de 2.
+  - **Receita escondida quantificada:** esquecimento de recalibração custa R$ 3-8k/mês pra empresa-modelo (input forte pra pitch comercial)
+  - **WhatsApp Business é universal (~100% das empresas BR do setor):** entra como requisito obrigatório do MVP, não como feature opcional
+  - **D-007 (certificado sem campo NIT-DICLA-030) materializa R-018 score 25:** confirma que INV-002 (hook bloqueia emissão) é diferencial crítico
+  - **8ª persona criada (João, cliente final do tenant):** quase-persona usada só pra design do Portal do Cliente (BIG-07)
+- **Itens deixados pra entrevistas (validação primária):**
+  - Salários BR de 2026 por persona (faixas inferidas; precisa amostra de 3+ por papel)
+  - Decisor de compra real em perfil A (dono ou metrologista?)
+  - Adoção real de calibrador documentador (Beamex/Fluke) — define se integração é MVP ou pós
+  - Disposição a pagar real por perfil (teto mental de R$ 500/mês foi inferência)
+- **Próximo:** Roldão decide se vai pro batch 3 (`dores-mapeadas.md` + `opportunity-solution-tree.md` + `assumption-map.md`) ou se revisa batch 2 primeiro
+- **Roldão revisou?** ⏳ pendente
+
+---
+
 ### 2026-05-16 — 3 correções do Roldão sobre perfis + selo INMETRO + tipos configuráveis
 - **Decisão (correção da decisão anterior):**
   1. **Selo INMETRO/IPEM em balança comercial NÃO tem vencimento estampado** — o que vence é a obrigação legal de verificação periódica (anual). Risco R-040 corrigido pra refletir isso (era "selo vencido", virou "verificação periódica não feita pelo cliente final").
