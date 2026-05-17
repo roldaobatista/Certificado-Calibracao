@@ -1,6 +1,7 @@
 # Discovery — Domínio de negócio
 
 > **Artefato Rodada 0** (agente faz sozinho, Roldão valida). Modelo conceitual de "como uma empresa de assistência técnica + calibração funciona" + glossário operacional do setor. **Base do glossário comum** (Família 2).
+> **Atualizado:** 2026-05-16 — primeira passagem do agente, base pra Roldão complementar com vivência da empresa dele. Marcações `[Roldão validar]` apontam onde precisa de input direto antes de virar invariante de produto.
 
 ---
 
@@ -8,7 +9,37 @@
 
 ### Visão geral do setor
 
-[1–2 páginas em PT-BR explicando: o que é assistência técnica, o que é laboratório de calibração, como os dois se cruzam, qual o ecossistema (clientes, fornecedores, reguladores, ferramentas).]
+Empresas brasileiras como a do Roldão operam **duas atividades complementares sob o mesmo CNPJ**:
+
+1. **Assistência técnica** — manutenção (preventiva e corretiva) de equipamentos de medição e instrumentação em geral. Pode ser executada no laboratório (cliente leva o instrumento) ou em campo (técnico vai até o cliente). Atividade **não regulada por norma técnica obrigatória**, mas com forte expectativa contratual e de garantia.
+
+2. **Laboratório de calibração ISO/IEC 17025** — emissão de **certificado de calibração** com rastreabilidade metrológica (cadeia até o SI) e incerteza declarada (GUM/EA-4/02). Atividade **fortemente regulada**: para emitir certificado com selo RBC, o laboratório precisa ser **acreditado pela Cgcre/INMETRO** (programa Rede Brasileira de Calibração) e cumprir 30+ documentos normativos (ISO/IEC 17025:2017 + NIT-DICLA-021/030 + DOQ-CGCRE-008 + ILAC G24, etc.).
+
+**Por que essas duas atividades andam juntas no Brasil:** o mesmo cliente que compra calibração (indústria, hospital, lab clínico, construtora, distribuidora de combustíveis, refinaria, frigorífico) costuma também precisar de assistência (consertar o que quebrou, ajustar, fornecer peça). Separar as duas atividades em CNPJs diferentes complicaria atendimento e faturamento; manter sob mesmo CNPJ exige um sistema que entenda os DOIS fluxos sem misturar (um conserto não vira certificado RBC; um certificado RBC não pode ser feito sem padrão rastreado).
+
+**Ecossistema:**
+
+- **Clientes:** indústria farmacêutica, alimentícia, química, petroquímica, automotiva; postos de combustível (calibração de bombas — INMETRO PRM); hospitais e laboratórios clínicos (calibração de balanças, termômetros, autoclaves); concessionárias de veículos; construtoras (controle tecnológico de obras); distribuidoras de água/gás.
+- **Fornecedores diretos:** fabricantes de instrumentos (Fluke, Beamex, Presys, Salvi Casagrande, Gehaka), fornecedores de padrões (laboratórios de calibração de nível mais alto na cadeia — RBC ou INM/Inmetro), distribuidores de peças, fornecedores de software (concorrentes mapeados em `concorrentes.md`).
+- **Reguladores e órgãos técnicos:**
+  - **Cgcre/INMETRO** — acredita lab RBC; auditoria a cada 2 anos.
+  - **ABNT** — publica versão brasileira das normas ISO.
+  - **CB-25** — Comitê Brasileiro de Calibração.
+  - **CONFAZ + SEFAZ estadual** — NF-e.
+  - **Prefeitura municipal** — NFS-e + ISS.
+  - **Receita Federal** — SPED, retenção fiscal 5 anos, RIR/2018.
+  - **ANPD** — LGPD, prazo de incidente 3 dias úteis (Res. 15/2024).
+  - **Bacen** — se integrar bancos (Open Finance, PIX, Res. 4.658/2018).
+  - **ANS, Anvisa, Anatel** — dependendo do cliente atendido (calibração em saúde, farma, telecom regulados).
+- **Ferramentas adjacentes que o setor usa hoje (status quo):** planilhas Excel pesadas, WhatsApp pra atendimento, Bling/Conta Azul pra emitir NFS-e, e-mail pra enviar certificado, pasta de rede ou Google Drive pra arquivar PDF de certificado, software dedicado de calibração só pra cálculo (Cali, Metroex) com export pra PDF que é depois anexado em e-mail. **Tudo em sistemas separados, integração via copia-cola humano.** Essa é a dor central do mercado.
+
+**Por que importa pro produto:** entender que **o sistema único precisa atender 4 ciclos distintos sob um mesmo CNPJ**:
+  - Ciclo comercial (CRM → orçamento → contrato),
+  - Ciclo operacional (chamado/agenda → OS → execução em lab ou campo),
+  - Ciclo metrológico regulado (entrada controlada → calibração → cálculo de incerteza → certificado assinado → arquivo WORM),
+  - Ciclo financeiro/fiscal (NFS-e/NF-e → boleto/PIX → conciliação → DRE).
+
+Errar a fronteira entre esses ciclos (ex: emitir certificado sem fechar OS, ou faturar sem cadeia de rastreabilidade) é o tipo de erro que **destrói confiança regulatória** e pode tirar acreditação RBC.
 
 ### Atores típicos
 
@@ -105,11 +136,37 @@
 ### Particularidades brasileiras
 
 - **Imposto sobre serviço (ISS) varia por município** — afeta NFS-e
-- **Diferentes regimes tributários** (Simples Nacional, Lucro Presumido, Lucro Real)
+- **Diferentes regimes tributários** (Simples Nacional, Lucro Presumido, Lucro Real). LC 214/2025: ME/EPP do Simples migra pra NFS-e Padrão Nacional em **01/09/2026** (CGSN 189/2026).
 - **Pagamento por boleto bancário** ainda dominante em B2B
-- **Pix** crescendo rapidamente
+- **Pix** crescendo rapidamente (recuperação de fundos obrigatória 02/02/2026, BCB 493/2025)
 - **WhatsApp Business** é canal de atendimento informal mas dominante
 - **Receita Federal exige SPED** dependendo do porte
+- **Distância física grande** entre cliente e laboratório (BR continental) → logística de recebimento/devolução de instrumento conta como custo relevante (Correios, transportadora, motoboy)
+- **Múltiplas certificações regulatórias coexistem por cliente** (ex: lab que atende cliente farma precisa ser RBC pra calibrar e o cliente exige rastreabilidade pra ANVISA RDC 658/2022 ou GMP/GAMP)
+
+---
+
+## Mapa preliminar de domínios → módulos prováveis (entrada pra `faseamento-modulos.md` e `sintese-final.md`)
+
+> **Bordas a confirmar nas entrevistas** (Onda 1+2). Este mapa não fixa N nem ordem — só lista os candidatos identificáveis pela observação do setor.
+
+| Domínio | Módulos candidatos | Já confirmados como prioritários? |
+|---|---|---|
+| **Comercial** | CRM, Orçamentos, Pedidos/Contratos, Comissões, Pipeline de oportunidades, Portal do prospect | CRM + Orçamentos confirmados (estão entre os 6 do banner do v5) |
+| **Operação** | Chamados/Tickets, OS, Agenda do técnico, Estoque (peças aplicadas), Logística (recebimento/devolução de instrumento), Mobile do técnico de campo | Chamados + OS confirmados; mobile do técnico fica em ADR-0003 obrigatório |
+| **Metrologia** | Calibração (cálculo de incerteza, certificado), Padrões e rastreabilidade, Validação de método, Carta de controle/QC, Procedimentos técnicos | Calibração é o **diferencial central** — confirmado |
+| **Financeiro** | NFS-e, NF-e, Contas a pagar/receber, Conciliação bancária, Fluxo de caixa, DRE, Boleto/PIX, Cobrança automatizada | "Financeiro de alto nível" confirmado |
+| **Suporte/Plataforma** | RBAC/permissões, Multi-tenant ops, Notificações/Webhooks, Auditoria/Logs, Configurações por tenant, Onboarding, Integrações externas | Implícito (sem isso o produto não funciona como SaaS) |
+| **Conformidade e Qualidade** (a confirmar) | LGPD (consentimento, direitos do titular, RIPD), Gestão documental ISO 9001/17025, NC e ação corretiva, Auditoria interna, Treinamento | Surgiu na auditoria (Família 6); **possivelmente vira domínio próprio** dependendo do peso pra clientes RBC |
+| **Atendimento ao cliente** (a confirmar) | Portal do cliente (download de certificado, histórico, abertura de chamado), Pesquisa de satisfação, FAQ/conteúdo | Forte sinal de demanda pelo levantamento de concorrentes (Cali WEB e similares têm portal) |
+| **BI/Analytics** (a confirmar — pode ser lazy) | Dashboards, relatórios programados, exports, KPIs por papel | Necessário, mas pode ser entregue como visão simples no MVP |
+| **RH/Pessoas** (pode ser fora do escopo MVP) | Cadastro de signatário, controle de validade de qualificação, certificação técnica | Confirmar se entra no MVP ou é resolvido por integração com Pontomais/Senior/Sankhya RH |
+
+**Riscos do mapa:**
+
+- **Inflar contagem de módulos** sem dor confirmada por entrevista é gatilho de "ERP que nunca termina". Auditor 6 alertou: critério de promoção módulo precisa ser dor real + diferencial defensável (não "tem em ERP A e B, vamos ter também").
+- **Domínios podem se fundir após entrevistas.** Ex: se "Conformidade" for sempre operada pelos mesmos papéis de "Metrologia", pode ficar tudo embaixo de Metrologia. Decidir depois de mapear papéis reais.
+- **Portal do cliente é tentação de over-design.** Validar via WTP test (`validacao-ativa.md`) se cliente final (cliente do nosso cliente) realmente vai usar — ou se é "feature pra marketing".
 
 ---
 

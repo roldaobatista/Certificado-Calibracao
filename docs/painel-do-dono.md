@@ -6,12 +6,18 @@
 
 ---
 
-## ⏱️ Estado em 2026-05-16
+## ⏱️ Estado em 2026-05-16 (atualizado pós Rodada 0 batch 1)
 
-**Fase:** pré-discovery (Rodada 0 ainda não começou)
-**Última atividade:** criação da estrutura inicial de documentação (v5 do `documentos-do-projeto.md`)
-**Bloqueio:** nenhum — aguardando você autorizar o início da Rodada 0 Discovery
-**Próximo passo recomendado pelo agente:** começar Discovery — agente pode fazer sozinho concorrência + normas + domínio de negócio; depois você entra com entrevistas
+**Fase:** **Rodada 0 Discovery — batch 1 CONCLUÍDO** (4 de 15 artefatos)
+**Última atividade:** pesquisa de concorrentes (24 mapeados — 16 BR + 8 internacionais), normas/regulação (15 municípios + ISO 17025 + LGPD 2024-26 + Bacen/PIX 2025 + PCI-DSS 4.0.1), domínio de negócio (mapa preliminar de domínios → módulos), riscos (11 novos adicionados).
+**Bloqueio:** nenhum — pronto pra você revisar batch 1 ou autorizar batch 2.
+**Próximo passo recomendado pelo agente:** **revisar achados** abaixo (especialmente o GAP confirmado e o R18) ANTES de autorizar batch 2 (personas + JTBD + jornada-atual).
+
+### ✨ 3 achados estratégicos pra você ler primeiro
+
+1. **GAP CONFIRMADO** — "OS + calibração ISO 17025 + NFS-e municipal multi-prefeitura" não existe no mercado BR de forma nacional. Único concorrente que combina (FP2 Tecnologia) cobre só Santa Maria/RS. **Sua tese de produto está sustentada por evidência**. Detalhe em `docs/discovery/concorrentes.md` §4.
+2. **Risco mais grave que apareceu (R18, score 25)** — NIT-DICLA-030 rev. 15 (Cgcre dez/2024) item 8.2.6: **certificado de calibração sem resultado de medição + incerteza é rejeitado**. Vira regra de bloqueio no sistema (não deixa nem emitir). Detalhe em `docs/discovery/riscos.md`.
+3. **Concorrente nacional mais perigoso = Cali LAB/WEB** (Canoas/RS, desde 2000, homologado pela Fundação CERTI). Vantagem nossa: Cali ainda é desktop-first e não tem fiscal/NFS-e. **Janela competitiva é estreita** — se Cali fechar parceria com Bling/Omie pra fiscal, perdemos diferencial #1.
 
 ---
 
@@ -19,10 +25,12 @@
 
 | Decisão | Por quê preciso | Status |
 |---|---|---|
-| **Autorizar início da Rodada 0 Discovery** | Discovery é mitigação obrigatória do risco "founder is customer" — sem ela, produto vira customização da sua empresa | ⏳ aguardando |
+| **Revisar batch 1 do Discovery** (4 artefatos preenchidos hoje) | Antes de seguir, confirmar com você os achados (especialmente itens marcados `[a confirmar]` e `[Roldão validar]`) | ⏳ aguardando |
+| **Autorizar batch 2** (personas + JTBD + jornada-atual) | Agente pode tocar sozinho | ⏳ aguardando |
 | **Nome final do produto** | "Aferê" é provisório; decidir antes de comprar domínio | ⏳ aguardando |
 | **Licença (LICENSE)** | MIT, Apache, proprietária, etc. Necessário antes de 1º release público | ⏳ aguardando |
 | **Quem é o signatário técnico** dos certificados de calibração (RBC NIT-DICLA-021 exige metrologista PF responsável) | ⏳ você ou contratar | ⏳ aguardando |
+| **Confirmar referência: ILAC G8 vs WELMEC 7.2 / OIML D 31** | Você pediu ILAC G8 pra "validação de software" mas G8 é regra de decisão. Referências corretas pra validação de software são WELMEC 7.2 e OIML D 31 | ⏳ aguardando |
 
 ---
 
@@ -32,6 +40,7 @@
 
 - **2026-05-16:** D5 (CODEOWNERS) expandida de 5 → 10 paths após Auditor 1 v2 alertar que 5 paths é fraco demais pra ERP financeiro. Você confirmou.
 - **2026-05-16:** Estrutura criada não inclui ~100 docs lazy do v5 — segue regra do próprio documento. Agente pode criar conforme rodadas avançarem.
+- **2026-05-16:** Rodada 0 batch 1 executada autonomamente — 4 artefatos preenchidos via pesquisa pública (24 concorrentes mapeados, 15 municípios cobertos para NFS-e, 11 riscos novos identificados). Detalhe em `governanca/auditoria-decisoes-autonomas.md`.
 
 ---
 
@@ -48,7 +57,12 @@
 ## 📊 Métricas (vai preencher conforme rodadas avançam)
 
 - Documentos criados: ~33 de ~140 previstos (24%)
-- Rodadas concluídas: 0 de 9
+- Documentos preenchidos com conteúdo real: 4 da Rodada 0 (concorrentes, normas, domínio, riscos)
+- Rodadas concluídas: 0 de 9 (Rodada 0: 4/15 artefatos)
+- Concorrentes mapeados: 24 (16 BR + 8 internacionais)
+- Municípios cobertos para NFS-e: 15 prioritários
+- Riscos catalogados: 26 (top 12 com score ≥ 12)
+- Invariantes candidatos identificados: 10 (entrada para `REGRAS-INEGOCIAVEIS.md`)
 - Features do MVP-1 entregues: 0
 - Auditorias rodadas: 2 (rodada 1 sobre v2, rodada 2 sobre v4)
 - Memórias salvas: 14 entradas em `MEMORY.md`
@@ -57,9 +71,9 @@
 
 ## 🗓️ Próximas 3 ações (do agente)
 
-1. ⏳ Aguardar você autorizar Rodada 0.
-2. Iniciar Rodada 0: agente faz sozinho `concorrentes.md` + `normas-e-regulacao.md` + `dominio-de-negocio.md` + esboço `riscos.md`.
-3. Preparar `treinamento-entrevista-roldao.md` pra você revisar antes de fazer entrevistas piloto.
+1. ⏳ Aguardar você revisar batch 1 ou autorizar batch 2.
+2. Batch 2 (sozinho): `personas-detalhadas.md` + `jobs-to-be-done.md` + `jornada-atual-sem-produto.md`.
+3. Preparar `treinamento-entrevista-roldao.md` pra você revisar antes das entrevistas piloto.
 
 ---
 
