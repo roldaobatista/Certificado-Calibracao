@@ -1,0 +1,54 @@
+# LICENÇA — A DEFINIR
+
+> **Status (2026-05-17):** ⏳ pendente — decisão sobre licenciamento adiada até antes do primeiro release público.
+>
+> **Default operacional na janela atual:** **proprietário, todos os direitos reservados, sem licença pública**.
+> Código não é open source. Não há permissão pra uso, cópia, modificação ou distribuição por terceiros sem autorização explícita do Roldão.
+
+---
+
+## Quando decidir
+
+Antes de:
+- Primeiro release público (V2 quando 1º cliente externo aparecer)
+- Publicar repositório como público no GitHub
+- Aceitar contribuição externa
+
+---
+
+## Opções a considerar (quando decidir)
+
+| Licença | Características | Adequado pra Aferê? |
+|---------|-----------------|----------------------|
+| **Proprietário (atual)** | Sem licença pública; uso restrito | ✅ janela atual |
+| **AGPL-3.0** | Open source com cláusula viral (SaaS conta) | Adequado se quiser comunidade open mas proteger contra cópia fechada |
+| **MIT / Apache 2.0** | Liberal, permite uso comercial fechado | Inadequado pra produto comercial — concorrente clona |
+| **BUSL-1.1** | Source-available; vira open source após N anos | Modelo Sentry/Cockroach — equilíbrio entre transparência e proteção |
+| **Comercial + Open core** | Núcleo open, features pagas fechadas | Modelo GitLab, Mattermost |
+
+---
+
+## Recomendação preliminar (a confirmar)
+
+**BUSL-1.1** ou similar quando publicar — source-available + cláusula que vira Apache 2.0 após 3 anos. Modelo testado em SaaS regulado.
+
+Decisão final exige:
+- Advogado especializado em propriedade intelectual + SaaS (subagent `advogado-saas-regulado` prepara minuta; humano licenciado revisa)
+- Análise de dependências (algumas têm copyleft que força licença derivada)
+
+---
+
+## Direitos autorais
+
+```
+Copyright (c) 2026 Roldão Batista / Balanças Solution (razão social a definir)
+Todos os direitos reservados.
+```
+
+---
+
+## Referências
+
+- `discovery/sintese-final.md`
+- Subagent `advogado-saas-regulado`
+- Memória `sem-cliente-externo-na-janela-atual`
