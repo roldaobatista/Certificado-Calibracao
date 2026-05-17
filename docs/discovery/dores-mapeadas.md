@@ -557,6 +557,128 @@ Ranking não é cego ao score — sempre justificar com citação literal da ent
 
 ---
 
+## Dores externamente validadas — descobertas na pesquisa documental (17/05/2026 noite)
+
+> **Origem:** 4 buckets de pesquisa documental independente rodados em paralelo (validação externa do Portão 1 da ADR-0001 candidata). Roldão optou por NÃO fazer Onda 1 declarada agora (proteção competitiva), então essas dores vieram de fontes públicas: reviews/Reclame Aqui, grupos sociais/YouTube/fóruns técnicos, marketing dos concorrentes, regulatório/acadêmico. Doc consolidado em `validacao-externa-documental.md`.
+>
+> **Status:** dores 21-32 ainda **não têm score completo** (sem entrevista, faltam DAP/Frequência reais). Confirmadas como **dores externamente observadas** com evidência citada — entram como hipóteses fortes pro MVP-1 ou backlog.
+
+### Categoria A — Funcionalidade técnica
+
+#### Dor #21: Update do sistema quebra customização (vendor lock-in pós-personalização)
+- **Origem documental:** Bucket B (Capterra IndySoft jan/2025 — Jared: *"Toda atualização quebra ou reduz a eficiência da customização"*; padrão também em GAGEtrak; provável também em Cali sem evidência pública)
+- **Sintoma observável:** cliente personaliza templates de certificado, fórmulas de incerteza, layouts; próxima atualização do fornecedor quebra tudo; workaround é "manter estrutura fixa" (= não atualizar)
+- **Personas mais afetadas:** Marcos (signatário — templates customizados), Sandra (RT — formulários do SGQ), Roldão (dono — perdeu horas customizando)
+- **Implicação pra MVP:** ENTRA como princípio arquitetural (não como feature) — customização declarativa + versionada em git (YAML/JSON), nunca código injetado. Vira ADR técnica futura.
+- **Módulo provável:** transversal — afeta Metrologia, Cadastros, CRM
+- **Vínculo com riscos:** novo risco a criar (R-066 candidato) — "update do fornecedor quebra customização do cliente"
+
+#### Dor #23: Vazamento de dados de cliente por planilha compartilhada (cláusula 4.2)
+- **Origem documental:** Bucket B (Blog da Metrologia caso real — *"laboratório decide usar planilhas Excel pras calibrações e dá acesso a todos os colaboradores. Alguém de outro setor, leigo, compartilha planilha com dados de clientes à mostra. Quebra cláusula 4.2 sem perceber"*)
+- **Sintoma observável:** colaborador leigo encaminha planilha por e-mail/WhatsApp com dados de cliente A pra colaborador que atende cliente B (concorrente do A); viola ISO 17025 4.2 (confidencialidade); pode virar processo civil/regulatório
+- **Personas mais afetadas:** Sandra (RT — responsável pelo SGQ), Roldão (dono — risco regulatório), cliente final
+- **Diferença em relação à Dor #04:** #04 era sobre CÁLCULO em planilha (NC permanente 7.11). #23 é sobre CONFIDENCIALIDADE (4.2) — separados.
+- **Implicação pra MVP:** ENTRA — RNF de segurança (controle de acesso por cliente + log de quem viu o quê + isolamento multi-tenant rigoroso)
+- **Módulo provável:** Plataforma (RBAC + Audit Trail)
+- **Vínculo com riscos:** reforça R-003 (vazamento entre tenants) e R-014 (LGPD multa ANPD)
+
+#### Dor #31: Manutenção preditiva por uso/desgaste do instrumento (refinamento da #02)
+- **Origem documental:** Bucket C (TOTVS + Metroex + Portal ISO vendem como diferencial — "frequência baseada em uso, não em prazo fixo")
+- **Sintoma observável:** instrumento usado intensamente em 6 meses degrada mais que um pouco usado em 12 meses; alerta por prazo fixo desperdiça calibração desnecessária OU subestima drift; cliente farma pede análise estatística de drift
+- **Personas mais afetadas:** Sandra (RT — quer otimizar agenda de calibração), Patrícia (cliente farma — exige análise de tendência), Marcos (signatário — decide se aprova com base em drift)
+- **Implicação pra MVP:** MVP-2 ou enterprise. Refinamento da Dor #02, não dor independente.
+- **Módulo provável:** Metrologia (cálculo + tendência) + CRM (alerta inteligente)
+
+#### Dor #32: Análise estatística MSA/SPC para cliente industrial (Gage R&R, IATF 16949)
+- **Origem documental:** Bucket C (Metroex + Qualiex + TOTVS vendem MSA/Gage R&R)
+- **Sintoma observável:** cliente industrial (automotivo IATF 16949 ou eletro-eletrônico AIAG) pede estudo de MSA/Gage R&R do instrumento; lab calibrador não tem ferramenta integrada e faz manualmente em Excel ou recusa o serviço
+- **Personas mais afetadas:** Sandra (RT — perde negócio sem essa capacidade), Marcos (signatário — calcula manualmente), cliente industrial
+- **Implicação pra MVP:** Condicional ao ICP. Se MVP-1 inclui labs servindo automotivo IATF, é dor real. Se ICP for só PME comercial, MVP-2.
+- **Módulo provável:** Metrologia (módulo MSA opcional)
+
+### Categoria B — Modelo comercial do produto
+
+#### Dor #25: Cláusula de fidelidade 12 meses + reajuste anual abusivo
+- **Origem documental:** Bucket A (4 concorrentes com queixa pública — Conta Azul: *"aumento abusivo todos os anos"*; Field Control: *"cláusulas contratuais que obrigam pagamento do valor total até o final do contrato de um ano, mesmo sem utilizar"*; Bling, Tiny: idem)
+- **Sintoma observável:** cliente tenta cancelar SaaS pra trocar de fornecedor mas é preso por cláusula de 12 meses; cliente renova e descobre reajuste 3x acima de IPCA; vira reclamação Reclame Aqui
+- **Implicação pro modelo comercial do Aferê:** decisão prévia obrigatória — pricing transparente (sem fidelidade abusiva, reajuste pré-anunciado, pricing por uso real) seria diferenciador. Se Aferê copiar padrão SaaS BR, herda essa dor.
+- **Módulo provável:** Plataforma (Faturamento/Contratos)
+- **Vínculo com riscos:** novo risco a criar — "modelo comercial padrão do mercado pode replicar dor do mercado"
+
+#### Dor #26: Suporte cordial mas inefetivo / chat abandonado
+- **Origem documental:** Bucket A (Auvo: *"Os atendentes são ótimos! Sempre bastante educados, mas não conseguem evoluir com a solução"*; Tiny: *"o atendente percebe que não consegue sanar a questão, simplesmente abandona a conversa"*)
+- **Sintoma observável:** atendente é educado, abre ticket, escala pra "time técnico" e nunca volta; cliente tenta 3x, desiste, churna em 60 dias
+- **Implicação pro Aferê:** decisão de modelo de suporte — SLA explícito como diferencial (custo alto, escala difícil) OU produto auto-explicativo o suficiente pra suporte ser raro (melhor pra MEI). Conecta com LEAP F-18 (CS L1 cabe em modelo 100% agentes — bot + Roldão fallback).
+- **Módulo provável:** Plataforma (Suporte/CS)
+- **Vínculo com riscos:** R-062 (CS L1 inexistente = churn 90 dias > 40%) já cobre
+
+#### Dor #27: Integração prometida na venda que não funciona depois
+- **Origem documental:** Bucket A (Auvo + OMIE: *"a plataforma prometeu integração com o OMIE — um dos principais motivos do fechamento do negócio — mas a integração não funciona"*; Tiny + ML Full + TikTok Shop; Bling + WooCommerce/Mercado Livre)
+- **Sintoma observável:** vendedor mostra "integra com X" no funil; cliente assina; ao tentar usar, descobre que integração está "em desenvolvimento" ou tem limitações graves; vira queixa Reclame Aqui
+- **Implicação pro Aferê:** princípio de transparência radical — distinguir publicamente "integração pronta" vs "roadmap" vs "via Zapier/webhook custom". Cada integração quebrada = reclamação pública + churn.
+- **Módulo provável:** Plataforma (Integrações + Marketing)
+- **Vínculo com riscos:** reforça Dor #01 (cadastro 4-6x) mas com ângulo "comercial enganoso"
+
+#### Dor #28: Instabilidade em horário fiscal crítico paralisa cliente
+- **Origem documental:** Bucket A (Bling jan/2025: 2 incidentes paralisantes — *"fiquei duas semanas com sistema inoperante"*; Field Control 33 dias dezembro 2024 — *"sistema ficou fora do ar durante todo o mês"*)
+- **Sintoma observável:** sistema cai no dia 30 (fechamento de mês fiscal) ou no início do mês (emissão de NFS-e); cliente não consegue faturar; perde dinheiro; vira queixa pública agressiva
+- **Implicação pra MVP:** SLA público + status page + drill de DR mensal cronometrado desde dia 1. **Já refletido no Portão 3 da ADR-0001** (4 drills cronometrados antes do 1º tenant pago).
+- **Módulo provável:** Plataforma (Observabilidade + DR)
+- **Vínculo com riscos:** confirma R-009 (Hostinger SPOF) e Parecer 8 (incidente em produção)
+
+### Categoria C — Estrutura de mercado
+
+#### Dor #24: Mercado BR fechado, sem comunidade pública (oportunidade estrutural)
+- **Origem documental:** Bucket B (Cali, FP2, Aferitec — zero presença em Reddit, Facebook público, LinkedIn grupos abertos; único espaço público ativo é Blog da Metrologia, neutro/não-vendedor)
+- **Sintoma observável:** cliente Cali insatisfeito não tem onde reclamar publicamente — vira ticket 1:1 com suporte; mercado opera fechado; novos entrantes não sabem o que cliente real sente
+- **Implicação pro Aferê:** **OPORTUNIDADE** estrutural — construir comunidade pública cedo (Discord/grupo Telegram/fórum aberto) é diferencial em mercado fechado. Também é **RISCO** — pode indicar base instalada muito pequena (Cali tem ~5 funcionários, Metroex cita "80 clientes").
+- **Módulo provável:** Marketing/Comunidade (não-feature do produto)
+- **Vínculo com riscos:** R-001 (founder is customer) — se mercado é tão pequeno, TAM real pode estar inflado
+
+#### Dor #29: Janela ENIQ 2025-2026 — pressão regulatória simultânea (12-18 meses)
+- **Origem documental:** Bucket D (NIT-DICLA-030 rev. 15 dez/2024 + NFS-e Padrão Nacional CGSN 189/2026 + RDC ANVISA 658/2022 e 972/2025 + ENIQ Resolução CONMETRO 2/2025 + Operação Tô de Olho INMETRO+ANP fev/2026: 362 irregularidades em 2 dias)
+- **Sintoma observável:** lab que estava operando confortavelmente em planilha começa a perder cliente farma por falta de SGQ digital; perde direito de emitir NFS-e a partir de 01/09/2026; recebe NC em auditoria CGCRE; é autuado pelo IPEM
+- **Implicação pra MVP:** **CRÍTICA — orienta priorização do MVP-1.** Player que entregar emissor NFS-e + cálculo de incerteza conforme NIT-DICLA-030 rev. 15 + trilha auditoria 17025 em ≤ 12 meses **captura mercado em onda regulatória forçada**. Janela expira em 12-18 meses.
+- **Módulo provável:** Marketing (positioning) + Fiscal + Metrologia + Plataforma (Audit Trail)
+- **Vínculo com riscos:** R-016 (cutover NFS-e 01/09/2026) já cobre; janela completa reforça urgência
+
+#### Dor #30: Disputa de jurisdição IPEM × cliente final
+- **Origem documental:** Bucket D (IPEM-RJ e IPEM-SP têm página dedicada a FAQ jurídico + recurso de auto de infração — sinal de litígio recorrente)
+- **Sintoma observável:** IPEM autua o cliente final (posto de gasolina, comerciante de feira); cliente recorre ao laboratório de calibração pra "comprovar que estava certo"; lab é envolvido em processo administrativo/judicial sem ter sido parte original
+- **Implicação pra MVP:** pode virar **tipo de serviço diferenciado** ("OS de defesa de auto de infração IPEM" = preço maior, processo padronizado, trilha auditável reforçada).
+- **Módulo provável:** Operação (tipo especial de OS)
+- **Vínculo com riscos:** novo risco potencial — "lab responsabilizado em processo IPEM que não originou"
+
+### Categoria D — Marketing e diferencial
+
+#### Dor #22: Calibração rápida demais é red flag de fraude (sinal de mercado sobre confiança)
+- **Origem documental:** Bucket B (KN Waagen — alerta público: *"Sempre desconfie de calibração RBC de balança executada em menos de 5 minutos"*)
+- **Sintoma observável:** lab competidor faz calibração "expressa" (5-10 min), emite certificado, cobra metade do preço; cliente final desconfia mas não tem como provar; quem faz certo (60-90 min reais) parece "lento e caro"
+- **Implicação pra Aferê:** **diferencial de marketing real** — trilha auditável publicável (timestamp início/fim de cada etapa, fotos das condições ambientais, registro de medições intermediárias) como **prova de qualidade**, não só compliance. "Veja: nossas calibrações duraram em média X minutos, com Y medições. Concorrente faz em 5 minutos — pergunte como" é argumento defensável.
+- **Módulo provável:** Metrologia (Audit Trail Publicável) + Marketing (positioning)
+- **Vínculo:** transforma INV-001 (audit trail imutável) de "obrigação regulatória" em "arma de marketing"
+
+---
+
+## Resumo das 12 dores novas
+
+| # | Dor | Categoria | Status MVP-1 |
+|---|---|---|---|
+| 21 | Update quebra customização | Técnica | Princípio arquitetural (ADR técnica) |
+| 22 | Calibração rápida = red flag fraude | Marketing/Diferencial | Marketing (trilha publicável) |
+| 23 | Vazamento dados por planilha compartilhada (4.2) | Técnica | RNF segurança obrigatório |
+| 24 | Mercado fechado sem comunidade pública | Estrutural | Estratégia (criar comunidade cedo) |
+| 25 | Fidelidade 12 meses + reajuste abusivo | Comercial | Decisão de modelo comercial pré-MVP |
+| 26 | Suporte cordial mas inefetivo | Comercial | Já coberto por F-18 + R-062 |
+| 27 | Integração prometida que não funciona | Comercial | Princípio: transparência radical de roadmap |
+| 28 | Instabilidade em horário fiscal | Operacional | Já coberto pelo Portão 3 da ADR-0001 |
+| 29 | Janela ENIQ 2025-2026 | Estrutural | **Orienta priorização MVP-1 — janela 12-18 meses** |
+| 30 | Disputa IPEM × cliente final | Operacional | Tipo de serviço diferenciado (MVP-2?) |
+| 31 | Manutenção preditiva por uso/desgaste | Técnica | MVP-2 ou enterprise |
+| 32 | Análise estatística MSA/SPC | Técnica | Condicional ao ICP |
+
+---
+
 ## Próximos passos (re-rankear pós-Onda 1)
 
 1. **Validar números na Onda 1 de entrevistas** (3-5 empresas). Priorizar as **5 entrevistas-tipo anti-Roldão** da seção "Imunização contra founder bias". Cada dor acima precisa de pelo menos:

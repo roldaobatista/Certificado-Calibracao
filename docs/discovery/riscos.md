@@ -4,6 +4,8 @@
 > **Atualizado:** 2026-05-16 — padronização de IDs pós-auditoria (Auditor 4). Todos os riscos agora em formato R-NNN sequencial único; coluna "Origem" rastreia de onde veio cada um. Total: 38 riscos consolidados (29 originais + 9 importados de `concorrentes.md` §7).
 >
 > **Versão pós-auditoria 12 agentes (17/05/2026 noite).** 8 riscos novos (R-058..R-065) + 2 promoções (R-034 score 4→12, R-046 score 10→15). **Total: 65 riscos.**
+>
+> **Versão pós-validação externa documental (17/05/2026 noite tarde).** 1 risco rebaixado: R-001 de score 20 → 12 (P 4→3) com evidência de 4 buckets independentes confirmando 13 das 20 dores externamente. Ver `validacao-externa-documental.md`.
 
 ---
 
@@ -33,7 +35,7 @@
 
 | ID | Risco (resumo) | Categoria | P | I | Score | Mitigação | Owner | Origem |
 |---|---|---|---|---|---|---|---|---|
-| **R-001** | Customização disfarçada (founder is customer) | Cliente | 4 | 5 | **20** | Discovery rigorosa com 5-10 OUTRAS empresas | Roldão | original |
+| **R-001** ⭐ REBAIXADO | Customização disfarçada (founder is customer) — **score 20 → 12 em 17/05/2026** após validação documental: 4 buckets independentes (reviews, social, marketing concorrentes, regulatório/acadêmico) confirmaram 13 das 20 dores externamente; 0 refutadas. P reduzida de 4 → 3. **Não cai pra ≤9** porque dores #15 (comissões) e #16 (UMC específica) continuam suspeitas de halo founder + clientes Cali/Metroex são silenciosos publicamente (Onda 1 ou cliente piloto sob NDA ainda insubstituíveis). | Cliente | 3 | 4 | **12** | Validação documental concluída (ver `validacao-externa-documental.md`); continuar com mystery shopping + cliente piloto sob NDA quando aparecer; **NÃO cair pra ≤9** sem validar bandeiras amarelas (#15 comissões + UMC específica em #16) | Roldão | original (rebaixado pós-validação documental 17/05/2026) |
 | **R-002** | Família 5 (3 auditores) virar vaporware | Operacional | 4 | 5 | **20** | Materializar prompts + triggers + veto na Rodada 4 | Agente | original |
 | **R-003** | Multi-tenant vazamento entre tenants | Técnico/Regulatório | 3 | 5 | **15** | INV-TENANT-001 + RLS + hook + drill | Auditor Segurança | original |
 | **R-004** | TAM ridículo (poucos prospects ICP) | Mercado | 3 | 5 | **15** | Validação ativa antes de comprometer | Roldão | original |
@@ -104,22 +106,21 @@
 ## Top 15 prioritários (Score ≥ 12) — atualizado pós-auditoria 12 agentes (17/05/2026 noite)
 
 > R-018 e R-027 empatam em 25; **R-027 fica no #1** porque NÃO tem mitigação implementada ainda (ADR-0000 escrita mas hooks pendentes); R-018 já tem hook planejado em `REGRAS-INEGOCIAVEIS.md` (INV-002).
-> R-001 mantém pontuação 20 mas severidade reforçada por 3 auditores (Aud-13, 18, 19) — pode subir para 25 numa próxima revisão.
+> **R-001 REBAIXADO de 20 → 12 em 17/05/2026** após validação documental confirmar 13/20 dores externamente; ver `validacao-externa-documental.md`. Não cai pra ≤9 sem validar bandeiras amarelas (#15 comissões, UMC específica em #16).
 
 **Score 25:**
 1. **R-027** — Prompt injection cliente final — 25
 2. **R-018** — Certificado sem cadeia rejeitado por Cgcre — 25
 
 **Score 20:**
-3. **R-001** — Customização disfarçada (founder is customer) — 20 (severidade reforçada Aud-13+18+19)
-4. **R-002** — Família 5 vaporware — 20
-5. **R-005** — ERP N módulos com 1 pessoa = anos — 20
-6. **R-007** — Conflito tríplice retenção — 20
-7. **R-016** — Cutover NFS-e Padrão Nacional 01/09/2026 — 20
-8. **R-035** — Visma compra Cali/Metroex — 20
-9. **R-042** — Transferência risco vendor↔tenant não tratada contratualmente — 20
-10. **R-062** ⭐ NOVO — CS L1 inexistente = churn 90 dias > 40% — 20
-11. **R-065** ⭐ NOVO — Vendor sem RT registrado — 20
+3. **R-002** — Família 5 vaporware — 20
+4. **R-005** — ERP N módulos com 1 pessoa = anos — 20
+5. **R-007** — Conflito tríplice retenção — 20
+6. **R-016** — Cutover NFS-e Padrão Nacional 01/09/2026 — 20
+7. **R-035** — Visma compra Cali/Metroex — 20
+8. **R-042** — Transferência risco vendor↔tenant não tratada contratualmente — 20
+9. **R-062** ⭐ NOVO — CS L1 inexistente = churn 90 dias > 40% — 20
+10. **R-065** ⭐ NOVO — Vendor sem RT registrado — 20
 
 **Score 16:**
 12. **R-006** — NFS-e em município com padrão próprio — 16
@@ -142,7 +143,8 @@
 27. **R-060** ⭐ NOVO — Signatário descredenciado pela Cgcre sem bloqueio automático — 15
 
 **Score 12:**
-28. **R-008** — Prompt injection via MCP GitHub — 12
+28. **R-001** ⭐ REBAIXADO (era 20) — Customização disfarçada (founder is customer) — 12 (após validação documental 17/05/2026)
+29. **R-008** — Prompt injection via MCP GitHub — 12
 29. **R-017** — Porto Alegre desliga DANFSe local 01/07/2026 — 12
 30. **R-019** — Cali lança fiscal/NFS-e antes do MVP — 12
 31. **R-022** — Mito 72h GDPR vs 3 dias úteis ANPD — 12
