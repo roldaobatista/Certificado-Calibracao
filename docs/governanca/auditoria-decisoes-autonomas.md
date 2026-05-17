@@ -24,6 +24,26 @@
 
 ## Entradas (cronológico reverso)
 
+### 2026-05-17 NOITE TARDE +5h — Eliminação do conceito Spike F-1 (decisão DO Roldão, não autônoma)
+- **Decisão:** Roldão rejeitou conceito de "Spike F-1" como construção descartável. Citado textualmente: *"que loucura é essa de desenvolver algo para depois alterar tudo de novo"*.
+- **Por quê:** Spike é hedge psicológico de quem não acredita na própria aposta. Se stack está cravada (ADR-0001 candidata via Portões 2+3) e código sai bom, NÃO há razão pra jogar fora. Validação do modelo 100% agentes IA acontece na construção real da F-A com critérios de mortalidade — código permanece independente do veredito.
+- **Quem decidiu:** Roldão (não autônoma — decisão do dono).
+- **Aplicado por:** Claude Code em 11 docs estruturais + 4 docs vivos. 7 docs históricos (discovery, registros) preservaram menção como referência.
+- **Impacto:** irreversível conceitualmente — "Spike F-1" deixa de existir como item de cronograma. LEAP F-1 do assumption-map permanece como hipótese.
+- **Caso-limite (do limites-autonomia)?** Não — decisão estratégica do dono.
+- **Link pra ADR:** atualização do Portão 3 da ADR-0001 + criação de memória `nao-construir-codigo-descartavel`.
+- **Roldão revisou?** ✅ ele mesmo decidiu.
+
+### 2026-05-17 NOITE TARDE +4h — Cliente externo pago diferido pra V2
+- **Decisão:** Roldão decidiu que não haverá busca de cliente externo pago sob NDA na janela atual do MVP-1. Portão 1 ADR-0001 diferido; R-001 aceito em 12; MVP-1 sai dogfooding-only em Balanças Solution.
+- **Por quê:** custo de prospecção + DPA + apólice cyber + DPO formal compete com tempo de construir produto. Pressão de tempo do cutover NFS-e 09/2026 prevalece. Padrão Roldão de aceitar trade-off documentado.
+- **Quem decidiu:** Roldão (não autônoma).
+- **Aplicado por:** Claude Code em 8 docs estruturais.
+- **Impacto:** parcialmente reversível — quando 1º cliente externo aparecer, ativar gates V2 (apólice, DPO, DPA, etc.).
+- **Caso-limite (do limites-autonomia)?** Não.
+- **Link pra ADR:** atualização do Portão 1 da ADR-0001 + memória `sem-cliente-externo-na-janela-atual`.
+- **Roldão revisou?** ✅ ele mesmo decidiu.
+
 ### 2026-05-17 NOITE — Auditoria de 12 agentes sobre batch 3 + 24 correções aplicadas em lote
 - **Decisão:** Roldão pediu "auditoria com 12 agentes em ângulos novos (diferente de batches 1 e 2)". Disparei 12 auditores independentes em paralelo cobrindo: (11) Pricing & Unit Economics, (12) Sequenciamento MVP, (13) Calibração de scores/RICE, (14) Defensibilidade competitiva/moats, (15) Testabilidade de premissas, (16) Filtros de ICP, (17) Riscos legais/trabalhistas, (18) Go-to-market/canal aquisição, (19) Founder-customer deep dive R-001, (20) Conflitos internos cross-doc, (21) Blind spots, (22) Defesa LEAP #1 modelo agentes.
 - **24 achados consolidados** (12 críticos + 12 altos). Os 5 mais graves:

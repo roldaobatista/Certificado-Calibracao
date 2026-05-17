@@ -299,7 +299,7 @@ Antes de qualquer código de produto:
 2. **`AGENTS.md`** raiz — define stack, comandos, convenções (baseado na decisão do passo 0)
 3. **Rodar `/init`** dentro de uma sessão Claude Code — gera CLAUDE.md base scaneando o repo
 4. **Refinar `CLAUDE.md`** — adicionar `@AGENTS.md`, perfil do Roldão, regra de investigar antes de mexer, regra de jargão traduzido
-5. **`.claude/settings.json`** com permissões mínimas + denylist robusta + `defaultMode: "plan"` (recomendado pro perfil do Roldão)
+5. **`.claude/settings.json`** com permissões mínimas + denylist robusta. (NOTA: `defaultMode` é campo INVÁLIDO conforme v3 desta auditoria; pra usar plan mode como padrão, ativar via `Shift+Tab` na sessão ou CLI `claude --permission-mode plan` — não via settings.json.)
 6. **`.claude/hooks/`**: criar `block-destructive.sh` e `secrets-scanner.sh`. **Testar cada um manualmente** com `echo '{}' | bash .claude/hooks/script.sh` antes de plugar no settings.json
 7. **`.mcp.json`** com 2-3 servidores essenciais (filesystem, github quando tiver token, playwright se for usar testes E2E)
 8. **Validar ambiente:** rodar `claude mcp list`, `/permissions`, `/hooks` (se existirem) pra conferir tudo plugado
@@ -339,7 +339,7 @@ Só depois disso, abrir o primeiro arquivo de produto.
 Posso começar criando, nessa ordem revisada:
 
 1. `.gitignore` com regras Claude
-2. `AGENTS.md` (depois que você confirmar a stack técnica — TS+Node+Electron+SQLite? Ou outra?)
+2. `AGENTS.md` (stack cravada na ADR-0001 como candidata: **Django + Flutter + PostgreSQL** — vira definitiva após 3 portões)
 3. `CLAUDE.md` enxuto com `@AGENTS.md` + perfil do Roldão + regra de investigar
 4. `.claude/settings.json` com permissões seguras + `defaultMode: "plan"` + denylist robusta
 5. 2 hooks essenciais em bash puro (sem `jq`), testados manualmente antes

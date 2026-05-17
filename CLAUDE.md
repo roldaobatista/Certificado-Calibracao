@@ -1,6 +1,8 @@
 # Contrato Claude Code — projeto
 
-> **Status atual:** ambiente Claude Code em construção. Produto, stack técnica e decisões arquiteturais ainda **não definidos** — serão registradas em `AGENTS.md` quando decidirmos.
+@AGENTS.md
+
+> **Status (2026-05-17):** ambiente Claude Code operacional. Discovery 15/15 artefatos concluída (síntese final em DRAFT v3). Stack candidata cravada na ADR-0001 (Django + Flutter + PostgreSQL — 3 portões, 2 fechados). Decisões fundadoras D1–D5 + ADRs 0000, 0001, 0002, 0007, 0008, 0009 ativas. Este arquivo é adendo do harness Claude Code; produto/arquitetura ficam em `AGENTS.md` (importado acima).
 
 ---
 
@@ -51,20 +53,32 @@ Comunicar em **Português (Brasil)** por padrão.
 
 ## Estado do ambiente
 
-Este projeto ainda **não tem** stack técnica decidida nem código de produto. O ambiente Claude Code está sendo construído primeiro:
+Ambiente operacional, sem código de produto ainda. Discovery concluída; arquitetura cravada em ADRs; primeiro código depende de fechar Portão 1 (cliente externo) e definir PRD/faseamento do MVP-1.
 
-- `.gitignore` ✅ — regras Claude + segredos + builds genéricos
-- `CLAUDE.md` ✅ — este arquivo
-- `.claude/settings.json` ✅ — permissões e hooks
-- `.claude/hooks/` ✅ — bloqueios de segurança
-- `AGENTS.md` ⏳ — será criado quando stack técnica for decidida
-- `.mcp.json` ⏳ — será criado quando primeira ferramenta externa for plugada
-- `.claude/agents/`, `.claude/skills/`, `.claude/commands/`, `.claude/rules/` ⏳ — vazios; criar entradas só quando padrão repetir 3 vezes
+**Arquivos canônicos:**
+- `AGENTS.md` ✅ — fonte canônica de produto/arquitetura (importado no topo deste arquivo)
+- `CLAUDE.md` ✅ — este arquivo; adendo do harness Claude Code
+- `REGRAS-INEGOCIAVEIS.md` ✅ — IDs `INV-`, `INV-TENANT-`, `TST-`, `SEC-`, `INV-AGENT-`
+- `CONTRIBUTING.md` ✅ — fluxo do agente
+- `.specify/memory/constitution.md` ✅ — princípios não-negociáveis
 
-**Quando criar `AGENTS.md`**, adicionar no topo deste arquivo:
-```
-@AGENTS.md
-```
+**`.claude/` (versionado):**
+- `settings.json` ✅ — permissões + hooks
+- `hooks/` ✅ — `block-destructive`, `secrets-scanner`, `_test-runner` (23 casos)
+- `agents/` ✅ — 4 subagentes humanos-substitutos: `tech-lead-saas-regulado`, `advogado-saas-regulado`, `corretora-seguros-saas`, `consultor-rbc-iso17025`
+- `output-styles/pt-br-conciso.md` ✅
+- `skills/`, `commands/`, `rules/` — vazios por escolha; criar quando padrão repetir 3 vezes
+- `.mcp.json` ✅ — github plugado; outros sob demanda
+
+**Estado do produto (resumo):**
+- Nome **"Aferê" provisório** (decidir antes de domínio/INPI)
+- Escopo: ERP completo de N módulos (mín 6 confirmados; total saída do discovery)
+- Cliente piloto: Balanças Solution (empresa do Roldão) — dogfooding; não substitui cliente externo pago
+- Stack candidata: Django + Flutter + PostgreSQL (ADR-0001 — 3 portões)
+- Hospedagem: Hostinger SP + Backblaze B2 + AWS KMS MRK
+- Modelo 100% agentes IA (4 subagentes especialistas + 3 auditores Família 5 + humano sob demanda)
+
+Mapa navegável completo em `docs/INDICE.md` e tabela de docs em `docs/documentos-do-projeto.md`.
 
 ---
 
@@ -84,24 +98,21 @@ Confirmar antes de operações irreversíveis: `git reset --hard`, `git push --f
 
 ---
 
-## Estrutura de pastas Claude Code neste projeto
+## Estrutura `.claude/` neste projeto
 
 ```
 .claude/
 ├── settings.json          ← permissões + hooks (versionado)
 ├── settings.local.json    ← pessoal (NÃO versionar)
-├── agents/                ← subagentes especialistas (vazio agora)
-├── skills/                ← procedimentos repetíveis (vazio agora)
-├── commands/              ← atalhos /comando, legado (vazio agora)
-├── hooks/                 ← scripts bash de segurança
-│   ├── block-destructive.sh
-│   └── secrets-scanner.sh
-├── rules/                 ← regras por pasta com `paths:` frontmatter (vazio agora)
-└── output-styles/         ← estilos de resposta (vazio agora)
-
-docs/
-└── ambiente-claude-code.md   ← estudo de referência do ambiente
+├── agents/                ← 4 subagentes humanos-substitutos (tech-lead, advogado, corretora, RBC)
+├── skills/                ← vazio (criar quando padrão repetir 3x)
+├── commands/              ← vazio (preferir skills no padrão novo)
+├── hooks/                 ← block-destructive.sh, secrets-scanner.sh, _test-runner.sh
+├── rules/                 ← vazio (criar com `paths:` frontmatter — lazy)
+└── output-styles/         ← pt-br-conciso.md
 ```
+
+Mapa completo do repositório em `docs/INDICE.md`.
 
 ---
 

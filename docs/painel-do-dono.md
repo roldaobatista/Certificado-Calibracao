@@ -6,20 +6,22 @@
 
 ---
 
-## 🚨 AÇÃO PENDENTE COM TERCEIROS (D-aud7-1 — CRÍTICO)
+## ⏸️ AÇÃO COM TERCEIROS — DIFERIDA PRA V2 (2026-05-17)
 
-**Auditor 7 do batch 2 alertou:** antes do MVP-1 ir pra produção, Roldão precisa contratar **3 itens com terceiros externos** (não é trabalho de agente, é decisão de negócio com fornecedores pagos):
+**Decisão Roldão (2026-05-17):** não haverá busca de cliente externo pago na janela atual. **Os 4 itens abaixo ficam diferidos** — só viram crítico quando 1º cliente externo aparecer. Ver memória [[sem-cliente-externo-na-janela-atual]] + `docs/adr/0001-stack.md` (Portão 1 diferido).
 
-| Item | Quem contratar | Custo estimado | Por que é crítico |
+**Janela atual:** MVP-1 sai como **dogfooding em Balanças Solution** (própria empresa do Roldão). Risco aceito conscientemente.
+
+| Item | Quando contratar | Custo estimado | Por que vira crítico (V2) |
 |---|---|---|---|
-| **Contrato vendor↔tenant com limitação de responsabilidade** | Advogado especializado em SaaS BR + LGPD | R$ 5-15k (one-time) | Sem limitação, Roldão responde solidariamente por bug de cálculo de incerteza. R-042 score 20. |
-| **Seguro RC profissional + RC cibernética** | Corretora de seguros (Tokio Marine, Mapfre, Porto Seguro, Allianz) | R$ 3-15k/ano (dependendo cobertura) | Sem isso, 1 incidente pode quebrar a empresa. R-042 + R-014. |
-| **DPA-modelo pra tenant repassar ao cliente farma** | Mesmo advogado do item 1 | R$ 2-5k (one-time) | Cliente farma audita lab e pede DPA com vendor. R-024 + R-028. |
-| **Dossiê de validação 17025 do próprio software** | Internamente, mas exige consultor de qualidade pra revisar | R$ 8-25k (consultor) | Tenant precisa anexar em auditoria Cgcre. Sem isso, NC do tenant cai na conta do vendor. |
+| Contrato vendor↔tenant com limitação de responsabilidade | Antes do 1º externo | R$ 5-15k (one-time) | R-042 score 20 vira ativo |
+| Seguro RC profissional + RC cibernética | Antes do 1º externo | R$ 3-15k/ano | R-042 + R-014 |
+| DPA-modelo pra tenant repassar ao cliente | Antes do 1º externo | R$ 2-5k (one-time) | R-024 + R-028 |
+| Dossiê de validação 17025 do próprio software | Antes do 1º externo (consultor RBC humano) | R$ 8-25k | NC do tenant cai na conta do vendor |
 
-**Total estimado:** R$ 18-60k pra deixar o vendor (você) blindado antes de ter 1º cliente pagante.
+**Total diferido:** R$ 18-60k. Não gastar agora.
 
-**Próxima ação sua:** marcar conversa com advogado + corretora de seguros nas próximas 2-4 semanas. Sem essa blindagem, MVP-1 em produção é apostar a casa.
+**Próxima ação sua na janela atual:** começar Foundation F-A (multi-tenant + RLS + audit, 4-6 semanas) com critérios da ADR-0001 Portão 3 aplicados — sem spike descartável; ver [[nao-construir-codigo-descartavel]]. R-042 fica como risco aceito enquanto não há cliente externo.
 
 ---
 
@@ -39,13 +41,20 @@
 - **Domínio:** "decisão fundadora" desambiguada (PRODUTO Roldão 17/05 vs ENGENHARIA D1-D6)
 - **Glossário:** 236 termos (+9: RICE, Van Westendorp, fake door, smoke test, ride-along, time-trial, leap-of-faith, conjoint analysis, decisão fundadora)
 
-**Bloqueio:** **entrevistas reais** com 5-10 OUTRAS empresas (mitigação R-001 reforçada após Aud-13+18+19); ação D-aud7-1 com terceiros (advogado+seguro+DPA+consultor, R$ 18-60k); **ADR-0001 stack técnica DEVE ser decidida antes do spike F-1**.
+**Bloqueio atualizado (2026-05-17 noite final):** Foundation F-A → F-H (4-6 semanas pra F-A; resto em paralelo onde possível) + Wave A em Balanças Solution. **Entrevistas externas e D-aud7-1 diferidos pra V2** — Roldão decidiu não buscar cliente externo na janela atual ([[sem-cliente-externo-na-janela-atual]]).
 
 **Próximo passo recomendado pelo agente:**
-1. Listar 20 telefones quentes do Roldão (Aud-18 não-negociável)
-2. ADR-0001 stack (Aud-22 bloqueia spike F-1)
-3. Preparar Onda 1 — roteiro por persona + 5 entrevistas "anti-Roldão" pra imunizar contra founder bias
-4. Iniciar D-aud7-1 em paralelo (advogado leva 4-6 sem)
+1. ADR-0001 stack — **candidata aprovada via Portões 2+3** (Portão 1 diferido pra V2)
+2. Foundation F-A (multi-tenant + RLS + audit) — 4-6 semanas com critérios da ADR-0001 Portão 3, **construída em ambiente local (Docker compose)**; deploy a servidor remoto só quando Roldão autorizar ([[deploy-so-quando-roldao-decidir]])
+
+**Estado da documentação após v7 (2026-05-17 noite +6h):**
+- **Documentação estrutural completa.** 5 domínios + 19 módulos com 8 docs cada (~152 arquivos).
+- **5 OPs novas (OP13/14/15/16/17)**, **7 INVs novos (INV-021..027)**, **3 ADRs reais (0004/0005/0006)** adicionadas.
+- **Total ~270 docs** distribuídos em 8 famílias.
+- **O que falta:** specs por feature (`specs/<NNN>/{spec,plan,tasks}.md`) — só criar quando feature entrar em desenvolvimento.
+- **Próximo bloqueio real:** Roldão autorizar início de Foundation F-A em ambiente local.
+3. Wave A em Balanças Solution (NFS-e + Certificado + OS) por ≥ 3 meses
+4. Família 6 calibração ISO 17025 (`docs/dominios/metrologia/modulos/calibracao/`) — gap regulatório técnico
 
 ### ✨ Achados consolidados pós-auditoria + 4 decisões fundadoras
 
