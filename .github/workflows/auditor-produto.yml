@@ -1,0 +1,119 @@
+# Auditor de Produto — camada B do híbrido (servidor)
+# Roda em PR marcada como "ready-for-merge". Prompt versionado em docs/governanca/auditor-produto-prompt.md.
+# Bloqueia merge se devolver FAIL.
+
+name: auditor-produto
+
+on:
+  pull_request:
+    types: [labeled, opened, synchronize, reopened]
+
+jobs:
+  auditor:
+    # Só roda quando label "ready-for-merge" estiver presente
+    if: contains(github.event.pull_request.labels.*.name, 'ready-for-merge')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Diff acumulado da branch
+        run: |
+          git fetch origin "${{ github.base_ref }}"
+          git diff "origin/${{ github.base_ref }}...HEAD" > /tmp/diff.patch
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Anthropic SDK
+        run: pip install anthropic
+
+      - name: Detectar módulo afetado e carregar PRD
+        id: contexto
+        run: |
+          # Extrai módulo do PR title ou body via convenção (US-<MOD>-NNN)
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_BODY="${{ github.event.pull_request.body }}"
+          MOD=$(echo "$PR_TITLE $PR_BODY" | grep -oE 'US-[A-Z]+-[0-9]+' | head -1 | cut -d- -f2 | tr '[:upper:]' '[:lower:]' || echo "")
+          echo "mod=$MOD" >> "$GITHUB_OUTPUT"
+
+      - name: Invocar Auditor de Produto
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MOD: ${{ steps.contexto.outputs.mod }}
+        run: |
+          python <<'EOF'
+          import os, sys, pathlib, glob
+          from anthropic import Anthropic
+
+          client = Anthropic()
+          root = pathlib.Path(".")
+
+          system_prompt = (root / "docs/governanca/auditor-produto-prompt.md").read_text(encoding="utf-8")
+          prd_geral = (root / "docs/prd.md").read_text(encoding="utf-8") if (root / "docs/prd.md").exists() else "(PRD ainda não criado)"
+          glossario = (root / "docs/comum/glossario-roldao.md").read_text(encoding="utf-8") if (root / "docs/comum/glossario-roldao.md").exists() else "(glossário ainda não criado)"
+
+          mod = os.environ.get("MOD", "")
+          prd_mod = "(módulo não identificado no título/body do PR)"
+          if mod:
+              candidatos = list(root.glob(f"docs/dominios/*/modulos/{mod}/prd.md"))
+              if candidatos:
+                  prd_mod = candidatos[0].read_text(encoding="utf-8")
+
+          diff = pathlib.Path("/tmp/diff.patch").read_text(encoding="utf-8", errors="replace")
+          if len(diff) > 300_000:
+              diff = diff[:300_000] + "\n\n[... diff truncado ...]"
+
+          pr_title = """${{ github.event.pull_request.title }}"""
+          pr_body = """${{ github.event.pull_request.body }}"""
+
+          user_msg = f"""## docs/prd.md (visão consolidada)
+          {prd_geral}
+
+          ## PRD do módulo afetado (mod={mod})
+          {prd_mod}
+
+          ## docs/comum/glossario-roldao.md
+          {glossario}
+
+          ## PR title
+          {pr_title}
+
+          ## PR body
+          {pr_body}
+
+          ## Diff acumulado
+          ```
+          {diff}
+          ```
+
+          Aplique o prompt em system. Devolva no formato exato com lista de AC + non-goals + scope creep."""
+
+          resp = client.messages.create(
+              model="claude-opus-4-7",
+              max_tokens=8192,
+              system=system_prompt,
+              messages=[{"role": "user", "content": user_msg}],
+          )
+
+          out = resp.content[0].text
+          print(out)
+
+          first_line = out.split("\n")[0].strip().upper()
+          if "FAIL" in first_line:
+              print("::error::Auditor de Produto bloqueou — corrigir AC ou non-goals antes do merge")
+              sys.exit(1)
+          if "CONCERNS" in first_line:
+              print("::warning::Auditor de Produto emitiu CONCERNS")
+          # Detecta escalation
+          if "ESCALATION_ROLDAO" in out:
+              print("::warning::Auditor de Produto pediu escalation pro Roldão — ver painel-do-dono.md")
+          sys.exit(0)
+          EOF

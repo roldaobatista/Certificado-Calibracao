@@ -1,0 +1,83 @@
+# Auditor de Qualidade — camada B do híbrido (servidor)
+# Roda em cada PR. Prompt versionado em docs/governanca/auditor-qualidade-prompt.md (v1.0.0).
+# Bloqueia merge se devolver FAIL.
+
+name: auditor-qualidade
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+jobs:
+  auditor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Diff vs base
+        run: |
+          git fetch origin "${{ github.base_ref }}"
+          git diff "origin/${{ github.base_ref }}...HEAD" > /tmp/diff.patch
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Anthropic SDK
+        run: pip install anthropic
+
+      - name: Invocar Auditor de Qualidade
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python <<'EOF'
+          import os, sys, pathlib
+          from anthropic import Anthropic
+
+          client = Anthropic()
+          root = pathlib.Path(".")
+
+          system_prompt = (root / "docs/governanca/auditor-qualidade-prompt.md").read_text(encoding="utf-8")
+          regras = (root / "REGRAS-INEGOCIAVEIS.md").read_text(encoding="utf-8")
+          diff = pathlib.Path("/tmp/diff.patch").read_text(encoding="utf-8", errors="replace")
+
+          if len(diff) > 400_000:
+              diff = diff[:400_000] + "\n\n[... diff truncado em 400k chars ...]"
+
+          user_msg = f"""## REGRAS-INEGOCIAVEIS.md
+          {regras}
+
+          ## Diff a auditar (git diff base...HEAD)
+          ```
+          {diff}
+          ```
+
+          Aplique o prompt em system e devolva no formato exato. Cobertura ainda não disponível (pré-Foundation F-A)."""
+
+          resp = client.messages.create(
+              model="claude-sonnet-4-6",
+              max_tokens=4096,
+              system=system_prompt,
+              messages=[{"role": "user", "content": user_msg}],
+          )
+
+          out = resp.content[0].text
+          print(out)
+
+          first_line = out.split("\n")[0].strip().upper()
+          if "FAIL" in first_line:
+              print("::error::Auditor de Qualidade bloqueou — veja saída acima")
+              sys.exit(1)
+          if "CONCERNS" in first_line:
+              print("::warning::Auditor de Qualidade emitiu CONCERNS")
+          sys.exit(0)
+          EOF

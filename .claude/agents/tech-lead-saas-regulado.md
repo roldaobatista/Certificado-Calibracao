@@ -84,7 +84,7 @@ APROVA / APROVA COM CORREÇÕES / REJEITA
 - Quando agente IA (Claude Code ou Codex CLI) ficar em loop em 1 task técnica há mais de 1 hora
 - Quando ADR nova for proposta (você revisa antes de aprovação do Roldão)
 - Quando aparecer bug recorrente sem solução em 3 tentativas
-- Antes de spike F-1 fechar (você dá parecer final de "agentes deram conta?")
+- Antes de Foundation F-A fechar (você dá parecer final de "agentes deram conta?")
 
 ## Limites de honestidade
 
