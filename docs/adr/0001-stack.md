@@ -24,11 +24,13 @@ Antes de qualquer linha de código de produto:
 
 ### Portão 2 — Decisões técnicas derivadas (bloqueia F-A)
 4 ADRs novas + 1 doc arquitetural escritas e aprovadas:
-- [ ] **ADR-0002 multi-tenancy** — schema-shared + middleware tenant_id + RLS + roles NOBYPASSRLS + wrapper Celery
-- [ ] **ADR-0007 camada de domínio + gerador spec→código** — pipeline spec PT → YAML → Django+Pydantic+OpenAPI+Dart; resolve risco "4 representações divergem em 2 sprints" (Parecer 6)
-- [ ] **ADR-0008 fiscal pluggable** — interface `FiscalProvider` agnóstica de país (BR/AR/MX); PlugNotas como 1ª implementação, mas porta/adapter permite Focus/TecnoSpeed sem reescrita (Parecer 7)
-- [ ] **ADR-0009 onde A3 assina** — server-side (`python-pkcs11`) vs cliente (Web PKI Lacuna) — padrão de mercado favorece cliente (Parecer 1)
-- [ ] `docs/arquitetura/anti-corrosion-layer.md` expandido — portas pra `FiscalProvider`, `SignatureProvider`, `LLMGateway`, `StorageProvider`, `HostingTarget`, `AuthProvider`, `QueueProvider`, `SyncProvider`, `MultiTenantDiscriminator` (Parecer 4 + 9)
+- [x] **ADR-0002 multi-tenancy** — schema-shared + middleware tenant_id + RLS + roles NOBYPASSRLS + wrapper Celery ✅ proposta (17/05/2026)
+- [x] **ADR-0007 camada de domínio + gerador spec→código** — pipeline spec PT → YAML → Django+Pydantic+OpenAPI+Dart ✅ proposta (17/05/2026)
+- [x] **ADR-0008 fiscal pluggable** — interface `FiscalProvider` agnóstica de país (BR/AR/MX); PlugNotas 1ª impl + Focus NFe smoke trimestral ✅ proposta (17/05/2026)
+- [x] **ADR-0009 onde A3 assina** — A3 sempre cliente-side via Web PKI Lacuna; A1 server-side com KMS ✅ proposta (17/05/2026)
+- [x] `docs/arquitetura/anti-corrosion-layer.md` — 9 portas (Fiscal, Signature, LLM, Storage, Hosting, Auth, Queue, Sync, MultiTenant) ✅ criado (17/05/2026)
+- [x] `REGRAS-INEGOCIAVEIS.md` — INV-TENANT-004 + INV-AGENT-001 adicionadas ✅ (17/05/2026)
+- [ ] Aprovação do Roldão nas 4 ADRs + ACL — pendente
 
 ### Portão 3 — Spike F-1 cravado + drills cronometrados (bloqueia MVP-1)
 - [ ] **Spike F-1 com escopo recortado** (não Foundation completa) — só Django + DRF + PG + RLS + pytest. Mobile, fiscal, LLM em spikes irmãos. 4-6 semanas máx.

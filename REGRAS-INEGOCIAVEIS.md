@@ -41,8 +41,9 @@
 | INV-TENANT-001 | Toda query SQL/ORM contém `tenant_id` no WHERE | Linter de query + teste de fuzzing | Vazamento cross-tenant — incidente #1 ANPD + perda de cliente |
 | INV-TENANT-002 | Toda tabela com dados de cliente tem coluna `tenant_id` NOT NULL | Migration linter | Mesmo |
 | INV-TENANT-003 | RLS (Row-Level Security) ativa em todas tabelas com `tenant_id` (se stack escolhida = PostgreSQL) | Migration check + teste | Mesmo |
+| INV-TENANT-004 | Role da aplicação Django criada com `NOBYPASSRLS` + `NOSUPERUSER`. Migrations rodam com role separada `app_migrator` (também NOBYPASSRLS). Hook de migration valida `current_setting('is_superuser') = off` e testa que policy RLS não pode ser ignorada. | Migration check + teste de bypass | Docker Compose mal configurado rodando como `postgres` superuser anula RLS inteira — vazamento determinístico em qualquer query. Auditor 2 da 1ª auditoria de 10 agentes (17/05/2026). |
 
-Reforçados pelo ADR-0002 (multi-tenancy) — a criar.
+Reforçados pelo ADR-0002 (multi-tenancy) — rascunho em `docs/adr/0002-multi-tenancy.md`.
 
 ---
 
@@ -54,6 +55,14 @@ Reforçados pelo ADR-0002 (multi-tenancy) — a criar.
 | TST-002 | Proibido `assertTrue(true)`, `assert 1 == 1` e outras assertions vazias | Linter AST | Mesmo |
 | TST-003 | Proibido `@ts-ignore`, `eslint-disable`, `# type: ignore` sem comentário com justificativa | Linter | Bypass silencioso |
 | TST-004 | Toda INV-NNN crítica tem ≥1 teste cujo nome cita o ID | CI grep | Invariante decorativa |
+
+---
+
+## INV-AGENT-* — Invariantes de operação por agente IA
+
+| ID | Regra | Hook que valida | Consequência de violar |
+|---|---|---|---|
+| INV-AGENT-001 | Todo input externo não-confiável (campo preenchido por cliente final, e-mail/anexo de fornecedor, PR comment, issue de cliente) entra em código tipado como `UntrustedInput[T]` (brand type Pydantic). Funções que consomem `UntrustedInput` NÃO podem chamar diretamente: API de LLM (LiteLLM), `subprocess`, ORM com query dinâmica, `eval`/`exec`, gravação direta em tabela de domínio crítico (financeiro, fiscal, KMS, migrations). Pra esses casos, exige passagem por sanitizer + log explícito + revisão humana se score de risco > 0,5. | Lint AST custom (`semgrep` rule) bloqueia `LLMGateway.chat(...)` com input não-marcado; teste de fuzzing prova injection bloqueada | Prompt injection via input de cliente final move agente a executar ação cross-tenant (R-027 score 25). ADR-0000 regra #5. |
 
 ---
 
