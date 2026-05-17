@@ -1,0 +1,25 @@
+# CODEOWNERS — D5 expandida (5 paths anti-bypass + 5 pastas críticas de ERP financeiro)
+#
+# Sintaxe: PATH @owner
+# @roldao é o único humano aprovador. Rubber-stamp é aceitável aqui — o VALOR é mecânico
+# (auditoria diz "humano viu"), não revisão técnica. O painel-do-dono dispara aviso
+# em PT-BR claro explicando o que está sendo afrouxado.
+
+# === D5 Paths anti-bypass (afrouxam o sistema de segurança/regulação) ===
+.claude/hooks/                          @roldao
+.claude/settings.json                   @roldao
+.specify/memory/constitution.md         @roldao
+REGRAS-INEGOCIAVEIS.md                  @roldao
+docs/conformidade/                      @roldao
+
+# === Pastas críticas de ERP financeiro (Auditor 1 v2 expandiu) ===
+# Estas pastas ainda não existem como código — entram quando stack for definida (ADR-0001).
+financeiro/                             @roldao
+auth/                                   @roldao
+tenant/                                 @roldao
+kms/                                    @roldao
+migrations/                             @roldao
+
+# === Default ===
+# Tudo o que NÃO está acima segue a regra "trabalhar na main, sem PR" (CLAUDE.md global).
+# Agente opera autônomo com 3 auditores-agentes; humano só nos 10 paths acima.

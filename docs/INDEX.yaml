@@ -1,0 +1,123 @@
+# INDEX.yaml — mapa machine-readable pro agente carregar sob demanda
+#
+# Esquema: cada entrada é { path, familia, dominio, modulo, status, prioridade, tokens_estimados, carrega_quando }
+# Hook session-start (a criar) lê este arquivo + .agent/CURRENT.md e injeta SÓ o subset necessário via @path.
+#
+# Status: existe | parcial | falta | lazy
+# Prioridade: mvp | proximo | lazy
+# carrega_quando: sempre | discovery | mvp1 | <modulo>:<crm|financeiro|...> | sob-demanda
+
+version: 1
+ultima_atualizacao: 2026-05-16
+
+# === FUNDAÇÃO (carrega sempre) ===
+fundacao:
+  - path: CLAUDE.md
+    familia: 1
+    status: existe
+    prioridade: mvp
+    tokens_estimados: 5000
+    carrega_quando: sempre
+  - path: AGENTS.md
+    familia: 1
+    status: parcial
+    prioridade: mvp
+    tokens_estimados: 1000
+    carrega_quando: sempre
+  - path: REGRAS-INEGOCIAVEIS.md
+    familia: 3
+    status: parcial
+    prioridade: mvp
+    tokens_estimados: 2000
+    carrega_quando: sempre
+  - path: .specify/memory/constitution.md
+    familia: 5
+    status: existe
+    prioridade: mvp
+    tokens_estimados: 2500
+    carrega_quando: sempre
+  - path: .agent/CURRENT.md
+    familia: extra
+    status: existe
+    prioridade: mvp
+    tokens_estimados: 200
+    carrega_quando: sempre
+
+# === FUNDAÇÃO 2 (carrega quando fase casa) ===
+fase_discovery:
+  - path: docs/discovery/sintese-final.md
+    familia: 0
+    status: falta
+    prioridade: mvp
+    tokens_estimados: 0
+    carrega_quando: discovery
+  - path: docs/discovery/dominio-de-negocio.md
+    familia: 0
+    status: falta
+    prioridade: mvp
+    tokens_estimados: 0
+    carrega_quando: discovery
+  # ... (demais 13 artefatos de discovery, omitidos por brevidade — preencher conforme criar)
+
+# === COMUM (carrega quando agente trabalha em código de produto) ===
+comum:
+  - path: docs/comum/glossario.md
+    familia: 2
+    status: falta
+    prioridade: mvp
+    tokens_estimados: 0
+    carrega_quando: mvp1
+  - path: docs/comum/isolamento-multi-tenant.md
+    familia: 3
+    status: falta
+    prioridade: mvp
+    tokens_estimados: 0
+    carrega_quando: mvp1
+  - path: docs/comum/governanca-modelo-comum.md
+    familia: 3
+    status: existe
+    prioridade: mvp
+    tokens_estimados: 1500
+    carrega_quando: mvp1
+
+# === MÓDULO (carrega só quando agente trabalha NESSE módulo) ===
+# Vazio até MVP-1 ser definido pela síntese final do discovery
+modulos:
+  # exemplo de futura entrada:
+  # - path: docs/dominios/metrologia/modulos/calibracao/glossario.md
+  #   familia: 2
+  #   dominio: metrologia
+  #   modulo: calibracao
+  #   status: falta
+  #   prioridade: mvp
+  #   tokens_estimados: 0
+  #   carrega_quando: modulo:calibracao
+
+# === SOB-DEMANDA (carrega só se agente pedir explicitamente) ===
+sob_demanda:
+  - path: docs/documentos-do-projeto.md
+    familia: meta
+    status: existe
+    prioridade: mvp
+    tokens_estimados: 15000  # arquivo grande; só carregar sob pedido explícito
+    carrega_quando: sob-demanda
+  - path: docs/INDICE.md
+    familia: extra
+    status: existe
+    prioridade: mvp
+    tokens_estimados: 1500
+    carrega_quando: sob-demanda
+  - path: docs/ambiente-claude-code.md
+    familia: meta
+    status: existe
+    prioridade: mvp
+    tokens_estimados: 8000
+    carrega_quando: sob-demanda
+
+# === TETO POR ARQUIVO (D2/D3 da constituição) ===
+tetos:
+  CLAUDE.md: 5000  # ~150 linhas
+  AGENTS.md: 8000  # ~250 linhas
+  REGRAS-INEGOCIAVEIS.md: 4000  # ~120 linhas
+  .agent/CURRENT.md: 500  # ~10 linhas
+  # Hook (a criar) tokeniza e falha acima do teto.
