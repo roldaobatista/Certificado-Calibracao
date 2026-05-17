@@ -15,12 +15,19 @@
 
 Esta ADR não é aceita como "final" enquanto os 3 portões abaixo não passarem. Se qualquer um falhar, a ADR reabre — isso é feature, não bug.
 
-### Portão 1 — Discovery fechada (bloqueia F-A)
-Antes de qualquer linha de código de produto:
+### Portão 1 — Discovery fechada (DIFERIDO pra V2)
+
+> **Decisão Roldão (2026-05-17):** não haverá busca de cliente externo pago na janela do MVP-1 inicial. Portão 1 fica **diferido pra V2** — só se aplica se/quando Roldão decidir buscar cliente externo. **R-001 (founder is customer) aceito em 12 conscientemente.** Mesmo padrão de R-065 (RT vendor diferido) e cronograma realista 5-7 meses (3ª auditoria).
+>
+> Ver memória [[sem-cliente-externo-na-janela-atual]].
+
+Critérios originais (preservados pra referência V2):
 - [ ] `docs/discovery/sintese-final.md` fechada com ICP + MVP-1 + 3 cartas de intenção de clientes externos (não-Roldão)
 - [ ] Onda 1 de 5 entrevistas anti-Roldão concluída
 - [ ] 20 telefones quentes listados (Aud-18)
 - [ ] R-001 (founder is customer) score caiu de 20 pra ≤9 com evidência
+
+**Substituto na janela atual:** Foundation F-A + Wave A rodando em Balanças Solution (dogfooding) por ≥ 3 meses sem SEV-0/SEV-1. Apólice cyber, DPO formal, DPA-modelo — todos diferidos pra quando 1º externo aparecer.
 
 ### Portão 2 — Decisões técnicas derivadas (bloqueia F-A)
 4 ADRs novas + 1 doc arquitetural escritas e aprovadas:
@@ -32,10 +39,13 @@ Antes de qualquer linha de código de produto:
 - [x] `REGRAS-INEGOCIAVEIS.md` — INV-TENANT-004 + INV-AGENT-001 adicionadas ✅ (17/05/2026)
 - [ ] Aprovação do Roldão nas 4 ADRs + ACL — pendente
 
-### Portão 3 — Spike F-1 cravado + drills cronometrados (bloqueia MVP-1)
-- [ ] **Spike F-1 com escopo recortado** (não Foundation completa) — só Django + DRF + PG + RLS + pytest. Mobile, fiscal, LLM em spikes irmãos. 4-6 semanas máx.
-- [ ] **Critério de mortalidade falsificável:** ≤2 intervenções de código/semana do Roldão, ≤3 bugs SEV-1 em prod, token cap R$ 1.500/spike. Se falhar, dispara plano B (tech-lead consultivo R$ 8-15k/mês) — NÃO reverte pra TS.
-- [ ] **Taxonomia de bug obrigatória por commit** (`lang | spec-drift | hipotese-produto | infra | seguranca`) — sem isso, falha de F-1 vira discussão religiosa (Parecer 3).
+### Portão 3 — Foundation F-A construída + critérios de validação (bloqueia MVP-1)
+
+> **Decisão Roldão (2026-05-17):** **NÃO há "Spike F-1"** como construção descartável. Todo código fica e vira parte do MVP-1. Os critérios abaixo são aplicados às primeiras 4-6 semanas da **F-A real da Foundation** (multi-tenant + RLS + audit trail). Se reprovar, **muda estratégia** (chama tech-lead consultivo) mas o **código permanece**. Ver memória [[nao-construir-codigo-descartavel]].
+
+- [ ] **F-A construída em 4-6 semanas** (Django + DRF + PG + RLS + pytest + multi-tenant operacional). Mobile, fiscal, LLM em fases seguintes da Foundation/Wave A — não em paralelo desnecessário.
+- [ ] **Critério de mortalidade falsificável:** ≤2 intervenções de código/semana do Roldão, ≤3 bugs SEV-1, token cap R$ 1.500 no período. Se falhar, dispara plano B (tech-lead consultivo R$ 8-15k/mês) — NÃO reverte pra TS, **código já construído permanece e segue evoluindo**.
+- [ ] **Taxonomia de bug obrigatória por commit** (`lang | spec-drift | hipotese-produto | infra | seguranca`) — sem isso, qualquer falha vira discussão religiosa (Parecer 3 da 2ª auditoria).
 - [ ] **1 drill obrigatório mensal antes do 1º tenant pago** (auditoria 17/05/2026 reduziu de 4 → 1):
   - Restore pgBackRest em provedor B testado
 - [ ] **Outros 3 drills disparam quando 5 tenants pagos ativos:**
@@ -209,7 +219,7 @@ Externos:
 
 Auditor 1 + Auditor 10 alertaram que Django é território onde agentes IA erram um pouco mais que TS. **Mitigações concretas:**
 
-1. **Spike F-1 com critério de mortalidade explícito** — 2 sprints construindo módulo Estoque + módulo OS simples em Django. Gate: Roldão intervém ≤ 2x/semana, ≤ 3 bugs em produção. Se falhar, dispara plano B (tech-lead consultivo R$ 8-15k/mês).
+1. **Foundation F-A com critério de mortalidade explícito** — primeiras 4-6 semanas construindo multi-tenant + RLS + audit em Django (não experimento descartável; código fica). Gate: Roldão intervém ≤ 2x/semana, ≤ 3 bugs em produção. Se falhar, dispara plano B (tech-lead consultivo R$ 8-15k/mês); código permanece.
 2. **Pin Django 5.0 LTS** (não 5.1 ou 5.2) — pool de exemplos no treinamento dos agentes maior na LTS estável.
 3. **Convenções rígidas documentadas em `docs/arquitetura/django-convencoes.md`** — estrutura de apps, naming, layered architecture, signals proibidos por default (override explícito), uso de `select_related`/`prefetch_related` obrigatório em querysets de lista.
 4. **Lint Python pesado:** ruff (formatter + linter) + mypy strict + bandit (segurança) + django-upgrade. CI bloqueia merge.
@@ -230,7 +240,7 @@ Auditor 1 + Auditor 10 alertaram que Django é território onde agentes IA erram
 | 3 | Mobile offline | Flutter dev-build desde dia 1 (não managed); `flutter_camera` com perfil de captura calibrado; compressão client-side ≤1MB; upload chunked com retry |
 | 3 | Mobile offline | ADR-0005 sync strategy escrita antes de F-D; regra de conflict resolution por entidade |
 | 3 | Mobile offline | Render PDF certificado no backend (Celery worker dedicado), não mobile |
-| 4 | Performance | Spike F-1 inclui benchmark carga sintética 50 tenants antes de cravar VPS |
+| 4 | Performance | Foundation F-A inclui benchmark carga sintética 50 tenants antes de cravar VPS |
 | 4 | Performance | Worker Celery dedicado pra PDF (CPU-bound isolado); índices compostos `(tenant_id, ...)` em todas FKs |
 | 4 | Performance | Cloudflare na frente (free tier) — ganho TTI cliente em 4G fraco |
 | 5 | Compliance | PlugNotas como BaaS fiscal (SDK Python); ADR-0008 fiscal só formaliza |
@@ -255,7 +265,7 @@ Auditor 1 + Auditor 10 alertaram que Django é território onde agentes IA erram
 | 9 | Débito futuro | Anti-corrosion layer obrigatório: porta/adapter pra auth, queue, LLM gateway, sync mobile, multi-tenant — agentes nunca importam direto |
 | 9 | Débito futuro | ADR-0002 multi-tenancy escrita antes de F-A (não promessa) |
 | 10 | Viés | Esta v2 aplica o critério "negócio vence" — [[feedback_negocio_sobre_agente]] |
-| 10 | Viés | LEAP F-1 com critério de mortalidade falsificável; spike F-1 mede também custo do "admin Roldão se fosse construído na mão" como contraprova |
+| 10 | Viés | LEAP F-1 com critério de mortalidade falsificável; Foundation F-A mede também custo do "admin Roldão se fosse construído na mão" como contraprova |
 
 **Total: 33 correções incorporadas.**
 
@@ -325,8 +335,8 @@ Auditor 1 + Auditor 10 alertaram que Django é território onde agentes IA erram
 - [ ] **ARQUITETURA.md** — preencher status com link pra esta ADR
 - [ ] **memory `project_hosting.md`** — atualizar de Fastify pra Django + Celery (memory antigo está desatualizado)
 
-### Spike F-1
-- [ ] **Spike F-1 com critério de mortalidade explícito** — 2 sprints; módulo Estoque + módulo OS simples; gate Roldão ≤ 2x/sem intervenção + ≤ 3 bugs prod
+### Foundation F-A (sem spike descartável)
+- [ ] **Foundation F-A com critério de mortalidade explícito** — primeiras 4-6 semanas; multi-tenant + RLS + audit em Django; gate Roldão ≤ 2x/sem intervenção + ≤ 3 bugs prod. Código fica independente do veredito.
 
 ---
 
@@ -347,7 +357,7 @@ Caso contrário, revisão anual junto com `painel-do-dono.md`.
 - [x] **Roldão (decisor):** aceita Django + Flutter + PostgreSQL como **direção CANDIDATA**, sujeita aos 3 portões — aprovado 17/05/2026
 - [ ] **Portão 1 (discovery fechada):** ICP + MVP-1 + 3 cartas de intenção — pendente
 - [ ] **Portão 2 (4 ADRs filhas + ACL expandido):** ADR-0002, 0007, 0008, 0009 + anti-corrosion layer — pendente
-- [ ] **Portão 3 (spike F-1 + drills):** F-1 verde + 4 drills cronometrados verdes + 5 ativos contratuais — pendente
+- [ ] **Portão 3 (Foundation F-A + drill):** F-A verde nos critérios de mortalidade + 1 drill restore PG cronometrado verde + 5 ativos contratuais (apólice/DPO/DPA diferidos pra V2) — pendente
 - [ ] **Auditor 4 (governança):** confirma ADR-0000 respeitada — pendente
 - [ ] **Auditor 5 (qualidade):** confirma TST-001..004 compatíveis — pendente
 - [ ] **Auditor 10 (anti-viés 2ª rodada):** confirma que esta v2 + 3 portões corrigiu os 8 achados novos — pendente

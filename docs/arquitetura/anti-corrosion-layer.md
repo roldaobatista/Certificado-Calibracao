@@ -374,7 +374,7 @@ src/
 ## Itens a fazer
 
 - [ ] Implementar 9 portas como Protocols Python em `infrastructure/`
-- [ ] Implementar `Mock*Provider` pra todas as 9 antes do spike F-1
+- [ ] Implementar `Mock*Provider` pra todas as 9 antes da Foundation F-A começar
 - [ ] Lint custom semgrep bloqueando imports diretos
 - [ ] Smoke test trimestral configurado em GitHub Actions
 - [ ] Documentar custo de troca por porta no docstring

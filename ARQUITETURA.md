@@ -7,9 +7,9 @@
 **Histórico:** v1 (TS fullstack) reprovada pela 1ª auditoria de 10 agentes; v2 (Django + Flutter) pivotou aplicando critério "negócio vence"; 2ª auditoria validou direção MAS exigiu portões antes de cravar definitiva.
 
 **3 portões:**
-1. Discovery fechada (ICP + MVP-1 + 3 cartas de intenção)
+1. ~~Discovery fechada (ICP + MVP-1 + 3 cartas de intenção)~~ — **DIFERIDO pra V2** (decisão 2026-05-17; ver `docs/adr/0001-stack.md` Portão 1)
 2. 4 ADRs filhas escritas: ADR-0002 multi-tenancy ✏️ rascunho, ADR-0007 domain layer ✏️ rascunho, ADR-0008 fiscal pluggable ✏️ rascunho, ADR-0009 onde A3 assina ✏️ rascunho
-3. Spike F-1 + 4 drills cronometrados + 5 ativos contratuais
+3. Foundation F-A com critérios da ADR-0001 Portão 3 + 1 drill restore PG cronometrado (apólice/DPO/DPA diferidos V2). **Sem spike descartável** — código fica.
 
 ## Localização da arquitetura detalhada
 
