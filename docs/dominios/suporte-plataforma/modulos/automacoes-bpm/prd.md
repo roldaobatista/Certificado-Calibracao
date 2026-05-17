@@ -147,6 +147,52 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 
 ---
 
+### US-BPM-008: Catálogo de ações ampliado (13 ações) e governança
+
+**Como** Aferê (governança), **quero** que o catálogo de ações executáveis pelo engine de regras seja **fechado e versionado**, **para** evitar customização infinita por tenant (ANTI-11) e manter auditoria de cada ação.
+
+**Contexto:** ADR-0005 v1 listou 5 ações iniciais (`enviar_whatsapp, enviar_email, criar_os, notificar_painel, escalar_para`). Auditor H da auditoria de integrações 17/05/2026 identificou que o sistema precisa de ~13 ações. Catálogo expandido agora documentado em `docs/comum/automacoes-catalogo.md`.
+
+**Catálogo de 13 ações (Wave A + Wave B):**
+
+| # | Ação | Categoria | Onde executa |
+|---|---|---|---|
+| 1 | `enviar_whatsapp` | Comunicação | OmniChannelProvider (#10 ACL) |
+| 2 | `enviar_email` | Comunicação | EmailTemplateProvider (#18 ACL) |
+| 3 | `enviar_sms` | Comunicação | OmniChannelProvider |
+| 4 | `notificar_painel` | Comunicação | Interno (banner UI) |
+| 5 | `criar_tarefa_crm` | Criação | comercial/crm |
+| 6 | `criar_os_rascunho` | Criação | operacao/os |
+| 7 | `criar_cotacao_fornecedores` | Criação | suporte-plataforma/fornecedores |
+| 8 | `criar_nc` | Criação | rh-frota-qualidade/qualidade |
+| 9 | `bloquear_emissao_certificado` | Bloqueio | metrologia/certificados |
+| 10 | `bloquear_alocacao_tecnico` | Bloqueio | operacao/agenda |
+| 11 | `bloquear_cliente` | Bloqueio | comercial/clientes |
+| 12 | `escalar_para` | Escalação | automacoes-bpm |
+| 13 | `solicitar_aprovacao` | Aprovação | automacoes-bpm |
+
+**Critérios de aceite:**
+- **AC-BPM-008-1**: GIVEN ação nova é proposta, WHEN PR é aberto, THEN Auditor de Segurança + Auditor de Produto **revisam pre-merge**.
+- **AC-BPM-008-2**: GIVEN tenant tenta usar ação não-catalogada, WHEN UI valida, THEN bloqueia + mensagem "ação fora do catálogo — solicite ao Aferê".
+- **AC-BPM-008-3**: GIVEN ação executada, WHEN handler completa, THEN grava em `audit_trail.automacoes_executadas(evento_disparador, condicoes_avaliadas, acoes_executadas, resultado)`.
+- **AC-BPM-008-4**: GIVEN ação envolve recurso bloqueado (ex: `bloquear_cliente` mas usuário não tem perm `cliente.bloquear`), WHEN `AuthorizationProvider.can()` é invocado antes da ação, THEN bloqueio: regra de tenant não pode executar ação que tenant não pode executar manualmente (ANTI-11 + INV-AUTHZ-001 reforçados).
+- **AC-BPM-008-5**: Versionamento: catálogo segue semver. Ação adicionada = versão MINOR. Ação removida/mudança breaking = MAJOR + breaking change comunicado via `release-management`.
+
+**Lista de 15 automações iniciais publicadas:** Ver `docs/comum/automacoes-catalogo.md` (AUT-001..015) — Wave A entrega 8 automações, Wave B entrega 7.
+
+---
+
+### US-BPM-009: Detecção de ciclo + timeout
+
+**Como** sistema, **quero** detectar regras que disparam outras regras em loop infinito (A → B → A), **para** evitar travamento do engine.
+
+**Critérios de aceite:**
+- **AC-BPM-009-1**: GIVEN execução de regra dispara evento que dispara regra A novamente, WHEN engine detecta profundidade > 10 níveis, THEN aborta execução + publica `BPM.CicloDetectado` + alerta SEV-2 + escalação ao dono Aferê.
+- **AC-BPM-009-2**: Toda execução de regra tem timeout 30s. Se excede, publica `BPM.TimeoutExecucaoRegra` + entra em dead_letter_events pra investigação.
+- **AC-BPM-009-3**: Hard cap por tenant: máx 1000 execuções de automações/hora. Acima disso, dispara `BillingSaas.LimiteDuroAtingido(recurso=automacoes_hora)` e bloqueia execuções até próxima janela (ADR-0013).
+
+---
+
 ## 7. Métricas de sucesso
 
 Ver `metricas.md`. Resumo:

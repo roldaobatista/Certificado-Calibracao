@@ -48,6 +48,7 @@ Hoje (planilha): cadastro duplicado, comissão calculada na mão com erro freque
 - [ ] AC-COL-04: % comissão padrão por colaborador é aplicada quando OS é faturada; override por OS é registrado em audit (INV-001).
 - [ ] AC-COL-05: Matriz de habilidades retorna ≥1 colaborador apto pra cada tipo de serviço cadastrado (ou marca "sem técnico habilitado" pro gerente).
 - [ ] AC-COL-06: Desligamento revoga papéis automaticamente; colaborador inativo não aparece em dropdowns mas continua referenciado em histórico (INV-025 espírito).
+- [ ] AC-COL-06b (ADR-0016 INV-INT-011): **Desligamento síncrono em ≤2s** — `Colaborador.Desligado` publicado com `is_rt_signatario, tipos_servico_assinava, comissoes_pendentes_count`; consumers obrigatórios reagem: (a) `acesso-seguranca` encerra sessões web + mobile JWT + bloqueia login (publica `AcessoSeguranca.SessoesEncerradasForcado`); (b) `operacao/os` marca OSs alocadas como `tecnico_desligado_pendente_reatribuicao=true` (publica `OS.PendenteReatribuicao`); (c) `financeiro/comissoes` marca comissões pendentes como `bloqueado_por_desligamento=true` (publica `Comissoes.ComissaoBloqueadaPorDesligamento`); (d) `financeiro/caixa-tecnico` marca despesas/adiantamentos "a reconciliar"; (e) `metrologia/certificados` se era RT (INV-INT-002 cobre); (f) `suporte-saas` encerra sessão remota se ativa.
 - [ ] AC-COL-07: Conformidade WCAG 2.1 AA na tela de cadastro (INV-016).
 
 ## Métricas de sucesso

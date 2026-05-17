@@ -57,6 +57,9 @@ Tenant ISO 17025 (e tenant que quer chegar lá) tem 3 dores:
 - [ ] AC-QUA-07: Verificação intermediária de padrão fora da tolerância (INV-022) abre NC Crítica automática nesse padrão.
 - [ ] AC-QUA-08: Manual da qualidade tem histórico de versões (cada upload é versão nova) — cl. 8.3 controle de documentos.
 - [ ] AC-QUA-09: Conformidade WCAG 2.1 AA (INV-016).
+- [ ] AC-QUA-10 (ADR-0016 INV-INT-013): **NC notifica cliente externo automaticamente** quando `entidade_origem_tipo IN ("padrao", "procedimento") AND bloqueia_emissao=true`. Sistema identifica clientes cujos equipamentos foram calibrados com esse padrão/procedimento nos últimos 12 meses, publica `Qualidade.NCNotificacaoCliente(cliente_id, nc_id, equipamentos_afetados, impacto_descricao)` por cliente. Consumer `comunicacao-omnichannel` envia WhatsApp + e-mail; consumer `portal-cliente` cria entry timeline 360°. Quando NC fechada → publica `Qualidade.NCResolucaoNotificada` similar. Payload carrega apenas dados mínimos (modelo+série, sem PII cruzado).
+- [ ] AC-QUA-11 (ADR-0014 INV-INT-002): Quando RT signatário é desligado (consumir `Colaborador.Desligado` com `is_rt_signatario=true`), abrir NC sistêmica "RT desligado, designação necessária pra tipos X, Y, Z" + escalação automática pra Diretor designar substituto.
+- [ ] AC-QUA-12 (ADR-0016 fluxo M4): Quando `Proficiencia.EscoreInsatisfatorio` chega, consumer `qualidade` abre NC automática vinculada a `Calibracao.NecessidadeRevisaoRetroativa(certificados=[ids])` — RT revisa lista de certs emitidos no período do PT que usam mesma grandeza + padrões.
 
 ## Discovery / referências
 

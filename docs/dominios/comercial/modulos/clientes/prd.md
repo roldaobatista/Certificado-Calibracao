@@ -62,9 +62,27 @@ Ver `../../personas.md` (P-COM-01 Atendente, P-COM-02 Vendedor, P-COM-05 Dono). 
 - AC-1: GIVEN arquivo válido WHEN upload THEN preview com 10 primeiras linhas + mapeamento sugerido.
 - AC-2: GIVEN confirmação WHEN executa THEN cria clientes em lote, dedup automático, relatório final (criados/atualizados/rejeitados).
 
-### US-CLI-004: Bloquear cliente inadimplente
-**Como** financeiro/dono, **quero** marcar cliente como bloqueado, **para** impedir nova OS sem quitar débito.
-- AC-1: GIVEN bloqueio ativo WHEN tento criar OS THEN sistema impede + mostra motivo + sugere caminho (quitar/desbloqueio manual com justificativa).
+### US-CLI-004: Bloquear cliente inadimplente (manual + automático)
+**Como** financeiro/dono, **quero** marcar cliente como bloqueado (manual) OU que sistema marque automaticamente após inadimplência > 90 dias, **para** impedir nova OS/orçamento/agenda sem quitar débito.
+
+**Critérios de aceite — Bloqueio manual:**
+- **AC-CLI-004-1**: GIVEN financeiro/dono autenticado, WHEN abre cadastro de cliente e clica "Bloquear", THEN sistema exige justificativa ≥30 chars, publica `Cliente.Bloqueado(motivo="manual", justificativa=...)` + audit trail.
+- **AC-CLI-004-2**: GIVEN cliente bloqueado, WHEN tenta criar OS/orçamento/agendar visita, THEN `AuthorizationProvider.can()` retorna `denied, reason="cliente_bloqueado_manual"` + sugere "Quitar débito ou desbloqueio manual com justificativa".
+
+**Critérios de aceite — Bloqueio automático por inadimplência (ADR-0015 fluxo 4):**
+- **AC-CLI-004-3**: GIVEN cliente tem `ContasReceber.TituloVencido` com `dias_vencido >= 90`, WHEN job Celery diário `job_inadimplencia_alertas` roda 02:00 BRT, THEN sistema marca `Cliente.bloqueado=true, motivo="inadimplencia_90d"`, publica `Cliente.Bloqueado` + `ContasReceber.ClienteInadimplenteAlertaP1(valor_total_devido, dias_vencido)`.
+- **AC-CLI-004-4**: GIVEN cliente bloqueado por inadimplência, WHEN módulos consumidores reagem:
+  - `operacao/os` — `AuthorizationProvider.can("os.criar", {"cliente_id": X})` retorna `denied, reason="cliente_bloqueado_inadimplencia"`
+  - `comercial/orcamentos` — orçamentos pendentes ganham flag `bloqueado_por_inadimplencia=true` + notificam vendedor
+  - `operacao/agenda` — alocações futuras canceladas + reagendadas para "quando regularizar"
+  - `comunicacao-omnichannel` — notifica gerente operacional + cliente final
+- **AC-CLI-004-5 (régua progressiva D+30..89)**: Antes de bloquear, dispara `ContasReceber.ReguaCobrancaDispachada` em D+30, D+60, D+89 (escalada WhatsApp → e-mail → ligação) — bloqueio só em D+90.
+- **AC-CLI-004-6 (reativação automática)**: GIVEN última fatura vencida é paga, WHEN `ContasReceber.Pago` chega, THEN publica `Cliente.Desbloqueado(motivo="quitou_inadimplencia")` em ≤5min; consumers re-permitem operação.
+- **AC-CLI-004-7 (auditoria)**: Toda transição grava em `audit_trail.authz_decisions` com `causation_id` ligando ao título vencido que disparou.
+
+**Invariantes:** `INV-INT-010` (cliente bloqueado bloqueia operação), `INV-001` (audit), `INV-013` (confidencialidade — log de visualização).
+
+**Dependências:** ADR-0015 fluxo 4, ADR-0012 (autorização), `financeiro/contas-receber`, `comunicacao-omnichannel`.
 
 ### US-CLI-005: Dedup manual de cadastros duplicados
 **Como** atendente, **quero** wizard que mostre 2 cadastros lado a lado e me deixe escolher campo a campo qual valor manter, **para** consolidar sem perder histórico.

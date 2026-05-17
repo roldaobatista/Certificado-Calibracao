@@ -86,6 +86,8 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 - **AC-ENG-002-1**: GIVEN revisão em status "rascunho", WHEN engenheiro responsável aprova, THEN status muda pra "aprovada" + assinatura digital registrada (nome, CREA/CFT, data, IP).
 - **AC-ENG-002-2**: GIVEN revisão "aprovada", WHEN tentar editar, THEN sistema impede e sugere "criar nova revisão".
 - **AC-ENG-002-3**: GIVEN aprovação configurada com workflow BPM, WHEN submeter, THEN módulo Automações & BPM cria pendência (integração com `BPM.PendenciaCriada`).
+- **AC-ENG-002-4** (ADR-0016 INV-INT-012): GIVEN revisão aprovada altera BOM, WHEN `Engenharia.BOMAtualizada` é publicado, THEN consumer `orcamentos` identifica orçamentos abertos com BOM antiga, marca `status="pendente_revalidacao_bom"`, publica `Engenharia.BomDesatualizadaNotificada`, notifica vendedor responsável + bloqueia hard conversão em OS via `AuthorizationProvider.can("orcamento.converter_em_os")` até vendedor revalidar. OS já criada com BOM antiga preserva snapshot (INV-026); OS em RASCUNHO sem técnico ganha flag `bom_desatualizada=true`.
+- **AC-ENG-002-5** (ADR-0014 INV-INT-006): GIVEN revisão aprovada afeta procedimento de calibração, WHEN `Engenharia.RevisaoAprovada.procedimentos_calibracao_afetados` não vazio, THEN consumer `metrologia/calibracao` marca OS em execução afetadas como `procedimento_revisado_pendente_revalidacao=true` + publica `Calibracao.OSPendenteRevalidacao`. OS não finaliza sem ack RT.
 
 **Non-goals:** A3/ICP-Brasil cert (decisão geral em ADR de assinatura; aqui pode ser assinatura interna ou ICP, conforme política do tenant).
 

@@ -1,10 +1,10 @@
 # ADR-0002 — Modelo de multi-tenancy
 
-> **Status:** proposta (17/05/2026 noite final) — aguardando aprovação do Roldão. Bloqueante do Portão 2 da ADR-0001 candidata.
+> **Status:** proposta v2 (17/05/2026 madrugada — revisão pós-auditoria 10 agentes pós-48-módulos). Bloqueante do Portão 2 da ADR-0001 candidata.
 > **Autor:** Claude Code (orquestrador) + Roldão (decisor)
-> **Origem:** Auditor 2 da 1ª auditoria de 10 agentes (17/05/2026) — 3 vetores críticos + 5 altos de fuga em multi-tenant. Parecer 1 + Parecer 8 da 2ª auditoria confirmaram severidade.
+> **Origem:** Auditor 2 da 1ª auditoria de 10 agentes (17/05/2026) — 3 vetores críticos + 5 altos de fuga em multi-tenant. Parecer 1 + Parecer 8 da 2ª auditoria confirmaram severidade. **v2:** Auditor 2 + Auditor 8 da auditoria pós-48-módulos apontaram que `1 usuário = 1 tenant` quebra com marketplace, portal cliente matriz+filiais, auditor RBC visitante multi-laboratório. Esta revisão introduz suporte cross-tenant sem violar defesa em profundidade.
 > **Depende de:** ADR-0001 v2 (stack Django + PostgreSQL + Celery)
-> **Relacionado:** `docs/arquitetura/anti-corrosion-layer.md` (porta `MultiTenantDiscriminator`)
+> **Relacionado:** `docs/arquitetura/anti-corrosion-layer.md` (porta `MultiTenantDiscriminator`), ADR-0012 (autorização unificada).
 
 ---
 
@@ -84,40 +84,61 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
 GRANT ALL ON SCHEMA public TO app_migrator;
 ```
 
-#### 3. Middleware Django `TenantMiddleware`
+#### 3. Middleware Django `TenantMiddleware` (v2 — lista de tenants)
+
+> **Mudança v2:** middleware passa a setar **LISTA** de tenants permitidos (`tenant_ids`), não tenant único. Mesmo pra usuário com 1 tenant, a lista tem 1 elemento. Habilita perfis cross-tenant (marketplace, matriz+filiais, auditor RBC multi-lab) sem violar defesa em profundidade. INV-AUTHZ-003 cravado.
 
 Responsabilidades:
-1. Extrair `tenant_id` do JWT (mobile) ou da session (web)
-2. Validar que usuário tem permissão de acessar esse tenant
-3. Setar thread-local `tenant_id` antes da view rodar
-4. Limpar thread-local após response (mesmo em caso de exceção)
+1. Extrair `user_id` do JWT (mobile) ou da session (web)
+2. **Consultar `auth_usuario_perfil`** pra resolver lista de tenants ativos pra esse usuário no momento (`valido_de ≤ now() ≤ valido_ate`)
+3. **Validar tenant "ativo"** que o cliente passou (header `X-Aferê-Active-Tenant` ou query param) — deve estar na lista resolvida
+4. Setar `app.tenant_ids` (lista PG via `SET LOCAL`) + `app.active_tenant_id` (tenant onde a ação acontece, dentro da lista)
+5. Limpar contexto após response
 
-**Pseudocódigo:**
+**Pseudocódigo v2:**
 ```python
 class TenantMiddleware:
     def __call__(self, request):
-        tenant_id = self._extract_tenant_id(request)  # JWT ou session
-        if not tenant_id:
-            return HttpResponseForbidden("Missing tenant context")
+        user_id = self._extract_user_id(request)  # JWT/session
+        if not user_id:
+            return HttpResponseForbidden("Missing user context")
 
-        if not self._user_can_access_tenant(request.user, tenant_id):
-            return HttpResponseForbidden("Not authorized for this tenant")
+        # Resolve LISTA de tenants vigentes pra esse usuário
+        tenant_ids = AuthorizationProvider.tenants_for(user_id, at_time=now())
+        if not tenant_ids:
+            return HttpResponseForbidden("User has no active tenant access")
 
-        token = tenant_context.set(tenant_id)  # contextvar
+        # Tenant "ativo" (onde a ação acontece) deve ser subconjunto da lista
+        active_tenant = self._extract_active_tenant(request)  # header/param
+        if active_tenant and active_tenant not in tenant_ids:
+            return HttpResponseForbidden("Active tenant not in user's allowed set")
+        if not active_tenant and len(tenant_ids) == 1:
+            active_tenant = tenant_ids[0]  # default
+
+        token_list = tenant_ids_context.set(tenant_ids)
+        token_active = active_tenant_context.set(active_tenant)
         try:
             return self.get_response(request)
         finally:
-            tenant_context.reset(token)
+            tenant_ids_context.reset(token_list)
+            active_tenant_context.reset(token_active)
 ```
 
-#### 4. Connection patcher Django ORM
+**Princípio:** a lista vem **sempre** da tabela `auth_usuario_perfil` (fonte de verdade), nunca do cliente. Cliente só indica qual tenant está "ativo agora" (escopo do request); middleware valida que está dentro da lista permitida.
+
+#### 4. Connection patcher Django ORM (v2 — `app.tenant_ids` em vez de `app.tenant_id`)
 
 Antes da 1ª query de cada request, abrir transação e executar:
 ```sql
-SET LOCAL app.tenant_id = '<uuid>';
+SET LOCAL app.tenant_ids = '<uuid1>,<uuid2>,<uuid3>';
+SET LOCAL app.active_tenant_id = '<uuid_ativo>';  -- pra INSERT/UPDATE saberem qual tenant gravar
 ```
 
-**Sem isso, a próxima query no mesmo socket do pool herda o tenant do request anterior — vazamento determinístico.** (Auditor 2 C1)
+**Sem isso, a próxima query no mesmo socket do pool herda contexto do request anterior — vazamento determinístico.** (Auditor 2 C1)
+
+**Para usuário com 1 tenant** (caso comum Wave A), a lista tem 1 elemento — mesma defesa, sem caso especial.
+
+**Para INSERT/UPDATE** (operação muta dados), o `tenant_id` gravado é sempre `app.active_tenant_id` — nunca livre. Manager Django força isso automaticamente.
 
 Implementação via signal `django.db.backends.signals.connection_created` + wrap em `transaction.atomic()` no middleware.
 
@@ -141,21 +162,46 @@ def emit_invoice_task(tenant_id: str, invoice_id: str):
 
 Lint custom semgrep bloqueia `@shared_task` sem `run_in_tenant_context`.
 
-#### 6. Policy RLS sem fallback permissivo
+#### 6. Policy RLS v2 — lista de tenants, sem fallback permissivo
 
-**ERRADO (vaza se setting não setado):**
+> **Mudança v2:** policy aceita lista de tenants permitidos via `string_to_array`. Mantém defesa em profundidade (sem fallback permissivo); habilita cross-tenant pra perfis Wave B+ (marketplace, portal cliente matriz+filiais). INV-AUTHZ-003.
+
+**ERRADO #1 (vaza se setting não setado):**
 ```sql
 CREATE POLICY tenant_isolation ON certificados
-  USING (tenant_id = current_setting('app.tenant_id', true)::uuid);
+  USING (tenant_id::text = ANY(string_to_array(current_setting('app.tenant_ids', true), ',')));
 -- O `true` retorna NULL se não setado → policy permite tudo
 ```
 
-**CORRETO (falha duro se setting não setado):**
+**ERRADO #2 (tenant único — quebra cross-tenant):**
 ```sql
 CREATE POLICY tenant_isolation ON certificados
   USING (tenant_id = current_setting('app.tenant_id')::uuid);
--- Sem `true`: ERRO "unrecognized configuration parameter" se não setado
+-- Padrão v1; quebra pra usuário com acesso a N tenants
 ```
+
+**CORRETO v2 (falha duro + suporta lista):**
+```sql
+-- SELECT/UPDATE/DELETE: usuário vê qualquer linha cujo tenant_id está na lista permitida
+CREATE POLICY tenant_isolation_select ON certificados
+  FOR SELECT
+  USING (tenant_id::text = ANY(string_to_array(current_setting('app.tenant_ids'), ',')));
+
+-- INSERT: sempre grava no active_tenant_id (não livre)
+CREATE POLICY tenant_isolation_insert ON certificados
+  FOR INSERT
+  WITH CHECK (tenant_id = current_setting('app.active_tenant_id')::uuid);
+
+-- UPDATE: pode atualizar linha cujo tenant_id está na lista, mas não pode mudar tenant_id
+CREATE POLICY tenant_isolation_update ON certificados
+  FOR UPDATE
+  USING (tenant_id::text = ANY(string_to_array(current_setting('app.tenant_ids'), ',')))
+  WITH CHECK (tenant_id::text = ANY(string_to_array(current_setting('app.tenant_ids'), ',')));
+```
+
+**Sem `true` em nenhum `current_setting`:** ERRO `unrecognized configuration parameter` se não setado — failure mode é blocking, não permitindo.
+
+**Migration de v1 → v2:** ~50 policies existentes regeradas via script SQL. Padrão automatizável (sed/script Python lendo schema + emitindo novas policies). Bloqueio: requer janela de manutenção curta (5-10 min) pra DROP POLICY + CREATE POLICY em todas as tabelas. Drill obrigatório em staging antes.
 
 #### 7. Lint custom proíbe raw queries fora do wrapper
 
@@ -254,10 +300,22 @@ Pipeline `export_tenant(tenant_id: UUID) -> ZipFile`:
 ### Bloqueantes pra F-A começar
 - [ ] **Spike-MT-1, MT-2, MT-3, MT-4** rodados e verde (6 dias úteis)
 - [ ] **INV-TENANT-004 documentada** em `REGRAS-INEGOCIAVEIS.md` ✅ (feito 17/05/2026)
+- [ ] **INV-AUTHZ-003 documentada** em `REGRAS-INEGOCIAVEIS.md` ✅ (feito 17/05/2026 madrugada)
 - [ ] **Hook validador** de role NOBYPASSRLS criado e rodando em CI
 - [ ] **Lint custom semgrep** pra `@shared_task` sem wrapper
 - [ ] **Lint custom semgrep** pra raw queries fora de `infrastructure/multitenant/`
-- [ ] **Migration linter** pra nova tabela exigir tenant_id + RLS policy
+- [ ] **Migration linter** pra nova tabela exigir tenant_id + RLS policy v2 (lista de tenants)
+- [ ] **Tabela `auth_usuario_perfil`** (M:N user × tenant com `valido_de/ate`) — fonte de verdade do middleware (ADR-0012)
+
+### Bloqueantes pra Foundation F-B (auth) começar
+- [ ] **Middleware `TenantMiddleware` v2** com lista de tenants
+- [ ] **Connection patcher** com `app.tenant_ids` + `app.active_tenant_id`
+- [ ] **Spike-MT-5 (NOVO)** — fuzzing cross-tenant: usuário com acesso a {A, B} tenta acessar C → bloqueado pela RLS
+
+### Bloqueantes pra Wave B (marketplace + portal cliente cross-tenant) começar
+- [ ] **Migration v1→v2 das ~50 policies RLS** — script SQL automatizado + drill staging
+- [ ] **UI "trocar tenant ativo"** (header `X-Aferê-Active-Tenant`)
+- [ ] **Drill cross-tenant em produção** — auditoria simula vazamento
 
 ### Configuração inicial
 - [ ] SQL de criação das 2 roles em `infrastructure/db/init/01-roles.sql`

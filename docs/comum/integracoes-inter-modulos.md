@@ -9,6 +9,8 @@ status: draft
 > **Pra quê:** módulos do Aferê (`os`, `calibracao`, `fiscal`, `financeiro`, etc.) se comunicam via eventos. Sem contrato versionado, mudança em `os` quebra `calibracao` silenciosamente.
 
 > **v8 (2026-05-17):** catálogo expandido pra cobrir os 48 módulos do PRD v7 (~150+ eventos). Padrão de nomenclatura cravado; campos obrigatórios de envelope cravados. Aliases legados aceitos em Wave A; removidos em V2.
+>
+> **v9 (2026-05-17 madrugada — pós-auditoria de integrações inter-modulares com 10 agentes):** adicionados ~27 eventos novos cobrindo: (a) **6 eventos de transição regulatória** (ADR-0014) — RT desligado, snapshot acreditação, padrão vencido, ASO vencido, OS pendente revalidação, modo emergencial; (b) **6 eventos pricing composicional** (ADR-0013) — PlanoCriado, PlanoVersionado, ComponentePrecoMudou, AddonContratado, AddonCancelado, LimiteDuroAtingido, UsoMedido; (c) **3 eventos lifecycle tenant** (ADR-0015) — AssinaturaPronta, ProvisioningCompletado, PlanoMudouModulos; (d) **3 eventos consistência operação** (ADR-0016) — ClienteInadimplenteAlertaP1, BomDesatualizadaNotificada, NCNotificacaoCliente; (e) **alterações em 5 eventos existentes** — Fiscal.NFSeEmitida exige certificado_id quando tipo_servico=calibracao, Colaborador.Desligado expande payload, Engenharia.RevisaoAprovada expande payload, Treinamentos.CertificadoVencido ganha consumer agenda, BillingSaas.PlanoMudou ganha campo direcao.
 
 ---
 
@@ -750,10 +752,71 @@ Achados de auditoria 2026-05-17 — eventos sem publisher ou consumer correspond
 
 ---
 
-## Total v8
+## v9 — Eventos novos pós-auditoria de integrações (17/05/2026 madrugada)
+
+### Eventos de transição regulatória (ADR-0014)
+
+| Evento | Origem | Consumers principais | Observação |
+|---|---|---|---|
+| `Certificados.SignatarioTransicaoIniciada` | colaboradores → certificados | calibracao (bloqueia novos do tipo), contratos (pendente_designacao_rt), comunicacao-omnichannel (notifica cliente), audit | Disparado quando `Colaborador.Desligado` afeta RT signatário |
+| `Certificados.SnapshotAcreditacaoGravado` | certificados (ao emitir RBC) | audit WORM, bi (rastreabilidade) | Snapshot imutável defendendo retroatividade Cgcre |
+| `Padroes.CertificadoVencido` | calibracao/padroes (job diário) | certificados (bloqueia emissão), qualidade (NC automática INV-022), audit | Diferente do `CertificadoVencendo` (alerta); este é o que bloqueia |
+| `SST.ASOVencido` | seguranca-trabalho (job diário) | agenda (bloqueia alocação), colaboradores (status), audit | Mesma lógica de `Treinamentos.CertificadoVencido` |
+| `Calibracao.OSPendenteRevalidacao` | calibracao | app-tecnico (push), RT (notif), audit | Quando `Engenharia.RevisaoAprovada` afeta procedimento usado em OS em execução |
+| `Padroes.ModoEmergencialAcionado` | calibracao/padroes | dono Aferê (escalação ANTI-11), audit WORM | RT força emissão com bypass — exige A3 + justificativa ≥50 chars |
+
+### Eventos de pricing composicional (ADR-0013)
+
+| Evento | Origem | Consumers principais | Observação |
+|---|---|---|---|
+| `BillingSaas.PlanoCriado` | billing-saas (operador comercial) | Auditor de Segurança valida, catálogo público atualiza | US-BIL-009 |
+| `BillingSaas.PlanoVersionado` | billing-saas (operador edita) | Histórico, notificação interna, BI | Versionamento automático INV-026 |
+| `BillingSaas.ComponentePrecoMudou` | billing-saas | Telemetria pricing, auditor produto | Granularidade de mudança |
+| `BillingSaas.AddonContratado` | billing-saas (tenant) | acesso-seguranca (provisiona), módulo do addon (libera) | Mid-cycle pro-rata |
+| `BillingSaas.AddonCancelado` | billing-saas (tenant) | acesso-seguranca (revoga próximo ciclo), módulo do addon | Efeito no próximo ciclo |
+| `BillingSaas.LimiteDuroAtingido` | billing-saas (medição) | Notifica tenant, AuthorizationProvider (bloqueia conforme acao_ao_estourar) | Hard cap vs overage |
+| `BillingSaas.UsoMedido` | módulos consumidores (fiscal, omnichannel, gestao-documental) | billing-saas (agrega em fatura) | `MeterUsoEvent` agregado |
+
+### Eventos de lifecycle de tenant (ADR-0015)
+
+| Evento | Origem | Consumers principais | Observação |
+|---|---|---|---|
+| `BillingSaas.AssinaturaPronta` | billing-saas | onboarding (inicia), acesso-seguranca (provisiona admin), audit | Disparado APÓS provisioning chain completar (não na criação) |
+| `Onboarding.ProvisioningCompletado` | onboarding | billing-saas (libera primeira fatura), comunicacao-omnichannel (e-mail bem-vindo) | Checkpoint atômico |
+| `BillingSaas.PlanoMudouModulos` | billing-saas | acesso-seguranca (sincroniza `tenant_features` em ≤5min), todos módulos afetados | Único ponto que sincroniza pricing→features (gap auditor H) |
+
+### Eventos de consistência operacional (ADR-0016)
+
+| Evento | Origem | Consumers principais | Observação |
+|---|---|---|---|
+| `ContasReceber.ClienteInadimplenteAlertaP1` | financeiro/contas-receber (job diário) | clientes (publica `Cliente.Bloqueado` se passou de 90d), comunicacao-omnichannel (régua) | Gate de bloqueio inadimplente |
+| `Engenharia.BomDesatualizadaNotificada` | engenharia-tecnica | orcamentos (marca como `pendente_revalidacao_bom`), os (bloqueia conversão) | Auditor F gap crítico |
+| `Qualidade.NCNotificacaoCliente` | qualidade | comunicacao-omnichannel (envia notif), portal-cliente (exibe na timeline) | Auditor C gap crítico |
+
+---
+
+## Alterações em eventos existentes (v8 → v9)
+
+| Evento | Mudança v9 | Origem da alteração |
+|---|---|---|
+| `Fiscal.NFSeEmitida` | Payload ganha `tipo_servico: enum (calibracao, manutencao, consultoria, avulso)`. `certificado_id` **obrigatório** quando `tipo_servico=calibracao` (constraint + hook validador no bus). | INV-INT-001 (ADR-0014) |
+| `Colaborador.Desligado` | Payload ganha `is_rt_signatario: bool, tipos_servico_assinava: list[str], comissoes_pendentes_count: int`. Consumers expandidos: certificados, calibracao, contratos, comunicacao-omnichannel, comissoes, acesso-seguranca, suporte-saas. | INV-INT-002 (ADR-0014) + Auditor E (RH) |
+| `Engenharia.RevisaoAprovada` | Payload ganha `procedimentos_calibracao_afetados: list[procedimento_id]`. Consumer novo: calibracao (publica `Calibracao.OSPendenteRevalidacao`). | INV-INT-006 (ADR-0014) |
+| `Treinamentos.CertificadoVencido` | Consumer novo: agenda (atualiza `tecnico_habilitacoes`, bloqueia alocação). | INV-INT-005 (ADR-0014) |
+| `Padroes.CertificadoVencendo` | Mantém papel de alerta (30d antes). Novo evento `Padroes.CertificadoVencido` é quem bloqueia. | INV-INT-004 (ADR-0014) |
+| `BillingSaas.PlanoMudou` | Payload ganha `direcao: enum (upgrade, downgrade, lateral)`, `canal_aquisicao: str opcional` (preenchido no Lead). | Auditor I (BI) — CAC e churn discriminados |
+| `BillingSaas.TenantSuspenso` | Payload ganha `modo: enum (read_only, bloqueado_total)`. Consumer obrigatório `acesso-seguranca` força logout de sessões ativas. | Auditor G (Plataforma) |
+| `Qualidade.NCAberta` | Payload ganha `entidade_origem_tipo: enum, entidade_origem_id: UUID`. | Auditor I (BI) — taxa de NC por tipo |
+| `Comissoes.ComissaoCalculada` | Payload ganha `tecnico_id: UUID, valor: Money, periodo_inicio: date, periodo_fim: date`. | Auditor I (BI) — receita por técnico |
+| `OS.Reaberta` | Payload ganha `os_origem_id: UUID, chamado_origem_id: UUID opcional`. Consumer novo: caixa-tecnico (marca despesas pra reconciliar). | Auditor D (Operação) — rastreabilidade bidirecional |
+
+---
+
+## Total v9
 
 - **48 módulos** com eventos catalogados.
-- **~240 eventos** publicados (incluindo subtipos e variantes versionadas).
+- **~267 eventos** publicados (240 da v8 + 19 da v9 + 8 alterações de payload).
 - **6 domínios:** comercial (8 módulos), operação (8), metrologia (3), financeiro (8), rh-frota-qualidade (6), suporte-plataforma (13), dados (1) + 1 cross-cutting (acesso-seguranca).
-- **0 eventos órfãos** após resolução acima.
+- **0 eventos órfãos** após resolução v8 + cobertura v9.
 - Aliases legados marcados — auditor bloqueia novos handlers em aliases.
+- **Invariantes de integração:** INV-INT-001..010 (criadas nas ADRs 0014, 0015, 0016 pós-auditoria).

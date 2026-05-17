@@ -48,7 +48,12 @@ Cobre BIG-01 (não perder informação entre WhatsApp/planilha/sistema), BIG-05 
 - **US-OS-003:** técnico inicia OS no mobile (offline ok) → EM_EXECUCAO
 - **US-OS-004:** concluir OS com checklist completo → CONCLUIDA + dispara eventos
 - **US-OS-005:** marcar NC na OS de calibração → bloqueia certificado (INV-012)
-- **US-OS-006:** reabrir OS concluída → cria OS-filha referenciando a mãe
+- **US-OS-006:** reabrir OS concluída → cria OS-filha **com rastreabilidade bidirecional**:
+  - publica `OS.Reaberta(os_id=nova, os_origem_id=original, chamado_origem_id=opcional, motivo, garantia_procedente=bool)`
+  - consumer `caixa-tecnico` marca despesas/adiantamentos da OS-mãe como "a reconciliar em fechamento de período" se garantia procedente
+  - consumer `chamados` reabre chamado original (se existia) e vincula ao OS-filha
+  - cliente externo é notificado via `portal-cliente` que sua reclamação virou retrabalho
+  - INV-INT-010 (audit causation_id ligando OS-mãe + chamado + OS-filha)
 - **US-OS-007:** cancelar OS com razão obrigatória → CANCELADA + libera agenda
 - **US-OS-008:** gerente vê fila + redistribui OS quando técnico falta
 

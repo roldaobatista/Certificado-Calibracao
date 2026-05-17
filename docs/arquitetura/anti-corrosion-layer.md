@@ -1,8 +1,8 @@
-# Anti-corrosion layer — 11 portas/adapters
+# Anti-corrosion layer — 18 portas/adapters
 
 > **Origem:** Parecer 9 da 2ª auditoria de 10 agentes (17/05/2026) — "agentes IA nunca importam direto dependências jovens/bus-factor-1; sempre via porta/adapter, pra trocar implementação em 1 sprint em vez de 6 meses".
-> **Status:** v2 (17/05/2026, noite — auditoria 12 agentes achado C6 aplicado: +OmniChannelProvider, +PaymentGatewayProvider). Documento vivo — toda nova integração externa precisa virar porta antes de ser usada.
-> **Dependência:** ADR-0001 v2 (stack Django + Flutter + PostgreSQL).
+> **Status:** v3 (17/05/2026, madrugada — auditoria 10 agentes pós-48-módulos aplicada: +AuthorizationProvider, +BpmEngineProvider, +RuleEngineProvider, +AnalyticsBackend, +DocumentSearchProvider, +MarketplaceExtensionProvider, +EmailTemplateProvider). Documento vivo — toda nova integração externa precisa virar porta antes de ser usada.
+> **Dependência:** ADR-0001 v2 (stack Django + Flutter + PostgreSQL), ADR-0010 (estratégia tela), ADR-0011 (BI 3 fases), ADR-0012 (autorização unificada).
 
 ---
 
@@ -30,7 +30,7 @@ Sem porta/adapter, trocar qualquer um deles vira reescrita de 6-12 meses. Com po
 
 ---
 
-## As 11 portas
+## As 18 portas
 
 ### 1. `FiscalProvider` (porta fiscal — NFS-e, NF-e, CFDI, AFIP)
 
@@ -436,6 +436,258 @@ class PaymentGatewayProvider(Protocol):
 
 ---
 
+### 12. `AuthorizationProvider` (porta autorização — ADR-0012)
+
+**Por que existe:** ADR-0012. Com 16 perfis × 48 módulos × escopo dinâmico + cross-tenant + time-boxed, decidir "pode/não pode" espalhado em views/serializers/querysets vira bug regulatório garantido. Implementação atual em Django + RLS PostgreSQL, mas precisa fronteira limpa pra trocar pra Casbin/OPA/Oso depois (Wave C+) sem reescrever domínio.
+
+**Interface (Python):**
+```python
+class AuthorizationProvider(Protocol):
+    def can(
+        self,
+        user_id: UUID,
+        action: str,              # "certificado.emitir", "fatura.estornar"
+        resource: dict,           # {"tipo_instrumento": "balanca", "valor": 5000}
+        tenant_id: UUID,
+        purpose: str,             # finalidade LGPD
+        at_time: datetime,
+    ) -> Decision: ...
+
+    def attributes_for(self, user_id: UUID, tenant_id: UUID) -> dict: ...
+    def register_dynamic_attribute(self, name: str, resolver: Callable) -> None: ...
+```
+
+**Implementações:**
+- `DjangoRlsAuthorizationProvider` — Django built-in + RLS PostgreSQL + cache Redis (1ª implementação MVP-1)
+- `CasbinAuthorizationProvider` — fallback se matriz superar 50k células (Wave C+)
+- `OPAAuthorizationProvider` — fallback se microsserviços virarem realidade
+- `MockAuthorizationProvider` — testes
+
+**Regras:**
+- ❌ NUNCA decidir autorização fora desta porta (`if user.groups.filter(...)` proibido em views/serializers)
+- ✅ Audit trail síncrono obrigatório (INV-AUTHZ-002) — `audit_trail.authz_decisions` recebe linha antes do retorno
+- ✅ Cache Redis com invalidação por evento (`acreditacao.vencida`, `treinamento.expirado`, `licenca.suspensa`)
+- ✅ ABAC plug-in via `@authz_attribute("acreditacao_vigente")` — cada módulo registra atributo dele
+
+---
+
+### 13. `BpmEngineProvider` (porta workflow engine — Camunda, Temporal, django-fsm, custom)
+
+**Por que existe:** Auditor 10 da auditoria pós-48-módulos. Módulo `suporte-plataforma/automacoes-bpm` executa workflow visual com etapas, branches, paralelo, eventos, sub-processos, esperar humano. ADR-0005 cravou engine caseiro sobre procrastinate + DSL YAML pra MVP-1, mas Wave B+ pode demandar trocar pra Temporal ou Camunda. Sem porta, troca = reescrita.
+
+**Interface:**
+```python
+class BpmEngineProvider(Protocol):
+    def execute_workflow(
+        self,
+        workflow_id: str,
+        input_data: dict,
+        tenant_id: TenantId,
+    ) -> WorkflowExecution: ...
+
+    def evaluate_condition(self, condition: dict, context: dict) -> bool: ...
+    def schedule_timer(self, workflow_run_id: UUID, at_time: datetime) -> None: ...
+    def wait_for_event(self, workflow_run_id: UUID, event_type: str, timeout: timedelta) -> Any: ...
+    def cancel_workflow(self, workflow_run_id: UUID, reason: str) -> None: ...
+```
+
+**Implementações:**
+- `ProcrastinateBpmEngine` — engine caseiro sobre procrastinate + Django state machine + outbox (1ª implementação Wave B MVP — ver ADR-0005 revisada)
+- `TemporalProvider` — fallback se workflows >10 etapas com esperas >24h virarem comuns (Wave C+)
+- `CamundaProvider` — fallback se cliente farma exigir engine certificada
+- `MockBpmEngine` — testes
+
+**Regras:**
+- ❌ NUNCA orquestrar workflow longo com Celery puro (`time.sleep` + retries) em código de domínio
+- ✅ Estado persistente sempre fora do job (Django model + state machine)
+- ✅ Idempotency key obrigatório por step
+- ✅ Audit trail por transição (INV-027 OS, INV-040 onboarding, INV-045 despesa, etc)
+
+---
+
+### 14. `RuleEngineProvider` (porta motor de regras — comissões, precificação, garantia, alçadas)
+
+**Por que existe:** Auditor 10. Comissões hoje têm 1 fórmula no MVP-1, mas Wave B/V2 listam 7 fórmulas adicionais + escalonadas por meta. Precificação tem régua. Garantia tem cobertura por regra. Alçadas de aprovação em BPM. Sem porta, lógica vira if-else espalhado em `domain/comissoes/`, `domain/precificacao/`, `domain/garantia/`.
+
+**Interface:**
+```python
+class RuleEngineProvider(Protocol):
+    def evaluate(
+        self,
+        rule_id: str,                # "comissao.vendedor_meta_mensal_v2"
+        context: dict,               # {"valor_venda": 5000, "meta_mes": 100000, ...}
+        tenant_id: TenantId,
+    ) -> RuleResult: ...
+
+    def register_rule(self, rule_id: str, definition: RuleDefinition) -> None: ...
+    def list_rules(self, tenant_id: TenantId, scope: str) -> list[RuleSummary]: ...
+    def explain(self, rule_id: str, context: dict, result: RuleResult) -> str: ...
+```
+
+**Implementações:**
+- `AstSimpleRuleEngine` — AST Python eval com allowlist de operadores + sandbox (1ª implementação MVP)
+- `DroolsRuleEngine` / `EasyRulesEngine` — fallback se Wave B exigir motor formal
+- `MockRuleEngine` — testes
+
+**Regras:**
+- ❌ NUNCA usar `eval(rule_str)` direto — sempre via porta com allowlist
+- ✅ Toda regra versionada (auditoria fiscal exige reproduzir cálculo histórico — INV-026)
+- ✅ `explain()` obrigatório (comissão calculada precisa ser justificada pro vendedor)
+- ✅ Decisão cacheada por contexto+versão da regra (Redis, TTL 5min)
+
+---
+
+### 15. `AnalyticsBackend` (porta camada analítica/BI — ADR-0011)
+
+**Por que existe:** ADR-0011. Sistema começa com PostgreSQL único + vistas materializadas (Fase 0), depois read-replica PG (Fase 1), depois DuckDB embedded ou ClickHouse (Fase 2). Cada fase muda **onde** as queries de BI rodam — sem porta, código de aplicação saberia "qual fase está ativa".
+
+**Interface:**
+```python
+class AnalyticsBackend(Protocol):
+    def query_aggregate(
+        self,
+        dataset: str,                # "dre_mensal", "fluxo_caixa", "os_abertas_kpi"
+        filters: dict,
+        tenant_id: TenantId,
+        time_range: TimeRange,
+    ) -> DataFrame: ...
+
+    def materialize(self, view_id: str) -> RefreshResult: ...
+    def stream_changes(self, dataset: str, since: datetime) -> Iterator[Change]: ...
+    def export(self, dataset: str, filters: dict, format: str, tenant_id: TenantId) -> StorageRef: ...
+```
+
+**Implementações:**
+- `PgMaterializedViewBackend` — Fase 0 (PG único + REFRESH MATERIALIZED VIEW CONCURRENTLY)
+- `PgReadReplicaBackend` — Fase 1 (mesma interface, conexão direcionada à réplica)
+- `DuckDbAnalyticsBackend` — Fase 2a (DuckDB embarcado em ETL noturno)
+- `ClickHouseAnalyticsBackend` — Fase 2b (ClickHouse self-hosted ou cloud)
+- `MockAnalyticsBackend` — testes
+
+**Regras:**
+- ❌ NUNCA query OLTP direto pra dashboard (ex: `Certificado.objects.aggregate(...)` em view de painel) — sempre via `AnalyticsBackend`
+- ✅ Painel do dono cross-tenant usa role separada + vistas dedicadas (ADR-0011) — não BYPASSRLS
+- ✅ Audit trail BI em `audit_trail.bi_events` (21 CFR Part 11)
+- ✅ Link público respeita "n ≥ 3 agregação mínima" (LGPD)
+
+---
+
+### 16. `DocumentSearchProvider` (porta busca + OCR documental)
+
+**Por que existe:** Auditor 10. Módulo `suporte-plataforma/gestao-documental` exige busca full-text em PDFs escaneados + OCR assíncrono + versionamento. Hoje viável com PostgreSQL FTS + Tesseract. Se cliente farma TOP exigir busca semântica vetorial (em V3), troca pra Elasticsearch ou Typesense sem reescrever módulo.
+
+**Interface:**
+```python
+class DocumentSearchProvider(Protocol):
+    def index_document(
+        self,
+        document_id: UUID,
+        content: bytes,
+        metadata: dict,
+        tenant_id: TenantId,
+    ) -> IndexResult: ...
+
+    def search(
+        self,
+        query: str,
+        filters: dict,
+        tenant_id: TenantId,
+        limit: int = 50,
+    ) -> list[SearchHit]: ...
+
+    def ocr_async(self, document_id: UUID, tenant_id: TenantId) -> JobId: ...
+    def reindex(self, tenant_id: TenantId, since: datetime | None) -> RefreshResult: ...
+```
+
+**Implementações:**
+- `PgFtsTesseractProvider` — Postgres FTS (GIN index + websearch_to_tsquery) + Tesseract em Celery worker dedicado (1ª implementação MVP)
+- `ElasticsearchProvider` — Wave B+ se Wave A saturar (>100k docs/tenant ou busca >2s p95)
+- `TypesenseProvider` — alternativa leve a Elasticsearch
+- `ClaudeVisionOcrProvider` — implementação OCR premium (custo por tenant) pra docs onde Tesseract falha
+- `MockDocumentSearchProvider` — testes
+
+**Regras:**
+- ❌ NUNCA `cursor.execute("SELECT ... WHERE conteudo @@ ...")` direto fora desta porta
+- ✅ OCR sempre assíncrono (SLA 5min na ingestão — US-DOC-008)
+- ✅ Texto extraído tipado como `UntrustedInput[str]` (LLM safety — INV-AGENT-001)
+- ✅ Audit trail registra: quem buscou o quê, quem viu qual documento
+
+---
+
+### 17. `MarketplaceExtensionProvider` (porta SDK de extensões marketplace — V2/V3)
+
+**Por que existe:** Auditor 10. Módulo `comercial/marketplace` (V2/V3) introduz padrão "plugin/extension" — parceiros instalam extensões em N tenants. Sem porta + governança, vira pesadelo (cada extensão acessa de jeito diferente, ANTI-11 customização infinita). Decisão é diferida pra V2, mas a porta entra desde já pra evitar refactor brutal.
+
+**Interface (rascunho — vai virar ADR-0005-B quando V2 começar):**
+```python
+class MarketplaceExtensionProvider(Protocol):
+    def install_extension(
+        self,
+        extension_id: str,
+        tenant_id: TenantId,
+        config: dict,
+    ) -> InstallResult: ...
+
+    def invoke_hook(
+        self,
+        extension_id: str,
+        hook_name: str,         # "before_emit_certificate", "after_create_os"
+        payload: UntrustedInput[dict],
+        tenant_id: TenantId,
+    ) -> HookResult: ...
+
+    def list_installed(self, tenant_id: TenantId) -> list[InstalledExtension]: ...
+    def uninstall(self, extension_id: str, tenant_id: TenantId) -> None: ...
+```
+
+**Implementações:**
+- `NoopMarketplaceProvider` — Wave A/MVP-1 (marketplace ainda não existe; porta retorna vazio)
+- `SandboxedPythonExtensionProvider` — V2 (extensões em Python rodando em sandbox isolado, allowlist de APIs)
+- `WebhookExtensionProvider` — V2 (extensões rodam fora do Aferê, comunicação via webhook assinado)
+- `MockMarketplaceExtensionProvider` — testes
+
+**Regras:**
+- ❌ Extensão NUNCA acessa Django ORM direto — sempre via API Aferê
+- ❌ Extensão NUNCA executa código não-sandboxado dentro do processo Aferê
+- ✅ Hook recebe `UntrustedInput[dict]` — payload tipado como não-confiável
+- ✅ Audit trail registra: extensão X executou hook Y no tenant Z (LGPD subprocessador)
+- ✅ DPA por extensão obrigatório (LGPD — extensão recebe dados pessoais)
+
+---
+
+### 18. `EmailTemplateProvider` (porta templates de email com versionamento)
+
+**Por que existe:** Auditor 10. Email transacional é enviado via porta `OmniChannelProvider` (#10), mas **renderização do template** vive separada — Wave A já tem 20+ templates (boas-vindas, recuperação senha, confirmação OS, recalibração 30d, fatura emitida, comissão calculada, etc). Wave B (omnichannel) e Wave B (CRM) adicionam dezenas mais. Sem porta de template + versionamento, agente IA replica HTML.
+
+**Interface:**
+```python
+class EmailTemplateProvider(Protocol):
+    def render(
+        self,
+        template_id: str,           # "welcome_tenant_admin_v3"
+        variables: dict,
+        tenant_id: TenantId,
+        locale: str = "pt-BR",
+    ) -> RenderedEmail: ...           # subject + html + text fallback
+
+    def list_templates(self, tenant_id: TenantId) -> list[TemplateSummary]: ...
+    def preview(self, template_id: str, variables: dict) -> RenderedEmail: ...
+    def validate(self, template: TemplateDraft) -> ValidationResult: ...
+```
+
+**Implementações:**
+- `JinjaTemplateProvider` — Jinja2 + storage em Django model `EmailTemplate` (1ª implementação MVP)
+- `MJMLTemplateProvider` — MJML pra responsividade avançada (Wave B/V2 se UX exigir)
+- `MockEmailTemplateProvider` — testes
+
+**Regras:**
+- ❌ NUNCA inline HTML em código Python (`f"<h1>Olá {nome}</h1>"`)
+- ✅ Toda variável escapada por default (XSS — defesa)
+- ✅ Versionamento semver no template_id (`welcome_tenant_admin_v3`)
+- ✅ Preview obrigatório antes de tenant ativar template customizado
+
+---
+
 ## Estrutura no código
 
 ```
@@ -458,7 +710,14 @@ src/
 │   ├── queue/
 │   ├── multitenant/
 │   ├── omnichannel/           # OmniChannelProvider (WhatsApp/Email/SMS/Chat)
-│   └── payment/               # PaymentGatewayProvider (Stripe/PagSeguro/MP)
+│   ├── payment/               # PaymentGatewayProvider (Stripe/PagSeguro/MP)
+│   ├── authz/                 # AuthorizationProvider (ADR-0012)
+│   ├── bpm/                   # BpmEngineProvider (workflow engine)
+│   ├── rules/                 # RuleEngineProvider (comissões/precificação/garantia)
+│   ├── analytics/             # AnalyticsBackend (ADR-0011, BI 3 fases)
+│   ├── docsearch/             # DocumentSearchProvider (FTS + OCR)
+│   ├── marketplace/           # MarketplaceExtensionProvider (V2/V3)
+│   └── email_template/        # EmailTemplateProvider (Jinja2 + versionamento)
 │
 └── application/               # Casos de uso — recebem portas via DI
     ├── emitir_certificado.py
@@ -482,6 +741,8 @@ src/
    from twilio.rest import Client
    import stripe
    import smtplib
+   from django.contrib.auth.decorators import permission_required  # decisão de authz fora da porta
+   from jinja2 import Template  # template de email fora da porta
 
    # ✅ SEMPRE
    from infrastructure.fiscal.provider import FiscalProvider
@@ -489,6 +750,13 @@ src/
    from infrastructure.llm.provider import LLMGateway
    from infrastructure.omnichannel.provider import OmniChannelProvider
    from infrastructure.payment.provider import PaymentGatewayProvider
+   from infrastructure.authz.provider import AuthorizationProvider
+   from infrastructure.bpm.provider import BpmEngineProvider
+   from infrastructure.rules.provider import RuleEngineProvider
+   from infrastructure.analytics.provider import AnalyticsBackend
+   from infrastructure.docsearch.provider import DocumentSearchProvider
+   from infrastructure.marketplace.provider import MarketplaceExtensionProvider
+   from infrastructure.email_template.provider import EmailTemplateProvider
    ```
 
 3. **Lint custom (`ruff` rule customizada) bloqueia merge** se import direto de SDK acontecer fora de `infrastructure/`.
@@ -515,14 +783,18 @@ src/
 | TAM > 5k tenants força sharding | Reescrita inteira | Migrar `Discriminator` strategy sem mudar domain |
 | WhatsApp BSP sobe fee 5×, Meta corta Cloud API direto | Reescrita módulo comunicação | Swap implementação `OmniChannelProvider` em 1 sprint |
 | Stripe deixar BR / PagSeguro mudar regras | Reescrita billing | Plugar `PagBankProvider`/`MercadoPagoProvider` em 1 sprint |
+| Matriz RBAC superar 50k células ou cliente farma exigir SSO | Reescrita autorização espalhada | Swap `DjangoRlsAuthorizationProvider` → `CasbinAuthorizationProvider`/`OPAAuthorizationProvider` em 2 sprints |
+| Engine de automações precisar workflows >10 etapas com esperas dias | Reescrita BPM | Swap `ProcrastinateBpmEngine` → `TemporalProvider`/`CamundaProvider` em 3 sprints |
+| BI saturar PG único (Fase 0) | Migração complexa | Trocar `PgMaterializedViewBackend` → `PgReadReplicaBackend` → `DuckDb`/`ClickHouse` em ordem |
+| Busca FTS PG saturar (>100k docs/tenant) | Reescrita busca | Plugar `ElasticsearchProvider` em 1 sprint |
 
 ---
 
 ## Itens a fazer
 
-- [ ] Implementar 11 portas como Protocols Python em `infrastructure/`
-- [ ] Implementar `Mock*Provider` pra todas as 11 antes da Foundation F-A começar
-- [ ] Lint custom semgrep bloqueando imports diretos
+- [ ] Implementar 18 portas como Protocols Python em `infrastructure/`
+- [ ] Implementar `Mock*Provider` pra todas as 18 antes da Foundation F-A começar
+- [ ] Lint custom semgrep bloqueando imports diretos (incluindo `permission_required` decorator e `jinja2.Template` fora da porta)
 - [ ] Smoke test trimestral configurado em GitHub Actions
 - [ ] Documentar custo de troca por porta no docstring
 
