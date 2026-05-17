@@ -3,6 +3,8 @@
 > **Sitemap humano** do projeto. Mapa pra agente novo, auditor humano, ou Roldão saber onde achar cada coisa.
 >
 > Para versão lida por agente (machine-readable com tokens estimados), ver `docs/INDEX.yaml`.
+>
+> **Atualizado v8 (2026-05-17 noite+12h):** +1 domínio (`dados/`) +25 módulos novos. Total: ~480 docs.
 
 ---
 
@@ -62,6 +64,60 @@
 | 7 — Evolução pós-MVP | `evolucao/` | ⏳ lazy |
 | 8 — Docs externos | `externos/` | ⏳ lazy |
 | Extra — Sessão/handoff | `../.agent/`, `../.github/`, `tutoriais/dono/` | 🟡 parcial |
+
+---
+
+## Por domínio (sitemap — v8 com 48 módulos)
+
+Cada módulo abaixo recebe os 8 docs padrão: `glossario.md`, `prd.md`, `personas.md`, `metricas.md`, `modelo-de-dominio.md`, `contratos/{ui,api,exports}.md`. **Negrito = adicionado na v8.**
+
+### `dominios/comercial/`
+- `clientes/`, `orcamentos/`, `crm/`, `contratos/`
+- **`portal-cliente/`** — Wave A (MVP-1) — cliente externo consulta OS/certificado/financeiro
+- **`marketplace/`** — V2/V3 — apps e parceiros
+- **`precificacao/`** — Wave B — régua de preços e política comercial
+- **`sla-contratual/`** — Wave B — cláusulas SLA por contrato/cliente
+- **`comunicacao-omnichannel/`** — Wave B — WhatsApp/e-mail/SMS
+
+### `dominios/operacao/`
+- `os/`, `chamados/`, `agenda/`
+- **`garantia/`** — Wave B
+- **`projetos/`** — Wave B — instalação, retrofit, mudança de planta
+- **`base-conhecimento/`** — Wave A (MVP-1, acoplado a OS/Chamados)
+- **`capacity-planning-operacional/`** — Wave B — carga técnicos/laboratório
+- **`app-tecnico/`** — Wave A (MVP-1) — app offline-first (ADR-0003 + ADR-0004)
+
+### `dominios/financeiro/`
+- `contas-receber/`, `contas-pagar/`, `comissoes/`, `caixa-tecnico/`, `fiscal/`
+- **`billing-saas/`** — Bloqueador antes do 1º cliente externo pago
+- **`custeio-real/`** — Wave B
+- **`despesas/`** — Wave B
+- **`relatorios-financeiros/`** — Wave B — DRE gerencial + fluxo de caixa
+
+### `dominios/suporte-plataforma/`
+- `equipamentos/`, `produtos-pecas-servicos/`, `estoque/`, `fornecedores/`
+- **`onboarding/`** — Wave B — onboarding self-service de tenant
+- **`configuracoes-sistema/`** — Wave B
+- **`automacoes-bpm/`** — Wave B — motor BPM sobre ADR-0005
+- **`engenharia-tecnica/`** — Wave B — procedimentos/padrões internos
+- **`gestao-documental/`** — Wave B — DMS interno (link WORM)
+- **`suporte-saas/`** — Wave B — tickets internos do Aferê
+- **`release-management/`** — Wave B — changelog visível
+- **`acesso-seguranca/`** — Wave A (MVP-1) — RBAC, MFA, audit log
+
+### `dominios/metrologia/`
+- `calibracao/` (PRD completado na v8)
+- **`licencas-acreditacoes/`** — Wave B — RBC, NIT-DICLA, escopo acreditado
+- **`certificados/`** — Wave A (MVP-1) — ciclo de vida do certificado, hoje embutido em `calibracao/`
+
+### `dominios/rh-frota-qualidade/`
+- `colaboradores/`, `frota/`, `qualidade/`
+- **`seguranca-trabalho/`** — Wave B — SST/EPI/ASO/CIPA/NR-12/NR-35
+- **`treinamentos/`** — Wave B — matriz competências, certificações
+- **`auditoria-externa/`** — Wave B — suporte a auditorias RBC/ISO/fiscal/cliente
+
+### `dominios/dados/` (NOVO v8)
+- **`bi/`** — Wave B — analytics, dashboards, camada semântica, exports analíticos
 
 ---
 

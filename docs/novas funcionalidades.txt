@@ -1,0 +1,1744 @@
+
+Segue uma lista **neutra, organizada por módulos, funcionalidades e conexões**, como se fosse para especificação de um **software novo**, sem citar nomes internos, código, arquivos, tecnologias ou origem da lista. Base usada: inventário funcional enviado. 
+
+# Inventário Funcional Neutro para Software de Gestão
+
+## 1. Acesso, Segurança e Controle de Usuários
+
+### Funcionalidades
+
+* Login com usuário e senha.
+* Autenticação em dois fatores.
+* Recuperação de senha por e-mail.
+* Perfis de acesso por função.
+* Permissões por tela, módulo e ação.
+* Controle de acesso por empresa/unidade.
+* Registro de login, IP e localização aproximada.
+* Auditoria de ações dos usuários.
+* Histórico de alterações em registros críticos.
+* Controle de sessões.
+* Criptografia de dados sensíveis.
+* Exportação, anonimização e exclusão de dados conforme LGPD.
+* Registro de consentimento do titular dos dados.
+
+### Conexões
+
+* Serviço de e-mail para recuperação de senha.
+* Autenticador TOTP.
+* Serviços de geolocalização.
+* Provedores de identidade, caso futuramente haja login corporativo.
+
+---
+
+## 2. Clientes e Cadastro Comercial
+
+### Funcionalidades
+
+* Cadastro de pessoa física e jurídica.
+* Dados fiscais: CPF, CNPJ, inscrição estadual, SUFRAMA.
+* Múltiplos contatos: telefone, e-mail e WhatsApp.
+* Endereços múltiplos: cobrança, entrega, técnico e filiais.
+* Anexos de documentos.
+* Classificação por segmento, vendedor responsável e rating.
+* Visão 360º do cliente.
+* Histórico de serviços, orçamentos, faturas, equipamentos e contratos.
+* Controle de limite de crédito.
+* Status comercial: ativo, suspenso ou bloqueado.
+* Segmentação de clientes.
+* Identificação de clientes inativos ou em risco.
+* Sugestões de venda adicional ou recorrente.
+* Histórico de relacionamento.
+
+### Conexões
+
+* Consulta de CNPJ.
+* Consulta de CPF, quando aplicável.
+* Consulta de CEP.
+* Serviços públicos de enriquecimento cadastral.
+* Portal do cliente.
+* CRM.
+* Financeiro.
+* Faturamento.
+* Ordens de serviço.
+* Equipamentos.
+
+---
+
+## 3. Portal do Cliente
+
+### Funcionalidades
+
+* Login separado para clientes.
+* Dashboard do cliente.
+* Consulta de ordens de serviço.
+* Consulta de orçamentos.
+* Aprovação ou rejeição de propostas.
+* Consulta de faturas.
+* Acompanhamento de serviços.
+* Download de documentos, certificados e relatórios.
+* Comunicação com a empresa.
+
+### Conexões
+
+* Cadastro de clientes.
+* Orçamentos.
+* Ordens de serviço.
+* Financeiro.
+* Certificados.
+* Notificações por e-mail ou WhatsApp.
+
+---
+
+## 4. Equipamentos e Instrumentos
+
+### Funcionalidades
+
+* Cadastro de equipamento.
+* Marca, modelo, número de série, categoria e capacidade.
+* Foto e documentos técnicos.
+* Manual anexado.
+* QR Code para rastreamento físico.
+* Histórico de serviços.
+* Histórico de calibrações.
+* Histórico de certificados.
+* Alertas de vencimento de calibração.
+* Controle estatístico do equipamento.
+* Vinculação com cliente, contrato, orçamento e ordem de serviço.
+* Controle de localização do equipamento.
+* Registro de conformidade técnica.
+
+### Conexões
+
+* Clientes.
+* Ordens de serviço.
+* Laboratório de calibração.
+* Certificados.
+* Contratos.
+* Agenda.
+* Estoque de peças.
+* Aplicativo técnico.
+
+---
+
+## 5. Produtos, Peças e Serviços
+
+### Funcionalidades
+
+* Cadastro de produtos.
+* Cadastro de peças.
+* Cadastro de serviços.
+* Categorias e subcategorias.
+* Código interno e código de barras.
+* Preço de venda.
+* Custo de compra.
+* Controle de margem.
+* Tempo estimado de execução do serviço.
+* Kits de produtos ou serviços.
+* Composição de kits.
+* Histórico de preços.
+* Tabelas de preço.
+* Preço por região, tipo de cliente ou condição comercial.
+* Catálogo público de serviços.
+* Anexos técnicos.
+
+### Conexões
+
+* Estoque.
+* Orçamentos.
+* Ordens de serviço.
+* Compras.
+* Fornecedores.
+* Financeiro.
+* Faturamento.
+
+---
+
+## 6. Fornecedores
+
+### Funcionalidades
+
+* Cadastro completo do fornecedor.
+* Dados fiscais.
+* Contatos.
+* Endereços.
+* Contratos de fornecimento.
+* Condições de pagamento.
+* Histórico de compras.
+* Cotações com fornecedores.
+* Avaliação de desempenho.
+* Controle de documentos.
+* Controle de vencimentos contratuais.
+
+### Conexões
+
+* Compras.
+* Estoque.
+* Contas a pagar.
+* Fiscal.
+* Contratos.
+* Anexos.
+
+---
+
+## 7. Orçamentos e Propostas Comerciais
+
+### Funcionalidades
+
+* Criação de orçamento.
+* Itens de produtos e serviços.
+* Descontos.
+* Acréscimos.
+* Impostos.
+* Condições de pagamento.
+* Prazo de validade.
+* Versionamento de propostas.
+* Comparação entre revisões.
+* Aprovação interna.
+* Envio ao cliente.
+* Visualização online pelo cliente.
+* Controle de leitura pelo cliente.
+* Aprovação ou rejeição pelo cliente.
+* Assinatura eletrônica.
+* Conversão em ordem de serviço.
+* Conversão em chamado técnico.
+* Geração de PDF.
+* Exportação em planilha.
+* Templates de orçamento.
+* Tags e classificações comerciais.
+* Renegociação.
+
+### Conexões
+
+* Clientes.
+* Produtos.
+* Serviços.
+* Estoque.
+* CRM.
+* Portal do cliente.
+* Financeiro.
+* Ordens de serviço.
+* Chamados técnicos.
+* E-mail.
+* WhatsApp.
+
+---
+
+## 8. Chamados Técnicos e Helpdesk
+
+### Funcionalidades
+
+* Abertura de chamado.
+* Origem por cliente, usuário interno, portal ou integração.
+* Classificação por tipo, prioridade e categoria.
+* Atribuição automática ou manual.
+* Regras de distribuição por proximidade, carga de trabalho, habilidade ou rodízio.
+* Controle de SLA.
+* Comentários no chamado.
+* Histórico de alterações.
+* Detecção de chamados duplicados.
+* Reagendamento.
+* Motivo de reagendamento.
+* Mapa de chamados.
+* Conversão em ordem de serviço.
+* Dashboard de indicadores.
+* Tempo médio de atendimento.
+* Tempo médio de resolução.
+* Volume por período.
+* Chamados vencidos ou próximos do vencimento.
+
+### Conexões
+
+* Clientes.
+* Equipamentos.
+* Técnicos.
+* Agenda.
+* Ordens de serviço.
+* Portal do cliente.
+* E-mail.
+* WhatsApp.
+* Webhooks.
+
+---
+
+## 9. Ordens de Serviço
+
+### Funcionalidades
+
+* Abertura direta de ordem de serviço.
+* Criação a partir de orçamento aprovado.
+* Criação a partir de chamado técnico.
+* Controle de status.
+* Máquina de estados com transições permitidas.
+* Vínculo com cliente.
+* Vínculo com equipamento.
+* Vínculo com técnico.
+* Vínculo com veículo.
+* Vínculo com contrato.
+* Registro de deslocamento.
+* Início, pausa e retomada de deslocamento.
+* Chegada ao cliente com GPS.
+* Início do serviço.
+* Pausa e retomada do serviço.
+* Conclusão do serviço.
+* Retorno do técnico.
+* Fotos antes, durante e depois.
+* Checklist técnico.
+* Peças utilizadas.
+* Serviços executados.
+* Assinatura do cliente.
+* Anexos.
+* Observações internas.
+* Observações públicas.
+* Relatório técnico.
+* Reabertura por reclamação.
+* Não conformidade.
+* Análise crítica.
+* Duplicação de OS.
+* Ações em lote.
+* Geração de PDF.
+* Conversão para faturamento.
+* Disparo de comissão.
+* Consumo automático de estoque.
+* Registro de despesas vinculadas.
+
+### Conexões
+
+* Clientes.
+* Equipamentos.
+* Técnicos.
+* Agenda.
+* Estoque.
+* Financeiro.
+* Fiscal.
+* Comissões.
+* Contratos.
+* Aplicativo técnico.
+* Portal do cliente.
+* Assinatura digital.
+* Notificações.
+
+---
+
+## 10. Agenda e Programação de Serviços
+
+### Funcionalidades
+
+* Agenda por técnico, equipe ou unidade.
+* Visualização por dia, semana e mês.
+* Agendamento de OS.
+* Agendamento de chamados.
+* Agendamento de reuniões, treinamentos e eventos.
+* Subtarefas.
+* Comentários.
+* Participantes e responsáveis.
+* Lembretes.
+* Preferências de notificação.
+* Apontamento de tempo.
+* Templates de agenda.
+* Regras de automação.
+* Feed de calendário.
+* Dependência entre atividades.
+* Controle de conflitos.
+* Bloqueios de horários.
+* Feriados e indisponibilidades.
+
+### Conexões
+
+* Google Calendar ou calendário externo.
+* Ordens de serviço.
+* Chamados.
+* Técnicos.
+* CRM.
+* Notificações.
+* Aplicativo técnico.
+
+---
+
+## 11. Estoque e Almoxarifado
+
+### Funcionalidades
+
+* Controle multi-almoxarifado.
+* Estoque central.
+* Estoque em veículos.
+* Estoque com técnicos.
+* Entrada de produtos.
+* Saída de produtos.
+* Transferência entre locais.
+* Aceite de transferência pelo recebedor.
+* Devolução.
+* Ajuste de inventário.
+* Inventário físico.
+* Kardex.
+* Reserva de item para OS.
+* Consumo automático por OS.
+* Controle de lote.
+* Controle de validade.
+* Controle por número de série.
+* Curva ABC.
+* Giro de estoque.
+* Ponto de reposição.
+* Alertas de estoque mínimo.
+* Alerta de produto vencido.
+* Alerta de produto obsoleto.
+* Solicitação interna de material.
+* Cotação de compra.
+* Transferência reversível.
+* QR Code ou código de barras.
+* RMA e devolução de peças defeituosas.
+* Sucata e descarte.
+* Peças antigas retiradas do cliente.
+* Registro de peça que ficou com o cliente.
+
+### Conexões
+
+* Produtos.
+* Ordens de serviço.
+* Técnicos.
+* Veículos.
+* Compras.
+* Fornecedores.
+* Financeiro.
+* Fiscal.
+* Aplicativo técnico.
+* Código de barras/QR Code.
+
+---
+
+## 12. Laboratório de Calibração e Metrologia
+
+### Funcionalidades
+
+* Entrada do instrumento no laboratório.
+* Identificação por QR Code.
+* Configuração da calibração.
+* Seleção dos padrões utilizados.
+* Registro das leituras.
+* Cálculo automático de erro.
+* Cálculo de incerteza.
+* Orçamento de incerteza por componente.
+* Avaliação de conformidade.
+* Revisão técnica.
+* Segunda conferência.
+* Decisão: aprovado, reprovado ou condicional.
+* Emissão de certificado.
+* Reemissão controlada.
+* Controle de validade.
+* Histórico de calibrações.
+* Controle de pesos padrão.
+* Classes de pesos padrão.
+* Calibração externa dos padrões.
+* Verificação intermediária.
+* Rastreabilidade metrológica.
+* Ensaios de linearidade.
+* Ensaios de repetibilidade.
+* Ensaios de excentricidade.
+* Comparação interlaboratorial.
+* Ensaio de proficiência.
+* Escopo de acreditação.
+* Controle de faixas de medição.
+* Controle de capacidade de medição e calibração.
+
+### Conexões
+
+* Equipamentos.
+* Clientes.
+* Ordens de serviço.
+* Certificados.
+* Pesos padrão.
+* Qualidade.
+* Financeiro.
+* E-mail.
+* Portal do cliente.
+
+---
+
+## 13. Certificados, Relatórios e Documentos Técnicos
+
+### Funcionalidades
+
+* Geração de certificado de calibração.
+* Numeração sequencial.
+* Dados do cliente.
+* Dados do instrumento.
+* Dados dos padrões utilizados.
+* Resultado das medições.
+* Incerteza de medição.
+* Declaração de conformidade.
+* Validade.
+* Assinatura do responsável técnico.
+* Reemissão controlada.
+* Histórico de versões.
+* Envio automático ao cliente.
+* Download pelo portal.
+* Relatório de serviço.
+* Relatório fotográfico.
+* Relatório de não conformidade.
+* Laudos técnicos.
+* Etiquetas de identificação.
+* Modelos customizáveis de PDF.
+* Cabeçalho, rodapé, logotipo e assinatura.
+
+### Conexões
+
+* Laboratório.
+* Ordens de serviço.
+* Clientes.
+* Equipamentos.
+* Portal do cliente.
+* E-mail.
+* Assinatura digital.
+* Armazenamento em nuvem.
+
+---
+
+## 14. Faturamento e Documentos Fiscais
+
+### Funcionalidades
+
+* Geração de fatura a partir da OS.
+* Fatura manual.
+* Fatura recorrente.
+* Versionamento de fatura.
+* Status da fatura: rascunho, emitida, enviada, recebida ou cancelada.
+* Emissão de nota fiscal de produto.
+* Emissão de nota fiscal de serviço.
+* Emissão de documento fiscal de transporte.
+* Envio para autorização fiscal.
+* Armazenamento de XML e PDF.
+* Envio da nota por e-mail.
+* Cancelamento.
+* Carta de correção.
+* Contingência fiscal.
+* Agendamento de emissão.
+* Validação de CPF e CNPJ.
+* Controle de regime tributário.
+* Retenções de impostos.
+* Alerta de certificado digital vencendo.
+* Relatório fiscal.
+* Exportação para contador.
+* Apuração por período.
+
+### Conexões
+
+* SEFAZ.
+* Prefeitura.
+* Provedores de emissão fiscal.
+* Certificado digital.
+* Clientes.
+* Produtos.
+* Serviços.
+* Financeiro.
+* Contas a receber.
+* E-mail.
+* Contabilidade.
+
+---
+
+## 15. Financeiro
+
+### Contas a Receber
+
+* Geração automática a partir de fatura ou OS.
+* Parcelamento.
+* Pagamento parcial.
+* Juros.
+* Multa.
+* Desconto.
+* Status financeiro.
+* Aging de recebíveis.
+* Cobrança automática.
+* Régua de cobrança.
+* Conciliação bancária.
+* Contas bancárias.
+* Baixa manual e automática.
+* Relatório de inadimplência.
+
+### Contas a Pagar
+
+* Lançamento manual.
+* Lançamento por fornecedor.
+* Centro de custo.
+* Plano de contas.
+* Aprovação de pagamento.
+* Pagamento em lote.
+* Recorrência.
+* Baixa.
+* Conciliação bancária.
+* Importação de títulos.
+
+### Comissões
+
+* Comissão por vendedor.
+* Comissão por técnico.
+* Comissão por equipe.
+* Comissão por OS.
+* Comissão por recebimento efetivo.
+* Split entre participantes.
+* Fechamento mensal.
+* Contestação de comissão.
+* Metas e aceleradores.
+* Demonstrativo individual.
+
+### Despesas
+
+* Lançamento de despesa.
+* Comprovante anexado.
+* Aprovação.
+* Reembolso.
+* Vínculo com OS.
+* Vínculo com viagem.
+* Vínculo com técnico.
+
+### Caixa do Técnico
+
+* Adiantamento.
+* Prestação de contas.
+* Saídas.
+* Entradas.
+* Saldo em tempo real.
+* Solicitação de fundos.
+* Fechamento de caixa.
+
+### Relatórios
+
+* DRE.
+* Fluxo de caixa.
+* Fluxo de caixa projetado.
+* Aging.
+* Centro de custo.
+* Conciliação.
+* Receitas por período.
+* Despesas por período.
+* Resultado por cliente, técnico, vendedor ou serviço.
+
+### Conexões
+
+* Bancos.
+* CNAB.
+* PIX.
+* Boletos.
+* Cartões.
+* Faturamento.
+* Fiscal.
+* Ordens de serviço.
+* Comissões.
+* Despesas.
+* Contabilidade.
+
+---
+
+## 16. Contratos Recorrentes
+
+### Funcionalidades
+
+* Cadastro de contrato.
+* Cliente vinculado.
+* Itens contratados.
+* Serviços recorrentes.
+* Valor mensal, anual ou por período.
+* Medições recorrentes.
+* Geração automática de OS.
+* Geração automática de cobrança.
+* Controle de vigência.
+* Alerta de vencimento.
+* Aditivos contratuais.
+* Histórico de reajustes.
+* Renovação.
+* Cancelamento.
+* Documentos anexos.
+
+### Conexões
+
+* Clientes.
+* Ordens de serviço.
+* Financeiro.
+* Faturamento.
+* Agenda.
+* CRM.
+* Notificações.
+
+---
+
+## 17. CRM e Gestão Comercial
+
+### Funcionalidades
+
+* Cadastro de leads.
+* Múltiplos funis de venda.
+* Kanban comercial.
+* Oportunidades.
+* Valor previsto.
+* Probabilidade de fechamento.
+* Margem estimada.
+* Motivo de ganho ou perda.
+* Atividades comerciais.
+* Ligações.
+* E-mails.
+* Reuniões.
+* Visitas.
+* Demonstrações.
+* Templates de e-mail.
+* Lead scoring.
+* Qualificação de leads.
+* Forecast de vendas.
+* Análise de funil.
+* Velocidade do pipeline.
+* Follow-up automático.
+* Sequências de contato.
+* Alertas de negócio parado.
+* Territórios comerciais.
+* Metas por vendedor.
+* Check-in GPS em visita.
+* Relatório de visita.
+* Pesquisa NPS.
+* Roteirização de visitas.
+* Mapa da carteira.
+* Cliente esquecido.
+* Histórico de negociações.
+* Gamificação comercial.
+* Formulários públicos de captação.
+* Programa de indicação.
+
+### Conexões
+
+* Clientes.
+* Orçamentos.
+* Agenda.
+* E-mail.
+* WhatsApp.
+* Google Calendar.
+* Portal.
+* BI.
+* Notificações.
+
+---
+
+## 18. Recursos Humanos e Organização
+
+### Funcionalidades
+
+* Cadastro de colaboradores.
+* Departamentos.
+* Organograma.
+* Funções e cargos.
+* Matriz de habilidades.
+* Nível de proficiência.
+* Controle de ponto.
+* Ajustes de ponto.
+* Horas extras.
+* Benefícios.
+* Dependentes.
+* Avaliação de desempenho.
+* Feedback contínuo.
+* Cadastro de vagas.
+* Banco de candidatos.
+* Processo seletivo básico.
+* Metas individuais.
+* Controle de documentos do colaborador.
+
+### Conexões
+
+* eSocial.
+* Folha de pagamento.
+* Agenda.
+* Ordens de serviço.
+* Técnicos.
+* Comissões.
+* Controle de acesso.
+
+---
+
+## 19. Frota e Logística
+
+### Funcionalidades
+
+* Cadastro de veículos.
+* Marca, modelo, placa, ano e seguro.
+* Responsável pelo veículo.
+* Histórico de manutenção.
+* Troca de óleo.
+* Pneus.
+* Revisões.
+* Checklist diário.
+* Registro de abastecimento.
+* Média de consumo.
+* Detecção de consumo fora do padrão.
+* GPS em tempo real.
+* Replay de trajeto.
+* Saída de rota.
+* Excesso de velocidade.
+* Requisição de veículo.
+* Aprovação de uso.
+* Check-out e devolução.
+* Registro de acidente.
+* Fotos e documentos.
+* Controle de pedágio.
+* Repasse de pedágio ao cliente.
+* Otimização de rotas.
+* Comparação entre rota planejada e realizada.
+
+### Conexões
+
+* Técnicos.
+* Ordens de serviço.
+* Agenda.
+* Estoque em veículo.
+* Despesas.
+* Financeiro.
+* GPS.
+* Mapas.
+* Pedágio.
+
+---
+
+## 20. Qualidade
+
+### Funcionalidades
+
+* Auditorias internas.
+* Checklist de auditoria.
+* Registro de não conformidades.
+* Ações corretivas.
+* Ações preventivas.
+* Plano de ação.
+* Responsável e prazo.
+* Evidências anexadas.
+* Revisão de eficácia.
+* Pesquisa de satisfação.
+* NPS pós-serviço.
+* Controle estatístico de processo.
+* Cartas de controle.
+* Análise de comentários.
+* Indicadores de qualidade.
+* Gestão de reclamações.
+* Análise crítica de serviços.
+
+### Conexões
+
+* Ordens de serviço.
+* Laboratório.
+* Clientes.
+* Equipamentos.
+* Auditoria.
+* Documentos.
+* BI.
+
+---
+
+## 21. Aplicativo do Técnico
+
+### Funcionalidades
+
+* Agenda do dia.
+* Lista de OS.
+* Lista de chamados.
+* Detalhes do cliente.
+* Detalhes do equipamento.
+* Navegação até o cliente.
+* Check-in com GPS.
+* Início de deslocamento.
+* Pausa.
+* Retomada.
+* Chegada ao cliente.
+* Início do serviço.
+* Registro dos serviços executados.
+* Consumo de peças.
+* Solicitação de peças.
+* Transferência de estoque.
+* Aceite de transferência.
+* Fotos.
+* Anexos.
+* Checklist.
+* Assinatura do cliente.
+* Lançamento de despesas.
+* Pedido de adiantamento.
+* Prestação de contas.
+* Chat com a equipe interna.
+* Notificações push.
+* Funcionamento offline.
+* Sincronização posterior.
+* Resolução de conflitos de sincronização.
+
+### Conexões
+
+* Ordens de serviço.
+* Chamados.
+* Agenda.
+* Estoque.
+* Clientes.
+* Equipamentos.
+* Financeiro.
+* Caixa do técnico.
+* GPS.
+* Câmera.
+* Assinatura digital.
+* Notificações.
+
+---
+
+## 22. BI, Indicadores e Inteligência Gerencial
+
+### Funcionalidades
+
+* Dashboards por área.
+* Indicadores financeiros.
+* Indicadores comerciais.
+* Indicadores operacionais.
+* Indicadores de estoque.
+* Indicadores de qualidade.
+* Indicadores de frota.
+* Indicadores de laboratório.
+* Fluxo de caixa projetado.
+* DRE.
+* Inadimplência.
+* Receita por cliente.
+* Receita por serviço.
+* Receita por técnico.
+* Receita por vendedor.
+* Produtividade técnica.
+* Taxa de conversão comercial.
+* SLA.
+* Tempo médio de atendimento.
+* Churn.
+* Segmentação de clientes.
+* Sugestões comerciais.
+* Manutenção preditiva baseada em histórico.
+* Relatórios customizados.
+* Link público de dashboard.
+* Envio agendado de relatórios.
+
+### Conexões
+
+* Todos os módulos operacionais.
+* Financeiro.
+* CRM.
+* OS.
+* Estoque.
+* Frota.
+* Qualidade.
+* Laboratório.
+* E-mail.
+
+---
+
+## 23. Automações e Alertas
+
+### Funcionalidades
+
+* Regras automáticas por evento.
+* Alertas de vencimento.
+* Alertas de SLA.
+* Alertas de estoque mínimo.
+* Alertas financeiros.
+* Alertas fiscais.
+* Alertas de contrato.
+* Alertas de calibração.
+* Alertas de manutenção de frota.
+* Envio automático de e-mail.
+* Envio automático de WhatsApp.
+* Geração automática de tarefas.
+* Geração automática de OS recorrente.
+* Geração automática de cobrança.
+* Escalonamento para responsáveis.
+* Logs de execução.
+* Reprocessamento de falhas.
+
+### Conexões
+
+* E-mail.
+* WhatsApp.
+* Agenda.
+* CRM.
+* Financeiro.
+* Contratos.
+* Estoque.
+* Ordens de serviço.
+* Fiscal.
+
+---
+
+## 24. Integrações Externas
+
+### Conexões Fiscais
+
+* Emissão de nota fiscal eletrônica.
+* Emissão de nota fiscal de serviço.
+* Consulta de status fiscal.
+* Carta de correção.
+* Cancelamento.
+* Armazenamento de XML e PDF.
+* Certificado digital.
+
+### Conexões Bancárias
+
+* Boletos.
+* PIX.
+* Cartão.
+* CNAB.
+* Conciliação bancária.
+* Importação de extratos.
+* Contas bancárias.
+
+### Conexões de Comunicação
+
+* SMTP.
+* E-mail transacional.
+* E-mail em massa.
+* SMS.
+* WhatsApp Business.
+* Notificações push.
+
+### Conexões de Cadastro
+
+* Consulta de CNPJ.
+* Consulta de CPF.
+* Consulta de CEP.
+* Bases públicas de dados.
+
+### Conexões de Agenda
+
+* Google Calendar.
+* Feed iCal.
+* Sincronização bidirecional.
+
+### Conexões de Arquivos
+
+* Armazenamento em nuvem.
+* Upload e download de anexos.
+* Backup de documentos.
+* Compartilhamento de arquivos.
+
+### Conexões Governamentais
+
+* eSocial.
+* Portais fiscais.
+* Portais metrológicos.
+* Bases públicas regulatórias.
+
+### Conexões de Inteligência Artificial
+
+* Classificação automática de e-mails.
+* Análise de sentimento.
+* Resumos automáticos.
+* Sugestões comerciais.
+* Apoio em relatórios gerenciais.
+
+---
+
+## 25. Recursos Transversais do Sistema
+
+### Funcionalidades
+
+* Multiempresa.
+* Multiunidade.
+* Multialmoxarifado.
+* Multiusuário.
+* Permissões por perfil.
+* Logs de auditoria.
+* Anexos em registros.
+* Comentários.
+* Tags.
+* Filtros avançados.
+* Busca global.
+* Importação de dados.
+* Exportação em CSV, Excel, XML e PDF.
+* Geração de documentos.
+* Modelos personalizáveis.
+* Webhooks de entrada e saída.
+* Logs de integração.
+* Reprocessamento de integrações com erro.
+* Feature flags.
+* Backup automático.
+* Restauração por ponto no tempo.
+* Health check.
+* Monitoramento.
+* Métricas.
+* QR Code.
+* Código de barras.
+* Painel administrativo.
+* Configurações por empresa.
+* Configurações por usuário.
+
+---
+
+# Resumo dos Grandes Módulos
+
+| Nº | Módulo              | Finalidade Principal                                     |
+| -: | ------------------- | -------------------------------------------------------- |
+|  1 | Acesso e Segurança  | Controlar usuários, permissões, auditoria e LGPD         |
+|  2 | Clientes            | Centralizar cadastro, histórico e inteligência comercial |
+|  3 | Portal do Cliente   | Permitir autoatendimento e aprovação de documentos       |
+|  4 | Equipamentos        | Controlar instrumentos, histórico e rastreabilidade      |
+|  5 | Produtos e Serviços | Gerenciar catálogo, preços, custos e kits                |
+|  6 | Fornecedores        | Controlar compras, contratos e histórico                 |
+|  7 | Orçamentos          | Criar, aprovar, enviar e converter propostas             |
+|  8 | Chamados            | Controlar solicitações técnicas e SLA                    |
+|  9 | Ordens de Serviço   | Executar e documentar serviços de campo/laboratório      |
+| 10 | Agenda              | Programar técnicos, eventos e atividades                 |
+| 11 | Estoque             | Controlar peças, almoxarifados, transferências e consumo |
+| 12 | Calibração          | Executar processos metrológicos e certificados           |
+| 13 | Documentos          | Gerar certificados, laudos, relatórios e PDFs            |
+| 14 | Fiscal              | Emitir notas e documentos fiscais                        |
+| 15 | Financeiro          | Controlar receber, pagar, comissões, despesas e caixa    |
+| 16 | Contratos           | Gerenciar serviços recorrentes                           |
+| 17 | CRM                 | Controlar vendas, leads, funis e relacionamento          |
+| 18 | RH                  | Gerenciar colaboradores, ponto e habilidades             |
+| 19 | Frota               | Controlar veículos, rotas, manutenção e abastecimento    |
+| 20 | Qualidade           | Controlar auditorias, não conformidades e NPS            |
+| 21 | App Técnico         | Operação de campo offline e mobile                       |
+| 22 | BI                  | Indicadores, relatórios e inteligência gerencial         |
+| 23 | Automações          | Regras, alertas e ações automáticas                      |
+| 24 | Integrações         | Comunicação com sistemas externos                        |
+| 25 | Recursos Gerais     | Estrutura transversal do sistema                         |
+
+
+  Wave 5 — Ciclo financeiro
+
+  Faturamento — OS fechada vira fatura automaticamente.
+
+  Financeiro — Contas a receber, conciliação bancária .
+
+  Comissões — Cálculo por OS faturada, divisão entre técnicos.
+
+  Despesas — Comprovante anexado, vínculo com OS, caixa do técnico no campo.
+
+  Fiscal — Emissão de NFS-e via FocusNFe / NuvemFiscal (já em produção).
+
+  Comissões — Cálculo por OS faturada, divisão entre técnicos.
+
+  Despesas — Comprovante anexado, vínculo com OS, caixa do técnico no campo.
+
+  Fiscal — Emissão de NFS-e via FocusNFe / NuvemFiscal (já em produção).
+
+  Contratos — Contratos recorrentes com renovação automática (já em produção).
+
+
+
+Funcionalidades e Módulos que Fazem Sentido Adicionar
+1. Módulo de Implantação e Onboarding de Clientes
+
+Esse módulo é importante se o sistema for vendido para várias empresas.
+
+Funcionalidades recomendadas
+Cadastro guiado inicial da empresa.
+Assistente de configuração inicial.
+Importação inicial de clientes, produtos, serviços, equipamentos e estoque.
+Checklist de implantação.
+Etapas de implantação por cliente.
+Responsável interno pela implantação.
+Status da implantação: não iniciada, em andamento, pendente do cliente, concluída.
+Treinamento inicial registrado.
+Validação final do ambiente.
+Termo de aceite da implantação.
+Migração de dados do sistema antigo.
+Registro de inconsistências encontradas na migração.
+Ambiente de teste/sandbox para o cliente.
+Por que faz sentido
+
+Um sistema grande precisa de processo formal de implantação. Sem isso, cada novo cliente vira um projeto manual e desorganizado.
+
+2. Central de Configurações do Sistema
+
+A lista já tem configurações por empresa e usuário, mas faz sentido ter um módulo específico e muito bem estruturado.
+
+Funcionalidades recomendadas
+Configuração de dados da empresa.
+Configuração de filiais.
+Numeração de documentos.
+Séries de OS, orçamento, fatura, certificado e nota fiscal.
+Configuração de impostos.
+Configuração de permissões.
+Configuração de workflows.
+Configuração de status personalizados.
+Configuração de campos obrigatórios.
+Configuração de modelos de PDF.
+Configuração de assinatura.
+Configuração de integrações.
+Configuração de notificações.
+Configuração de regras comerciais.
+Configuração de SLA.
+Configuração de estoque.
+Configuração de financeiro.
+Configuração de metrologia.
+Configuração de backup.
+Configuração de retenção de dados.
+Por que faz sentido
+
+Em software grande, muita coisa precisa ser parametrizável. Sem uma central forte de configurações, o sistema fica engessado.
+
+3. Módulo de Workflow e BPM
+
+A lista já tem várias automações, mas seria útil ter um módulo mais genérico de fluxos configuráveis.
+
+Funcionalidades recomendadas
+Criador visual de fluxos.
+Etapas configuráveis.
+Aprovações por alçada.
+Condições por valor, cliente, tipo de serviço, risco ou unidade.
+Regras de transição.
+Bloqueios automáticos.
+Aprovação em múltiplos níveis.
+Delegação de aprovação.
+Substituto temporário em caso de ausência.
+Histórico completo do fluxo.
+SLA por etapa.
+Escalonamento automático.
+Notificação de pendências.
+Painel de aprovações.
+Exemplos de uso
+Aprovação de orçamento com desconto alto.
+Aprovação de compra acima de determinado valor.
+Aprovação de despesa de técnico.
+Liberação de crédito para cliente bloqueado.
+Aprovação de reemissão de certificado.
+Aprovação de cancelamento de nota fiscal.
+Aprovação de ajuste de estoque.
+Por que faz sentido
+
+Isso evita criar regra fixa dentro de cada módulo. O sistema fica mais flexível para empresas diferentes.
+
+4. Módulo de Gestão de Projetos
+
+A lista cobre OS, chamados e agenda, mas pode faltar um módulo para projetos maiores.
+
+Funcionalidades recomendadas
+Cadastro de projeto.
+Cliente vinculado.
+Escopo.
+Cronograma.
+Etapas.
+Marcos do projeto.
+Tarefas.
+Responsáveis.
+Gantt.
+Orçamento previsto.
+Custo realizado.
+Receita prevista.
+Margem do projeto.
+Documentos do projeto.
+Riscos do projeto.
+Reuniões.
+Diário de obra/execução.
+Status do projeto.
+Entregáveis.
+Aceite por etapa.
+Controle de aditivos.
+Exemplos de uso
+Instalação de balança rodoviária.
+Reforma grande em sistema de pesagem.
+Implantação de automação industrial.
+Projeto com várias OS, compras, técnicos e faturamentos.
+Por que faz sentido
+
+Nem todo trabalho cabe em uma OS simples. Projetos maiores precisam de controle de etapas, custos e entregáveis.
+
+5. Módulo de Engenharia Técnica
+
+Para empresas de automação, pesagem, calibração ou manutenção, esse módulo agregaria bastante.
+
+Funcionalidades recomendadas
+Cadastro de desenhos técnicos.
+Diagramas elétricos.
+Esquemas de ligação.
+Lista técnica de materiais.
+Revisão de projeto técnico.
+Memorial descritivo.
+Especificações técnicas.
+Cálculos técnicos.
+Biblioteca de componentes.
+Versão de projeto.
+Aprovação técnica.
+Anexos CAD/PDF/imagem.
+Relação entre projeto, OS, orçamento e equipamento.
+Histórico de alterações técnicas.
+Por que faz sentido
+
+Ajuda a transformar conhecimento técnico em documentação rastreável. Também reduz erro de montagem e manutenção.
+
+6. Módulo de Compras Mais Completo
+
+A lista já tem fornecedores, cotação e requisição, mas vale separar um módulo formal de compras.
+
+Funcionalidades recomendadas
+Requisição de compra.
+Aprovação de compra.
+Cotação com múltiplos fornecedores.
+Mapa comparativo de preços.
+Ordem de compra.
+Recebimento parcial.
+Recebimento total.
+Conferência entre pedido, nota fiscal e mercadoria.
+Divergência de recebimento.
+Prazo de entrega.
+Follow-up com fornecedor.
+Compra emergencial.
+Compra vinculada à OS.
+Compra vinculada ao estoque mínimo.
+Compra vinculada ao projeto.
+Histórico de preço por fornecedor.
+Lead time médio.
+Avaliação do fornecedor.
+Por que faz sentido
+
+Estoque e financeiro ficam mais confiáveis quando a compra tem processo formal.
+
+7. Módulo de Garantia
+
+Esse é um dos principais módulos que senti falta.
+
+Funcionalidades recomendadas
+Garantia de serviço.
+Garantia de peça.
+Garantia de equipamento vendido.
+Prazo de garantia por tipo de item.
+OS em garantia.
+Motivo da garantia.
+Análise se é garantia procedente ou improcedente.
+Custo da garantia.
+Peça substituída em garantia.
+Laudo de garantia.
+Garantia do fornecedor.
+Envio para fornecedor.
+Controle de retorno do fornecedor.
+Bloqueio de cobrança quando for garantia.
+Indicador de reincidência por cliente, técnico, peça ou equipamento.
+Por que faz sentido
+
+Sem módulo de garantia, a empresa perde controle sobre retrabalho, custo oculto e defeitos recorrentes.
+
+8. Módulo de Risco Operacional
+
+A lista tem qualidade e auditoria, mas um módulo específico de risco seria útil.
+
+Funcionalidades recomendadas
+Cadastro de riscos.
+Risco por cliente.
+Risco por serviço.
+Risco por equipamento.
+Risco por local de atendimento.
+Risco elétrico.
+Risco de segurança do trabalho.
+Risco financeiro.
+Risco fiscal.
+Risco de prazo.
+Risco de não conformidade.
+Probabilidade.
+Impacto.
+Nível de risco.
+Plano de mitigação.
+Responsável.
+Prazo.
+Histórico de ocorrências.
+Matriz de risco.
+Alertas automáticos.
+Por que faz sentido
+
+Serviços de campo, elétrica, automação, pesagem e calibração têm risco técnico, financeiro e jurídico.
+
+9. Módulo de Segurança do Trabalho
+
+Faz muito sentido para operação com técnicos em campo.
+
+Funcionalidades recomendadas
+Cadastro de EPIs.
+Entrega de EPI.
+Validade de EPI.
+Termo de entrega assinado.
+Treinamentos obrigatórios.
+NR-10.
+NR-12.
+NR-35.
+ASO.
+Permissão de trabalho.
+APR — Análise Preliminar de Risco.
+Checklist de segurança antes do serviço.
+Registro de acidente.
+Quase acidente.
+Evidências fotográficas.
+Bloqueio de técnico sem treinamento válido.
+Bloqueio de OS sem checklist de segurança.
+Relatório de segurança por período.
+Por que faz sentido
+
+Esse módulo reduz risco trabalhista, operacional e jurídico.
+
+10. Módulo de Gestão de Documentos
+
+A lista tem anexos e geração de PDF, mas um módulo documental mais completo seria recomendado.
+
+Funcionalidades recomendadas
+Biblioteca central de documentos.
+Pastas por cliente, equipamento, OS, contrato e fornecedor.
+Controle de versão.
+Aprovação de documento.
+Documento vigente ou obsoleto.
+Assinatura eletrônica.
+Controle de validade.
+Notificação de vencimento.
+Modelo de documento.
+Controle de acesso por documento.
+Trilha de auditoria.
+Busca por conteúdo.
+OCR para documentos digitalizados.
+Política de retenção.
+Compartilhamento com cliente.
+Por que faz sentido
+
+Empresas técnicas trabalham com laudos, certificados, contratos, manuais, ARTs, fotos, notas, documentos fiscais e evidências. Isso precisa de gestão própria.
+
+11. Módulo de Base de Conhecimento
+
+Muito útil para suporte, técnicos e padronização.
+
+Funcionalidades recomendadas
+Artigos técnicos.
+Procedimentos operacionais.
+Manuais internos.
+Soluções de problemas comuns.
+Perguntas frequentes.
+Base por equipamento, marca ou modelo.
+Vídeos de treinamento.
+Anexos técnicos.
+Busca inteligente.
+Artigos sugeridos dentro da OS.
+Artigos sugeridos dentro do chamado.
+Controle de versão.
+Aprovação técnica do conteúdo.
+Comentários e melhoria contínua.
+Por que faz sentido
+
+Evita que o conhecimento fique apenas na cabeça de técnicos experientes.
+
+12. Módulo de Treinamentos e Certificações Internas
+
+Relacionado ao RH, mas mais técnico.
+
+Funcionalidades recomendadas
+Treinamentos internos.
+Treinamentos obrigatórios.
+Certificados de treinamento.
+Provas ou avaliações.
+Controle de validade.
+Trilha por função.
+Trilha por cargo.
+Treinamento por equipamento.
+Treinamento por norma.
+Bloqueio de execução se o técnico não estiver habilitado.
+Histórico de capacitação.
+Matriz de competência.
+Por que faz sentido
+
+Importante para qualidade, segurança, ISO 9001, ISO/IEC 17025 e serviços técnicos críticos.
+
+13. Módulo de Gestão de Não Conformidade Ampliado
+
+A lista já tem qualidade, CAPA e não conformidade, mas vale detalhar mais.
+
+Funcionalidades recomendadas
+Não conformidade interna.
+Não conformidade externa.
+Não conformidade de fornecedor.
+Não conformidade de calibração.
+Não conformidade de atendimento.
+Não conformidade fiscal.
+Classificação por gravidade.
+Análise de causa raiz.
+5 Porquês.
+Ishikawa.
+Ação corretiva.
+Ação preventiva.
+Plano de contenção.
+Verificação de eficácia.
+Reincidência.
+Custo da não conformidade.
+Relatório gerencial.
+Por que faz sentido
+
+É essencial para empresas que desejam qualidade formal, acreditação, auditoria ou rastreabilidade técnica.
+
+14. Módulo de Atendimento e Suporte ao Usuário do Sistema
+
+Se o software for oferecido para outras empresas, precisa de suporte interno do próprio sistema.
+
+Funcionalidades recomendadas
+Central de suporte.
+Abertura de ticket pelo usuário.
+Prioridade.
+Categoria.
+SLA de suporte.
+Base de conhecimento.
+Chat de suporte.
+Histórico de atendimento.
+Status do ticket.
+Evidências anexadas.
+Acesso remoto registrado.
+Bugs reportados.
+Sugestões de melhoria.
+Roadmap público ou privado.
+Votação em melhorias.
+Comunicação de manutenção do sistema.
+Por que faz sentido
+
+Separar o suporte do software do suporte operacional dos clientes evita confusão.
+
+15. Módulo de Gestão de Assinaturas e Planos
+
+Importante se o software for SaaS.
+
+Funcionalidades recomendadas
+Planos comerciais.
+Limites por plano.
+Cobrança recorrente.
+Usuários por plano.
+Módulos liberados por plano.
+Período de teste.
+Upgrade.
+Downgrade.
+Cancelamento.
+Suspensão por inadimplência.
+Histórico de assinaturas.
+Fatura da assinatura.
+Cupons e descontos.
+Métricas de uso.
+Controle de trial.
+Bloqueio progressivo.
+Por que faz sentido
+
+Sem isso, a gestão comercial do próprio software fica manual.
+
+16. Módulo de Marketplace ou Catálogo Comercial Online
+
+Opcional, mas pode fazer sentido dependendo da estratégia.
+
+Funcionalidades recomendadas
+Catálogo online de produtos.
+Catálogo online de serviços.
+Solicitação de orçamento pelo site.
+Carrinho de solicitação.
+Tabela pública ou privada.
+Produtos em destaque.
+Serviços recorrentes.
+Integração com CRM.
+Integração com estoque.
+Integração com pagamento.
+Área do cliente.
+Rastreamento de conversão.
+Por que faz sentido
+
+Transforma o sistema também em canal de venda.
+
+17. Módulo de Gestão de Licenças, Certificações e Autorizações da Empresa
+
+Muito importante para empresas reguladas.
+
+Funcionalidades recomendadas
+Cadastro de licenças da empresa.
+Certificados digitais.
+Acreditações.
+Autorizações legais.
+Alvarás.
+Certidões.
+Documentos regulatórios.
+Responsáveis técnicos.
+ART/RRT, quando aplicável.
+Validade.
+Alertas de vencimento.
+Histórico de renovação.
+Anexos.
+Bloqueio operacional em caso de documento vencido, quando necessário.
+Por que faz sentido
+
+Evita operação com documento vencido e ajuda em auditorias.
+
+18. Módulo de Gestão de Responsável Técnico
+
+Para áreas técnicas e reguladas, isso merece controle próprio.
+
+Funcionalidades recomendadas
+Cadastro de responsável técnico.
+Registro profissional.
+Escopo de responsabilidade.
+Assinatura em documentos.
+Validade de vínculo.
+Documentos anexados.
+Serviços autorizados.
+Certificados emitidos sob responsabilidade.
+Histórico de alterações.
+Substituição de responsável.
+Aprovação técnica obrigatória por tipo de documento.
+Por que faz sentido
+
+Dá mais rastreabilidade aos documentos técnicos e certificados.
+
+19. Módulo de Custos Reais por Serviço
+
+A lista tem financeiro, despesas e comissões, mas vale ter um módulo específico de apuração de custo real.
+
+Funcionalidades recomendadas
+Custo previsto da OS.
+Custo real da OS.
+Custo de mão de obra.
+Custo de deslocamento.
+Custo de hospedagem.
+Custo de alimentação.
+Custo de pedágio.
+Custo de peças.
+Custo de retrabalho.
+Custo de garantia.
+Custo de comissão.
+Margem real por OS.
+Margem real por cliente.
+Margem real por vendedor.
+Margem real por técnico.
+Margem real por tipo de serviço.
+Comparação previsto x realizado.
+Alerta de OS deficitária.
+Por que faz sentido
+
+Sem custo real, o financeiro mostra receita, mas não mostra claramente onde a empresa ganha ou perde dinheiro.
+
+20. Módulo de Precificação Inteligente
+
+A lista tem tabelas de preço e simulações, mas pode haver um módulo mais forte de precificação.
+
+Funcionalidades recomendadas
+Formação de preço por custo.
+Formação de preço por margem desejada.
+Cálculo de preço mínimo.
+Cálculo de preço sugerido.
+Desconto máximo permitido.
+Margem por item.
+Margem por orçamento.
+Simulação de comissão.
+Simulação de impostos.
+Simulação de deslocamento.
+Simulação de parcelamento.
+Alerta de orçamento abaixo da margem mínima.
+Aprovação obrigatória por desconto.
+Tabela por região.
+Tabela por segmento.
+Tabela por contrato.
+Histórico de preço praticado.
+Por que faz sentido
+
+Ajuda a evitar orçamentos que vendem muito, mas dão prejuízo.
+
+21. Módulo de Planejamento de Capacidade
+
+Muito útil para operação de campo e laboratório.
+
+Funcionalidades recomendadas
+Capacidade por técnico.
+Capacidade por equipe.
+Capacidade por laboratório.
+Capacidade por tipo de serviço.
+Horas disponíveis.
+Horas ocupadas.
+Gargalos.
+Previsão de demanda.
+Simulação de agenda.
+Distribuição automática de serviços.
+Tempo médio por tipo de OS.
+Capacidade futura.
+Indicador de sobrecarga.
+Indicação de necessidade de contratação.
+Por que faz sentido
+
+Ajuda a saber se a empresa consegue atender a demanda antes de prometer prazo ao cliente.
+
+22. Módulo de Gestão de SLA Contratual
+
+A lista tem SLA em chamados, mas poderia existir SLA por contrato e cliente.
+
+Funcionalidades recomendadas
+SLA por contrato.
+SLA por cliente.
+SLA por tipo de serviço.
+SLA por criticidade.
+Horário comercial ou 24/7.
+Calendário de atendimento.
+Tempo de resposta.
+Tempo de solução.
+Penalidade por descumprimento.
+Bonificação por desempenho.
+Relatório de SLA para cliente.
+Alertas preventivos.
+Escalonamento automático.
+Pausa justificada de SLA.
+Evidência de cumprimento.
+Por que faz sentido
+
+Em contratos recorrentes, o SLA geralmente é parte central da negociação.
+
+23. Módulo de Comunicação Omnichannel
+
+A lista cita e-mail, SMS e WhatsApp, mas um módulo unificado pode ser melhor.
+
+Funcionalidades recomendadas
+Caixa de entrada unificada.
+WhatsApp.
+E-mail.
+SMS.
+Chat do portal.
+Histórico por cliente.
+Histórico por OS.
+Histórico por orçamento.
+Templates de mensagem.
+Respostas rápidas.
+Mensagens automáticas.
+Distribuição para atendentes.
+Status de leitura.
+Gravação de consentimento.
+Opt-in e opt-out.
+Relatório de atendimento.
+Conversão de conversa em chamado.
+Conversão de conversa em lead.
+Por que faz sentido
+
+Evita comunicação espalhada e perdida em celulares, e-mails e aplicativos.
+
+24. Módulo de Gestão de Versões e Atualizações do Sistema
+
+Importante se for software próprio com evolução contínua.
+
+Funcionalidades recomendadas
+Controle de versão do sistema.
+Histórico de atualizações.
+Notas de versão.
+Novidades por módulo.
+Aviso de manutenção.
+Migração de dados.
+Recursos novos por cliente.
+Feature flags por cliente.
+Programa beta.
+Ambiente de homologação.
+Registro de bugs corrigidos.
+Registro de breaking changes.
+Comunicação automática aos usuários.
+Por que faz sentido
+
+Ajuda a controlar evolução do produto e reduz confusão dos usuários após atualizações.
+
+25. Módulo de Auditoria Externa e Preparação para Certificações
+
+A lista tem qualidade, ISO e auditoria interna, mas pode ter um módulo específico para auditorias externas.
+
+Funcionalidades recomendadas
+Planejamento de auditoria externa.
+Checklist por norma.
+Evidências por requisito.
+Responsável por evidência.
+Prazo para envio.
+Pendências de auditoria.
+Registro de apontamentos.
+Plano de ação.
+Histórico de auditorias.
+Relatório final.
+Matriz de conformidade.
+Controle de documentos exigidos.
+Simulação de auditoria.
+Painel de prontidão para certificação.
+Por que faz sentido
+
+Facilita preparação para ISO 9001, ISO/IEC 17025, auditorias de cliente e auditorias regulatórias.

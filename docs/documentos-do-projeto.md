@@ -1,11 +1,13 @@
-# Documentos do projeto Aferê (v7)
+# Documentos do projeto Aferê (v8)
 
 > **Pra que serve:** mapa de TODOS os documentos que o projeto precisa pra funcionar 100% tocado por agentes de IA, sem o Roldão precisar virar programador.
 >
 > **Status:** ✅ existe | ⏳ falta criar | 🟡 parcial | ❌ removido
 > **Prioridade:** 🔴 MVP-obrigatório | 🟡 próximo | ⚪ lazy
 >
-> **Atualização:** 2026-05-17 (v7 — incorpora mapeamento de 25 módulos da lista funcional do Roldão. Adições: 5 OPs novas (OP13/14/15/16/17), 7 INVs novos (INV-021..027), 3 ADRs reservadas viraram reais (0004 sync mobile / 0005 engine automações / 0006 feature flags), 5 domínios novos (`comercial`, `operacao`, `financeiro`, `suporte-plataforma`, `rh-frota-qualidade`) com README + personas, 19 módulos novos com 8 docs cada (~152 docs novos). Nenhum corte de escopo aplicado).
+> **Atualização:** 2026-05-17 noite+12h (v8 — incorpora **25 módulos adicionais** identificados em inventário paralelo (10 agentes Explore) confrontando `docs/novas funcionalidades.txt` × v7. Adições: 1 domínio novo (`dados/` com módulo `bi/`), 24 módulos novos distribuídos em domínios existentes (`comercial`, `operacao`, `financeiro`, `suporte-plataforma`, `metrologia`, `rh-frota-qualidade`), completar PRD do módulo `calibracao`. Cada módulo novo recebe 8 docs (~200 docs novos). Roldão autorizou criar TODOS — **nenhum corte**. Total projeto após v8: ~480 docs).
+>
+> **Atualização anterior:** 2026-05-17 (v7 — incorpora mapeamento de 25 módulos da lista funcional do Roldão. Adições: 5 OPs novas (OP13/14/15/16/17), 7 INVs novos (INV-021..027), 3 ADRs reservadas viraram reais (0004 sync mobile / 0005 engine automações / 0006 feature flags), 5 domínios novos (`comercial`, `operacao`, `financeiro`, `suporte-plataforma`, `rh-frota-qualidade`) com README + personas, 19 módulos novos com 8 docs cada (~152 docs novos). Nenhum corte de escopo aplicado).
 
 ---
 
@@ -474,6 +476,107 @@ Ajustes incorporados na v5 (Auditoria 2):
 - Template vazio
 - **Doc sem dor concreta hoje**
 - **Doc de módulo fora do faseamento atual**
+
+---
+
+## O que mudou da v7 pra v8 (2026-05-17 noite +12h)
+
+> v8 incorpora o resultado de **inventário paralelo de 10 agentes Explore** confrontando `docs/novas funcionalidades.txt` (lista pessoal do Roldão com 50+ funcionalidades) × o mapeamento da v7. Foram identificados **25 módulos adicionais** ainda NÃO previstos. Roldão autorizou criar **TODOS**, sem deletar nada do que já estava. 15 agentes em paralelo executam a criação enquanto este registra a expansão.
+
+### 1 domínio novo
+
+| Domínio | Módulos | Motivo |
+|---|---|---|
+| `dados/` | `bi/` | BI / analytics / dashboards transversais não pertence a nenhum domínio operacional. Concentra cubos, painéis gerenciais, exports analíticos e a futura camada semântica do produto. |
+
+### 25 módulos novos por domínio (com 8 docs cada = ~200 docs)
+
+| Domínio | Módulo novo | Wave de ativação | Observação |
+|---|---|---|---|
+| `comercial/` | `portal-cliente/` | **Wave A (MVP-1)** | Cliente externo acompanha OS/certificado/financeiro. Pré-requisito de qualquer 1º cliente externo. |
+| `comercial/` | `marketplace/` | **V2/V3** | Aplicativos/extensões/parceiros. Adiado pra pós-MVP-2. |
+| `comercial/` | `precificacao/` | Wave B | Régua de preços, tabelas, descontos sistêmicos, política comercial. |
+| `comercial/` | `sla-contratual/` | Wave B | Cláusulas de SLA por contrato/cliente. Liga em Chamados + OS. |
+| `comercial/` | `comunicacao-omnichannel/` | Wave B | WhatsApp Business, e-mail, SMS, central de mensagens. |
+| `operacao/` | `garantia/` | Wave B | Controle de garantia de serviços/peças/equipamentos pós-OS. |
+| `operacao/` | `projetos/` | Wave B | Gestão de projetos (instalação, retrofit, mudança de planta). |
+| `operacao/` | `base-conhecimento/` | Wave A (MVP-1) acoplado | KB técnica interna; embutida nas OS e Chamados desde o MVP-1 (sem KB, técnico repete erro). |
+| `operacao/` | `capacity-planning-operacional/` | Wave B | Planejamento de carga de técnicos/laboratório (diferente de `operacao/capacity-planning.md` que é infra). |
+| `operacao/` | `app-tecnico/` | **Wave A (MVP-1)** | App offline-first do técnico de campo. Já tem ADR-0003 + ADR-0004 cobrindo. |
+| `financeiro/` | `billing-saas/` | **Bloqueador antes do 1º cliente externo pago** | Faturamento recorrente do Aferê como SaaS (planos, ciclos, downgrade, dunning). Não confundir com `financeiro/contas-receber` (cliente da empresa-cliente). |
+| `financeiro/` | `custeio-real/` | Wave B | Custeio real por OS/certificado/contrato. Rateios. |
+| `financeiro/` | `despesas/` | Wave B | Despesas operacionais, reembolso, adiantamento. |
+| `financeiro/` | `relatorios-financeiros/` | Wave B | DRE gerencial, fluxo de caixa, conciliação avançada. |
+| `suporte-plataforma/` | `onboarding/` | Wave B | Onboarding self-service de novo tenant. |
+| `suporte-plataforma/` | `configuracoes-sistema/` | Wave B | Configurações globais por tenant (temas, idioma, fuso). |
+| `suporte-plataforma/` | `automacoes-bpm/` | Wave B | Motor BPM/workflow visual sobre engine de automações (ADR-0005). |
+| `suporte-plataforma/` | `engenharia-tecnica/` | Wave B | Cadastros técnicos avançados (procedimentos, padrões internos). |
+| `suporte-plataforma/` | `gestao-documental/` | Wave B | DMS interno (versões, controle de acesso, retenção, link com WORM). |
+| `suporte-plataforma/` | `suporte-saas/` | Wave B | Suporte interno do Aferê pros tenants (tickets, knowledge base do produto). |
+| `suporte-plataforma/` | `release-management/` | Wave B | Gestão de releases/changelog visível pro cliente final. |
+| `suporte-plataforma/` | `acesso-seguranca/` | **Wave A (MVP-1)** | RBAC avançado, MFA, gestão de sessões, audit log de acesso. Pré-requisito de qualquer cliente externo. |
+| `metrologia/` | `licencas-acreditacoes/` | Wave B | Controle de licenças RBC, validade, escopo acreditado, NIT-DICLA. |
+| `metrologia/` | `certificados/` | **Wave A (MVP-1)** | Módulo dedicado a ciclo de vida do certificado (numeração, controle, reemissão, revisão). Hoje embutido em `calibracao/` — separar. |
+| `rh-frota-qualidade/` | `seguranca-trabalho/` | Wave B | SST: EPI, ASO, CIPA, NR-12/NR-35. |
+| `rh-frota-qualidade/` | `treinamentos/` | Wave B | Plano de treinamento por colaborador, matriz de competências, certificações. |
+| `rh-frota-qualidade/` | `auditoria-externa/` | Wave B | Suporte a auditorias externas (RBC, ISO, cliente corporativo, fiscal). |
+
+### Completar PRD do módulo `calibracao`
+
+`docs/dominios/metrologia/modulos/calibracao/prd.md` estava parcial na v7 — v8 completa com user stories `US-CAL-NNN` cobrindo emissão, revisão, controle de validade, cliente do certificado, padrão usado, comparações interlaboratoriais.
+
+### Estrutura final v8 (domínios × módulos)
+
+| Domínio | Módulos | Total |
+|---|---|---|
+| `comercial/` | clientes, orcamentos, crm, contratos, **portal-cliente**, **marketplace**, **precificacao**, **sla-contratual**, **comunicacao-omnichannel** | 9 |
+| `operacao/` | os, chamados, agenda, **garantia**, **projetos**, **base-conhecimento**, **capacity-planning-operacional**, **app-tecnico** | 8 |
+| `financeiro/` | contas-receber, contas-pagar, comissoes, caixa-tecnico, fiscal, **billing-saas**, **custeio-real**, **despesas**, **relatorios-financeiros** | 9 |
+| `suporte-plataforma/` | equipamentos, produtos-pecas-servicos, estoque, fornecedores, **onboarding**, **configuracoes-sistema**, **automacoes-bpm**, **engenharia-tecnica**, **gestao-documental**, **suporte-saas**, **release-management**, **acesso-seguranca** | 12 |
+| `metrologia/` | calibracao, **licencas-acreditacoes**, **certificados** | 3 |
+| `rh-frota-qualidade/` | colaboradores, frota, qualidade, **seguranca-trabalho**, **treinamentos**, **auditoria-externa** | 6 |
+| `dados/` (NOVO) | **bi** | 1 |
+| **TOTAL** | | **48 módulos × 8 docs cada** |
+
+(Negrito = novo na v8.)
+
+### Wave de ativação consolidada (v8)
+
+| Wave | Módulos |
+|---|---|
+| **Wave A (MVP-1)** | (já em v7) + `portal-cliente`, `app-tecnico`, `certificados`, `acesso-seguranca`, `base-conhecimento` |
+| **Bloqueador antes do 1º cliente externo pago** | `billing-saas` |
+| **Wave B** | `precificacao`, `sla-contratual`, `comunicacao-omnichannel`, `garantia`, `projetos`, `capacity-planning-operacional`, `custeio-real`, `despesas`, `relatorios-financeiros`, `onboarding`, `configuracoes-sistema`, `automacoes-bpm`, `engenharia-tecnica`, `gestao-documental`, `suporte-saas`, `release-management`, `licencas-acreditacoes`, `seguranca-trabalho`, `treinamentos`, `auditoria-externa`, `bi` |
+| **V2/V3** | `marketplace` |
+
+### Conta total de docs no projeto após v8
+
+| Categoria | v7 | v8 (adiciona) | v8 total |
+|---|---|---|---|
+| Raiz canônica | 9 | — | 9 |
+| Discovery | 17 | — | 17 |
+| Conformidade | 9 | — | 9 |
+| Segurança | 3 | — | 3 |
+| Arquitetura | 10 | — | 10 |
+| Operação | 13 | — | 13 |
+| Governança | 13 | — | 13 |
+| Família 6 calibração | 5 | — | 5 |
+| Família 2 comum | 6 | — | 6 |
+| Domínios (READMEs + personas) | 10 | +2 (`dados/`) | 12 |
+| Módulos (docs por módulo × 8) | 152 (19 × 8) | +200 (25 × 8) | 352 (44 × 8 — exclui 4 docs já contados em metrologia/calibracao v7) |
+| ADRs | 10 | — | 10 |
+| Tutoriais dono | 3 | — | 3 |
+| Templates | 9 | — | 9 |
+| Outros | 10 | — | 10 |
+| **TOTAL aproximado** | **~270** | **+~210** | **~480 docs** |
+
+### O que NÃO foi feito em v8 (intencional)
+
+- **Specs por feature** (`specs/<NNN-feature>/{spec,plan,tasks}.md`) dentro dos novos módulos — só criar quando feature entrar em desenvolvimento
+- **ADRs específicas dos novos módulos** (`modulos/<mod>/adr/`) — só conforme decisões surgem
+- **Novas OPs/INVs** — escopo da v8 é estrutural (módulos + 8 docs); regras invariantes vêm conforme os módulos forem detalhados
+- **Repriorização das waves de v7** — Wave A original mantida; novos módulos Wave A são ADIÇÃO, não substituição
+- **Reorganizar histórico v7** — esta atualização é estritamente aditiva
 
 ---
 
