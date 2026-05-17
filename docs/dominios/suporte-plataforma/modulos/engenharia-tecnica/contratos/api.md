@@ -16,7 +16,7 @@ audiencia: agente
 
 - Versionamento via path (`/v1/`).
 - Autenticação: header `Authorization: Bearer ...`.
-- Tenant: `X-Tenant-ID` ou claim. `INV-TENANT-NNN` aplica.
+- Tenant: `X-Tenant-ID` ou claim. `INV-TENANT-001` aplica.
 - Erros: RFC 7807.
 - Idempotência: mutações aceitam `Idempotency-Key`.
 - Upload de anexo grande: presigned URL para Backblaze B2 (evita passar bytes pelo backend).

@@ -19,7 +19,7 @@ audiencia: agente
 - Tenant: `X-Tenant-ID` header (`INV-TENANT-001`).
 - Erros: RFC 7807 Problem Details.
 - Idempotência: mutação aceita `Idempotency-Key`.
-- Webhooks de gateway: HMAC signature verificada (`SEC-NNN`).
+- Webhooks de gateway: HMAC signature verificada (`SEC-PCI-001`).
 
 ---
 
@@ -45,7 +45,7 @@ audiencia: agente
 ```
 **Response:** `201 {assinatura_id, status, trial_termina_em}`.
 **Códigos:** 201, 400 (input), 401, 403, 409 (já tem assinatura ativa), 422 (cupom inválido).
-**Invariantes:** `INV-NNN` (uma ativa por tenant), `INV-TENANT-001`.
+**Invariantes:** constraint `UNIQUE (tenant_id) WHERE status='ativa'` (1 assinatura ativa por tenant), `INV-TENANT-001`.
 **US:** `US-BIL-001`.
 **Eventos:** `BillingSaas.AssinaturaCriada`.
 
@@ -105,6 +105,21 @@ audiencia: agente
 
 ---
 
+### `GET /v1/billing/faturas/{id}/nfse`
+**Propósito:** consulta o estado da NFS-e emitida pela assinatura SaaS (US-BIL-008).
+**Response:** `200 {nfse_id, status:"pendente"|"emitida"|"rejeitada"|"cancelada", authorization_code?, pdf_url?, rejection_reason?, emitida_em?}`.
+**Códigos:** 200, 404 (fatura ainda não paga ou NFS-e não disparada).
+**US:** `US-BIL-008`.
+
+---
+
+### `GET /v1/billing/faturas/{id}/nfse/pdf`
+**Propósito:** baixa PDF da NFS-e da assinatura.
+**Response:** `200 application/pdf`; 409 se NFS-e ainda não autorizada.
+**US:** `US-BIL-008`.
+
+---
+
 ## Endpoints (admin Aferê — operador comercial)
 
 ### `POST /v1/billing/admin/planos`
@@ -118,6 +133,19 @@ audiencia: agente
 
 ### `GET /v1/billing/admin/metricas`
 **Response:** `{mrr, churn_mensal, conversao_trial, inadimplencia_pct, ...}`.
+
+### `POST /v1/billing/admin/faturas/{id}/nfse/reemitir`
+**Propósito:** força reemissão de NFS-e após rejeição (US-BIL-008 fallback manual após investigação).
+**Papel:** `operador_comercial_afere` + **MFA obrigatório** (`SEC-MFA-001`).
+**Request:** `{motivo}` (vai pra trilha WORM).
+**Codigos:** 200, 409 (já emitida com sucesso — bloqueado por `INV-026`).
+
+### `POST /v1/billing/admin/gateway/configurar`
+**Propósito:** cadastra/atualiza chaves de API e segredo de webhook do gateway de pagamento.
+**Papel:** `operador_comercial_afere` + **MFA obrigatório** (`SEC-MFA-001` — `AC-BIL-002-4`).
+**Request:** `{gateway, api_key_cipher, webhook_secret_cipher, ambiente:"sandbox"|"production"}`.
+**Resposta:** `201 {gateway_config_id, configurado_em}`.
+**Auditoria:** registro WORM obrigatório (`INV-001`); chaves cifradas via KMS (`INV-009`).
 
 ---
 

@@ -24,6 +24,9 @@ audiencia: dono
 | Padrões usados fora de vigência | Quantidade de seleções de padrão com cert externo vencido | 0 | Bloqueio em runtime + auditoria | diária |
 | Escore médio em ensaios de proficiência | Média do \|z\| das últimas rodadas | \|z\| ≤ 1 | Registros EP | trimestral |
 | Cobertura de ensaios complementares | % calibrações com linearidade/repetibilidade quando aplicável | ≥ 95% | Auditoria por método | mensal |
+| Throughput (calibrações por técnico por dia) | Quantidade média de calibrações encerradas (aprovadas em 2ª conferência) por técnico ativo por dia útil | baseline interno após 3m | count(`Calibracao.status=aprovada`) por técnico ÷ dias úteis trabalhados | semanal |
+| Lead time entrada → saída (quantificado) | Dias úteis entre recepção do instrumento e devolução ao cliente (após emissão do certificado). **Distingue do "entrada→aprovação":** inclui também tempo de emissão + assinatura + logística de devolução. | mediana ≤ 5 dias úteis; p95 ≤ 10 dias úteis | Diff timestamps `Instrumento.recebido_em` e `Instrumento.devolvido_em` | semanal |
+| Repetibilidade de resultados (qualidade técnica) | Desvio-padrão relativo (CV%) das leituras de repetibilidade em ensaios internos por método/instrumento. **Fórmula:** `s ÷ média × 100` por amostra de ≥10 leituras. | CV% dentro do critério do método (definido na CMC) | Tabela `Calibracao.ensaios_repetibilidade` agregada por método | mensal |
 
 ---
 

@@ -13,6 +13,8 @@ relacionados:
 # Modelo de domínio — Módulo Portal do Cliente
 
 > Entidades **próprias** do Portal. Entidades operacionais (OS, Orçamento, Fatura, Certificado, Cliente) são **leitura** do banco operacional do tenant — não duplicar.
+>
+> **Fronteira com `marketplace`:** Portal é dono da autenticação (UsuarioPortal/SessaoPortal/LinkMagico) e da visão consolidada 360° do cliente. Marketplace é vitrine + carrinho; após login redireciona pra cá. Solicitações originadas no marketplace chegam por evento (`Marketplace.SolicitacaoEnviada`) e ficam visíveis na entidade-índice `SolicitacaoMarketplaceRecebida` (leitura — referencia `SolicitacaoOrcamento` do marketplace por id, não duplica payload).
 
 ---
 
@@ -57,6 +59,12 @@ relacionados:
 ### AprovacaoOrcamento (registro WORM)
 - **Atributos obrigatórios:** `id`, `tenant_id`, `orcamento_id`, `usuario_portal_id`, `acao` (aprovado/rejeitado/revisao), `motivo` (se rejeitado/revisao), `ip`, `user_agent`, `geolocalizacao_aproximada` (se opt-in), `ts`, `aceite_termos` (bool)
 - **Invariantes:** imutável (WORM); aceite_termos = true obrigatório; `INV-001` (audit trail).
+
+### SolicitacaoMarketplaceRecebida (índice de leitura — handoff do marketplace)
+- **Atributos obrigatórios:** `id`, `tenant_id`, `cliente_id`, `solicitacao_marketplace_id` (FK leitura para `SolicitacaoOrcamento` do módulo `marketplace`), `recebida_em`, `itens_resumo` (snapshot mínimo: contagem + descrição curta), `orcamento_id` (FK opcional — preenchida quando a solicitação for convertida em orçamento), `status_ultimo_conhecido`.
+- **Atributos opcionais:** `utm_source`, `carrinho_id` (rastreamento).
+- **Invariantes:** `INV-TENANT-001..004`; idempotência por `event_id` da publicação (`Marketplace.SolicitacaoEnviada`); NÃO duplica payload mutável do marketplace — só índice + snapshot de exibição.
+- **Ciclo de vida:** criada pelo handler de `Marketplace.SolicitacaoEnviada`; `orcamento_id` preenchido quando handler de `Orcamento.Enviado` (do módulo `orcamentos`) bater referência cruzada.
 
 ---
 
@@ -118,6 +126,8 @@ relacionados:
 | `Financeiro.FaturaVencendo` | Financeiro | notifica |
 | `Metrologia.CertificadoEmitido` | Metrologia | exibe + notifica |
 | `Metrologia.CalibracaoVencendo` | Metrologia | notifica recalibração |
+| `Marketplace.SolicitacaoEnviada` | Marketplace | cria `SolicitacaoMarketplaceRecebida` (índice 360°) + exibe no dashboard do cliente (US-POR-012) |
+| `Marketplace.ClienteLogou` | Marketplace | reaproveita `SessaoPortal` existente (autenticação única) + emite ack pro marketplace fazer o redirect |
 
 ---
 
@@ -147,6 +157,7 @@ Ver `../schema-banco.md` (a criar). Tabelas-mãe:
 - `portal_thread_mensagem`, `portal_mensagem`, `portal_arquivo_anexo`
 - `portal_solicitacao_cadastral_pendente`
 - `portal_aprovacao_orcamento` (WORM — append-only)
+- `portal_solicitacao_marketplace_recebida` (índice — handoff via `Marketplace.SolicitacaoEnviada`)
 
 Todas com `tenant_id NOT NULL` + RLS ativo (`INV-TENANT-001..004`).
 

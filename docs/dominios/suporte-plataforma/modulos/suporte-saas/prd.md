@@ -8,6 +8,9 @@ audiencia: agente
 relacionados:
   - docs/prd.md
   - docs/dominios/suporte-plataforma/README.md
+  - docs/conformidade/comum/lgpd-rat.md#RAT-15
+  - docs/conformidade/comum/dpia-modulos-novos.md#DPIA-01
+  - docs/conformidade/comum/retencao-matriz.md
 ---
 
 # PRD — Módulo Suporte SaaS
@@ -122,6 +125,10 @@ Ver `personas.md` + transversais em `../../personas.md`.
 **AC:**
 - **AC-SUP-007-1**: GIVEN solicitação de acesso remoto, WHEN tenant admin aceita, THEN sessão criada com TTL (default 2h), todas as ações logadas, banner visível.
 - **AC-SUP-007-2**: GIVEN sessão ativa, WHEN tenant admin revoga, THEN acesso encerra imediatamente.
+- **AC-SUP-007-3 (LGPD):** Tratamento atende base **Execução de contrato Aferê↔tenant (art. 7º V) + Consentimento explícito do admin (art. 7º I)** registrado por sessão (RAT-15 + DPIA-01). UI de aprovação mostra dados que serão expostos + atendente identificado + motivo do ticket + obriga re-confirmar 2x.
+- **AC-SUP-007-4 (Retenção):** Log de sessão em WORM com chave KMS separada (atendente Aferê não tem chave) por 5 anos conforme `retencao-matriz.md` linha "Sessão de Suporte SaaS"; manter para audit forense.
+- **AC-SUP-007-5 (TTL hard):** TTL 2h enforced em JWT + watchdog mata sessão fora do prazo + alerta após 90 min (DPIA-01 R2).
+- **AC-SUP-007-6 (DLP):** Copy/paste em massa bloqueado durante sessão; qualquer export gera evento crítico ao Auditor de Segurança (DPIA-01 R1).
 
 ---
 

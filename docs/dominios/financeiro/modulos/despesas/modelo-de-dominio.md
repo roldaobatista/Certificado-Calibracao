@@ -24,13 +24,13 @@ relacionados:
 
 - **Atributos obrigatórios:** `id`, `tenant_id`, `colaborador_id`, `data`, `valor`, `categoria_id`, `descricao`, `comprovante_id`, `status`, `criada_em`.
 - **Atributos opcionais:** `os_id`, `viagem_id`, `tecnico_id`, `centro_custo_id`, `adiantamento_id`, `aprovador_id`, `decidida_em`, `motivo_rejeicao`.
-- **Invariantes:** `INV-MULTI-TENANT-001`, `INV-DSP-001` (sem comprovante não envia para aprovação), `INV-DSP-002` (status segue máquina de estados).
+- **Invariantes:** `INV-TENANT-001`, `INV-044` (sem comprovante não envia para aprovação), `INV-045` (status segue máquina de estados não-reversível).
 - **Ciclo de vida:** `rascunho` → `pendente_aprovacao` → `aprovada` | `rejeitada` → `reembolsada` (se aprovada e gerou conta a pagar) ou `compensada` (se aprovada e abateu adiantamento).
 
 ### Comprovante
 
 - **Atributos obrigatórios:** `id`, `tenant_id`, `arquivo_uri`, `arquivo_hash_sha256`, `tipo` (foto/pdf/xml), `tamanho_bytes`, `enviado_em`.
-- **Imutável** após gravação (`INV-WORM-001`).
+- **Imutável** após gravação (`INV-001` — trilha WORM).
 - **Ciclo de vida:** criado no upload, nunca alterado; soft-delete só após retenção legal (`retencao-matriz.md`).
 
 ### CategoriaDespesa
@@ -49,8 +49,8 @@ relacionados:
 
 | Agregado raiz | Entidades incluídas | Invariantes |
 |---|---|---|
-| Despesa | Despesa, Aprovacao | `INV-DSP-001`, `INV-DSP-002`, `INV-AUDIT-001` |
-| Comprovante | Comprovante | `INV-WORM-001` |
+| Despesa | Despesa, Aprovacao | `INV-044`, `INV-045`, `INV-001` |
+| Comprovante | Comprovante | `INV-001` (WORM) |
 
 ---
 

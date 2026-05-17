@@ -25,7 +25,7 @@ relacionados:
 **Campos obrigatórios:** número OS, cliente, CNPJ/CPF, endereço, equipamento, serviços executados, peças consumidas, técnico, data/hora início e fim, assinatura tátil do cliente, nome e CPF do signatário, foto opcional.
 **Campos opcionais:** observações.
 **Assinatura digital:** NÃO (assinatura é tátil — não tem valor ICP-Brasil — ver ADR-0009 pra A3).
-**Imutabilidade pós-emissão:** sim — hash do PDF gravado no servidor pós-sync (`INV-NNN`).
+**Imutabilidade pós-emissão:** sim — hash do PDF gravado no servidor pós-sync (`INV-001` — trilha WORM).
 **Retenção:** ver `../../../conformidade/comum/retencao-matriz.md` (a criar).
 
 **Exemplo (campos):**

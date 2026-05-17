@@ -23,7 +23,7 @@ afere/
 │   ├── tasks.py           ← procrastinate jobs
 │   └── tests/
 ├── domain/<bounded-context>/  ← regras puras
-├── infrastructure/        ← anti-corrosion layer (9 portas)
+├── infrastructure/        ← anti-corrosion layer (11 portas)
 └── interfaces/            ← api/web/admin/mobile
 ```
 

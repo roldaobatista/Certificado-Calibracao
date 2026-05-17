@@ -21,7 +21,7 @@ relacionados:
 ### Plano
 - **Atributos obrigatórios:** `id`, `codigo` (A/B/C/D), `nome`, `preco_mensal`, `preco_anual`, `moeda`, `ativo`, `limite_usuarios`, `modulos_liberados` (lista), `duracao_trial_dias` (0 = sem trial).
 - **Atributos opcionais:** `descricao`, `limite_volume` (ex: nº OS/mês), `ordem_exibicao`.
-- **Invariantes:** `INV-NNN` — código único; mudança em plano ativo cria nova versão (planos versionados; assinaturas mantêm versão contratada).
+- **Invariantes:** `INV-038` (plano em uso por assinatura não pode ser excluído, apenas deprecado); `INV-026` (mudança em plano cria nova versão; assinaturas mantêm versão contratada — preço não retroage); constraint `UNIQUE (codigo)` por catálogo.
 - **Ciclo de vida:** criada por operador comercial → ativa → descontinuada (não pode ser deletada se existe assinatura vinculada).
 
 ### Assinatura
@@ -32,9 +32,9 @@ relacionados:
 
 ### Fatura SaaS
 - **Atributos obrigatórios:** `id`, `tenant_id`, `assinatura_id`, `numero`, `data_emissao`, `data_vencimento`, `valor`, `status` (`aberta`/`paga`/`falhou`/`estornada`), `tentativas_cobranca`.
-- **Atributos opcionais:** `cupons_aplicados`, `desconto_total`, `valor_liquido`, `pago_em`, `gateway_transacao_id`.
-- **Invariantes:** `numero` sequencial por tenant; fatura paga é imutável (correção via estorno + nova fatura).
-- **Ciclo de vida:** gerada por job → tentativa cobrança → paga OU falhou (retentativas D+1, D+3, D+7) OU estornada.
+- **Atributos opcionais:** `cupons_aplicados`, `desconto_total`, `valor_liquido`, `pago_em`, `gateway_transacao_id`, `nfse_id` (ID interno do `FiscalProvider`), `nfse_authorization_code`, `nfse_pdf_url`, `nfse_status` (`pendente`/`emitida`/`rejeitada`/`cancelada`), `nfse_rejection_reason`.
+- **Invariantes:** `numero` sequencial por tenant; fatura paga é imutável (correção via estorno + nova fatura); emissão de NFS-e é idempotente (`INV-026`) — uma NFS-e por fatura paga.
+- **Ciclo de vida:** gerada por job → tentativa cobrança → paga (dispara emissão NFS-e via `FiscalProvider`) OU falhou (retentativas D+1, D+3, D+7) OU estornada.
 
 ### Cupom
 - **Atributos obrigatórios:** `id`, `codigo`, `tipo` (`percentual`/`valor_fixo`), `valor`, `validade_inicio`, `validade_fim`, `usos_max`, `usos_atuais`, `recorrencia` (`unica`/`N_ciclos`).
@@ -42,9 +42,9 @@ relacionados:
 - **Invariantes:** `codigo` único globalmente; cupom expirado/esgotado não aplicável.
 
 ### MetodoPagamento
-- **Atributos obrigatórios:** `id`, `tenant_id`, `tipo` (`cartao`/`boleto`/`pix`), `gateway`, `gateway_token` (tokenizado — NUNCA PAN/CVV — `SEC-NNN`), `ativo`.
+- **Atributos obrigatórios:** `id`, `tenant_id`, `tipo` (`cartao`/`boleto`/`pix`), `gateway`, `gateway_token` (tokenizado — NUNCA PAN/CVV — `SEC-PCI-001`), `ativo`.
 - **Atributos opcionais:** `bandeira`, `ultimos_4`, `nome_titular`, `vencimento_mes`, `vencimento_ano`.
-- **Invariantes:** `SEC-NNN` — proibido armazenar dados completos de cartão; apenas token do gateway.
+- **Invariantes:** `SEC-PCI-001` — proibido armazenar dados completos de cartão; apenas token do gateway.
 
 ### HistoricoAssinatura
 - **Atributos:** `id`, `assinatura_id`, `evento` (criação, upgrade, downgrade, suspensão, reativação, cancelamento), `de_plano`, `para_plano`, `de_status`, `para_status`, `quando`, `quem` (user_id ou `system`), `motivo`.
@@ -79,7 +79,9 @@ relacionados:
 | Evento | Quando dispara | Payload | Quem consome |
 |---|---|---|---|
 | `BillingSaas.AssinaturaCriada` | nova assinatura | `{tenant_id, assinatura_id, plano_codigo, status}` | Auth (provisiona acesso), módulos (liberam features) |
-| `BillingSaas.FaturaPaga` | cobrança confirmada | `{tenant_id, fatura_id, valor, pago_em}` | Fiscal (NFS-e a si próprio), Contabilidade |
+| `BillingSaas.FaturaPaga` | cobrança confirmada (recorrência mensal/anual ou avulsa) | `{tenant_id, fatura_id, valor, pago_em, ciclo: mensal\|anual\|avulso}` | Fiscal (dispara `BillingSaas.NFSeEmitida`), Contabilidade, `relatorios-financeiros/` (projeção MRR) — **substitui evento legado `Assinatura.Recorrencia.Faturada`** (alias aceito em Wave A, removido em V2) |
+| `BillingSaas.NFSeEmitida` | NFS-e da assinatura SaaS autorizada (US-BIL-008) | `{tenant_id, fatura_id, nfse_id, authorization_code, pdf_url, emitida_em, provider}` | Notificações (email PDF ao tenant), Contabilidade, WORM audit |
+| `BillingSaas.NFSeFalhou` | NFS-e rejeitada pela prefeitura ou provider | `{tenant_id, fatura_id, rejection_reason, provider, tentativa_n}` | Operador comercial Aferê (P1), Notificações |
 | `BillingSaas.CobrancaFalhou` | gateway recusou | `{tenant_id, fatura_id, motivo, tentativa_n}` | Notificações (email tenant) |
 | `BillingSaas.TenantSuspenso` | bloqueio D+15 | `{tenant_id, motivo}` | Auth (corta acesso), todos módulos (entram read-only/blocked) |
 | `BillingSaas.TenantReativado` | pagamento regulariza | `{tenant_id}` | Auth, módulos |
@@ -99,6 +101,30 @@ relacionados:
 | `gerarFatura` | job cron | assinatura ativa com vencimento hoje | fatura criada, cobrança iniciada |
 | `processarWebhookGateway` | gateway externo | assinatura HMAC válida | atualiza status fatura |
 | `forcarReativacao` | operador comercial | tenant suspenso | status=ativa (com trilha em histórico) |
+
+---
+
+## Porta ACL utilizada
+
+Este módulo consome **exclusivamente** a porta **`PaymentGatewayProvider`** (porta #11 em `docs/arquitetura/anti-corrosion-layer.md`) para toda interação com gateways externos de pagamento. Nenhum SDK de gateway (Stripe, PagSeguro/PagBank, Mercado Pago) é importado direto pelo código de domínio do módulo.
+
+**Métodos consumidos:**
+- `criar_cobranca(valor, metodo, cliente, tenant_id, idempotency_key, descricao)` — `gerarFatura` chama na geração da cobrança
+- `tokenizar_cartao(dados_cartao_client_side, tenant_id)` — recebe **apenas o token** já gerado client-side (Stripe Elements / Checkout Transparente); backend nunca toca PAN/CVV
+- `receber_webhook(payload, tenant_id)` — `processarWebhookGateway` despacha eventos do gateway
+- `consultar_status(payment_id)` — reconciliação quando webhook se perde
+- `reembolsar(payment_id, valor, motivo)` — estorno total/parcial gera nova `Fatura SaaS` estornada
+
+**Eventos da porta consumidos pelo domínio:** `Pagamento.Confirmado` → `BillingSaas.FaturaPaga`; `Pagamento.Falhou` → `BillingSaas.CobrancaFalhou`; `Pagamento.Reembolsado` → status `Fatura.estornada`; `Cartao.Tokenizado` → auditoria + persistência do `MetodoPagamento` (apenas token).
+
+**Implementações por onda:** `StripeProvider` (1ª — MVP-1), `PagSeguroProvider`/`PagBankProvider` (2ª — BR), `MercadoPagoProvider` (3ª — alta penetração BR).
+
+**Compliance PCI-DSS (reforça `SEC-PCI-001` em `MetodoPagamento`):**
+- Dados completos de cartão (PAN, CVV) **NUNCA** trafegam pelo backend Aferê. Tokenização é **client-side** via SDK do gateway.
+- `MetodoPagamento` armazena somente: `gateway`, `gateway_token`, `ultimos_4`, `bandeira`, `vencimento_mes/ano`.
+- Esta arquitetura mantém Aferê em escopo PCI-DSS **SAQ-A** (não SAQ-D).
+
+Para emissão de NFS-e da própria assinatura (após `BillingSaas.FaturaPaga`) o módulo também consome a porta `FiscalProvider` (porta #1).
 
 ---
 

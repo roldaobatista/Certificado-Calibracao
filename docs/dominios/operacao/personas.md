@@ -34,20 +34,9 @@ status: draft
 
 ## P-OP-02 — Metrologista de bancada (lab interno)
 
-**Quem é:** 30-55 anos. Trabalha no laboratório fixo da empresa. Recebe instrumento, calibra, emite certificado. Pode ser signatário técnico.
+**Fonte canônica:** `docs/dominios/metrologia/personas.md` P-METR-01. A partir de 2026-05-17 a definição completa vive no domínio metrologia (persona aparece em ≥2 módulos do domínio metrologia: calibração + certificados).
 
-**Goals (operacional):**
-- Receber instrumento + identificar QR Code + abrir OS
-- Não perder tempo procurando padrão certo (escolhe da lista)
-- Encerrar OS gerando certificado sem retrabalho
-- Saber se há NC pendente
-
-**Frustrations:**
-- "Tenho que digitar tudo no Cali e depois no Excel"
-- Pesos padrão sem rastreabilidade de uso
-- Certificado emitido com erro → revisão manual + email pro cliente
-
-**Permissões:** Metrologista — OS de calibração (criar/executar/encerrar) + escolher padrão + emitir certificado se signatário.
+Aparece em operação ao **abrir OS de calibração** e ao consumir agenda do laboratório. Demais interações estão em metrologia.
 
 ---
 

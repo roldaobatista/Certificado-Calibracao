@@ -129,13 +129,28 @@ relacionados:
 
 ---
 
-## Integrações externas (porta ACL)
+## Porta ACL utilizada
 
-Implementadas como adaptadores na porta ACL (ver `docs/arquitetura/anti-corrosion-layer.md`):
+Este módulo consome **exclusivamente** a porta **`OmniChannelProvider`** (porta #10 em `docs/arquitetura/anti-corrosion-layer.md`). Nenhum SDK de canal externo (Twilio, Meta Cloud API, AWS SES, SMTP) é importado direto pelo código de domínio do módulo. Toda chamada para WhatsApp / Email / SMS / Web Chat passa pelo adapter injetado via DI.
+
+**Métodos consumidos:**
+- `enviar_mensagem(canal, destinatario, template, variaveis, tenant_id, idempotency_key)` — disparo outbound (manual ou via `RegraAutomacao`)
+- `receber_webhook(canal, payload, tenant_id)` — inbound via webhook BSP (HMAC validado pela camada de infra antes de chegar no módulo)
+- `consultar_status(message_id, canal)` — reconciliação de status quando webhook se perde
+- `validar_template(canal, template)` — `aprovarTemplate`/`criarTemplate` chama antes de submeter à Meta
+
+**Eventos da porta consumidos pelo domínio:** `Mensagem.Enviada`, `Mensagem.Entregue`, `Mensagem.Lida`, `Mensagem.Recebida`, `Mensagem.Falhou` — mapeados para os eventos de domínio `Comunicacao.*` desta lista acima.
+
+**Implementações 1ª onda (MVP):** `WhatsAppCloudApiProvider` (Meta direto), `SmtpGenericProvider` (AWS SES BR), `TwilioSmsProvider`/`AwsSnsSmsProvider` (SMS), `WebChatInternalProvider` (chat embedded).
+
+**DPA obrigatório por implementação:** Meta (WhatsApp), Twilio, AWS — cada provider trata dado pessoal e exige cláusulas LGPD antes de ir pra produção. Lista versionada em `docs/conformidade/comum/subprocessadores.md` (a criar).
+
+### Detalhes por canal
+
 - WhatsApp Business API — ver `docs/comum/integracoes-externas/whatsapp.md`.
 - SMTP/IMAP — ver `docs/comum/integracoes-externas/email.md` (a criar quando aplicável).
 - Provedor SMS — ver `docs/comum/integracoes-externas/sms.md` (a criar).
-- Chat do portal — interno (web socket).
+- Chat do portal — interno (web socket Django Channels), mesma interface `OmniChannelProvider`.
 
 ---
 

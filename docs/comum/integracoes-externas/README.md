@@ -69,7 +69,7 @@ status: draft
 
 ## Referências
 
-- `docs/arquitetura/anti-corrosion-layer.md` (9 portas)
+- `docs/arquitetura/anti-corrosion-layer.md` (11 portas — inclui `OmniChannelProvider` #10 para WhatsApp/Email/SMS/Chat e `PaymentGatewayProvider` #11 para Stripe/PagSeguro/MP)
 - `docs/arquitetura/cross-cutting/{retry,timeout,idempotencia}.md`
 - `docs/conformidade/comum/transferencia-internacional.md`
 - ADR-0008 (fiscal pluggable)

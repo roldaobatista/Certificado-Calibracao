@@ -237,7 +237,7 @@ Ajustes incorporados na v5 (Auditoria 2):
 | Doc | Status | Prio | O que é |
 |-----|--------|------|---------|
 | `docs/arquitetura/overview.md` | ⏳ | 🟡 | Code map, entry points, boundaries (Auditor 3). |
-| `docs/arquitetura/anti-corrosion-layer.md` (NOVO v6) | ✅ | 🔴 | **9 portas** (Fiscal, Signature, LLM, Storage, Hosting, Auth, Queue, Sync, MultiTenant). Cross-cutting #9 não previsto no v5. |
+| `docs/arquitetura/anti-corrosion-layer.md` (NOVO v6, v2 em 17/05/2026 noite) | ✅ | 🔴 | **11 portas** (Fiscal, Signature, LLM, Storage, Hosting, Auth, Queue, Sync, MultiTenant, OmniChannel, PaymentGateway). #10 e #11 adicionadas no achado C6 da auditoria 12 agentes. |
 | `docs/arquitetura/cross-cutting/erro.md` | ⏳ | 🟡 | Auditor 3 quebrou em 8. |
 | `docs/arquitetura/cross-cutting/log.md` | ⏳ | 🟡 | |
 | `docs/arquitetura/cross-cutting/retry.md` | ⏳ | 🟡 | |
@@ -542,12 +542,21 @@ Ajustes incorporados na v5 (Auditoria 2):
 
 ### Wave de ativação consolidada (v8)
 
+> **Patch v8+1 (mesma sessão 2026-05-17, noite +12h):** Roldão decidiu subir **4 módulos** que estavam Wave B pra Wave A, resolvendo a cadeia bloqueadora regulatória (ver `faseamento-modulos.md` seção v8 — "Decisão Roldão — cadeia bloqueadora resolvida"). Tabela abaixo já com a decisão aplicada. Wave A agora tem **18 módulos** (não 14); cronograma Wave A revisado pra 8-12 semanas (era 4-6, fantasia).
+
 | Wave | Módulos |
 |---|---|
-| **Wave A (MVP-1)** | (já em v7) + `portal-cliente`, `app-tecnico`, `certificados`, `acesso-seguranca`, `base-conhecimento` |
+| **Wave A (MVP-1) — 18 módulos** | `os`, `chamados`, `agenda`, `app-tecnico`, `base-conhecimento`, `calibracao`, `certificados`, **`licencas-acreditacoes`** (promovido), **`treinamentos`** (promovido), **`seguranca-trabalho`** (promovido), **`estoque`** (promovido), `equipamentos`, `acesso-seguranca`, `clientes`, `orcamentos`, `fiscal`, `contas-receber`, `caixa-tecnico` |
 | **Bloqueador antes do 1º cliente externo pago** | `billing-saas` |
-| **Wave B** | `precificacao`, `sla-contratual`, `comunicacao-omnichannel`, `garantia`, `projetos`, `capacity-planning-operacional`, `custeio-real`, `despesas`, `relatorios-financeiros`, `onboarding`, `configuracoes-sistema`, `automacoes-bpm`, `engenharia-tecnica`, `gestao-documental`, `suporte-saas`, `release-management`, `licencas-acreditacoes`, `seguranca-trabalho`, `treinamentos`, `auditoria-externa`, `bi` |
-| **V2/V3** | `marketplace` |
+| **Wave B — 27 módulos** | `garantia`, `projetos`, `capacity-planning-operacional`, `crm`, `contratos`, `portal-cliente`, `precificacao`, `sla-contratual`, `comunicacao-omnichannel`, `contas-pagar`, `comissoes`, `custeio-real`, `despesas`, `relatorios-financeiros`, `produtos-pecas-servicos`, `fornecedores`, `onboarding`, `configuracoes-sistema`, `automacoes-bpm`, `engenharia-tecnica`, `gestao-documental`, `suporte-saas`, `release-management`, `colaboradores`, `qualidade`, `auditoria-externa`, `bi` |
+| **Wave C (escala)** | sem módulos novos — só expansão de Frota TCO, Trilha D→A, manutenção preditiva, MSA, multi-país, farma TOP |
+| **V2/V3** | `marketplace`, `frota` (TCO completo) |
+
+**Justificativa da promoção (sem isso, MVP-1 quebra regulatoriamente):**
+- `licencas-acreditacoes`: RT acreditado no escopo é pré-requisito de toda emissão ISO 17025.
+- `treinamentos`: ISO 17025 cláusula 6.2 exige matriz de competência por colaborador.
+- `seguranca-trabalho`: OS em campo (NR-10, NR-12, NR-35) exige checklist SST registrado.
+- `estoque`: OS de calibração/manutenção consome peças; sem reserva, técnico chega em campo sem peça.
 
 ### Conta total de docs no projeto após v8
 

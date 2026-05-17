@@ -83,15 +83,20 @@ dominio: suporte-plataforma
 
 ## Eventos publicados
 
-| Evento | Quando | Consumidores |
-|---|---|---|
-| `Estoque.movimento_registrado` | Após INSERT Movimento | Financeiro (CMP), Operação (saldo OS) |
-| `Estoque.transferencia_emitida` | etapa 1 | Operação (notifica destinatário) |
-| `Estoque.transferencia_aceita` | etapa 2 | Operação |
-| `Estoque.transferencia_recusada` | etapa 2 recusa | Operação, Almoxarife (notif) |
-| `Estoque.minimo_atingido` | saldo ≤ mínimo | Operação |
-| `Estoque.lote_vencendo` | validade ≤ 30d | Almoxarife (notif) |
-| `Estoque.inventario_finalizado` | snapshot fechado | Financeiro |
+> **Nomenclatura canônica:** PascalCase no segundo segmento (ex: `Estoque.MovimentacaoRegistrada`). Aliases `Estoque.movimento_registrado` (snake) ficam como **deprecated** até remoção em V2.
+
+| Evento | Quando | Payload | Consumidores |
+|---|---|---|---|
+| `Estoque.MovimentacaoRegistrada` | Após INSERT Movimento (qualquer tipo: entrada/saída/transferência/ajuste) | `{tenant_id, movimento_id, item_id, tipo, qtd, deposito_id, custo_unit, os_id?}` | Financeiro (CMP), Operação (saldo OS), BI (dashboards) |
+| `Estoque.SaidaPeca` | Subtipo de movimentação (tipo=saida) — emitido em paralelo pra consumers que só querem saídas | `{tenant_id, movimento_id, item_id, qtd, os_id?, motivo}` | financeiro/custeio-real (linha de custo `pecas`), Operação |
+| `Estoque.EntradaPeca` | Subtipo (tipo=entrada) | `{tenant_id, movimento_id, item_id, qtd, custo_unit, nota_compra_id?}` | financeiro/contas-pagar (vínculo), BI |
+| `Estoque.TransferenciaEmitida` | etapa 1 | `{tenant_id, transferencia_id, deposito_origem, deposito_destino, itens[]}` | Operação (notifica destinatário) |
+| `Estoque.TransferenciaAceita` | etapa 2 aceite | `{tenant_id, transferencia_id, aceita_em, foto_url}` | Operação |
+| `Estoque.TransferenciaRecusada` | etapa 2 recusa | `{tenant_id, transferencia_id, motivo}` | Operação, Almoxarife (notif) |
+| `Estoque.MinimoAtingido` | saldo ≤ mínimo | `{tenant_id, item_id, saldo, minimo}` | Operação, suporte-plataforma/fornecedores (sugere cotação) |
+| `Estoque.LoteVencendo` | validade ≤ 30d | `{tenant_id, item_id, lote, validade}` | Almoxarife (notif) |
+| `Estoque.InventarioFinalizado` | snapshot fechado | `{tenant_id, snapshot_id, ajustes_qtd, divergencia_total}` | Financeiro |
+| `Estoque.ItemEsgotado` | saldo = 0 | `{tenant_id, item_id}` | comercial/marketplace (marca ItemVitrine indisponível) |
 
 ---
 

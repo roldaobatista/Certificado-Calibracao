@@ -26,8 +26,8 @@ relacionados:
 **Campos obrigatórios:** identificação auditoria (norma, organismo, datas, escopo), responsável geral, equipe envolvida, checklist com status final, lista de apontamentos (por tipo), planos de ação (com status atual), conclusão.
 **Campos opcionais:** anexos (fotos, planilhas de evidência).
 **Assinatura digital:** opcional (A3 do RQ — ADR-0009 via Web PKI Lacuna).
-**Imutabilidade pós-emissão:** sim — hash gravado (`INV-NNN`).
-**Retenção:** ≥8 anos (ISO 17025 cláusula 8.4); ver `../../../conformidade/comum/retencao-matriz.md`.
+**Imutabilidade pós-emissão:** sim — hash gravado (`INV-001` — trilha WORM).
+**Retenção:** mínima ≥10 anos (alinhada à linha "Comunicação com ANPD / órgão regulador" + "Contrato assinado" da matriz `../../../conformidade/comum/retencao-matriz.md`); registros vinculados a calibração ISO 17025 herdam retenção ~25 anos da cláusula 8.4.
 
 **Exemplo (estrutura):**
 ```

@@ -4,7 +4,7 @@
 >
 > **Como usar:** quando ler um termo em qualquer doc e não entender, vir aqui. Ordem alfabética.
 >
-> **Atualizado:** 2026-05-17 (versão pós-auditoria 12 agentes). 236 termos (era 227 + 9 novos).
+> **Atualizado:** 2026-05-17 (versão pós-auditoria 12 agentes + promoção M6 + correção L1 métricas duplicadas). 249 termos (era 243 + 6 novos canônicos pra unificar métricas: TPR, TMA, TMR — tempos de atendimento; Taxa de adoção inicial, Taxa de uso recorrente, Taxa de customização — adoção/uso).
 
 ---
 
@@ -73,7 +73,9 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **Cgcre / CGCRE** — Coordenação Geral de Acreditação do INMETRO. É quem acredita os laboratórios RBC. *(você sabe — só pra referência)*
 - **Certificado digital A1/A2/A3** — versões diferentes do certificado digital ICP-Brasil. A1 = arquivo, A3 = token/cartão. Necessário pra assinar NF-e e certificado de calibração com validade jurídica.
 - **Certificado de calibração** — o documento final que o lab entrega ao cliente, com resultado, incerteza e rastreabilidade. *(você sabe — só pra referência)*
-- **Churn** — taxa de cliente que cancela a assinatura. Churn alto = sistema ruim ou preço errado.
+- **Churn** — taxa de cliente que cancela a assinatura no período (ex: "churn mensal de 3%" = 3 de cada 100 clientes pagantes cancelaram naquele mês). Churn alto = sistema ruim ou preço errado. Se você vir "churn" num dashboard, é a velocidade com que a base de clientes está se esvaziando. **Aparece em:** `dados/bi`, `financeiro/billing-saas`, `dados` (domínio), governança.
+- **Cliente master** — o cadastro **único e oficial** de um cliente dentro do produto. Quando o mesmo cliente é digitado 2x (em CRM e em Financeiro, ou no orçamento e na OS), o sistema **mescla** os duplicados num único "cliente master" e mantém o histórico unificado. Se você vir "cliente master" na tela, é o registro canônico do cliente que vale pra todo o sistema. **Aparece em:** `comercial/clientes`, `comercial/crm`, `financeiro/contas-a-receber`, `operacao/os`.
+- **Comissão simulada** — preview do quanto o vendedor vai ganhar **antes de fechar** o orçamento ou aplicar um desconto. Calcula no mesmo instante: "se eu der 10% de desconto, minha comissão cai de R$ 300 pra R$ 220 — não vale a pena". Se você vir "comissão simulada" num campo do orçamento, é a estimativa atual com base nas regras vigentes — não foi paga ainda. **Aparece em:** `comercial/orcamentos`, `comercial/precificacao`, `financeiro/comissoes`.
 - **CI** ou **CI/CD** — Continuous Integration / Continuous Deployment. Em humano: "robô que testa o código toda vez que a gente salva, e que sobe pro servidor automaticamente quando passa". Pra Roldão: "controle de qualidade automático antes de o cliente ver".
 - **CMC** — Calibration and Measurement Capability. A "melhor incerteza" que o lab consegue declarar pra cada grandeza/faixa no escopo de acreditação. *(você sabe — só pra referência)*
 - **CMN** — Conselho Monetário Nacional. Aparece nas resoluções de Open Banking.
@@ -93,6 +95,7 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **DANFE** — Documento Auxiliar da NF-e (a "espelhada" em PDF da nota fiscal eletrônica).
 - **DANFSe** — versão DANFE pra NFS-e (nota fiscal de serviço).
 - **DCTFWeb** — declaração federal de tributos. Aparece se a empresa tem folha de pagamento.
+- **Dedup** (deduplicação) — processo automático/semi-automático de **achar e mesclar cadastros duplicados** (mesmo CNPJ, mesmo e-mail, telefone parecido, razão social com 1 letra diferente). Resultado: um único "cliente master" (ver verbete). Se você vir "fila de dedup" ou "candidatos a dedup", é uma tela onde o sistema mostra possíveis duplicados pra você confirmar a mesclagem. **Aparece em:** `comercial/clientes`, `comercial/crm`, futuramente `financeiro/contas-a-receber`.
 - **Decisão fundadora** — o projeto usa em **DOIS sentidos**. Cuidado pra não confundir:
   - **De PRODUTO** (Roldão 17/05/2026): os **4 blocos canônicos de escopo** — Frota+UMC+Caixa do técnico; Comissões configuráveis; Cliente 360°/CRM contínuo; Estoque multi-local com lacre + selo INMETRO. Esses 4 blocos não saem do escopo do MVP/produto sem ADR formal.
   - **De ENGENHARIA** (D1–D6, 16/05/2026): princípios de processo — D1 Spec Kit; D2 spec-as-source; D3 nomenclatura híbrida; D4 devcontainer; D5 CODEOWNERS; D6 operação dual (Claude Code + Codex CLI sobre AGENTS.md canônico).
@@ -127,7 +130,7 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **Folha (folha de pagamento)** — calcular salário, INSS, FGTS, IR de funcionários. Anti-job do nosso produto — vai por integração com Pontomais/Senior/Sankhya RH.
 - **Founder is customer** — situação onde o fundador do produto é o cliente típico. É risco #1 do projeto (R-001): produto vira customização disfarçada da empresa do Roldão e não generaliza pra outras.
 - **Frota** — controle dos veículos da empresa (carros + UMC): documento, manutenção, combustível, multas, custo total.
-- **Funil** (de vendas) — etapas pelas quais um possível cliente passa até virar cliente pagante: prospect → lead → orçamento → contrato.
+- **Funil** (de vendas) — etapas pelas quais um possível cliente passa até virar cliente pagante: prospect → lead → oportunidade → orçamento → contrato fechado. Cada etapa tem critério claro pra "subir" pra próxima. Se você vir "funil travado em orçamento", são leads que viraram orçamento mas não fecharam — onde o vendedor precisa atuar. **Aparece em:** `comercial/crm`, `comercial/orcamentos`, `comercial/marketplace`, `dados/bi` (relatórios de conversão).
 
 ### G
 
@@ -176,7 +179,8 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 ### L
 
 - **LBI** — Lei Brasileira de Inclusão (Lei 13.146/2015). Obriga sites/apps a serem acessíveis.
-- **Lead** — possível cliente que demonstrou interesse mas ainda não comprou.
+- **Lead** — possível cliente que demonstrou interesse mas ainda não comprou (deixou contato, pediu orçamento, baixou material). Diferente de "prospect" (ainda não demonstrou interesse) e de "oportunidade" (lead qualificado que está em negociação ativa). Se você vir "novo lead" no CRM, é alguém que entrou no funil e precisa ser trabalhado. **Aparece em:** `comercial/crm`, `comercial/marketplace`, `comercial/comunicacao-omnichannel`.
+- **Lead scoring** — pontuação automática que o sistema dá pra cada lead com base em sinais (porte da empresa, segmento, abriu e-mail, visitou preço, pediu orçamento). Lead score alto = vendedor deve ligar primeiro. Lead score baixo = nutrir por e-mail. Se você vir "score 85/100", é o ranking de prioridade do lead. **Aparece em:** `comercial/crm`, `comercial/marketplace`, futuramente `comercial/comunicacao-omnichannel` (gatilho de campanha).
 - **Leap-of-faith (LEAP)** — premissa crítica de **baixa confiança**. Se for falsa, a empresa morre. Marcar uma hipótese como LEAP força priorizar a validação dela **antes** de comprometer recursos. Ex no Aferê: F-1 (modelo 100% agentes substitui consultor humano) é um LEAP central — se falhar, todo o plano de defesas anti-erro precisa ser refeito.
 - **LIMS / ELN / LES** — softwares de laboratório (Laboratory Information Management System / Electronic Lab Notebook / Laboratory Execution System). Concorrentes/adjacentes ao nosso produto.
 - **Lint** — verificação automática de "estilo" do código. Garante padronização. Pra Roldão: "corretor ortográfico do código".
@@ -199,6 +203,7 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **MR / MRC** — Material de Referência / Material de Referência Certificado. Padrão químico/físico rastreado, usado pra calibrar. *(você sabe — só pra referência)*
 - **MTLS** — mutual TLS. Modo de autenticação reforçada usado em Open Finance.
 - **Multi-tenant** — em humano: "um mesmo sistema serve vários clientes ao mesmo tempo, com dados separados". Pra Roldão: "uma única instalação do sistema atende a Empresa A, a Empresa B, a Empresa C — sem elas verem dados uma da outra". É o nosso modelo.
+- **MRR** — Monthly Recurring Revenue / Receita Recorrente Mensal. Soma de todas as mensalidades ativas no mês (ex: 50 clientes pagando R$ 400/mês = MRR R$ 20.000). É a "receita previsível" do SaaS — diferente de receita pontual de OS avulsa. Se você vir "MRR caiu R$ 2.000 no mês", é dinheiro recorrente que escapou (churn ou downgrade). **Aparece em:** `financeiro/billing-saas`, `dados/bi`, painel-do-dono.
 - **Mystery shopping** — pesquisa onde a gente liga pro concorrente fingindo ser cliente, pra entender preço/atendimento.
 
 ### N
@@ -217,6 +222,7 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 
 - **ODR / Onboarding** — em produto: o processo de "primeira experiência" do cliente no sistema, do cadastro até o primeiro uso real.
 - **OFX** — formato antigo de arquivo de extrato bancário. Hoje quase substituído por Open Finance.
+- **Oportunidade** — lead **qualificado** que entrou em negociação ativa (orçamento enviado, reunião marcada, decisor identificado). Sucessora natural do lead no funil. Se você vir "5 oportunidades em aberto", são negócios em andamento com chance real de fechar — não são leads novos. **Aparece em:** `comercial/crm`, `comercial/orcamentos`, `dados/bi`.
 - **OIML D 31** — recomendação internacional sobre software pra instrumentos legalmente regulados. Referência pra validação de software metrológico. *(você sabe — só pra referência)*
 - **OKR** — Objectives and Key Results. Sistema de metas trimestrais (objetivo + 3-5 indicadores).
 - **Onda 1 / Onda 2** — fases do Discovery em que vamos entrevistar empresas reais. Onda 1 = 5 empresas; Onda 2 = mais 5.
@@ -284,11 +290,17 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 
 - **TAC ANTT** — Termo de Autorização e Cadastro da ANTT. Pode ser exigido pra UMC.
 - **TAM** — Total Addressable Market. Tamanho total do mercado que o produto pode atender em teoria.
+- **Taxa de adoção inicial** — % de novos clientes/tenants que usam um módulo/feature nos **primeiros 30 dias** depois que o módulo foi liberado pra eles. Mede se o produto "engata" no começo. Se você vir "adoção inicial 25%", é 1 de cada 4 clientes novos usando — os outros 3 sequer experimentaram. Diferente de "uso recorrente" (que é todo mês). **Aparece em:** `comercial/portal-cliente`, `comercial/marketplace`, `suporte-plataforma/onboarding`.
+- **Taxa de customização** — % de tenants que **mudaram pelo menos 1 configuração** além do default do onboarding. Métrica **invertida**: se está muito alto (todo mundo customiza), o default está ruim; se está muito baixo (ninguém mexe), pode indicar que o produto está engessado ou bem ajustado. Hoje target ≤ 30% (= produto bem ajustado sem ser engessado). Se você vir "70% dos tenants customizaram", o default precisa virar configurável melhor. **Aparece em:** `suporte-plataforma/configuracoes-sistema`.
+- **Taxa de uso recorrente** — % de usuários ou tenants **ativos por mês ou semana** (login + ação significativa, não só abrir tela). Mede engajamento contínuo. Diferente de "adoção inicial" (primeiros 30 dias) — esta é todo período. Se você vir "uso recorrente 40%/mês", 40% dos clientes voltam a usar todo mês. **Aparece em:** `comercial/portal-cliente`, `comercial/marketplace`, painel-do-dono.
 - **TCO** — Total Cost of Ownership. Custo total de algo ao longo da vida útil (frota: combustível + manutenção + depreciação + seguro + multas).
 - **TecnoSpeed / PlugNotas / Focus NFe** — provedores BaaS fiscais mais maduros do mercado BR.
 - **Tenant** — em humano: cada cliente que usa o nosso SaaS. Ex: laboratório Calix é um tenant; laboratório XYZ é outro tenant. Não confundir com "cliente final" — esse é o cliente do tenant.
 - **Tipo de cargo (signatário)** — só pessoas autorizadas pelo escopo da acreditação podem assinar certificados. INV-003 garante isso.
 - **Time-trial** — comparação **cronometrada**: o mesmo usuário faz a mesma tarefa no **sistema atual** (Cali/Excel) e no **novo sistema** (Aferê). Mede ganho real de tempo (ex: "emitir certificado caiu de 18 min pra 4 min"). Exige protótipo funcional + usuário-cobaia disposto a topar. É uma das técnicas mais convincentes de venda pra perfil A/B.
+- **TMA** (Tempo Médio de Atendimento) — **canônico de tempo #2 de 3.** Minutos/horas entre o **início efetivo** do atendimento (atendente assumiu, técnico chegou no local, IA começou a responder) e o **encerramento da interação ativa** (cliente despediu, técnico saiu, conversa fechada). NÃO inclui tempo de fila/espera antes de atender, NEM tempo entre encerrar e resolver definitivamente. Se você vir "TMA do canal WhatsApp ≤ 30min" significa: cada conversa ativa no WhatsApp dura, em média, no máximo 30 min do "oi" ao "tchau". **Aparece em:** `comercial/comunicacao-omnichannel`.
+- **TMR** (Tempo Médio de Resolução) — **canônico de tempo #3 de 3.** Horas/dias entre **abertura** do chamado/OS/ticket e seu **fechamento final** (problema resolvido, certificado entregue, OS concluída). Inclui TUDO: fila + atendimento + reabertura + execução em campo + retorno. É o tempo que o cliente sente. Se você vir "TMR varia por categoria" significa: chamado de senha resolve em 10 min, chamado de bug em 3 dias, troca de instrumento em 2 semanas. **Aparece em:** `suporte-plataforma/suporte-saas`, `operacao/base-conhecimento`, `operacao/chamados`, `operacao/os`.
+- **TPR** (Tempo Médio de Primeira Resposta) — **canônico de tempo #1 de 3.** Minutos entre o cliente **abrir** a interação (mandar mensagem, abrir chamado, enviar e-mail) e a **primeira resposta humana ou IA** (não auto-reply de "recebemos sua mensagem"). Mede se o cliente está sendo deixado pendurado. Diferente de TMA (duração total do atendimento) e de TMR (tempo até resolver de fato). Se você vir "TPR ≤ 5min", significa: nenhum cliente espera mais de 5 min pra alguém aparecer. **Aparece em:** `comercial/comunicacao-omnichannel`, `suporte-plataforma/suporte-saas`.
 - **Trail / Audit trail** — ver "Audit trail".
 
 ### U
@@ -303,6 +315,7 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **Verificação** — comparação de medição contra um requisito específico, com decisão "passa / não passa". Diferente de "calibração". *(você sabe — só pra referência)*
 - **Verificação metrológica legal** — verificação obrigatória feita pelo IPEM (balança comercial anual, bomba de combustível, etc.). Diferente da calibração RBC voluntária.
 - **VIM** — Vocabulário Internacional de Metrologia (JCGM 200). Vigente em 05/2026: JCGM 200:2012 (3ª ed). 4ª ed ainda em rascunho. *(você sabe — só pra referência)*
+- **Visão 360°** (do cliente) — uma tela única que mostra **tudo** sobre o cliente num lugar só: dados cadastrais + histórico de OS + certificados emitidos + faturas pagas/em aberto + última conversa de WhatsApp + último contato comercial + valor total gasto. Resolve a dor "atendente liga e fica trocando de 4 abas pra responder". Se você vir "abrir 360° do cliente", é o atalho pra esse painel consolidado. **Aparece em:** `comercial/clientes`, `comercial/crm`, `operacao/chamados`, `comercial/portal-cliente` (versão filtrada pro próprio cliente).
 - **VPS** — Virtual Private Server. Servidor virtual onde a aplicação roda. A gente usa Hostinger VPS KVM 4 (São Paulo).
 
 ### W

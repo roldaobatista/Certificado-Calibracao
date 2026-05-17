@@ -15,28 +15,7 @@ audiencia: agente
 
 ## P-PRC-01: Gestor de pricing
 
-**Identidade:** dono ou gerente comercial/financeiro responsável por definir como a empresa precifica. Em empresa pequena, é o próprio dono (perfil P-COM-05); em média/grande, é função separada (controller, gerente comercial). Tem visão de margem e custo, conhece o mercado.
-
-**Goals deste módulo:**
-- Configurar regras de formação de preço (cost-plus, margem-alvo, fixo).
-- Criar e versionar tabelas de preço (pública, por segmento, por contrato).
-- Definir faixas de desconto autorizadas por papel.
-- Acompanhar margem média realizada vs alvo.
-- Identificar itens deficitários e renegociar com fornecedor ou subir preço.
-
-**Frustrations específicas:**
-- Vendedor dando desconto no olho e fechando com margem negativa.
-- Não conseguir simular cenário "se subir 5% no preço, quanto perco em volume".
-- Mudar tabela e o sistema "perder" o histórico do que era antes.
-
-**Jornada típica:**
-1. Abre dashboard de margem — vê que serviço X teve margem média 12% no mês (alvo era 25%).
-2. Investiga histórico — vendedores deram desconto médio de 18%.
-3. Aperta limite de desconto desse serviço de 20% para 10% (acima exige aprovação).
-4. Publica nova versão da regra.
-
-**Devices:** desktop.
-**Frequência:** semanal.
+**Fonte canônica:** `docs/comum/personas.md` P-COM-06 (promovida em 2026-05-17 — aparece em `comercial/precificacao`, `comercial/orcamentos`, `comercial/contratos`, `financeiro/comissoes`). Aqui apenas referência. O alias local `P-PRC-01` continua válido em PRD/UI/API deste módulo.
 
 ---
 

@@ -24,37 +24,37 @@ relacionados:
 
 - **Atributos obrigatórios:** id, tenant_id (FK), razao_social, cnpj, ie, endereco, regime_tributario.
 - **Atributos opcionais:** im, logo_url (Backblaze), site, telefone.
-- **Invariantes:** `INV-TENANT-001`, `INV-CFG-006` (CNPJ único por tenant).
+- **Invariantes:** `INV-TENANT-001`, `INV-036` (CNPJ único por tenant).
 - **Ciclo de vida:** criada no onboarding; mutável com auditoria.
 
 ### Filial
 
 - **Atributos obrigatórios:** id, empresa_id, cnpj, nome, endereco, eh_matriz (bool).
 - **Atributos opcionais:** ie, im, telefone.
-- **Invariantes:** `INV-CFG-007` (exatamente 1 matriz por empresa).
+- **Invariantes:** `INV-037` (exatamente 1 matriz por empresa).
 
 ### SerieDocumento
 
 - **Atributos obrigatórios:** id, tenant_id, filial_id (nullable se global), tipo (os/orcamento/fatura/certificado/nf), prefixo, proximo_numero, formato (template string), padding.
-- **Invariantes:** `INV-CFG-001` (proximo_numero estritamente crescente, nunca diminui), `INV-006` (idempotência na emissão).
+- **Invariantes:** `INV-028` (proximo_numero estritamente crescente, nunca diminui), `INV-006` (idempotência na emissão).
 - **Ciclo de vida:** criada por admin; contador atualizado atomicamente.
 
 ### Imposto
 
 - **Atributos obrigatórios:** id, tenant_id, tipo (ICMS/ISS/PIS/COFINS/IRRF/CSLL/INSS), aliquota, vigencia_inicio.
 - **Atributos opcionais:** cfop_padrao, ncm_padrao, vigencia_fim, observacoes.
-- **Invariantes:** `INV-CFG-002` (imutável após emissão de documento que o use); ADR-0008.
+- **Invariantes:** `INV-026` (imutável após emissão de documento que o use — versionamento de catálogo); ADR-0008.
 
 ### Papel (Role)
 
 - **Atributos obrigatórios:** id, tenant_id, nome, descricao.
 - **Atributos opcionais:** parent_papel_id (herança).
-- **Invariantes:** `INV-CFG-003` (sempre ≥1 admin ativo no tenant).
+- **Invariantes:** `INV-029` (sempre ≥1 admin ativo no tenant).
 
 ### Permissao
 
 - **Atributos obrigatórios:** id, papel_id, modulo, recurso, acao (criar/ler/editar/aprovar/excluir).
-- **Invariantes:** `SEC-002` (menor privilégio).
+- **Invariantes:** `SEC-LEAST-PRIV-001` (menor privilégio).
 
 ### Workflow
 
@@ -71,7 +71,7 @@ relacionados:
 
 - **Atributos obrigatórios:** id, tenant_id, entidade, nome, cor, ordem.
 - **Atributos opcionais:** descricao, deprecado_em.
-- **Invariantes:** `INV-CFG-008` (não excluir se em uso; só deprecar).
+- **Invariantes:** `INV-038` (não excluir se em uso; só deprecar).
 
 ### CampoObrigatorio
 
@@ -82,7 +82,7 @@ relacionados:
 
 - **Atributos obrigatórios:** id, tenant_id, tipo_documento, nome, template_path, versao, ativo (bool).
 - **Atributos opcionais:** preview_url.
-- **Invariantes:** `INV-CFG-004` (template usado na emissão é imutável; documentos antigos seguem template original).
+- **Invariantes:** `INV-001` (WORM — template usado na emissão faz parte do snapshot imutável; documentos antigos seguem template original).
 
 ### ConfigAssinatura
 
@@ -123,12 +123,12 @@ relacionados:
 ### ConfigRetencao
 
 - **Atributos obrigatórios:** id, tenant_id, entidade, periodo_dias, base_legal (referência a `retencao-matriz.md`).
-- **Invariantes:** `INV-CFG-009` (não pode ser menor que mínimo legal da matriz).
+- **Invariantes:** `INV-039` (não pode ser menor que mínimo legal da matriz).
 
 ### FeatureFlagTenant
 
 - **Atributos obrigatórios:** id, tenant_id, feature_codigo, ativa (bool), liberada_no_plano (bool, sincronizada com billing).
-- **Invariantes:** `INV-CFG-005` (admin tenant não liga feature não liberada pelo plano); ADR-0006.
+- **Invariantes:** `INV-030` (admin tenant não liga feature não liberada pelo plano); ADR-0006.
 
 ### AuditoriaConfig
 
@@ -141,13 +141,13 @@ relacionados:
 
 | Agregado raiz | Entidades incluídas | Invariantes |
 |---|---|---|
-| Empresa | Filial | INV-CFG-006, INV-CFG-007, INV-TENANT-001 |
-| SerieDocumento | (própria) | INV-CFG-001, INV-006 |
-| Papel | Permissao | INV-CFG-003, SEC-002 |
-| Workflow | EtapaWorkflow, StatusPersonalizado | INV-CFG-008 |
+| Empresa | Filial | INV-036, INV-037, INV-TENANT-001 |
+| SerieDocumento | (própria) | INV-028, INV-006 |
+| Papel | Permissao | INV-029, SEC-LEAST-PRIV-001 |
+| Workflow | EtapaWorkflow, StatusPersonalizado | INV-038 |
 | Integracao | (própria + AuditoriaConfig) | SEC-KMS-001, SEC-005 |
-| ConfigBackup + ConfigRetencao | (próprias) | INV-CFG-009, SEC-006 |
-| FeatureFlagTenant | (própria) | INV-CFG-005, ADR-0006 |
+| ConfigBackup + ConfigRetencao | (próprias) | INV-039, SEC-006 |
+| FeatureFlagTenant | (própria) | INV-030, ADR-0006 |
 
 ---
 

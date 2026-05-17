@@ -31,7 +31,7 @@ relacionados:
 ### Auditoria
 - **Atributos obrigatórios:** id, tenant_id, norma_id, organismo (CGCRE|certificadora|cliente|outro), nome_organismo, data_inicio, data_fim, escopo, responsavel_geral_id, status (planejada|em_andamento|concluida|cancelada).
 - **Atributos opcionais:** observacoes.
-- **Invariantes:** uma auditoria com status concluida não pode ser alterada exceto pra registrar follow-up (`INV-NNN`).
+- **Invariantes:** uma auditoria com status concluida não pode ser alterada exceto pra registrar follow-up (`INV-001` — WORM; follow-up cria nova versão).
 - **Ciclo de vida:** planejada → em_andamento → concluida; ou cancelada.
 
 ### ItemChecklist
@@ -41,7 +41,7 @@ relacionados:
 ### Evidencia
 - **Atributos obrigatórios:** id, tenant_id, item_checklist_id, tipo (arquivo|link_doc_controlado|registro_sistema), referencia (url ou doc_id), autor_id, timestamp, versao_doc_quando_anexada.
 - **Atributos opcionais:** observacoes.
-- **Invariantes:** evidência imutável após auditoria concluída (`INV-NNN`); se doc controlado for atualizado, sistema sinaliza desatualizada.
+- **Invariantes:** evidência imutável após auditoria concluída (`INV-001` — WORM); se doc controlado for atualizado, sistema sinaliza desatualizada.
 
 ### Apontamento
 - **Atributos obrigatórios:** id, auditoria_id, tipo (nc_maior|nc_menor|observacao|oportunidade), descricao, requisito_norma_id, evidencia_apresentada_id, registrado_por, timestamp_registro.
@@ -51,7 +51,7 @@ relacionados:
 ### PlanoAcao
 - **Atributos obrigatórios:** id, apontamento_id, causa_raiz, metodo_causa_raiz (5_porquês|ishikawa|outro), acao_corretiva, responsavel_id, prazo, status (aberto|em_andamento|aguardando_aprovacao|fechado|atrasado).
 - **Atributos opcionais:** acao_preventiva.
-- **Invariantes:** NC maior obriga causa raiz por 5-porquês (`INV-NNN`).
+- **Invariantes:** NC maior obriga causa raiz por 5-porquês (regra de domínio + ISO 17025 cl. 8.7; `INV-012` — NC bloqueia emissão até resolução documentada).
 
 ### EvidenciaFechamento
 - **Atributos obrigatórios:** id, plano_acao_id, descricao, arquivo_url, anexada_por, timestamp, aprovada_por (opcional), aprovada_em (opcional).

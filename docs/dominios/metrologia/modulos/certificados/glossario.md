@@ -19,18 +19,18 @@ relacionados:
 | Termo | Definição (1 linha) | Sinônimos proibidos | Se vir na tela/log, significa | Origem |
 |---|---|---|---|---|
 | Certificado de calibração | Documento técnico que atesta resultado da calibração de um instrumento | "laudo de calibração" (ambíguo) | Documento principal entregue ao cliente | ISO 17025 7.8 |
-| Numeração sequencial | Sequência inviolável por tenant + tipo + ano, sem gaps | — | Auditoria conta a sequência | INV-013 |
-| Snapshot | Cópia imutável dos dados no momento da emissão | "fotografia dos dados" | Dados não mudam mesmo se origem mudar | INV-014 |
+| Numeração sequencial | Sequência inviolável por tenant + tipo + ano, sem gaps | — | Auditoria conta a sequência | INV-034 |
+| Snapshot | Cópia imutável dos dados no momento da emissão | "fotografia dos dados" | Dados não mudam mesmo se origem mudar | INV-001 |
 | Reemissão | Nova versão de certificado já emitido, com link à versão anterior | "reedição", "correção" | Original fica como SUBSTITUIDA, nova é vigente | ISO 17025 7.8.8 |
-| Versão SUBSTITUIDA | Versão de certificado anterior à reemissão, visível mas não vigente | "cancelada" (proibido — semântica diferente) | Cliente deve usar a nova | INV-CER-001 |
-| Cancelamento | Anulação definitiva de certificado emitido (sem nova versão) | "exclusão" (proibido — não exclui) | Certificado anulado, número não reusa | INV-013 |
+| Versão SUBSTITUIDA | Versão de certificado anterior à reemissão, visível mas não vigente | "cancelada" (proibido — semântica diferente) | Cliente deve usar a nova | INV-034 |
+| Cancelamento | Anulação definitiva de certificado emitido (sem nova versão) | "exclusão" (proibido — não exclui) | Certificado anulado, número não reusa | INV-034 |
 | Declaração de conformidade | Manifestação se resultado atende ou não a especificação, considerando regra de decisão | "aprovação" (ambíguo) | Cert diz "conforme" ou "não conforme" | ISO 17025 7.8.6 |
 | Regra de decisão | Critério matemático pra declarar conformidade considerando incerteza | — | Texto no certificado explica como decidiu | ILAC G8 |
 | Validade do certificado | Período recomendado de recalibração (não confundir com validade legal) | "vencimento do cert" | Sugestão — não invalida o resultado | NIT-DICLA |
 | Assinatura A3 | Assinatura PKCS#7 com cert digital em token físico, cliente-side | "assinatura eletrônica" (ambíguo) | Validade ICP-Brasil | ADR-0009 |
 | PDF/A-1 | Padrão PDF para preservação de longo prazo (≥10 anos) | "PDF" genérico | Documento atende preservação | ISO 19005-1 |
 | PDF/UA | Padrão PDF acessível (tags, leitor de tela) | — | Documento acessível WCAG | ISO 14289 |
-| Página pública verificadora | URL aberta (sem login) que mostra status do certificado por token opaco | "página de verificação" | QR Code aponta aqui | INV-CER-002 |
+| Página pública verificadora | URL aberta (sem login) que mostra status do certificado por token opaco | "página de verificação" | QR Code aponta aqui | INV-035 |
 | QR Code da etiqueta | Código bidimensional na etiqueta linkando à página pública verificadora | "QR" | Auditor escaneia | — |
 | Template de certificado | Estrutura HTML/PDF customizável com variáveis dinâmicas + identidade visual | "modelo" | Visual aplicado ao gerar | — |
 | NC (Não Conformidade) | Registro formal de desvio em calibração/serviço, com ação corretiva | "ocorrência" (ambíguo) | Processo qualidade aberto | ISO 17025 7.10 + 8.7 |

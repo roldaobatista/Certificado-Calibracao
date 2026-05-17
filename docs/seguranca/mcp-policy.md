@@ -125,5 +125,5 @@ Atacante substitui binário do MCP server na máquina dev.
 
 - `REGRAS-INEGOCIAVEIS.md` — SEC-001, SEC-003, INV-AGENT-001
 - `docs/seguranca/agente-input-nao-confiavel.md` — detalha classificação `regulado-untrusted`
-- `docs/arquitetura/anti-corrosion-layer.md` — 9 portas; tools MCP devem passar por elas
+- `docs/arquitetura/anti-corrosion-layer.md` — 11 portas; tools MCP devem passar por elas
 - `docs/governanca/auditor-seguranca-prompt.md` — auditor que enforce esta política em pre-commit

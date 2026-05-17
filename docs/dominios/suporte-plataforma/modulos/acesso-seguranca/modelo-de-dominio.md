@@ -27,19 +27,19 @@ relacionados:
 ### Usuario
 - **Atributos obrigatórios:** `id` (UUID), `tenant_id` (FK), `email`, `nome_completo`, `senha_hash` (bcrypt/argon2), `status` (`ativo`|`desativado`|`pendente`), `criado_em`, `criado_por`.
 - **Atributos opcionais:** `cpf`, `telefone`, `mfa_segredo_cifrado` (KMS-envelope), `ultimo_login_em`, `foto_url`.
-- **Invariantes:** `INV-001` (consistência), `INV-002` (não-mascaramento), `INV-009` (menor privilégio), `INV-TENANT-001` (tenant_id obrigatório), `SEC-001`, `SEC-002`.
+- **Invariantes:** `INV-001` (trilha WORM), `SEC-LOG-001` (não-mascaramento de mensagem), `SEC-LEAST-PRIV-001` (menor privilégio), `INV-TENANT-001` (tenant_id obrigatório), `SEC-001`, `SEC-002`.
 - **Ciclo de vida:** criada por admin tenant (status `pendente`) → 1º login com setup de senha + MFA → `ativo` → eventualmente `desativado` (não excluída — preserva trilha).
 - **Não exclui fisicamente** — desativação preserva auditoria. Exclusão real só via fluxo LGPD (`SolicitacaoLGPD`).
 
 ### PerfilAcesso
 - **Atributos obrigatórios:** `id`, `tenant_id`, `nome` (único por tenant), `descricao`, `permissoes` (set de `Permissao.codigo`), `mfa_obrigatorio` (bool), `timeout_sessao_min`, `criado_em`.
 - **Atributos opcionais:** `e_semente` (bool — perfil pré-configurado, não editável).
-- **Invariantes:** `INV-001`, `INV-009`, `INV-TENANT-001`.
+- **Invariantes:** `INV-001`, `SEC-LEAST-PRIV-001`, `INV-TENANT-001`.
 - **Ciclo de vida:** criado por admin tenant → editado → desativado (sem usuários ativos).
 
 ### Permissao
 - **Atributos obrigatórios:** `codigo` (string namespaced: `cliente.criar`, `certificado.emitir`, `lancamento.editar_conciliado`), `descricao`, `modulo`, `tela`, `acao` (`criar`|`ler`|`editar`|`excluir`|`executar_X`), `e_sensivel` (bool — exige permissão dedicada e MFA recente).
-- **Invariantes:** `INV-009`.
+- **Invariantes:** `SEC-LEAST-PRIV-001`.
 - **Ciclo de vida:** definida em código (catálogo plataforma, não editável pelo tenant). Adição = release do produto.
 
 ### UsuarioPerfil
@@ -54,7 +54,7 @@ relacionados:
 
 ### Sessao
 - **Atributos obrigatórios:** `id` (UUID), `usuario_id`, `tenant_id`, `filial_id_contexto`, `iniciada_em`, `ultima_atividade_em`, `expira_em`, `ip`, `user_agent`, `pais`, `cidade_aprox`, `motivo_encerramento` (`logout`|`timeout`|`troca_senha`|`admin`|`repudio_usuario`|null).
-- **Invariantes:** `INV-001`, `INV-009`, `INV-TENANT-001`.
+- **Invariantes:** `INV-001`, `SEC-LEAST-PRIV-001`, `INV-TENANT-001`.
 - **Ciclo de vida:** criada no login OK → atualizada a cada request → encerrada por timeout/logout/troca-senha/repúdio.
 - **Imutável** após encerramento (parte da trilha).
 
@@ -76,7 +76,7 @@ relacionados:
 
 ### EventoAuditoria
 - **Atributos obrigatórios:** `id`, `tenant_id`, `usuario_id` (null se sistema), `timestamp`, `tipo_evento` (namespaced: `acs.login.sucesso`, `cliente.editado`, `certificado.emitido`), `entidade_tipo`, `entidade_id`, `acao`, `valores_antes` (JSONB), `valores_depois` (JSONB), `ip`, `user_agent`, `correlation_id`.
-- **Invariantes:** `INV-001` (WORM), `INV-002`, `INV-TENANT-001`, `SEC-001`.
+- **Invariantes:** `INV-001` (WORM), `SEC-LOG-001`, `INV-TENANT-001`, `SEC-001`.
 - **Imutabilidade absoluta** — nenhum perfil pode editar/apagar.
 - **Storage:** PostgreSQL com FK NOT VALID + cópia paralela em Backblaze B2 WORM (`docs/seguranca/` — referência).
 
@@ -106,8 +106,8 @@ relacionados:
 
 | Agregado raiz | Entidades incluídas | Invariantes |
 |---|---|---|
-| `Usuario` | `Usuario`, `UsuarioPerfil`, `UsuarioFilial`, `MFASegredo` | `INV-001`, `INV-009`, `INV-TENANT-001..004` |
-| `PerfilAcesso` | `PerfilAcesso` + referências a `Permissao` (catálogo externo) | `INV-001`, `INV-009`, `INV-TENANT-001` |
+| `Usuario` | `Usuario`, `UsuarioPerfil`, `UsuarioFilial`, `MFASegredo` | `INV-001`, `SEC-LEAST-PRIV-001`, `SEC-MFA-001`, `INV-TENANT-001..004` |
+| `PerfilAcesso` | `PerfilAcesso` + referências a `Permissao` (catálogo externo) | `INV-001`, `SEC-LEAST-PRIV-001`, `INV-TENANT-001` |
 | `Sessao` | `Sessao` | `INV-001`, `INV-TENANT-001` |
 | `EventoAuditoria` | `EventoAuditoria` (raiz imutável) + `VersaoRegistro` (apêndice) | `INV-001`, `INV-TENANT-001` |
 | `ConsentimentoLGPD` | `ConsentimentoLGPD` | `INV-001` |

@@ -25,7 +25,7 @@ relacionados:
 | Aging | Agrupamento de títulos em aberto por faixa de atraso (0-30, 31-60, 61-90, 90+ dias) | "carteira" | quanto está vencido e há quanto tempo | US-RFN-004 |
 | Centro de custo | Unidade contábil que “possui” a despesa/custo (filial, equipe, projeto) | "departamento" | rótulo financeiro pra rateio | US-RFN-005 |
 | Conciliação bancária | Comparar extrato do banco com lançamentos do sistema e marcar matches | — | OFX vs. sistema | US-RFN-006 |
-| Drill-down | Clicar num número agregado e ver os lançamentos que somam aquele valor | "detalhamento" | usuário "abre" um total | INV-RFN-001 |
+| Drill-down | Clicar num número agregado e ver os lançamentos que somam aquele valor | "detalhamento" | usuário "abre" um total | INV-031 |
 | Resultado por dimensão | Margem (receita − custo direto) calculada por cliente, técnico, vendedor ou serviço | "lucro por X" | tabela de lucratividade segmentada | US-RFN-008 |
 | Custo direto | Custo atribuível à OS / contrato / serviço (vem de `custeio-real/`) | "custo de venda" | base do lucro bruto | `custeio-real/` |
 | Margem bruta | Receita − custo direto | — | linha do DRE | US-RFN-001 |

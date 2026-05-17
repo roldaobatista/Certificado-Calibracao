@@ -40,8 +40,14 @@ Lista de operações de tratamento de dados pessoais que o Aferê realiza, com b
 | RAT-08 | Log de auditoria do sistema | User ID + ação + timestamp + IP | Identificação + comportamento | Obrigação regulatória + Legítimo interesse (segurança) | Audit trail LGPD/ISO 17025/RBC | 2 anos (governança) a 25 anos (calibração) |
 | RAT-09 | Cookies + telemetria | ID anônimo + comportamento | Comportamento | Legítimo interesse (art. 7º IX) + consentimento se sensível | Observabilidade + product analytics | 13 meses |
 | RAT-10 | Backup + storage WORM | Cópia das operações acima | — | Mesma da operação original | Continuidade do serviço + DR | Conforme `retencao-matriz.md` |
+| RAT-11 | Cadastro de cliente final no Portal do Cliente + área cliente Marketplace | Nome, e-mail, telefone, CPF/CNPJ, endereço, IP de aprovação, geolocalização aproximada (IP) | Identificação + contato + comportamento | Aferê age como **operador** — base do controlador (tenant); para a área de autoatendimento: Execução de contrato (art. 7º V) + consentimento explícito do titular (art. 7º I) na primeira entrada | Permitir autoatendimento, aprovação eletrônica de orçamentos com prova de IP/timestamp, 2ª via fatura, consulta de OS/certificados | Vigência da conta + 5 anos (fiscal); aprovação/rejeição de orçamento em WORM (5 anos) |
+| RAT-12 | Captação de leads no Marketplace público + opt-in marketing Comunicação Omnichannel | Nome, e-mail, telefone, CPF/CNPJ opcional, UTM, IP, evento de visualização | Identificação + comportamento | **Consentimento explícito (art. 7º I)** para marketing/comercial; Legítimo interesse (art. 7º IX) para o registro de visita não-identificada (sem PII direta) | Qualificar lead, criar oportunidade no CRM, comunicação comercial multi-canal com controle de opt-in/opt-out | Lead com opt-in: até opt-out + 6 meses pós-revogação; visita anônima: 13 meses (analytics) |
+| RAT-13 | Geolocalização contínua + biometria implícita em fotos (App Técnico) | GPS contínuo (lat/long/timestamp), trilha de deslocamento, fotos com EXIF (GPS + timestamp + dispositivo), face do cliente em foto opcional, assinatura touch + CPF de aceite | Identificação + comportamento + **biometria implícita** (face em foto, traçado de assinatura) | Execução de contrato (art. 7º V) + Legítimo interesse (art. 7º IX) **com RIPD obrigatório** (DPIA-02). Art. 11 (sensível) NÃO se aplica a biometria implícita capturada apenas para evidência de aceite — sem extração/matching biométrico. | Comprovação de presença, audit de OS, rastreabilidade ISO 17025, prova de aceite contratual | GPS/trilha: 5 anos; foto com EXIF: 5 anos; assinatura de aceite: 5 anos. Após prazo: anonimização (face desfocada / EXIF removido) + crypto-shredding do bruto |
+| RAT-14 | Dados de saúde — ASO (Segurança do Trabalho + Treinamentos) | CPF colaborador, resultado ASO (apto/inapto/apto com restrições), tipo exame (admissional/periódico/retorno/mudança função/demissional), médico examinador (CRM), data, validade, PDF do laudo | **Sensível — saúde (art. 11 LGPD)** | **Obrigação legal/regulatória (art. 11 II "a")** — NR-7 (PCMSO) + CLT art. 168 + NR-35 (saúde ocupacional altura). Sem consentimento (não é base aplicável para vínculo trabalhista) | Cumprir obrigação MTE/eSocial, bloquear alocação de técnico em campo sem ASO válido | Vigência vínculo + 20 anos (NR-7 item 7.4.5.1) — campeão sobre LGPD direito esquecimento (base "obrigação legal" vence) |
+| RAT-15 | Acesso remoto de equipe de Suporte SaaS ao tenant | Sessão de suporte (TTL 2h), user ID atendente, IP atendente, ações executadas no tenant (diff), consentimento do admin tenant (timestamp + IP), motivo do acesso | Identificação + comportamento + acesso a "regulado" do tenant | Execução de contrato Aferê↔tenant (art. 7º V) + consentimento explícito do admin do tenant (art. 7º I) registrado a cada sessão | Atender ticket de suporte, diagnosticar bug com dados reais do tenant, atender SLA | Log de sessão: 5 anos (audit reforçado — INV-001); revogação encerra acesso imediato; sem dado do tenant copiado para fora |
+| RAT-16 | Cobrança recorrente Billing SaaS — dados de pagamento via gateway PCI-DSS | Apenas: nome/CPF/CNPJ do contratante, token opaco do gateway (Stripe/PagSeguro), bandeira do cartão, últimos 4 dígitos, status fatura. **NUNCA**: PAN completo, CVV, dados de track | Identificação + financeiro | Execução de contrato (art. 7º V) + obrigação fiscal (art. 7º II) | Cobrar mensalidade/anualidade do SaaS, controlar inadimplência, gerar fatura | 5 anos (fiscal); token do gateway até cancelamento + 30 dias; nenhum PAN/CVV armazenado (escopo PCI-DSS SAQ-A por delegação ao gateway certificado) |
 
-Matriz consolidada de retenção em `docs/conformidade/comum/retencao-matriz.md` (a criar).
+Matriz consolidada de retenção em `docs/conformidade/comum/retencao-matriz.md`.
 
 ---
 
@@ -53,7 +59,7 @@ Matriz consolidada de retenção em `docs/conformidade/comum/retencao-matriz.md`
 | **Obrigação legal/regulatória (II)** | Lei ou norma exige | RAT-04 (ISO 17025), RAT-05 (Receita), RAT-08 (audit trail) |
 | **Legítimo interesse (IX)** | Necessário pra interesse legítimo do controlador, sem prejuízo do titular | RAT-07, RAT-09 — sempre com RIPD/DPIA documentada |
 | **Consentimento (I)** | Quando nenhuma das anteriores cabe | RAT-09 cookies não-essenciais |
-| **Dados sensíveis (saúde, biométricos)** | Art. 11 — bases mais restritas | Não aplicável no MVP-1 (escopo Aferê não trata dados sensíveis); reavaliar se entrar segmento médico |
+| **Dados sensíveis (saúde, biométricos)** | Art. 11 — bases mais restritas | RAT-14 (ASO — base art. 11 II "a" obrigação legal NR-7 + CLT 168); biometria implícita em foto/assinatura de aceite (RAT-13) NÃO é tratamento de dado sensível enquanto não há extração/matching biométrico — se evoluir para reconhecimento facial, exige RIPD novo e base própria |
 
 ---
 
@@ -96,8 +102,14 @@ Obrigatório quando o tratamento envolver alto risco. No Aferê:
 - ✅ RIPD obrigatório pra RAT-07 (geolocalização técnico de campo) — antes do release do mobile
 - ✅ RIPD obrigatório pra RAT-09 (telemetria) — antes de ligar product analytics
 - ⏳ RIPD condicional pra LLM (RAT futuro — chatbot CS) — antes do release
+- ✅ **5 RIPDs/DPIA dos módulos novos sensíveis** consolidados em `docs/conformidade/comum/dpia-modulos-novos.md`:
+  - DPIA-01 — Suporte SaaS / acesso remoto a dados regulados (RAT-15)
+  - DPIA-02 — App Técnico / geolocalização contínua + biometria implícita (RAT-13, complementa RAT-07)
+  - DPIA-03 — Segurança do Trabalho / ASO (dado sensível saúde — art. 11) (RAT-14)
+  - DPIA-04 — Comunicação Omnichannel / consentimento marketing multi-canal (RAT-12)
+  - DPIA-05 — Billing SaaS / cobrança recorrente + PCI por delegação (RAT-16)
 
-Template em `docs/conformidade/comum/ripd-modelo.md` (a criar).
+Template em `docs/conformidade/comum/ripd-modelo.md`.
 
 ---
 

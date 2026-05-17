@@ -27,7 +27,7 @@ relacionados:
 **Campos obrigatórios:** título, código projeto, cliente, data emissão, revisão (letra), engenheiro responsável (nome + CREA), escopo, premissas, soluções, normas aplicáveis, considerações finais, assinatura.
 **Campos opcionais:** logo cliente, número ART, anexos referenciados.
 **Assinatura digital:** sim — interna (registro nome+CREA+timestamp+IP+hash) OU ICP-Brasil A3 (quando política do tenant exige). Decisão final em ADR de assinatura.
-**Imutabilidade pós-emissão:** sim — revisão aprovada é imutável. Re-emissão exige nova revisão (`INV-NNN`).
+**Imutabilidade pós-emissão:** sim — revisão aprovada é imutável. Re-emissão exige nova revisão (`INV-001` — WORM).
 **Retenção:** mínima 10 anos (alinhada à responsabilidade técnica civil); detalhe em `../../../conformidade/comum/retencao-matriz.md`.
 
 **Exemplo:**

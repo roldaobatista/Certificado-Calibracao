@@ -26,6 +26,9 @@ modulo: seguranca-trabalho
 | Taxa de gravidade (TG) | (dias perdidos × 1.000.000) / homens-hora | <100 | Acidentes + afastamentos | mensal |
 | Tempo médio de resposta a quase-acidente | Da data do registro à data da ação corretiva concluída | ≤7 dias | Workflow ação corretiva | mensal |
 | Acidentes evitados (proxy) | Quase-acidentes que geraram ação corretiva concluída | crescente | Registros quase-acidente | trimestral |
+| Taxa de acidentes + quase-acidentes / 1000h (operacional) | Eventos totais (acidente + quase-acidente) por 1000 homens-hora trabalhadas. **Complementa TF/TG (que só conta acidentes com afastamento × 1Mh)** — esta métrica é mais sensível e captura tendência preventiva. **Fórmula:** `(count(Acidente) + count(QuaseAcidente)) × 1000 ÷ Σ homens-hora`. | < 2 eventos / 1000h | Registros acidente + quase-acidente + folha de horas | mensal |
+| % técnicos com treinamento NR vigente (compliance) | Técnicos ativos com TODAS as NRs aplicáveis à sua função dentro da validade | 100% | Cross função × matriz NR × `Treinamento.validade` | mensal |
+| % OSs bloqueadas por checklist SST faltante (controle) | OSs que tentaram avançar pra "executada" sem checklist anexado e foram bloqueadas pelo sistema. **Sinal duplo:** tendência decrescente = cultura SST melhorando; pico súbito = bug na exigência ou falha de UX. | < 5% das OSs/mês | Eventos `OS.BloqueadaPorChecklistSST` ÷ count(OS criadas) | semanal |
 
 ---
 

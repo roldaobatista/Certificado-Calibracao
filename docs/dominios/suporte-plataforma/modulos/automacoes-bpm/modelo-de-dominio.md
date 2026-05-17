@@ -24,7 +24,7 @@ relacionados:
 ### Fluxo
 - **Atributos obrigatórios:** `id`, `tenant_id`, `nome`, `descricao`, `status` (rascunho|ativo|inativo|deprecado), `versao_corrente`, `criado_em`, `criado_por`.
 - **Atributos opcionais:** `tags`, `categoria`, `modulo_origem`.
-- **Invariantes:** `INV-TENANT-NNN` (tenant isolation), `INV-NNN` (versão imutável após publicação).
+- **Invariantes:** `INV-TENANT-001` (tenant isolation), `INV-001` (versão imutável após publicação — WORM).
 - **Ciclo de vida:** rascunho → ativo (publicação cria `VersaoFluxo`); pode voltar a rascunho gerando nova versão; nunca deletado, só inativado/deprecado.
 
 ### VersaoFluxo
@@ -43,7 +43,7 @@ relacionados:
 
 ### Pendencia
 - **Atributos:** `id`, `instancia_id`, `etapa_id`, `aprovador_id`, `aprovador_efetivo_id` (após delegação), `sla_expira_em`, `status` (pendente|aprovada|rejeitada|expirada|escalada), `decidida_em`, `comentario`.
-- **Invariantes:** `INV-NNN` (pendência decidida é imutável; rejeição/aprovação registradas em log).
+- **Invariantes:** `INV-001` (pendência decidida é imutável WORM; rejeição/aprovação registradas em log).
 
 ### Regra
 - **Atributos:** `id`, `tenant_id`, `nome`, `evento_origem` (id do catálogo), `condicao`, `acao`, `modo` (shadow|ativo|inativo), `versao_corrente`.
@@ -104,7 +104,7 @@ relacionados:
 | `BPM.AprovacaoConcedida` | aprovador clica aprovar | `{pendencia_id, decidido_por, decidido_em, comentario}` | módulo origem (Orçamentos, OS, etc.) |
 | `BPM.AprovacaoRejeitada` | aprovador clica rejeitar | idem | idem |
 | `BPM.SlaEstourado` | SLA passou sem decisão | `{pendencia_id, etapa, novo_responsavel}` | escalonamento, observabilidade |
-| `BPM.InstanciaConcluida` | fluxo chega à etapa final | `{instancia_id, entidade_origem, resultado}` | módulo origem |
+| `BPM.InstanciaConcluida` | fluxo chega à etapa final | `{instancia_id, entidade_origem_tipo, entidade_origem_id, resultado}` | consumidores explícitos por `entidade_origem_tipo`: `comercial/orcamentos`, `comercial/contratos`, `operacao/os`, `operacao/chamados`, `suporte-plataforma/engenharia-tecnica`, `financeiro/despesas`, `comercial/precificacao`, `metrologia/licencas-acreditacoes`. Roteamento via `entidade_origem_tipo` no handler do módulo dono. |
 | `BPM.RegraExecutada` | regra disparou (sucesso ou falha) | `{execucao_id, regra_id, resultado, payload}` | observabilidade |
 | `BPM.AlertaDisparado` | alerta enviado | `{alerta_id, destinatario, canal}` | CRM, log |
 

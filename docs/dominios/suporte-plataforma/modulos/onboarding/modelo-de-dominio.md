@@ -22,7 +22,7 @@ relacionados:
 
 - **Atributos obrigatórios:** id, tenant_id (FK comum), responsavel_interno_id (FK usuário interno Aferê), status (enum), data_criacao, data_aceite (nullable).
 - **Atributos opcionais:** observacoes, data_go_live_prevista.
-- **Invariantes de agregado:** `INV-TENANT-001`; `INV-ONB-001` (status só avança em ordem definida).
+- **Invariantes de agregado:** `INV-TENANT-001`; `INV-040` (status só avança em ordem definida).
 - **Relacionamento com entidades comuns:** 1:1 com Tenant (sandbox + produção).
 - **Ciclo de vida:** criada quando tenant nasce → status muda → imutável após "concluída" + termo assinado (reabertura exige nova OS de implantação).
 
@@ -30,7 +30,7 @@ relacionados:
 
 - **Atributos obrigatórios:** id, implantacao_id, ordem, nome, status (não_iniciada / em_andamento / pendente_cliente / concluída / pulada), data_conclusao (nullable).
 - **Atributos opcionais:** observacoes, responsavel_etapa (pode diferir do responsável da implantação), anexos.
-- **Invariantes:** `INV-ONB-002` (etapa pulada exige justificativa).
+- **Invariantes:** `INV-041` (etapa pulada exige justificativa).
 - **Ciclo de vida:** instanciada do template padrão na criação da implantação.
 
 ### ChecklistTemplate
@@ -48,7 +48,7 @@ relacionados:
 
 - **Atributos obrigatórios:** id, importacao_id, linha_arquivo, campo, severidade (alerta / erro), descricao, status (aberta / resolvida / aceita).
 - **Atributos opcionais:** dado_original, sugestao, justificativa_resolucao, resolvido_por, data_resolucao.
-- **Invariantes:** `INV-ONB-003` (resolução exige justificativa auditável).
+- **Invariantes:** `INV-042` (resolução exige justificativa auditável).
 
 ### TreinamentoRegistrado
 
@@ -64,7 +64,7 @@ relacionados:
 
 - **Atributos obrigatórios:** id, implantacao_id, data_geracao, pdf_path (Backblaze B2, WORM), data_assinatura (nullable), assinante_nome, assinante_documento.
 - **Atributos opcionais:** assinatura_digital_blob (se A3), hash_pdf.
-- **Invariantes:** `INV-ONB-004` (imutável após assinatura), retenção conforme `docs/conformidade/comum/retencao-matriz.md`.
+- **Invariantes:** `INV-043` (imutável após assinatura), `INV-001` (trilha WORM), retenção conforme `docs/conformidade/comum/retencao-matriz.md`.
 
 ### Sandbox
 
@@ -78,7 +78,7 @@ relacionados:
 
 | Agregado raiz | Entidades incluídas | Invariantes |
 |---|---|---|
-| Implantacao | EtapaImplantacao, ImportacaoInicial, InconsistenciaMigracao, TreinamentoRegistrado, ValidacaoAmbiente, TermoAceite | INV-ONB-001..004, INV-TENANT-001 |
+| Implantacao | EtapaImplantacao, ImportacaoInicial, InconsistenciaMigracao, TreinamentoRegistrado, ValidacaoAmbiente, TermoAceite | INV-040, INV-041, INV-042, INV-043, INV-TENANT-001 |
 | Sandbox | (próprio) | INV-TENANT-001 |
 
 ---

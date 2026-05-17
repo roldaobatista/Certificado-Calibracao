@@ -80,7 +80,7 @@ O Portal **NÃO emite documento regulado** — ele **reentrega** documentos já 
 **Regulado?:** **SIM** — ISO/IEC 17025 cláusula 7.8.
 **Origem:** módulo Metrologia/Calibração emite e assina (Lacuna A3 — ADR-0009); Portal só reentrega.
 **Validador externo:** QR Code embutido no PDF apontando para validador RBC/INMETRO.
-**Imutabilidade pós-emissão:** **TOTAL** — `INV-NNN` (certificado RBC). Anulação cria certificado novo com selo "ANULA O ANTERIOR".
+**Imutabilidade pós-emissão:** **TOTAL** — `INV-001` (WORM no certificado RBC) + `INV-034` (numeração sequencial inviolável). Anulação cria certificado novo com selo "ANULA O ANTERIOR".
 **Assinatura digital:** A3 (cert ICP-Brasil) embutida no PDF.
 **Retenção:** 25 anos (ISO 17025 cláusula 8.4 — alinhada à matriz `../../../conformidade/comum/retencao-matriz.md`).
 **Eventos:** `Portal.CertificadoBaixado` (trilha ISO 17025 + LGPD).

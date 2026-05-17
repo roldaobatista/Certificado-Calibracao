@@ -14,6 +14,9 @@ relacionados:
   - docs/dominios/operacao/modulos/os/prd.md
   - docs/dominios/operacao/modulos/agenda/prd.md
   - docs/dominios/financeiro/modulos/caixa-tecnico/prd.md
+  - docs/conformidade/comum/lgpd-rat.md#RAT-13
+  - docs/conformidade/comum/dpia-modulos-novos.md#DPIA-02
+  - docs/conformidade/comum/retencao-matriz.md
 ---
 
 # PRD — Módulo App do Técnico
@@ -81,7 +84,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 
 **Non-goals desta story:** não inclui agenda de outros técnicos.
 
-**Invariantes relacionadas:** `INV-TENANT-001` (tenant na query), `INV-AGENT-NNN` (a definir — pin de cache offline).
+**Invariantes relacionadas:** `INV-TENANT-001` (tenant na query), `INV-AGENT-001` (input não-confiável tipado — anti prompt injection ao processar texto livre de campo).
 
 **Dependências:**
 - Bloqueado por: ADR-0001 stack, ADR-0003 mobile, ADR-0004 sync, US-AGE-001 (módulo Agenda)
@@ -109,6 +112,8 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 **Critérios de aceite:**
 - **AC-APP-003-1**: GIVEN deslocamento em andamento, WHEN técnico toca "Cheguei", THEN registra timestamp + GPS + diferença vs endereço do cliente (alerta se >500m).
 - **AC-APP-003-2**: GIVEN GPS indisponível, WHEN check-in tentado, THEN permite check-in manual com justificativa obrigatória.
+- **AC-APP-003-3 (LGPD):** Coleta de GPS atende base **Execução de contrato (art. 7º V) + Legítimo interesse (art. 7º IX)** com opt-in documentado em política de admissão (RAT-13 + DPIA-02). GPS só ativo durante "OS em execução" — desligado quando app fechado.
+- **AC-APP-003-4 (Retenção):** GPS/trilha conforme `retencao-matriz.md` linha "Trilha GPS contínua do técnico" (5 anos); após prazo: crypto-shredding. Técnico vê e exporta próprio histórico via "Meus dados (LGPD)" (US-ACS-012).
 
 **Dependências:** US-APP-002.
 
@@ -146,8 +151,10 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 **Critérios de aceite:**
 - **AC-APP-006-1**: GIVEN OS em execução, WHEN técnico tira foto, THEN categoriza (antes/durante/depois/avaria) e foto é vinculada à OS com timestamp + GPS embarcados.
 - **AC-APP-006-2**: GIVEN checklist definido pro tipo de serviço, WHEN técnico marca itens, THEN se item obrigatório não marcado, bloqueia conclusão da OS.
+- **AC-APP-006-3 (LGPD biometria implícita):** Captura de face em foto NÃO ativa matching biométrico — apenas evidência fotográfica (RAT-13 + DPIA-02). Introdução futura de face match exige novo RIPD aprovado + ADR (hook `block-biometric-feature.sh` a criar). UI obriga categorização + texto "não fotografe terceiros sem autorização".
+- **AC-APP-006-4 (Retenção + EXIF):** Foto conforme `retencao-matriz.md` linha "Foto com GPS/EXIF do App Técnico" (5 anos); após prazo: anonimização (face borrada + EXIF removido); foto-anônima preservada 25 anos se compõe evidência ISO 17025. EXIF removido antes de exposição via Portal do Cliente / e-mail / WhatsApp (DPIA-02 R3).
 
-**Invariantes:** `INV-NNN` (foto imutável após upload — a definir).
+**Invariantes:** `INV-001` (foto imutável após upload — trilha WORM com hash + EXIF preservado).
 
 ---
 
@@ -158,6 +165,8 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 **Critérios de aceite:**
 - **AC-APP-007-1**: GIVEN serviço concluído, WHEN técnico solicita assinatura, THEN cliente assina em campo touch + nome + CPF + foto opcional.
 - **AC-APP-007-2**: GIVEN assinatura coletada, WHEN OS é fechada, THEN PDF de aceite é gerado offline (assinatura embutida) e fica na fila de sync.
+- **AC-APP-007-3 (LGPD)**: Tela de aceite atende base **Execução de contrato (art. 7º V)** — prova de aceite contratual (RAT-13). UI mostra resumo serviço + valor + termos em fonte legível + checkbox "li e concordo" antes do touch (DPIA-02 R4); cliente recebe cópia PDF.
+- **AC-APP-007-4 (Retenção)**: Assinatura touch + CPF conforme `retencao-matriz.md` linha "Assinatura touch de aceite + CPF" (5 anos); após prazo: anonimização CPF (hash) + traçado preservado 25 anos se compõe evidência ISO 17025.
 
 **Non-goals:** essa assinatura NÃO é A3 ICP-Brasil — só aceite contratual. Certificado de calibração assina via ADR-0009 (Web PKI Lacuna no PC).
 

@@ -64,7 +64,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 
 **Non-goals desta story:** integração com órgão emissor.
 
-**Invariantes:** `INV-021` (anexo de evidência obrigatório), `INV-022` (trilha imutável), `INV-TENANT-001`.
+**Invariantes:** `INV-046` (anexo de evidência obrigatório), `INV-001` (trilha imutável WORM), `INV-TENANT-001`.
 
 **Dependências:** Bloqueado por: ADR-0002 (multi-tenancy).
 
@@ -79,7 +79,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-LIC-002-2**: GIVEN documento vencido sem renovação, WHEN passa 1 dia da validade, THEN sistema escalona alerta (severidade alta) e marca documento como "vencido".
 - **AC-LIC-002-3**: GIVEN documento renovado dentro da janela, WHEN nova data validade > atual, THEN sistema cancela alertas pendentes e reagenda baseado na nova data.
 
-**Invariantes:** `INV-022`, `INV-023` (notificação rastreável).
+**Invariantes:** `INV-001` (trilha WORM em alertas e renovações).
 
 ---
 
@@ -92,7 +92,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-LIC-003-2**: GIVEN documento bloqueante vencido, WHEN admin marca "operação em modo emergencial" (com justificativa), THEN sistema libera operação MAS registra evento auditável "operação com documento vencido" e exige assinatura A3 do admin.
 - **AC-LIC-003-3**: GIVEN documento bloqueante NÃO marcado como tal, WHEN vence, THEN sistema só alerta — não bloqueia.
 
-**Invariantes:** `INV-012` (não emitir certificado sem acreditação), `INV-022`.
+**Invariantes:** `INV-032` (doc bloqueante vencido impede operação dependente), `INV-033` (modo emergencial exige justificativa + A3 + WORM), `INV-001`.
 
 **Dependências:** Bloqueia módulos: Certificados (US-CER-001), Calibração (US-CAL-emissão).
 
@@ -106,7 +106,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-LIC-004-1**: GIVEN documento com 3 renovações, WHEN consulta histórico, THEN sistema lista todas as revisões com data emissão, data validade, anexo, quem renovou e quando.
 - **AC-LIC-004-2**: GIVEN renovação anterior, WHEN tenta editar/excluir, THEN sistema bloqueia (revisão é imutável — só pode criar nova versão).
 
-**Invariantes:** `INV-022` (WORM em trilha de auditoria).
+**Invariantes:** `INV-001` (WORM em trilha de auditoria — revisão é imutável).
 
 ---
 
@@ -118,7 +118,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-LIC-005-1**: GIVEN responsável técnico cadastrado no módulo RT, WHEN cria ART/RRT vinculada, THEN sistema exige número da ART, conselho emissor, data registro, data validade, anexo.
 - **AC-LIC-005-2**: GIVEN ART/RRT vencida e marcada bloqueante, WHEN técnico tenta assinar certificado, THEN sistema bloqueia com mensagem clara.
 
-**Invariantes:** `INV-019` (RT habilitado), `INV-022`.
+**Invariantes:** `INV-019` (RT habilitado quando aplicável), `INV-032` (ART/RRT vencida bloqueia se marcada bloqueante), `INV-001`.
 
 ---
 
@@ -130,7 +130,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-LIC-006-1**: GIVEN certificado digital novo, WHEN cadastra, THEN sistema persiste tipo (A1/A3), titular CNPJ, AC emissora, data emissão, data validade, fingerprint (opcional). NÃO armazena chave privada nem PFX.
 - **AC-LIC-006-2**: GIVEN certificado A3 expirando em 30 dias, WHEN sistema verifica, THEN dispara alerta com instruções de renovação.
 
-**Invariantes:** `INV-021`, `INV-022`. Vincula ADR-0009 (assinatura A3 client-side).
+**Invariantes:** `INV-046` (anexo de evidência opcional para A3 — metadados obrigatórios), `INV-001`. Vincula ADR-0009 (assinatura A3 client-side).
 
 ---
 
@@ -142,7 +142,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-LIC-007-1**: GIVEN auditoria agendada, WHEN admin gera relatório, THEN sistema produz PDF com lista de documentos vigentes (tipo, número, validade, anexo embed), documentos vencidos, histórico últimos 24 meses, e hash SHA-256 do relatório.
 - **AC-LIC-007-2**: GIVEN relatório gerado, WHEN auditor verifica hash, THEN bate com hash registrado em trilha WORM.
 
-**Invariantes:** `INV-022`.
+**Invariantes:** `INV-001` (WORM no relatório consolidado).
 
 ---
 

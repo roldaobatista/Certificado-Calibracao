@@ -103,7 +103,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 - **AC-AUD-004-1**: GIVEN requisito atribuído a mim, WHEN anexo arquivo ou link a documento controlado, THEN evidência fica vinculada ao requisito com timestamp + autor + versão.
 - **AC-AUD-004-2**: GIVEN documento controlado foi atualizado, WHEN evidência aponta pra versão antiga, THEN sistema sinaliza "evidência desatualizada".
 
-**Invariantes:** evidência imutável após auditoria fechada (`INV-NNN`).
+**Invariantes:** evidência imutável após auditoria fechada (`INV-001` — trilha WORM).
 
 ---
 

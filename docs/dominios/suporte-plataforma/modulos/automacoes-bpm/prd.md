@@ -72,7 +72,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 
 **Non-goals desta story:** lógica de cálculo do desconto (fica em Orçamentos); envio do PDF do orçamento ao cliente (fica em CRM).
 
-**Invariantes relacionadas:** `INV-NNN` (auditoria imutável), `INV-TENANT-NNN` (fluxo só acessível ao tenant dono).
+**Invariantes relacionadas:** `INV-001` (auditoria imutável WORM), `INV-TENANT-001` (fluxo só acessível ao tenant dono).
 
 **Dependências:**
 - Bloqueia: US-BPM-002, US-BPM-003.
@@ -91,7 +91,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 
 **Non-goals:** envio físico via gateway (Integrações Externas); geração do orçamento de renovação (Orçamentos).
 
-**Invariantes:** `INV-NNN` (log de execução obrigatório).
+**Invariantes:** `INV-001` (log de execução obrigatório em WORM).
 
 ---
 
@@ -158,7 +158,7 @@ Ver `metricas.md`. Resumo:
 
 - **Performance:** avaliação de condição < 100ms p95; render de painel de pendências < 500ms p95.
 - **Disponibilidade:** alinhada ao motor (ADR-0005). SLO específico em `metricas.md`.
-- **Segurança:** alçadas e delegações respeitam RBAC + tenant isolation (`INV-TENANT-NNN`); log imutável de aprovações (`INV-NNN`).
+- **Segurança:** alçadas e delegações respeitam RBAC + tenant isolation (`INV-TENANT-001`, `SEC-LEAST-PRIV-001`); log imutável de aprovações (`INV-001`).
 - **Acessibilidade:** WCAG AA mínimo (a confirmar em ADR de UX).
 
 ## 9. Glossário

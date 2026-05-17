@@ -27,7 +27,7 @@ relacionados:
 **Campos obrigatórios:** razão social do tenant, CNPJ, escopo da implantação, lista de etapas concluídas, treinamentos realizados, inconsistências aceitas/resolvidas, data de geração, nome+documento do assinante, hash do PDF.
 **Campos opcionais:** observações, anexos (atas de reunião).
 **Assinatura digital:** sim — A3 ICP-Brasil via Lacuna Web PKI (ADR-0009).
-**Imutabilidade pós-emissão:** sim — `INV-ONB-004`; armazenado em Backblaze B2 WORM.
+**Imutabilidade pós-emissão:** sim — `INV-043` (termo imutável após assinatura) + `INV-001` (WORM); armazenado em Backblaze B2 WORM.
 **Retenção:** mínimo 5 anos (ver `docs/conformidade/comum/retencao-matriz.md`).
 
 **Exemplo:**

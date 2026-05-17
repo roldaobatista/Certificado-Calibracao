@@ -50,11 +50,15 @@ relacionados:
 
 ## Eventos de domínio (publicados)
 
-> Eventos que outros módulos podem consumir. Ver `docs/comum/integracoes-inter-modulos.md` pra contrato detalhado.
+> Eventos que outros módulos podem consumir. Ver `docs/comum/integracoes-inter-modulos.md` pra contrato detalhado, padrão de nomenclatura e envelope obrigatório.
+
+**Nomenclatura obrigatória (v8):** `[Dominio].[VerboParticipio]` PascalCase (ex: `OS.Aberta`, `Calibracao.Aprovada`, `BillingSaas.FaturaPaga`). Forma estendida `[Dominio].[Agregado].[VerboParticipio]` SÓ quando o domínio tem múltiplos agregados ambíguos.
+
+**Envelope obrigatório:** todo evento DEVE carregar `event_id` (UUID), `_schema_version` (`v1`), `tenant_id` (UUID), `occurred_at` (ISO 8601). Bus rejeita publish incompleto.
 
 | Evento | Quando dispara | Payload | Quem consome (módulos) |
 |---|---|---|---|
-| `[ModuloA].[EventoX]` | [condição] | `{...}` | [módulo Y, módulo Z] |
+| `[Dominio].[EventoX]` | [condição] | `{event_id, tenant_id, occurred_at, _schema_version, ...campos do evento}` | [módulo Y, módulo Z] |
 
 ---
 

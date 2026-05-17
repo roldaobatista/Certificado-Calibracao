@@ -23,6 +23,9 @@ dominio: operacao
 | Reincidência por cliente | Clientes com ≥ 3 garantias em 6 meses (procedentes e improcedentes) | sinal de fraude / mau uso | Agrupamento por cliente | mensal |
 | Ressarcimento de fornecedor | Valor recuperado ÷ valor enviado em peças-fornecedor | ≥ 70% | Soma de ressarcimentos ÷ NF de remessa | mensal |
 | Cobrança bloqueada indevidamente | Casos de desbloqueio manual aprovado | ≤ 5% das OS em garantia | Audit log de desbloqueio | mensal |
+| Aderência da apuração de custo de garantia | Diferença % entre custo apurado pelo sistema (lançamentos CUSTO_GARANTIA) e revisão manual amostral feita pelo Auditor 2 (Qualidade). **Fórmula:** `abs(custo_sistema - custo_revisao) ÷ custo_revisao por OS amostrada`. **N-mínimo:** 10 OS-filha amostradas/mês, **critério de amostra:** OS-filha com `custo_garantia ≥ R$ 500`. **Responsável:** Auditor 2 Qualidade. | divergência média < 5% | Amostragem mensal documentada em planilha de auditoria; resultado registrado em `garantia.auditoria.apuracao` | mensal | painel-do-dono + Auditor 2 |
+| Turnaround time (entrada → parecer final) | Dias úteis entre abertura da OS-filha de garantia e parecer final assinado (procedente/improcedente) | mediana ≤ 7 dias úteis | Diff entre `OSFilha.criada_em` e `Garantia.PareceFinal.assinado_em` | semanal |
+| Appeal rate (contestação do parecer) | % pareceres finais contestados pelo cliente (recurso/reanálise) ÷ total pareceres | ≤ 10% | Eventos `Garantia.ReanaliseSolicitada` ÷ `Garantia.PareceFinal.emitido` | mensal |
 
 ---
 

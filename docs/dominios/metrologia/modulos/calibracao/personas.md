@@ -12,10 +12,14 @@ relacionados:
 # Personas do módulo Calibração
 
 > Personas específicas. Transversais ficam em `../../personas.md` (domínio) + `docs/comum/personas.md`.
+>
+> **Promovidas em 2026-05-17 pro domínio metrologia (`../../personas.md`):** Metrologista executor (P-METR-01) + Responsável Técnico signatário (P-METR-02). As entradas abaixo (Persona 1 e Persona 2) permanecem como **detalhamento específico da execução de calibração** — visão canônica vive no domínio.
 
 ---
 
 ## Persona 1: Metrologista executor
+
+> **Canônica:** `../../personas.md` P-METR-01. Abaixo, o recorte do que esta persona faz **especificamente** durante a execução da calibração.
 
 **Identidade:** Técnico/tecnólogo metrologia ou física, 25-50 anos, formação técnica média/superior, opera o instrumento padrão, faz as leituras, alimenta o sistema. Pode ou não ser signatário (geralmente é o de menor senioridade).
 
@@ -42,6 +46,8 @@ relacionados:
 ---
 
 ## Persona 2: Responsável Técnico signatário (RT)
+
+> **Canônica:** `../../personas.md` P-METR-02. Abaixo, o recorte do que o RT faz **especificamente** na revisão de calibração.
 
 **Identidade:** Metrologista sênior, formação técnica/superior, registro CRQ/CREA quando aplicável, dono do A3, autorizado pela CGCRE como signatário no escopo do laboratório.
 

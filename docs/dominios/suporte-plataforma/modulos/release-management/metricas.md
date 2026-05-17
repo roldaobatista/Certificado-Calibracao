@@ -25,6 +25,10 @@ relacionados:
 | Tempo médio entre releases | dias entre publicações | < 14 dias (cadência saudável) | tracking | mensal |
 | % releases com release notes completas | adicionado/modificado/corrigido preenchidos | 100% | validação | por release |
 | Migrações com rollback testado | % migrações destrutivas com plano validado | 100% | review pré-execução | por migração |
+| Deployment frequency (DORA) | Quantidade de releases publicadas em produção por unidade de tempo. **Benchmark DORA:** Elite ≥ múltiplos/dia, High = 1/dia a 1/semana, Medium = 1/semana a 1/mês, Low > 1/mês. | Medium na Foundation; High após estabilização (alvo de longo prazo) | count(`Release.publicada_em_producao`) ÷ período | semanal/mensal |
+| Lead time for changes (DORA) | Tempo entre commit aceito na branch principal e código rodando em produção. **Benchmark DORA:** Elite < 1h, High < 1 dia, Medium < 1 semana. | Medium na Foundation; High no estado estável | Diff `Commit.merged_em_main` → `Deploy.aplicado_em_producao` para o mesmo commit | semanal |
+| Hotfix rate (DORA — proxy de Change Failure Rate) | % releases marcadas como `tipo=hotfix` ou que precisaram de patch corretivo em ≤48h após publicação. **Benchmark DORA CFR:** Elite ≤ 5%, High ≤ 10%, Medium ≤ 15%. | ≤ 10% | count(`Release.tipo=hotfix` OR `Release.patch_em_48h=true`) ÷ count(`Release.publicada`) | mensal |
+| Cleanup de flags ≥ 90% (já no PRD) | Reforço aqui pra rastreabilidade: ver linha "Cleanup de flags" acima — métrica é a mesma. | ≥ 90% | data_criacao vs data_remocao | trimestral |
 
 ---
 

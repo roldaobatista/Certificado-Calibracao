@@ -45,7 +45,14 @@ Cada categoria de dado tem:
 | **Sessão de usuário (login token)** | 24h-30 dias | 30 dias | Execução + segurança | Redis | Eliminação automática (TTL) |
 | **Senha de usuário (hash)** | Vigência conta | Vigência | Execução | PG | Eliminação imediata na exclusão da conta |
 | **Comunicação com ANPD / órgão regulador** | 5 anos | 10 anos | Obrigação regulatória | B2 WORM | Manter (referência futura) |
-| **Contrato assinado entre Aferê e tenant (DPA, ToS, addendum)** | 5 anos após término | 10 anos | Direito civil + boas práticas | B2 WORM | Manter |
+| **Contrato assinado entre Aferê e tenant (DPA, ToS, addendum)** | 5 anos após término + 5 anos | 10 anos | Direito civil + boas práticas | B2 WORM | Manter |
+| **ASO (Atestado de Saúde Ocupacional)** | **20 anos pós-vínculo** | 20 anos | **NR-7 item 7.4.5.1 (vence LGPD direito esquecimento)** + CLT art. 168 | PG (vínculo ativo) → B2 WORM cifrado por chave KMS do tenant | Anonimização (CPF → hash; nome → "Colaborador anonimizado #N") preservando aptidão+validade+médico para auditoria MTE histórica |
+| **Foto com GPS/EXIF do App Técnico** | 5 anos | 5 anos | Execução contrato + ISO 17025 7.7 (rastreabilidade) + audit | PG (90 dias quente) → B2 cifrado | Anonimização: face borrada + EXIF removido; foto-anônima preservada 25 anos se compõe evidência ISO 17025 |
+| **Assinatura touch de aceite + CPF (App Técnico)** | 5 anos | 5 anos | Execução contrato (prova de aceite) | B2 WORM | Anonimização CPF (hash) + traçado preservado por 25 anos se compõe evidência ISO 17025 |
+| **Trilha GPS contínua do técnico (deslocamento + jornada)** | 5 anos | 5 anos | Legítimo interesse (RAT-13) + obrigação trabalhista (jornada) | PG (90 dias) → B2 frio | Crypto-shredding |
+| **Cobrança recorrente Billing SaaS (token gateway, bandeira, últimos 4)** | Vigência + 30 dias | 5 anos para fatura | Execução contrato + obrigação fiscal | PG (token) + B2 (fatura) | Token: revogado no gateway + descartado; fatura: anonimização + crypto-shredding |
+| **Histórico de consentimento Comunicação Omnichannel (opt-in/opt-out)** | Opt-out + 6 meses (prova) | 5 anos | Cumprimento LGPD art. 8º (prova de consentimento) | B2 WORM | Anonimização (telefone/e-mail → hash) preservando registro de revogação |
+| **Sessão de Suporte SaaS (acesso remoto)** | 5 anos | 10 anos | Audit reforçado (INV-001) + defesa em incidente | B2 WORM (chave KMS separada — atendente Aferê não tem chave) | Manter (audit forense) |
 
 ---
 
@@ -56,10 +63,16 @@ Cada categoria de dado tem:
 - ISO 17025: ~25 anos
 - LGPD direito ao esquecimento: titular pode pedir
 
-**Resolução:**
+**Resolução (regra explícita para módulo Calibração):**
 - **Manter certificado** (cumprimento de obrigação regulatória — base legal LGPD art. 7º II)
-- **Anonimizar PII do signatário** após 5 anos: substituir CPF por hash + manter nome + competência técnica
-- Documentar a substituição em audit trail
+- **PII do signatário anonimizada após 5 anos**, dados técnicos preservados por ~25 anos:
+  - CPF do signatário → hash irreversível
+  - Nome do signatário → preservado (competência técnica é parte do certificado)
+  - Cargo/competência → preservado
+  - PII do cliente/signatário do tomador → substituir CPF por hash + manter razão social/nome para rastreabilidade ISO
+  - **Dados técnicos da calibração (medições, incertezas, padrões usados, datas, condições ambientais)** → preservados 25 anos sem anonimização
+- Documentar a substituição em audit trail WORM (`INV-001`) com hash do estado anterior + hash do estado anonimizado
+- **Drill DRILL-RET-07** (a adicionar): em 2031, certificado de 2026 deve ter PII anonimizada + dados técnicos lidos sem perda
 
 ### Cenário B: Cliente final do tenant pede exclusão (LGPD art. 18)
 - Tenant é controlador; Aferê é operador
@@ -72,6 +85,28 @@ Cada categoria de dado tem:
 4. **Manter referências fiscais** (NF-e emitida em nome dele permanece — base legal "obrigação fiscal")
 5. **Manter certificados de calibração** em nome dele (base legal ISO 17025)
 6. **Log da exclusão** em WORM: hash do request + timestamp + tenant que aprovou
+
+### Cenário D: Colaborador demitido pede exclusão do ASO (NR-7 × LGPD direito esquecimento)
+- LGPD art. 18 VI: titular pode pedir exclusão.
+- NR-7 item 7.4.5.1: empregador deve guardar **20 anos pós-vínculo**.
+- Conflito: norma trabalhista vence LGPD (base art. 11 II "a" obrigação legal).
+
+**Resolução:**
+1. Comunicar ao titular o prazo legal (20 anos) e a recusa fundamentada na NR-7 (transparência LGPD art. 9º).
+2. Restringir acesso ao ASO: somente perfis "RH" + "gerente SST" + "auditor read-only" + médico do trabalho continuam vendo; demais perfis perdem acesso imediato.
+3. Após o prazo NR-7 (20 anos pós-vínculo): anonimização (CPF → hash, nome → "Colaborador anonimizado #N") preservando: aptidão (apto/inapto/restrição), validade, médico examinador (CRM), data — necessários para auditoria MTE histórica.
+4. Registrar pedido + resposta + prazo em audit WORM.
+
+### Cenário E: Cliente final do tenant pede exclusão de foto com sua face (App Técnico)
+- Foto capturada com EXIF + GPS durante OS no estabelecimento dele.
+- ISO 17025 cláusula 7.7 pode exigir foto como evidência.
+
+**Resolução:**
+1. Avaliar se a foto compõe evidência ISO 17025/9001 da OS específica.
+2. **Se compõe evidência:** anonimizar in-place — face borrada + EXIF removido + assinatura preservada como evidência; manter por 25 anos.
+3. **Se NÃO compõe evidência (foto opcional/avaria/lembrete):** eliminação total imediata.
+4. Comunicar ao titular a decisão + base legal.
+5. Registrar em audit WORM.
 
 ### Cenário C: Tenant cancela contrato com Aferê
 1. **30 dias de retenção quente** pra reativação (suspensão, não exclusão)
@@ -110,6 +145,10 @@ Cada categoria de dado tem:
 | DRILL-RET-04 | Tenant cancela em janeiro; em fevereiro tenta restaurar | Restore total ok |
 | DRILL-RET-05 | Tenant cancelou 6 meses atrás; ANPD pede dado fiscal | NF-e acessível; PII anonimizada |
 | DRILL-RET-06 | Crypto-shredding executado; pasta de backup ainda visível | Conteúdo criptografado ilegível ✓ |
+| DRILL-RET-07 | Certificado calibração 2026 lido em 2031 com PII signatário anonimizada | CPF signatário = hash; nome preservado; dados técnicos completos |
+| DRILL-RET-08 | Colaborador demitido em 2026 pede exclusão ASO em 2027 | Recusa fundamentada NR-7 + acesso restrito imediato + anonimização agendada para 2046 |
+| DRILL-RET-09 | ASO de 2026 em 2046 (20 anos pós-vínculo) | CPF anonimizado, validade+aptidão preservados, médico CRM legível |
+| DRILL-RET-10 | Cliente pede exclusão foto facial 2026 que compõe evidência ISO 17025 | Face borrada + EXIF removido in-place, audit registra ✓ |
 
 ---
 

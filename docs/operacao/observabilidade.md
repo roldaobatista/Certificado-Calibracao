@@ -28,7 +28,9 @@ status: draft
 | Módulo | SLO disponibilidade | Latência p99 | Erro 5xx |
 |--------|---------------------|--------------|----------|
 | **Financeiro** (NFS-e, cobrança) | **99.95%** | < 2s | < 0.1% |
+| **Billing SaaS** (assinatura/cobrança do próprio Aferê) | **99.95%** | < 2s | < 0.1% |
 | **Calibração** (emissão certificado, cálculo incerteza) | **99.9%** | < 5s | < 0.1% |
+| **Precificação** (motor de preço — bloqueia orçamento) | **99.9%** | < 500ms | < 0.2% |
 | **CRM** (cadastros, agenda) | **99.5%** | < 1s | < 0.5% |
 | **Mobile** (técnico de campo, offline-first) | **99% (sync)** | offline ok | < 1% (sync) |
 | **WhatsApp BSP** (lembretes) | **99% (entrega)** | < 30s | < 2% |

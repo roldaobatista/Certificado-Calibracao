@@ -57,7 +57,7 @@ relacionados:
 { "mfa_challenge_id": "uuid", "expira_em": "ISO8601" }
 ```
 **Códigos:** 200, 400, 401 (genérico — `SEC-001`), 429 (rate-limit — `SEC-002`).
-**Invariantes:** `INV-001`, `INV-002`, `SEC-001`, `SEC-002`.
+**Invariantes:** `INV-001`, `SEC-LOG-001`, `SEC-001`, `SEC-002`.
 **US:** `US-ACS-001`.
 **Rate-limit:** 5 tentativas / 15min / IP / email (combinado).
 **Eventos:** `acs.login.sucesso` ou `acs.login.falha` ou `acs.login.bloqueado`.
@@ -77,7 +77,7 @@ relacionados:
 { "sessao_id": "uuid", "token": "...", "expira_em": "ISO8601" }
 ```
 **Códigos:** 200, 400, 401 (após 3 falhas — invalida challenge), 410 (challenge expirado).
-**Invariantes:** `INV-003`, `SEC-001`, `SEC-002`.
+**Invariantes:** `SEC-MFA-001`, `INV-009`, `SEC-001`, `SEC-002`.
 **US:** `US-ACS-002`.
 
 ---
@@ -167,7 +167,7 @@ relacionados:
 ### `DELETE /v1/acs/me/mfa`
 
 **Propósito:** desativar MFA (só permitido se perfil não exige).
-**Resposta 204** ou 403 (perfil exige MFA — `INV-003`).
+**Resposta 204** ou 403 (perfil exige MFA — `SEC-MFA-001`).
 
 ---
 

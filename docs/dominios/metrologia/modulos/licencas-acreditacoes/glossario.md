@@ -25,9 +25,9 @@ relacionados:
 | Certificado digital A1 | Certificado digital instalado em arquivo (software), validade tipicamente 1 ano | "cert A1" | Permite assinatura digital sem token físico | ICP-Brasil |
 | Certificado digital A3 | Certificado digital em token/cartão físico, validade tipicamente 1-3 anos | "cert A3", "e-CNPJ A3" | Assinatura exige token conectado | ICP-Brasil + ADR-0009 |
 | AC emissora | Autoridade Certificadora que emitiu o certificado digital | "CA" | Identifica quem emitiu (Serasa, Certisign, etc.) | ICP-Brasil |
-| Documento bloqueante | Documento que, quando vencido, impede operação dependente (ex: certificado RBC sem acreditação CGCRE) | "doc crítico" | Sistema vai travar se vencer | INV-LIC-001 |
-| Modo emergencial | Liberação excepcional de operação com documento vencido, com assinatura A3 do admin e registro auditável | "bypass" (proibido na UI) | Operação executada sob justificativa formal | INV-LIC-002 |
-| Renovação | Nova revisão do mesmo documento com nova data de validade | "atualização" | Documento foi prorrogado/recadastrado | INV-022 |
+| Documento bloqueante | Documento que, quando vencido, impede operação dependente (ex: certificado RBC sem acreditação CGCRE) | "doc crítico" | Sistema vai travar se vencer | INV-032 |
+| Modo emergencial | Liberação excepcional de operação com documento vencido, com assinatura A3 do admin e registro auditável | "bypass" (proibido na UI) | Operação executada sob justificativa formal | INV-033 |
+| Renovação | Nova revisão do mesmo documento com nova data de validade | "atualização" | Documento foi prorrogado/recadastrado | INV-001 |
 | Vigência | Período entre data emissão e data validade no qual documento tem efeito legal | "validade" (ambíguo) | Documento aceito juridicamente | — |
 | Janela de alerta | Conjunto de dias antes do vencimento em que o sistema dispara aviso (90/60/30/15/7) | — | Sistema vai mandar e-mail | — |
 

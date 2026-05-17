@@ -74,7 +74,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 
 **Non-goals:** versão contábil oficial.
 
-**Invariantes:** `INV-MULTI-TENANT-001`, `INV-RFN-001` (números sempre rastreáveis a lançamentos).
+**Invariantes:** `INV-TENANT-001`, `INV-031` (números sempre rastreáveis a lançamentos via drill-down).
 
 **Dependências:** Bloqueado por: `contas-receber/`, `contas-pagar/`, `despesas/`, `custeio-real/`.
 
@@ -175,7 +175,7 @@ Ver `metricas.md`. Resumo:
 
 - **Performance:** consultas pré-agregadas em materialized view; DRE mensal < 2 s p95; aging < 1 s; fluxo projetado 90 dias < 3 s.
 - **Disponibilidade:** SLO do domínio financeiro.
-- **Segurança:** somente leitura; RBAC restrito por papel; `SEC-LGPD-005` (export anonimizado conforme papel); `INV-MULTI-TENANT-001` em toda query.
+- **Segurança:** somente leitura; RBAC restrito por papel; `SEC-LGPD-005` (export anonimizado conforme papel); `INV-TENANT-001` em toda query.
 - **Acessibilidade:** WCAG AA; tabelas com cabeçalho; gráficos com tabela equivalente.
 
 ## 9. Glossário

@@ -71,8 +71,8 @@ relacionados:
 **Formato:** ZIP contendo: DRE (PDF + XLSX), fluxo realizado (XLSX), aging (XLSX), conciliações do mês (PDF), planilha de receitas/despesas por categoria (XLSX).
 **Regulado?:** não substitui SPED; complementa.
 **Assinatura digital:** opcional (assinatura A3 do responsável, ver ADR-0009).
-**Imutabilidade pós-envio:** sim — versão enviada fica registrada em trilha WORM (`INV-WORM-001`).
-**Retenção:** 8 anos (alinhado a maior obrigação fiscal local).
+**Imutabilidade pós-envio:** sim — versão enviada fica registrada em trilha WORM (`INV-001`).
+**Retenção:** 5 anos + 90 dias (alinhado à matriz `docs/conformidade/comum/retencao-matriz.md` — base Receita CTN art. 173).
 
 ---
 
@@ -83,8 +83,8 @@ relacionados:
 **Regulado?:** parcial — usado em auditoria.
 **Campos obrigatórios:** conta bancária, período, hash do extrato original, totais conciliados, divergências resolvidas com motivo + autor + timestamp.
 **Assinatura digital:** opcional A3 do responsável.
-**Imutabilidade:** sim — `INV-RFN-002`.
-**Retenção:** 8 anos.
+**Imutabilidade:** sim — `INV-001` (audit WORM).
+**Retenção:** 5 anos + 90 dias (alinhado à matriz `docs/conformidade/comum/retencao-matriz.md`).
 
 ---
 

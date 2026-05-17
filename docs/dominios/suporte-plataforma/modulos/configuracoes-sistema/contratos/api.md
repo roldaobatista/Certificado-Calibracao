@@ -38,21 +38,21 @@ audiencia: agente
 **Request:** subset de campos.
 **Response 200:** dados atualizados.
 **Eventos:** `Config.EmpresaAtualizada`, `Config.MudancaSensivelRegistrada`.
-**Invariantes:** `INV-CFG-006`.
+**Invariantes:** `INV-036`.
 
 ---
 
 ### `GET /v1/config/filiais` / `POST` / `PATCH /{id}` / `DELETE /{id}`
 
 **Propósito:** CRUD de filiais.
-**Invariantes:** `INV-CFG-007` (exatamente 1 matriz).
+**Invariantes:** `INV-037` (exatamente 1 matriz).
 
 ---
 
 ### `GET /v1/config/series` / `POST` / `PATCH /{id}`
 
 **Propósito:** CRUD de séries de documento.
-**Invariantes:** `INV-CFG-001` (proximo_numero só cresce — `PATCH` que diminui retorna 422).
+**Invariantes:** `INV-028` (proximo_numero só cresce — `PATCH` que diminui retorna 422).
 **US:** `US-CFG-002`.
 
 ---
@@ -60,7 +60,7 @@ audiencia: agente
 ### `GET /v1/config/impostos` / `POST` / `PATCH /{id}` (com vigência)
 
 **Propósito:** gestão de alíquotas/CFOP/NCM padrão.
-**Invariantes:** `INV-CFG-002` (imutabilidade pós-uso — `PATCH` que afetaria documento emitido retorna 409).
+**Invariantes:** `INV-026` (imutabilidade pós-uso — `PATCH` que afetaria documento emitido retorna 409; versionamento de catálogo).
 **US:** `US-CFG-003`.
 
 ---
@@ -68,7 +68,7 @@ audiencia: agente
 ### `GET /v1/config/papeis` / `POST` / `PATCH /{id}` / `DELETE /{id}`
 
 **Propósito:** gestão de papéis (RBAC).
-**Invariantes:** `INV-CFG-003`, `SEC-002`.
+**Invariantes:** `INV-029`, `SEC-LEAST-PRIV-001`.
 **US:** `US-CFG-004`.
 **Eventos:** `Config.PapelAtualizado` (invalida cache RBAC).
 
@@ -91,7 +91,7 @@ audiencia: agente
 ### `GET /v1/config/status?entidade=chamado` / `POST` / `PATCH /{id}` / `POST /{id}/deprecar`
 
 **Propósito:** gestão de status personalizados.
-**Invariantes:** `INV-CFG-008` (não excluir se em uso; apenas deprecar).
+**Invariantes:** `INV-038` (não excluir se em uso; apenas deprecar).
 
 ---
 
@@ -105,7 +105,7 @@ audiencia: agente
 ### `GET /v1/config/modelos-pdf` / `POST` / `PATCH /{id}` / `POST /{id}/ativar`
 
 **Propósito:** gerir modelos de PDF.
-**Invariantes:** `INV-CFG-004` (documentos antigos não regerados).
+**Invariantes:** `INV-001` (WORM — documentos antigos não regerados; template usado faz parte do snapshot).
 **US:** `US-CFG-007`.
 
 ---
@@ -169,7 +169,7 @@ audiencia: agente
 ### `GET /v1/config/retencao` / `PUT`
 
 **Propósito:** retenção por entidade.
-**Invariantes:** `INV-CFG-009` (não abaixo do mínimo legal).
+**Invariantes:** `INV-039` (não abaixo do mínimo legal).
 **US:** `US-CFG-013`.
 **Eventos:** `Config.RetencaoAjustada`.
 
@@ -178,7 +178,7 @@ audiencia: agente
 ### `GET /v1/config/features` / `PUT /{codigo}`
 
 **Propósito:** ligar/desligar features liberadas pro plano.
-**Invariantes:** `INV-CFG-005`, ADR-0006.
+**Invariantes:** `INV-030`, ADR-0006.
 **US:** `US-CFG-014`.
 **Eventos:** `Config.FeatureLigada`.
 

@@ -9,53 +9,74 @@ audiencia: dono
 
 # Métricas — Módulo Suporte SaaS
 
----
-
-## KPIs de negócio
-
-| Métrica | Definição | Target | Como medir | Frequência |
-|---|---|---|---|---|
-| Taxa de deflexão | % consultas resolvidas via BC sem abrir ticket | > 40% | eventos "resolveu via artigo" / consultas totais | semanal |
-| Cumprimento de SLA | % tickets resolvidos dentro do SLA do plano | > 95% | resolved_em ≤ deadline | semanal |
-| CSAT | Avaliação pós-ticket (1-5) | > 4.5 | pesquisa pós-fechamento | mensal |
-| Tempo médio de primeira resposta | minutos do abertura à primeira resposta humana/IA | < 30min P3, < 4h P1 (plano Pro) | observabilidade | diário |
-| Tempo médio de resolução | abertura → resolução | varia por categoria/plano | observabilidade | semanal |
-| Tickets por tenant ativo | total/mês | < 3/tenant — indicador de qualidade do produto | query | mensal |
-| Reincidência de bug | mesmo bug reportado por > 1 tenant | < 5 reincidências/mês | agrupamento por tag | semanal |
-| Engajamento de roadmap | % usuários que votaram em ao menos 1 item/trimestre | > 20% | tracking de voto | trimestral |
-| Aceitação de manutenção | % tenants que não reclamam após aviso adequado | > 95% | tickets pós-manutenção / total tenants | por janela |
+> **Regra de ouro (auditor 7):** SLI/SLO violado → **page oncall**. KPIs de community/satisfação (engajamento roadmap, CSAT, deflexão) → **painel-do-dono / e-mail Roldão**, NUNCA page.
 
 ---
 
-## SLI/SLO técnico
+## SLI / SLO Operacional (observabilidade técnica)
 
-| SLI | SLO | Erro orçamento (mensal) |
+SLO de referência: domínio **CRM** em `docs/operacao/observabilidade.md` — mas portal de suporte é caminho crítico para tenants pagantes, então elevado para **99.9%** (alinhado com Financeiro).
+
+| SLI | SLO | Erro orçamento (mensal) | Origem |
+|---|---|---|---|
+| Disponibilidade do portal de suporte | 99.9% | 43min/mês | OTel |
+| Latência abertura de ticket p95 | < 1s | — | OTel |
+| Latência busca BC p95 | < 500ms | — | OTel |
+| Latência resposta IA chat p95 | < 3s | — | OTel + LiteLLM |
+| Taxa de erro em criação de ticket | < 0.1% | — | OTel |
+
+**Política de alerta SLI/SLO:** viola → **page oncall** + Slack `#oncall`.
+
+| Alerta operacional | Quando dispara | Quem é notificado | Severidade |
+|---|---|---|---|
+| Portal indisponível (5xx > 5%) | falha API | page oncall + Roldão | P0 |
+| TPR > 2x target | degradação SLA técnico | page oncall + equipe suporte | P2 |
+| Acesso remoto > 4h sem revogação | sessão suspeita | page oncall + tenant admin + auditoria | P1 |
+| Manutenção sem aviso T-24h | violação processo | page oncall + Roldão | P1 |
+| Latência chat IA > 8s por 10min | degradação LLM | page oncall | P2 |
+
+---
+
+## KPIs de Negócio / Produto
+
+Destino: **painel-do-dono** + relatório trimestral Roldão. **NÃO acionam pager.**
+
+> **Convenção canônica de tempo** (ver `docs/comum/glossario-roldao.md`):
+> - **TPR** (Tempo Médio de Primeira Resposta) = abertura → 1ª resposta humana/IA
+> - **TMA** (Tempo Médio de Atendimento) = início efetivo → encerramento da interação
+> - **TMR** (Tempo Médio de Resolução) = abertura → fechamento final
+>
+> Neste módulo usamos TPR e TMR (escopo: ticket de suporte SaaS).
+
+| Métrica | Definição | Target | Como medir | Frequência | Destino |
+|---|---|---|---|---|---|
+| Taxa de deflexão (BC eficácia) | % consultas resolvidas via BC sem ticket | > 40% | eventos "resolveu via artigo" / consultas | semanal | painel-do-dono |
+| Cumprimento de SLA (operação suporte) | % tickets resolvidos dentro do SLA do plano | > 95% | `resolved_em ≤ deadline` | semanal | painel-do-dono |
+| CSAT (satisfação) | Avaliação pós-ticket (1-5) | > 4.5 | pesquisa pós-fechamento | mensal | painel-do-dono + relatório Roldão |
+| TPR — canônico, escopo: ticket | min abertura → 1ª resposta humana/IA | < 30min P3, < 4h P1 (Pro) | observabilidade | diário | painel-do-dono |
+| TMR — canônico, escopo: ticket | abertura → resolução final (inclui fila + execução + retorno) | varia por categoria/plano | observabilidade | semanal | painel-do-dono |
+| Tickets por tenant ativo (qualidade produto) | total/mês | < 3/tenant | query | mensal | painel-do-dono |
+| Reincidência de bug (qualidade produto) | mesmo bug reportado por > 1 tenant | < 5 reincidências/mês | agrupamento por tag | semanal | painel-do-dono + engenharia |
+| Engajamento de roadmap (community) | % usuários que votaram em ≥1 item/trim | > 20% | tracking de voto | trimestral | relatório trimestral Roldão |
+| Aceitação de manutenção (community) | % tenants sem reclamação pós-aviso | > 95% | tickets pós-manutenção / total | por janela | painel-do-dono |
+
+**Política de alerta KPI:** variação anômala → **e-mail Roldão / equipe** (NUNCA page).
+
+| Alerta KPI | Quando dispara | Destino |
 |---|---|---|
-| Disponibilidade do portal de suporte | 99.9% | 43min/mês |
-| Latência abertura de ticket p95 | < 1s | — |
-| Latência busca BC p95 | < 500ms | — |
-| Latência resposta IA chat p95 | < 3s | — |
-| Taxa de erro em criação de ticket | < 0.1% | — |
+| Backlog de tickets P1 > 10 | acumulando | e-mail equipe suporte + Roldão (não-page; vira P1 técnico se SLA viola) |
+| SLA violado em > 5% dos tickets na semana | tendência negativa | e-mail Roldão semanal (não-page) |
+| CSAT < 4.0 em janela 7 dias | queda satisfação | e-mail Roldão semanal (não-page) |
+| Engajamento roadmap < 10% trimestral | community fraca | relatório trimestral Roldão (não-page) |
+| Deflexão BC < 30% por 1 mês | BC desatualizada | e-mail Roldão + equipe BC (não-page) |
 
 ---
 
 ## Dashboards canônicos
 
-- **Grafana:** painel `suporte-saas`.
-- **Axiom:** filtro `module=suporte-saas`.
-
----
-
-## Alertas
-
-| Alerta | Quando dispara | Quem é notificado | Severidade |
-|---|---|---|---|
-| Backlog de tickets P1 > 10 | acumulando | equipe suporte + Roldão | P1 |
-| SLA violado em > 5% dos tickets na semana | tendência negativa | Roldão | P2 |
-| Tempo médio de primeira resposta > 2x target | degradação | equipe suporte | P2 |
-| Acesso remoto > 4h sem revogação | sessão suspeita | tenant admin + auditoria | P1 |
-| CSAT < 4.0 em janela de 7 dias | queda satisfação | Roldão | P2 |
-| Manutenção sem aviso T-24h | violação processo | Roldão | P1 |
+- **Grafana SLI/SLO:** painel `suporte-saas` operacional — destino oncall
+- **Painel-do-dono KPIs:** "Suporte — CSAT, deflexão, engajamento" — destino Roldão
+- **Axiom:** filtro `module=suporte-saas`
 
 ---
 

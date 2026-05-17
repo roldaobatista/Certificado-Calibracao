@@ -22,12 +22,12 @@ relacionados:
 ### ProjetoTecnico
 - **Atributos obrigatórios:** `id`, `tenant_id`, `codigo`, `titulo`, `descricao`, `cliente_id` (FK comum), `status` (rascunho|em_aprovacao|aprovado|obsoleto), `revisao_corrente_id`, `criado_em`, `criado_por`.
 - **Atributos opcionais:** `tags`, `categoria` (automação|pesagem|calibração|manutenção|outro), `equipamento_id_principal`.
-- **Invariantes:** `INV-TENANT-NNN`; código único por tenant.
+- **Invariantes:** `INV-TENANT-001`; constraint `UNIQUE (tenant_id, codigo)` (código único por tenant).
 - **Ciclo de vida:** criado em rascunho → submetido → aprovado → pode virar obsoleto (não deletado).
 
 ### Revisao
 - **Atributos:** `id`, `projeto_tecnico_id`, `letra` (A, B, C…), `status` (rascunho|em_aprovacao|aprovada|rejeitada|obsoleta), `motivo_revisao`, `criada_em`, `criada_por`, `aprovada_em`, `aprovador_id`, `assinatura_id` (FK pra registro de assinatura).
-- **Imutabilidade:** revisão aprovada é IMUTÁVEL (`INV-NNN`). Edição cria revisão nova.
+- **Imutabilidade:** revisão aprovada é IMUTÁVEL (`INV-001` — trilha WORM). Edição cria revisão nova.
 
 ### Desenho
 - **Atributos:** `id`, `revisao_id`, `tipo` (desenho|diagrama_eletrico|esquema_ligacao|outro), `titulo`, `arquivo_original_id` (FK Anexo), `arquivo_pdf_id` (FK Anexo opcional), `pagina_referencia`.

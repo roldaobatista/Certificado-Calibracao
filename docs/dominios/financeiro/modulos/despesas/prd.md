@@ -10,6 +10,9 @@ relacionados:
   - docs/dominios/financeiro/README.md
   - docs/dominios/financeiro/modulos/caixa-tecnico/prd.md
   - docs/dominios/financeiro/modulos/contas-pagar/prd.md
+  - docs/conformidade/comum/lgpd-rat.md#RAT-02
+  - docs/conformidade/comum/lgpd-rat.md#RAT-05
+  - docs/conformidade/comum/retencao-matriz.md
 ---
 
 # PRD — Módulo Despesas
@@ -69,7 +72,11 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 **Non-goals desta story:**
 - OCR automático do comprovante.
 
-**Invariantes:** `INV-MULTI-TENANT-001`, `INV-WORM-001` (trilha imutável do comprovante).
+**Invariantes:** `INV-TENANT-001`, `INV-001` (trilha WORM imutável do comprovante), `INV-044` (comprovante obrigatório para enviar pra aprovação).
+
+- **AC-DSP-001-4 (LGPD)**: Tratamento atende base **Execução de contrato (art. 7º V)** para colaborador + **Obrigação fiscal (art. 7º II)** para guarda do comprovante (RAT-02 + RAT-05). Comprovante pode conter CPF/dados de terceiros (estabelecimento, motorista, garçom) — Aferê é controlador para o colaborador e operador para o terceiro (base do tenant).
+- **AC-DSP-001-5 (Retenção)**: Despesa + comprovante conforme `retencao-matriz.md` linhas "NF-e / NFS-e emitida" e "Audit trail (ações em paths sensíveis: financeiro)" (5 anos fiscal); após prazo: anonimização CPF do colaborador (`SEC-LGPD-003` ver NFR §8) + crypto-shredding.
+- **AC-DSP-001-6 (Minimização)**: Sistema NÃO faz OCR/extração estruturada de dados de terceiros do comprovante; arquivo é armazenado como evidência, não processado para extrair PII.
 
 **Dependências:** Bloqueado por: ADR-0001 (stack), ADR-0002 (multi-tenant), módulo Storage.
 
@@ -84,7 +91,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-DSP-002-2**: GIVEN valor acima da alçada, WHEN gestor abre, THEN sistema escalona para próximo nível e bloqueia ação dele.
 - **AC-DSP-002-3**: GIVEN rejeição, WHEN gestor confirma com motivo obrigatório, THEN despesa muda para `rejeitada` e colaborador é notificado.
 
-**Invariantes:** `INV-AUDIT-001`.
+**Invariantes:** `INV-001` (trilha WORM em aprovações/rejeições), `INV-045` (transição via máquina de estados).
 
 **Dependências:** Bloqueia: US-DSP-003.
 

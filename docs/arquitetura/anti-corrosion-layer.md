@@ -1,7 +1,7 @@
-# Anti-corrosion layer — 9 portas/adapters
+# Anti-corrosion layer — 11 portas/adapters
 
 > **Origem:** Parecer 9 da 2ª auditoria de 10 agentes (17/05/2026) — "agentes IA nunca importam direto dependências jovens/bus-factor-1; sempre via porta/adapter, pra trocar implementação em 1 sprint em vez de 6 meses".
-> **Status:** v1 (17/05/2026, noite final). Documento vivo — toda nova integração externa precisa virar porta antes de ser usada.
+> **Status:** v2 (17/05/2026, noite — auditoria 12 agentes achado C6 aplicado: +OmniChannelProvider, +PaymentGatewayProvider). Documento vivo — toda nova integração externa precisa virar porta antes de ser usada.
 > **Dependência:** ADR-0001 v2 (stack Django + Flutter + PostgreSQL).
 
 ---
@@ -30,7 +30,7 @@ Sem porta/adapter, trocar qualquer um deles vira reescrita de 6-12 meses. Com po
 
 ---
 
-## As 9 portas
+## As 11 portas
 
 ### 1. `FiscalProvider` (porta fiscal — NFS-e, NF-e, CFDI, AFIP)
 
@@ -298,6 +298,144 @@ class MultiTenantDiscriminator(Protocol):
 
 ---
 
+### 10. `OmniChannelProvider` (porta omnichannel — WhatsApp, Email, SMS, Web Chat)
+
+**Por que existe:** Auditoria 12 agentes achado C6 (17/05/2026). Módulo `comunicacao-omnichannel` integra com WhatsApp BSP (Meta/Twilio), SMTP, SMS gateway. Sem porta, trocar de BSP (Twilio → 360dialog, ou perder Cloud API oficial Meta) vira reescrita do módulo inteiro. Custo $/mensagem por canal muda com volume — precisa poder rotear.
+
+**Interface (Python):**
+```python
+class OmniChannelProvider(Protocol):
+    def enviar_mensagem(
+        self,
+        canal: ChannelType,              # whatsapp_business | email_smtp | sms | web_chat
+        destinatario: ContactAddress,    # phone E.164 | email | handle
+        template: TemplateId,            # template aprovado quando canal exige (WhatsApp)
+        variaveis: dict[str, str],
+        tenant_id: TenantId,
+        idempotency_key: str,
+    ) -> SendResult: ...
+
+    def receber_webhook(
+        self,
+        canal: ChannelType,
+        payload: UntrustedInput[dict],   # assinado/HMAC validado antes
+        tenant_id: TenantId,
+    ) -> InboundMessage: ...
+
+    def consultar_status(self, message_id: ExternalMessageId, canal: ChannelType) -> MessageStatus: ...
+
+    def validar_template(self, canal: ChannelType, template: TemplateDraft) -> TemplateValidation: ...
+```
+
+**Canais suportados:**
+- `whatsapp_business` — exige template aprovado pela Meta pra mensagens fora da janela 24h
+- `email_smtp` — SMTP genérico (SES, SendGrid, Postmark, SMTP próprio)
+- `sms` — gateway SMS (Twilio, AWS SNS, Zenvia BR)
+- `web_chat` — chat embedded no portal do tenant (websocket interno, mas mesma interface)
+
+**Implementações:**
+- `WhatsAppCloudApiProvider` — Meta Cloud API direto (1ª implementação MVP, custo Meta direto, sem BSP markup)
+- `TwilioWhatsAppProvider` — fallback BSP (Twilio) se Meta limitar acesso direto
+- `SmtpGenericProvider` — SMTP padrão (AWS SES 1ª escolha BR)
+- `TwilioSmsProvider` / `AwsSnsSmsProvider` — SMS (escolha por país; AWS SNS mais barato BR)
+- `WebChatInternalProvider` — chat interno, websocket Django Channels
+- `MockOmniChannelProvider` — testes (responde determinístico por hash)
+
+**Eventos emitidos (consumidos por `Comunicacao.*`):**
+- `Mensagem.Enviada` — mensagem aceita pelo provider
+- `Mensagem.Entregue` — provider confirmou entrega (delivery receipt)
+- `Mensagem.Lida` — leitura confirmada (WhatsApp blue ticks, email pixel se habilitado)
+- `Mensagem.Recebida` — inbound (webhook do canal)
+- `Mensagem.Falhou` — erro de entrega (número inválido, opt-out provider-side, bounce, etc.)
+
+**Compliance / DPA (LGPD):**
+- ❗ Cada implementação exige **DPA assinado** com provider antes de ir pra produção (Meta/WhatsApp, Twilio, AWS SES, etc.). Sem DPA → vazamento de dado pessoal sem base legal de transferência. Lista versionada em `docs/conformidade/comum/subprocessadores.md` (a criar).
+- Opt-out global por canal respeitado: provider NÃO recebe número/email se cliente tem opt-out registrado no Aferê (validação ANTES do call).
+- Webhook inbound: HMAC validado **antes** de qualquer parsing; payload entra tipado como `UntrustedInput[dict]`.
+
+**Custo monitorado:**
+- Painel Grafana mostra **$/mensagem por canal por tenant** (WhatsApp template ~R$ 0,08, SMS ~R$ 0,05, email ~R$ 0,0001).
+- Alerta se custo de tenant subir > 50% mês a mês (sinal de abuse / loop).
+- Hard cap configurável por tenant (proteção budget).
+
+**Regras de uso pelos agentes IA:**
+- ❌ NUNCA importar `twilio.rest.Client`, `requests.post('https://graph.facebook.com/...')`, `boto3.client('sns')`, `smtplib.SMTP` direto em código de domínio
+- ✅ SEMPRE injetar `channel: OmniChannelProvider` via DI
+- ✅ Templates WhatsApp validados via `validar_template()` antes de submeter à Meta (rejeição comum por copy promocional)
+- ✅ `idempotency_key` obrigatório (regra automação pode reentregar evento → mensagem dup é grave)
+
+---
+
+### 11. `PaymentGatewayProvider` (porta pagamento — Stripe, PagSeguro, Mercado Pago)
+
+**Por que existe:** Auditoria 12 agentes achado C6 (17/05/2026). Módulo `billing-saas` cobra assinaturas via gateway externo. Sem porta, trocar gateway (Stripe sair do BR, PagSeguro mudar fee, exigir Mercado Pago pra clientes que só pagam por lá) vira reescrita do billing. PCI-DSS exige que dados de cartão **nunca passem pelo backend Aferê** — porta força tokenização correta.
+
+**Interface (Python):**
+```python
+class PaymentGatewayProvider(Protocol):
+    def criar_cobranca(
+        self,
+        valor: Money,
+        metodo: PaymentMethod,            # cartao_token | boleto | pix
+        cliente: CustomerRef,
+        tenant_id: TenantId,
+        idempotency_key: str,
+        descricao: str,
+    ) -> ChargeResult: ...
+
+    def tokenizar_cartao(
+        self,
+        dados_cartao_client_side: TokenizationRequest,  # client-side SDK retornou token; backend só repassa
+        tenant_id: TenantId,
+    ) -> CardToken: ...
+
+    def receber_webhook(
+        self,
+        payload: UntrustedInput[dict],    # assinatura HMAC validada antes
+        tenant_id: TenantId,
+    ) -> WebhookEvent: ...
+
+    def consultar_status(self, payment_id: ExternalPaymentId) -> PaymentStatus: ...
+
+    def reembolsar(
+        self,
+        payment_id: ExternalPaymentId,
+        valor: Money | None,              # None = reembolso total
+        motivo: str,
+    ) -> RefundResult: ...
+```
+
+**Implementações:**
+- `StripeProvider` — Stripe (1ª implementação MVP-1; cartão internacional + boleto BR via Stripe BR)
+- `PagSeguroProvider` / `PagBankProvider` — 2ª onda (BR, taxas competitivas pra débito BR, integração PIX nativa)
+- `MercadoPagoProvider` — 3ª onda (alta penetração BR, exigência de clientes que só pagam via MP)
+- `MockPaymentGatewayProvider` — testes (simula sucesso/falha/3DS deterministicamente)
+
+**Compliance PCI-DSS:**
+- ❗ **Dados completos de cartão (PAN, CVV) NUNCA passam pelo backend Aferê.** Tokenização é **client-side** via SDK do gateway (Stripe Elements, PagSeguro Checkout Transparente client JS) — backend recebe apenas o token opaco.
+- ❗ `MetodoPagamento` no banco guarda APENAS: `gateway`, `gateway_token`, `ultimos_4`, `bandeira`, `vencimento_mes/ano`. Nunca PAN, nunca CVV. Reforça `SEC-NNN` do `billing-saas/modelo-de-dominio.md`.
+- ❗ Reduz escopo PCI-DSS pra **SAQ-A** (e-commerce com terceirização total) em vez de SAQ-D (mais exigente).
+
+**Eventos emitidos (consumidos por `BillingSaas.*`):**
+- `Pagamento.Confirmado` — webhook confirmou pagamento
+- `Pagamento.Falhou` — recusa do emissor / saldo insuficiente / fraude detectada
+- `Pagamento.Reembolsado` — estorno total ou parcial processado
+- `Cartao.Tokenizado` — novo método de pagamento adicionado pelo tenant (auditoria)
+
+**Custo monitorado:**
+- MDR por método (cartão ~3,5%, boleto ~R$ 3,50, PIX ~0,4%) painel Grafana.
+- Alerta de **chargeback rate > 0,5%** (gatilho regulatório das bandeiras).
+
+**Regras de uso pelos agentes IA:**
+- ❌ NUNCA importar `stripe.Charge.create()` ou `pagseguro_sdk` direto em código de domínio
+- ❌ NUNCA construir form de cartão no Django template — sempre client-side SDK do gateway
+- ✅ SEMPRE injetar `payment: PaymentGatewayProvider` via DI
+- ✅ Webhook HMAC validado **antes** do parsing; `tenant_id` resolvido pelo `external_customer_id` mapeado em tabela própria
+- ✅ `idempotency_key` obrigatório (gateway pode retentar; cobrança duplicada é grave)
+- ✅ Audit trail registra: tenant, gateway usado, valor, método, status, tentativa N
+
+---
+
 ## Estrutura no código
 
 ```
@@ -318,7 +456,9 @@ src/
 │   ├── storage/
 │   ├── auth/
 │   ├── queue/
-│   └── multitenant/
+│   ├── multitenant/
+│   ├── omnichannel/           # OmniChannelProvider (WhatsApp/Email/SMS/Chat)
+│   └── payment/               # PaymentGatewayProvider (Stripe/PagSeguro/MP)
 │
 └── application/               # Casos de uso — recebem portas via DI
     ├── emitir_certificado.py
@@ -339,11 +479,16 @@ src/
    from pyhanko import sign
    from boto3 import client
    from celery import shared_task
+   from twilio.rest import Client
+   import stripe
+   import smtplib
 
    # ✅ SEMPRE
    from infrastructure.fiscal.provider import FiscalProvider
    from infrastructure.signature.provider import SignatureProvider
    from infrastructure.llm.provider import LLMGateway
+   from infrastructure.omnichannel.provider import OmniChannelProvider
+   from infrastructure.payment.provider import PaymentGatewayProvider
    ```
 
 3. **Lint custom (`ruff` rule customizada) bloqueia merge** se import direto de SDK acontecer fora de `infrastructure/`.
@@ -368,13 +513,15 @@ src/
 | AWS KMS sa-east-1 cai | Sistema para | Replica us-east-1 + drill trimestral |
 | Tenant farma exige soberania BR | Migração custosa | Wasabi BR + Maritaca já configurados |
 | TAM > 5k tenants força sharding | Reescrita inteira | Migrar `Discriminator` strategy sem mudar domain |
+| WhatsApp BSP sobe fee 5×, Meta corta Cloud API direto | Reescrita módulo comunicação | Swap implementação `OmniChannelProvider` em 1 sprint |
+| Stripe deixar BR / PagSeguro mudar regras | Reescrita billing | Plugar `PagBankProvider`/`MercadoPagoProvider` em 1 sprint |
 
 ---
 
 ## Itens a fazer
 
-- [ ] Implementar 9 portas como Protocols Python em `infrastructure/`
-- [ ] Implementar `Mock*Provider` pra todas as 9 antes da Foundation F-A começar
+- [ ] Implementar 11 portas como Protocols Python em `infrastructure/`
+- [ ] Implementar `Mock*Provider` pra todas as 11 antes da Foundation F-A começar
 - [ ] Lint custom semgrep bloqueando imports diretos
 - [ ] Smoke test trimestral configurado em GitHub Actions
 - [ ] Documentar custo de troca por porta no docstring

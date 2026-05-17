@@ -22,13 +22,13 @@ relacionados:
 
 - **Atributos obrigatórios:** `id`, `tenant_id`, `usuario_id`, `tipo` (dre|fluxo_realizado|fluxo_projetado|aging|cc|receitas|despesas|resultado_dimensao|conciliacao), `filtros_json`, `criado_em`.
 - **Atributos opcionais:** `nome`, `compartilhado_com` (lista de papéis), `agendamento_cron`.
-- **Invariantes:** `INV-MULTI-TENANT-001`.
+- **Invariantes:** `INV-TENANT-001`.
 - **Ciclo de vida:** criado quando usuário "salva esta visão"; mutável até deletado pelo dono.
 
 ### Conciliacao
 
 - **Atributos obrigatórios:** `id`, `tenant_id`, `conta_bancaria_id`, `arquivo_origem_uri`, `arquivo_hash`, `periodo_inicio`, `periodo_fim`, `status` (em_andamento|conciliada|com_divergencias), `criada_em`.
-- **Invariantes:** `INV-WORM-001` no arquivo de origem.
+- **Invariantes:** `INV-001` (trilha WORM imutável no arquivo de origem).
 
 ### LinhaConciliacao
 
@@ -61,8 +61,8 @@ relacionados:
 
 | Agregado raiz | Entidades incluídas | Invariantes |
 |---|---|---|
-| Conciliacao | Conciliacao, LinhaConciliacao | `INV-RFN-002` (linha conciliada não muda sem nova entrada de auditoria), `INV-WORM-001` |
-| RelatorioSalvo | RelatorioSalvo, AgendamentoRelatorio | `INV-MULTI-TENANT-001` |
+| Conciliacao | Conciliacao, LinhaConciliacao | `INV-001` (linha conciliada não muda sem nova entrada de auditoria — trilha WORM em audit) |
+| RelatorioSalvo | RelatorioSalvo, AgendamentoRelatorio | `INV-TENANT-001` |
 
 ---
 
@@ -125,5 +125,5 @@ classDiagram
 ## Como este modelo evolui
 
 - View nova → migration + bump CHANGELOG + plano de refresh.
-- Mudança em view → ADR se afetar drill-down (pode quebrar `INV-RFN-001`).
+- Mudança em view → ADR se afetar drill-down (pode quebrar `INV-031`).
 - Entidade nova → verificar fronteira em `governanca-modelo-comum.md`.

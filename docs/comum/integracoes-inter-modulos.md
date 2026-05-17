@@ -8,6 +8,61 @@ status: draft
 
 > **Pra quê:** módulos do Aferê (`os`, `calibracao`, `fiscal`, `financeiro`, etc.) se comunicam via eventos. Sem contrato versionado, mudança em `os` quebra `calibracao` silenciosamente.
 
+> **v8 (2026-05-17):** catálogo expandido pra cobrir os 48 módulos do PRD v7 (~150+ eventos). Padrão de nomenclatura cravado; campos obrigatórios de envelope cravados. Aliases legados aceitos em Wave A; removidos em V2.
+
+---
+
+## Padrão de nomenclatura (cravado v8)
+
+**Forma canônica:** `[Dominio].[VerboParticipio]` (2 partes — preferencial)
+
+- `Dominio` em PascalCase, corresponde ao módulo dono (ex: `OS`, `Calibracao`, `BillingSaas`, `ContasReceber`, `Estoque`).
+- `VerboParticipio` em PascalCase, no particípio passado (ex: `Aberta`, `Concluida`, `Paga`, `Emitido`, `Cancelado`).
+- Exemplos: `OS.Aberta`, `Calibracao.Aprovada`, `BillingSaas.FaturaPaga`, `Estoque.MovimentacaoRegistrada`.
+
+**Forma estendida:** `[Dominio].[Agregado].[VerboParticipio]` (3 partes — usar SÓ quando o domínio tem múltiplos agregados ambíguos)
+
+- Exemplos: `Calibracao.Servico.Aprovada` vs `Calibracao.Padroes.CertificadoVencendo` (mesma origem, agregados diferentes).
+- Não usar 3 partes "por padrão" — verboso e quebra ferramentas de roteamento simples.
+
+**Proibido em código novo (aceito como alias em Wave A):**
+- snake_case no segundo segmento: `Estoque.movimento_registrado` → `Estoque.MovimentacaoRegistrada`
+- minúsculo: `documento.criado` → `Documento.Criado`; `acs.usuario.criado` → `AcessoSeguranca.UsuarioCriado`
+- sem prefixo de domínio: `OSAberta` → `OS.Aberta`; `Pago` → `ContasReceber.Pago`; `NcAberta` → `Qualidade.NCAberta`
+
+**Migração:** durante Wave A o bus aceita aliases (mapeamento em `events/aliases.py`). Auditor `schema-version` bloqueia *novos* handlers em aliases. Em V2, aliases são removidos.
+
+---
+
+## Envelope obrigatório de evento (cravado v8)
+
+Todo evento publicado **DEVE** carregar este envelope (validado pelo bus antes de aceitar publish):
+
+```json
+{
+  "event_id": "uuid-v4",
+  "event_name": "Dominio.VerboParticipio",
+  "_schema_version": "v1",
+  "tenant_id": "uuid-v4",
+  "occurred_at": "2026-05-17T18:42:00.000Z",
+  "correlation_id": "uuid-v4 opcional",
+  "causation_id": "uuid-v4 opcional",
+  "actor": { "tipo": "user|system|integration", "id": "uuid" },
+  "payload": { ... campos específicos do evento ... }
+}
+```
+
+**Regras:**
+- `event_id` (UUID v4): chave de idempotência — handler verifica e ignora duplicata. Gerado no publish.
+- `_schema_version` (string `v1`, `v2`, ...): versionamento explícito. Mudança breaking → nova versão; handlers escutam versões específicas.
+- `tenant_id` (UUID): obrigatório — bus rejeita publish sem `tenant_id` (defesa multi-tenant). NULL apenas pra eventos do plano-de-controle (raros e marcados).
+- `occurred_at` (ISO 8601 UTC com millis): quando o evento aconteceu no domínio (NÃO quando foi publicado — pode haver atraso).
+- `correlation_id` / `causation_id`: rastreamento de trilha (event A causou B causou C).
+- `actor`: quem causou (usuário, job de sistema, webhook integração).
+- `payload`: corpo específico — apenas IDs e campos imutáveis; NÃO duplicar estado mutável de outros módulos (consultar agregado quando precisar).
+
+**Auditor** (pre-commit em `.claude/hooks/` — a implementar): bloqueia publish sem envelope completo; bloqueia handler sem checagem de `event_id`; bloqueia mudança de schema sem `_schema_version` nova.
+
 ---
 
 ## Princípio
@@ -122,3 +177,583 @@ Auditor Segurança em pre-commit:
 - `retry.md`
 - `governanca-modelo-comum.md` (fronteira comum vs módulo)
 - `arquitetura/anti-corrosion-layer.md` (porta Queue)
+
+---
+
+## Catálogo completo v8 (48 módulos)
+
+> **Como ler:** evento listado pelo nome canônico (após padronização v8); coluna **Aliases** mostra nomes legados aceitos em Wave A. Origem é o módulo dono (publisher único); consumers são todos os módulos que escutam. Schema completo (payload) vive em `docs/dominios/<dominio>/modulos/<modulo>/modelo-de-dominio.md`.
+
+### Domínio: COMERCIAL
+
+#### Módulo `clientes`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Cliente.Criado` | clientes | crm, operacao/os, financeiro/contas-receber | — |
+| `Cliente.Atualizado` | clientes | crm (re-segmentação) | — |
+| `Cliente.Bloqueado` | clientes | operacao/os (impede OS), crm, comercial/contratos | — |
+| `Cliente.Desbloqueado` | clientes | operacao/os, comercial/contratos | — |
+| `Cliente.Dedup.Mesclado` | clientes | todos (atualizam FK) | — |
+
+#### Módulo `crm`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Lead.Criado` | crm | crm UI | — |
+| `Lead.Convertido` | crm | clientes (timeline) | — |
+| `Oportunidade.MovidaEtapa` | crm | financeiro (forecast) | — |
+| `Oportunidade.Ganha` | crm | financeiro, mapa-do-dono | — |
+| `Oportunidade.Perdida` | crm | mapa-do-dono | — |
+| `NPS.Respondido` | crm | clientes (timeline), automacoes-bpm | — |
+| `Automacao.Executada` | crm | auditoria, mapa-do-dono | — |
+| `Tarefa.Criada` | crm | UI vendedor | — |
+
+#### Módulo `marketplace`
+
+> **Fronteira com `portal-cliente`:** marketplace é vitrine pública + carrinho + captação de leads; **não tem autenticação própria** (delegada ao `portal-cliente`) nem visão consolidada do cliente. Após login no marketplace, redireciona pro portal. Solicitações originadas no marketplace são entregues ao portal via evento `Marketplace.SolicitacaoEnviada`. Ver PRDs de ambos os módulos.
+
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Marketplace.SolicitacaoEnviada` | marketplace | crm (cria lead), orcamentos (cria rascunho), **portal-cliente** (cria `SolicitacaoMarketplaceRecebida` na visão 360° — US-POR-012) | — |
+| `Marketplace.ClienteLogou` | marketplace | auditoria, **portal-cliente** (reaproveita `SessaoPortal` — autenticação única — e devolve ack pro marketplace fazer redirect) | — |
+| `Marketplace.AssinouRecorrente` | marketplace | contratos, agenda | — |
+| `Marketplace.PagamentoConfirmado` | marketplace | **financeiro/contas-receber** (cria título já liquidado + emite `ContasReceber.Pago`), orcamentos (marca pago) | — |
+| `Marketplace.ConversaoRegistrada` | marketplace | analytics | — |
+
+#### Módulo `orcamentos`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Orcamento.Enviado` | orcamentos | crm | — |
+| `Orcamento.Lido` | orcamentos | crm | — |
+| `Orcamento.Aprovado` | orcamentos | operacao/os (cria OS rascunho), financeiro, crm | `Comercial.OrcamentoAprovado` |
+| `Orcamento.Recusado` | orcamentos | crm | — |
+| `Orcamento.Expirado` | orcamentos | crm | — |
+| `Orcamento.Convertido` | orcamentos | crm | `Orcamentos.OrcamentoFechado` (alias) |
+| `Orcamento.Enviado` (versão portal) | orcamentos | comercial/portal-cliente | `Comercial.OrcamentoEnviado` |
+
+#### Módulo `contratos`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Contrato.Criado` | contratos | financeiro (forecast MRR), crm | — |
+| `Contrato.PreOSGerada` | contratos | operacao/os | — |
+| `Contrato.OSConfirmada` | contratos | operacao/os | — |
+| `Contrato.VigenciaAVencer` | contratos | crm | — |
+| `Contrato.Renovado` | contratos | financeiro/contas-receber, billing-saas (se SaaS) | `ContratoRenovado` |
+| `Contrato.Suspenso` | contratos | financeiro | — |
+| `Contrato.Encerrado` | contratos | financeiro, crm | — |
+| `Contrato.Aditivado` | contratos | financeiro | — |
+
+#### Módulo `sla-contratual`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `SLA.Cronometrando` | sla-contratual | UI atendimento | — |
+| `SLA.Pausado` / `SLA.Despausado` | sla-contratual | UI, auditoria | — |
+| `SLA.AlertaPreventivo` | sla-contratual | comunicacao-omnichannel, escalonamento | — |
+| `SLA.Cumprido` | sla-contratual | **financeiro/contas-receber** (bonificação) | — |
+| `SLA.Estourou` | sla-contratual | **financeiro/contas-receber** (penalidade), diretoria | — |
+| `SLA.PenalidadeCalculada` | sla-contratual | **financeiro/contas-receber** (cria desconto/multa) | — |
+| `SLA.BonificacaoCalculada` | sla-contratual | **financeiro/contas-receber** (cria nota de crédito) | — |
+| `SLA.RelatorioEmitido` | sla-contratual | comunicacao-omnichannel, auditoria | — |
+
+#### Módulo `comunicacao-omnichannel`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Comunicacao.MensagemRecebida` | comunicacao-omnichannel | distribuição, regras | — |
+| `Comunicacao.MensagemEnviada` | comunicacao-omnichannel | auditoria | — |
+| `Comunicacao.StatusMensagemAtualizado` | comunicacao-omnichannel | UI | — |
+| `Comunicacao.ConsentimentoRegistrado` | comunicacao-omnichannel | LGPD, CRM | — |
+| `Comunicacao.OptOutAplicado` | comunicacao-omnichannel | automacoes | — |
+| `Comunicacao.ConvertidoEmChamado` | comunicacao-omnichannel | chamados | — |
+| `Comunicacao.ConvertidoEmLead` | comunicacao-omnichannel | crm | — |
+| `Comunicacao.TemplateRejeitado` | comunicacao-omnichannel | gerente | — |
+
+#### Módulo `portal-cliente`
+
+> **Fronteira com `marketplace`:** portal-cliente é dono da **área restrita autenticada** (autenticação única + visão 360°: OS, orçamentos, faturas, certificados, contratos, mensagens, preferências, edição cadastral). Consome `Marketplace.SolicitacaoEnviada` para integrar solicitações de vitrine ao 360° do cliente (US-POR-012) e consome `Marketplace.ClienteLogou` para confirmar/reaproveitar sessão e disparar redirect.
+
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Portal.UsuarioRegistrado` | portal-cliente | auditoria, notificações | — |
+| `Portal.LoginRealizado` / `Portal.LoginBloqueado` | portal-cliente | auditoria, segurança | — |
+| `Comercial.OrcamentoAprovadoPeloCliente` | portal-cliente | operacao/os, financeiro, auditoria WORM | — |
+| `Comercial.OrcamentoRejeitadoPeloCliente` | portal-cliente | comercial, auditoria | — |
+| `Portal.MensagemCriada` | portal-cliente | chamados, notificações | — |
+| `Portal.SolicitacaoCadastralCriada` | portal-cliente | atendente (fila) | — |
+| `Portal.SegundaViaGerada` | portal-cliente | financeiro, auditoria | — |
+| `Portal.CertificadoBaixado` | portal-cliente | auditoria (ISO 17025) | — |
+
+**Eventos consumidos (handoff Marketplace → Portal):**
+| Evento esperado | Origem | Uso aqui |
+|---|---|---|
+| `Marketplace.SolicitacaoEnviada` | marketplace | cria `SolicitacaoMarketplaceRecebida` (índice da visão 360°), exibe no dashboard; quando `Orcamento.Enviado` chegar, vincula `orcamento_id` |
+| `Marketplace.ClienteLogou` | marketplace | reaproveita `SessaoPortal` existente (autenticação única) + devolve ack pro marketplace fazer redirect pra área restrita |
+
+#### Módulo `precificacao`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Precificacao.RegraPublicada` | precificacao | orcamentos, marketplace, contratos | — |
+| `Precificacao.TabelaPublicada` | precificacao | orcamentos, marketplace, contratos | — |
+| `Precificacao.AprovacaoSolicitada` | precificacao | notificações | — |
+| `Precificacao.AprovacaoDecidida` | precificacao | orcamentos, notificações | — |
+| `Precificacao.OrcamentoAbaixoMargemMinima` | precificacao | notificações, analytics | — |
+| `Precificacao.PrecoMinimoVioladoTentativa` | precificacao | analytics | — |
+
+---
+
+### Domínio: OPERAÇÃO
+
+#### Módulo `os`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `OS.Aberta` | os | crm, mobile.sync, comunicacao-omnichannel | `OSAberta` (legado) |
+| `OS.Atribuida` | os | mobile.sync, agenda | `OSAtribuida` |
+| `OS.Concluida` | os | metrologia/calibracao, crm, financeiro/contas-receber, bi, comissoes, custeio-real, caixa-tecnico, fiscal | `OSConcluida`, `Operacao.OSEncerrada` |
+| `OS.Cancelada` | os | financeiro, crm, agenda | `OSCancelada` |
+| `OS.Reaberta` | os | custeio-real | `Operacao.OSReaberta` |
+
+#### Módulo `chamados`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Chamado.Aberto` | chamados | crm, comunicacao-omnichannel, base-conhecimento | `ChamadoAberto`, `Chamados.ChamadoAberto` |
+| `Chamado.Triado` | chamados | observabilidade | `ChamadoTriado` |
+| `Chamado.ConvertidoEmOS` | chamados | operacao/os | `ChamadoConvertidoEmOS` |
+| `Chamado.Fechado` | chamados | crm, comunicacao-omnichannel | `ChamadoFechado` |
+| `Chamado.SLAEscalado` | chamados | observabilidade | `ChamadoSLAEscalado` |
+
+#### Módulo `agenda`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Agenda.SlotAlocado` | agenda | os, crm, capacity-planning | `AgendaSlotAlocado` |
+| `Agenda.Reagendada` | agenda | os, crm, capacity-planning | `AgendaReagendada` |
+| `Agenda.Bloqueada` | agenda | rh, observabilidade, capacity-planning | `AgendaBloqueada` |
+| `Agenda.JornadaUMCViolada` | agenda | auditor, dpo | `JornadaUMCViolada` |
+| `Agenda.EventoCriado` / `Alterado` / `Cancelado` | agenda | capacity-planning | — |
+| `Agenda.SugestaoAplicada` | agenda | capacity-planning, bi | — |
+
+#### Módulo `capacity-planning-operacional`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `CapacityPlanning.GargaloDetectado` | capacity-planning | notificações, métricas | — |
+| `CapacityPlanning.SobrecargaDetectada` | capacity-planning | notificações | — |
+| `CapacityPlanning.DistribuicaoSugerida` | capacity-planning | **operacao/agenda** (exibe sugestão), os | — |
+| `CapacityPlanning.SimulacaoAplicada` | capacity-planning | agenda | — |
+| `CapacityPlanning.IndicacaoContratacao` | capacity-planning | rh/colaboradores | — |
+
+#### Módulo `garantia`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Garantia.Aberta` | garantia | os, financeiro | — |
+| `Garantia.Analisada` | garantia | financeiro | — |
+| `Garantia.Procedente` / `Improcedente` / `Parcial` | garantia | financeiro, reincidência | — |
+| `GarantiaFornecedor.Aberta` | garantia | fornecedores, estoque | — |
+| `GarantiaFornecedor.Retornada` | garantia | financeiro | — |
+
+#### Módulo `app-tecnico`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `AppTecnico.CheckInRealizado` | app-tecnico | os, agenda | — |
+| `AppTecnico.OSExecutadaCampo` | app-tecnico | os, faturamento, qualidade | — |
+| `AppTecnico.PecaConsumida` | app-tecnico | estoque | — |
+| `AppTecnico.PecaSolicitada` | app-tecnico | estoque, coordenador | — |
+| `AppTecnico.DespesaLancada` | app-tecnico | caixa-tecnico, financeiro | — |
+| `AppTecnico.AdiantamentoSolicitado` | app-tecnico | caixa-tecnico | — |
+| `AppTecnico.ConflitoSyncEscalado` | app-tecnico | coordenador | — |
+
+#### Módulo `base-conhecimento`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `BaseConhecimento.ArtigoPublicado` | base-conhecimento | chamados, os, treinamentos | — |
+| `BaseConhecimento.ArtigoArquivado` | base-conhecimento | chamados, os | — |
+| `BaseConhecimento.SugestaoExibida` / `SugestaoAplicada` | base-conhecimento | métricas | — |
+
+#### Módulo `projetos`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Projeto.Aberto` | projetos | crm, financeiro | — |
+| `Projeto.Concluido` | projetos | financeiro, comercial | — |
+| `Etapa.Concluida` | projetos | financeiro (se marco) | — |
+| `Marco.Atingido` | projetos | financeiro | — |
+| `Aditivo.Aprovado` | projetos | financeiro, crm, comercial | — |
+| `Risco.Materializado` | projetos | governança/qa | — |
+
+---
+
+### Domínio: METROLOGIA
+
+#### Módulo `calibracao`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Calibracao.Recepcionada` | calibracao | notificação | — |
+| `Calibracao.Configurada` | calibracao | **metrologia/certificados** (prepara template) | — |
+| `Calibracao.LeiturasFinalizadas` | calibracao | cálculo interno | — |
+| `Calibracao.IncertezaCalculada` | calibracao | revisão | — |
+| `Calibracao.RevisadaPrimeira` | calibracao | conferência 2 | — |
+| `Calibracao.SegundaConferenciaAprovada` | calibracao | certificados | — |
+| `Calibracao.Aprovada` | calibracao | certificados, cliente, auditoria, comunicacao-omnichannel | `Calibracao.CertificadoEmitido` |
+| `Calibracao.Rejeitada` | calibracao | os, qualidade (NC) | — |
+| `Calibracao.VencendoEm30d` | calibracao | crm (OP1), comunicacao, portal-cliente | `Metrologia.CalibracaoVencendo` |
+| `Padroes.CertificadoVencendo` | calibracao (subdomínio padrões) | **rh/qualidade** (NC preventiva), RT signatário, **certificados** (bloqueia emissão dependente) | — |
+| `Padroes.VerificacaoIntermediariaReprovada` | calibracao | rh/qualidade (NC automática), RT | — |
+| `Proficiencia.EscoreInsatisfatorio` | calibracao | rh/qualidade (NC), RT | — |
+
+#### Módulo `certificados`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Certificados.Emitido` | certificados | auditoria, notificação, portal-cliente | `Metrologia.CertificadoEmitido` |
+| `Certificados.Assinado` | certificados | envio, auditoria | — |
+| `Certificados.Enviado` | certificados | notificação | — |
+| `Certificados.Baixado` | certificados | auditoria LGPD | — |
+| `Certificados.Reemitido` | certificados | cliente, auditoria | — |
+| `Certificados.Cancelado` | certificados | auditoria | — |
+| `Certificados.VerificacaoPublica` | certificados | métricas | — |
+| `Certificados.NCAberta` | certificados | qualidade | — |
+
+#### Módulo `licencas-acreditacoes`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Licencas.DocumentoCadastrado` | licencas-acreditacoes | auditoria, notificação | — |
+| `Licencas.DocumentoRenovado` | licencas-acreditacoes | notificação, bloqueio (resolve) | — |
+| `Licencas.AlertaDisparado` | licencas-acreditacoes | notificação | — |
+| `Licencas.DocumentoVencido` | licencas-acreditacoes | bloqueio, auditoria | — |
+| `Licencas.BloqueioAtivado` | licencas-acreditacoes | certificados, calibracao | — |
+| `Licencas.ModoEmergencialAcionado` | licencas-acreditacoes | auditoria, watchdog | — |
+
+---
+
+### Domínio: FINANCEIRO
+
+#### Módulo `contas-receber`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `ContasReceber.TituloEmitido` | contas-receber | comercial (timeline), portal-cliente | `TituloEmitido` |
+| `ContasReceber.BoletoGerado` | contas-receber | crm (lembrete) | `BoletoGerado` |
+| `ContasReceber.Pago` | contas-receber | comercial, comissões, fiscal (NFS-e opcional), crm | `Pago` |
+| `ContasReceber.TituloVencido` | contas-receber | régua cobrança (Wave B), portal-cliente, crm | `TituloVencido` |
+| `ContasReceber.TituloCancelado` | contas-receber | comissões (estorno) | `TituloCancelado` |
+| `ContasReceber.DescontoAplicado` | contas-receber | auditoria, bi | — |
+
+#### Módulo `contas-pagar`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `ContasPagar.LancamentoCriado` | contas-pagar | auditoria | `LancamentoCriado` |
+| `ContasPagar.LancamentoAprovado` | contas-pagar | auditoria | `LancamentoAprovado` |
+| `ContasPagar.Pago` | contas-pagar | despesas (`Despesa.Reembolsada`), auditoria | `Pagamento` |
+| `ContasPagar.LancamentoCancelado` | contas-pagar | auditoria | `LancamentoCancelado` |
+
+#### Módulo `fiscal`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Fiscal.NFSeEmitida` | fiscal | comercial (timeline), contas-receber (anexa fatura) | `NFSeEmitida` |
+| `Fiscal.NFeEmitida` | fiscal (V2) | idem | — |
+| `Fiscal.NFCancelada` | fiscal | auditoria | — |
+| `Fiscal.CCeEmitida` | fiscal | auditoria | — |
+| `Fiscal.NumeracaoInutilizada` | fiscal | auditoria | — |
+| `Fiscal.ContingenciaAtivada` / `ContingenciaEncerrada` | fiscal | observabilidade | — |
+| `Fiscal.RegimeAlterado` | fiscal | precificacao (invalida cache) | — |
+
+#### Módulo `billing-saas`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `BillingSaas.AssinaturaCriada` | billing-saas | auth, módulos (liberam features) | — |
+| `BillingSaas.FaturaPaga` | billing-saas | fiscal (dispara NFS-e), contabilidade, relatorios-financeiros (MRR) | `Assinatura.Recorrencia.Faturada` |
+| `BillingSaas.NFSeEmitida` | billing-saas | notificações, contabilidade, WORM audit | — |
+| `BillingSaas.NFSeFalhou` | billing-saas | operador comercial Aferê (P1) | — |
+| `BillingSaas.CobrancaFalhou` | billing-saas | notificações | — |
+| `BillingSaas.TenantSuspenso` / `Reativado` | billing-saas | auth, todos os módulos | — |
+| `BillingSaas.PlanoMudou` | billing-saas | auth, módulos | — |
+| `BillingSaas.TrialExpirando` | billing-saas | notificações | — |
+
+#### Módulo `comissoes`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Comissoes.ComissaoPrevista` | comissoes | financeiro, vendedor | `ComissaoPrevista` |
+| `Comissoes.ComissaoDevida` | comissoes | financeiro | `ComissaoDevida` |
+| `Comissoes.ComissaoPaga` | comissoes | financeiro, vendedor | `ComissaoPaga` |
+| `Comissoes.ComissaoEstornada` | comissoes | auditoria | `ComissaoEstornada` |
+| `Comissoes.ComissaoCalculada` | comissoes | custeio-real | — |
+
+#### Módulo `caixa-tecnico`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `CaixaTecnico.AdiantamentoSolicitado` | caixa-tecnico | aprovador | `AdiantamentoSolicitado` |
+| `CaixaTecnico.AdiantamentoAprovado` | caixa-tecnico | financeiro | `AdiantamentoAprovado` |
+| `CaixaTecnico.DespesaLancada` | caixa-tecnico | aprovador | `DespesaLancada` |
+| `CaixaTecnico.DespesaValidada` | caixa-tecnico | custeio-real (Wave B) | `DespesaValidada` |
+| `CaixaTecnico.DespesaRejeitada` | caixa-tecnico | técnico | — |
+| `CaixaTecnico.DespesaAprovada` | caixa-tecnico | custeio-real | — |
+| `CaixaTecnico.PrestacaoFechada` | caixa-tecnico | financeiro | `PrestacaoFechada` |
+
+#### Módulo `despesas`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Despesa.Criada` | despesas | notificações, auditoria | — |
+| `Despesa.Aprovada` | despesas | contas-pagar, caixa-tecnico, relatorios-financeiros | — |
+| `Despesa.Rejeitada` | despesas | notificações | — |
+| `Despesa.Reembolsada` | despesas | relatorios-financeiros | — |
+| `Despesa.Compensada` | despesas | caixa-tecnico, relatorios-financeiros | — |
+
+#### Módulo `custeio-real`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `CusteioReal.CustoApurado` | custeio-real | dashboards, notificações | — |
+| `CusteioReal.AlertaDeficitarioCriado` | custeio-real | notificações | — |
+| `CusteioReal.CustoReapurado` | custeio-real | auditoria, dashboards | — |
+| `CusteioReal.CustoAtualizado` | custeio-real | precificacao (invalida cache) | — |
+
+#### Módulo `relatorios-financeiros`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Conciliacao.Concluida` | relatorios-financeiros | auditoria, notificações | — |
+| `RelatorioAgendado.Disparado` | relatorios-financeiros | notificações | — |
+
+---
+
+### Domínio: RH-FROTA-QUALIDADE
+
+#### Módulo `colaboradores`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Colaborador.Cadastrado` | colaboradores | operacao/agenda | `ColaboradorCadastrado` |
+| `Colaborador.PapelAtribuido` / `PapelRevogado` | colaboradores | acesso-seguranca (RBAC) | — |
+| `Colaborador.HabilidadeAtualizada` | colaboradores | operacao (re-elegibilidade) | — |
+| `Colaborador.Desligado` | colaboradores | operacao, financeiro/comissoes | `ColaboradorDesligado` |
+| `Colaboradores.AusenciaRegistrada` | colaboradores | capacity-planning, agenda | — |
+| `Colaboradores.EscalaAtualizada` | colaboradores | capacity-planning | — |
+
+#### Módulo `frota`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Frota.VeiculoCadastrado` | frota | operacao | `VeiculoCadastrado` |
+| `Frota.JornadaIniciada` / `JornadaEncerrada` | frota | rh (INV-020), auditoria | — |
+| `Frota.PausaRegistrada` | frota | rh | — |
+| `Frota.Inv020Violado` | frota | governanca (P0), dpo | `Inv020Violado` |
+| `Frota.ChecklistCompletado` | frota | operacao | — |
+| `Frota.ManutencaoVencida` | frota | operacao, almoxarife | — |
+
+#### Módulo `qualidade`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Qualidade.NCAberta` | qualidade | responsável, dono | `NcAberta` |
+| `Qualidade.NCBloqueouEmissao` | qualidade | responsável, dono (P0) | `NcBloqueouEmissao` |
+| `Qualidade.NCFechada` | qualidade | auditoria | `NcFechada` |
+| `Qualidade.NCReabertaPorPendencia` | qualidade | responsável | `NcReabertaPorPendencia` |
+| `Qualidade.EficaciaVencida` | qualidade | RQ | `EficaciaVencida` |
+| `Qualidade.NPSRespondido` | qualidade | crm | `NpsRespondido` |
+| `Qualidade.ReclamacaoRegistrada` | qualidade | atendimento | `ReclamacaoRegistrada` |
+| `Qualidade.RiscoIdentificado` | qualidade | governanca | `RiscoIdentificado` |
+
+#### Módulo `treinamentos`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Treinamentos.EventoConcluido` | treinamentos | colaboradores, RH | — |
+| `Treinamentos.CertificadoEmitido` | treinamentos | seguranca-trabalho, qualidade, operacao | — |
+| `Treinamentos.CertificadoVencendo` | treinamentos | RH, colaborador | — |
+| `Treinamentos.CertificadoVencido` | treinamentos | operacao (bloqueio), qualidade | — |
+| `Treinamentos.BypassExecutado` | treinamentos | governanca, auditoria | — |
+| `Treinamentos.TrilhaVersionada` | treinamentos | operacao, qualidade, base-conhecimento | — |
+
+#### Módulo `seguranca-trabalho`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `SST.EPIEntregue` | seguranca-trabalho | colaboradores, financeiro (custo) | — |
+| `SST.ASOVencendo` | seguranca-trabalho | colaboradores, notificações | — |
+| `SST.TreinamentoSegVencendo` | seguranca-trabalho | treinamentos, operacao/agenda | — |
+| `SST.AcidenteRegistrado` | seguranca-trabalho | operacao, qualidade | — |
+| `SST.OSBloqueadaSemChecklist` | seguranca-trabalho | operacao, governanca | — |
+| `SST.TecnicoBloqueadoSemNR` | seguranca-trabalho | operacao/agenda | — |
+
+#### Módulo `auditoria-externa`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `AuditoriaExterna.AuditoriaPlanejada` | auditoria-externa | calendário, notificações | — |
+| `AuditoriaExterna.NCMaiorRegistrada` | auditoria-externa | diretoria (P0), qualidade | — |
+| `AuditoriaExterna.NCFechada` | auditoria-externa | histórico, qualidade | — |
+| `AuditoriaExterna.DocExigidoVencido` | auditoria-externa | RQ | — |
+| `AuditoriaExterna.SemaforoMudou` | auditoria-externa | diretoria | — |
+| `AuditoriaExterna.DrillConcluido` | auditoria-externa | RQ | — |
+
+---
+
+### Domínio: SUPORTE-PLATAFORMA
+
+#### Módulo `acesso-seguranca`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `AcessoSeguranca.UsuarioCriado` | acesso-seguranca | onboarding, email | `acs.usuario.criado` |
+| `AcessoSeguranca.UsuarioDesativado` | acesso-seguranca | sessões (encerra), notificações | `acs.usuario.desativado` |
+| `AcessoSeguranca.LoginSucesso` | acesso-seguranca | métricas, alerta localização | `acs.login.sucesso` |
+| `AcessoSeguranca.LoginFalha` | acesso-seguranca | rate-limit, alerta burst | `acs.login.falha` |
+| `AcessoSeguranca.LoginBloqueado` | acesso-seguranca | segurança | `acs.login.bloqueado` |
+| `AcessoSeguranca.SessaoEncerrada` | acesso-seguranca | auditoria | `acs.sessao.encerrada` |
+| `AcessoSeguranca.SessaoRepudiada` | acesso-seguranca | segurança (P1), admin | `acs.sessao.repudiada` |
+| `AcessoSeguranca.PermissaoAlterada` | acesso-seguranca | caches RBAC | `acs.permissao.alterada` |
+| `AcessoSeguranca.AcessoNegado` | acesso-seguranca | métricas, alerta anormal | `acs.acesso.negado` |
+| `AcessoSeguranca.RegistroAlterado` | acesso-seguranca | auditoria, indexador busca | `acs.registro.alterado` |
+| `AcessoSeguranca.ConsentimentoAceito` | acesso-seguranca | módulos sensíveis (base legal) | `acs.consentimento.aceito` |
+| `AcessoSeguranca.ConsentimentoRevogado` | acesso-seguranca | marketing, parceiros | `acs.consentimento.revogado` |
+| `AcessoSeguranca.LGPDSolicitacaoAberta` | acesso-seguranca | workflow LGPD | `acs.lgpd.solicitacao_aberta` |
+| `AcessoSeguranca.LGPDSolicitacaoConcluida` | acesso-seguranca | notificação titular | `acs.lgpd.solicitacao_concluida` |
+
+#### Módulo `automacoes-bpm`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `BPM.PendenciaCriada` | automacoes-bpm | crm, notificações | — |
+| `BPM.AprovacaoConcedida` / `AprovacaoRejeitada` | automacoes-bpm | módulo origem (Orçamentos, OS, etc.) | — |
+| `BPM.SlaEstourado` | automacoes-bpm | escalonamento, observabilidade | — |
+| `BPM.InstanciaConcluida` | automacoes-bpm | **roteamento por `entidade_origem_tipo`**: orcamentos, contratos, os, chamados, engenharia-tecnica, despesas, precificacao, licencas-acreditacoes | — |
+| `BPM.RegraExecutada` | automacoes-bpm | observabilidade | — |
+| `BPM.AlertaDisparado` | automacoes-bpm | crm, log | — |
+
+#### Módulo `configuracoes-sistema`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Config.EmpresaAtualizada` | configuracoes-sistema | módulos fiscais, PDFs | — |
+| `Config.SerieAtualizada` | configuracoes-sistema | emissores de documento | — |
+| `Config.PapelAtualizado` | configuracoes-sistema | auth (invalida cache RBAC) | — |
+| `Config.WorkflowVersionado` | configuracoes-sistema | módulo dono da entidade | — |
+| `Config.IntegracaoAtivada` / `IntegracaoDesativada` | configuracoes-sistema | módulos consumidores | — |
+| `Config.RetencaoAjustada` | configuracoes-sistema | jobs de purge | — |
+| `Config.FeatureLigada` | configuracoes-sistema | módulo da feature | — |
+| `Config.MudancaSensivelRegistrada` | configuracoes-sistema | auditor + DPO tenant | — |
+
+#### Módulo `engenharia-tecnica`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Engenharia.ProjetoCriado` | engenharia-tecnica | crm | — |
+| `Engenharia.RevisaoSubmetida` | engenharia-tecnica | bpm, notificações | — |
+| `Engenharia.RevisaoAprovada` | engenharia-tecnica | os, orcamentos, estoque (BOM), crm | — |
+| `Engenharia.RevisaoRejeitada` | engenharia-tecnica | autor (notif) | — |
+| `Engenharia.RevisaoMarcadaObsoleta` | engenharia-tecnica | os, estoque | — |
+| `Engenharia.ComponenteCadastrado` | engenharia-tecnica | analytics | — |
+| `Engenharia.BOMAtualizada` | engenharia-tecnica | orcamentos, estoque | — |
+
+#### Módulo `equipamentos`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Equipamento.Cadastrado` | equipamentos | metrologia, comercial | `Equipamento.cadastrado` |
+| `Equipamento.VersaoCriada` | equipamentos | metrologia (revalida) | `Equipamento.versao_criada` |
+| `Equipamento.Sucateado` | equipamentos | comercial, operacao | `Equipamento.sucateado` |
+| `Equipamento.Transferido` | equipamentos | comercial | `Equipamento.transferido` |
+
+#### Módulo `estoque`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Estoque.MovimentacaoRegistrada` | estoque | financeiro (CMP), operacao (saldo OS), bi | `Estoque.movimento_registrado` |
+| `Estoque.SaidaPeca` | estoque | custeio-real (linha custo `pecas`), operacao | — |
+| `Estoque.EntradaPeca` | estoque | contas-pagar, bi | — |
+| `Estoque.TransferenciaEmitida` / `Aceita` / `Recusada` | estoque | operacao, almoxarife | `Estoque.transferencia_*` |
+| `Estoque.MinimoAtingido` | estoque | operacao, fornecedores | `Estoque.minimo_atingido` |
+| `Estoque.LoteVencendo` | estoque | almoxarife | `Estoque.lote_vencendo` |
+| `Estoque.InventarioFinalizado` | estoque | financeiro | `Estoque.inventario_finalizado` |
+| `Estoque.ItemEsgotado` | estoque | marketplace (vitrine indisponível) | — |
+
+#### Módulo `fornecedores`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Fornecedor.Cadastrado` | fornecedores | — | `Fornecedor.cadastrado` |
+| `Fornecedor.Homologado` | fornecedores | comercial | `Fornecedor.homologado` |
+| `Fornecedor.Bloqueado` | fornecedores | operacao | `Fornecedor.bloqueado` |
+| `Cotacao.Enviada` | fornecedores | gateway email/whatsapp | `Cotacao.enviada` |
+| `Cotacao.Fechada` | fornecedores | pedido-compra | `Cotacao.fechada` |
+| `PedidoCompra.Enviado` | fornecedores | financeiro (contas a pagar futuro) | — |
+| `PedidoCompra.RecebidoTotal` | fornecedores | estoque, avaliacao-fornecedor | `PedidoCompra.recebido_total` |
+| `AvaliacaoFornecedor.Registrada` | fornecedores | dashboards | — |
+
+#### Módulo `gestao-documental`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Documento.Criado` | gestao-documental | auditoria, busca, notificação | `documento.criado` |
+| `Documento.VersaoCriada` | gestao-documental | auditoria | `documento.versao_criada` |
+| `Documento.Aprovado` | gestao-documental | notificação, auditoria | `documento.aprovado` |
+| `Documento.Vencendo` | gestao-documental | notificação | `documento.vencendo` |
+| `Documento.Vencido` | gestao-documental | notificação, dashboards | `documento.vencido` |
+| `Documento.Assinado` | gestao-documental | auditoria, notificação | `documento.assinado` |
+| `Documento.AcessoExterno` | gestao-documental | auditoria | `documento.acesso_externo` |
+
+#### Módulo `onboarding`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Onboarding.ImplantacaoCriada` | onboarding | configuracoes-sistema, billing, notificações | — |
+| `Onboarding.EtapaConcluida` | onboarding | notificações, métricas | — |
+| `Onboarding.ImportacaoConcluida` | onboarding | clientes, produtos, estoque, equipamentos | — |
+| `Onboarding.ValidacaoFalhou` | onboarding | notificações P1 | — |
+| `Onboarding.TermoAssinado` | onboarding | billing, auditoria | — |
+| `Onboarding.SandboxPromovido` | onboarding | todos os módulos | — |
+
+#### Módulo `produtos-pecas-servicos`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Catalogo.ItemCadastrado` | produtos-pecas-servicos | estoque, financeiro | `Catalogo.item_cadastrado` |
+| `Catalogo.ItemAtualizado` | produtos-pecas-servicos | **marketplace, precificacao, operacao** | — |
+| `Catalogo.PrecoAlterado` | produtos-pecas-servicos | financeiro, marketplace | `Catalogo.preco_alterado` |
+| `Catalogo.ItemInativado` | produtos-pecas-servicos | operacao, marketplace | `Catalogo.item_inativado` |
+| `Catalogo.KitAlterado` | produtos-pecas-servicos | operacao | `Catalogo.kit_alterado` |
+
+#### Módulo `release-management`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Release.Publicada` | release-management | suporte-saas, métricas | `release.publicada` |
+| `Release.Revertida` | release-management | alertas, auditoria | `release.revertida` |
+| `FeatureFlag.Alterada` | release-management | auditoria, cache invalidação | `feature_flag.alterada` |
+| `FeatureFlag.Aposentada` | release-management | métricas | `feature_flag.aposentada` |
+| `Beta.TenantInscrito` / `TenantCancelado` | release-management | flags | `beta.tenant_*` |
+| `Migracao.Iniciada` / `Checkpoint` / `Concluida` / `Falhou` | release-management | observabilidade, alertas P0 | `migracao.*` |
+| `BreakingChange.Anunciado` / `Proximo` | release-management | comunicação, notificação tenants | `breaking_change.*` |
+
+#### Módulo `suporte-saas`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `Ticket.Aberto` | suporte-saas | roteamento, notificação | `ticket.aberto` |
+| `Ticket.Respondido` | suporte-saas | notificação usuário | `ticket.respondido` |
+| `Ticket.Resolvido` | suporte-saas | métricas, CSAT trigger | `ticket.resolvido` |
+| `Ticket.SLAViolado` | suporte-saas | alertas | `ticket.sla_violado` |
+| `Ticket.CSATRecebido` | suporte-saas | métricas | `ticket.csat_recebido` |
+| `SessaoRemota.Solicitada` / `Iniciada` / `Encerrada` | suporte-saas | tenant admin, auditoria | `sessao_remota.*` |
+| `Sugestao.Aprovada` | suporte-saas | notificação | `sugestao.aprovada` |
+| `Manutencao.Agendada` / `Iniciada` / `Concluida` | suporte-saas | notificação, banner | `manutencao.*` |
+
+---
+
+### Domínio: DADOS
+
+#### Módulo `bi`
+| Evento | Origem | Consumers principais | Aliases |
+|---|---|---|---|
+| `BI.RelatorioGerado` | bi | notificações, auditoria | — |
+| `BI.LinkPublicoAcessado` | bi | auditoria, segurança | — |
+| `BI.DataMartAtualizado` | bi | observabilidade | — |
+| `BI.AlertaKPI` | bi | notificações, dashboard executivo | — |
+
+---
+
+## Resolução de eventos órfãos (v8)
+
+Achados de auditoria 2026-05-17 — eventos sem publisher ou consumer correspondente:
+
+### Publicados sem consumer — RESOLVIDOS
+| Evento | Resolução |
+|---|---|
+| `Marketplace.PagamentoConfirmado` | consumer adicionado em `financeiro/contas-receber` (cria título já liquidado + emite `ContasReceber.Pago`) |
+| `Calibracao.Configurada` | consumer adicionado em `metrologia/certificados` (prepara template antes da emissão) |
+| `Padroes.CertificadoVencendo` | consumers adicionados em `rh/qualidade` (NC preventiva) + `metrologia/certificados` (bloqueia emissão dependente) + RT signatário (notificação) |
+| `SLA.PenalidadeCalculada` | consumer explícito em `financeiro/contas-receber` (cria desconto/multa) |
+| `SLA.BonificacaoCalculada` | consumer explícito em `financeiro/contas-receber` (cria nota de crédito) |
+| `CapacityPlanning.DistribuicaoSugerida` | consumer adicionado em `operacao/agenda` (exibe sugestão + gera `Agenda.SugestaoAplicada` quando aceita) |
+| `BPM.InstanciaConcluida` | payload expandido com `entidade_origem_tipo`; consumers explícitos: orcamentos, contratos, os, chamados, engenharia-tecnica, despesas, precificacao, licencas-acreditacoes |
+
+### Consumidos sem publisher — RESOLVIDOS
+| Evento esperado | Resolução |
+|---|---|
+| `Catalogo.ItemAtualizado` | publisher adicionado em `suporte-plataforma/produtos-pecas-servicos` (evento agregador de mudanças de descrição/spec/status/kit/versão) |
+| `Estoque.SaidaPeca` | publisher adicionado em `suporte-plataforma/estoque` (subtipo emitido em paralelo a `MovimentacaoRegistrada` quando tipo=saida) |
+| `Estoque.MovimentacaoRegistrada` | publisher renomeado/padronizado em `suporte-plataforma/estoque` (alias do `Estoque.movimento_registrado` legado) |
+| `Assinatura.Recorrencia.Faturada` | substituído por `BillingSaas.FaturaPaga` (campo `ciclo` distingue recorrência de avulsa); alias aceito em Wave A, removido em V2 |
+
+---
+
+## Total v8
+
+- **48 módulos** com eventos catalogados.
+- **~240 eventos** publicados (incluindo subtipos e variantes versionadas).
+- **6 domínios:** comercial (8 módulos), operação (8), metrologia (3), financeiro (8), rh-frota-qualidade (6), suporte-plataforma (13), dados (1) + 1 cross-cutting (acesso-seguranca).
+- **0 eventos órfãos** após resolução acima.
+- Aliases legados marcados — auditor bloqueia novos handlers em aliases.

@@ -48,7 +48,7 @@ audiencia: agente
 **Elementos:**
 - Resumo: plano escolhido, valor, ciclo.
 - Campo cupom (opcional) → botão "Aplicar".
-- Bloco método de pagamento: cartão (iframe do gateway — Aferê não toca dado de cartão por `SEC-NNN`), boleto, PIX.
+- Bloco método de pagamento: cartão (iframe do gateway — Aferê não toca dado de cartão por `SEC-PCI-001`), boleto, PIX.
 - Se plano tem trial: aviso "Você não será cobrado nos próximos N dias."
 - Botão "Confirmar contratação".
 - Checkbox aceite termos (link pra contrato/política).

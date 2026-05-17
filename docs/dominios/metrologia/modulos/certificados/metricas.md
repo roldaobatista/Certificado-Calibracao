@@ -11,6 +11,13 @@ audiencia: dono
 
 > Como saber se este módulo está entregando valor.
 
+> **Convenção canônica de cobertura/completude** (ver `docs/comum/glossario-roldao.md`):
+> - **Qualidade de dados inicial** = onboarding (dimensão: dados)
+> - **Cobertura documental por equipamento** = base-conhecimento (dimensão: conhecimento)
+> - **Conformidade de formato PDF/A** = certificados (dimensão: formato)
+>
+> Neste módulo usamos `conformidade_formato_pdfa` (% certificados emitidos em PDF/A-1).
+
 ---
 
 ## KPIs de negócio
@@ -23,7 +30,9 @@ audiencia: dono
 | Taxa de reemissões | % certificados reemitidos no primeiro mês | ≤ 2% | Reemissões ÷ emissões | mensal |
 | Adoção do portal pelo cliente | % clientes que baixaram pelo portal nos últimos 90 dias | ≥ 60% | Eventos `Certificados.Baixado` | mensal |
 | Verificações via QR Code | Quantidade de acessos à página pública verificadora | crescente | Eventos `Certificados.VerificacaoPublica` | mensal |
-| Cobertura PDF/A-1 | % certificados emitidos em PDF/A-1 | 100% | Validação no pipeline emissão | semanal |
+| Conformidade de formato PDF/A — canônico, dimensão: formato (antes "Cobertura PDF/A-1") | % certificados emitidos em PDF/A-1 | 100% | Validação no pipeline emissão | semanal |
+| Error rate pré-emissão (qualidade) | % certificados que falharam validação automática (gaps de dados, incerteza inconsistente, escopo, padrão vencido) antes da emissão. **Fórmula:** `count(`Certificado.PreEmissao.Bloqueada`) ÷ count(tentativas de emissão)`. | ≤ 5% (5% indica problemas a montante em calibração; >10% = revisar UX do metrologista) | Eventos `Certificado.PreEmissao.Validada` + `.Bloqueada` agrupados por motivo | semanal |
+| Reemissão — RCA categorizada (qualidade) | Distribuição das reemissões por categoria-raiz: `[dado-cliente-errado, erro-metrologico, erro-administrativo, recalculo-incerteza, falha-sistema, outro]`. Toda reemissão exige preenchimento obrigatório de `motivo_categoria`. | nenhuma categoria > 40% (sinal de defeito sistêmico); `falha-sistema` ≤ 5% | Tabela `Certificado.Reemissao.motivo_categoria` agregada mensal | mensal |
 
 ---
 

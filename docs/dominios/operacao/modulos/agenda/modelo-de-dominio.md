@@ -93,12 +93,24 @@ Função `detectar_conflito(tecnico_id, inicia_at, termina_at, exclude_id?)`:
 
 ## Eventos publicados
 
+> **Nomenclatura canônica:** prefixo `Agenda.*`. Aliases sem prefixo (`AgendaSlotAlocado`, etc.) ficam como **deprecated** até V2.
+
 | Evento | Quando | Payload | Consumidores |
 |---|---|---|---|
-| `AgendaSlotAlocado` | EventoAgenda criado com tipo=os | `{tenant_id, tecnico_id, os_id, slot}` | os (estado AGENDADA), crm |
-| `AgendaReagendada` | move de EventoAgenda tipo=os | `{tenant_id, os_id, slot_antigo, slot_novo}` | os, crm (notifica cliente) |
-| `AgendaBloqueada` | tipo=bloqueio criado | `{tenant_id, tecnico_id, slot, motivo}` | rh, observabilidade |
-| `JornadaUMCViolada` | hook bloqueou tentativa | `{tenant_id, tecnico_id, tentativa, violacao}` | auditor, dpo |
+| `Agenda.SlotAlocado` | EventoAgenda criado com tipo=os | `{tenant_id, tecnico_id, os_id, slot}` | os (estado AGENDADA), crm, capacity-planning |
+| `Agenda.Reagendada` | move de EventoAgenda tipo=os | `{tenant_id, os_id, slot_antigo, slot_novo}` | os, crm (notifica cliente), capacity-planning |
+| `Agenda.Bloqueada` | tipo=bloqueio criado | `{tenant_id, tecnico_id, slot, motivo}` | rh, observabilidade, capacity-planning |
+| `Agenda.JornadaUMCViolada` | hook bloqueou tentativa | `{tenant_id, tecnico_id, tentativa, violacao}` | auditor, dpo |
+| `Agenda.EventoCriado` / `Agenda.EventoAlterado` / `Agenda.EventoCancelado` | qualquer mutação em EventoAgenda | `{tenant_id, evento_id, tipo, diff?}` | capacity-planning (atualiza Alocacao) |
+| `Agenda.SugestaoAplicada` | atendente aceita sugestão de capacity-planning | `{tenant_id, os_id, recurso_id, sugestao_id}` | capacity-planning (fecha loop), bi |
+
+## Eventos consumidos
+
+- `OS.Aberta` / `OS.Atribuida` (operacao/os) → cria/atualiza EventoAgenda tipo=os.
+- `CapacityPlanning.DistribuicaoSugerida` (operacao/capacity-planning-operacional) → exibe sugestão de alocação ao atendente (aceitar/recusar) — gera `Agenda.SugestaoAplicada` quando aceita.
+- `CapacityPlanning.SimulacaoAplicada` (idem) → aplica mudanças em lote nos EventoAgenda afetados.
+- `Colaboradores.AusenciaRegistrada` / `Colaboradores.Desligado` → libera/bloqueia slots futuros.
+- `SST.TecnicoBloqueadoSemNR` (rh/seguranca-trabalho) → impede alocação automática do técnico bloqueado.
 
 ## Comandos
 

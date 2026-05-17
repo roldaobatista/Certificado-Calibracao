@@ -25,6 +25,12 @@ audiencia: dono
 | LTV | Lifetime Value estimado (ARPU ÷ churn) | crescimento | calculado | mensal |
 | Taxa de upgrade | % de tenants que fizeram upgrade no período | medir baseline | count(upgrades) ÷ ativos | mensal |
 | Taxa de downgrade | % de tenants que fizeram downgrade no período | ≤ 2% | count(downgrades) ÷ ativos | mensal |
+| CAC (Custo de Aquisição) | Custo total marketing + vendas ÷ tenants novos pagantes no período | a definir baseline após 3m | Σ custos de aquisição (CRM + ads + comissões) ÷ count(tenants novos pagantes) | mensal |
+| Payback period | Meses para recuperar o CAC via margem do tenant | ≤ 12 meses | CAC ÷ (ARPU × margem bruta mensal) | mensal |
+| NRR (Net Revenue Retention) | Receita atual da coorte de 12m atrás ÷ receita inicial da mesma coorte (inclui upgrades, downgrades, churn) | ≥ 100% (saudável); ≥ 110% (excelente) | MRR coorte hoje ÷ MRR coorte início (mesmos tenants) | mensal |
+| Cohort retention (curva) | % tenants da coorte do mês N ainda ativos no mês N+M (M = 1, 3, 6, 12) | M1 ≥ 95%; M6 ≥ 80%; M12 ≥ 70% | matriz (mês adesão × mês observação) sobre `assinatura.status` | mensal |
+| Trial→pago por fonte | Conversão segmentada por origem (orgânico, indicação, ads, marketplace) | benchmark interno após 3m | join `trial.fonte_aquisicao` × conversão | mensal |
+| Trial→pago por plano | Conversão segmentada por plano tentado no trial | benchmark interno após 3m | join `trial.plano_escolhido` × conversão | mensal |
 
 ---
 
@@ -34,10 +40,12 @@ Detalhes em `../../../operacao/observabilidade.md`.
 
 | SLI | SLO | Erro orçamento (mensal) |
 |---|---|---|
-| Disponibilidade painel billing | 99.9% | 43min/mês |
+| Disponibilidade painel billing | **99.95%** | ~21min/mês |
 | Job de cobrança não duplica | 100% (zero duplicações) | 0 |
 | Webhook gateway processado em <30s | 99% | — |
 | Latência painel de uso p95 | < 500ms | — |
+
+> **Justificativa do SLO 99.95%** (alinhado com domínio Financeiro em `docs/operacao/observabilidade.md`): billing-saas é a receita do próprio Aferê — indisponibilidade impede contratação de novos tenants, processamento de webhooks de pagamento e cobrança recorrente. Criticidade equivalente à emissão de NFS-e e ao módulo Auth. SLO anterior (99.9%) inconsistente com a tabela canônica do domínio Financeiro.
 
 ---
 

@@ -46,7 +46,7 @@ audiencia: agente
 }
 ```
 **Erros:** 400, 401, 403, 409 (já existe implantação ativa para o tenant).
-**Invariantes:** `INV-TENANT-001`, `INV-ONB-001`.
+**Invariantes:** `INV-TENANT-001`, `INV-040` (status só avança em ordem definida).
 **US:** `US-ONB-001`, `US-ONB-003`, `US-ONB-004`.
 **Eventos:** `Onboarding.ImplantacaoCriada`.
 
@@ -74,7 +74,7 @@ audiencia: agente
 { "status": "concluida", "observacoes": "..." }
 ```
 **Response 200:** etapa atualizada.
-**Invariantes:** `INV-ONB-002` (justificativa se "pulada").
+**Invariantes:** `INV-041` (justificativa se "pulada").
 **Eventos:** `Onboarding.EtapaConcluida`.
 
 ---
@@ -111,7 +111,7 @@ audiencia: agente
 ```json
 { "status": "resolvida", "justificativa": "..." }
 ```
-**Invariantes:** `INV-ONB-003` (justificativa obrigatória).
+**Invariantes:** `INV-042` (justificativa obrigatória).
 
 ---
 
@@ -165,7 +165,7 @@ audiencia: agente
 { "assinante_nome": "...", "assinante_documento": "CPF", "assinatura_blob": "base64" }
 ```
 **Response 200:** termo selado, implantação muda pra "concluída".
-**Invariantes:** `INV-ONB-004` (imutável após assinar).
+**Invariantes:** `INV-043` (imutável após assinar), `INV-001` (WORM).
 **Eventos:** `Onboarding.TermoAssinado`.
 
 ---

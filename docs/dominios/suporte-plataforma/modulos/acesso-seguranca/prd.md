@@ -8,7 +8,8 @@ audiencia: agente
 relacionados:
   - docs/arquitetura/cross-cutting/auth-rbac.md
   - docs/conformidade/comum/seguranca-dados.md
-  - docs/conformidade/comum/lgpd-rat.md
+  - docs/conformidade/comum/lgpd-rat.md#RAT-08
+  - docs/conformidade/comum/retencao-matriz.md
   - docs/comum/isolamento-multi-tenant.md
   - REGRAS-INEGOCIAVEIS.md
 ---
@@ -80,7 +81,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-ACS-001-3**: GIVEN 5 tentativas falhadas em 15min do mesmo IP, WHEN tenta novamente, THEN é bloqueado por 30min e registrado evento `acs.login.bloqueado`.
 - **AC-ACS-001-4**: GIVEN usuário desativado, WHEN tenta entrar, THEN vê mensagem genérica + evento `acs.login.usuario_desativado`.
 
-**Invariantes:** `INV-001` (consistência), `INV-002` (não-mascaramento de erro), `SEC-001` (anti-enumeração), `SEC-002` (rate-limit).
+**Invariantes:** `INV-001` (trilha WORM), `SEC-LOG-001` (mensagens genéricas — não revela existência de email), `SEC-001` (anti-enumeração), `SEC-002` (rate-limit anti-bruteforce).
 
 ### US-ACS-002: Autenticação em dois fatores (MFA TOTP)
 
@@ -92,7 +93,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-ACS-002-3**: GIVEN código TOTP inválido 3x seguidas, WHEN tenta, THEN sessão é invalidada e usuário volta para tela de login.
 - **AC-ACS-002-4**: GIVEN usuário perdeu acesso ao TOTP, WHEN clica "perdi meu autenticador", THEN admin tenant recebe ticket pra regenerar segredo presencialmente (não auto-serviço por email).
 
-**Invariantes:** `INV-003` (MFA obrigatório para perfis sensíveis: admin tenant, financeiro, metrologista), `SEC-001`.
+**Invariantes:** `SEC-MFA-001` (MFA TOTP obrigatório para perfis sensíveis: admin tenant, financeiro, metrologista, RT), `INV-009` (MFA pra acesso a CDE quando PCI aplicar), `SEC-001`.
 
 ### US-ACS-003: Recuperação de senha por email
 
@@ -104,7 +105,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-ACS-003-3**: GIVEN link expirado ou já usado, WHEN abre, THEN vê mensagem "link inválido — solicite novo".
 - **AC-ACS-003-4**: GIVEN usuário com MFA, WHEN redefine senha, THEN MFA continua exigido (recuperação de senha NÃO derruba MFA).
 
-**Invariantes:** `INV-002`, `SEC-001` (anti-enumeração na resposta), `SEC-002`.
+**Invariantes:** `SEC-LOG-001` (mensagem genérica mesmo se email não existir), `SEC-001` (anti-enumeração na resposta), `SEC-002`.
 
 ### US-ACS-004: Perfis de acesso por função
 
@@ -115,7 +116,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-ACS-004-2**: GIVEN perfil existente vinculado a N usuários, WHEN admin altera permissões do perfil, THEN mudança propaga a todos os usuários na próxima ação (não em sessão ativa — sessão revalida a cada operação sensível).
 - **AC-ACS-004-3**: Perfis "semente" pré-configurados no tenant novo: Admin Tenant, Atendente, Técnico Campo, Metrologista, Financeiro, Gestor, Somente-Leitura.
 
-**Invariantes:** `INV-001`, `INV-009` (princípio do menor privilégio).
+**Invariantes:** `INV-001` (trilha WORM em mudanças de perfil), `SEC-LEAST-PRIV-001` (princípio do menor privilégio).
 
 ### US-ACS-005: Permissões por tela/módulo/ação
 
@@ -126,7 +127,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-ACS-005-2**: GIVEN usuário sem permissão tenta ação X, WHEN clica botão, THEN vê mensagem "você não tem permissão para esta ação" + evento `acs.acesso.negado` registrado.
 - **AC-ACS-005-3**: Ações sensíveis (excluir registro fiscal, alterar lançamento conciliado, emitir certificado RBC) exigem permissão dedicada — não basta "editar".
 
-**Invariantes:** `INV-009`, `SEC-002`.
+**Invariantes:** `SEC-LEAST-PRIV-001` (matriz RBAC fina + permissão dedicada pra ações sensíveis), `SEC-002`.
 
 ### US-ACS-006: Controle de acesso por empresa/unidade (tenant + filial)
 
@@ -148,8 +149,10 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-ACS-007-1**: GIVEN login OK, WHEN sessão inicia, THEN sistema registra timestamp, IP, user-agent, localização aproximada (país/cidade via IP — sem GPS).
 - **AC-ACS-007-2**: GIVEN usuário abre "logins recentes", THEN vê tabela com últimos 90 dias + botão "esse não fui eu" (que dispara alerta ao admin tenant + força logout global).
 - **AC-ACS-007-3**: Localização aproximada NÃO usa geolocalização do navegador (não pede permissão) — só IP.
+- **AC-ACS-007-4 (LGPD):** Tratamento atende base **Legítimo interesse (art. 7º IX)** para segurança da conta + **Obrigação regulatória (art. 7º II)** para audit (RAT-08). Sem consentimento adicional (não-PII além de identificação ligada à conta).
+- **AC-ACS-007-5 (Retenção):** Registros conforme `retencao-matriz.md` linha "Audit trail" (2 anos default) e linha "Audit trail (ações em paths sensíveis)" (5-10 anos para `auth/`, `kms/`, `financeiro/`, `migrations/`); após prazo: crypto-shredding.
 
-**Invariantes:** `INV-001`, `SEC-001`.
+**Invariantes:** `INV-001` (trilha WORM dos logins), `SEC-001`.
 
 ### US-ACS-008: Auditoria de ações dos usuários
 
@@ -161,7 +164,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-ACS-008-3**: Trilha é WORM — nenhum perfil (nem admin global) pode editar/apagar evento de auditoria (`INV-001`).
 - **AC-ACS-008-4**: Exportação da trilha em CSV/PDF para fiscalização (ver `contratos/exports.md`).
 
-**Invariantes:** `INV-001`, `INV-002`, `SEC-001`, `SEC-002`.
+**Invariantes:** `INV-001` (audit WORM imutável), `SEC-LOG-001`, `SEC-001`, `SEC-002`.
 
 ### US-ACS-009: Histórico de alterações em registros críticos
 
@@ -171,7 +174,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-ACS-009-1**: GIVEN registro crítico (cliente, certificado RBC, ordem de serviço, lançamento financeiro conciliado), WHEN abre aba "histórico", THEN vê lista cronológica de versões com diff campo-a-campo.
 - **AC-ACS-009-2**: Restaurar versão antiga gera evento `acs.registro.restaurado` (mantém histórico — não apaga versões intermediárias).
 
-**Invariantes:** `INV-001`, `INV-002`.
+**Invariantes:** `INV-001` (WORM em histórico de alterações), `SEC-LOG-001`.
 
 ### US-ACS-010: Controle de sessões
 
@@ -183,7 +186,7 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - **AC-ACS-010-3**: Sessão expira por inatividade (30min default — configurável por perfil até máximo 8h).
 - **AC-ACS-010-4**: Troca de senha encerra todas as sessões do usuário (exceto a atual).
 
-**Invariantes:** `INV-009`, `SEC-002`.
+**Invariantes:** `SEC-LEAST-PRIV-001` (admin tenant gerencia sessões do tenant), `SEC-002`.
 
 ### US-ACS-011: Criptografia de dados sensíveis (visão produto)
 

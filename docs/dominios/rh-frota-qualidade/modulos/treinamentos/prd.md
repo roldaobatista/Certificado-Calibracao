@@ -12,6 +12,9 @@ relacionados:
   - docs/dominios/rh-frota-qualidade/modulos/seguranca-trabalho/prd.md
   - docs/dominios/rh-frota-qualidade/modulos/qualidade/prd.md
   - docs/dominios/operacao/modulos/ordens-de-servico/prd.md
+  - docs/conformidade/comum/lgpd-rat.md#RAT-14
+  - docs/conformidade/comum/dpia-modulos-novos.md#DPIA-03
+  - docs/conformidade/comum/retencao-matriz.md
 ---
 
 # PRD — Módulo Treinamentos e Certificações Internas
@@ -100,6 +103,8 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md`.
 - **AC-TRE-004-1**: PDF gerado com identificação tenant + colaborador + treinamento + facilitador + carga horária + data + validade + hash.
 - **AC-TRE-004-2**: Certificado imutável após emissão (`INV-001`).
 - **AC-TRE-004-3**: Em V2, assinatura digital ICP-Brasil opcional (`INV-017` aplicado).
+- **AC-TRE-004-4 (LGPD)**: Tratamento atende base **Execução de contrato (art. 7º V) + Obrigação regulatória (art. 7º II)** ISO 17025 cl. 6.2 (RAT-02 + RAT-14 quando treinamento de segurança). Para ASO vinculado a treinamento (NR-7/NR-35): base art. 11 II "a" — obrigação legal (DPIA-03).
+- **AC-TRE-004-5 (Retenção)**: Certificado de conclusão conforme `retencao-matriz.md` linha "Cadastro de pessoa física" (vigência + 5 anos); para treinamentos NR-* com vínculo ASO: 20 anos pós-vínculo (NR-7); após prazo: anonimização (CPF → hash, nome preservado para histórico técnico).
 
 ---
 

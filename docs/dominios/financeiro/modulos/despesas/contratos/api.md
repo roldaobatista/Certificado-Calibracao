@@ -49,7 +49,7 @@ audiencia: agente
 { "id": "uuid", "status": "pendente_aprovacao | rascunho" }
 ```
 **Códigos:** 201, 400, 401, 403, 422 (sem comprovante quando `acao=enviar_aprovacao`).
-**Invariantes:** `INV-DSP-001`, `INV-MULTI-TENANT-001`.
+**Invariantes:** `INV-044`, `INV-TENANT-001`.
 **US:** `US-DSP-001`, `US-DSP-004`.
 **Eventos:** `Despesa.Criada` quando `acao=enviar_aprovacao`.
 
@@ -64,7 +64,7 @@ audiencia: agente
 ```
 **Códigos:** 201, 400 (tipo não suportado), 413 (arquivo > 10 MB), 401, 403.
 **US:** `US-DSP-001`.
-**Invariantes:** `INV-WORM-001`.
+**Invariantes:** `INV-001` (trilha WORM imutável no comprovante).
 
 ---
 
@@ -90,7 +90,7 @@ audiencia: agente
 **Request:** `{ "comentario": "opcional" }`.
 **Response 200:** novo status + próximo aprovador se houver.
 **Códigos:** 200, 401, 403 (sem alçada), 409 (já decidida).
-**Invariantes:** `INV-AUDIT-001`.
+**Invariantes:** `INV-001` (trilha WORM em aprovações), `INV-045` (transição válida).
 **US:** `US-DSP-002`.
 **Eventos:** `Despesa.Aprovada` (se foi a última alçada).
 

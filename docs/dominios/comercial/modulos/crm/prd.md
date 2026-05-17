@@ -92,7 +92,7 @@ Ver `metricas.md`. Resumo: taxa lead → cliente > 25%, NPS médio ≥ 60, tempo
 - Performance: lista do dia p95 < 2s; movimento de card kanban < 500ms.
 - Disponibilidade: 99.5%.
 - LGPD: RAT-06 obrigatório para envios WhatsApp; opt-out respeitado em todas automações.
-- Segurança: sandbox obrigatório (INV específica do produto — confirmar com INV-NNN futura).
+- Segurança: sandbox obrigatório (`INV-AGENT-001` — input não-confiável vindo de campos de CRM passa por sanitizer antes de chegar a LLM/automação).
 
 ## 9. Glossário
 

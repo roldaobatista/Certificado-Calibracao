@@ -11,6 +11,9 @@ relacionados:
   - docs/dominios/rh-frota-qualidade/modulos/colaboradores/prd.md
   - docs/dominios/rh-frota-qualidade/modulos/treinamentos/prd.md
   - docs/dominios/operacao/modulos/ordens-de-servico/prd.md
+  - docs/conformidade/comum/lgpd-rat.md#RAT-14
+  - docs/conformidade/comum/dpia-modulos-novos.md#DPIA-03
+  - docs/conformidade/comum/retencao-matriz.md
 ---
 
 # PRD — Módulo Segurança do Trabalho (SST)
@@ -89,6 +92,9 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md`.
 **Critérios de aceite:**
 - **AC-SST-003-1**: Painel lista vencidos hoje + vence em ≤30 dias + ≤60 dias + ≤90 dias.
 - **AC-SST-003-2**: Notificação automática 30 dias antes do vencimento para o gerente SST.
+- **AC-SST-003-3 (LGPD — dado sensível saúde)**: Tratamento do ASO atende base **Art. 11 II "a" — cumprimento de obrigação legal** (NR-7/PCMSO + CLT art. 168 + NR-35); SEM consentimento aplicável (vínculo trabalhista, RAT-14 + DPIA-03). Aferê armazena apenas resultado (apto/inapto/restrição) + validade + PDF — sem CID-10/diagnóstico.
+- **AC-SST-003-4 (Retenção)**: ASO conforme `retencao-matriz.md` linha "ASO (Atestado de Saúde Ocupacional)" — **20 anos pós-vínculo (NR-7 item 7.4.5.1)**; obrigação legal vence direito de esquecimento LGPD; após prazo: anonimização (CPF → hash; nome → "Colaborador anonimizado #N") preservando aptidão+validade+médico para auditoria MTE histórica.
+- **AC-SST-003-5 (RBAC)**: Acesso ao laudo restrito a perfis "gerente SST" + "RH" + "médico do trabalho" + auditor read-only (DPIA-03 R1); demais perfis veem só "apto/inapto/validade" sem laudo.
 
 ---
 

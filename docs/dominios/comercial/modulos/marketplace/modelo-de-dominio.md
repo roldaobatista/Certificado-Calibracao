@@ -47,9 +47,10 @@ relacionados:
 - **Invariantes:** INV-TENANT-001; termo LGPD obrigatório.
 - **Ciclo de vida:** criada ao enviar carrinho; convertida quando vira lead + orçamento; descartada se spam.
 
-### AreaCliente (sessão lógica)
+### AreaCliente (sessão lógica — escopo restrito a pedidos do marketplace)
 - **Atributos obrigatórios:** cliente_id, ultimo_login_em, escopo_visao (lista de cliente_ids permitidos — usuário pode ter procuração de outro).
 - **Invariantes:** INV-TENANT-001; cliente só vê dados dos próprios cliente_ids do escopo.
+- **Fronteira (cravada com `portal-cliente`):** esta entidade **NÃO** representa a área genérica do cliente — é apenas a sessão lógica dentro do marketplace, restrita ao acompanhamento das `SolicitacaoOrcamento` originadas aqui. A autenticação real (login, senha, link mágico, sessão, 2FA) pertence ao módulo `portal-cliente` (entidade `UsuarioPortal` + `SessaoPortal`). O marketplace **consome** a sessão estabelecida pelo portal; não cria login próprio. Para qualquer função fora do escopo de "meus pedidos do marketplace", redireciona para `portal-cliente` (US-POR-002 em diante).
 
 ### TabelaPrecoMarketplace
 - **Atributos obrigatórios:** id, tenant_id, tipo (publica/privada), atribuicoes (lista cliente_id ou segmento_id, se privada).
@@ -88,8 +89,8 @@ relacionados:
 
 | Evento | Quando dispara | Payload | Quem consome |
 |---|---|---|---|
-| `Marketplace.SolicitacaoEnviada` | cliente envia carrinho | `{ solicitacao_id, carrinho_id, dados_contato, itens[] }` | `crm` (cria lead), `orcamentos` (cria rascunho) |
-| `Marketplace.ClienteLogou` | login na área do cliente | `{ cliente_id, ts, ip, user_agent }` | `auditoria` |
+| `Marketplace.SolicitacaoEnviada` | cliente envia carrinho | `{ solicitacao_id, carrinho_id, dados_contato, itens[] }` | `crm` (cria lead), `orcamentos` (cria rascunho), **`portal-cliente`** (registra solicitação na visão consolidada do cliente — US-POR-012) |
+| `Marketplace.ClienteLogou` | login bem-sucedido (autenticação delegada ao `portal-cliente`) | `{ cliente_id, ts, ip, user_agent, origem: "marketplace" }` | `auditoria`; **`portal-cliente`** (handler dispara redirect pro Portal — sessão única, ver fronteira em `AreaCliente`) |
 | `Marketplace.AssinouRecorrente` | cliente assina serviço recorrente | `{ cliente_id, item_vitrine_id, periodicidade }` | `contratos` (cria contrato), `agenda` (gera OS recorrente) |
 | `Marketplace.PagamentoConfirmado` | gateway confirma pagamento | `{ orcamento_id, valor, metodo, gateway_tx_id }` | `financeiro` (registra recebimento), `orcamentos` (marca pago) |
 | `Marketplace.ConversaoRegistrada` | qualquer evento de funil | `{ tipo, sessao_id, item_id?, ts }` | `analytics` (dashboard) |

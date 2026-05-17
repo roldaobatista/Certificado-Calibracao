@@ -33,10 +33,12 @@ Detalhes em `../../../operacao/observabilidade.md`. Resumo:
 
 | SLI | SLO | Erro orçamento (mensal) |
 |---|---|---|
-| Disponibilidade do motor de precificação | 99.7% | ~2h10min/mês |
+| Disponibilidade do motor de precificação | **99.9%** | ~43min/mês |
 | Latência cálculo de preço (p95) | < 200ms | — |
 | Latência cálculo de preço (p99) | < 500ms | — |
 | Taxa de erro 5xx | < 0.2% | — |
+
+> **Justificativa do SLO 99.9%** (acima do default 99.5% do domínio Comercial): motor de precificação é **bloqueador de fluxo de caixa** — sem ele, orçamentos não fecham e não viram OS/fatura. Criticidade intermediária entre CRM puro (99.5%) e Financeiro (99.95%). SLO anterior (99.7%) era valor "inventado" sem ancoragem na tabela canônica de `docs/operacao/observabilidade.md`.
 
 ---
 

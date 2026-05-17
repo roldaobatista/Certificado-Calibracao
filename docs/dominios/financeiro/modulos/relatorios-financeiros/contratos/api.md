@@ -39,7 +39,7 @@ audiencia: agente
 }
 ```
 **Códigos:** 200, 400, 401, 403.
-**US:** `US-RFN-001`. **Invariantes:** `INV-RFN-001`.
+**US:** `US-RFN-001`. **Invariantes:** `INV-031`.
 
 ---
 
@@ -106,7 +106,7 @@ audiencia: agente
 **Request:** multipart `arquivo` + `conta_bancaria_id`.
 **Response 201:** `{ "conciliacao_id": "uuid", "linhas_count": 142, "status": "em_andamento" }`.
 **Códigos:** 201, 400 (formato inválido), 401, 403, 413.
-**US:** `US-RFN-006`. **Invariantes:** `INV-WORM-001`.
+**US:** `US-RFN-006`. **Invariantes:** `INV-001`.
 
 ---
 
@@ -119,7 +119,7 @@ audiencia: agente
 ### `POST /v1/conciliacao/{id}/linhas/{linha_id}/confirmar`
 **Request:** `{ "lancamento_id_match": "uuid", "comentario": "opcional" }`.
 **Response 200:** linha vira `conciliada`.
-**US:** `US-RFN-006`. **Invariantes:** `INV-RFN-002`.
+**US:** `US-RFN-006`. **Invariantes:** `INV-001`.
 
 ---
 

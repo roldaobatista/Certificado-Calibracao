@@ -72,7 +72,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 
 **Non-goals:** edição inline; conversão CAD→PDF (faz upload de ambos).
 
-**Invariantes:** `INV-NNN` (revisão imutável após aprovação), `INV-TENANT-NNN`.
+**Invariantes:** `INV-001` (revisão imutável após aprovação — trilha WORM), `INV-TENANT-001`.
 
 **Dependências:** bloqueado por ADR-0001 (storage).
 
@@ -163,7 +163,7 @@ Ver `metricas.md`. Resumo:
 
 - **Performance:** upload de arquivo até 100MB com progress bar; busca em biblioteca < 500ms p95.
 - **Disponibilidade:** SLO 99.5% (módulo de suporte; não-crítico de execução em campo se cache local OK).
-- **Segurança:** assinatura de aprovação imutável (`INV-NNN`); tenant isolation; controle de download de anexos (RBAC).
+- **Segurança:** assinatura de aprovação imutável (`INV-001` WORM); tenant isolation (`INV-TENANT-001`); controle de download de anexos (`SEC-LEAST-PRIV-001`).
 - **Acessibilidade:** WCAG AA.
 - **Storage:** Backblaze B2 (ADR-0001); criptografia em repouso via KMS (ADR-0002).
 

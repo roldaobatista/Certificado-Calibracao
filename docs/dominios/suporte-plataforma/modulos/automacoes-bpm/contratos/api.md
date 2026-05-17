@@ -16,7 +16,7 @@ audiencia: agente
 
 - Versionamento via path (`/v1/`) ou header (ADR-0001).
 - Autenticação: header `Authorization: Bearer ...`.
-- Tenant: `X-Tenant-ID` ou claim no token. `INV-TENANT-NNN` exige presença.
+- Tenant: `X-Tenant-ID` ou claim no token. `INV-TENANT-001` exige presença.
 - Erros: RFC 7807 Problem Details.
 - Idempotência: mutações aceitam `Idempotency-Key`.
 
@@ -33,7 +33,7 @@ audiencia: agente
 ```
 **Response 201:** `{ "id": "uuid", "status": "rascunho", "versao_corrente": null }`
 **Códigos:** 201, 400, 401, 403, 422.
-**Invariantes:** `INV-TENANT-NNN`.
+**Invariantes:** `INV-TENANT-001`.
 **US:** `US-BPM-001`.
 
 ### `PUT /v1/bpm/fluxos/{id}/definicao`

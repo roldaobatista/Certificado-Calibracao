@@ -21,17 +21,17 @@ relacionados:
 ### DocumentoRegulatorio (raiz de agregado)
 - **Atributos obrigatórios:** `id` (UUID), `tenant_id`, `tipo` (enum: ACREDITACAO_CGCRE, ALVARA, LICENCA_AMBIENTAL, LICENCA_SANITARIA, CERTIDAO_NEGATIVA, ART, RRT, CERT_DIGITAL_A1, CERT_DIGITAL_A3, AUTORIZACAO_ANVISA, AUTORIZACAO_INMETRO, OUTRO), `numero`, `orgao_emissor`, `data_emissao`, `data_validade`, `status` (calculado: VIGENTE / VENCE_EM_BREVE / VENCIDO / EM_RENOVACAO), `bloqueante` (bool), `criado_em`, `criado_por`.
 - **Atributos opcionais:** `escopo` (texto livre — obrigatório para ACREDITACAO_CGCRE), `titular` (CPF/CNPJ — obrigatório para ART/RRT/CERT_DIGITAL), `responsavel_id` (FK Usuario — quem cuida da renovação), `observacao`.
-- **Invariantes de agregado:** `INV-021` (sempre tem anexo na revisão atual), `INV-022` (trilha WORM), `INV-TENANT-001` (tenant_id em toda query), `INV-LIC-001` (bloqueante = true só para tipos previstos).
+- **Invariantes de agregado:** `INV-046` (sempre tem anexo de evidência na revisão atual), `INV-001` (trilha WORM), `INV-TENANT-001` (tenant_id em toda query), `INV-032` (bloqueante = true só para tipos previstos — quando vencido bloqueia operação dependente).
 - **Ciclo de vida:** criado quando admin cadastra → mutável só nos campos `responsavel_id`, `bloqueante`, `observacao` → revisões adicionais via `RevisaoDocumento`.
 
 ### RevisaoDocumento
 - **Atributos obrigatórios:** `id`, `tenant_id`, `documento_id` (FK), `numero_revisao` (incremental por documento), `data_emissao`, `data_validade`, `anexo_id` (FK Anexo), `criado_em`, `criado_por`, `motivo` (enum: CADASTRO_INICIAL, RENOVACAO, RETIFICACAO).
-- **Invariantes:** imutável após criação (INV-022); `data_validade > data_emissao`.
+- **Invariantes:** imutável após criação (INV-001 — WORM); `data_validade > data_emissao`.
 - **Ciclo de vida:** sempre cresce — nunca atualizada nem excluída.
 
 ### AlertaVencimento
 - **Atributos obrigatórios:** `id`, `tenant_id`, `documento_id`, `data_disparo`, `janela_dias` (90/60/30/15/7), `canal` (EMAIL, DASHBOARD, APP), `destinatario_id`, `status` (PENDENTE, ENVIADO, LIDO, FALHOU), `tentativas`, `ultima_tentativa`.
-- **Invariantes:** rastreável (INV-023).
+- **Invariantes:** rastreável (INV-001 — evento de envio/leitura entra no WORM).
 - **Ciclo de vida:** agendado pelo scheduler ao cadastrar/renovar documento → enviado → marcado lido pelo destinatário.
 
 ### BloqueioOperacional
@@ -41,7 +41,7 @@ relacionados:
 
 ### EventoEmergencial
 - **Atributos obrigatórios:** `id`, `tenant_id`, `bloqueio_id`, `operacao_executada`, `justificativa`, `admin_id`, `assinatura_a3_id` (FK ao módulo de assinatura), `criado_em`.
-- **Invariantes:** imutável (INV-022); exige assinatura A3 válida; gera evento WORM.
+- **Invariantes:** imutável (INV-001 — WORM); exige assinatura A3 válida (INV-033 — modo emergencial); gera evento WORM.
 
 ---
 
@@ -49,8 +49,8 @@ relacionados:
 
 | Agregado raiz | Entidades incluídas | Invariantes |
 |---|---|---|
-| DocumentoRegulatorio | RevisaoDocumento[], AlertaVencimento[], BloqueioOperacional[] | INV-021, INV-022, INV-TENANT-001, INV-LIC-001 |
-| EventoEmergencial | — (raiz isolada) | INV-022 |
+| DocumentoRegulatorio | RevisaoDocumento[], AlertaVencimento[], BloqueioOperacional[] | INV-046, INV-001, INV-TENANT-001, INV-032 |
+| EventoEmergencial | — (raiz isolada) | INV-001, INV-033 |
 
 ---
 

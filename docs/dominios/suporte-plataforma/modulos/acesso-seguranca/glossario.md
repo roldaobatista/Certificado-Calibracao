@@ -22,11 +22,11 @@ relacionados:
 | Termo | Definição (1 linha) | Sinônimos proibidos | Se vir na tela/log, significa | Origem |
 |---|---|---|---|---|
 | Usuário | Conta humana com login no sistema, vinculada a 1 tenant e ≥1 filial. | "operador", "conta" (gera confusão com conta financeira) | Quem opera o sistema. | `auth-rbac.md` |
-| Perfil de acesso | Conjunto nomeado de permissões (ex: "Atendente"). | "role", "papel", "função" (usar só "Perfil"). | Pacote de acessos que define o que esse usuário pode fazer. | `auth-rbac.md`, `INV-009` |
+| Perfil de acesso | Conjunto nomeado de permissões (ex: "Atendente"). | "role", "papel", "função" (usar só "Perfil"). | Pacote de acessos que define o que esse usuário pode fazer. | `auth-rbac.md`, `SEC-LEAST-PRIV-001` |
 | Permissão | Direito atômico de executar 1 ação em 1 tela/módulo (ex: "editar cliente"). | "privilégio". | Liberação de UMA ação específica. | `auth-rbac.md` |
 | Matriz de permissões | Tabela módulo × tela × ação CRUD configurável por perfil. | "ACL", "policy" (jargão). | Tabela onde admin marca/desmarca o que cada perfil pode. | `auth-rbac.md` |
 | Sessão | Janela ativa de login (token + dispositivo + IP + expiração). | "login ativo". | Cada vez que alguém está logado em um dispositivo. | `auth-rbac.md` |
-| MFA / 2FA | Segundo fator de autenticação. No Aferê = TOTP. | "verificação em duas etapas" (ok pro Roldão). | Código de 6 dígitos do app autenticador. | `INV-003`, NIST 800-63B |
+| MFA / 2FA | Segundo fator de autenticação. No Aferê = TOTP. | "verificação em duas etapas" (ok pro Roldão). | Código de 6 dígitos do app autenticador. | `SEC-MFA-001`, `INV-009`, NIST 800-63B |
 | TOTP | Time-based One-Time Password (RFC 6238). Código de 6 dígitos que muda a cada 30s. | "Google Authenticator" (é só um app que faz TOTP). | Padrão técnico que o app usa pra gerar o código. | RFC 6238 |
 | SMS-OTP | Código por SMS — **proibido** no Aferê (vulnerável a SIM-swap). | — | NÃO existe no Aferê. | `SEC-001`, NIST SP 800-63B |
 | Recuperação de senha | Fluxo de redefinir senha via link de uso único por email. | "reset de senha", "esqueci minha senha" (ok pro usuário). | Email com link pra trocar senha. | `auth-rbac.md` |
@@ -43,7 +43,7 @@ relacionados:
 | Exportação LGPD | Direito do titular receber cópia estruturada dos próprios dados. | "portabilidade". | Pacote ZIP que titular baixa com tudo que tem dele. | LGPD Art. 18 II, V |
 | Anonimização | Transformação irreversível que impede identificar o titular preservando integridade contábil. | "pseudonimização" (NÃO é a mesma coisa — pseudonimização é reversível). | Apagar nome/CPF mas manter "houve uma venda" pra contabilidade fechar. | LGPD Art. 5 XI |
 | Exclusão LGPD | Apagamento de dado pessoal respeitando retenção legal (Receita 5a, ISO 17025 ~25a). | "deletar conta". | Apagar o dado, mas só depois do prazo legal vencer. | LGPD Art. 18 VI |
-| Princípio do menor privilégio | Conceder só a permissão estritamente necessária. | "least privilege". | Ninguém recebe acesso a mais do que precisa pra trabalhar. | `INV-009`, ISO 27001 |
+| Princípio do menor privilégio | Conceder só a permissão estritamente necessária. | "least privilege". | Ninguém recebe acesso a mais do que precisa pra trabalhar. | `SEC-LEAST-PRIV-001`, ISO 27001 |
 | Anti-enumeração | Mensagens de erro genéricas que não revelam se um email/usuário existe. | — | "Email ou senha incorretos" (sem dizer qual). | `SEC-001`, OWASP ASVS |
 | Rate-limit | Limite de quantas tentativas por janela de tempo. | "throttling". | Bloqueio temporário após muitas tentativas erradas. | `SEC-002`, OWASP ASVS |
 | 4-eyes (dupla checagem) | Ação destrutiva exige 2 admins confirmando. | "dual approval". | Duas pessoas precisam concordar antes de fazer algo grave. | `INV-001`, prática de governança |

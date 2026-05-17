@@ -22,13 +22,13 @@ relacionados:
 ### Sessão de Trabalho (SessaoTrabalho)
 - **Atributos obrigatórios:** id, tenant_id, tecnico_id, data, hora_inicio, hora_fim, status (aberta|encerrada).
 - **Atributos opcionais:** observacoes.
-- **Invariantes de agregado:** uma única sessão aberta por técnico por vez (`INV-NNN` a definir).
+- **Invariantes de agregado:** uma única sessão aberta por técnico por vez (constraint UNIQUE no banco; promover a `INV-NNN` no REGRAS-INEGOCIAVEIS se virar dor).
 - **Ciclo de vida:** criada no primeiro check-in do dia; encerrada por ação ou auto-fechamento à meia-noite.
 
 ### Deslocamento
 - **Atributos obrigatórios:** id, tenant_id, tecnico_id, os_id (opcional), origem_gps, destino_endereco, hora_inicio, hora_fim, distancia_km (opcional), status (em_andamento|pausado|concluido).
 - **Atributos opcionais:** trajeto_polyline.
-- **Invariantes:** pausa não conta no custo (`INV-NNN`).
+- **Invariantes:** pausa não conta no custo (regra de domínio do módulo; sem invariante crítica de plataforma).
 - **Ciclo de vida:** inicia em "Iniciar deslocamento"; fecha em "Cheguei".
 
 ### CheckIn
@@ -42,7 +42,7 @@ relacionados:
 
 ### ConsumoPeca
 - **Atributos obrigatórios:** id, tenant_id, os_id, peca_id, quantidade, veiculo_origem_id, timestamp.
-- **Invariantes:** saldo do veículo não pode ficar negativo (`INV-NNN`).
+- **Invariantes:** saldo do veículo não pode ficar negativo (CHECK no banco; regra de domínio).
 - **Ciclo de vida:** baixa imediata no estoque do veículo (local); espelha no servidor pós-sync.
 
 ### SolicitacaoPeca
@@ -53,14 +53,14 @@ relacionados:
 
 ### Foto
 - **Atributos obrigatórios:** id, tenant_id, os_id, categoria (antes|durante|depois|avaria), arquivo_url, timestamp, gps_lat, gps_lng.
-- **Invariantes:** imutável após upload (`INV-NNN`); EXIF preservado.
+- **Invariantes:** imutável após upload (`INV-001` — trilha WORM); EXIF preservado.
 
 ### Checklist (executado)
 - **Atributos obrigatórios:** id, tenant_id, os_id, template_checklist_id, itens (json com {id, marcado, observacao}), status (parcial|completo).
 
 ### AssinaturaAceite
 - **Atributos obrigatórios:** id, tenant_id, os_id, assinatura_imagem, nome_cliente, cpf_cliente, timestamp.
-- **Invariantes:** NÃO é A3 ICP-Brasil — só aceite contratual (`INV-NNN`). Ver ADR-0009 pra A3.
+- **Invariantes:** NÃO é A3 ICP-Brasil — só aceite contratual com `INV-001` (WORM no aceite registrado). Ver ADR-0009 pra A3 do certificado de calibração regulado.
 
 ### Despesa
 - **Atributos obrigatórios:** id, tenant_id, tecnico_id, categoria, valor, comprovante_url, viagem_id (opcional), os_id (opcional), timestamp.

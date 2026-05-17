@@ -53,17 +53,26 @@ Registro imutável de baixa. Atributos: `titulo_id`, `valor`, `data`, `origem` (
 
 ## Eventos emitidos
 
-- `TituloEmitido(titulo_id, valor, cliente_id, vencimento)`
-- `BoletoGerado(titulo_id, linha_digitavel)`
-- `Pago(titulo_id, valor, data, origem)` → consumido por Comercial (timeline 360°) e Comissões (gatilho OP4)
-- `TituloVencido(titulo_id, dias_atraso)` → consumido por régua de cobrança (Wave B)
-- `TituloCancelado(titulo_id, razao)`
+> **Nomenclatura canônica** (ver `docs/comum/integracoes-inter-modulos.md` §Padrão): prefixo `ContasReceber.*`.
+
+- `ContasReceber.TituloEmitido(titulo_id, valor, cliente_id, vencimento)`
+- `ContasReceber.BoletoGerado(titulo_id, linha_digitavel)`
+- `ContasReceber.Pago(titulo_id, valor, data, origem)` → consumido por Comercial (timeline 360°), Comissões (gatilho OP4), Fiscal (gatilho opcional NFS-e)
+- `ContasReceber.TituloVencido(titulo_id, dias_atraso)` → consumido por régua de cobrança (Wave B), Portal Cliente
+- `ContasReceber.TituloCancelado(titulo_id, razao)`
+- `ContasReceber.DescontoAplicado(titulo_id, valor, motivo: penalidade_sla|nota_credito_bonificacao|manual)` → consumido por auditoria, BI
+
+**Compatibilidade transitória:** aliases legados `TituloEmitido`/`Pago`/`BoletoGerado` aceitos durante Wave A (consumers antigos ainda escutam); auditor schema-version bloqueia novos handlers em aliases.
 
 ## Eventos consumidos
 
-- `OSConcluida` (Operação) → gera fatura + título
-- `ContratoRenovado` (Comercial) → gera título recorrente
-- Webhook gateway → emite `Pago`
+- `OS.Concluida` (Operação) → gera fatura + título
+- `Contrato.Renovado` (Comercial) → gera título recorrente
+- `Marketplace.PagamentoConfirmado` (Comercial/marketplace) → cria título já liquidado (registra recebimento) + publica `ContasReceber.TituloEmitido` + `ContasReceber.Pago` na mesma transação
+- `SLA.PenalidadeCalculada` (Comercial/sla-contratual) → cria desconto/multa em título aberto do cliente (ou nota de crédito se não houver título)
+- `SLA.BonificacaoCalculada` (Comercial/sla-contratual) → cria nota de crédito a favor do cliente (abate próximo título ou vira saldo)
+- `BillingSaas.FaturaPaga` (Financeiro/billing-saas) — consumido por `relatorios-financeiros/` (não por este módulo; mantido aqui só pra cross-reference)
+- Webhook gateway → emite `ContasReceber.Pago`
 
 ## Non-goals do modelo
 

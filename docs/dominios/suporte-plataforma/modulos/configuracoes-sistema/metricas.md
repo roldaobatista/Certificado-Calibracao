@@ -15,9 +15,16 @@ audiencia: dono
 
 ## KPIs de negócio
 
+> **Convenção canônica de adoção/uso** (ver `docs/comum/glossario-roldao.md`):
+> - **Taxa de adoção inicial** = % novos clientes/tenants usando nos primeiros 30 dias
+> - **Taxa de uso recorrente** = % ativos por mês/semana
+> - **Taxa de customização** = % tenants que mudaram ≥ 1 config além do default
+>
+> Neste módulo usamos `taxa_customizacao` (target invertido: alto demais = default ruim; baixo demais = engessado).
+
 | Métrica | Definição | Target | Como medir | Frequência |
 |---|---|---|---|---|
-| % de tenants com config 100% default | Tenants que não mudaram nenhuma config além do mínimo do onboarding | ≤ 30% (indica produto bem ajustado SEM ser engessado) | flag por config | mensal |
+| Taxa de customização — canônico (escopo: tenant; target invertido) | Tenants que NÃO mudaram nenhuma config além do mínimo do onboarding (= 1 − taxa_customizacao). **Inverso:** se > 70% mexem, default está ruim. | "100% default" ≤ 30% (= ≥ 70% personalizou algo, mas sem virar caos) | flag por config | mensal |
 | Tempo médio de aplicação de mudança | Segundos entre salvar config e refletir nos módulos consumidores | ≤ 5s | event timestamps | semanal |
 | Self-service de configuração | % de mudanças feitas pelo cliente vs suporte Aferê | ≥ 90% | origem do ator | mensal |
 | Configurações sensíveis com auditoria | % de mudanças críticas (RBAC, fiscal, retenção, integrações) com registro de auditoria | 100% | obrigatório | contínuo |

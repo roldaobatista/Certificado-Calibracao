@@ -52,7 +52,7 @@ audiencia: agente
 }
 ```
 **Códigos:** 201, 400 (input), 401, 403, 422 (validação — escopo obrigatório, anexo missing).
-**Invariantes:** `INV-021`, `INV-022`, `INV-TENANT-001`, `INV-LIC-001`.
+**Invariantes:** `INV-046`, `INV-001`, `INV-TENANT-001`, `INV-032`.
 **US:** `US-LIC-001`.
 **Eventos:** `Licencas.DocumentoCadastrado`.
 
@@ -94,7 +94,7 @@ audiencia: agente
 ```
 **Response 201:** revisão criada (imutável).
 **Códigos:** 201, 400, 401, 403, 409 (revisão duplicada por idempotência).
-**Invariantes:** `INV-022` (imutabilidade).
+**Invariantes:** `INV-001` (imutabilidade WORM).
 **Eventos:** `Licencas.DocumentoRenovado`, possivelmente `Licencas.BloqueioResolvido`.
 
 ---
@@ -138,7 +138,7 @@ audiencia: agente
 ```
 **Response 201:** evento criado + janela ativa.
 **Códigos:** 201, 400, 403, 422 (assinatura A3 inválida/expirada).
-**Invariantes:** `INV-022`, exige A3 (ADR-0009).
+**Invariantes:** `INV-001`, `INV-033` (modo emergencial: justificativa + A3 + WORM), exige A3 (ADR-0009).
 **Eventos:** `Licencas.ModoEmergencialAcionado`.
 
 ---

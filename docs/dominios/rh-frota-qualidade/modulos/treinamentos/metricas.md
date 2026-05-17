@@ -25,6 +25,9 @@ modulo: treinamentos
 | Custo médio por colaborador / ano | Soma custos / nº colaboradores ativos | a definir | Quando módulo financeiro existir | anual |
 | Taxa de aprovação em provas | aprovados / (aprovados + reprovados) | ≥85% | Eventos x notas | trimestral |
 | Cobertura matriz por equipamento | % equipamentos com ≥1 técnico habilitado | 100% | Trilha equipamento x certificados | mensal |
+| Taxa de competência válida por função (ISO 17025 cl. 6.2) | Pra cada função, % colaboradores ativos com 100% das competências obrigatórias da função dentro da validade. **Diferente de "aderência à trilha" (visão por colaborador):** esta visão é por FUNÇÃO — útil pra planejamento de turma de treinamento e dimensionamento de capacidade técnica. | 100% por função | Cross `Colaborador.funcao` × matriz competência × `Certificado.validade` agregado por função | mensal |
+| Tempo médio entre vencimento e renovação (gestão proativa) | Mediana de dias entre `data_vencimento` da competência e nova `data_emissao` do certificado de renovação. **Negativo = renovado antes de vencer (ideal); positivo = colaborador ficou descoberto por X dias.** | mediana ≤ −15 dias (renovação 15 dias antes do vencimento) | Diff timestamps entre certificado vencido e seu substituto na mesma trilha+colaborador | mensal |
+| % colaboradores com matriz completa (compliance) | % colaboradores ativos sem nenhum item pendente/vencido na sua matriz de competência. **Diferente de "aderência à trilha":** matriz inclui trilha-da-função + treinamentos transversais (LGPD, código de conduta, segurança da informação). | 100% | Query `Colaborador` join `MatrizCompetencia.itens_pendentes=0` | mensal |
 
 ---
 

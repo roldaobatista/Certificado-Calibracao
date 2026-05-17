@@ -56,12 +56,15 @@ dominio: suporte-plataforma
 
 ## Eventos publicados
 
-| Evento | Quando dispara | Consumidores |
-|---|---|---|
-| `Catalogo.item_cadastrado` | INSERT | Estoque (inicializa saldo), Financeiro |
-| `Catalogo.preco_alterado` | Nova `ItemCatalogoVersao` com preço diferente | Financeiro (recalcula orçamentos abertos) |
-| `Catalogo.item_inativado` | status=inativo | Operação (esconde de seletor de OS) |
-| `Catalogo.kit_alterado` | Composição mudou | Operação |
+> **Nomenclatura canônica:** PascalCase no segundo segmento (ex: `Catalogo.ItemCadastrado`). Aliases snake_case ficam como **deprecated** até V2.
+
+| Evento | Quando dispara | Payload | Consumidores |
+|---|---|---|---|
+| `Catalogo.ItemCadastrado` | INSERT | `{tenant_id, item_id, codigo, tipo}` | Estoque (inicializa saldo), Financeiro |
+| `Catalogo.ItemAtualizado` | UPDATE de descrição, especificação, status, kit ou criação de nova `ItemCatalogoVersao` (qualquer mudança que afete preço/disponibilidade — evento agregador) | `{tenant_id, item_id, versao_id, campos_alterados[]}` | comercial/marketplace (atualiza vitrine), comercial/precificacao (revisa regras), Operação |
+| `Catalogo.PrecoAlterado` | Nova `ItemCatalogoVersao` com preço diferente | `{tenant_id, item_id, versao_id, preco_antigo, preco_novo}` | Financeiro (recalcula orçamentos abertos), comercial/marketplace |
+| `Catalogo.ItemInativado` | status=inativo | `{tenant_id, item_id, motivo}` | Operação (esconde de seletor de OS), comercial/marketplace (remove vitrine) |
+| `Catalogo.KitAlterado` | Composição mudou | `{tenant_id, kit_id, diff_componentes}` | Operação |
 
 ---
 

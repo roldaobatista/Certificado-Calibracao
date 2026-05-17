@@ -8,6 +8,11 @@ audiencia: agente
 relacionados:
   - docs/prd.md
   - docs/dominios/financeiro/README.md
+  - docs/conformidade/comum/pci-dss.md
+  - docs/conformidade/comum/lgpd-rat.md#RAT-16
+  - docs/conformidade/comum/dpia-modulos-novos.md#DPIA-05
+  - docs/conformidade/comum/retencao-matriz.md
+  - docs/adr/0008-fiscal-pluggable.md
 ---
 
 # PRD — Módulo Billing SaaS (Assinaturas e Planos)
@@ -54,10 +59,11 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md`.
 ## 5. Non-goals (o que NÃO está neste módulo)
 
 - Cobrança dos CLIENTES dos tenants (isso é `contas-receber`).
-- Emissão de NF-e da assinatura SaaS (isso é módulo `fiscal` — Aferê emite a si próprio NFS-e).
+- **Emissão técnica de NFS-e**: este módulo **dispara** a emissão da NFS-e da assinatura SaaS (US-BIL-008), mas a integração com prefeitura/Padrão Nacional fica no módulo `fiscal` via `FiscalProvider` (ADR-0008).
 - Marketing/landing page de venda (fora do ERP).
 - Suporte/onboarding pós-venda (fora deste módulo).
 - Definição de qual plano o cliente "deveria" ter (não há recomendador inteligente nesta versão).
+- **Processamento de dados de cartão** (PAN, CVV, banda): nunca tocam o backend Aferê — gateway tokeniza e devolve `gateway_token`. PCI-DSS por delegação (ver `docs/conformidade/comum/pci-dss.md`).
 
 ## 6. User Stories
 
@@ -70,7 +76,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md`.
 - **AC-BIL-001-2**: GIVEN plano selecionado tem trial, WHEN assinatura é criada, THEN `status=trial`, `trial_termina_em=hoje+N dias`.
 - **AC-BIL-001-3**: GIVEN tenant tenta criar assinatura sem método de pagamento e plano não tem trial, WHEN submete, THEN sistema rejeita com `409 método_pagamento_obrigatorio`.
 
-**Invariantes relacionadas:** `INV-TENANT-001` (toda operação carrega `tenant_id`), `INV-NNN` (assinatura é fonte única do estado comercial do tenant).
+**Invariantes relacionadas:** `INV-TENANT-001` (toda operação carrega `tenant_id`), `INV-030` (assinatura/plano define limite — flag tenant não pode burlar plano contratado).
 
 **Dependências:**
 - Bloqueia: US-BIL-002, US-BIL-003.
@@ -87,9 +93,16 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md`.
 - **AC-BIL-002-2**: GIVEN cobrança aprovada, WHEN gateway retorna sucesso, THEN `fatura.status=paga`, atualiza `proximo_vencimento`, dispara evento `BillingSaas.FaturaPaga`.
 - **AC-BIL-002-3**: GIVEN cobrança recusada, WHEN gateway retorna falha, THEN `fatura.status=falhou`, agenda nova tentativa em D+1, D+3, D+7, dispara evento `BillingSaas.CobrancaFalhou`.
 
-**Non-goals:** este módulo NÃO processa cartões diretamente — tudo via gateway PCI-DSS certificado (Stripe/PagSeguro).
+- **AC-BIL-002-4**: GIVEN operador comercial Aferê precisa configurar gateway (chaves de API, segredos de webhook, credenciais OAuth) WHEN acessa tela de configuração de gateway, THEN sistema **exige MFA ativo** (`SEC-MFA-001`) e registra a operação em trilha WORM (`INV-001`); chaves armazenadas cifradas via KMS (`INV-009`), nunca em texto plano nos logs.
+- **AC-BIL-002-5 (LGPD)**: Tratamento atende base **Execução de contrato (art. 7º V) + Obrigação fiscal (art. 7º II)** (RAT-16 + DPIA-05). Aferê armazena somente: nome/CPF/CNPJ do contratante, token opaco do gateway, bandeira, últimos 4. **NUNCA** PAN completo, CVV, dados de track.
+- **AC-BIL-002-6 (Retenção)**: Fatura conforme `retencao-matriz.md` linha "Cobrança recorrente Billing SaaS" (token: vigência + 30 dias; fatura: 5 anos fiscal); após prazo: token revogado no gateway + descartado; fatura anonimizada + crypto-shredding.
+- **AC-BIL-002-7 (Webhook seguro)**: Webhook do gateway valida assinatura HMAC + IP allowlist do gateway + idempotência por `event_id` (DPIA-05 R1).
+- **AC-BIL-002-8 (Log seguro)**: Filtro de log com regex PAN/CVV (PCI-DSS req 3.3); rejeição em CI (DPIA-05 R2, hook `log-pci-scanner.sh` a criar).
+- **AC-BIL-002-9 (Cobrança cancelada)**: Após 3 falhas consecutivas sistema bloqueia novas tentativas e abre ticket para tenant regularizar (DPIA-05 R5, CDC art. 39).
 
-**Invariantes relacionadas:** `SEC-NNN` (não armazenar PAN/CVV), `INV-TENANT-001`.
+**Non-goals:** este módulo NÃO processa cartões diretamente — dados de cartão (PAN, CVV, banda magnética) **nunca passam pelo backend Aferê**. Cliente do tenant insere o cartão diretamente no formulário hospedado/SDK do gateway (Stripe/PagSeguro/Asaas), que tokeniza e devolve `gateway_token` (token opaco). Aferê armazena apenas o token + últimos 4 dígitos + bandeira (já mascarados pelo próprio gateway). Conformidade PCI-DSS por delegação — ver `docs/conformidade/comum/pci-dss.md`.
+
+**Invariantes relacionadas:** `SEC-PCI-001` (proibido armazenar PAN/CVV), `INV-TENANT-001`, `INV-001` (audit), `INV-009` (segredos via KMS), `SEC-MFA-001` (MFA obrigatório em configuração de gateway).
 
 ---
 
@@ -148,6 +161,28 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md`.
 
 ---
 
+### US-BIL-008: Emitir NFS-e da fatura da assinatura SaaS
+
+**Como** Aferê (empresa emissora do SaaS), **quero** emitir automaticamente NFS-e da assinatura paga pelo tenant cliente, **para** cumprir obrigação fiscal do próprio Aferê sem intervenção manual e sem depender de planilha.
+
+**Critérios de aceite:**
+- **AC-BIL-008-1**: GIVEN fatura SaaS com `status=paga` (evento `BillingSaas.FaturaPaga` emitido), WHEN trigger automático dispara, THEN módulo `fiscal/` é chamado via `FiscalProvider.emit_invoice()` (ADR-0008) passando `tenant_id` do cliente como `customer_taxid` e CNPJ do Aferê como `issuer_taxid`; resultado registra `nfse_id`, `authorization_code`, `pdf_url` na Fatura SaaS e dispara evento `BillingSaas.NFSeEmitida`.
+- **AC-BIL-008-2**: GIVEN emissão de NFS-e rejeitada pela prefeitura/PlugNotas, WHEN `InvoiceResult.status=REJECTED`, THEN sistema registra `rejection_reason`, mantém fatura `paga` (cobrança não retroage), dispara evento `BillingSaas.NFSeFalhou`, alerta operador comercial Aferê (P1).
+- **AC-BIL-008-3**: GIVEN provider primário (PlugNotas) indisponível, WHEN circuit breaker abre, THEN sistema usa fallback (Focus NFe) automaticamente — contingência SVC-AN homologada (`INV-007`).
+- **AC-BIL-008-4**: GIVEN NFS-e já emitida com sucesso para uma fatura, WHEN reprocessamento for tentado (job retry, webhook duplicado), THEN sistema **NÃO retroage nem reemite** — operação idempotente (`INV-026`); XML armazenado em B2 WORM (`INV-001` audit).
+
+**Non-goals desta US:**
+- Cancelamento de NFS-e por desistência do tenant → fluxo separado (US futura no módulo `fiscal/`).
+- Configuração de regime tributário (Simples Nacional vs Lucro Presumido) do próprio Aferê → fora deste módulo; vem do cadastro fiscal global.
+
+**Invariantes relacionadas:** `INV-007` (contingência SVC-AN homologada), `INV-001` (trilha WORM da emissão), `INV-026` (operações fiscais não retroagem), `INV-TENANT-001` (todo evento carrega `tenant_id` do cliente).
+
+**Dependências:**
+- Bloqueado por: ADR-0008 (FiscalProvider pluggable), módulo `fiscal/` (implementação `PlugNotasProvider` + `FocusNFeProvider`), cadastro fiscal do Aferê (CNPJ, regime, código de serviço municipal).
+- Bloqueia: encerramento contábil mensal automático.
+
+---
+
 ## 7. Métricas de sucesso deste módulo
 
 Ver `metricas.md`. Resumo:
@@ -158,10 +193,11 @@ Ver `metricas.md`. Resumo:
 
 ## 8. NFR
 
-- **Performance:** painel de uso carrega <500ms p95.
-- **Disponibilidade:** job de billing é idempotente; falha não duplica cobrança.
-- **Segurança:** `SEC-NNN` — nenhum dado de cartão tocado pelo Aferê (PCI-DSS por delegação ao gateway); webhooks de gateway assinados (HMAC).
-- **Auditoria:** toda mudança de plano/cobrança/suspensão registrada em trilha WORM.
+- **Performance:** painel de uso carrega <500ms p95; cálculo de cobrança recorrente p99 <2s.
+- **Disponibilidade:** **SLO 99.95%** (alinhado com domínio Financeiro em `docs/operacao/observabilidade.md`) — billing-saas é a receita do próprio Aferê, indisponibilidade trava contratação de novos tenants e cobrança recorrente. Erro orçamento ≈ 21min/mês. Job de billing é idempotente; falha não duplica cobrança.
+- **Segurança (PCI-DSS por delegação):** dados de cartão (PAN, CVV, banda) **nunca passam pelo backend Aferê** — gateway tokeniza no cliente e devolve `gateway_token` opaco (`SEC-PCI-001`). Aferê armazena apenas token + últimos 4 + bandeira. Webhooks de gateway assinados via HMAC e idempotentes por `gateway_event_id`. Configuração de chaves de gateway exige MFA (`SEC-MFA-001`) e fica cifrada via KMS (`INV-009`). Conformidade detalhada em `docs/conformidade/comum/pci-dss.md`.
+- **Fiscal:** emissão de NFS-e da assinatura via `FiscalProvider` (ADR-0008) com fallback homologado; nunca retroage (`INV-026`); XML em B2 WORM (`INV-001`).
+- **Auditoria:** toda mudança de plano/cobrança/suspensão/emissão fiscal registrada em trilha WORM imutável.
 
 ## 9. Glossário
 

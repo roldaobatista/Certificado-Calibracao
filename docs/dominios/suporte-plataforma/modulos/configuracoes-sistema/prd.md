@@ -88,7 +88,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 - **AC-CFG-002-2**: GIVEN série em uso, WHEN tenta diminuir o "próximo número", THEN bloqueia (números gerados são imutáveis).
 - **AC-CFG-002-3**: GIVEN documento emitido, WHEN gera, THEN incrementa contador de forma atômica (sem gap nem duplicata).
 
-**Invariantes:** `INV-CFG-001` (numeração estritamente crescente), `INV-006` (idempotência na emissão).
+**Invariantes:** `INV-028` (numeração estritamente crescente), `INV-006` (idempotência na emissão).
 
 ---
 
@@ -100,7 +100,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 - **AC-CFG-003-1**: GIVEN regime tributário selecionado (Simples / Lucro Presumido / Lucro Real), WHEN salva, THEN expõe campos relevantes ao regime.
 - **AC-CFG-003-2**: GIVEN alíquota mudada, WHEN salva, THEN só vale pra documentos futuros (passados são imutáveis).
 
-**Invariantes:** ADR-0008 (fiscal pluggable), `INV-CFG-002` (config fiscal imutável após emissão de documento).
+**Invariantes:** ADR-0008 (fiscal pluggable), `INV-026` (config fiscal/preço não retroage a documento já emitido — versionamento de catálogo).
 
 ---
 
@@ -113,7 +113,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 - **AC-CFG-004-2**: GIVEN papel atribuído a usuário, WHEN usuário tenta ação não permitida, THEN sistema nega com mensagem clara em PT-BR.
 - **AC-CFG-004-3**: GIVEN tentativa de remover último admin, WHEN solicitado, THEN bloqueia.
 
-**Invariantes:** `SEC-002` (princípio do menor privilégio), `INV-CFG-003` (sempre ≥1 admin ativo).
+**Invariantes:** `SEC-LEAST-PRIV-001` (princípio do menor privilégio), `INV-029` (sempre ≥1 admin ativo).
 
 ---
 
@@ -147,7 +147,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 - **AC-CFG-007-2**: GIVEN logo enviado, WHEN salva, THEN aparece no header dos PDFs.
 - **AC-CFG-007-3**: GIVEN template editado, WHEN salva, THEN versão antiga preservada (auditoria); documentos antigos seguem template usado na emissão.
 
-**Invariantes:** `INV-CFG-004` (template usado na emissão é imutável depois — não regerar PDF emitido com template novo).
+**Invariantes:** `INV-001` (trilha imutável — template usado na emissão é parte do snapshot WORM; documentos antigos seguem template original).
 
 ---
 
@@ -226,7 +226,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 - **AC-CFG-014-1**: GIVEN feature liberada pro plano, WHEN admin liga, THEN passa a aparecer pros usuários do tenant.
 - **AC-CFG-014-2**: GIVEN feature NÃO liberada pro plano, WHEN admin tenta ligar, THEN bloqueia com mensagem "fale com comercial".
 
-**Invariantes:** ADR-0006 (feature flags), `INV-CFG-005` (flag de tenant não pode burlar limite do plano).
+**Invariantes:** ADR-0006 (feature flags), `INV-030` (flag de tenant não pode burlar limite do plano).
 
 ---
 
@@ -239,7 +239,7 @@ Ver `metricas.md`. Resumo:
 ## 8. NFR
 
 - **Performance:** leitura de config p95 < 50ms (alto cache, invalidação por evento).
-- **Segurança:** SEC-002 (RBAC), SEC-KMS-001 (credenciais criptografadas), SEC-005 (auditoria de mudanças), `INV-TENANT-001`.
+- **Segurança:** SEC-LEAST-PRIV-001 (RBAC), SEC-KMS-001 (credenciais criptografadas), SEC-005 (auditoria de mudanças), `INV-TENANT-001`.
 - **Disponibilidade:** módulo crítico — SLO 99.95%.
 
 ## 9. Glossário

@@ -9,7 +9,9 @@ relacionados:
   - docs/prd.md
   - docs/dominios/comercial/README.md
   - docs/comum/integracoes-externas/whatsapp.md
-  - docs/conformidade/comum/lgpd-rat.md
+  - docs/conformidade/comum/lgpd-rat.md#RAT-12
+  - docs/conformidade/comum/dpia-modulos-novos.md#DPIA-04
+  - docs/conformidade/comum/retencao-matriz.md
 ---
 
 # PRD — Módulo Comunicação Omnichannel
@@ -80,6 +82,9 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 
 **Invariantes:** `INV-TENANT-001`, registro de consentimento WORM.
 
+- **AC-COM-002-4 (LGPD):** Tratamento atende base **Consentimento explícito (art. 7º I)** para marketing/comercial; **Execução de contrato (art. 7º V)** para transacional essencial (RAT-12 + DPIA-04). Cada finalidade tem toggle individual e versão do termo registrada.
+- **AC-COM-002-5 (Retenção):** Histórico de consentimento conforme `retencao-matriz.md` linha "Histórico de consentimento Comunicação Omnichannel" (opt-out + 6 meses); após prazo: anonimização (telefone/e-mail → hash) preservando registro de revogação para prova LGPD art. 8º.
+
 **Dependências:** bloqueado por `docs/conformidade/comum/lgpd-rat.md`.
 
 ---
@@ -94,6 +99,8 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 - **AC-COM-003-3**: GIVEN cliente em opt-out solicita reativação, WHEN registra novo opt-in explícito, THEN o ciclo recomeça.
 
 **Invariantes:** opt-out é imediato; falha em bloquear comunicação é vazamento LGPD.
+
+- **AC-COM-003-4 (LGPD):** Bloqueio implementado em camada de envio (não na UI) — DPIA-04 R1; qualquer chamada `enviar(cliente, canal, finalidade)` consulta tabela de consentimento, falha = exceção bloqueante + alerta crítico.
 
 ---
 

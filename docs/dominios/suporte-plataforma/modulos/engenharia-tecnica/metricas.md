@@ -10,50 +10,61 @@ audiencia: dono
 # Métricas do módulo Engenharia Técnica
 
 > Como saber se o módulo está entregando valor.
+>
+> **Regra de ouro (auditor 7):** SLI/SLO violado → **page oncall**. KPI de uso da biblioteca (reuso, BOM, retrabalho de desenho) → **painel-do-dono / gestor de engenharia**, NUNCA page.
 
 ---
 
-## KPIs de negócio
+## SLI / SLO Operacional (observabilidade técnica)
 
-| Métrica | Definição | Target | Como medir | Frequência |
-|---|---|---|---|---|
-| % OS com projeto técnico vinculado | das OS que aplicam, quantas têm projeto | ≥ 80% | join OS x Projeto | mensal |
-| Tempo médio de aprovação técnica | submissão → aprovação | ≤ 3 dias úteis | timestamps revisão | semanal |
-| Reuso de componentes da biblioteca | componentes usados em ≥ 2 projetos / total | ≥ 60% | contagem cruzada | mensal |
-| Redução de retrabalho por "desenho errado" | OS reclassificadas como retrabalho com motivo "desenho errado" | -50% em 6 meses | classificação manual em OS | trimestral |
-| % projetos com BOM estruturado | BOM preenchido vs apenas anexo | ≥ 70% | atributo do projeto | mensal |
-| Aprovações com assinatura digital ICP | das aprovações, quantas usaram ICP | ≥ 30% (apenas onde política exige) | atributo da aprovação | mensal |
+SLO de referência: domínio **CRM** em `docs/operacao/observabilidade.md` — disponibilidade **99.5%**, latência p99 < 1s. Upload em Backblaze (storage WORM) é caminho crítico para preservação de arquivos.
+
+| SLI | SLO | Erro orçamento (mensal) | Origem |
+|---|---|---|---|
+| Disponibilidade do módulo | 99.5% | ~3,6h/mês | OTel |
+| Latência busca em biblioteca p95 | < 500ms | — | OTel |
+| Taxa de sucesso upload | > 99% | — | OTel + Backblaze |
+| Tempo médio upload arquivo 100MB | < 60s | — | OTel |
+
+**Política de alerta SLI/SLO:** viola → **page oncall** + Slack `#oncall`.
+
+| Alerta operacional | Quando dispara | Quem é notificado | Severidade |
+|---|---|---|---|
+| Falha persistente upload Backblaze | 3 falhas seguidas em 15min | page oncall + Watchdog | P1 |
+| Latência busca > 2s por 10min | degradação | page oncall | P2 |
+| 5xx > 0.5% em 5min | falha API | page oncall | P1 |
 
 ---
 
-## SLI/SLO técnico
+## KPIs de Negócio / Produto
 
-Detalhe em `../../../operacao/observabilidade.md`. Resumo:
+Destino: **painel-do-dono mensal** + gestor de engenharia. **NÃO acionam pager.**
 
-| SLI | SLO | Erro orçamento (mensal) |
+| Métrica | Definição | Target | Como medir | Frequência | Destino |
+|---|---|---|---|---|---|
+| % OS com projeto técnico vinculado (cobertura) | OS aplicáveis com projeto | ≥ 80% | join OS x Projeto | mensal | painel-do-dono |
+| Tempo médio aprovação técnica (operação) | Submissão → aprovação | ≤ 3 dias úteis | timestamps revisão | semanal | painel-do-dono |
+| Reuso de componentes da biblioteca (asset library) | Componentes usados em ≥2 projetos / total | ≥ 60% | contagem cruzada | mensal | painel-do-dono |
+| Redução de retrabalho por "desenho errado" (qualidade) | OS reclassificadas retrabalho motivo "desenho errado" | -50% em 6 meses | classificação manual | trimestral | relatório trimestral |
+| % projetos com BOM estruturado (qualidade dado) | BOM preenchido vs apenas anexo | ≥ 70% | atributo do projeto | mensal | painel-do-dono |
+| Aprovações com assinatura digital ICP (compliance) | Aprovações com ICP / aprovações onde política exige | ≥ 30% | atributo da aprovação | mensal | painel-do-dono + auditoria |
+
+**Política de alerta KPI:** variação anômala → **e-mail gestor / dashboard** (NUNCA page).
+
+| Alerta KPI | Quando dispara | Destino |
 |---|---|---|
-| Disponibilidade do módulo | 99.5% | ~3,6h/mês |
-| Latência busca em biblioteca p95 | < 500ms | — |
-| Taxa de sucesso upload | > 99% | — |
-| Tempo médio upload arquivo 100MB | < 60s | — |
+| Aprovação técnica pendente > SLA | configurável por tenant | e-mail engenheiro + gestor (não-page) |
+| Revisão "rascunho" sem atividade > 30 dias | batch noturno | notificação ao autor (não-page) |
+| Componente duplicado detectado | mesma fabricante+modelo no cadastro | sugestão merge ao usuário (não-page) |
+| Reuso de componentes < 40% por 2 meses | degradação asset library | e-mail Roldão (não-page) |
 
 ---
 
 ## Dashboards canônicos
 
-- **Grafana:** painel "Engenharia — uploads, aprovações, biblioteca" (link pós ADR-0001).
-- **Axiom (logs):** query `module:engenharia` (link pós ADR-0001).
-
----
-
-## Alertas configurados
-
-| Alerta | Quando dispara | Quem é notificado | Severidade |
-|---|---|---|---|
-| Falha persistente upload Backblaze | 3 falhas seguidas em janela 15min | Watchdog → operador | P1 |
-| Aprovação técnica pendente > SLA | configurável por tenant | Watchdog → engenheiro responsável + gestor | P2 |
-| Revisão "rascunho" sem atividade > 30 dias | batch noturno | notificação ao autor | P3 |
-| Componente duplicado detectado (mesma fabricante+modelo) | no cadastro | sugestão de merge ao usuário | P3 |
+- **Grafana SLI/SLO:** painel "Engenharia — uploads, latência" pós ADR-0001 — destino oncall
+- **Painel-do-dono KPIs:** "Engenharia — aprovações, biblioteca, BOM" pós ADR-0001 — destino Roldão/gestor
+- **Axiom (logs):** query `module:engenharia` pós ADR-0001
 
 ---
 

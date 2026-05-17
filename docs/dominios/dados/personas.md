@@ -58,29 +58,9 @@ relacionados:
 
 ---
 
-## Persona 3: Analista / responsável por relatórios (NOVA — específica deste domínio)
+## Persona 3: Analista / responsável por relatórios
 
-**Identidade:** Pode ser o próprio dono em empresas pequenas, ou um perfil dedicado em empresas maiores. Familiaridade média com planilhas (Excel). Não programa SQL.
-
-**Goals:**
-- Criar relatório customizado sem chamar suporte.
-- Agendar envio automático para diretoria / cliente externo.
-- Exportar para Excel / CSV para análise externa.
-
-**Frustrations:**
-- Ferramentas de BI exigem treinamento longo.
-- Custo de licença por usuário em ferramentas tipo Power BI / Tableau.
-- Engessamento — "só posso ver o que vem pronto".
-
-**Jornada típica:**
-1. Abre construtor de relatório → escolhe métrica + filtros + agrupamento.
-2. Visualiza prévia → ajusta.
-3. Salva como dashboard pessoal OU agenda envio semanal.
-
-**Devices:** web desktop.
-**Frequência:** semanal.
-
-**Permissões:** RBAC `analista` — leitura ampla + criação de relatório próprio, sem ver dado financeiro sensível salvo permissão extra.
+**Fonte canônica:** `docs/comum/personas.md` P-BI-01 (promovida em 2026-05-17 — aparece em `dados/bi` e futuramente em `financeiro/relatorios-financeiros`, `operacao/capacity-planning-operacional`). Antes era marcada como "específica deste domínio"; com a chegada de relatórios financeiros e capacity planning passou a transversal.
 
 ---
 

@@ -15,7 +15,9 @@ audiencia: agente
 
 ## Persona 1: Responsável Técnico (RT) — visão emissão
 
-**Identidade:** Metrologista signatário autorizado, formação técnica metrologia/física/engenharia, registro CRQ/CREA, dono do A3 vinculado à empresa. Detalhe full em `../calibracao/personas.md`; aqui interage como signatário.
+**Canônica:** `../../personas.md` P-METR-02 (promovida em 2026-05-17 — domínio metrologia). Aqui só o recorte do que o RT faz **especificamente** durante a emissão/assinatura.
+
+**Identidade:** Metrologista signatário autorizado, formação técnica metrologia/física/engenharia, registro CRQ/CREA, dono do A3 vinculado à empresa.
 
 **Goals deste módulo:**
 - Assinar lote de certificados sem atrito (token A3 detectado uma vez, assinatura em segundos).

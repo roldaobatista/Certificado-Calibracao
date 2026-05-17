@@ -11,6 +11,13 @@ audiencia: dono
 
 > Como saber se o módulo de implantação está entregando valor.
 
+> **Convenção canônica de cobertura/completude** (ver `docs/comum/glossario-roldao.md`):
+> - **Qualidade de dados inicial** = onboarding (dimensão: dados)
+> - **Cobertura documental por equipamento** = base-conhecimento (dimensão: conhecimento)
+> - **Conformidade de formato PDF/A** = certificados (dimensão: formato)
+>
+> Neste módulo usamos `qualidade_dados_inicial` (% inconsistências de migração tratadas).
+
 ---
 
 ## KPIs de negócio
@@ -19,9 +26,9 @@ audiencia: dono
 |---|---|---|---|---|
 | Tempo médio de implantação | Dias entre criação do tenant e assinatura do termo de aceite | ≤ 30 dias | data_aceite - data_criacao | mensal |
 | Taxa de conclusão | % de implantações iniciadas que chegam a "concluída" em ≤ 60 dias | ≥ 90% | concluidas / iniciadas (janela 60d) | mensal |
-| Inconsistências resolvidas pré go-live | % de inconsistências de migração tratadas antes do termo | ≥ 95% | resolvidas / total_inconsistencias | por implantação |
+| Qualidade de dados inicial — canônico, dimensão: dados (antes "Inconsistências resolvidas pré go-live") | % de inconsistências de migração tratadas antes do termo | ≥ 95% | resolvidas / total_inconsistencias | por implantação |
 | Treinamentos registrados | Média de horas de treinamento por implantação | ≥ 4h | sum(duracao_treinamento) / implantacoes | mensal |
-| NPS do onboarding | Nota do cliente após assinatura do termo | ≥ 8 | survey pós-aceite | por implantação |
+| NPS do onboarding | NPS calculado no padrão correto (escala 0-10 por pergunta, índice final -100 a +100). **Fórmula:** `(% promotores [9-10]) − (% detratores [0-6])`. **Correção:** target anterior "≥ 8" estava errado (confundia nota individual com índice NPS). | NPS ≥ 30 (benchmark SaaS B2B) | survey pós-aceite, cálculo agregado | por implantação |
 | Implantações com sandbox usado | % com pelo menos 1 import-teste no sandbox antes da promoção | 100% | obrigatório | por implantação |
 
 ---

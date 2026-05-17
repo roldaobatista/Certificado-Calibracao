@@ -8,16 +8,22 @@ dominio: operacao
 
 # Métricas — Base de Conhecimento
 
+> **Convenções canônicas** (ver `docs/comum/glossario-roldao.md`):
+> - **TMR** (Tempo Médio de Resolução) = abertura → fechamento final. Escopo aqui: OS/Chamado que consumiu artigo da BC.
+> - **Cobertura documental por equipamento** = dimensão "conhecimento" (vs. `qualidade_dados_inicial` no onboarding e `conformidade_formato_pdfa` em certificados).
+
 ## KPIs de negócio
 
 | Métrica | Definição | Target | Como medir | Frequência |
 |---|---|---|---|---|
-| Taxa de aceitação de sugestão | % das sugestões dentro de Chamado/OS que o usuário abre | ≥ 35% | clicks / sugestões exibidas | semanal |
-| Cobertura por equipamento | % dos equipamentos top-50 com ≥ 1 artigo publicado | ≥ 80% em 6 meses | join equipamentos × artigos | mensal |
-| Tempo médio de resolução com artigo | Tempo OS/Chamado fechado quando consumiu artigo | < 70% do tempo sem artigo | comparar buckets | mensal |
+| Taxa de exibição de sugestão | Sugestões mostradas ao usuário dentro de Chamado/OS. **Evento:** `SugestaoExibida` (artigo aparece no painel lateral). | tracking básico, sem target | contagem de eventos `SugestaoExibida` | semanal |
+| Taxa de abertura de sugestão | % das sugestões exibidas que o usuário clicou pra ler. **Evento:** `SugestaoAberta` (clique no card). **Fórmula:** `count(SugestaoAberta) ÷ count(SugestaoExibida)`. | ≥ 35% | ratio de eventos | semanal |
+| Taxa de aplicação de sugestão | % das sugestões abertas em que o artigo virou solução real do chamado/OS. **Evento:** `SugestaoAplicada` (artigo vinculado à resolução). **Fórmula:** `count(SugestaoAplicada) ÷ count(SugestaoAberta)`. | ≥ 50% | ratio de eventos + FK `chamado.artigo_solucao_id` | mensal |
+| Cobertura documental por equipamento — canônico, dimensão: conhecimento (meta, não SLO) | % dos equipamentos top-50 com ≥ 1 artigo publicado. **Não é SLO** — meta de produto. `[baseline-em-construcao]` — medir mensal a partir do go-live; meta ≥ 80% até 6 meses pós-go-live. | meta 6m: ≥ 80% | join equipamentos × artigos | mensal |
+| TMR com artigo vs. sem artigo — canônico, escopo: OS/Chamado | TMR (abertura → fechamento) de OS/Chamado quando consumiu artigo | < 70% do TMR sem artigo | comparar buckets | mensal |
 | Artigos desatualizados | Nº de artigos sem revisão > 12 meses | < 10% do total | query date diff | mensal |
 | Latência aprovação | Mediana de horas entre submissão e aprovação | < 48h | timestamps | semanal |
-| Utilidade média | (% útil) / (% útil + % não útil) por artigo | ≥ 75% no top 20 | agregado de votos | mensal |
+| Utilidade média | (% útil) / (% útil + % não útil) por artigo. **N-mínimo:** ≥ 10 votos pra entrar no cálculo (artigos com < 10 votos ficam fora do agregado). | ≥ 75% no top 20 (entre artigos com ≥ 10 votos) | agregado de votos com filtro `count_votos >= 10` | mensal |
 
 ---
 

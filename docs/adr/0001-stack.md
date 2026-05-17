@@ -35,7 +35,7 @@ Critérios originais (preservados pra referência V2):
 - [x] **ADR-0007 camada de domínio + gerador spec→código** — pipeline spec PT → YAML → Django+Pydantic+OpenAPI+Dart ✅ proposta (17/05/2026)
 - [x] **ADR-0008 fiscal pluggable** — interface `FiscalProvider` agnóstica de país (BR/AR/MX); PlugNotas 1ª impl + Focus NFe smoke trimestral ✅ proposta (17/05/2026)
 - [x] **ADR-0009 onde A3 assina** — A3 sempre cliente-side via Web PKI Lacuna; A1 server-side com KMS ✅ proposta (17/05/2026)
-- [x] `docs/arquitetura/anti-corrosion-layer.md` — 9 portas (Fiscal, Signature, LLM, Storage, Hosting, Auth, Queue, Sync, MultiTenant) ✅ criado (17/05/2026)
+- [x] `docs/arquitetura/anti-corrosion-layer.md` — 11 portas (Fiscal, Signature, LLM, Storage, Hosting, Auth, Queue, Sync, MultiTenant, OmniChannel, PaymentGateway) ✅ criado (17/05/2026), v2 com #10-#11 (auditoria 12 agentes achado C6)
 - [x] `REGRAS-INEGOCIAVEIS.md` — INV-TENANT-004 + INV-AGENT-001 adicionadas ✅ (17/05/2026)
 - [ ] Aprovação do Roldão nas 4 ADRs + ACL — pendente
 

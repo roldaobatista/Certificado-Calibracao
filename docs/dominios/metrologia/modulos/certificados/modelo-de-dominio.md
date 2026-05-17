@@ -75,6 +75,18 @@ relacionados:
 
 ---
 
+## Eventos consumidos
+
+| Evento | Origem | Reação |
+|---|---|---|
+| `Calibracao.Aprovada` | metrologia/calibracao | cria Certificado rascunho com dados da calibração |
+| `Calibracao.Configurada` | metrologia/calibracao | **prepara template do certificado** (escolhe layout RBC/sem-marca conforme grandeza/faixa) antes da emissão — reduz latência no momento da assinatura |
+| `Calibracao.Rejeitada` | metrologia/calibracao | cancela rascunho preparado (se existir) |
+| `Padroes.CertificadoVencendo` | metrologia/calibracao | bloqueia novos certificados que dependem do padrão vencendo (alerta signatário) |
+| `Licencas.BloqueioAtivado` | metrologia/licencas-acreditacoes | suspende emissão de certificados RBC enquanto bloqueio ativo |
+
+---
+
 ## Eventos de domínio (publicados)
 
 | Evento | Quando dispara | Payload | Quem consome |

@@ -58,7 +58,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - NÃO gerencia a acreditação CGCRE da empresa — isso é módulo Licenças e Acreditações.
 - NÃO substitui Word/Adobe — templates são engine própria (HTML→PDF), sem editor visual de Word.
 - NÃO armazena chave privada do A3 — assinatura sempre client-side (ADR-0009).
-- NÃO permite editar certificado emitido — só reemissão versionada (INV-022 + INV-CER-001).
+- NÃO permite editar certificado emitido — só reemissão versionada (INV-001 + INV-034).
 
 ## 6. User Stories
 
@@ -71,7 +71,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CER-001-2**: GIVEN calibração não aprovada (rejeitada/pendente), WHEN tenta emitir, THEN sistema bloqueia com mensagem "calibração precisa estar aprovada + 2ª conferência".
 - **AC-CER-001-3**: GIVEN acreditação CGCRE vencida e marcada bloqueante (módulo Licenças), WHEN tenta emitir certificado RBC, THEN sistema bloqueia citando documento bloqueante.
 
-**Invariantes:** `INV-012` (acreditação vigente), `INV-013` (numeração sequencial), `INV-014` (snapshot imutável), `INV-022` (WORM), `INV-019` (RT habilitado), `INV-TENANT-001`.
+**Invariantes:** `INV-032` (acreditação vigente — doc bloqueante vencido impede emissão), `INV-034` (numeração sequencial inviolável), `INV-001` (WORM + snapshot imutável), `INV-019` (RT habilitado quando aplicável), `INV-TENANT-001`.
 
 **Dependências:** Bloqueado por: US-CAL (calibração aprovada), US-LIC-003 (bloqueio CGCRE).
 
@@ -86,7 +86,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CER-002-2**: GIVEN tentativa de replay (mesmo nonce reusado), WHEN servidor verifica, THEN rejeita + log incidente segurança.
 - **AC-CER-002-3**: GIVEN ART/RRT do RT vencida (módulo Licenças), WHEN inicia assinatura, THEN sistema bloqueia.
 
-**Invariantes:** `INV-019`, `INV-022`, ADR-0009.
+**Invariantes:** `INV-019` (RT habilitado quando aplicável), `INV-017` (A3 + carimbo ITI obrigatório em A), `INV-001` (WORM), ADR-0009.
 
 ---
 
@@ -99,7 +99,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CER-003-2**: GIVEN falha no meio da emissão (ex: erro na assinatura), WHEN sistema retoma, THEN número fica reservado pra essa tentativa; NÃO pula sequência.
 - **AC-CER-003-3**: GIVEN cancelamento de certificado já numerado, WHEN admin cancela, THEN número não é reusado; certificado fica visível com status CANCELADO + motivo + auditoria.
 
-**Invariantes:** `INV-013`.
+**Invariantes:** `INV-034` (numeração sequencial inviolável).
 
 ---
 
@@ -110,9 +110,9 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 **Critérios de aceite:**
 - **AC-CER-004-1**: GIVEN certificado emitido, WHEN RT solicita reemissão informando motivo (>= 50 chars), THEN sistema gera versão v(N+1) linkada à v(N), marca v(N) como SUBSTITUIDA (visível, não excluída), e v(N+1) cita explicitamente "substitui versão v(N) emitida em DD/MM/AAAA".
 - **AC-CER-004-2**: GIVEN versão SUBSTITUIDA, WHEN cliente baixa pelo portal, THEN sistema avisa "esta versão foi substituída por v(N+1) em DD/MM" + link.
-- **AC-CER-004-3**: GIVEN tentativa de excluir certificado emitido, WHEN qualquer usuário, THEN sistema bloqueia (INV-014).
+- **AC-CER-004-3**: GIVEN tentativa de excluir certificado emitido, WHEN qualquer usuário, THEN sistema bloqueia (INV-001 — WORM).
 
-**Invariantes:** `INV-014`, `INV-022`, ISO 17025 7.8.8.
+**Invariantes:** `INV-001` (WORM — snapshot imutável; reemissão versionada), `INV-034` (numeração sequencial inviolável), ISO 17025 7.8.8.
 
 ---
 
@@ -125,7 +125,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CER-005-2**: GIVEN falha de envio (e-mail bounce), WHEN detectado, THEN sistema retenta 3x com backoff exponencial; após falha definitiva, notifica RT.
 - **AC-CER-005-3**: GIVEN cliente sem e-mail cadastrado, WHEN sistema tenta enviar, THEN registra "envio impossível — cadastrar contato" + notifica RT.
 
-**Invariantes:** `INV-023`.
+**Invariantes:** `INV-001` (evento de envio gravado em trilha WORM).
 
 ---
 
@@ -137,7 +137,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CER-006-1**: GIVEN cliente autenticado no portal, WHEN consulta seus certificados, THEN sistema lista todos por instrumento + período, marca versão atual e substituídas.
 - **AC-CER-006-2**: GIVEN cliente baixa PDF, WHEN clica, THEN sistema serve com headers `Content-Disposition: attachment` e registra evento `Certificados.Baixado` pra auditoria de acesso (LGPD).
 
-**Invariantes:** `INV-022`, `INV-TENANT-001` (cliente só vê seus).
+**Invariantes:** `INV-001` (WORM em downloads), `INV-013` (confidencialidade cl. 4.2 — log de visualização), `INV-TENANT-001` (cliente só vê seus).
 
 ---
 
@@ -149,7 +149,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CER-007-1**: GIVEN OS em campo, WHEN técnico anexa fotos via app, THEN sistema preserva EXIF (timestamp + geo), gera hash de cada foto e gera relatório PDF compilado.
 - **AC-CER-007-2**: GIVEN relatório fotográfico gerado, WHEN cliente baixa, THEN cada foto tem rodapé "data/hora/local capturado".
 
-**Invariantes:** `INV-022`.
+**Invariantes:** `INV-001` (WORM em fotos com hash + EXIF).
 
 ---
 
@@ -161,7 +161,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CER-008-1**: GIVEN calibração com resultado fora dos limites OU serviço com defeito identificado, WHEN RT abre NC, THEN sistema cria documento NC numerado, descrição, evidências (fotos/leituras), ação imediata, ação corretiva planejada.
 - **AC-CER-008-2**: GIVEN NC aberta, WHEN não fechada em 30 dias, THEN sistema alerta RT + gestor qualidade.
 
-**Invariantes:** `INV-022`, ISO 17025 8.7.
+**Invariantes:** `INV-012` (NC abre bloqueio de emissão até resolução documentada), `INV-001` (WORM em NC), ISO 17025 8.7.
 
 ---
 
@@ -173,7 +173,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CER-009-1**: GIVEN certificado ASSINADO, WHEN RT solicita etiqueta, THEN sistema gera PDF/PNG no tamanho configurado (padrões: 50x30mm, 80x40mm) com nº cert, validade, QR Code apontando pra URL pública do certificado (sem expor dado sensível na URL — token opaco).
 - **AC-CER-009-2**: GIVEN QR Code escaneado, WHEN navegador abre URL, THEN exibe página pública verificadora (sem login) com nº, validade, instrumento, status (vigente/expirado/cancelado/substituído).
 
-**Invariantes:** `INV-022`, LGPD (URL pública = mínimo necessário).
+**Invariantes:** `INV-001` (WORM), `INV-035` (página pública verificadora sem PII além do mínimo).
 
 ---
 
@@ -186,7 +186,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CER-010-2**: GIVEN template aprovado, WHEN novas emissões acontecem, THEN aplicam template atual; certificados já emitidos preservam template usado na época (snapshot).
 - **AC-CER-010-3**: GIVEN template muda, WHEN versionado, THEN sistema mantém histórico v1/v2/v3 + qual cert usou qual.
 
-**Invariantes:** `INV-014` (snapshot).
+**Invariantes:** `INV-001` (snapshot imutável WORM — template usado na emissão preservado por certificado).
 
 ---
 

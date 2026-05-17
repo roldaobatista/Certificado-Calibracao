@@ -45,7 +45,7 @@ afere/                          # repo
 │   ├── certificado/
 │   ├── incerteza/
 │   └── ...
-├── infrastructure/             # adapters (anti-corrosion layer — 9 portas)
+├── infrastructure/             # adapters (anti-corrosion layer — 11 portas)
 │   ├── fiscal/                 # FiscalProvider (PlugNotas, Focus)
 │   ├── signature/              # SignatureProvider (Lacuna, pyhanko)
 │   ├── llm/                    # LLMGateway (LiteLLM)

@@ -6,13 +6,19 @@ status: draft
 modulo: marketplace
 dominio: comercial
 diataxis: explanation
+relacionados:
+  - docs/conformidade/comum/lgpd-rat.md#RAT-12
+  - docs/conformidade/comum/dpia-modulos-novos.md#DPIA-04
+  - docs/conformidade/comum/retencao-matriz.md
 ---
 
 # PRD — Módulo Marketplace (Catálogo Comercial Online)
 
+> **Fronteira com `portal-cliente` (cravada em 2026-05-17):** Marketplace = **vitrine pública + carrinho + landing de captação de leads**. Portal do Cliente = **área restrita autenticada** (tudo pós-login: OS, orçamentos, faturas, certificados, mensagens, 360° relacional). Após login bem-sucedido no marketplace, o usuário é redirecionado para `portal-cliente` — a autenticação é **única** (mesmo sistema de login, gerido pelo módulo `portal-cliente`). O marketplace mantém apenas a visão restrita do **estado dos pedidos originados dele**, sem duplicar as demais funções do portal.
+
 ## 1. O que este módulo é
 
-Vitrine pública (ou privada por tenant) que expõe o catálogo de produtos e serviços do tenant na web, permite ao cliente final montar um carrinho de solicitação, pedir orçamento, acompanhar status na área do cliente e (quando habilitado) pagar online. Transforma o ERP em canal de venda direto, não só em sistema interno.
+Vitrine pública (ou privada por tenant) que expõe o catálogo de produtos e serviços do tenant na web, permite ao visitante/cliente montar um carrinho de solicitação e pedir orçamento. É **canal de captação e auto-serviço de entrada**, não área genérica do cliente. A "minha conta" completa (relacionamento, OS, faturas, certificados, chat) é responsabilidade do módulo `portal-cliente`.
 
 ## 2. Por que este módulo existe
 
@@ -31,12 +37,14 @@ Ver `personas.md` (P-MKT-01 Visitante anônimo, P-MKT-02 Cliente cadastrado auto
 - Tabela de preço pública OU privada (com login do cliente).
 - Produtos/serviços em destaque (curadoria pelo gestor do tenant).
 - Serviços recorrentes (assinatura/contrato; integra com módulo `contratos`).
-- Área do cliente (histórico de solicitações, contratos ativos, faturas).
+- **Visão restrita de "Meus pedidos do marketplace"** (apenas status processual das solicitações originadas aqui: enviada / em atendimento / convertida em orçamento / descartada). Demais visões (OS, faturas, certificados, contratos, mensagens) ficam no `portal-cliente` — link/redirecionamento exibido na visão restrita.
 - Rastreamento de conversão (visita → carrinho → orçamento → fechamento).
-- Integração com CRM (lead criado), Estoque (disponibilidade), Pagamento (quando habilitado), Orçamentos (carrinho vira orçamento).
+- Integração com CRM (lead criado), Estoque (disponibilidade), Pagamento (quando habilitado), Orçamentos (carrinho vira orçamento), **Portal do Cliente (handoff pós-login + entrega de solicitação)**.
 
 ## 5. Non-goals (o que NÃO está neste módulo)
 
+- **Não é área genérica do cliente** — relacionamento 360° (OS, orçamentos completos, faturas, certificados, contratos, mensagens, preferências de notificação, edição cadastral) é responsabilidade do módulo `portal-cliente`. Marketplace só mostra "estado do meu pedido vindo do marketplace" e redireciona pro portal para qualquer outra função.
+- **Não tem sistema de autenticação próprio** — login/sessão/senha/link mágico/2FA são do `portal-cliente` (entidade `UsuarioPortal`). Marketplace consome a sessão estabelecida; após login, redireciona pro portal.
 - **Checkout B2C com cobrança imediata** — V2; MVP é "solicitação de orçamento", não venda direta.
 - **Marketplace multi-vendedor (estilo Mercado Livre)** — fora do escopo; cada tenant tem só a própria vitrine.
 - **Editor visual de site/landing page** — fora; layout é tema configurável, não construtor livre.
@@ -67,19 +75,26 @@ Ver `personas.md` (P-MKT-01 Visitante anônimo, P-MKT-02 Cliente cadastrado auto
 - **AC-MKT-002-1**: GIVEN carrinho com ≥1 item, WHEN clico "solicitar orçamento", THEN sistema pede dados mínimos (nome, contato, CNPJ/CPF opcional) + termo LGPD.
 - **AC-MKT-002-2**: GIVEN solicitação enviada, WHEN backend processa, THEN cria lead no módulo `crm` + rascunho de orçamento no módulo `orcamentos`.
 - **AC-MKT-002-3**: GIVEN solicitação criada, WHEN concluída, THEN visitante recebe e-mail/WhatsApp de confirmação com link de acompanhamento.
+- **AC-MKT-002-4 (LGPD):** Tratamento atende base **Consentimento explícito (art. 7º I)** para contato comercial + **Execução de contrato (art. 7º V)** para o orçamento solicitado (RAT-12); consentimento registrado em `POST /marketplace/lgpd/consentimento` com texto exato + canal + timestamp + IP.
+- **AC-MKT-002-5 (Retenção):** Lead com opt-in conforme `retencao-matriz.md` linha "Histórico de consentimento Comunicação Omnichannel" (até opt-out + 6 meses); visita anônima conforme linha "Telemetria + analytics" (13 meses); após prazo: anonimização irreversível.
 
 **Invariantes relacionadas:** INV-TENANT-001.
 
 **Dependências:** Bloqueia: US-CRM-* (criação automática de lead); Bloqueado por: US-ORC-001.
 
-### US-MKT-003: Cliente acompanha pedidos na área do cliente
-**Como** cliente cadastrado, **quero** fazer login e ver histórico de solicitações, orçamentos, contratos e faturas, **para** acompanhar tudo num único lugar.
+### US-MKT-003: Cliente acompanha status das solicitações originadas no marketplace
+**Como** cliente cadastrado, **quero** ver o status processual das solicitações que enviei pela vitrine do marketplace (enviada → em atendimento → convertida em orçamento → descartada), **para** acompanhar especificamente o que pedi por aqui sem precisar navegar até o portal completo.
 
-- **AC-MKT-003-1**: GIVEN cliente logado, WHEN abre área do cliente, THEN vejo abas: solicitações abertas, orçamentos pendentes, OS em andamento, contratos ativos, faturas.
-- **AC-MKT-003-2**: GIVEN orçamento pendente, WHEN clico, THEN abro detalhe + botão "aprovar" (reusa fluxo US-ORC-002).
-- **AC-MKT-003-3**: GIVEN cliente, WHEN acessa, THEN só vejo dados do MEU tenant-cliente (escopo de visão restrito).
+> **Escopo restrito (fronteira com `portal-cliente`):** esta visão cobre **apenas pedidos originados no marketplace** (entidade `SolicitacaoOrcamento` deste módulo). Qualquer outra função do cliente — visão consolidada de OS, faturas, certificados, contratos, mensagens, edição cadastral, preferências de notificação, aprovação de orçamento — é responsabilidade do `portal-cliente` (ver US-POR-002 a US-POR-011). Esta US **não duplica** essas funções; oferece link/CTA "ver tudo no Portal" que redireciona com sessão preservada.
 
-**Invariantes relacionadas:** INV-TENANT-001, SEC-AREA-CLIENTE (a definir — escopo de visão por cliente_id).
+- **AC-MKT-003-1**: GIVEN cliente logado no marketplace, WHEN abre "Meus pedidos do marketplace", THEN vejo lista das minhas `SolicitacaoOrcamento` com status (enviada / em atendimento / convertida / descartada), data de envio e itens do carrinho original.
+- **AC-MKT-003-2**: GIVEN solicitação já convertida em orçamento, WHEN clico no item, THEN o marketplace redireciona para a tela de detalhe/aprovação do orçamento no `portal-cliente` (US-POR-004/US-POR-005), preservando sessão — não duplica a tela de aprovação aqui.
+- **AC-MKT-003-3**: GIVEN cliente logado no marketplace, WHEN procuro OS, faturas, certificados, contratos ativos ou mensagens, THEN a UI exibe CTA "Acessar área do cliente completa no Portal" + link direto pro `portal-cliente` — essas funções **não são renderizadas no marketplace**.
+- **AC-MKT-003-4**: GIVEN cliente, WHEN acessa, THEN só vejo solicitações cujo `cliente_id` bate com o meu (escopo de visão restrito — INV-TENANT-001).
+
+**Invariantes relacionadas:** INV-TENANT-001 (isolamento por tenant + cliente_id), SEC-AREA-CLIENTE (a definir — escopo de visão por cliente_id), **separação de responsabilidades com `portal-cliente`** (esta US **não** entrega "área genérica do cliente").
+
+**Dependências:** Bloqueado por: `portal-cliente` (autenticação única + visão consolidada — sem o portal, o redirecionamento não tem destino).
 
 ### US-MKT-004: Tabela de preço pública vs privada por cliente
 **Como** gestor de catálogo, **quero** configurar quais clientes/segmentos veem qual tabela, **para** preservar preço diferenciado de cliente VIP.
@@ -112,7 +127,7 @@ Ver `personas.md` (P-MKT-01 Visitante anônimo, P-MKT-02 Cliente cadastrado auto
 - **AC-MKT-007-1**: GIVEN visitante, WHEN navega, THEN evento de visualização registrado (sem PII, respeita LGPD).
 - **AC-MKT-007-2**: GIVEN funil, WHEN abro dashboard, THEN vejo taxa de conversão por etapa e por canal de origem (UTM).
 
-**Invariantes relacionadas:** RAT-04 (analytics) — ver `docs/conformidade/`.
+**Invariantes relacionadas:** RAT-09 (telemetria/analytics) e RAT-12 (lead) — ver `docs/conformidade/comum/lgpd-rat.md`. Evento de visualização sem PII; conversão com PII só após consentimento US-MKT-002.
 
 ### US-MKT-008: Integração com pagamento (quando habilitado)
 **Como** cliente, **quero** pagar orçamento aprovado direto na área do cliente, **para** acelerar o início do serviço.

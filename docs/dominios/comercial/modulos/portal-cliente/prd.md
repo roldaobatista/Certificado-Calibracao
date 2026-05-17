@@ -9,12 +9,16 @@ relacionados:
   - docs/AGENTS.md
   - docs/novas funcionalidades.txt
   - docs/dominios/comercial/README.md
+  - docs/conformidade/comum/lgpd-rat.md#RAT-11
+  - docs/conformidade/comum/retencao-matriz.md
 ---
 
 # PRD — Módulo Portal do Cliente
 
 > Fonte de funcionalidades: `docs/novas funcionalidades.txt` linhas 67-90 (Módulo 3).
 > **Status no roadmap: Wave B.** Vai depois do MVP-1 dogfooding, quando há cliente externo querendo autoatendimento.
+>
+> **Fronteira com `marketplace` (cravada em 2026-05-17):** Portal do Cliente é o **dono da área restrita autenticada** do cliente externo: autenticação única (login/senha/link mágico/2FA), visão consolidada 360° (OS, orçamentos, faturas, certificados, contratos, mensagens, preferências, edição cadastral). O `marketplace` é só vitrine pública + carrinho + captação de leads; após login no marketplace, o cliente é redirecionado para cá. Solicitações enviadas pela vitrine entram aqui via evento `Marketplace.SolicitacaoEnviada` (ver US-POR-012).
 
 ---
 
@@ -84,6 +88,9 @@ Conexões com outros módulos (também da lista):
 
 **Invariantes:** `INV-TENANT-001..004` (cliente só vê dados do tenant a que pertence), `SEC-*` (senha hash + rate limit), LGPD (consentimento na primeira entrada).
 
+- **AC-POR-001-4 (LGPD):** Tratamento atende base legal **Execução de contrato (art. 7º V) + Consentimento explícito (art. 7º I)** registrado em `POST /portal/lgpd/consentimento`; consentimento vinculado ao termo versionado vigente (RAT-11).
+- **AC-POR-001-5 (Retenção):** Retenção da conta + login conforme `retencao-matriz.md` linha "Cadastro de cliente final do tenant" + linha "Cobrança recorrente Billing SaaS" (vigência da conta + 5 anos fiscal); após prazo: anonimização irreversível (nome → "Cliente anonimizado #N", CPF/e-mail → hash).
+
 ---
 
 ### US-POR-002: Dashboard do cliente
@@ -130,6 +137,9 @@ Conexões com outros módulos (também da lista):
 
 **Invariantes:** evento com IP + ts vai pra trilha WORM auditoria (`INV-001`), LGPD (consentimento explícito antes do registro de IP/geo).
 
+- **AC-POR-005-5 (LGPD):** Captura de IP + geolocalização aproximada atende base **Legítimo interesse (art. 7º IX) + Execução de contrato (art. 7º V)** com consentimento na primeira entrada (RAT-11); finalidade prova de aprovação eletrônica.
+- **AC-POR-005-6 (Retenção):** Evento de aprovação/rejeição em WORM por 5 anos (linha "Audit trail ações em paths sensíveis: financeiro" de `retencao-matriz.md`); após prazo: crypto-shredding.
+
 **Non-goals desta story:** sem assinatura A3 (escopo separado).
 
 ---
@@ -164,7 +174,7 @@ Conexões com outros módulos (também da lista):
 - **AC-POR-008-2:** GIVEN certificado de calibração emitido, WHEN cliente acessa, THEN vê PDF imutável (ISO 17025 cláusula 7.8) com link para validador externo (QR Code do INMETRO/RBC).
 - **AC-POR-008-3:** GIVEN documento expirado/anulado, WHEN cliente acessa, THEN exibe estado claramente (selo "ANULADO") sem remover o histórico.
 
-**Invariantes:** imutabilidade pós-emissão (`INV-NNN` certificado RBC), trilha de download em auditoria.
+**Invariantes:** imutabilidade pós-emissão (`INV-001` WORM no certificado RBC + `INV-034` numeração inviolável), trilha de download em auditoria, `INV-013` (log de visualização cl. 4.2).
 
 ---
 
@@ -199,6 +209,23 @@ Conexões com outros módulos (também da lista):
 - **AC-POR-011-2:** GIVEN cliente tenta editar CNPJ/IE/razão social, WHEN clica salvar, THEN sistema abre solicitação para atendente aprovar (estado "pendente de validação").
 
 **Invariantes:** LGPD (consentimento + auditoria).
+
+---
+
+### US-POR-012: Receber e exibir solicitações originadas no marketplace
+**Como** cliente externo, **quero** ver na minha visão consolidada do Portal as solicitações de orçamento que enviei pela vitrine pública do marketplace, **para** ter um único lugar canônico onde tudo que pedi (independente do canal de entrada) está visível e rastreável.
+
+> **Fronteira:** o `marketplace` mantém visão restrita só do status processual da solicitação (US-MKT-003); aqui no Portal a solicitação aparece **integrada ao 360° do cliente** junto com OS, orçamentos derivados, faturas, certificados e mensagens. O handoff acontece via evento de domínio, sem chamada direta.
+
+**Critérios de aceite:**
+- **AC-POR-012-1:** GIVEN evento `Marketplace.SolicitacaoEnviada` recebido pelo bus, WHEN handler do Portal processa, THEN cria registro de leitura `SolicitacaoMarketplaceRecebida` (tabela própria do Portal — não duplica `SolicitacaoOrcamento`, só referencia por id) com `tenant_id`, `cliente_id`, `solicitacao_marketplace_id`, `recebida_em`, `itens_resumo`.
+- **AC-POR-012-2:** GIVEN cliente logado no Portal, WHEN abre dashboard (US-POR-002) ou aba "Minhas solicitações do marketplace", THEN vê lista com status atualizado (enviada / em atendimento / convertida em orçamento / descartada) + link "ver na vitrine" (retorna ao marketplace) e, se convertida, link direto pro orçamento gerado (US-POR-004).
+- **AC-POR-012-3:** GIVEN solicitação convertida em orçamento, WHEN orçamento existe, THEN o Portal exibe a solicitação **ligada ao orçamento correspondente** (rastreabilidade carrinho → orçamento → OS → fatura → certificado).
+- **AC-POR-012-4:** GIVEN cliente loga no marketplace (evento `Marketplace.ClienteLogou` com `origem: "marketplace"`), WHEN handler do Portal processa, THEN reaproveita sessão existente do `UsuarioPortal` (não cria sessão duplicada) e marketplace recebe ack para fazer redirect.
+
+**Invariantes:** `INV-TENANT-001..004`; idempotência por `event_id` (não duplica solicitação se evento reentregue); leitura de `SolicitacaoOrcamento` do marketplace é por referência (sem cópia de payload mutável).
+
+**Dependências:** evento `Marketplace.SolicitacaoEnviada` (módulo `marketplace`); evento `Marketplace.ClienteLogou`; entidade `UsuarioPortal` (autenticação única).
 
 ---
 

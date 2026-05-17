@@ -26,7 +26,7 @@ relacionados:
 **Campos obrigatórios:** número fatura, data emissão, data vencimento, tenant (razão social + CNPJ), plano contratado, ciclo, valor bruto, descontos (cupons), valor líquido, instruções de pagamento, número NFS-e (se emitida).
 **Campos opcionais:** logo, observações, código de barras boleto, QR PIX.
 **Assinatura digital:** não obrigatória; pode ter para certas integrações.
-**Imutabilidade pós-emissão:** sim — fatura paga não pode ser editada (`INV-NNN`); correção via estorno + nova.
+**Imutabilidade pós-emissão:** sim — fatura paga não pode ser editada (`INV-001` WORM + `INV-026` preço não retroage); correção via estorno + nova.
 **Retenção:** ver `../../../conformidade/comum/retencao-matriz.md` (mínimo Receita 5 anos).
 
 ---

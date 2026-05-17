@@ -19,27 +19,9 @@ relacionados:
 
 ## Persona 1: Analista de indicadores / responsável por relatórios
 
-**Identidade:** Pode ser o próprio dono em empresa pequena, ou perfil dedicado em empresa maior. Familiaridade média com planilhas (Excel). Não programa SQL. 25-50 anos.
+**Fonte canônica:** `docs/comum/personas.md` P-BI-01 (promovida em 2026-05-17 — aparece em `dados/bi` e futuramente `financeiro/relatorios-financeiros`, `operacao/capacity-planning-operacional`). Aqui apenas referência. Atualizações de identidade/goals devem ir pra fonte canônica.
 
-**Goals deste módulo:**
-- Criar relatório customizado sem chamar suporte.
-- Agendar envio automático.
-- Exportar para Excel/CSV.
-
-**Frustrations específicas:**
-- Ferramenta de BI exigir treinamento longo.
-- Não conseguir filtrar por filial sem TI.
-- "Métrica X aqui diferente do módulo Y" (falta de governança de definições).
-
-**Jornada típica:**
-1. Abre construtor → escolhe métrica + filtros + agrupamento.
-2. Visualiza prévia → ajusta.
-3. Salva dashboard pessoal OU agenda envio.
-
-**Devices:** web desktop.
-**Frequência:** semanal.
-
-**Permissões:** RBAC `analista` — leitura ampla; sem dado financeiro sensível por padrão.
+**Específico deste módulo:** é a persona principal do construtor de relatórios + dashboards do BI. Permissão concreta no BI: `analista` (leitura ampla, sem dado financeiro sensível salvo override).
 
 ---
 

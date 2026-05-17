@@ -70,9 +70,19 @@ Disparado em: pre-emissão de certificado, geração de PDF, change de padrão u
 
 Verificação intermediária de padrão fora da tolerância → cria NC CRITICA automática com `origem=VERIFICACAO_INTERMEDIARIA` + `padrao_id=X`. Sem intervenção humana — o hook abre.
 
-## Eventos
+## Eventos publicados
 
-`NcAberta`, `NcBloqueouEmissao` (P0 — notifica responsável + dono), `NcFechada`, `NcReabertaPorPendencia`, `EficaciaVencida`, `NpsRespondido`, `ReclamacaoRegistrada`, `RiscoIdentificado`.
+> **Nomenclatura canônica:** prefixo `Qualidade.*`. Aliases sem prefixo aceitos só transitoriamente.
+
+`Qualidade.NCAberta`, `Qualidade.NCBloqueouEmissao` (P0 — notifica responsável + dono), `Qualidade.NCFechada`, `Qualidade.NCReabertaPorPendencia`, `Qualidade.EficaciaVencida`, `Qualidade.NPSRespondido`, `Qualidade.ReclamacaoRegistrada`, `Qualidade.RiscoIdentificado`.
+
+## Eventos consumidos
+
+- `Padroes.CertificadoVencendo` (metrologia/calibracao) → abre NC preventiva CRITICA quando padrão acreditado vence sem substituto pronto + notifica RT signatário.
+- `Padroes.VerificacaoIntermediariaReprovada` (metrologia/calibracao) → abre NC CRITICA automática (já há hook INV-022 — este consumer é o consumidor explícito).
+- `Proficiencia.EscoreInsatisfatorio` (metrologia/calibracao) → abre NC MAIOR + ação corretiva obrigatória.
+- `Treinamentos.CertificadoVencido` (rh/treinamentos) → registra risco operacional.
+- `AuditoriaExterna.NCMaiorRegistrada` (rh/auditoria-externa) → cria NC interna espelhada com tratativa.
 
 ## Não-modelado MVP-1
 

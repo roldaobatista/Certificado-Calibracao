@@ -59,7 +59,7 @@ Total: R$ 4.812,30
 **Formato:** mesmo do upload (JPG, PNG, PDF, XML).
 **Regulado?:** parcial — comprovante fiscal (XML/cupom) tem regras de retenção próprias em `conformidade/comum/fiscal.md`.
 **URL:** pré-assinada com validade ≤ 15 min.
-**Imutabilidade pós-emissão:** sim — `INV-WORM-001`.
+**Imutabilidade pós-emissão:** sim — `INV-001` (trilha WORM).
 **Retenção:** ver `retencao-matriz.md` (mínimo 5 anos para fiscal; maior se vinculado a calibração ISO 17025).
 
 ---
