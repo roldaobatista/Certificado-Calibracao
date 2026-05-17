@@ -159,15 +159,20 @@ Por enquanto, comandos disponíveis:
 | ADR-0000 | Uso de IA | ✅ aceito |
 | ADR-0001 | Stack (Django + Flutter + PG) | 🟡 candidata — 3 portões |
 | ADR-0002 | Multi-tenancy (schema-shared + RLS) | 🟡 proposta |
-| ADR-0003 | Mobile (técnico de campo) | ⏳ a criar |
-| ADR-0004 | _reservado_ | ⏳ |
-| ADR-0005 | _reservado_ | ⏳ |
-| ADR-0006 | _reservado_ | ⏳ |
+| ADR-0003 | Mobile (técnico de campo) | 🟡 proposta |
+| ADR-0004 | Sync mobile offline-first | 🟡 proposta |
+| ADR-0005 | Engine de automações | 🟡 proposta |
+| ADR-0006 | Feature flags | 🟡 proposta |
 | ADR-0007 | Camada domínio + gerador spec→código | 🟡 proposta |
 | ADR-0008 | Fiscal pluggable (FiscalProvider) | 🟡 proposta |
 | ADR-0009 | Onde A3 assina (cliente-side via Lacuna) | 🟡 proposta |
-
-Salto numérico 0003→0007 foi consciente — slots 0003-0006 ficam reservados.
+| ADR-0010 | Estratégia de tela (HTMX núcleo + 4 SPAs isoladas) | 🟡 proposta — pós-auditoria 10 agentes 17/05 |
+| ADR-0011 | Banco analítico/BI separado do operacional (3 fases) | 🟡 proposta — pós-auditoria 10 agentes 17/05 |
+| ADR-0012 | Autorização unificada (porta AuthorizationProvider) | 🟡 proposta — pós-auditoria 10 agentes 17/05 |
+| ADR-0013 | Pricing composicional billing-saas (7 tipos de componente) | 🟡 proposta — requisito Roldão 17/05 |
+| ADR-0014 | Transições regulatórias críticas (6 fluxos ISO 17025) | 🟡 proposta — pós-auditoria integrações 17/05 |
+| ADR-0015 | Lifecycle tenant (provisioning atômico + sync plano-features + inadimplência) | 🟡 proposta — pós-auditoria integrações 17/05 |
+| ADR-0016 | Operação consistente (desligamento síncrono + BOM + NC notifica + 10 médios) | 🟡 proposta — pós-auditoria integrações 17/05 |
 
 ---
 
