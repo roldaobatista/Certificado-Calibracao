@@ -69,13 +69,31 @@ blocked_filenames=(
 
 file_path_lower=$(printf '%s' "$file_path" | tr '[:upper:]' '[:lower:]')
 
-for pattern in "${blocked_filenames[@]}"; do
+# Exceções legítimas (templates / modelos sem segredo real)
+# Padrão: pega tanto unix (/) como windows (\) como path absoluto
+allowed_filenames=(
+    '(^|[/\\])\.env\.example$'
+    '(^|[/\\])\.env\.sample$'
+    '(^|[/\\])\.env\.template$'
+)
+
+for pattern in "${allowed_filenames[@]}"; do
     if [[ "$file_path_lower" =~ $pattern ]]; then
-        echo "Gravacao bloqueada por secrets-scanner: $file_path" >&2
-        echo "Arquivo parece ser de segredo. Se for intencional, mover pra fora ou ajustar o hook." >&2
-        exit 2
+        # Pula validacao por nome; ainda valida conteudo abaixo
+        skip_filename_check=1
+        break
     fi
 done
+
+if [ -z "${skip_filename_check:-}" ]; then
+    for pattern in "${blocked_filenames[@]}"; do
+        if [[ "$file_path_lower" =~ $pattern ]]; then
+            echo "Gravacao bloqueada por secrets-scanner: $file_path" >&2
+            echo "Arquivo parece ser de segredo. Se for intencional, mover pra fora ou ajustar o hook." >&2
+            exit 2
+        fi
+    done
+fi
 
 # 2) Bloquear por conteudo (padroes de token comum)
 if [ -n "$content" ]; then

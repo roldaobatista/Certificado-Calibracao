@@ -61,6 +61,51 @@ run_case "F  .env.production"         BLOCK secrets-scanner.sh '{"tool_input":{"
 run_case "G  .pem por nome"           BLOCK secrets-scanner.sh '{"tool_input":{"file_path":"src/cert.pem","content":""}}'
 run_case "H  docs/readme.md"          PASS  secrets-scanner.sh '{"tool_input":{"file_path":"docs/readme.md","content":"# title"}}'
 run_case "I  ghp_ via Edit new_str"   BLOCK secrets-scanner.sh "{\"tool_input\":{\"file_path\":\"src/edit.ts\",\"new_string\":\"token = \\\"${GHP_FAKE}\\\"\"}}"
+run_case "J1 .env.example permitido"  PASS  secrets-scanner.sh '{"tool_input":{"file_path":".env.example","content":"FOO=substituir-em-producao"}}'
+run_case "J2 .env.sample permitido"   PASS  secrets-scanner.sh '{"tool_input":{"file_path":".env.sample","content":"FOO=valor-padrao"}}'
+run_case "J3 .env.example com token"  BLOCK secrets-scanner.sh "{\"tool_input\":{\"file_path\":\".env.example\",\"content\":\"GH=${GHP_FAKE}\"}}"
+run_case "J4 .env.example windows"    PASS  secrets-scanner.sh '{"tool_input":{"file_path":"C:\\PROJETOS\\proj\\.env.example","content":"FOO=substituir"}}'
+run_case "J5 .env.example unix"       PASS  secrets-scanner.sh '{"tool_input":{"file_path":"/home/user/proj/.env.example","content":"FOO=substituir"}}'
+
+echo ""
+echo "===== anti-mascaramento ====="
+
+run_case "J  assertTrue(true)"        BLOCK anti-mascaramento.sh '{"tool_input":{"file_path":"src/test_x.py","content":"def test_x():\n    assertTrue(true)"}}'
+run_case "K  assert 1 == 1"           BLOCK anti-mascaramento.sh '{"tool_input":{"file_path":"src/test_x.py","content":"def test_x():\n    assert 1 == 1"}}'
+run_case "L  pytest.skip sem motivo"  BLOCK anti-mascaramento.sh '{"tool_input":{"file_path":"src/test_x.py","content":"def test_x():\n    pytest.skip()"}}'
+run_case "M  pytest.skip com motivo"  PASS  anti-mascaramento.sh '{"tool_input":{"file_path":"src/test_x.py","content":"# skip 2026-05-17 (Roldao) — depende do Spike F-1 fechar\ndef test_x():\n    pytest.skip()"}}'
+run_case "N  @ts-ignore sem motivo"   BLOCK anti-mascaramento.sh '{"tool_input":{"file_path":"src/app.ts","content":"// @ts-ignore\nconst x = api.legacy"}}'
+run_case "O  @ts-ignore justificado"  PASS  anti-mascaramento.sh '{"tool_input":{"file_path":"src/app.ts","content":"// @ts-ignore -- lib @vendor/x sem stubs ate v2\nconst x = api.legacy"}}'
+run_case "P  assert real"             PASS  anti-mascaramento.sh '{"tool_input":{"file_path":"src/test_x.py","content":"def test_x():\n    assert resultado == 42"}}'
+run_case "Q  .md ignora"              PASS  anti-mascaramento.sh '{"tool_input":{"file_path":"docs/foo.md","content":"# titulo\nassertTrue(true)"}}'
+
+echo ""
+echo "===== context-budget ====="
+
+run_case "R  qualquer input"          PASS  context-budget.sh '{}'
+
+echo ""
+echo "===== tenant-id-validator ====="
+
+run_case "S  migration sem tenant"    BLOCK tenant-id-validator.sh '{"tool_input":{"file_path":"app/migrations/0001_initial.py","content":"class Migration:\n    operations = [\n        migrations.CreateModel(name=\"Pedido\", fields=[(\"id\", models.AutoField())]),\n    ]"}}'
+run_case "T  migration com tenant"    PASS  tenant-id-validator.sh '{"tool_input":{"file_path":"app/migrations/0001_initial.py","content":"class Migration:\n    operations = [\n        migrations.CreateModel(name=\"Pedido\", fields=[(\"id\", models.AutoField()),(\"tenant_id\", models.IntegerField())]),\n    ]"}}'
+run_case "U  .objects.all() sem flt"  BLOCK tenant-id-validator.sh '{"tool_input":{"file_path":"app/views/pedidos.py","content":"def listar():\n    return Pedido.objects.all()"}}'
+run_case "V  .objects.all() com flt"  PASS  tenant-id-validator.sh '{"tool_input":{"file_path":"app/views/pedidos.py","content":"def listar(tenant):\n    return Pedido.objects.all().filter(tenant_id=tenant)"}}'
+run_case "W  arquivo .md ignora"      PASS  tenant-id-validator.sh '{"tool_input":{"file_path":"docs/foo.md","content":".objects.all()"}}'
+run_case "X  teste ignora"            PASS  tenant-id-validator.sh '{"tool_input":{"file_path":"app/tests/test_x.py","content":"Pedido.objects.all()"}}'
+
+echo ""
+echo "===== paths-frontmatter-validator ====="
+
+run_case "Y  rule sem frontmatter"    BLOCK paths-frontmatter-validator.sh '{"tool_input":{"file_path":".claude/rules/foo.md","content":"# Regra\nsem frontmatter"}}'
+run_case "Z  rule sem paths:"         BLOCK paths-frontmatter-validator.sh '{"tool_input":{"file_path":".claude/rules/foo.md","content":"---\nowner: Roldao\n---\n# Regra"}}'
+run_case "AA rule com paths:"         PASS  paths-frontmatter-validator.sh '{"tool_input":{"file_path":".claude/rules/foo.md","content":"---\npaths: [\"src/**/*.py\"]\n---\n# Regra"}}'
+run_case "AB doc normal ignora"       PASS  paths-frontmatter-validator.sh '{"tool_input":{"file_path":"docs/foo.md","content":"# titulo"}}'
+
+echo ""
+echo "===== INV-checker ====="
+
+run_case "AC PostToolUse outro arq"   PASS  INV-checker.sh '{"tool_input":{"file_path":"src/foo.py"}}'
 
 echo ""
 echo "===== resumo: $pass ok, $fail falhas ====="
