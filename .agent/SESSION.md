@@ -9,7 +9,7 @@
 
 ## Última sessão
 
-**Data:** 2026-05-17 (sessão Rodada 0 batch 2 + auditoria 10 agentes + 4 decisões fundadoras do Roldão)
+**Data:** 2026-05-17 (sessão Rodada 0 batch 2 + auditoria 10 agentes + 4 decisões fundadoras do Roldão) — **🔚 SESSÃO ENCERRADA PELO ROLDÃO**
 **Agente:** Claude Code (Opus 4.7) + 4 subagentes auditores
 **Roldão presente:** sim, ativo — contribuiu com:
 - Lista de 6 concorrentes adicionais (CalibraFácil, ABC71, SoftExpert, myLIMS, AutoLab×3, ConfLab)
