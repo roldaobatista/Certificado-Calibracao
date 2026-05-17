@@ -22,11 +22,11 @@
 | # | Artefato | Caminho | Status | Prio | Referenciado em | Bloqueia |
 |---|---|---|---|---|---|---|
 | 1 | `personas-detalhadas.md` | `docs/discovery/` | ✅ **criado 17/05/2026** | 🔴 | `dominio-de-negocio.md` §Saída | (resolvido) |
-| 2 | `dores-mapeadas.md` | `docs/discovery/` | ⏳ | 🔴 | `dominio-de-negocio.md` §Saída + insights da jornada atual | Priorização do MVP-1 |
+| 2 | `dores-mapeadas.md` | `docs/discovery/` | ✅ **criado 17/05/2026 (batch 3)** | 🔴 | `dominio-de-negocio.md` §Saída + insights da jornada atual | (resolvido — re-rankear pós-Onda 1 de entrevistas) |
 | 3 | `jobs-to-be-done.md` | `docs/discovery/` | ✅ **criado 17/05/2026** | 🟡 | `documentos-do-projeto.md` v5 §Família 0 | (resolvido) |
 | 4 | `jornada-atual-sem-produto.md` | `docs/discovery/` | ✅ **criado 17/05/2026** | 🔴 | `documentos-do-projeto.md` v5 §Família 0 | (resolvido) |
-| 5 | `opportunity-solution-tree.md` | `docs/discovery/` | ⏳ | 🔴 | `documentos-do-projeto.md` v5 §Família 0 | Síntese final |
-| 6 | `assumption-map.md` | `docs/discovery/` | ⏳ | 🔴 | `documentos-do-projeto.md` v5 §Família 0 | Leap-of-faith identificados |
+| 5 | `opportunity-solution-tree.md` | `docs/discovery/` | ✅ **criado 17/05/2026 (batch 3)** | 🔴 | `documentos-do-projeto.md` v5 §Família 0 | (resolvido — alimenta `sintese-final.md`) |
+| 6 | `assumption-map.md` | `docs/discovery/` | ✅ **criado 17/05/2026 (batch 3)** | 🔴 | `documentos-do-projeto.md` v5 §Família 0 | (resolvido — 12 LEAPs identificados; validar em `validacao-ativa.md`) |
 | 7 | `validacao-ativa.md` | `docs/discovery/` | ⏳ | 🔴 | `riscos.md` (TAM) + `dominio-de-negocio.md` (Portal cliente) | Decisão de seguir/parar |
 | 8 | `treinamento-entrevista-roldao.md` | `docs/discovery/` | ⏳ | 🔴 | `documentos-do-projeto.md` v5 §Família 0 | Entrevistas piloto |
 | 9 | `entrevistas-clientes.md` | `docs/discovery/` | ⏳ | 🔴 | `documentos-do-projeto.md` v5 §Família 0 | Síntese final |

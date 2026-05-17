@@ -9,7 +9,34 @@
 
 ## Última sessão
 
-**Data:** 2026-05-17 (sessão Rodada 0 batch 2 + auditoria 10 agentes + 4 decisões fundadoras do Roldão) — **🔚 SESSÃO ENCERRADA PELO ROLDÃO**
+**Data:** 2026-05-17 (sessão da tarde) — **batch 3 do Discovery CONCLUÍDO**
+**Agente:** Claude Code (Opus 4.7) + 4 subagentes general-purpose
+
+### O que aconteceu nesta sessão
+1. Roldão escolheu **Opção A (revisar o que foi feito na sessão da manhã)** — apresentei 3 blocos:
+   - **Bloco 1 (4 decisões fundadoras):** Roldão ratificou todas como fiéis
+   - **Bloco 2 (27 decisões da auditoria 10 agentes):** Roldão ratificou em bloco
+   - **Bloco 3 (glossário 227 termos):** Roldão optou por revisão **sob demanda** (não revisar 1 a 1 agora)
+2. Roldão escolheu **Opção B (batch 3 do Discovery)** — disparei 3 subagentes em paralelo:
+   - ✅ **dores-mapeadas.md** (528 linhas) — 20 dores ranqueadas em 6 dimensões; top 5 identificadas (#02 esquecimento recalibração score 28.500 / #10 dono operando diário / #04 certificado sem NIT-DICLA-030 / #01 caixa técnico / #19 frota sem TCO)
+   - ✅ **assumption-map.md** (160 linhas) — 57 premissas testáveis distribuídas em 4 quadrantes; **12 LEAPs priorizados**; top 5 LEAPs: F-1 modelo agentes / D-1 perfil B compra / V-1 TAM / V-2 WTP / E-4 contrato+seguro
+   - ✅ **opportunity-solution-tree.md** (554 linhas) — **outcome 50 tenants × R$ 900 × churn ≤3% em 12 meses** + 8 opportunities + 24 solutions + 24 experiments; top 3 OPs no MVP-1: OP1 recalibração proativa (RICE 50) / OP7 NFS-e multi-município (RICE 41,7) / OP5 CRM 360° (RICE 26,7)
+3. 2 dos 3 subagentes deram **erro de API** (timeout / FailedToOpenSocket). Mas o trabalho deles ficou salvo. Retentei só o OST que tinha falhado totalmente.
+
+### Onde paramos
+**Lado do agente esgotado.** A Rodada 0 do Discovery na parte que o agente faz sozinho está **completa**: 9 artefatos preenchidos densamente (concorrentes, normas, domínio, riscos, personas, JTBDs, jornada, dores, OST, assumption-map) + glossário 227 termos.
+
+### Próximo bloqueio (que o agente NÃO consegue resolver)
+**Entrevistas reais com 5-10 OUTRAS empresas** (Onda 1). Sem isso, todas as marcações `[INFERÊNCIA — validar em onda 1]` permanecem palpite; LEAPs não validados; dores não re-rankeadas com citação literal; D-001 founder-is-customer não mitigado.
+
+### Próximo passo lógico
+Próxima sessão deve atacar **um dos 2 caminhos** (Roldão escolhe):
+1. **C — Ação pendente com terceiros (D-aud7-1):** checklist pra advogado + corretora + consultor; R$ 18-60k de blindagem antes do MVP-1 ir ao ar
+2. **Preparar Onda 1 de entrevistas:** roteiro por persona + lista de empresas candidatas + treinamento-entrevista-roldao.md
+
+### Histórico antigo desta sessão (manhã 17/05/2026) — preservado abaixo
+
+---
 **Agente:** Claude Code (Opus 4.7) + 4 subagentes auditores
 **Roldão presente:** sim, ativo — contribuiu com:
 - Lista de 6 concorrentes adicionais (CalibraFácil, ABC71, SoftExpert, myLIMS, AutoLab×3, ConfLab)

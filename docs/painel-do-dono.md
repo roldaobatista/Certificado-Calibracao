@@ -23,12 +23,12 @@
 
 ---
 
-## ⏱️ Estado em 2026-05-17 (atualizado pós Rodada 0 batch 2 + 10 auditores + 4 decisões fundadoras)
+## ⏱️ Estado em 2026-05-17 (atualizado pós batch 3 — sessão da tarde)
 
-**Fase:** **Rodada 0 Discovery — batch 2 CONCLUÍDO + auditoria 10 agentes + 4 decisões fundadoras aplicadas**
-**Última atividade:** auditoria 10 agentes batch 2 + correções aplicadas + 4 decisões fundadoras do Roldão: (1) Frota+UMC+Caixa Técnico, (2) Módulo de Comissões configuráveis, (3) Cliente 360°+CRM Contínuo+Automações, (4) Estoque multi-local com lacre+selo INMETRO.
-**Bloqueio:** ação pendente com terceiros (advogado+seguro+DPA — D-aud7-1 acima); revisão sua dos novos textos canônicos do `dominio-de-negocio.md`.
-**Próximo passo recomendado pelo agente:** revisar as 4 seções novas em `dominio-de-negocio.md` + autorizar **batch 3** (`dores-mapeadas.md` + `opportunity-solution-tree.md` + `assumption-map.md`).
+**Fase:** **Rodada 0 Discovery — batch 3 CONCLUÍDO. Lado do agente esgotado.**
+**Última atividade:** sessão da tarde 17/05/2026 — Roldão escolheu Opção A (revisão) → ratificou as 4 decisões fundadoras + 27 decisões da auditoria; pulou revisão do glossário pra sob demanda. Em seguida autorizou batch 3, executado por 3 subagentes em paralelo: **dores-mapeadas.md (20 dores ranqueadas em 6 dimensões)** + **opportunity-solution-tree.md (1 outcome + 8 opportunities + 24 solutions + 24 experiments)** + **assumption-map.md (57 premissas testáveis + 12 LEAPs priorizados)**.
+**Bloqueio:** **entrevistas reais** com 5-10 OUTRAS empresas (mitigação do R-001 founder-is-customer) — agente NÃO faz isso, Roldão precisa conduzir. + Ação pendente com terceiros (D-aud7-1: advogado+seguro+DPA+consultor, R$ 18-60k).
+**Próximo passo recomendado pelo agente:** preparar `treinamento-entrevista-roldao.md` (já existe placeholder) + roteiro de entrevista por persona + lista de empresas candidatas (Onda 1 = 5 entrevistas).
 
 ### ✨ Achados consolidados pós-auditoria + 4 decisões fundadoras
 
