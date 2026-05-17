@@ -117,7 +117,7 @@ O mercado mundial de software de gestão de calibração ISO/IEC 17025 tem duas 
 | Item | Resposta |
 |---|---|
 | URL | https://qualer.com/ (redireciona pra MasterControl) |
-| Origem | EUA — **acquired/rebranded pela MasterControl** (data exata [a confirmar]) |
+| Origem | EUA — **adquirida/rebrandeada pela MasterControl em 03/03/2025**, rebatizada como **MasterControl Asset Excellence**. MasterControl tem ARR de ~US$ 200M e ~1,25M de usuários (contexto de porte). Fonte: [mastercontrol.com/news](https://www.mastercontrol.com/news/mastercontrol-acquires-qualer/) |
 | Foco | Calibração + asset management SaaS-first para laboratórios |
 | ISO 17025? | **Sim, forte** — engine de incerteza, validação **live de CMC**, multi-channel acceptance, biblioteca de **+10.000 procedimentos** prontos |
 | Integra com ERP? | API; mais voltado pra integração com fornecedores de calibração externa (vendor certificate workflow) |
@@ -342,7 +342,7 @@ Há ainda **LECO Cornerstone** (software só pra instrumentos LECO) — irreleva
 | ISO 17025? | **Sim** — declarado conforme ABNT NBR ISO/IEC 17025 |
 | NFS-e? | **SIM — único do levantamento que explicita** integração nativa com Sistema de ISS On-line via WebService + certificado digital ICP-Brasil (e-CPF A1/A3). **Porém: declarado apenas pra Prefeitura de Santa Maria/RS.** Cobertura multi-município **[a confirmar]** |
 | Extras fiscais | Boletos bancários, CNAB 240/400 (remessa e retorno) |
-| Mercado-alvo | Laboratórios — possivelmente regional/RS predominante |
+| Mercado-alvo | Laboratórios — **regional/Santa Maria/RS confirmado**: os 4 principais clientes públicos listados pela própria FP2 (UFSM, SAMITEC, FATEC, FISMA) são TODOS de Santa Maria/RS. Evidência adicional de que a empresa nunca expandiu cobertura municipal. |
 | Reviews | Visibilidade nacional limitada |
 
 **Por que importa pra nós:** é a evidência de que **existe demanda real** pelo combo lab+ISO17025+NFS-e — mas a oferta está restrita a um player regional, sem capilaridade nacional. **Confirma o gap.**
@@ -577,6 +577,10 @@ Legenda: ⚠️ = não destacado / não documentado publicamente.
 | RC-03 | Qualer/MasterControl lança versão pt-BR + fiscal | Baixa | Médio | Foco em PME; gigantes vão entrar pelo enterprise primeiro |
 | RC-04 | ERP horizontal BR (Omie/Bling) lança vertical calibração | Média-Alta | Alto | Profundidade técnica ISO 17025 (incerteza, rastreabilidade) que generalistas não dominam |
 | RC-05 | Fundação CERTI dá homologação só pra Cali e cria barreira política | Baixa | Alto | Buscar homologação CERTI cedo; preparar caso de uso comparativo técnico |
+| **RC-06** | **Visma (dona da Conta Azul desde 08/2025) compra vertical de calibração BR (Cali, Metroex)** e pluga no stack Conta Azul (que já tem NFS-e em 400+ municípios). Resolveria sozinho o gap que Aferê ataca. Visma tem 140+ aquisições históricas — apetite confirmado. | Média | Alto | Monitorar M&A Visma na BR; ir a mercado rápido; lockar com integração bancária mais profunda |
+| **RC-07** | **TOTVS lança vertical de calibração** via SIGAMNT (já tem módulo embrionário de calibração interna) ou parceria estratégica. Captura base instalada industrial. | Baixa-Média | Alto | Profundidade técnica RBC + UX moderna SaaS que TOTVS Protheus não consegue replicar |
+| **RC-08** | **CGCRE muda paradigma pra acreditação baseada em riscos** (tendência 2025-2026) e exige software adaptado pra "risk-based audit trail". Quem chegar primeiro vira referência. | Média | Médio | Acompanhar discussões CGCRE; modelar audit trail extensível ao novo modelo desde o dia 0 |
+| **RC-09** | **INMETRO/CGCRE oferece plataforma estatal grátis** pra labs acreditados (precedente BIPM/UKAS). Mataria mercado nacional. | Baixíssima | Catastrófico | Sem ação ativa; gatilho seria comunicado oficial |
 
 ---
 
@@ -730,7 +734,7 @@ Preço **transparente** em tabela pública é diferencial defensável.
 |---|---|
 | URL | https://contaazul.com |
 | Preço | Essencial (MEI) ~R$ 119,90/mês anual com 20% off → Controle → Avançado ~R$ 290/mês (R$ 869,70 trimestral) → Performance (top com API). Cupons recorrentes ~21% off |
-| Fundação | 2011 (Joinville/SC); **adquirida pela Visma (Noruega) em 2025 por ~R$ 2 bi** (fundadores permanecem) |
+| Fundação | 2011 (Joinville/SC); **adquirida pela Visma (Noruega) em agosto/2025 por US$ 300 milhões (~R$ 1,7 bi)** — fundadores permanecem. Visma fez 140+ aquisições históricas (50 só em 2024). |
 | Módulos | Financeiro (CP/CR, conciliação bancária automática — **diferencial**), vendas (orçamento → pedido → OS → NFS-e em 1 clique), fiscal (NF-e/NFC-e/NFS-e), estoque básico, propostas, integração contador forte, banco/cobrança (boleto/Pix), relatórios |
 | NF-e/NFS-e | Sim; NFS-e depende de homologação municipal (lista pública aceita pedido de inclusão); MEI via Padrão Nacional. Número de municípios [a confirmar] |
 | Mobile | App Android + iOS (consulta de saldo, vendas, NF, lembretes) |
@@ -762,7 +766,36 @@ Preço **transparente** em tabela pública é diferencial defensável.
 
 ---
 
-### 12.6 Síntese ERPs horizontais BR
+### 12.6 Auvo (Goiânia/GO + Florianópolis/SC)
+
+> Adicionado por indicação do Roldão (16/05/2026) — concorrente horizontal de **field service** que ficou de fora da pesquisa inicial.
+
+| Item | Resposta |
+|---|---|
+| URL | https://www.auvo.com • https://www.auvo.com.br |
+| Fundação | **2015** (Goiânia/GO) por Gabriel Rodrigues, Valmir Caixeta e Danilo Silva. 2º escritório em Florianópolis/SC (2020). Aporte recente da Cloud9 Capital |
+| Foco | **Gestão de equipes externas / field service** — OS digital, agenda, roteirização, checklist, captura de assinatura, rastreio GPS em tempo real. Verticais fortes: climatização/refrigeração, segurança eletrônica, energia solar, manutenção industrial |
+| Módulos | Gestão (OS + agenda + GPS), Financeiro (NF), Auvo Bank (PIX/boletos), AuvoDesk (chamados — desacoplado), PMOC (HVAC), Cobranças, Despesas, Relatórios |
+| ISO 17025 / calibração | **Não** — nenhuma menção a metrologia/17025 |
+| NF-e / NFS-e | **Sim** (módulo Financeiro emite NF + Auvo Bank). ⚠️ reclamação ativa no Reclame Aqui (dez/2025) sobre emissão indevida de NF |
+| OS / chamados | **Sim, é o core.** OS digital com checklist, fotos antes/depois, assinatura mobile, geração a partir de orçamento. AuvoDesk pra chamados/tickets (queixa: roda em plataforma separada, sem API pública) |
+| Mobile | App nativo Android/iOS/iPad. **Offline [a confirmar]** — site descreve "totalmente online", mas reviews relatam dificuldade de sincronização |
+| Deploy | SaaS na nuvem (web + mobile); sem on-premise |
+| API | **Sim**, REST com APP KEY + TOKEN (token temporário 30 min). Integrações nativas com Conta Azul Pro, NectarCRM e ERPs |
+| Multi-tenant | SaaS multi-tenant |
+| Preço | **Sob consulta** / modular por nº de usuários + módulos. Sem tabela pública |
+| Mercado-alvo | PME a média/enterprise com equipe de campo — **~8 mil clientes, 80 mil usuários ativos, 16 países LATAM**. Clientes: WEG, Daikin, Gree, Sem Parar. **Recusa explícita operações com <4 funcionários** |
+| Forte em | OS digital madura, ecossistema modular amplo (PMOC, Bank, Cobranças), internacionalização LATAM, atendimento responsivo (~7h resposta média no RA), aporte recente |
+| Fraco em | Bugs recorrentes (GPS, sincronização, emissão indevida de NF), AuvoDesk desacoplado e sem API, cobrança pós-cancelamento problemática (caso Serasa), **zero suporte a metrologia/17025**, preço opaco |
+| Reclamações | "Problemas com app — sincronização e GPS" • "Notas fiscais indevidas" • "Preconceituosos e utópicos (recusa operação <4 func)" — Reclame Aqui |
+
+**Posicionamento provável vs Aferê:** **concorrente horizontal de field service** — forte em OS/campo genérico, mas zero cobertura de calibração 17025/incerteza/rastreabilidade. Em assistência técnica de manutenção corretiva, **Auvo é provavelmente o concorrente mais perigoso do lado de OS de campo** (mais maduro que módulos de OS de Bling/Omie/Conta Azul). Se Roldão atender muito cliente com técnico de campo, Auvo é referência.
+
+**Fontes:** https://www.auvo.com • https://scinova.com.br/com-escritorio-em-sc-auvo-tecnologia-recebe-investimento-da-cloud9-capital/ • https://empreenderemgoias.com.br/2024/04/02/empresa-goiana-para-gestao-de-equipes-se-consolida-na-america/ • https://www.reclameaqui.com.br/empresa/auvo-tecnologia/ • https://www.capterra.pt/software/201778/auvo
+
+---
+
+### 12.7 Síntese ERPs horizontais BR
 
 **Confirmado nos 5:** **ninguém tem calibração ISO 17025.** Gap absoluto também nessa camada.
 

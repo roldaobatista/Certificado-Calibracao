@@ -11,7 +11,7 @@
 **Fase:** **Rodada 0 Discovery — batch 1 CONCLUÍDO** (4 de 15 artefatos)
 **Última atividade:** pesquisa de concorrentes (24 mapeados — 16 BR + 8 internacionais), normas/regulação (15 municípios + ISO 17025 + LGPD 2024-26 + Bacen/PIX 2025 + PCI-DSS 4.0.1), domínio de negócio (mapa preliminar de domínios → módulos), riscos (11 novos adicionados).
 **Bloqueio:** nenhum — pronto pra você revisar batch 1 ou autorizar batch 2.
-**Próximo passo recomendado pelo agente:** **revisar achados** abaixo (especialmente o GAP confirmado e o R18) ANTES de autorizar batch 2 (personas + JTBD + jornada-atual).
+**Próximo passo recomendado pelo agente:** **decidir 9 itens estratégicos pendentes** (lista abaixo) antes de autorizar batch 2. Auditoria interna de 4 agentes já aplicou todas as correções factuais — só decisões de produto/escopo precisam de você.
 
 ### ✨ 3 achados estratégicos pra você ler primeiro
 
@@ -23,10 +23,25 @@
 
 ## 🚨 Decisões pendentes que SÓ VOCÊ pode tomar
 
+### Decisões da auditoria interna (9 itens — pra você decidir 1 a 1)
+
+| # | Decisão | Recomendação do agente | Status |
+|---|---|---|---|
+| **D-aud-1** | Subir piso de preço de R$ 300/mês pra R$ 500-1.000/mês com 1 mês grátis | **Aceitar** — Auditor 1 mostrou que volume de lab calibrador é menor que e-commerce; R$ 300 cria expectativa de "barato" difícil de reverter | ⏳ |
+| **D-aud-2** | Adicionar fichas dedicadas de TOTVS Protheus + Qualyteam + SAP Business One BR | **Aceitar** — TOTVS é gigante adjacente que aparece em todo prospect; Qualyteam ficou só nas fontes; SAP B1 é referência | ⏳ |
+| **D-aud-3** | Refinar invariante #4 ("software validado") em 3 sub-regras testáveis (aprovação do responsável técnico antes de prod; revalidação de cálculo de incerteza; versão do software gravada em cada certificado) | **Aceitar** — Auditor 2 alertou que está vago demais pra virar hook bloqueante | ⏳ |
+| **D-aud-4** | Mover invariante #7 (BaaS fiscal único) pra ADR + adicionar invariantes #11-#15 (retenção 17025, padrão vencido bloqueia emissão, NC bloqueia emissão, confidencialidade 4.2 com log, versão do software em cada certificado) | **Aceitar** — BaaS é arquitetura, não regra de conformidade. Os 5 novos invariantes fecham lacunas críticas | ⏳ |
+| **D-aud-5** | Subdividir domínio Metrologia em 3 sub-domínios (Execução de calibração / Padrões e rastreabilidade / Garantia da validade) | **Aceitar com ressalva** — só fazer quando o módulo Calibração entrar no faseamento; até lá é só nota | ⏳ |
+| **D-aud-6** | Mover Gestão de Competências e Autorizações pra dentro do MVP-1 (não esperar pós-MVP) | **Aceitar** — Auditor 3 alertou que 17025 6.2 exige autorização documentada do signatário. Sem isso o sistema NÃO PODE emitir certificado válido. Escopo magro: matriz competência × grandeza + validade + autorização por escopo | ⏳ |
+| **D-aud-7** | Adicionar metrologia legal (IPEMs/RBMLQ-I, Portarias INMETRO 157/2022 balanças + 227/2022 bombas) como sub-domínio ou flag dentro de Metrologia | **Decidir baseado em escopo** — se você atende cliente de balança comercial ou bomba de combustível, é obrigatório. Se foca só em RBC voluntária, pode ficar fora. **Você responde isso** | ⏳ |
+| **D-aud-8** | Padronizar IDs de risco como R-001 a R-NNN sequencial único (eliminar mistura R1/R27/RC-01) | **Aceitar** — Auditor 4 alertou que migração depois é dor. Fazer agora enquanto a lista tem 30, não 300 | ⏳ |
+| **D-aud-9** | Criar **ADR-IA** agora (mesmo sem stack escolhida) com 5 pontos: (1) abstração obrigatória de provider, (2) dados de cliente final não vão pra API por padrão, (3) IP do output é do Roldão, (4) hard cap de gasto por tenant, (5) suite de eval baseline | **Aceitar** — Auditor 4 mostra que mitiga 5 riscos novos (R27-R31, R32) em um único movimento | ⏳ |
+
+### Decisões anteriores que continuam pendentes
+
 | Decisão | Por quê preciso | Status |
 |---|---|---|
-| **Revisar batch 1 do Discovery** (4 artefatos preenchidos hoje) | Antes de seguir, confirmar com você os achados (especialmente itens marcados `[a confirmar]` e `[Roldão validar]`) | ⏳ aguardando |
-| **Autorizar batch 2** (personas + JTBD + jornada-atual) | Agente pode tocar sozinho | ⏳ aguardando |
+| **Autorizar batch 2** (personas + JTBD + jornada-atual) — só depois das 9 acima | Agente pode tocar sozinho | ⏳ aguardando |
 | **Nome final do produto** | "Aferê" é provisório; decidir antes de comprar domínio | ⏳ aguardando |
 | **Licença (LICENSE)** | MIT, Apache, proprietária, etc. Necessário antes de 1º release público | ⏳ aguardando |
 | **Quem é o signatário técnico** dos certificados de calibração (RBC NIT-DICLA-021 exige metrologista PF responsável) | ⏳ você ou contratar | ⏳ aguardando |

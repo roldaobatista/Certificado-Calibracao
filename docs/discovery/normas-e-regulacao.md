@@ -34,7 +34,7 @@
 | **Salvador (BA)** | Adesão pioneira ao padrão nacional desde fim de 2022 (piloto da Receita). | Em produção. | [qive.com.br](https://qive.com.br/blog/nfse-nacional) |
 | **Recife (PE)** | **Emissor Nacional exclusivo** desde 01/01/2026 (Portaria SMF 42/2025). Sistema local segue apenas pra DAM, confissão e consulta. | Obrigatório. | [recifeemdia.recife.pe.gov.br](https://recifeemdia.recife.pe.gov.br/nfsetransicao) |
 | **Fortaleza (CE)** | Adesão pioneira ao padrão nacional desde fim de 2022. | Em produção. | [qive.com.br](https://qive.com.br/blog/nfse-nacional) |
-| **Brasília (DF)** | `[a confirmar]` — não houve comunicado público nas buscas. Por LC 214/2025 está sob obrigação geral de 01/01/2026. Sede da ABRASF é no DF. | Confirmar diretamente em www.fazenda.df.gov.br antes de homologar. | — |
+| **Brasília (DF)** | **Modelo SP** — emissor próprio ISSnet + integração ao ADN (espelhamento obrigatório). ABRASF antigo desativado em 01/01/2026. | Obrigatório desde 01/01/2026. | Secretaria de Economia DF + Contábeis |
 | **Goiânia (GO)** | Sistema próprio (**SGISS**, Decreto 2.824/2025) integrado ao padrão nacional/ABRASF 2.04. | Em produção desde 01/10/2025. | [pedroreisconsultoria.com.br](https://pedroreisconsultoria.com.br/novo-modelo-de-nfs-e-padrao-nacional-abrasf-2-04-prefeitura-de-goiania/) |
 | **Manaus (AM)** | **Emissor Nacional exclusivo** (web/app/API). | Obrigatório desde 01/2026. | [manaus.am.gov.br](https://www.manaus.am.gov.br/noticia/financas/prefeitura-semef-nfs-e/) |
 | **Campinas (SP)** | Substituição total do ABRASF antigo pelo padrão nacional + integração ao ADN. | Obrigatório desde 01/01/2026. | [escritoriotaquaral.com.br](https://www.escritoriotaquaral.com.br/adequacao-nfs-e-campinas-reforma-tributaria/) |
@@ -102,7 +102,7 @@ Fonte cláusulas: [kayeinstruments.com](https://www.kayeinstruments.com/pt/news/
 - Estrutura: (1) Especificação do mensurando → (2) Identificação de fontes de incerteza → (3) Quantificação dos componentes → (4) Cálculo da incerteza combinada.
 - Complementar: **EURACHEM/CITAC Guide — Measurement Uncertainty Arising from Sampling** (incerteza de amostragem).
 - **EA-4/02** — versão europeia (EA — European co-operation for Accreditation) de referência pra expressão de incerteza em calibração; base do DOQ-CGCRE-008 brasileiro.
-- **VIM 4ª ed. (JCGM 200:2024)** `[a confirmar versão exata da 4ª edição publicada]` — Vocabulário Internacional de Metrologia.
+- **VIM** — versão vigente em 05/2026 é **JCGM 200:2012** (3ª edição, reedição bilíngue). **VIM 4ª edição (CD)** ainda está em Committee Draft, **não publicado oficialmente**. Correção de erro de doc anterior que citava "JCGM 200:2024".
 
 ---
 
@@ -112,9 +112,9 @@ Fonte cláusulas: [kayeinstruments.com](https://www.kayeinstruments.com/pt/news/
 
 | Documento | Título | Versão atual | Fonte |
 |---|---|---|---|
-| **NIT-DICLA-021** | Expressão da incerteza de medição em calibração (alinhado à EA-4/02). | Revisão 03 `[a confirmar se há revisão mais recente]` — não encontrada confirmação da última revisão nos resultados; CGCRE mantém versão consolidada no Sidoq. | [Sidoq INMETRO](http://www.inmetro.gov.br/credenciamento/organismos/doc_organismos.asp?tOrganismo=CalibEnsaios) |
+| **NIT-DICLA-021** | Expressão da incerteza de medição em calibração (alinhado à EA-4/02). | **Revisão 10** (versão vigente no portal CDTN/CGCRE em 05/2026). Erro de doc anterior corrigido. | [Sidoq INMETRO](http://www.inmetro.gov.br/credenciamento/organismos/doc_organismos.asp?tOrganismo=CalibEnsaios) |
 | **NIT-DICLA-030** | Rastreabilidade metrológica na acreditação. Define quem (laboratórios, produtores de MR) garante rastreabilidade na cadeia. **Revisão 15 (dez/2024) incluiu item 8.2.6:** Cgcre **não aceita** certificados de calibração que omitam resultados de medição e incertezas associadas. | **Revisão 15** (dez/2024). | [gov.br/cdtn](https://www.gov.br/cdtn/pt-br/assuntos/documentos-cgcre-abnt-nbr-iso-iec-17025/nit-dicla-30) |
-| **DOQ-CGCRE-008** | Orientação sobre validação de métodos analíticos (inclui tratamento de incerteza via erro normalizado, tendência, recuperação). | **Revisão 09** (ago/2024). | [gov.br/cdtn DOQ-008](https://www.gov.br/cdtn/pt-br/centrais-de-conteudo/documentos-cgcre-abnt-nbr-iso-iec-17025/doq-cgcre-008/view) |
+| **DOQ-CGCRE-008** | Orientação sobre validação de métodos analíticos (inclui tratamento de incerteza via erro normalizado, tendência, recuperação). | **Revisão 09 (jun/2020)**; portal CDTN atualizou o upload em ago/2024 (data de re-upload, não da revisão). | [gov.br/cdtn DOQ-008](https://www.gov.br/cdtn/pt-br/centrais-de-conteudo/documentos-cgcre-abnt-nbr-iso-iec-17025/doq-cgcre-008/view) |
 | **DOQ-CGCRE-019** | Exemplos de estimativa de incerteza em ensaios químicos. | Rev. 04 (abr/2019). | Sidoq INMETRO |
 | **DOQ-CGCRE-053** | Exemplos de estimativa de incerteza em ensaios microbiológicos. | Rev. 00 (fev/2014). | Sidoq INMETRO |
 | **DOQ-CGCRE-090** | Estimativa de incerteza em vazão/velocidade de fluidos e hidrômetros. | Rev. 00 (jun/2018). | Sidoq INMETRO |
@@ -225,9 +225,10 @@ Atualizações relevantes de 2025 ([mattosfilho.com.br](https://www.mattosfilho.
 - **Substituído por SVC** (Sefaz Virtual de Contingência):
   - **tpEmis=6** — SVC-AN (Ambiente Nacional)
   - **tpEmis=7** — SVC-RS (Rio Grande do Sul)
-- Distribuição de UF (consultar SEFAZ de origem antes de homologar — há divergência entre fontes pra CE, PA, PI):
-  - **SVC-AN**: AC, AL, AP, DF, ES, MG, PB, RJ, RN, RO, RR, RS, SC, SE, SP, TO (+ provavelmente CE, PA, PI)
-  - **SVC-RS**: AM, BA, GO, MA, MS, MT, PE, PR
+- Distribuição de UF (confirmada via auditoria):
+  - **SVC-AN**: AC, AL, AP, DF, ES, MG, PB, **PI**, RJ, RN, RO, RR, RS, SC, SE, SP, TO
+  - **SVC-RS**: AM, BA, **CE**, GO, MA, MS, MT, **PA**, PE, PR
+  - Correção: CE e PA estão em SVC-RS (estavam ambíguos no doc anterior); PI é SVC-AN.
 - **EPEC (tpEmis=4)** — Evento Prévio de Emissão em Contingência. Ativo desde 01/12/2014.
 - **FS-DA (tpEmis=5)** — em desuso, formulário de segurança.
 - **CC-e** (Carta de Correção, art. 7º Ajuste SINIEF 07/05) — corrige erros não tributários; até 30 dias.

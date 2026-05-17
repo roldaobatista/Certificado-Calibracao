@@ -22,9 +22,10 @@ Empresas brasileiras como a do Roldão operam **duas atividades complementares s
 - **Clientes:** indústria farmacêutica, alimentícia, química, petroquímica, automotiva; postos de combustível (calibração de bombas — INMETRO PRM); hospitais e laboratórios clínicos (calibração de balanças, termômetros, autoclaves); concessionárias de veículos; construtoras (controle tecnológico de obras); distribuidoras de água/gás.
 - **Fornecedores diretos:** fabricantes de instrumentos (Fluke, Beamex, Presys, Salvi Casagrande, Gehaka), fornecedores de padrões (laboratórios de calibração de nível mais alto na cadeia — RBC ou INM/Inmetro), distribuidores de peças, fornecedores de software (concorrentes mapeados em `concorrentes.md`).
 - **Reguladores e órgãos técnicos:**
-  - **Cgcre/INMETRO** — acredita lab RBC; auditoria a cada 2 anos.
+  - **Cgcre/INMETRO** — acredita lab RBC; **ciclo de acreditação de 4 anos com supervisões periódicas** (geralmente anuais ou a cada 18 meses, regido pela NIT-Dicla-031). Correção do doc anterior que dizia "a cada 2 anos".
   - **ABNT** — publica versão brasileira das normas ISO.
-  - **CB-25** — Comitê Brasileiro de Calibração.
+  - **CB-25 / ABNT** — Comitê Brasileiro de Qualidade e Avaliação da Conformidade (espelha ISO/CASCO). Atenção: o **CB-25 NÃO é "Comitê Brasileiro de Calibração"** como aparecia no doc anterior — esse era erro. Comitê técnico de calibração propriamente é responsabilidade do **CT-Dicla** dentro do Inmetro + BIPM/JCGM internacionalmente.
+  - **IPEMs estaduais (RBMLQ-I)** — 26 órgãos delegados pelo Inmetro que fazem **verificação metrológica legal** (balanças comerciais, bombas de combustível, etilômetros, taxímetros). Fluxo distinto da calibração RBC voluntária. Empresa que calibra balança/bomba lida com IPEM constantemente.
   - **CONFAZ + SEFAZ estadual** — NF-e.
   - **Prefeitura municipal** — NFS-e + ISS.
   - **Receita Federal** — SPED, retenção fiscal 5 anos, RIR/2018.
@@ -153,8 +154,9 @@ Errar a fronteira entre esses ciclos (ex: emitir certificado sem fechar OS, ou f
 | Domínio | Módulos candidatos | Já confirmados como prioritários? |
 |---|---|---|
 | **Comercial** | CRM, Orçamentos, Pedidos/Contratos, Comissões, Pipeline de oportunidades, Portal do prospect | CRM + Orçamentos confirmados (estão entre os 6 do banner do v5) |
-| **Operação** | Chamados/Tickets, OS, Agenda do técnico, Estoque (peças aplicadas), Logística (recebimento/devolução de instrumento), Mobile do técnico de campo | Chamados + OS confirmados; mobile do técnico fica em ADR-0003 obrigatório |
-| **Metrologia** | Calibração (cálculo de incerteza, certificado), Padrões e rastreabilidade, Validação de método, Carta de controle/QC, Procedimentos técnicos | Calibração é o **diferencial central** — confirmado |
+| **Operação** | Chamados/Tickets, OS, Agenda do técnico, Logística (recebimento/devolução de instrumento), Mobile do técnico de campo | Chamados + OS confirmados; mobile do técnico fica em ADR-0003 obrigatório |
+| **Estoque e Suprimentos** ⭐ | Cadastro de peças (NCM, CFOP, lote, validade), entrada/saída, movimentação, inventário, fornecedores, compras, recebimento, peças aplicadas em OS, **venda de peça avulsa pra cliente** | **PROMOVIDO a domínio próprio** (16/05/2026, decisão Roldão). Razão: empresa fornece peças usadas no reparo das balanças → estoque é receita + custo, não acessório de OS. Auditor 3 já tinha sugerido. |
+| **Metrologia** | Execução de calibração (cálculo de incerteza, certificado), Padrões e rastreabilidade, Garantia da validade (EP/QC/carta de controle), Procedimentos técnicos | Calibração é o **diferencial central** — confirmado. Auditor 3 sugere **subdividir em 3 sub-domínios** (Execução + Padrões + Garantia) — a confirmar |
 | **Financeiro** | NFS-e, NF-e, Contas a pagar/receber, Conciliação bancária, Fluxo de caixa, DRE, Boleto/PIX, Cobrança automatizada | "Financeiro de alto nível" confirmado |
 | **Suporte/Plataforma** | RBAC/permissões, Multi-tenant ops, Notificações/Webhooks, Auditoria/Logs, Configurações por tenant, Onboarding, Integrações externas | Implícito (sem isso o produto não funciona como SaaS) |
 | **Conformidade e Qualidade** (a confirmar) | LGPD (consentimento, direitos do titular, RIPD), Gestão documental ISO 9001/17025, NC e ação corretiva, Auditoria interna, Treinamento | Surgiu na auditoria (Família 6); **possivelmente vira domínio próprio** dependendo do peso pra clientes RBC |

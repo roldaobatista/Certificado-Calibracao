@@ -47,25 +47,31 @@
 | **R24** — Anvisa RDC 658/2022 (BPF medicamentos) ou RDC 786/2023 (sistemas computadorizados) atinge cliente farma que pede do nosso software conformidade que não temos | Regulatório/Mercado | 2 | 4 | **8** | Documentar em Família 6 quais clientes-farma exigem; manter "perfil regulado farma" como add-on, não MVP-1 | Auditor Conformidade |
 | **R25** — PCI-DSS 4.0.1 (vigente desde 31/03/2025) ativada se aceitarmos pagamento online direto | Regulatório/Operacional | 3 | 4 | **12** | Não processar cartão direto; usar PSP/gateway com tokenização (Stripe/Pagar.me/PagSeguro/Asaas) → escopo SAQ A | Auditor Segurança |
 | **R26** — Confusão entre as 3 empresas com nome "AutoLab" gera erro de comunicação/posicionamento competitivo | Operacional/Marketing | 2 | 2 | **4** | Padronizar referência interna como "AutoLab/Automa" (concorrente direto), "Sistema Autolab/Arkade" (obras), "AUTOLAB/MRI" (analítico). Documentado em `concorrentes.md` §3.16 | Agente |
+| **R27** — **Prompt injection via cliente final do tenant.** Cliente do lab inclui payload malicioso em campo de cadastro de instrumento, observação de OS ou descrição de NC; agente lê esse input e executa ação indevida (ex: emitir certificado errado, expor dado de outro tenant, executar comando privilegiado). Diferente de "prompt injection MCP GitHub" — esse é input não-confiável em produção. | Técnico/Segurança/Multi-tenant | 5 | 5 | **25** | (1) `mcp-policy.md` + `agente-input-nao-confiavel.md` classificam todo input externo como "regulado-untrusted"; (2) agentes podem ler mas NÃO podem executar ações em financeiro/KMS/migrations/emissão-certificado sem aprovação humana; (3) sanitização de payload em todo campo de texto livre; (4) red team interno trimestral | Auditor Segurança |
+| **R28** — **Soberania de dados — Anthropic processa em EUA.** Cliente do lab pode atender cliente final farma (RDC 658/2022) ou setor financeiro que exija dados em território BR. Res. ANPD 19/2024 (transferência internacional) aplica. | Regulatório/Mercado | 4 | 4 | **16** | (1) DPA Anthropic em vigor; (2) cláusula contratual "dados de cliente final NÃO transitam pela API por padrão"; (3) roadmap pra modelo BR (Maritaca, Sabiá) se cliente exigir; (4) opt-out por tenant; (5) documentar fluxo de dados em RIPD | Auditor Conformidade |
+| **R29** — **Bus factor Roldão (saúde/incapacidade).** Dono não-técnico sozinho — se afastar 30 dias, produto para. Diferente de R "burnout" (sobrecarga); esse é incapacidade súbita. | Operacional/Humano | 3 | 5 | **15** | (1) Runbook de continuidade documentado; (2) procurador técnico nomeado em cartório; (3) acesso de emergência (chaves, contas, credenciais) em cofre digital com sucessor; (4) sucessor treinado pra ler `painel-do-dono.md` e operar agentes em 24h | Roldão |
 
 ---
 
-## Top riscos prioritários atualizados (≥15) — após rodada 1 de pesquisa
+## Top riscos prioritários atualizados (≥15) — após rodada 1 de pesquisa + auditoria
 
-> Ordem reflete score P×I, com **R18 (NIT-DICLA-030 8.2.6)** no topo por probabilidade 5 e impacto 5 (rejeição direta de certificado por Cgcre).
+> Ordem reflete score P×I bruto. R18 e R27 empatam em 25; auditor 4 sugeriu R27 no topo por NÃO ter mitigação implementada ainda.
 
-1. **R18 — Certificado sem cadeia de rastreabilidade rejeitado por Cgcre** (NIT-DICLA-030 rev. 15, item 8.2.6) — score 25. Mitigação: hook bloqueia emissão.
-2. **R16 — Cutover NFS-e Padrão Nacional 01/09/2026 (ME/EPP)** — score 20. Mitigação: BaaS fiscal único.
-3. **Customização disfarçada** (founder is customer) — score 20. Discovery rigorosa OBRIGATÓRIA.
-4. **Família 5 vaporware** — score 20. Materializar na Rodada 4.
-5. **ERP N módulos com 1 pessoa = anos sem MVP** — score 20. Faseamento essencial.
-6. **Conflito tríplice retenção** (Receita 5 anos × ISO 17025 25 anos × LGPD esquecimento) — score 20. `retencao-matriz.md` urgente.
-7. **Multi-tenant vazamento entre clientes** — score 15. INV-TENANT-* + hooks + RLS PostgreSQL.
-8. **TAM ridículo (poucos prospects ICP)** — score 15. Validação ativa antes de comprometer.
-9. **Roldão burnout** — score 15. Limites de autonomia + status semanal forçando foco.
-10. **Signatário técnico indisponível** (RBC NIT-DICLA-021) — score 15. Identificar antes do 1º certificado.
-11. **R23 — Stack incapaz de validar software metrológico (cláusula 7.11)** — score 15. ADR-0001 com critério WORM+audit trail+replay.
-12. **NFS-e em município com padrão próprio** (SP, Goiânia) — score 16. BaaS fiscal.
+1. **R27 — Prompt injection via cliente final do tenant** — score 25. Mitigação dependente de hooks ainda não implementados. **#1 prioridade.**
+2. **R18 — Certificado sem cadeia de rastreabilidade rejeitado por Cgcre** (NIT-DICLA-030 rev. 15, item 8.2.6) — score 25. Mitigação: hook bloqueia emissão.
+3. **R16 — Cutover NFS-e Padrão Nacional 01/09/2026 (ME/EPP)** — score 20. Mitigação: BaaS fiscal único.
+4. **Customização disfarçada** (founder is customer) — score 20. Discovery rigorosa OBRIGATÓRIA.
+5. **Família 5 vaporware** — score 20. Materializar na Rodada 4.
+6. **ERP N módulos com 1 pessoa = anos sem MVP** — score 20. Faseamento essencial.
+7. **Conflito tríplice retenção** (Receita 5 anos × ISO 17025 25 anos × LGPD esquecimento) — score 20. `retencao-matriz.md` urgente.
+8. **R28 — Soberania de dados Anthropic (EUA)** — score 16. DPA + opt-out por tenant.
+9. **NFS-e em município com padrão próprio** (SP, Goiânia) — score 16. BaaS fiscal.
+10. **Multi-tenant vazamento entre clientes** — score 15. INV-TENANT-* + hooks + RLS PostgreSQL.
+11. **R29 — Bus factor Roldão** — score 15. Procurador técnico + cofre + sucessor treinado.
+12. **TAM ridículo (poucos prospects ICP)** — score 15. Validação ativa antes de comprometer.
+13. **Roldão burnout** — score 15. Limites de autonomia + status semanal forçando foco.
+14. **Signatário técnico indisponível** (RBC NIT-DICLA-021) — score 15. Identificar antes do 1º certificado.
+15. **R23 — Stack incapaz de validar software metrológico (cláusula 7.11)** — score 15. ADR-0001 com critério WORM+audit trail+replay.
 
 ---
 

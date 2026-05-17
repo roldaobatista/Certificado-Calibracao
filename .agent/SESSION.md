@@ -9,21 +9,38 @@
 
 ## Última sessão
 
-**Data:** 2026-05-16 (sessão Rodada 0 batch 1)
-**Agente:** Claude Code (Opus 4.7)
-**Roldão presente:** sim, ativo (contribuiu com lista de 6 concorrentes adicionais durante a execução)
+**Data:** 2026-05-16 (sessão Rodada 0 batch 1 + auditoria)
+**Agente:** Claude Code (Opus 4.7) + 4 subagentes auditores
+**Roldão presente:** sim, ativo — contribuiu com:
+- Lista de 6 concorrentes adicionais (CalibraFácil, ABC71, SoftExpert, myLIMS, AutoLab×3, ConfLab)
+- Auvo como concorrente (1 dossiê extra)
+- Promoção de Estoque a domínio próprio (porque empresa fornece peças usadas no reparo de balanças)
+- Pediu auditoria interna ("lançar 1 agente por ponto importante")
 
 ### Onde paramos
-**Rodada 0 batch 1 EXECUTADA.** Os 4 artefatos que o agente faz sozinho foram preenchidos com conteúdo denso baseado em pesquisa pública (16/05/2026):
+**Rodada 0 batch 1 EXECUTADA + auditoria interna interna concluída + correções factuais aplicadas.**
 
-1. ✅ `docs/discovery/concorrentes.md` — 16 concorrentes BR + 8 internacionais mapeados (calibração ISO 17025) + 5 ERPs horizontais BR (Bling/Tiny/Omie/Conta Azul/Granatum). **Gap "OS + calibração + NFS-e municipal" CONFIRMADO** em 2 ondas de pesquisa independentes.
-2. ✅ `docs/discovery/normas-e-regulacao.md` — 15 municípios mapeados para NFS-e, ISO 17025 cláusulas resumidas, RBC/CGCRE atualizado (NIT-DICLA-030 rev. 15), LGPD 2024-2026 (Res. 15/18/19), Bacen/PIX 2025, MOC NF-e 7.0, PCI-DSS 4.0.1. **10 invariantes candidatos identificados** pra `REGRAS-INEGOCIAVEIS.md`.
-3. ✅ `docs/discovery/dominio-de-negocio.md` — visão geral do setor enriquecida + mapa preliminar de domínios → módulos prováveis (entrada pra `faseamento-modulos.md`).
-4. ✅ `docs/discovery/riscos.md` — refinado com 11 riscos novos (R16–R26). Top 12 atualizado: R18 (NIT-DICLA-030 8.2.6) entrou no topo com score 25.
-5. ✅ `docs/governanca/auditoria-decisoes-autonomas.md` — entrada nova com achados estratégicos da pesquisa.
+**Artefatos do batch 1 (todos atualizados pós-auditoria):**
+1. ✅ `docs/discovery/concorrentes.md` — 17 concorrentes BR (16 + Auvo) + 8 internacionais + 5 ERPs horizontais BR. Gap confirmado em 3 ondas (pesquisa+lista do Roldão+revisão auditor). **Correções aplicadas:** data Qualer/MasterControl, valor Conta Azul, evidência FP2 regional. **RC-06 a RC-09 adicionados.**
+2. ✅ `docs/discovery/normas-e-regulacao.md` — 15 municípios, ISO 17025, RBC/CGCRE, LGPD 2024-2026, Bacen/PIX, MOC NF-e 7.0, PCI-DSS 4.0.1. **Correções aplicadas:** NIT-DICLA-021 Rev. 10; DOQ-008 jun/2020; VIM JCGM 200:2012; SVC CE/PA→RS; Brasília ISSnet.
+3. ✅ `docs/discovery/dominio-de-negocio.md` — visão geral + mapa de domínios. **Correções aplicadas:** Cgcre = 4 anos com supervisões; CB-25 corrigido; IPEMs adicionados; **Estoque promovido a domínio próprio** (decisão Roldão).
+4. ✅ `docs/discovery/riscos.md` — 29 riscos (R1-R29). **R27 (prompt injection cliente final, score 25) + R28 (soberania dados, score 16) + R29 (bus factor Roldão, score 15) adicionados.** Top 15 reorganizado com R27 no #1.
+5. ✅ `docs/discovery/proximos-artefatos.md` — **NOVO.** Checklist consolidada dos 29 documentos referenciados mas ainda inexistentes (inclui ADR-IA recomendado).
+6. ✅ `docs/governanca/auditoria-decisoes-autonomas.md` — entrada nova com auditoria + correções aplicadas + 9 decisões pendentes pro Roldão.
 
 ### Próximo passo lógico
-**Rodada 0 batch 2** — agente sozinho ainda consegue:
+**Aguardando Roldão decidir 9 itens não-aplicados** da auditoria (decisões de produto/escopo):
+1. Subir piso de pricing R$ 300→R$ 500-1.000 (Auditor 1)
+2. Adicionar fichas de TOTVS Protheus, Qualyteam, SAP B1 BR (Auditor 1)
+3. Refinar invariante #4 em 3 sub-regras testáveis (Auditor 2)
+4. Mover invariante #7 (BaaS único) pra ADR + adicionar invariantes #11-#15 (Auditor 2)
+5. Subdividir domínio Metrologia em 3 sub-domínios (Auditor 3)
+6. Mover Gestão de Competências pra MVP-1 (Auditor 3 — conflito com 17025 6.2)
+7. Adicionar metrologia legal como sub-domínio ou flag (Auditor 3)
+8. Padronizar IDs de risco (R-001 a R-NNN) (Auditor 4)
+9. Criar ADR-IA hoje (Auditor 4)
+
+Depois disso, **Rodada 0 batch 2** — agente sozinho ainda consegue:
 - `docs/discovery/personas-detalhadas.md` (6 papéis identificados em `dominio-de-negocio.md`)
 - `docs/discovery/jobs-to-be-done.md`
 - `docs/discovery/jornada-atual-sem-produto.md` (status quo — planilha + WhatsApp + Bling)
