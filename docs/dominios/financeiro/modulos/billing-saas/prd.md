@@ -39,22 +39,33 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md`.
 
 ## 4. Escopo (o que ESTÁ neste módulo)
 
-- Planos comerciais (Perfis A/B/C/D — definidos no PRD do produto)
-- Limites por plano (usuários, módulos liberados, volume)
+- **Pricing composicional flexível (ADR-0013):** plano monta-se com 7 tipos de componente
+  - Base fixa (mensalidade)
+  - Faixas de usuários (preço escalonado por seat)
+  - Adicional por usuário (overage per-seat)
+  - Bundle de módulos (quais módulos vêm inclusos)
+  - Add-ons avulsos (módulos opcionais contratados separados)
+  - Cobrança por uso variável (NFS-e, WhatsApp, OCR — metered billing)
+  - Descontos automáticos (anual, volume, cupom, promoção)
+- **Limites duros (hard caps):** bloqueia uso acima do limite (storage, API calls)
+- **Catálogo de planos editável via UI** (operador comercial Aferê — US-BIL-009)
+- **Versionamento automático de plano** (preço não retroage — assinaturas existentes mantêm snapshot)
 - Cobrança recorrente (mensal/anual)
-- Usuários por plano (quota por tenant)
-- Módulos liberados por plano (feature flags por tenant)
+- Usuários por plano (quota por tenant + faixas + overage)
+- Módulos liberados por plano (bundle + add-ons; sincronizado com `tenant_features` via ADR-0006)
 - Período de teste (trial) com bloqueio automático ao expirar
 - Upgrade de plano (proporcionalização imediata)
 - Downgrade (efeito no próximo ciclo)
 - Cancelamento (com retenção de dados conforme LGPD)
 - Suspensão por inadimplência (bloqueio progressivo)
 - Histórico de assinaturas (auditável)
-- Fatura da assinatura (PDF mensal)
+- **Fatura da assinatura com breakdown completo** (PDF mensal com linhas detalhadas)
+- **Medição de uso variável** (`MeterUsoEvent` consumido pelo cálculo)
 - Cupons e descontos (campanhas, parceiros)
 - Métricas de uso (consumo vs limite)
 - Controle de trial (alertas D-7, D-3, D-0)
 - Bloqueio progressivo (warning → read-only → bloqueio total)
+- Alertas de proximidade de limite (80% e 100% — duros e cobrados)
 
 ## 5. Non-goals (o que NÃO está neste módulo)
 
@@ -183,6 +194,112 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md`.
 
 ---
 
+### US-BIL-009: Operador comercial Aferê monta catálogo de planos com pricing composicional
+
+**Como** operador comercial do Aferê (Roldão ou time comercial), **quero** criar e editar planos comerciais montando componentes de preço flexíveis (base fixa, faixas de usuários, adicional por usuário, bundle de módulos, add-ons opcionais, cobrança por uso, descontos), **para** ajustar a oferta comercial conforme estratégia da empresa sem depender de release de código.
+
+**Contexto:** Roldão sinalizou (17/05/2026 madrugada) que precisa de "vários tipos de configurações" — preço por conjunto de módulos, preço por quantidade de usuários, adicional por usuário extra. ADR-0013 define o modelo composicional com 7 tipos de componente.
+
+**Critérios de aceite:**
+- **AC-BIL-009-1**: GIVEN operador comercial autenticado com perfil `comercial_admin_afere`, WHEN acessa tela "Catálogo de Planos" e clica "Novo Plano", THEN sistema abre wizard de 7 passos (um por tipo de componente), permitindo adicionar/configurar/pular cada tipo.
+- **AC-BIL-009-2**: GIVEN operador preencheu pelo menos 1 `ComponenteBase` OU 1 `ComponenteFaixaUsuarios`, WHEN clica "Simular fatura", THEN sistema mostra preview de fatura mensal com breakdown (linha por componente) pra cenários sintéticos (1 usuário, 5 usuários, 20 usuários, com/sem uso variável projetado).
+- **AC-BIL-009-3**: GIVEN operador clica "Publicar plano novo", WHEN validação passa, THEN sistema cria plano com `versao=plano@v1`, status `ativo`, dispara `BillingSaas.PlanoCriado`, exibe no catálogo de checkout do tenant.
+- **AC-BIL-009-4**: GIVEN operador edita plano existente (ex: ajusta `preco_mensal` do `ComponenteBase`), WHEN salva, THEN sistema **cria nova versão automaticamente** (`pro@v1` → `pro@v2`), dispara `BillingSaas.PlanoVersionado` + `BillingSaas.ComponentePrecoMudou`, **assinaturas existentes mantêm v1** (snapshot imutável — INV-026).
+- **AC-BIL-009-5**: GIVEN plano tem assinaturas vinculadas E operador tenta excluí-lo, WHEN clica "Excluir", THEN sistema bloqueia com mensagem clara ("este plano tem N assinaturas ativas; depreque-o em vez de excluir") — INV-038.
+- **AC-BIL-009-6**: GIVEN operador deprecia plano (clica "Despublicar"), WHEN salva, THEN plano marca `deprecado_em=agora`, some do catálogo público, mas **assinaturas existentes continuam vigentes**.
+- **AC-BIL-009-7 (validação)**: GIVEN componentes inválidos (faixa com gap, módulo do bundle fora do catálogo, recurso de uso variável não cadastrado), WHEN operador tenta salvar, THEN sistema rejeita com mensagem explicando qual componente está mal configurado — hook valida.
+- **AC-BIL-009-8 (auditoria)**: GIVEN qualquer mudança em plano, WHEN salva, THEN evento gravado em `audit_trail.bi_admin_queries` (ADR-0011 — auditoria do dono Aferê) com `quem`, `quando`, `antes`, `depois` — INV-001.
+- **AC-BIL-009-9 (MFA)**: GIVEN operador comercial tenta editar plano que tem ≥10 assinaturas ativas, WHEN clica "Salvar", THEN sistema **exige MFA TOTP** (SEC-MFA-001) — proteção contra alteração massiva acidental.
+
+**Non-goals desta US:**
+- **Customização por tenant** — Aferê não cria plano "Pro especial pro cliente X" via UI; plano é único pro mercado (ANTI-11). Se cliente precisa preço diferente, cria-se plano novo no catálogo (com critério comercial).
+- **Importar planos de planilha** — operador monta pela UI; bulk import via API só V2.
+- **Migrar automaticamente todas as assinaturas pra nova versão** — migração é comando explícito (`migrarVersaoPlano`) por assinatura, não automático.
+
+**Invariantes relacionadas:** `INV-026` (preço não retroage — snapshot imutável), `INV-038` (plano em uso não deletável), `INV-001` (audit trail), `INV-030` (feature flag não burla plano), `SEC-MFA-001` (MFA em operação sensível).
+
+**Dependências:**
+- Bloqueado por: ADR-0013 (modelo composicional), ADR-0006 (catálogo de feature flags), ADR-0011 (audit BI), ADR-0012 (autorização do operador comercial).
+- Bloqueia: US-BIL-001 (tenant contrata plano — depende de catálogo existir), US-BIL-010 (cálculo de fatura — depende de componentes definidos).
+
+---
+
+### US-BIL-010: Sistema calcula fatura mensal por agregação composicional de componentes
+
+**Como** sistema, **quero** calcular a fatura mensal do tenant agregando todos os componentes aplicáveis do plano contratado (base + faixas + adicional + bundle + addons + uso variável - descontos), **para** que o cliente pague exatamente o que contratou e usou, com breakdown transparente.
+
+**Contexto:** ADR-0013 substitui o cálculo simples (`fatura.valor = plano.preco_mensal`) por agregação de N componentes. Cada componente vira uma `LinhaFatura` no breakdown.
+
+**Critérios de aceite:**
+- **AC-BIL-010-1**: GIVEN assinatura ativa com `plano_snapshot` carregando componentes, WHEN job `gerarFatura` roda no dia do vencimento, THEN sistema invoca `CalculadoraFatura.calcular(assinatura, ciclo, periodo)` que retorna `FaturaSaaS` com lista de `LinhaFatura` (uma por componente aplicável).
+- **AC-BIL-010-2**: GIVEN plano tem `ComponenteBase` com `preco_mensal=350`, WHEN cálculo roda, THEN gera `LinhaFatura(descricao="Mensalidade base", quantidade=1, preco_unitario=350, subtotal=350)`.
+- **AC-BIL-010-3**: GIVEN plano tem `ComponenteFaixaUsuarios` com `[{1-5: R$0}, {6-15: R$35}, {16+: R$25}]` E tenant tem 8 usuários ativos, WHEN cálculo roda, THEN gera `LinhaFatura(descricao="3 usuários (faixa 6-15)", quantidade=3, preco_unitario=35, subtotal=105)` (5 inclusos na faixa 1-5 + 3 cobrados na faixa 6-15).
+- **AC-BIL-010-4**: GIVEN plano tem `ComponenteUsoVariavel(recurso=nfse_emitidas, unidade_inclusa=100, preco_por_unidade_extra=0.80)` E tenant emitiu 120 NFS-e no ciclo, WHEN cálculo agrega `MeterUsoEvent`, THEN gera `LinhaFatura(descricao="20 NFS-e além das 100 inclusas", quantidade=20, preco_unitario=0.80, subtotal=16.00)`.
+- **AC-BIL-010-5**: GIVEN plano tem `ComponenteAddon(modulo=marketplace, preco_mensal=150)` E `Assinatura.addons_ativos=[marketplace]`, WHEN cálculo roda, THEN gera `LinhaFatura(descricao="Add-on: Marketplace", subtotal=150)`. GIVEN addon NÃO ativo, WHEN cálculo roda, THEN linha NÃO é gerada.
+- **AC-BIL-010-6 (desconto)**: GIVEN plano tem `ComponenteDesconto(aplicavel_se=ciclo_anual, desconto_percentual=15)` E assinatura `ciclo=anual`, WHEN cálculo roda após agregar componentes 1-6, THEN gera `LinhaFatura(descricao="Desconto pagamento anual (-15%)", subtotal=-(0.15 × subtotal_parcial), eh_desconto=True)`.
+- **AC-BIL-010-7 (consolidação)**: WHEN cálculo termina, THEN `Fatura.valor_bruto = sum(linhas where not eh_desconto)`; `Fatura.descontos_total = abs(sum(linhas where eh_desconto))`; `Fatura.valor_liquido = valor_bruto - descontos_total`; validação rejeita se `valor_liquido < 0`.
+- **AC-BIL-010-8 (medição)**: GIVEN módulo `fiscal/` emite NFS-e, WHEN emissão confirma, THEN módulo publica `MeterUsoEvent(tenant_id, recurso=nfse_emitidas, quantidade=1, referencia_externa=nfse_id)` em outbox; consumido pelo `CalculadoraFatura` no fechamento de ciclo. Idempotência forte: evento duplicado (mesmo `referencia_externa`) NÃO cobra duas vezes.
+- **AC-BIL-010-9 (snapshot)**: GIVEN plano original foi versionado entre contratação e hoje (`pro@v1` → `pro@v2`), WHEN cálculo roda pra assinatura que tem `plano_versao=pro@v1`, THEN sistema usa `plano_snapshot` (não consulta o plano atual no banco) — preço congelado na contratação (INV-026).
+- **AC-BIL-010-10 (limite duro)**: GIVEN plano tem `LimiteDuro(recurso=storage_gb, valor_maximo=50, acao=bloquear_imediato)` E tenant chega em 80% do limite, WHEN publicação roda, THEN dispara `BillingSaas.LimiteDuroAtingido(percentual=80)` (alerta). GIVEN tenant chega em 100%, WHEN ação ocorre, THEN `AuthorizationProvider.can(action="documento.upload", ...)` retorna `denied, reason=limite_duro_estourado`.
+- **AC-BIL-010-11 (performance)**: WHEN cálculo da fatura roda, THEN latência < 2s p95 mesmo com 7 componentes + 1000 `MeterUsoEvent` no ciclo (índice composto `(tenant_id, recurso, medido_em)` em `meter_uso_events`).
+- **AC-BIL-010-12 (idempotência)**: GIVEN job `gerarFatura` é re-executado pro mesmo `(assinatura_id, periodo)`, WHEN job roda, THEN sistema detecta fatura já existente, NÃO cria duplicata, retorna fatura existente (idempotência por chave natural).
+
+**Non-goals desta US:**
+- **Pro-rata em mudança de plano mid-cycle** — US separada (US-BIL-004 cobre upgrade/downgrade); algoritmo de pro-rata fica em `calculadora-fatura.md`.
+- **Cobrança preditiva** ("você vai pagar X no próximo ciclo se mantiver o uso") — Wave B/V2; MVP-1 só fatura o ocorrido.
+- **Estorno parcial de linha específica** — só estorno total via comando `reembolsar`; granularidade por linha fica V3.
+
+**Invariantes relacionadas:** `INV-026` (snapshot imutável; preço não retroage), `INV-028` (numeração sequencial de fatura por tenant), `INV-001` (audit trail), `INV-TENANT-001` (tenant_id em toda query do cálculo), `SEC-PCI-001` (cobrança via gateway tokenizado).
+
+**Dependências:**
+- Bloqueado por: ADR-0013 (modelo composicional), US-BIL-009 (catálogo de planos existir), `MeterUsoEvent` instrumentado nos módulos consumidores (fiscal, omnichannel, gestão-documental), `RuleEngineProvider` (porta #14 ACL), `AuthorizationProvider` (porta #12 ACL — pra limite duro).
+- Bloqueia: US-BIL-002 (cobrança recorrente — usa esta calculadora), US-BIL-007 (painel de uso — usa mesmo MeterUsoEvent), US-BIL-008 (NFS-e da assinatura — valor vem desta fatura).
+
+---
+
+### US-BIL-011: Provisioning atômico de novo tenant (state machine 7 etapas)
+
+**Como** sistema (após receber `BillingSaas.AssinaturaCriada`), **quero** executar provisioning em 7 etapas com checkpoints atômicos, **para** garantir que tenant que pagou tenha 100% do acesso pronto antes de ser cobrado pela primeira vez.
+
+**Contexto:** ADR-0015 fluxo 1. Auditor G apontou que hoje cada consumer de `AssinaturaCriada` reage independentemente — sem checkpoint = falha silenciosa.
+
+**Critérios de aceite:**
+- **AC-BIL-011-1**: GIVEN `BillingSaas.AssinaturaCriada` publicado, WHEN onboarding inicia, THEN state machine entra em `TENANT_DB_CRIADO` (cria registro em tenants, RLS app.tenant_id provisionado).
+- **AC-BIL-011-2**: Cada transição publica evento dedicado (`Onboarding.EtapaConcluida` com `etapa` atual) e grava em audit trail síncrono.
+- **AC-BIL-011-3**: GIVEN qualquer etapa falha, WHEN sistema detecta, THEN state machine pausa, publica `Onboarding.ProvisioningFalhou` com `etapa, motivo`, alerta P1 dispara pro dono Aferê. Tenant **NÃO** recebe e-mail de boas-vindas até completar.
+- **AC-BIL-011-4**: GIVEN tenant tenta logar antes de estado `PRONTO`, WHEN `AuthorizationProvider.can("login", {tenant_id})` é invocado, THEN retorna `denied, reason="provisioning_em_andamento"`.
+- **AC-BIL-011-5**: GIVEN estado atinge `PRONTO`, WHEN sistema confirma, THEN publica `Onboarding.ProvisioningCompletado` + alias `BillingSaas.AssinaturaPronta`. Cobrança recorrente começa a contar a partir desse momento.
+- **AC-BIL-011-6**: GIVEN etapa idempotente é re-executada (retry Celery), WHEN sistema processa, THEN não duplica efeito (cria usuário admin → não cria duplicata; e-mail já enviado → não reenvia).
+- **AC-BIL-011-7**: GIVEN provisioning leva >5 min, WHEN SLO viola, THEN alerta SEV-2 dispara pra investigação.
+
+**Invariantes:** `INV-INT-007` (provisioning atômico), `INV-001` (audit imutável), `INV-TENANT-001..004`.
+
+**Dependências:** ADR-0015, ADR-0007 (outbox), ADR-0002 (RLS).
+**Bloqueia:** uso do tenant em produção; cobrança recorrente.
+
+---
+
+### US-BIL-012: Suspensão por inadimplência com modo explícito (read_only / bloqueado_total)
+
+**Como** sistema, **quero** suspender tenant inadimplente em modos distintos (read_only D+7 e bloqueado_total D+15), **para** que módulos consumidores reajam corretamente e features sejam desabilitadas atomicamente.
+
+**Contexto:** ADR-0015 fluxo 3. Auditor G apontou que `TenantSuspenso` hoje não detalha modo → consumers interpretam diferente.
+
+**Critérios de aceite:**
+- **AC-BIL-012-1**: GIVEN fatura vencida há 7 dias E ainda não paga, WHEN job diário de suspensão roda, THEN publica `BillingSaas.TenantSuspenso(modo=read_only)`.
+- **AC-BIL-012-2**: GIVEN fatura vencida há 15 dias E ainda não paga, WHEN job roda, THEN publica `BillingSaas.TenantSuspenso(modo=bloqueado_total)`.
+- **AC-BIL-012-3**: Consumer `acesso-seguranca` modo=read_only: invalida cache Redis `auth:tenant:{id}:*`, força re-auth, AuthorizationProvider passa a negar actions `create/update/delete` mas permite `read`.
+- **AC-BIL-012-4**: Consumer `acesso-seguranca` modo=bloqueado_total: encerra TODAS as sessões ativas + bloqueia login até `BillingSaas.TenantReativado`.
+- **AC-BIL-012-5**: Consumer billing-saas (callback) modo=bloqueado_total: publica `BillingSaas.PlanoMudouModulos(modulos_removidos=tudo, efetivo_em=imediato)` → features desligam em cascata.
+- **AC-BIL-012-6**: Consumer `comunicacao-omnichannel`: envia WhatsApp + e-mail explicando suspensão + link de regularização.
+- **AC-BIL-012-7**: GIVEN pagamento confirmado, WHEN `ContasReceber.Pago` chega, THEN publica `BillingSaas.TenantReativado` em ≤5min; consumers re-permitem acesso + re-ativam features.
+
+**Invariantes:** `INV-INT-009` (suspensão desliga features), `INV-001` (audit), `SEC-MFA-001`.
+
+**Dependências:** ADR-0015, ADR-0012 (autorização), ADR-0006 (feature flags).
+
+---
+
 ## 7. Métricas de sucesso deste módulo
 
 Ver `metricas.md`. Resumo:
@@ -193,7 +310,7 @@ Ver `metricas.md`. Resumo:
 
 ## 8. NFR
 
-- **Performance:** painel de uso carrega <500ms p95; cálculo de cobrança recorrente p99 <2s.
+- **Performance:** painel de uso carrega <500ms p95; **cálculo composicional de fatura p95 < 2s mesmo com 7 componentes + 1000 `MeterUsoEvent` no ciclo** (índice composto `(tenant_id, recurso, medido_em)` em `meter_uso_events`); wizard de criação de plano renderiza simulação em <500ms.
 - **Disponibilidade:** **SLO 99.95%** (alinhado com domínio Financeiro em `docs/operacao/observabilidade.md`) — billing-saas é a receita do próprio Aferê, indisponibilidade trava contratação de novos tenants e cobrança recorrente. Erro orçamento ≈ 21min/mês. Job de billing é idempotente; falha não duplica cobrança.
 - **Segurança (PCI-DSS por delegação):** dados de cartão (PAN, CVV, banda) **nunca passam pelo backend Aferê** — gateway tokeniza no cliente e devolve `gateway_token` opaco (`SEC-PCI-001`). Aferê armazena apenas token + últimos 4 + bandeira. Webhooks de gateway assinados via HMAC e idempotentes por `gateway_event_id`. Configuração de chaves de gateway exige MFA (`SEC-MFA-001`) e fica cifrada via KMS (`INV-009`). Conformidade detalhada em `docs/conformidade/comum/pci-dss.md`.
 - **Fiscal:** emissão de NFS-e da assinatura via `FiscalProvider` (ADR-0008) com fallback homologado; nunca retroage (`INV-026`); XML em B2 WORM (`INV-001`).
@@ -206,4 +323,6 @@ Ver `glossario.md`.
 ## 10. Como este PRD evolui
 
 - US nova → próximo ID livre `US-BIL-NNN`.
-- Mudança de plano comercial (criar Plano E, retirar Plano A) → ADR obrigatório.
+- **Adicionar tipo de componente de preço novo (8º tipo além dos 7 da ADR-0013)** → reabrir ADR-0013.
+- **Recurso mensurável novo** (ex: `ocr_processados`) → adicionar em `recursos-mensuraveis.md` + hook valida.
+- Mudança de plano comercial (criar Plano "Enterprise Plus", retirar Plano "Starter") → versionamento automático cuida; sem ADR.
