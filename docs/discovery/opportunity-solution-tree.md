@@ -763,6 +763,159 @@ Ver Foundation F-C. Foi reclassificado como foundation porque é pré-requisito 
 
 ---
 
+## Opportunity 13 — Agenda gerencial completa (NOVA — 2026-05-17, mapeamento Módulo 10)
+
+**Big Job:** BIG-05 (Técnico campo) + BIG-10 (Cliente 360°)
+**Gap defensável:** alto (concorrentes têm agenda básica; Aferê integra com INV-020 jornada motorista + visão multi-técnico/equipe/unidade)
+**Wave:** **MVP-1 Wave A** (destrava OP3, OP1, OP15, OP16 e OP10)
+
+**Por que NOVA:** mapeamento Módulo 10 da lista funcional do Roldão (2026-05-17) identificou que agenda estava embutida em OP3.1 (app campo) e OP10 (metrologia legal) mas **sem módulo gerencial completo** (visão multi-técnico, conflito de horário, feriado, dependência entre atividades, integração externa).
+
+**Origem em jobs-to-be-done.md:** JTBD-009 (onde técnico está) + JTBD-010 (reagendar sem virar bagunça) — antes órfãos no OST.
+
+**Personas:** Cláudia (gerente operacional — atribui), Roldão (vê consolidado), Técnicos (preferência de notificação), Cliente final (acompanhamento)
+
+**Custo do status quo:** Gerente usa planilha + WhatsApp + memória → 30-60 min/dia de retrabalho + conflitos invisíveis + risco INV-020 motorista.
+
+#### Solution 13.1 — Agenda visual multi-técnico (dia/semana/mês) com drag-and-drop
+**Descrição:** Tela kanban-like ou Gantt com OS + chamados + reuniões posicionados no tempo, por técnico/equipe/unidade. Drag-and-drop pra realocar. **Hook INV-020** valida jornada antes de aceitar drop. Subtarefas, comentários, dependência entre atividades, bloqueios de horário, feriados.
+**Custo:** **M** (UI tabular complexa + integração com OS/chamado/agenda)
+**Experiment:** UAT com Roldão + Cláudia. Métrica: gerente realoca 5 OS em < 5 min sem violar INV-020.
+
+#### Solution 13.2 — Templates de agenda recorrente + automações
+**Descrição:** Template "calibração mensal cliente X" que gera OS recorrente. Conecta com OP1 (recalibração proativa) e ADR-0005 (engine automações).
+**Custo:** **P** (depende ADR-0005)
+**Experiment:** Smoke test após ADR-0005 implementada.
+
+#### Solution 13.3 — Integração Google Calendar / iCal bidirecional
+**Descrição:** Sync 2-way com Google Calendar do técnico. Compromissos pessoais bloqueiam agenda Aferê; OS aparece no calendário pessoal.
+**Custo:** **M** (OAuth + sync 2-way)
+**Experiment:** Spike 2 semanas com 2 técnicos. Métrica: 0 double-booking; sync < 5 min.
+
+---
+
+## Opportunity 14 — Fornecedores + Compras (NOVA — 2026-05-17, mapeamento Módulo 6)
+
+**Big Job:** BIG-12 (Estoque) + ampliação
+**Gap defensável:** parcial (concorrentes têm cadastro básico; Aferê integra com estoque INMETRO + cotação + avaliação)
+**Wave:** **Wave C** (escala — após Wave B em produção)
+
+**Por que NOVA:** módulo totalmente ausente do discovery anterior. Mapeamento Módulo 6 destacou.
+
+**Personas:** Comprador (V2), Almoxarife, Dono (aprovação)
+
+**Custo do status quo:** WhatsApp com fornecedor + planilha + email — sem histórico, sem comparação, sem auditoria.
+
+#### Solution 14.1 — Cadastro de fornecedor + histórico de compras
+**Descrição:** PJ com dados fiscais, contatos, contratos de fornecimento, condições de pagamento. Histórico filtra "fornecedor que entregou peça X".
+**Custo:** **P** (similar a clientes)
+
+#### Solution 14.2 — Cotação multi-fornecedor + aprovação
+**Descrição:** Pedido de cotação enviado pra N fornecedores em paralelo. Comparativo lado-a-lado. Aprovação do comprador/dono.
+**Custo:** **M** (workflow + integração WhatsApp/email)
+
+#### Solution 14.3 — Avaliação de desempenho do fornecedor
+**Descrição:** A cada entrega: "no prazo? qualidade? preço?". Rating agregado vira filtro em próxima cotação.
+**Custo:** **P** (cadastro + agregação)
+
+---
+
+## Opportunity 15 — Orçamentos formal (NOVA — 2026-05-17, mapeamento Módulo 7)
+
+**Big Job:** BIG-07 (Cliente 360°) + BIG-10 (CRM 360°)
+**Gap defensável:** alto (concorrentes têm orçamento básico; Aferê integra com OS + contrato + assinatura eletrônica + leitura tracking)
+**Wave:** **MVP-1 Wave A** (criação básica + conversão em OS) → **Wave B** (versionamento + assinatura eletrônica + leitura tracking)
+
+**Por que NOVA:** OP8 Solution 8.2 (link WhatsApp) cobria só envio; criação/edição/versionamento órfão. Mapeamento Módulo 7 destacou.
+
+**Origem em jobs-to-be-done.md:** JTBD-041 (orçamento profissional rápido) + JTBD-020 (não copiar info 3x chamado→orçamento→OS) + JTBD-075 (impacto desconto em comissão prevista)
+
+**Personas:** Rogério (vendedor), Cláudia (aprovação), Cliente final (aprovação digital)
+
+**Custo do status quo:** Word + email + impressão + caneta → 30-60 min por orçamento + perda de versão + falta de tracking de aceitação.
+
+#### Solution 15.1 — Criação de orçamento + itens + descontos + impostos + condições (Wave A)
+**Descrição:** Tela tipo "carrinho" com itens do catálogo. Cálculo automático de imposto (tenant configura alíquota com contador). Templates pra orçamento padrão (calibração, manutenção, instalação).
+**Custo:** **P** (CRUD + cálculo)
+
+#### Solution 15.2 — Versionamento + revisão + comparação (Wave B)
+**Descrição:** Toda edição cria nova versão; UI mostra diff (preço, item adicionado/removido). Auditoria preserva original.
+**Custo:** **M** (versionamento + UI diff)
+
+#### Solution 15.3 — Envio cliente + leitura tracking + aprovação digital (Wave B)
+**Descrição:** Link público (token expirável). Cliente lê → vendedor notificado. Aprovação 1-clique gera assinatura eletrônica (não-A3 — A3 é só pra certificado de calibração).
+**Custo:** **M** (link público + tracking + assinatura simples)
+
+#### Solution 15.4 — Conversão em OS / chamado (Wave A)
+**Descrição:** Orçamento aprovado vira OS rascunho (já com cliente, itens, preço travado pelo INV-026). Conversão preserva audit.
+**Custo:** **P** (handler de evento `OrcamentoAprovado` → cria OS)
+
+---
+
+## Opportunity 16 — Chamados / Helpdesk dedicado (NOVA — 2026-05-17, mapeamento Módulo 8)
+
+**Big Job:** BIG-05 (campo) + BIG-10 (Cliente 360°) + BIG-11 (Automações)
+**Gap defensável:** alto (concorrentes têm helpdesk genérico; Aferê integra triagem auto + regras distribuição inteligentes + mapa)
+**Wave:** **MVP-1 Wave B** (após OP3 + OP13 prontos)
+
+**Por que NOVA:** chamados estavam embutidos em OP3 (operação) sem destaque. Mapeamento Módulo 8 destacou SLA, regras distribuição, detecção duplicados, mapa.
+
+**Origem em jobs-to-be-done.md:** JTBD-008 (triagem 30s) + JTBD-016 (abrir 1 min) + JTBD-020 (não copiar 3x) + JTBD-086 (WhatsApp em 1 clique)
+
+**Personas:** Atendente (abre), Cláudia (atribui), Técnico (executa), Cliente final (acompanha)
+
+**Custo do status quo:** WhatsApp + planilha + perda de contexto → 30% chamados sem rastreio + SLA invisível.
+
+#### Solution 16.1 — Abertura multi-origem + triagem com sugestão automática
+**Descrição:** Chamado entra via portal/WhatsApp/email/telefone. Triagem com 3-5 perguntas + sugestão de tipo/prioridade/categoria (LLM via gateway).
+**Custo:** **P** (interface + LLM gateway pré-existente)
+
+#### Solution 16.2 — Atribuição automática por regras (proximidade/carga/habilidade/rodízio)
+**Descrição:** Engine de regras (ADR-0005) decide técnico. Configurável por tenant (catálogo fechado de critérios). Mapa mostra distribuição.
+**Custo:** **M** (engine + UI configuração)
+
+#### Solution 16.3 — SLA + alertas escalonados
+**Descrição:** SLA por cliente (perfil A = 4h; perfil B = 24h; perfil D = 5d). Alerta se 70% do SLA passou. Escalonamento automático ao gerente.
+**Custo:** **M** (timer + escalonamento + integração ADR-0005)
+
+#### Solution 16.4 — Detecção de chamados duplicados
+**Descrição:** Ao abrir chamado novo, busca por cliente+equipamento+tipo nos últimos 30d. Se duplicata provável, sugere mesclar.
+**Custo:** **P** (fuzzy matching)
+
+---
+
+## Opportunity 17 — Equipamentos master (cadastro do cliente) (NOVA — 2026-05-17, mapeamento Módulo 4)
+
+**Big Job:** BIG-01 (Costura horizontal) + BIG-02 (Certificado)
+**Gap defensável:** parcial (concorrentes têm cadastro básico; Aferê integra QR Code + histórico unificado + alertas + INV-025 imutabilidade)
+**Wave:** **MVP-1 Wave A** (suporta OP2 certificado completo)
+
+**Por que NOVA:** equipamentos estavam vinculados a F-B (cadastros base) sem detalhamento. Mapeamento Módulo 4 destacou QR Code, foto, manual, conformidade técnica.
+
+**Origem em jobs-to-be-done.md:** JTBD-021 (saber tudo da OS antes de chegar) + JTBD-091 (Cliente 360° em UMA tela)
+
+**Personas:** Metrologista, Técnico de campo, Atendente, Cliente final (vê seus equipamentos no portal)
+
+**Custo do status quo:** Equipamento cadastrado 3 vezes em sistemas diferentes; foto perdida; manual em arquivo morto; sem alerta de validade.
+
+#### Solution 17.1 — Cadastro de equipamento + QR Code rastreamento físico
+**Descrição:** Marca/modelo/serial/categoria/capacidade + foto + docs técnicos + manual anexo + QR Code único.
+**Custo:** **P** (CRUD + storage)
+
+#### Solution 17.2 — Histórico unificado de serviços/calibrações/certificados
+**Descrição:** Tela "histórico do equipamento" mostra timeline com OS + certificados + revisões + NCs. Acessível pelo cliente via portal (OP8 Solution 8.1).
+**Custo:** **P** (agregação de eventos)
+
+#### Solution 17.3 — INV-025 enforcement (imutabilidade pós-emissão)
+**Descrição:** Após 1º certificado emitido referenciando o equipamento, campos críticos (serial, modelo, fabricante) viram imutáveis. Edição cria nova versão; certificados antigos referenciam versão original.
+**Custo:** **P** (trigger banco + versionamento)
+
+#### Solution 17.4 — Alertas de validade + status conformidade
+**Descrição:** Calendário de vencimento (próxima calibração, próxima verificação INMETRO). Integra com OP1 (recalibração proativa) + OP10 (metrologia legal).
+**Custo:** **P** (cron + integração WhatsApp)
+
+---
+
 ## Priorização final — Opportunity Scoring (RICE-adapted, Confidence dual-axis)
 
 > **Fórmula:** Score = (Reach × Impact × Confidence-mercado) ÷ Effort, escala 1-5 em cada dimensão.
@@ -777,7 +930,7 @@ Ver Foundation F-C. Foi reclassificado como foundation porque é pré-requisito 
 > - **Confidence-mercado** (1-5): grau de evidência externa atual (5 = >= 5 entrevistas confirmam; 3 = inferência forte sem entrevista; 1 = palpite)
 > - **Effort** (1-5): custo de construção (1 = POC dias; 5 = trabalho meses + dependência integração)
 
-### Tabela de priorização (12 OPs)
+### Tabela de priorização (17 OPs — 12 originais + 5 novas em 2026-05-17)
 
 | # | Opportunity | Reach | Impact | Conf-mercado | Effort | **Score** | **Wave/MVP** | **Dependências** | **Time-bomb regulatório** | **Conf-dono** |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -794,6 +947,11 @@ Ver Foundation F-C. Foi reclassificado como foundation porque é pré-requisito 
 | **OP10** | Metrologia Legal + RBC (BIG-06) | 4 | 4 | 3 | 3 | **16,0** | **MVP-1 Wave A** | OP2 | Parcial (verif INMETRO) | 5 |
 | **OP11** | Cobrança + inadimplência (Dor #11) | 5 | 4 | 4 | 3 | **26,7** | **MVP-1 Wave B** | F-E, fin mínimo | Não | 3 |
 | **OP12** | Painel do Dono (Dor #12) | 5 | 3 | 4 | 2 | **30,0** | **MVP-1 Wave B** | OP7, OP3, OP11 | Não | 5 |
+| **OP13** | Agenda gerencial completa (NOVA — Módulo 10) | 5 | 4 | 3 | 3 | **20,0** | **MVP-1 Wave A** | F-B, INV-020 | Não | 4 |
+| **OP14** | Fornecedores + Compras (NOVA — Módulo 6) | 3 | 3 | 3 | 4 | **6,75** | **Wave C** | Estoque BIG-12 | Não | 3 |
+| **OP15** | Orçamentos formal (NOVA — Módulo 7) | 5 | 4 | 4 | 3 | **26,7** | **Wave A** (s15.1, s15.4) + **Wave B** (s15.2, s15.3) | F-C, OP-FIN | Não | 4 |
+| **OP16** | Chamados/Helpdesk dedicado (NOVA — Módulo 8) | 5 | 4 | 4 | 3 | **26,7** | **MVP-1 Wave B** | OP3, OP13 | Não | 4 |
+| **OP17** | Equipamentos master (NOVA — Módulo 4) | 5 | 4 | 4 | 2 | **40,0** | **MVP-1 Wave A** | F-C | Não | 4 |
 
 ### Top 3 Opportunities pro MVP-1 (recomendação inicial pós-auditoria)
 
@@ -805,13 +963,16 @@ Ver Foundation F-C. Foi reclassificado como foundation porque é pré-requisito 
 
 > **Observação:** OP1 (recalibração proativa) tem o maior RICE score (50,0) mas só faz sentido depois de OP2 + F-C + F-E. Por isso vai pra Wave B, não pro Top 3 de construção inicial.
 
-### MVP-1 Wave A completo (semanas 6-14)
+### MVP-1 Wave A completo (semanas 6-14) — atualizado 2026-05-17
 
 - **OP7** (NFS-e — deadline regulatório)
 - **OP2** (certificado completo)
 - **OP3 Solutions 3.1+3.2** (app técnico + caixa; 3.3 = MVP-2)
 - **OP9** (evoluir D->C->B->A — wizard de setup)
 - **OP10** (Metrologia Legal + RBC)
+- **OP13** (Agenda gerencial — NOVA; destrava OP3/OP10/OP15/OP16)
+- **OP15 Solutions 15.1 + 15.4** (Orçamentos básicos + conversão em OS — NOVA)
+- **OP17** (Equipamentos master — NOVA; suporta OP2)
 - **Módulo Financeiro mínimo** (contas a receber + status pago/pendente)
 - **OP6** (selo INMETRO — sai do spike F-F)
 

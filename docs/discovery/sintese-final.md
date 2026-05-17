@@ -95,15 +95,18 @@ Esta síntese só fecha como definitiva quando os 3 últimos forem concluídos.
 
 **Status:** ✅ SABEMOS — estruturado pós-auditoria 12 agentes em `opportunity-solution-tree.md`.
 
-### Foundation (semanas 0-6, pré-MVP)
-- F-A: multi-tenant + RLS + audit
+### Foundation (semanas 0-6, pré-MVP-1)
+
+> **Sem spike descartável** (decisão Roldão 2026-05-17 — ver [[nao-construir-codigo-descartavel]]). Validação do modelo 100% agentes IA acontece **construindo a F-A real** com critérios de mortalidade aplicados; código permanece independente do veredito.
+
+Ordem por dependência técnica:
+- F-A: multi-tenant + RLS + audit (4-6 semanas — critérios da ADR-0001 Portão 3 aplicados aqui)
 - F-B: auth + RBAC + cadastros
+- F-G: hooks + auditores Família 5 + CI
 - F-C: cliente master (BIG-07)
-- F-D: mobile shell
-- F-E: WhatsApp BSP
-- F-F: spike F-1 (modelo 100% agentes)
-- F-G: hooks + CI
-- F-H: ADR-0001 stack ✅ candidata
+- F-D: mobile shell (Flutter offline-first) — pode rodar em paralelo a F-E
+- F-E: WhatsApp BSP — pode aguardar; só destrava Wave B (recalibração proativa)
+- F-H: ADR-0001 stack vira definitiva (Portões 2+3 fechados; Portão 1 diferido pra V2)
 
 ### Wave A (semanas 6-14, núcleo regulatório)
 - **OP7** NFS-e (deadline 01/09/2026 — não-negociável)
@@ -167,8 +170,8 @@ Esta síntese só fecha como definitiva quando os 3 últimos forem concluídos.
 
 ### Cliente piloto
 
-- ✅ Roldão (founder is customer — já confirmado)
-- ⏳ 1-2 clientes piloto sob NDA — pendente, oportunidade quando aparecer
+- ✅ Roldão / Balanças Solution (dogfooding — confirmado como **único piloto da janela MVP-1**)
+- ❌ Cliente piloto sob NDA — **DIFERIDO pra V2** (decisão Roldão 2026-05-17). Ver memória [[sem-cliente-externo-na-janela-atual]].
 
 ---
 
@@ -246,7 +249,7 @@ Esta síntese só fecha como definitiva quando os 3 últimos forem concluídos.
 
 ### Critério de reversão pra abrir ADR-0001 reaberta
 
-- LEAP F-1 falhar (agentes não dão conta de NestJS em escala) → disparar plano B (tech-lead consultivo R$ 8-15k/mês), NÃO reverter pra TS
+- LEAP F-1 falhar na **construção real da F-A** (agentes não dão conta de Django + multi-tenant em escala) → disparar plano B (tech-lead consultivo R$ 8-15k/mês), NÃO reverter pra TS, código da F-A permanece
 - TAM > 5.000 tenants em 2028 → migrar schema-shared pra schema-per-tenant
 - Offline Flutter inviável no F-D → revisar (não voltar pra RN)
 
@@ -386,14 +389,27 @@ R-062 score 20 — sem suporte L1, churn 90 dias > 40%. LEAP F-18 a validar: bot
 
 ## Critério pra fechar definitiva (sair de DRAFT)
 
-A síntese só fecha como definitiva quando:
+A síntese fecha como definitiva por **dois caminhos alternativos**:
 
+### Caminho A — original (V2)
 1. ✅ Validação documental concluída — 4 buckets
 2. ✅ Mystery shopping documental concluído
 3. ✅ Estudo monográfico Calibre.Software concluído
 4. ⏳ 1-2 clientes piloto sob NDA confirmaram dores #15 (comissões) e UMC em #16
 5. ⏳ R-001 cai pra ≤9 com evidência
 6. ⏳ LEAPs críticos do `assumption-map.md` validados ou descartados (F-1, V-2, D-1, V-15, E-4)
+
+**Status caminho A:** ❌ **DIFERIDO pra V2** — Roldão decidiu (2026-05-17) que não há cliente externo na janela atual. Ver memória [[sem-cliente-externo-na-janela-atual]].
+
+### Caminho B — dogfooding (janela MVP-1 atual)
+1. ✅ Validação documental + mystery shopping + estudo Calibre concluídos (já feitos)
+2. ⏳ Foundation F-A construída em 4-6 semanas com critérios da ADR-0001 Portão 3 aprovados (sem spike descartável)
+3. ⏳ Wave A (OP7+OP2+OP10) rodando em produção real na Balanças Solution por ≥ 3 meses
+4. ⏳ Zero SEV-0; ≤ 2 SEV-1 nesse período
+5. ⏳ R-001 aceito em 12 conscientemente (não cai sem cliente externo)
+6. ⏳ LEAPs F-1 + F-17 (onboarding) + F-18 (CS) validados em dogfooding
+
+**Quando caminho B fechar:** síntese vira STABLE com nota "fechada por caminho B; caminho A diferido pra V2 quando 1º cliente externo aparecer".
 
 ---
 

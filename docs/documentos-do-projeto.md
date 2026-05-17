@@ -1,11 +1,11 @@
-# Documentos do projeto Aferê (v5)
+# Documentos do projeto Aferê (v7)
 
 > **Pra que serve:** mapa de TODOS os documentos que o projeto precisa pra funcionar 100% tocado por agentes de IA, sem o Roldão precisar virar programador.
 >
 > **Status:** ✅ existe | ⏳ falta criar | 🟡 parcial | ❌ removido
 > **Prioridade:** 🔴 MVP-obrigatório | 🟡 próximo | ⚪ lazy
 >
-> **Atualização:** 2026-05-16 (v5 — incorpora 2ª auditoria de 10 agentes + revelação "founder is customer" + escopo de N módulos a descobrir)
+> **Atualização:** 2026-05-17 (v7 — incorpora mapeamento de 25 módulos da lista funcional do Roldão. Adições: 5 OPs novas (OP13/14/15/16/17), 7 INVs novos (INV-021..027), 3 ADRs reservadas viraram reais (0004 sync mobile / 0005 engine automações / 0006 feature flags), 5 domínios novos (`comercial`, `operacao`, `financeiro`, `suporte-plataforma`, `rh-frota-qualidade`) com README + personas, 19 módulos novos com 8 docs cada (~152 docs novos). Nenhum corte de escopo aplicado).
 
 ---
 
@@ -104,6 +104,20 @@ Projeto normal tem programador humano. Agente de IA começa do zero a cada conve
 
 **Auditoria 2 (sobre v4, 2026-05-16):** 10 auditores, escopo já corrigido (ERP de 6+ módulos). Convergência fundamental: **escopo grande demais sem faseamento e validação externa**. Ajustes incorporados na v5:
 
+**Auditoria 3 (sobre Portão 2 das decisões técnicas, 2026-05-17 noite):** 10 auditores. Recomendações: sobre-engenharia grave (cortar 60%), cronograma "fantasia" (5-7 meses reais vs 14 semanas), custo Mês 12 real (R$ 3.8-6.7k vs alegado R$ 1.5k). **Roldão aceitou 1 de 8 recomendações** (drills reduzidos pra 1 obrigatório). Os demais 7 mantidos conscientemente — trade-off documentado.
+
+**Auditoria 4 (5 lentes paralelas sobre `ambiente-claude-code.md` + `documentos-do-projeto.md` v5, 2026-05-17):** 5 auditores independentes. Achados aplicados em v6:
+- ✅ `@AGENTS.md` ativado no CLAUDE.md (estava como exemplo dentro de code block; canônico não era lido).
+- ✅ CLAUDE.md "Estado do ambiente" reescrito (parou de mentir que stack/agentes ⏳).
+- ✅ AGENTS.md saiu de placeholder (1137 bytes → ~200 linhas com stack, comandos, política).
+- ✅ ADR-0003 criada como stub + 0004/0005/0006 stubs reservados (rastreabilidade do salto numérico 0003→0007).
+- ✅ Modelo de subagentes decidido (catalogo-auditores: híbrido A+B; 4 substitutos coexistem com escopo distinto dos 3 auditores).
+- ✅ Pegadinhas em ambiente-claude-code.md corrigidas (exemplo "TS+Electron"; defaultMode inválido).
+- ✅ Status real atualizado neste doc (Família 0, 1, 2, 3, 5, extras).
+- ❌ **NÃO aplicado:** Auditor 5 propôs rebaixar 25 itens 🔴→🟡. **Vetado pelo Roldão** ("não quero reduzir o que já tínhamos decidido"). Cortes só por veto item-por-item.
+
+Ajustes incorporados na v5 (Auditoria 2):
+
 | Ajuste | Vindo de |
 |---|---|
 | Multi-tenancy como ADR-0002 obrigatório | A1, A3, A4, A7 |
@@ -132,62 +146,65 @@ Projeto normal tem programador humano. Agente de IA começa do zero a cada conve
 
 ## As 8 famílias de documento (v5)
 
-### Família 0 — Discovery (NOVA na v3, EXPANDIDA na v5) ⏳
+### Família 0 — Discovery (NOVA na v3, EXPANDIDA na v5, ATUALIZADA na v6) 🟡 (síntese ainda DRAFT v3)
 
-**15 artefatos** (11 originais + 4 do Auditor 6). Bloqueia todas as outras famílias do MVP até `sintese-final.md` ficar pronta.
+**17 artefatos** (15 originais + 2 adicionados em v6: validação externa documental + roteiro de próximos artefatos). Bloqueia todas as outras famílias do MVP até `sintese-final.md` virar STABLE.
 
-| Artefato | Prio | Quem produz | O que contém |
-|---|---|---|---|
-| `concorrentes.md` | 🔴 | Agente | Bling, Tiny, Omie, Conta Azul, Granatum + nichos calibração. Feature matrix, preço, gaps. |
-| `normas-e-regulacao.md` | 🔴 | Agente | ISO 17025, RBC, NF-e/NFS-e por município, LGPD, open banking, PCI. |
-| `treinamento-entrevista-roldao.md` (NOVO) | 🔴 | Agente | Roteiro literal por persona, perguntas proibidas (sugestivas), template ata, gravação. Roldão treina em 2 entrevistas piloto antes de valer. |
-| `entrevistas-clientes.md` | 🔴 | Roldão + Agente sintetiza | **3 ondas** (Auditor 6): onda 1 = 3 donos de OUTRAS empresas (problema), onda 2 = 6 operadores (3 perfis: atendente, técnico, financeiro), onda 3 = 3 entrevistas de validação de solução com protótipo de papel. Total 12, em 3 ciclos. |
-| `dores-mapeadas.md` | 🔴 | Agente | Métrica de priorização **expandida** (Auditor 6): agudez × frequência × disposição a pagar × **SOLVABILITY** (cara de resolver?) × **REACH** (quanto mercado tem essa dor?) × **evitabilidade** (workaround manual aceitável?). |
-| `jobs-to-be-done.md` | 🟡 | Agente | O que cada perfil "contrata" o software pra resolver. |
-| `personas-detalhadas.md` | 🔴 | Agente | Dono, atendente, técnico de campo, financeiro, vendedor, metrologista. Goals/frustrations/jornada. |
-| `dominio-de-negocio.md` | 🔴 | Agente | Como uma assistência técnica + laboratório funciona. **Base do glossário comum.** Mapeia também os N módulos prováveis e seus domínios. |
-| `jornada-atual-sem-produto.md` (NOVO) | 🔴 | Agente + Roldão | Como SUA empresa + outras resolvem HOJE (planilha? Bling+WhatsApp? caderno?). Mapeia status quo antes de propor solução. |
-| `opportunity-solution-tree.md` (NOVO) | 🔴 | Agente | Teresa Torres. Hierarquia outcome → opportunities → solutions → experiments. Sem isso, dores viram lista plana. |
-| `assumption-map.md` (NOVO) | 🔴 | Agente + Roldão | David Bland. 4 quadrantes (desejabilidade/viabilidade/factibilidade/ética) × confiança (sei/não sei). Destaca leap-of-faith. |
-| `validacao-ativa.md` (NOVO) | 🔴 | Roldão + Agente | Smoke test (fake-door landing), Willingness-to-Pay test, carta-de-intenção assinada de 3+ empresas. Auto-reportado em entrevista mente. |
-| `precificacao-mercado.md` | 🟡 | Agente | Per-user / per-módulo / flat / %. Range por porte. |
-| `spikes-tecnicos/` | 🟡 | Agente | POCs: emitir NF-e em município com padrão próprio, integração bancária, cálculo de incerteza, XML INMETRO, multi-tenant isolation. |
-| `riscos.md` | 🔴 | Agente + Roldão | Regulatório, técnico, mercado, time, **customização disfarçada** (founder is customer). |
-| `sintese-final.md` ⭐ | 🔴 | Agente + Roldão | **Saídas:** cliente ideal, **N total de módulos**, plano de **faseamento** (qual MÓDULO-1, MÓDULO-2... entra em produção), modelo de negócio (SaaS multi-tenant vs on-prem), stack candidate, mobile sim/não. Trava critério de saída antes de começar (nº mín entrevistas, saturação documentada, leap-of-faith validados). |
+| Artefato | Status | Prio | Quem produz | O que contém |
+|---|---|---|---|---|
+| `concorrentes.md` | ✅ | 🔴 | Agente | Bling, Tiny, Omie, Conta Azul, Granatum + nichos calibração. Feature matrix, preço, gaps. |
+| `normas-e-regulacao.md` | ✅ | 🔴 | Agente | ISO 17025, RBC, NF-e/NFS-e por município, LGPD, open banking, PCI. |
+| `treinamento-entrevista-roldao.md` | ✅ | 🔴 | Agente | Roteiro literal por persona, perguntas proibidas (sugestivas), template ata, gravação. Roldão treina em 2 entrevistas piloto antes de valer. |
+| `entrevistas-clientes.md` | 🟡 | 🔴 | Roldão + Agente sintetiza | **3 ondas** (Auditor 6): onda 1 = 3 donos de OUTRAS empresas (problema), onda 2 = 6 operadores (3 perfis: atendente, técnico, financeiro), onda 3 = 3 entrevistas de validação de solução com protótipo de papel. Total 12, em 3 ciclos. Ondas ainda não executadas. |
+| `dores-mapeadas.md` | ✅ | 🔴 | Agente | Métrica de priorização **expandida** (Auditor 6): agudez × frequência × disposição a pagar × **SOLVABILITY** (cara de resolver?) × **REACH** (quanto mercado tem essa dor?) × **evitabilidade** (workaround manual aceitável?). |
+| `jobs-to-be-done.md` | ✅ | 🟡 | Agente | O que cada perfil "contrata" o software pra resolver. |
+| `personas-detalhadas.md` | ✅ | 🔴 | Agente | Dono, atendente, técnico de campo, financeiro, vendedor, metrologista. Goals/frustrations/jornada. |
+| `dominio-de-negocio.md` | ✅ | 🔴 | Agente | Como uma assistência técnica + laboratório funciona. **Base do glossário comum.** Mapeia também os N módulos prováveis e seus domínios. |
+| `jornada-atual-sem-produto.md` | ✅ | 🔴 | Agente + Roldão | Como SUA empresa + outras resolvem HOJE (planilha? Bling+WhatsApp? caderno?). Mapeia status quo antes de propor solução. |
+| `opportunity-solution-tree.md` | ✅ | 🔴 | Agente | Teresa Torres. Hierarquia outcome → opportunities → solutions → experiments. Sem isso, dores viram lista plana. |
+| `assumption-map.md` | ✅ | 🔴 | Agente + Roldão | David Bland. 4 quadrantes (desejabilidade/viabilidade/factibilidade/ética) × confiança (sei/não sei). Destaca leap-of-faith. |
+| `validacao-ativa.md` | ✅ | 🔴 | Roldão + Agente | Smoke test (fake-door landing), Willingness-to-Pay test, carta-de-intenção assinada de 3+ empresas. Auto-reportado em entrevista mente. |
+| `validacao-externa-documental.md` + `validacao-externa/` (NOVO v6) | ✅ | 🔴 | Agente | 4 buckets de validação documental (sem entrevista) + estudo Calibre.Software + mystery shopping documental. Complementa `validacao-ativa.md` enquanto Roldão não fornece telefones. |
+| `precificacao-mercado.md` | ✅ | 🟡 | Agente | Per-user / per-módulo / flat / %. Range por porte. |
+| `spikes-tecnicos/` | ⏳ | 🟡 | Agente | POCs: emitir NF-e em município com padrão próprio, integração bancária, cálculo de incerteza, XML INMETRO, multi-tenant isolation. |
+| `riscos.md` | ✅ | 🔴 | Agente + Roldão | Regulatório, técnico, mercado, time, **customização disfarçada** (founder is customer). |
+| `proximos-artefatos.md` (NOVO v6, meta) | ✅ | ⚪ | Agente | Working doc temporário com roteiro dos próximos passos de discovery. Pode ser deletado quando síntese fechar. |
+| `sintese-final.md` ⭐ | 🟡 (DRAFT v3) | 🔴 | Agente + Roldão | **Saídas:** cliente ideal, **N total de módulos**, plano de **faseamento** (qual MÓDULO-1, MÓDULO-2... entra em produção), modelo de negócio (SaaS multi-tenant vs on-prem), stack candidate, mobile sim/não. Trava critério de saída antes de começar (nº mín entrevistas, saturação documentada, leap-of-faith validados). |
 
 ---
 
-### Família 1 — Contrato dos agentes 🟡
+### Família 1 — Contrato dos agentes ✅ (v6 — quase completa)
 
 | Doc | Status | Prio | O que é |
 |-----|--------|------|---------|
-| `CLAUDE.md` | ✅ | 🔴 | Só adendos de harness Claude Code. ≤ 150 linhas. |
-| `AGENTS.md` | ⏳ | 🔴 | Canônico de produto/arquitetura. ≤ 250 linhas. |
-| `.claude/settings.json` | ✅ | 🔴 | |
-| `.claude/hooks/` | ✅ | 🔴 | + anti-mascaramento + context-budget + INV-checker + tenant-id-validator + paths-frontmatter-validator |
-| `.claude/agents/` | ⏳ | ⚪ | |
-| `.claude/skills/` | ⏳ | ⚪ | |
-| `.claude/commands/` | ⏳ | ⚪ | |
-| `.claude/rules/` | ⏳ | 🟡 | `paths:` frontmatter validado por hook |
-| `.mcp.json` | 🟡 | 🔴 | |
-| `docs/roteamento-dual.md` | ⏳ | 🟡 | Fronteira AGENTS.md vs CLAUDE.md + roteamento Claude/Codex + quando 3 auditores entram. |
-| `docs/orcamento-contexto.md` | ⏳ | 🔴 | Teto **em tokens reais** (não linhas — Auditor 7) + hook que tokeniza. |
-| `docs/INDEX.yaml` (NOVO) | ⏳ | 🔴 | Machine-readable: `{path, módulo, dominio, tokens_estimados, carrega_quando}`. Hook em SessionStart lê INDEX + CURRENT.md e **injeta só subset necessário** via `@path`. |
+| `CLAUDE.md` | ✅ | 🔴 | Adendo do harness Claude Code com `@AGENTS.md` ativo. ≤ 150 linhas. |
+| `AGENTS.md` | ✅ | 🔴 | Canônico de produto/arquitetura. ~200 linhas. Encorpado em 17/05 (v6). |
+| `.claude/settings.json` | ✅ | 🔴 | Permissões + denylist robusta. |
+| `.claude/hooks/` | 🟡 | 🔴 | block-destructive ✅, secrets-scanner ✅, _test-runner ✅. **Falta:** anti-mascaramento, context-budget, INV-checker, tenant-id-validator, paths-frontmatter-validator. |
+| `.claude/agents/` | ✅ | 🔴 | 4 subagentes humanos-substitutos: tech-lead, advogado, corretora, RBC. + a criar: 3 auditores Família 5 (segurança, qualidade, produto). |
+| `.claude/skills/` | ⏳ | ⚪ | Criar quando padrão repetir 3x. |
+| `.claude/commands/` | ⏳ | ⚪ | Preferir skills. |
+| `.claude/rules/` | ⏳ | 🟡 | `paths:` frontmatter validado por hook (a criar). |
+| `.mcp.json` | 🟡 | 🔴 | github plugado; filesystem/playwright/postgres sob demanda. |
+| `.claude/output-styles/pt-br-conciso.md` | ✅ | 🟡 | Estilo PT-BR sem jargão. |
+| `docs/roteamento-dual.md` | ✅ | 🟡 | Fronteira AGENTS.md vs CLAUDE.md + roteamento Claude/Codex. |
+| `docs/orcamento-contexto.md` | ✅ | 🔴 | Teto em tokens reais + hook tokenizador (hook ainda a criar). |
+| `docs/INDEX.yaml` | ⏳ | 🔴 | Machine-readable: `{path, módulo, dominio, tokens_estimados, carrega_quando}`. Hook em SessionStart lê INDEX + CURRENT.md e injeta só subset necessário via `@path`. |
 
 ---
 
 ### Família 2 — Produto (híbrida 3 níveis: comum → domínio → módulo) ⏳
 
 #### Comum (transversal)
-| Doc | Prio | Conteúdo |
-|-----|------|----------|
-| `docs/comum/glossario.md` ⭐ | 🔴 | Termos transversais (cliente, fatura, usuário, permissão, tenant). Coluna "se você vir isto na tela/log, significa…" — tradutor PT↔EN de campo. |
-| `docs/prd.md` | 🔴 | Visão consolidada do produto: o que é, pra quem, dor, escopo MVP-1 (saída discovery), non-goals. |
-| `docs/comum/personas.md` | 🔴 | Personas transversais (dono, gerente). Específicas vão no módulo. |
-| `docs/painel-do-dono.md` | 🔴 | Índice navegável pro Roldão. Aviso visual quando agente toca um dos 10 paths CODEOWNERS. Regra de priorização entre domínios (cliente pagante > prazo legal > débito técnico > melhoria) — Auditor 2. |
-| `docs/como-os-agentes-trabalham-pra-mim.md` | 🔴 | 1 página PT-BR puro. |
-| `docs/MAPA-DO-DONO.md` (NOVO) | 🔴 | Lista numerada dos **7 docs que o Roldão obrigatoriamente lê/aprova**: síntese-discovery, prd, painel-do-dono, status-semanal, go-live-checklist, caminho-reclamacao, changelog. Resto marcado "uso interno dos agentes". (Auditor 2) |
-| `docs/comum/metricas-sucesso.md` | ⚪ | Lazy. |
+| Doc | Status | Prio | Conteúdo |
+|-----|--------|------|----------|
+| `docs/comum/glossario-roldao.md` ⭐ | ✅ | 🔴 | Glossário POV do dono. Decidido v6: manter sufixo `-roldao` (sinaliza ponto de vista). Termos transversais (cliente, fatura, usuário, permissão, tenant) + coluna "se você vir isto na tela/log, significa…". |
+| `docs/prd.md` | ⏳ | 🔴 | Visão consolidada do produto: o que é, pra quem, dor, escopo MVP-1 (saída discovery), non-goals. |
+| `docs/comum/personas.md` | ⏳ | 🔴 | Personas transversais (dono, gerente). Específicas vão no módulo. (Personas detalhadas já existem em `discovery/personas-detalhadas.md` — consolidar comum aqui.) |
+| `docs/painel-do-dono.md` | ✅ | 🔴 | Índice navegável pro Roldão. Aviso visual quando agente toca um dos 10 paths CODEOWNERS. |
+| `docs/como-os-agentes-trabalham-pra-mim.md` | ✅ | 🔴 | 1 página PT-BR puro. |
+| `docs/MAPA-DO-DONO.md` | ✅ | 🔴 | Lista numerada dos 7 docs obrigatórios pro Roldão. |
+| `docs/comum/metricas-sucesso.md` | ⏳ | ⚪ | Lazy. |
 
 #### Por domínio (criar quando domínio entrar no faseamento)
 | Doc por domínio | Prio | Conteúdo |
@@ -208,35 +225,43 @@ Projeto normal tem programador humano. Agente de IA começa do zero a cada conve
 ### Família 3 — Arquitetura técnica + Segurança ⏳
 
 #### Raiz (alta visibilidade)
-| Doc | Prio | O que é |
-|-----|------|---------|
-| `REGRAS-INEGOCIAVEIS.md` | 🔴 | **Fonte única de regras críticas.** Funde INVARIANTES + TESTES + SECURITY com IDs `INV-NNN` (negócio), `INV-TENANT-NNN` (multi-tenancy), `TST-NNN` (regras de teste), `SEC-NNN` (segurança). Outros docs **citam IDs, não duplicam texto**. Cada regra tem hook que valida. |
-| `CONTRIBUTING.md` | 🟡 | Fluxo do AGENTE. |
-| `ARQUITETURA.md` | 🟡 | 1 página apontando pra `docs/arquitetura/`. |
+| Doc | Status | Prio | O que é |
+|-----|--------|------|---------|
+| `REGRAS-INEGOCIAVEIS.md` | ✅ | 🔴 | **Fonte única de regras críticas.** Funde INVARIANTES + TESTES + SECURITY com IDs `INV-NNN`, `INV-TENANT-NNN`, `TST-NNN`, `SEC-NNN`, `INV-AGENT-NNN`. Outros docs **citam IDs, não duplicam texto**. |
+| `CONTRIBUTING.md` | ✅ | 🟡 | Fluxo do agente. |
+| `ARQUITETURA.md` | ✅ | 🟡 | 1 página apontando pra `docs/arquitetura/`. |
 
 #### Arquitetura
-| Doc | Prio | O que é |
-|-----|------|---------|
-| `docs/arquitetura/overview.md` | 🟡 | Code map, entry points, boundaries (Auditor 3). |
-| `docs/arquitetura/cross-cutting/erro.md` | 🟡 | NOVO — Auditor 3 quebrou em 8. |
-| `docs/arquitetura/cross-cutting/log.md` | 🟡 | |
-| `docs/arquitetura/cross-cutting/retry.md` | 🟡 | |
-| `docs/arquitetura/cross-cutting/timeout.md` | 🟡 | |
-| `docs/arquitetura/cross-cutting/idempotencia.md` | 🟡 | |
-| `docs/arquitetura/cross-cutting/transacao.md` | 🟡 | |
-| `docs/arquitetura/cross-cutting/auth-rbac.md` | 🟡 | |
-| `docs/arquitetura/cross-cutting/validacao.md` | 🟡 | |
-| `docs/comum/integracoes-inter-modulos.md` | 🔴 | NOVO — Auditor 3. Contratos entre domínios/módulos (eventos: `OSConcluida` → quem consome, schema versionado, idempotência, ordem). |
-| `docs/comum/governanca-modelo-comum.md` | 🔴 | NOVO — Auditor 3 + 8. Critério explícito de promoção/rebaixamento (ex: "entidade é comum se ≥2 módulos usam SEM extensão"); processo de versionamento. |
-| `docs/CODEMAP.md` | ⚪ | Lazy. |
+| Doc | Status | Prio | O que é |
+|-----|--------|------|---------|
+| `docs/arquitetura/overview.md` | ⏳ | 🟡 | Code map, entry points, boundaries (Auditor 3). |
+| `docs/arquitetura/anti-corrosion-layer.md` (NOVO v6) | ✅ | 🔴 | **9 portas** (Fiscal, Signature, LLM, Storage, Hosting, Auth, Queue, Sync, MultiTenant). Cross-cutting #9 não previsto no v5. |
+| `docs/arquitetura/cross-cutting/erro.md` | ⏳ | 🟡 | Auditor 3 quebrou em 8. |
+| `docs/arquitetura/cross-cutting/log.md` | ⏳ | 🟡 | |
+| `docs/arquitetura/cross-cutting/retry.md` | ⏳ | 🟡 | |
+| `docs/arquitetura/cross-cutting/timeout.md` | ⏳ | 🟡 | |
+| `docs/arquitetura/cross-cutting/idempotencia.md` | ⏳ | 🟡 | |
+| `docs/arquitetura/cross-cutting/transacao.md` | ⏳ | 🟡 | |
+| `docs/arquitetura/cross-cutting/auth-rbac.md` | ⏳ | 🟡 | |
+| `docs/arquitetura/cross-cutting/validacao.md` | ⏳ | 🟡 | |
+| `docs/comum/integracoes-inter-modulos.md` | ⏳ | 🔴 | Auditor 3. Contratos entre domínios/módulos (eventos: `OSConcluida` → quem consome, schema versionado, idempotência, ordem). |
+| `docs/comum/governanca-modelo-comum.md` | ✅ | 🔴 | Critério explícito de promoção/rebaixamento; processo de versionamento. |
+| `docs/CODEMAP.md` | ⏳ | ⚪ | Lazy. |
 
 #### ADRs
-| Doc | Prio | O que é |
-|-----|------|---------|
-| `docs/adr/0001-stack.md` ⭐ | 🔴 (pós-discovery) | Stack escolhida com base na síntese final. |
-| `docs/adr/0002-multi-tenancy.md` (NOVO) | 🔴 | Schema-per-tenant vs row-level security (RLS PostgreSQL) com benchmark em VPS KVM 4. Auditor 1 + 3 + 4 + 7. |
-| `docs/adr/0003-mobile-tecnico-campo.md` (NOVO) | 🔴 | PWA vs React Native vs Capacitor. Auditor 3. |
-| `docs/adr/0004+.md` | 🟡 | 1 por decisão nova. |
+| Doc | Status | Prio | O que é |
+|-----|--------|------|---------|
+| `docs/adr/0000-uso-de-ia.md` | ✅ | 🔴 | Meta-ADR — uso de IA no projeto. |
+| `docs/adr/0001-stack.md` ⭐ | 🟡 (candidata) | 🔴 | Django + Flutter + PostgreSQL. 3 portões. |
+| `docs/adr/0002-multi-tenancy.md` | 🟡 (proposta) | 🔴 | Schema-shared + RLS + middleware tenant_id + roles NOBYPASSRLS. |
+| `docs/adr/0003-mobile-tecnico-campo.md` | ⏳ stub | 🔴 | PWA vs React Native vs Flutter vs Capacitor. Stub criado v6. |
+| `docs/adr/0004-reservado.md` | ⏳ stub | ⚪ | Slot reservado. |
+| `docs/adr/0005-reservado.md` | ⏳ stub | ⚪ | Slot reservado. |
+| `docs/adr/0006-reservado.md` | ⏳ stub | ⚪ | Slot reservado. |
+| `docs/adr/0007-camada-dominio-gerador-spec.md` (NOVO v6) | 🟡 (proposta) | 🔴 | Pipeline spec PT → YAML → Django+Pydantic+OpenAPI+Dart. |
+| `docs/adr/0008-fiscal-pluggable.md` (NOVO v6) | 🟡 (proposta) | 🔴 | Interface `FiscalProvider` agnóstica de país. PlugNotas 1ª impl + Focus NFe smoke trimestral. |
+| `docs/adr/0009-onde-a3-assina.md` (NOVO v6) | 🟡 (proposta) | 🔴 | A3 sempre cliente-side via Web PKI Lacuna; A1 server-side com KMS. |
+| `docs/adr/0010+.md` | ⏳ | 🟡 | 1 por decisão nova. |
 
 #### Segurança
 | Doc | Prio | O que é |
@@ -278,23 +303,23 @@ Projeto normal tem programador humano. Agente de IA começa do zero a cada conve
 
 ---
 
-### Família 5 — Governança IA 🟡 (MATERIALIZAR os 3 auditores — Auditor 10)
+### Família 5 — Governança IA 🟡 (catálogo + 5 docs ✅; 3 prompts auditor pendentes)
 
 | Doc | Status | Prio | Conteúdo |
 |-----|--------|------|----------|
-| `docs/governanca/catalogo-auditores.md` | ⏳ | 🔴 | **MATERIALIZADO** (sai de vaporware): cada auditor tem prompt versionado, trigger (evento + condição), set mínimo de contexto, poder de veto materializado (bloqueia merge? bloqueia deploy? gera issue?), output destination. |
-| `docs/governanca/auditor-seguranca-prompt.md` | ⏳ | 🔴 | NOVO. Prompt completo do Auditor 1. |
-| `docs/governanca/auditor-qualidade-prompt.md` | ⏳ | 🔴 | NOVO. Prompt completo do Auditor 2. |
-| `docs/governanca/auditor-produto-prompt.md` | ⏳ | 🔴 | NOVO. Prompt completo do Auditor 3. |
-| `docs/governanca/limites-autonomia.md` | ⏳ | 🔴 | 5 casos-limite + **limites $/dados/SLA explícitos** (Auditor 2). |
-| `docs/governanca/status-semanal.md` | ⏳ | 🔴 | Auto-gerado. Topo: "essa semana o módulo X precisa de você por Y" (escolha forçada, não buffet — Auditor 2). |
-| `docs/governanca/auditoria-decisoes-autonomas.md` (NOVO) | 🔴 | Auditor 2. Lista filtrada do que agentes decidiram SEM consultar Roldão. |
+| `docs/governanca/catalogo-auditores.md` | ✅ | 🔴 | Catálogo dos 3 auditores + decisão (v6) de onde vivem: híbrido A+B (subagents Claude Code + GitHub Actions). |
+| `docs/governanca/auditor-seguranca-prompt.md` | ✅ | 🔴 | Prompt v1.0.0 — Auditor de Segurança (Sonnet, pre-commit). |
+| `docs/governanca/auditor-qualidade-prompt.md` | ✅ | 🔴 | Prompt v1.0.0 — Auditor de Qualidade (Sonnet, pre-commit). |
+| `docs/governanca/auditor-produto-prompt.md` | ✅ | 🔴 | Prompt v1.0.0 — Auditor de Produto (Opus, pre-merge). |
+| `docs/governanca/limites-autonomia.md` | ✅ | 🔴 | 5 casos-limite + limites $/dados/SLA explícitos. |
+| `docs/governanca/status-semanal.md` | ✅ | 🔴 | Auto-gerado. Topo: "essa semana o módulo X precisa de você por Y". |
+| `docs/governanca/auditoria-decisoes-autonomas.md` | ✅ | 🔴 | Lista filtrada do que agentes decidiram SEM consultar Roldão. |
 | `docs/governanca/caminho-reclamacao.md` | ⏳ | 🟡 | |
 | `docs/governanca/metricas-operacao-agentes.md` | ⏳ | 🟡 | Tokens, retrabalho, tempo entrega. |
-| `docs/governanca/trilha-auditoria-agentes.md` | ⏳ | 🔴 | **PROMOVIDO.** Auditor 1. Append-only, retenção 2 anos. Query padrão "quem tocou tenant Y entre HH:MM" testada em drill trimestral. |
-| `docs/governanca/RACI-incidente-ai.md` (NOVO) | 🔴 | Auditor 1. Quem responde se agente vaza dado do tenant Y às 14h: Anthropic? Hostinger? Roldão? Inclui cláusula DPA por provedor. |
-| `docs/plano-defesas-anti-erros-ia.md` | ✅ | — | Vira anexo que referencia IDs de REGRAS-INEGOCIAVEIS (Auditor 8). |
-| `.specify/memory/constitution.md` | ⏳ | 🔴 | 6 princípios + 5 decisões fundadoras. Cita IDs INV-, não duplica. |
+| `docs/governanca/trilha-auditoria-agentes.md` | ⏳ | 🔴 | Append-only, retenção 2 anos. Query padrão "quem tocou tenant Y entre HH:MM" testada em drill trimestral. |
+| `docs/governanca/RACI-incidente-ai.md` | ✅ | 🔴 | Quem responde se agente vaza dado do tenant Y. Inclui cláusula DPA por provedor. |
+| `docs/plano-defesas-anti-erros-ia.md` | ✅ | — | Anexo que referencia IDs de REGRAS-INEGOCIAVEIS. |
+| `.specify/memory/constitution.md` | ✅ | 🔴 | 6 princípios + 5 decisões fundadoras. Cita IDs INV-, não duplica. |
 
 ---
 
@@ -347,21 +372,23 @@ Projeto normal tem programador humano. Agente de IA começa do zero a cada conve
 
 ### Família extra — Sessão & handoff + Tutoriais
 
-| Doc | Prio | O que é |
-|-----|------|---------|
-| `.agent/SESSION.md` | 🔴 | Histórico curto entre sessões. |
-| `.agent/CURRENT.md` | 🔴 | ≤10 linhas: US-ID + AC ativos + branch. Atualizado por hook session-start. |
-| `.github/CODEOWNERS` | 🔴 | **D5 expandida.** 5 paths anti-bypass + `financeiro/`, `auth/`, `tenant/`, `kms/`, `migrations/` (Auditor 1). |
-| `.github/ISSUE_TEMPLATE/ai-task.md` | ⚪ | |
-| `.devcontainer/` | 🟡 | Após ADR-0001. |
-| `.env.example` | 🟡 | Após ADR-0001. |
-| `README.md` | 🔴 | Visão geral + mapa de navegação. |
-| `LICENSE` | 🟡 | Antes do 1º release público. |
-| `docs/INDICE.md` (NOVO) | 🔴 | Sitemap humano com matriz Diátaxis × audiência (humano/agente/cliente/regulador/auditor). |
-| `docs/CONVENCOES-DOC.md` (NOVO) | 🔴 | Frontmatter obrigatório (owner, revisado-em, status: draft/stable/deprecated), regra comum-vs-módulo, sistema de IDs, convenção de linkagem cruzada. |
-| `docs/tutoriais/dono/` (NOVO) | 🔴 | Diátaxis tutorial pro Roldão (não-técnico). Mín 3: `primeiro-pedido-ao-agente.md`, `ler-status-semanal.md`, `aprovar-mudanca-irreversivel.md`. |
-| `docs/modulos/_TEMPLATE/` (NOVO) | 🔴 | Estrutura padrão dos 6 docs por módulo (uniformidade + habilita CODEMAP auto-gerado por boundary). |
-| `docs/faseamento-modulos.md` (NOVO) | 🔴 (pós-discovery) | Ordem em que os N módulos entram em produção. Critério: dor + diferencial + dependência. Saída da `sintese-final` do discovery. |
+| Doc | Status | Prio | O que é |
+|-----|--------|------|---------|
+| `.agent/SESSION.md` | ✅ | 🔴 | Histórico curto entre sessões. |
+| `.agent/CURRENT.md` | ✅ | 🔴 | ≤10 linhas: US-ID + AC ativos + branch. Atualizado por hook session-start. |
+| `.github/CODEOWNERS` | 🟡 | 🔴 | **D5 expandida.** 5 paths anti-bypass + `financeiro/`, `auth/`, `tenant/`, `kms/`, `migrations/`. Verificar conteúdo. |
+| `.github/ISSUE_TEMPLATE/ai-task.md` | ⏳ | ⚪ | |
+| `.devcontainer/` | ⏳ | 🟡 | Após ADR-0001 fechar. |
+| `.env.example` | ⏳ | 🟡 | Após ADR-0001 fechar. |
+| `README.md` | ✅ | 🔴 | Visão geral + mapa de navegação. |
+| `LICENSE` | ⏳ | 🟡 | Antes do 1º release público. |
+| `docs/INDICE.md` | ✅ | 🔴 | Sitemap humano com matriz Diátaxis × audiência. |
+| `docs/CONVENCOES-DOC.md` | ✅ | 🔴 | Frontmatter obrigatório, regra comum-vs-módulo, sistema de IDs, convenção de linkagem. |
+| `docs/tutoriais/dono/primeiro-pedido-ao-agente.md` | ✅ | 🔴 | Diátaxis tutorial pro Roldão. |
+| `docs/tutoriais/dono/ler-status-semanal.md` | ✅ | 🔴 | |
+| `docs/tutoriais/dono/aprovar-mudanca-irreversivel.md` | ✅ | 🔴 | |
+| `docs/dominios/_TEMPLATE-dominio/modulos/_TEMPLATE/` (caminho corrigido em v6) | ✅ | 🔴 | Estrutura padrão dos 6 docs por módulo. Caminho real difere do v5 (que dizia `docs/modulos/_TEMPLATE/`). |
+| `docs/faseamento-modulos.md` | ⏳ | 🔴 | Ordem em que os N módulos entram em produção. Saída da `sintese-final` do discovery. |
 
 ---
 
@@ -447,6 +474,133 @@ Projeto normal tem programador humano. Agente de IA começa do zero a cada conve
 - Template vazio
 - **Doc sem dor concreta hoje**
 - **Doc de módulo fora do faseamento atual**
+
+---
+
+## O que mudou da v6 pra v7 (2026-05-17, noite +6h)
+
+> v7 incorpora o **mapeamento de 25 módulos da lista funcional do Roldão**. Confronto entre lista funcional × docs existentes feito por 5 agentes Explore em paralelo. Resultados aplicados — **nenhum corte de escopo**. Adições estruturais grandes.
+
+### Estrutura de domínios (NOVA — 5 domínios + 19 módulos)
+
+| Domínio | Módulos | Status |
+|---|---|---|
+| `comercial/` | clientes, orcamentos, crm, contratos | ✅ README + personas + 4 × 8 docs |
+| `operacao/` | os, chamados, agenda | ✅ README + personas + 3 × 8 docs |
+| `financeiro/` | contas-receber, contas-pagar, comissoes, caixa-tecnico, fiscal | ✅ README + personas + 5 × 8 docs |
+| `suporte-plataforma/` | equipamentos, produtos-pecas-servicos, estoque, fornecedores | ✅ README + personas + 4 × 8 docs |
+| `rh-frota-qualidade/` | colaboradores, frota, qualidade | ✅ README + personas + 3 × 8 docs |
+| `metrologia/` (existia v6) | calibracao | ✅ 5 docs especializados (cláusulas ISO) |
+
+Cada módulo tem 8 docs: `glossario.md`, `prd.md`, `personas.md`, `metricas.md`, `modelo-de-dominio.md`, `contratos/{ui,api,exports}.md`.
+
+### OPs novas (`opportunity-solution-tree.md` v?)
+
+| ID | Tema | Wave | Motivo |
+|----|------|------|--------|
+| OP13 | Agenda gerencial completa | **MVP-1 Wave A** | Módulo 10 da lista; destrava OP3/OP1/OP15/OP16 |
+| OP14 | Fornecedores + Compras | Wave C | Módulo 6 — gap total no discovery |
+| OP15 | Orçamentos formal | Wave A (15.1, 15.4) + Wave B (15.2, 15.3) | Módulo 7 — antes só OP8 luz-fraca |
+| OP16 | Chamados/Helpdesk dedicado | MVP-1 Wave B | Módulo 8 — antes embutido em OP3 |
+| OP17 | Equipamentos master | MVP-1 Wave A | Módulo 4 — suporta OP2 certificado |
+
+Total: 12 + 5 = **17 OPs**.
+
+### INVs novos (`REGRAS-INEGOCIAVEIS.md`)
+
+| ID | Tema |
+|----|------|
+| INV-021 | Pesos padrão com classe ISO 16834 + certificado próprio + validade |
+| INV-022 | Verificação intermediária de padrão em uso ≤ intervalo de re-calibração |
+| INV-023 | Comparação interlaboratorial (PT) registrado em perfil A |
+| INV-024 | Cliente não pode ser duplicado dentro do tenant (dedup CPF/CNPJ) |
+| INV-025 | Equipamento imutável em campos críticos pós-emissão de certificado |
+| INV-026 | Preço de serviço não retroage a certificados emitidos |
+| INV-027 | OS com máquina de estados não-reversível (transições explícitas) |
+
+Total: 20 + 7 = **27 INVs**.
+
+### ADRs reservadas viram reais
+
+| ID | Antes | Agora |
+|----|-------|-------|
+| ADR-0004 | reservado | Sync mobile offline-first (regras conflito por entidade) |
+| ADR-0005 | reservado | Engine de automações (caseiro sobre procrastinate + DSL fechada) |
+| ADR-0006 | reservado | Feature flags (django-waffle + tabela tenant_features) |
+
+Stubs `0004-reservado.md`, `0005-reservado.md`, `0006-reservado.md` removidos.
+
+### Atualizações de status
+
+Família 5 governança 100% materializada; Família 6 conformidade com fiscal + fiscal-contingencia ✅; Família 4 operação 11 docs criados; arquitetura cross-cutting 8 docs criados + anti-corrosion + integracoes-inter-modulos; integracoes-externas 7 parceiros documentados.
+
+### Conta total de docs no projeto após v7
+
+| Categoria | Aprox |
+|---|---|
+| Raiz canônica | 9 |
+| Discovery | 17 |
+| Conformidade | 9 |
+| Segurança | 3 |
+| Arquitetura | 10 (overview + 8 cross-cutting + anti-corrosion) |
+| Operação | 13 |
+| Governança | 13 |
+| Família 6 calibração | 5 |
+| Família 2 comum | 6 |
+| Domínios novos (5 × README + personas) | 10 |
+| Módulos (19 × 8 docs) | 152 |
+| ADRs | 10 |
+| Tutoriais dono | 3 |
+| Templates | 9 |
+| Outros (INDEX, INDICE, MAPA, CONVENCOES, painel, etc.) | 10 |
+| **TOTAL aproximado** | **~270 docs** |
+
+### O que NÃO foi feito em v7 (intencional)
+
+- **Specs por feature (`specs/<NNN-feature>/{spec,plan,tasks}.md`)** dentro de cada módulo — só criar quando feature específica entrar em desenvolvimento
+- **ADRs específicas de módulo** (`modulos/<mod>/adr/`) — só criar conforme decisões surgem
+- **URS/IQ/OQ/PQ do módulo calibração** — só Wave A começar (`validacao-software.md` já indica)
+
+---
+
+## O que mudou da v5 pra v6 (2026-05-17)
+
+> v6 é **atualização de status, não corte de escopo**. Nenhum doc foi removido ou rebaixado. O Roldão vetou explicitamente os cortes propostos pelo Auditor 5.
+
+| Mudança | Tipo | Vindo de |
+|---|---|---|
+| Família 0: 15/15 artefatos marcados ✅ (estavam todos ⏳ no v5) | status real | inventário |
+| Família 0: +2 artefatos novos (validacao-externa-documental, proximos-artefatos) | adição | trabalho 17/05 |
+| Família 1: AGENTS.md ✅ encorpado (era ⏳ no v5) | gap fechado | Auditoria 4 lente 1+3 |
+| Família 1: roteamento-dual ✅, orcamento-contexto ✅, output-styles ✅ | status real | inventário |
+| Família 2: glossario-roldao.md (nome com sufixo decidido) | reconciliação | Auditoria 4 lente 2 |
+| Família 2: painel-do-dono, como-os-agentes, MAPA ✅ | status real | inventário |
+| Família 3 Arquitetura: anti-corrosion-layer.md como cross-cutting #9 ✅ | adição | trabalho 17/05 |
+| Família 3 ADRs: 0007/0008/0009 incluídas (não previstas no v5) | adição | Portão 2 ADR-0001 |
+| Família 3 ADRs: 0003 criada como stub + 0004/0005/0006 stubs reservados | reconciliação | Auditoria 4 lente 2+4 |
+| Família 5: catálogo + 5 docs ✅; decisão "onde os auditores vivem" cravada (híbrido A+B) | gap fechado | Auditoria 4 lente 3 |
+| Extras: INDICE, CONVENCOES, MAPA, tutoriais (3), .agent/, .specify/, README ✅ | status real | inventário |
+| Caminho `_TEMPLATE/` corrigido (`docs/dominios/_TEMPLATE-dominio/modulos/_TEMPLATE/`) | reconciliação | Auditoria 4 lente 2 |
+| Síntese das auditorias: adicionadas Auditorias 3 e 4 | histórico | sessões 16-17/05 |
+
+**O que continua pendente como gap 🔴 prioritário (janela atual = dogfooding Balanças Solution):**
+- ✅ `docs/prd.md` + `docs/faseamento-modulos.md` (criados 2026-05-17)
+- ✅ Base de conformidade MVP-1 (`lgpd-rat`, `seguranca-dados`, `isolamento-multi-tenant`, `retencao-matriz`)
+- ✅ 3 prompts de auditor (`auditor-{seguranca,qualidade,produto}-prompt.md`) + descritores em `.claude/agents/`
+- ✅ Família 4 (Operação) inteira — 11 docs
+- ✅ 5 hooks adicionais (anti-mascaramento, context-budget, INV-checker, tenant-id-validator, paths-frontmatter-validator)
+- ✅ INDEX.yaml v2 atualizado
+- ✅ 3 GitHub Actions (auditor-seguranca, auditor-qualidade, auditor-produto) — pendem secret `ANTHROPIC_API_KEY`
+- ⏳ Família 6 calibração (`docs/dominios/metrologia/modulos/calibracao/conformidade-iso-17025.md` etc.)
+- ⏳ Foundation F-A (4-6 semanas) com critérios da ADR-0001 Portão 3 — destrava Wave A. Sem spike descartável ([[nao-construir-codigo-descartavel]]).
+- ⏳ Síntese final discovery: sair de DRAFT v3 → STABLE via **caminho B** (dogfooding)
+
+**Diferidos pra V2 (decidido Roldão 2026-05-17 — ver [[sem-cliente-externo-na-janela-atual]]):**
+- Cliente externo pago sob NDA / 3 cartas de intenção / Portão 1 ADR-0001 / R-001 ≤ 9
+- Apólice cyber + RC profissional + DPO formal
+- DPA-modelo + Termos de Uso público
+- Dossiê de validação ISO 17025 do software por consultor RBC
+- Pricing público em landing + trial self-service 30 dias
 
 ---
 

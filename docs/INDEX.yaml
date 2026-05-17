@@ -1,123 +1,854 @@
-# INDEX.yaml — mapa machine-readable pro agente carregar sob demanda
+# INDEX.yaml — sitemap machine-readable do projeto Aferê
 #
-# Esquema: cada entrada é { path, familia, dominio, modulo, status, prioridade, tokens_estimados, carrega_quando }
-# Hook session-start (a criar) lê este arquivo + .agent/CURRENT.md e injeta SÓ o subset necessário via @path.
+# Pra quê: hook em SessionStart lê este arquivo + .agent/CURRENT.md (US ativo)
+# e injeta no contexto SÓ o subset necessário via @path, evitando carregar
+# 80+ docs em todo turno.
 #
-# Status: existe | parcial | falta | lazy
-# Prioridade: mvp | proximo | lazy
-# carrega_quando: sempre | discovery | mvp1 | <modulo>:<crm|financeiro|...> | sob-demanda
+# Schema por entrada:
+#   path: caminho a partir da raiz do repo
+#   familia: 0..8 ou "extra" / "raiz"
+#   prio: mvp | proximo | lazy
+#   status: stable | draft | stub | vazio
+#   tokens_estimados: chars / 4 (heurística)
+#   carrega_quando: lista de gatilhos pra hook decidir incluir
+#
+# Gatilhos disponíveis (controlado):
+#   - "sempre" — todo turno (só pros canônicos)
+#   - "tocar:<glob>" — quando agente vai tocar arquivo que bate em glob
+#   - "modulo:<nome>" — quando US ativo é desse módulo
+#   - "dominio:<nome>" — quando US ativo é desse domínio
+#   - "tarefa:<tipo>" — discovery, arquitetura, seguranca, conformidade, operacao, governanca, produto
+#   - "evento:<tipo>" — go-live, incidente, dr, drill, pre-commit, pre-merge
+#   - "sob_pedido" — só se agente pedir via @path explícito
 
-version: 1
-ultima_atualizacao: 2026-05-16
+version: 3
+ultima_atualizacao: 2026-05-17 (noite +6h — v7 adicionou 5 domínios + 19 módulos)
 
-# === FUNDAÇÃO (carrega sempre) ===
-fundacao:
+# =========================================================================
+# RAIZ — alta visibilidade
+# =========================================================================
+
+raiz:
   - path: CLAUDE.md
     familia: 1
-    status: existe
-    prioridade: mvp
-    tokens_estimados: 5000
-    carrega_quando: sempre
+    prio: mvp
+    status: stable
+    tokens_estimados: 1500
+    carrega_quando: [sempre]
   - path: AGENTS.md
     familia: 1
-    status: parcial
-    prioridade: mvp
-    tokens_estimados: 1000
-    carrega_quando: sempre
+    prio: mvp
+    status: stable
+    tokens_estimados: 1800
+    carrega_quando: [sempre]
   - path: REGRAS-INEGOCIAVEIS.md
     familia: 3
-    status: parcial
-    prioridade: mvp
-    tokens_estimados: 2000
-    carrega_quando: sempre
+    prio: mvp
+    status: stable
+    tokens_estimados: 3200
+    carrega_quando: [sempre, "tocar:financeiro/**", "tocar:auth/**", "tocar:tenant/**", "tocar:kms/**", "tocar:**/migrations/**"]
   - path: .specify/memory/constitution.md
     familia: 5
-    status: existe
-    prioridade: mvp
+    prio: mvp
+    status: stable
     tokens_estimados: 2500
-    carrega_quando: sempre
+    carrega_quando: [sempre]
   - path: .agent/CURRENT.md
     familia: extra
-    status: existe
-    prioridade: mvp
+    prio: mvp
+    status: stable
     tokens_estimados: 200
-    carrega_quando: sempre
+    carrega_quando: [sempre]
+  - path: .agent/SESSION.md
+    familia: extra
+    prio: mvp
+    status: stable
+    tokens_estimados: 500
+    carrega_quando: ["tarefa:contexto"]
+  - path: CONTRIBUTING.md
+    familia: 1
+    prio: proximo
+    status: stable
+    tokens_estimados: 500
+    carrega_quando: ["tarefa:onboarding"]
+  - path: ARQUITETURA.md
+    familia: 3
+    prio: proximo
+    status: stable
+    tokens_estimados: 600
+    carrega_quando: ["tarefa:arquitetura"]
+  - path: CHANGELOG.md
+    familia: extra
+    prio: mvp
+    status: stable
+    tokens_estimados: 200
+    carrega_quando: ["tarefa:release", "evento:go-live"]
+  - path: README.md
+    familia: extra
+    prio: mvp
+    status: stable
+    tokens_estimados: 400
+    carrega_quando: ["tarefa:onboarding"]
 
-# === FUNDAÇÃO 2 (carrega quando fase casa) ===
-fase_discovery:
+# =========================================================================
+# Família 0 — Discovery
+# =========================================================================
+
+discovery:
   - path: docs/discovery/sintese-final.md
     familia: 0
-    status: falta
-    prioridade: mvp
-    tokens_estimados: 0
-    carrega_quando: discovery
+    prio: mvp
+    status: draft  # DRAFT v3
+    tokens_estimados: 8000
+    carrega_quando: ["tarefa:discovery", "tarefa:produto", "tarefa:roadmap"]
+  - path: docs/discovery/concorrentes.md
+    familia: 0
+    prio: mvp
+    status: stable
+    tokens_estimados: 4000
+    carrega_quando: ["tarefa:discovery", "tarefa:produto", "tarefa:marketing"]
+  - path: docs/discovery/normas-e-regulacao.md
+    familia: 0
+    prio: mvp
+    status: stable
+    tokens_estimados: 5000
+    carrega_quando: ["tarefa:conformidade", "dominio:metrologia", "dominio:financeiro"]
   - path: docs/discovery/dominio-de-negocio.md
     familia: 0
-    status: falta
-    prioridade: mvp
-    tokens_estimados: 0
-    carrega_quando: discovery
-  # ... (demais 13 artefatos de discovery, omitidos por brevidade — preencher conforme criar)
+    prio: mvp
+    status: stable
+    tokens_estimados: 6000
+    carrega_quando: ["tarefa:discovery", "tarefa:produto", "tarefa:arquitetura"]
+  - path: docs/discovery/personas-detalhadas.md
+    familia: 0
+    prio: mvp
+    status: stable
+    tokens_estimados: 4500
+    carrega_quando: ["tarefa:produto", "tarefa:ux"]
+  - path: docs/discovery/jobs-to-be-done.md
+    familia: 0
+    prio: proximo
+    status: stable
+    tokens_estimados: 3500
+    carrega_quando: ["tarefa:produto"]
+  - path: docs/discovery/dores-mapeadas.md
+    familia: 0
+    prio: mvp
+    status: stable
+    tokens_estimados: 5500
+    carrega_quando: ["tarefa:produto", "tarefa:roadmap"]
+  - path: docs/discovery/jornada-atual-sem-produto.md
+    familia: 0
+    prio: mvp
+    status: stable
+    tokens_estimados: 3000
+    carrega_quando: ["tarefa:produto", "tarefa:ux"]
+  - path: docs/discovery/opportunity-solution-tree.md
+    familia: 0
+    prio: mvp
+    status: stable
+    tokens_estimados: 4500
+    carrega_quando: ["tarefa:produto", "tarefa:roadmap"]
+  - path: docs/discovery/assumption-map.md
+    familia: 0
+    prio: mvp
+    status: stable
+    tokens_estimados: 3500
+    carrega_quando: ["tarefa:produto", "tarefa:risco"]
+  - path: docs/discovery/validacao-ativa.md
+    familia: 0
+    prio: mvp
+    status: stable
+    tokens_estimados: 3000
+    carrega_quando: ["tarefa:produto", "tarefa:go-to-market"]
+  - path: docs/discovery/validacao-externa-documental.md
+    familia: 0
+    prio: mvp
+    status: stable
+    tokens_estimados: 4000
+    carrega_quando: ["tarefa:discovery", "tarefa:marketing"]
+  - path: docs/discovery/treinamento-entrevista-roldao.md
+    familia: 0
+    prio: mvp
+    status: stable
+    tokens_estimados: 3500
+    carrega_quando: ["tarefa:entrevista"]
+  - path: docs/discovery/entrevistas-clientes.md
+    familia: 0
+    prio: mvp
+    status: draft
+    tokens_estimados: 2000
+    carrega_quando: ["tarefa:entrevista", "tarefa:produto"]
+  - path: docs/discovery/precificacao-mercado.md
+    familia: 0
+    prio: proximo
+    status: stable
+    tokens_estimados: 2500
+    carrega_quando: ["tarefa:pricing", "tarefa:go-to-market"]
+  - path: docs/discovery/riscos.md
+    familia: 0
+    prio: mvp
+    status: stable
+    tokens_estimados: 5000
+    carrega_quando: ["tarefa:risco", "tarefa:produto", "evento:incidente"]
+  - path: docs/discovery/proximos-artefatos.md
+    familia: 0
+    prio: lazy
+    status: stable
+    tokens_estimados: 1000
+    carrega_quando: [sob_pedido]
 
-# === COMUM (carrega quando agente trabalha em código de produto) ===
-comum:
-  - path: docs/comum/glossario.md
-    familia: 2
-    status: falta
-    prioridade: mvp
-    tokens_estimados: 0
-    carrega_quando: mvp1
-  - path: docs/comum/isolamento-multi-tenant.md
-    familia: 3
-    status: falta
-    prioridade: mvp
-    tokens_estimados: 0
-    carrega_quando: mvp1
-  - path: docs/comum/governanca-modelo-comum.md
-    familia: 3
-    status: existe
-    prioridade: mvp
-    tokens_estimados: 1500
-    carrega_quando: mvp1
+# =========================================================================
+# Família 1 — Contrato dos agentes (meta-docs)
+# =========================================================================
 
-# === MÓDULO (carrega só quando agente trabalha NESSE módulo) ===
-# Vazio até MVP-1 ser definido pela síntese final do discovery
-modulos:
-  # exemplo de futura entrada:
-  # - path: docs/dominios/metrologia/modulos/calibracao/glossario.md
-  #   familia: 2
-  #   dominio: metrologia
-  #   modulo: calibracao
-  #   status: falta
-  #   prioridade: mvp
-  #   tokens_estimados: 0
-  #   carrega_quando: modulo:calibracao
-
-# === SOB-DEMANDA (carrega só se agente pedir explicitamente) ===
-sob_demanda:
+contrato_agentes:
+  - path: docs/ambiente-claude-code.md
+    familia: 1
+    prio: proximo
+    status: stable
+    tokens_estimados: 8500
+    carrega_quando: ["tarefa:harness", "tocar:.claude/**"]
   - path: docs/documentos-do-projeto.md
-    familia: meta
-    status: existe
-    prioridade: mvp
-    tokens_estimados: 15000  # arquivo grande; só carregar sob pedido explícito
-    carrega_quando: sob-demanda
+    familia: 1
+    prio: mvp
+    status: stable  # v6
+    tokens_estimados: 8000
+    carrega_quando: ["tarefa:documentacao", "tarefa:onboarding"]
   - path: docs/INDICE.md
     familia: extra
-    status: existe
-    prioridade: mvp
-    tokens_estimados: 1500
-    carrega_quando: sob-demanda
-  - path: docs/ambiente-claude-code.md
-    familia: meta
-    status: existe
-    prioridade: mvp
-    tokens_estimados: 8000
-    carrega_quando: sob-demanda
+    prio: mvp
+    status: stable
+    tokens_estimados: 800
+    carrega_quando: [sempre]
+  - path: docs/CONVENCOES-DOC.md
+    familia: extra
+    prio: mvp
+    status: stable
+    tokens_estimados: 1000
+    carrega_quando: ["tocar:docs/**"]
+  - path: docs/MAPA-DO-DONO.md
+    familia: 2
+    prio: mvp
+    status: stable
+    tokens_estimados: 600
+    carrega_quando: [sempre]
+  - path: docs/roteamento-dual.md
+    familia: 1
+    prio: proximo
+    status: stable
+    tokens_estimados: 1200
+    carrega_quando: ["tarefa:harness", "tarefa:codex"]
+  - path: docs/orcamento-contexto.md
+    familia: 1
+    prio: mvp
+    status: stable
+    tokens_estimados: 1000
+    carrega_quando: ["tarefa:harness", "evento:context-budget-warning"]
 
-# === TETO POR ARQUIVO (D2/D3 da constituição) ===
+# =========================================================================
+# Família 2 — Produto (PRD, glossário, painel)
+# =========================================================================
+
+produto:
+  - path: docs/prd.md
+    familia: 2
+    prio: mvp
+    status: draft
+    tokens_estimados: 2500
+    carrega_quando: [sempre, "tarefa:produto", "tarefa:feature"]
+  - path: docs/faseamento-modulos.md
+    familia: 2
+    prio: mvp
+    status: draft
+    tokens_estimados: 2500
+    carrega_quando: ["tarefa:produto", "tarefa:roadmap"]
+  - path: docs/painel-do-dono.md
+    familia: 2
+    prio: mvp
+    status: stable
+    tokens_estimados: 1500
+    carrega_quando: [sempre]
+  - path: docs/como-os-agentes-trabalham-pra-mim.md
+    familia: 2
+    prio: mvp
+    status: stable
+    tokens_estimados: 1200
+    carrega_quando: ["tarefa:onboarding-dono"]
+  - path: docs/comum/glossario-roldao.md
+    familia: 2
+    prio: mvp
+    status: stable
+    tokens_estimados: 1500
+    carrega_quando: [sempre]
+  - path: docs/comum/governanca-modelo-comum.md
+    familia: 3
+    prio: mvp
+    status: stable
+    tokens_estimados: 1200
+    carrega_quando: ["tarefa:arquitetura", "tarefa:modelagem"]
+  - path: docs/comum/isolamento-multi-tenant.md
+    familia: 3
+    prio: mvp
+    status: stable
+    tokens_estimados: 2000
+    carrega_quando: ["tocar:**/migrations/**", "tocar:tenant/**", "tarefa:seguranca", "tarefa:arquitetura"]
+
+# =========================================================================
+# Família 3 — Arquitetura + Segurança + ADRs
+# =========================================================================
+
+arquitetura:
+  - path: docs/arquitetura/anti-corrosion-layer.md
+    familia: 3
+    prio: mvp
+    status: stable
+    tokens_estimados: 4000
+    carrega_quando: ["tarefa:arquitetura", "tocar:infrastructure/**"]
+
+adrs:
+  - path: docs/adr/0000-uso-de-ia.md
+    familia: 3
+    prio: mvp
+    status: stable
+    tokens_estimados: 1800
+    carrega_quando: ["tarefa:agente"]
+  - path: docs/adr/0001-stack.md
+    familia: 3
+    prio: mvp
+    status: draft  # candidata, 3 portões
+    tokens_estimados: 6500
+    carrega_quando: ["tarefa:arquitetura", "tarefa:stack", "evento:foundation-fa"]
+  - path: docs/adr/0002-multi-tenancy.md
+    familia: 3
+    prio: mvp
+    status: draft  # proposta
+    tokens_estimados: 3500
+    carrega_quando: ["tarefa:arquitetura", "tocar:tenant/**", "tocar:**/migrations/**"]
+  - path: docs/adr/0003-mobile-tecnico-campo.md
+    familia: 3
+    prio: mvp
+    status: stub
+    tokens_estimados: 300
+    carrega_quando: ["tarefa:mobile", "dominio:operacao"]
+  - path: docs/adr/0004-reservado.md
+    familia: 3
+    prio: lazy
+    status: stub
+    tokens_estimados: 100
+    carrega_quando: [sob_pedido]
+  - path: docs/adr/0005-reservado.md
+    familia: 3
+    prio: lazy
+    status: stub
+    tokens_estimados: 100
+    carrega_quando: [sob_pedido]
+  - path: docs/adr/0006-reservado.md
+    familia: 3
+    prio: lazy
+    status: stub
+    tokens_estimados: 100
+    carrega_quando: [sob_pedido]
+  - path: docs/adr/0007-camada-dominio-gerador-spec.md
+    familia: 3
+    prio: mvp
+    status: draft
+    tokens_estimados: 3500
+    carrega_quando: ["tarefa:arquitetura", "tarefa:codegen"]
+  - path: docs/adr/0008-fiscal-pluggable.md
+    familia: 3
+    prio: mvp
+    status: draft
+    tokens_estimados: 3500
+    carrega_quando: ["dominio:financeiro", "tarefa:fiscal"]
+  - path: docs/adr/0009-onde-a3-assina.md
+    familia: 3
+    prio: mvp
+    status: draft
+    tokens_estimados: 4000
+    carrega_quando: ["dominio:metrologia", "tarefa:assinatura"]
+
+seguranca:
+  - path: docs/seguranca/mcp-policy.md
+    familia: 3
+    prio: mvp
+    status: stable
+    tokens_estimados: 2500
+    carrega_quando: ["tocar:.mcp.json", "tarefa:mcp"]
+  - path: docs/seguranca/supply-chain.md
+    familia: 3
+    prio: mvp
+    status: stable
+    tokens_estimados: 2500
+    carrega_quando: ["tocar:requirements.txt", "tocar:pyproject.toml", "tocar:package.json", "tocar:pubspec.yaml"]
+  - path: docs/seguranca/agente-input-nao-confiavel.md
+    familia: 3
+    prio: mvp
+    status: stable
+    tokens_estimados: 2500
+    carrega_quando: ["tarefa:seguranca", "tarefa:llm-gateway"]
+
+# =========================================================================
+# Família 4 — Operação
+# =========================================================================
+
+operacao:
+  - path: docs/operacao/runbook.md
+    familia: 4
+    prio: proximo
+    status: stable
+    tokens_estimados: 1500
+    carrega_quando: ["tarefa:operacao"]
+  - path: docs/operacao/backup-restore.md
+    familia: 4
+    prio: proximo
+    status: stable
+    tokens_estimados: 2500
+    carrega_quando: ["tarefa:operacao", "evento:dr", "evento:drill"]
+  - path: docs/operacao/deploy.md
+    familia: 4
+    prio: proximo
+    status: stable
+    tokens_estimados: 2000
+    carrega_quando: ["tarefa:release", "evento:go-live"]
+  - path: docs/operacao/dr-plan.md
+    familia: 4
+    prio: mvp
+    status: stable
+    tokens_estimados: 3500
+    carrega_quando: ["tarefa:operacao", "evento:dr", "evento:incidente"]
+  - path: docs/operacao/observabilidade.md
+    familia: 4
+    prio: mvp
+    status: stable
+    tokens_estimados: 3500
+    carrega_quando: ["tarefa:operacao", "tarefa:observabilidade"]
+  - path: docs/operacao/go-live-checklist.md
+    familia: 4
+    prio: mvp
+    status: stable
+    tokens_estimados: 2500
+    carrega_quando: ["evento:go-live"]
+  - path: docs/operacao/acionamento-agente.md
+    familia: 4
+    prio: mvp
+    status: stable
+    tokens_estimados: 3000
+    carrega_quando: ["tarefa:watchdog", "evento:incidente"]
+  - path: docs/operacao/incidente-postmortem.md
+    familia: 4
+    prio: mvp
+    status: stable
+    tokens_estimados: 2500
+    carrega_quando: ["evento:incidente", "evento:postmortem"]
+  - path: docs/operacao/capacity-planning.md
+    familia: 4
+    prio: mvp
+    status: stable
+    tokens_estimados: 2500
+    carrega_quando: ["tarefa:capacity", "evento:saturacao"]
+  - path: docs/operacao/multi-tenant-ops.md
+    familia: 4
+    prio: mvp
+    status: stable
+    tokens_estimados: 3000
+    carrega_quando: ["tocar:tenant/**", "tarefa:operacao-tenant"]
+  - path: docs/operacao/maintenance-windows.md
+    familia: 4
+    prio: mvp
+    status: stable
+    tokens_estimados: 1500
+    carrega_quando: ["tarefa:release", "evento:janela"]
+  - path: docs/operacao/rotacao-credenciais.md
+    familia: 4
+    prio: lazy
+    status: stub
+    tokens_estimados: 500
+    carrega_quando: ["tarefa:rotacao-credencial"]
+  - path: docs/operacao/provisionamento.md
+    familia: 4
+    prio: lazy
+    status: stub
+    tokens_estimados: 500
+    carrega_quando: ["tarefa:provisionamento", "evento:dr"]
+
+# =========================================================================
+# Família 5 — Governança IA
+# =========================================================================
+
+governanca:
+  - path: docs/governanca/catalogo-auditores.md
+    familia: 5
+    prio: mvp
+    status: stable
+    tokens_estimados: 2500
+    carrega_quando: ["tarefa:governanca", "tarefa:auditor"]
+  - path: docs/governanca/auditor-seguranca-prompt.md
+    familia: 5
+    prio: mvp
+    status: stable
+    tokens_estimados: 3500
+    carrega_quando: ["tarefa:auditor", "evento:pre-commit"]
+  - path: docs/governanca/auditor-qualidade-prompt.md
+    familia: 5
+    prio: mvp
+    status: stable
+    tokens_estimados: 3000
+    carrega_quando: ["tarefa:auditor", "evento:pre-commit"]
+  - path: docs/governanca/auditor-produto-prompt.md
+    familia: 5
+    prio: mvp
+    status: stable
+    tokens_estimados: 3500
+    carrega_quando: ["tarefa:auditor", "evento:pre-merge"]
+  - path: docs/governanca/limites-autonomia.md
+    familia: 5
+    prio: mvp
+    status: stable
+    tokens_estimados: 2000
+    carrega_quando: ["tarefa:governanca"]
+  - path: docs/governanca/status-semanal.md
+    familia: 5
+    prio: mvp
+    status: stable
+    tokens_estimados: 1500
+    carrega_quando: ["tarefa:status"]
+  - path: docs/governanca/auditoria-decisoes-autonomas.md
+    familia: 5
+    prio: mvp
+    status: stable
+    tokens_estimados: 1500
+    carrega_quando: ["tarefa:governanca", "evento:decisao-autonoma"]
+  - path: docs/governanca/RACI-incidente-ai.md
+    familia: 5
+    prio: mvp
+    status: stable
+    tokens_estimados: 2000
+    carrega_quando: ["evento:incidente"]
+  - path: docs/plano-defesas-anti-erros-ia.md
+    familia: 5
+    prio: proximo
+    status: stable
+    tokens_estimados: 4000
+    carrega_quando: ["tarefa:governanca", "tarefa:agente"]
+
+# =========================================================================
+# Família 6 — Conformidade
+# =========================================================================
+
+conformidade:
+  - path: docs/conformidade/comum/lgpd-rat.md
+    familia: 6
+    prio: mvp
+    status: stable
+    tokens_estimados: 3500
+    carrega_quando: ["tarefa:lgpd", "tarefa:conformidade", "evento:incidente"]
+  - path: docs/conformidade/comum/seguranca-dados.md
+    familia: 6
+    prio: mvp
+    status: stable
+    tokens_estimados: 3500
+    carrega_quando: ["tarefa:seguranca", "tarefa:conformidade"]
+  - path: docs/conformidade/comum/retencao-matriz.md
+    familia: 6
+    prio: mvp
+    status: stable
+    tokens_estimados: 3500
+    carrega_quando: ["tarefa:lgpd", "tarefa:retencao", "tarefa:fiscal", "dominio:metrologia"]
+
+# =========================================================================
+# Tutoriais do dono
+# =========================================================================
+
+tutoriais_dono:
+  - path: docs/tutoriais/dono/primeiro-pedido-ao-agente.md
+    familia: extra
+    prio: mvp
+    status: stable
+    tokens_estimados: 1500
+    carrega_quando: ["tarefa:onboarding-dono"]
+  - path: docs/tutoriais/dono/ler-status-semanal.md
+    familia: extra
+    prio: mvp
+    status: stable
+    tokens_estimados: 1000
+    carrega_quando: ["tarefa:onboarding-dono", "tarefa:status"]
+  - path: docs/tutoriais/dono/aprovar-mudanca-irreversivel.md
+    familia: extra
+    prio: mvp
+    status: stable
+    tokens_estimados: 1500
+    carrega_quando: ["tarefa:onboarding-dono", "evento:destrutivo"]
+
+# =========================================================================
+# Templates
+# =========================================================================
+
+templates:
+  - path: docs/dominios/_TEMPLATE-dominio/README.md
+    familia: 2
+    prio: mvp
+    status: stable
+    tokens_estimados: 500
+    carrega_quando: ["tarefa:novo-modulo"]
+
+# =========================================================================
+# Domínios novos (v7 — 2026-05-17 — 5 domínios + 19 módulos)
+# =========================================================================
+
+# Cada domínio tem README + personas (15 entradas aqui).
+# Cada módulo tem 8 docs (152 entradas — listadas em bloco compacto).
+
+dominios:
+  # --- Comercial ---
+  - path: docs/dominios/comercial/README.md
+    familia: 2
+    prio: mvp
+    status: draft
+    tokens_estimados: 1500
+    carrega_quando: ["dominio:comercial"]
+  - path: docs/dominios/comercial/personas.md
+    familia: 2
+    prio: mvp
+    status: draft
+    tokens_estimados: 1500
+    carrega_quando: ["dominio:comercial", "tarefa:ux"]
+
+  # --- Operação ---
+  - path: docs/dominios/operacao/README.md
+    familia: 2
+    prio: mvp
+    status: draft
+    tokens_estimados: 1500
+    carrega_quando: ["dominio:operacao"]
+  - path: docs/dominios/operacao/personas.md
+    familia: 2
+    prio: mvp
+    status: draft
+    tokens_estimados: 1500
+    carrega_quando: ["dominio:operacao", "tarefa:ux"]
+
+  # --- Financeiro ---
+  - path: docs/dominios/financeiro/README.md
+    familia: 2
+    prio: mvp
+    status: draft
+    tokens_estimados: 1500
+    carrega_quando: ["dominio:financeiro"]
+  - path: docs/dominios/financeiro/personas.md
+    familia: 2
+    prio: mvp
+    status: draft
+    tokens_estimados: 1500
+    carrega_quando: ["dominio:financeiro", "tarefa:ux"]
+
+  # --- Suporte-Plataforma ---
+  - path: docs/dominios/suporte-plataforma/README.md
+    familia: 2
+    prio: mvp
+    status: draft
+    tokens_estimados: 1500
+    carrega_quando: ["dominio:suporte-plataforma"]
+  - path: docs/dominios/suporte-plataforma/personas.md
+    familia: 2
+    prio: mvp
+    status: draft
+    tokens_estimados: 1500
+    carrega_quando: ["dominio:suporte-plataforma", "tarefa:ux"]
+
+  # --- RH+Frota+Qualidade ---
+  - path: docs/dominios/rh-frota-qualidade/README.md
+    familia: 2
+    prio: proximo
+    status: draft
+    tokens_estimados: 1500
+    carrega_quando: ["dominio:rh-frota-qualidade"]
+  - path: docs/dominios/rh-frota-qualidade/personas.md
+    familia: 2
+    prio: proximo
+    status: draft
+    tokens_estimados: 1500
+    carrega_quando: ["dominio:rh-frota-qualidade", "tarefa:ux"]
+
+# =========================================================================
+# Módulos (19 módulos × 8 docs = 152 entradas — bloco compacto)
+# =========================================================================
+
+# Estrutura: cada módulo tem `glossario.md`, `prd.md`, `personas.md`, `metricas.md`,
+# `modelo-de-dominio.md`, `contratos/ui.md`, `contratos/api.md`, `contratos/exports.md`.
+# Gatilho de carga: ["modulo:<nome>"] + atalho por tipo de tarefa
+# (`tarefa:produto` carrega prd.md; `tarefa:ux` carrega ui.md + personas; etc.)
+
+modulos:
+  # --- Comercial ---
+  - modulo: clientes
+    pasta: docs/dominios/comercial/modulos/clientes/
+    docs: [glossario, prd, personas, metricas, modelo-de-dominio, contratos/ui, contratos/api, contratos/exports]
+    prio: mvp  # Wave A (F-C cliente master)
+    status: draft
+    tokens_estimados_modulo: 12000
+    carrega_quando: ["modulo:clientes", "dominio:comercial"]
+
+  - modulo: orcamentos
+    pasta: docs/dominios/comercial/modulos/orcamentos/
+    docs: [glossario, prd, personas, metricas, modelo-de-dominio, contratos/ui, contratos/api, contratos/exports]
+    prio: mvp  # OP15 — Wave A (s15.1, s15.4) + Wave B (s15.2, s15.3)
+    status: draft
+    tokens_estimados_modulo: 12000
+    carrega_quando: ["modulo:orcamentos"]
+
+  - modulo: crm
+    pasta: docs/dominios/comercial/modulos/crm/
+    docs: [glossario, prd, personas, metricas, modelo-de-dominio, contratos/ui, contratos/api, contratos/exports]
+    prio: proximo  # OP5 — Wave B
+    status: draft
+    tokens_estimados_modulo: 12000
+    carrega_quando: ["modulo:crm"]
+
+  - modulo: contratos
+    pasta: docs/dominios/comercial/modulos/contratos/
+    docs: [glossario, prd, personas, metricas, modelo-de-dominio, contratos/ui, contratos/api, contratos/exports]
+    prio: proximo  # OP1 — Wave B
+    status: draft
+    tokens_estimados_modulo: 12000
+    carrega_quando: ["modulo:contratos"]
+
+  # --- Operação ---
+  - modulo: os
+    pasta: docs/dominios/operacao/modulos/os/
+    prio: mvp  # OP3 — Wave A
+    status: draft
+    tokens_estimados_modulo: 14000  # maior — INV-027 máquina estados detalhada
+    carrega_quando: ["modulo:os", "dominio:operacao"]
+
+  - modulo: chamados
+    pasta: docs/dominios/operacao/modulos/chamados/
+    prio: proximo  # OP16 — Wave B
+    status: draft
+    tokens_estimados_modulo: 12000
+    carrega_quando: ["modulo:chamados"]
+
+  - modulo: agenda
+    pasta: docs/dominios/operacao/modulos/agenda/
+    prio: mvp  # OP13 — Wave A (INV-020 enforce)
+    status: draft
+    tokens_estimados_modulo: 13000
+    carrega_quando: ["modulo:agenda"]
+
+  # --- Financeiro ---
+  - modulo: contas-receber
+    pasta: docs/dominios/financeiro/modulos/contas-receber/
+    prio: mvp  # OP-FIN Wave A + OP11 Wave B
+    status: draft
+    tokens_estimados_modulo: 12000
+    carrega_quando: ["modulo:contas-receber", "dominio:financeiro"]
+
+  - modulo: contas-pagar
+    pasta: docs/dominios/financeiro/modulos/contas-pagar/
+    prio: lazy  # Wave C — gap consciente
+    status: draft
+    tokens_estimados_modulo: 8000
+    carrega_quando: ["modulo:contas-pagar"]
+
+  - modulo: comissoes
+    pasta: docs/dominios/financeiro/modulos/comissoes/
+    prio: mvp  # OP4 Wave A (1 fórmula)
+    status: draft
+    tokens_estimados_modulo: 12000
+    carrega_quando: ["modulo:comissoes"]
+
+  - modulo: caixa-tecnico
+    pasta: docs/dominios/financeiro/modulos/caixa-tecnico/
+    prio: mvp  # OP3.2 — Wave A robusto
+    status: draft
+    tokens_estimados_modulo: 12000
+    carrega_quando: ["modulo:caixa-tecnico"]
+
+  - modulo: fiscal
+    pasta: docs/dominios/financeiro/modulos/fiscal/
+    prio: mvp  # OP7 — Wave A #1 (deadline 09/2026)
+    status: draft
+    tokens_estimados_modulo: 14000  # densidade alta — multi-município + contingência
+    carrega_quando: ["modulo:fiscal", "tarefa:fiscal"]
+
+  # --- Suporte-Plataforma ---
+  - modulo: equipamentos
+    pasta: docs/dominios/suporte-plataforma/modulos/equipamentos/
+    prio: mvp  # OP17 — Wave A
+    status: draft
+    tokens_estimados_modulo: 12000
+    carrega_quando: ["modulo:equipamentos", "tarefa:cadastro"]
+
+  - modulo: produtos-pecas-servicos
+    pasta: docs/dominios/suporte-plataforma/modulos/produtos-pecas-servicos/
+    prio: proximo  # MVP-2 (catálogo)
+    status: draft
+    tokens_estimados_modulo: 10000
+    carrega_quando: ["modulo:produtos-pecas-servicos"]
+
+  - modulo: estoque
+    pasta: docs/dominios/suporte-plataforma/modulos/estoque/
+    prio: proximo  # BIG-12 — Wave B
+    status: draft
+    tokens_estimados_modulo: 14000  # transferência 2-etapas + lote/série
+    carrega_quando: ["modulo:estoque"]
+
+  - modulo: fornecedores
+    pasta: docs/dominios/suporte-plataforma/modulos/fornecedores/
+    prio: lazy  # OP14 — Wave C
+    status: draft
+    tokens_estimados_modulo: 8000
+    carrega_quando: ["modulo:fornecedores"]
+
+  # --- RH+Frota+Qualidade ---
+  - modulo: colaboradores
+    pasta: docs/dominios/rh-frota-qualidade/modulos/colaboradores/
+    prio: mvp  # mínimo Wave A pra técnico+comissão
+    status: draft
+    tokens_estimados_modulo: 10000
+    carrega_quando: ["modulo:colaboradores", "tarefa:rbac"]
+
+  - modulo: frota
+    pasta: docs/dominios/rh-frota-qualidade/modulos/frota/
+    prio: mvp  # INV-020 Wave A
+    status: draft
+    tokens_estimados_modulo: 13000  # INV-020 detalhada
+    carrega_quando: ["modulo:frota", "tarefa:agenda"]
+
+  - modulo: qualidade
+    pasta: docs/dominios/rh-frota-qualidade/modulos/qualidade/
+    prio: mvp  # INV-012 Wave A
+    status: draft
+    tokens_estimados_modulo: 13000  # workflow NC
+    carrega_quando: ["modulo:qualidade", "tarefa:auditoria"]
+
+# =========================================================================
+# Tetos por arquivo (D2/D3 da constituição)
+# =========================================================================
+
 tetos:
-  CLAUDE.md: 5000  # ~150 linhas
-  AGENTS.md: 8000  # ~250 linhas
-  REGRAS-INEGOCIAVEIS.md: 4000  # ~120 linhas
-  .agent/CURRENT.md: 500  # ~10 linhas
-  # Hook (a criar) tokeniza e falha acima do teto.
+  CLAUDE.md: 5000           # ~150 linhas
+  AGENTS.md: 8000           # ~250 linhas
+  REGRAS-INEGOCIAVEIS.md: 4000   # ~120 linhas (cresce com IDs)
+  .agent/CURRENT.md: 500    # ~10 linhas
+  prd.md: 5000
+  glossario-roldao.md: 5000
+  # Hook context-budget.sh (a calibrar) tokeniza e emite warning acima do teto.
+
+# =========================================================================
+# Resumo
+# =========================================================================
+
+resumo:
+  total_docs: 270  # estimativa pós-v7 (75 v6 + ~152 módulos + 10 domínio README/personas + 5 ADRs/INVs/OPs editados)
+  tokens_estimados_total: 415000  # crescimento ~93% vs v6
+  tokens_carregam_sempre: 13000  # canônicos não cresceram
+  observacao: |
+    Crescimento grande na v7 (2026-05-17 noite +6h): 5 domínios + 19 módulos × 8 docs cada.
+    "carrega: sempre" continua ≤ 15k tokens (canônicos não mudaram).
+    Hook context-budget.sh emite warning quando canônicos passam do teto.
+    Demais docs entram sob demanda via @path quando hook injetor processar gatilhos.
+    Hook injetor agora é MAIS NECESSÁRIO — sem ele, agente que toca "modulo:os"
+    teria que carregar manual 8 docs. Implementar hook injetor virou prioridade.
+    Wave A (~10 módulos prio:mvp) ainda cabe folgado num contexto normal (~120k tokens).
+    Wave B+C adicionam mais ~50k.
