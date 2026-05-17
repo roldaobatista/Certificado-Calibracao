@@ -24,6 +24,29 @@
 
 ## Entradas (cronológico reverso)
 
+### 2026-05-16 — Roldão aprovou as 9 decisões da auditoria; aplicadas autonomamente
+- **Decisão:** Roldão respondeu "ACEITO TUDO" pras 9 decisões pendentes da auditoria do batch 1. Aplicadas em sequência:
+  - **D-aud-1** Pricing: R$ 300 → **R$ 500-1.000/mês** com 1 mês grátis. Faixas crescimento (R$ 1.500-3.000) e Pro (R$ 3.000-6.500) também subiram.
+  - **D-aud-2** 3 fichas novas em `concorrentes.md` §14: **TOTVS Protheus** (SIGAMNT + SIGATEC + SIGAQMT/Metrologia descoberto), **Qualyteam** (Joinville/SC desde 2008, QMS BR com 400+ clientes), **SAP Business One BR** (via parceiros, R$ 50k-150k implementação).
+  - **D-aud-3** Invariante #4 ("software validado") quebrado em INV-004a (deploy só com aprovação RT), INV-004b (revalidação de cálculo de incerteza), INV-004c (versão do software gravada em cada certificado).
+  - **D-aud-4** INV-007 (BaaS único) movido pra ADR fiscal (não é invariante); INV-010 a INV-014 novos: retenção 17025, padrão vencido bloqueia emissão, NC bloqueia emissão, confidencialidade 4.2 com log, certificado externo sem incerteza bloqueia. **Total: 14 invariantes** (era 10).
+  - **D-aud-5** Domínio Metrologia subdividido em 3: (a) Execução de calibração, (b) Padrões e rastreabilidade, (c) Garantia da validade.
+  - **D-aud-6** "Gestão de Competências e Autorizações" promovido ao MVP-1 obrigatório (17025 6.2). Escopo magro: matriz competência × grandeza + validade + autorização por escopo. RH completo (folha, ponto, holerite) fica lazy.
+  - **D-aud-7** Domínio "Metrologia Legal" adicionado (IPEMs/RBMLQ-I, Portarias INMETRO 157/2022 balanças + 227/2022 bombas). Confirmar se está no escopo do MVP nas entrevistas (depende se Roldão atende balança comercial / bomba combustível).
+  - **D-aud-8** Padronização de IDs de risco aplicada: **R-001 a R-038** sequencial único, coluna Origem adicionada. R-021 marcado DEPRECATED (consolidado com R-033). Tabela completa de mapeamento RC-* → R-* em `riscos.md` e `concorrentes.md` §7.
+  - **D-aud-9** **ADR-0000 (Uso de IA) criada** em `docs/adr/0000-uso-de-ia.md` com 5 princípios fundadores: (1) abstração obrigatória de provider, (2) dados de cliente final não vão pra API por padrão, (3) IP do output é do Roldão, (4) hard cap por tenant, (5) sanitização e segregação de input não-confiável.
+- **Por quê:** Roldão deu autorização explícita ("ACEITO TUDO"). Aplicação direta sem aguardar item-a-item.
+- **Quem decidiu:** Roldão (decisor) + Claude Code (executor) + 4 subagentes auditores (insumo)
+- **Sessão:** ver `.agent/SESSION.md` entrada 2026-05-16 (auditoria batch 1)
+- **Impacto:** reversível (todas as edições versionadas); ADR-0000 é fundadora — reabrir só com ADR de reversão.
+- **Caso-limite?** Não — todas as decisões já tinham veredito do Roldão "aceito"
+- **Itens deixados em aberto pra entrevista:**
+  - D-aud-7 — confirmar se Metrologia Legal está no escopo do MVP (depende se Roldão atende balança/bomba)
+  - D-aud-5 — subdivisão de Metrologia em 3 sub-domínios materializa quando o módulo entrar no faseamento (até lá é só nota no mapa)
+- **Roldão revisou?** ✅ aprovou em bloco
+
+---
+
 ### 2026-05-16 — Auditoria interna do batch 1 + correções factuais aplicadas
 - **Decisão:** Roldão pediu "lançar 1 agente por ponto importante pra revisar". Disparei 4 auditores independentes em paralelo:
   - **Auditor 1** — concorrentes.md (achou 2 erros factuais + sugeriu 3 concorrentes ausentes + 5 frases de posicionamento frágeis)

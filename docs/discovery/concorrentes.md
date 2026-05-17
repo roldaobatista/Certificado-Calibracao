@@ -3,6 +3,8 @@
 > **Artefato Rodada 0** (agente faz sozinho). Pesquisa secundária sobre concorrência no mercado de ERP de assistência técnica BR e sistemas de calibração ISO 17025.
 >
 > **Última atualização:** 2026-05-16 — dossiê de concorrentes do módulo de calibração ISO/IEC 17025 preenchido (internacionais + nacionais). Seções de ERP BR genérico (Bling/Tiny/Omie) permanecem em scaffolding e serão preenchidas em rodada própria.
+>
+> **Rodada 3 (16/05/2026):** adicionados 3 concorrentes adjacentes/horizontais grandes na seção 14 — TOTVS Protheus (SIGAMNT+SIGATEC+SIGAQMT), Qualyteam (QMS+calibração), SAP Business One (via parceiros BR).
 
 ---
 
@@ -568,19 +570,25 @@ Legenda: ⚠️ = não destacado / não documentado publicamente.
 
 ---
 
-## 7. Riscos competitivos (input pra `riscos.md`)
+## 7. Riscos competitivos (consolidados em `riscos.md` como R-019, R-020, R-030..R-038)
 
-| ID | Risco | Probabilidade | Impacto | Mitigação |
-|---|---|---|---|---|
-| RC-01 | Cali lança fiscal/NFS-e via parceria | Média | Alto (perdemos diferencial #1) | Ir a mercado rápido; lockar com integração bancária mais profunda |
-| RC-02 | FP2 expande pra multi-município nacional | Baixa-Média | Alto | Monitorar; vantagem competitiva por capilaridade SaaS + UX moderna |
-| RC-03 | Qualer/MasterControl lança versão pt-BR + fiscal | Baixa | Médio | Foco em PME; gigantes vão entrar pelo enterprise primeiro |
-| RC-04 | ERP horizontal BR (Omie/Bling) lança vertical calibração | Média-Alta | Alto | Profundidade técnica ISO 17025 (incerteza, rastreabilidade) que generalistas não dominam |
-| RC-05 | Fundação CERTI dá homologação só pra Cali e cria barreira política | Baixa | Alto | Buscar homologação CERTI cedo; preparar caso de uso comparativo técnico |
-| **RC-06** | **Visma (dona da Conta Azul desde 08/2025) compra vertical de calibração BR (Cali, Metroex)** e pluga no stack Conta Azul (que já tem NFS-e em 400+ municípios). Resolveria sozinho o gap que Aferê ataca. Visma tem 140+ aquisições históricas — apetite confirmado. | Média | Alto | Monitorar M&A Visma na BR; ir a mercado rápido; lockar com integração bancária mais profunda |
-| **RC-07** | **TOTVS lança vertical de calibração** via SIGAMNT (já tem módulo embrionário de calibração interna) ou parceria estratégica. Captura base instalada industrial. | Baixa-Média | Alto | Profundidade técnica RBC + UX moderna SaaS que TOTVS Protheus não consegue replicar |
-| **RC-08** | **CGCRE muda paradigma pra acreditação baseada em riscos** (tendência 2025-2026) e exige software adaptado pra "risk-based audit trail". Quem chegar primeiro vira referência. | Média | Médio | Acompanhar discussões CGCRE; modelar audit trail extensível ao novo modelo desde o dia 0 |
-| **RC-09** | **INMETRO/CGCRE oferece plataforma estatal grátis** pra labs acreditados (precedente BIPM/UKAS). Mataria mercado nacional. | Baixíssima | Catastrófico | Sem ação ativa; gatilho seria comunicado oficial |
+> **Padronização de IDs aplicada 16/05/2026** (Auditor 4). Riscos competitivos agora vivem em `riscos.md` com ID único R-NNN. Tabela abaixo é resumo + mapeamento; **fonte de verdade é `riscos.md`**.
+
+| ID novo | Risco | Origem (era) |
+|---|---|---|
+| **R-019** | Concorrente nacional (Cali/Metroex) lança fiscal/NFS-e antes do nosso MVP | RC-01 |
+| **R-020** | FP2 Tecnologia expande pra multi-município nacional | RC-02 |
+| **R-030** | Cali especificamente lança fiscal via parceria (variante de R-019) | RC-01 (duplicado) |
+| **R-031** | FP2 expande nacional (variante de R-020) | RC-02 (duplicado) |
+| **R-032** | Qualer/MasterControl lança versão pt-BR + fiscal | RC-03 |
+| **R-033** | ERP horizontal BR (Omie/Bling/Conta Azul/Tiny) lança vertical calibração | RC-04 (+ R-021 original consolidado) |
+| **R-034** | Fundação CERTI homologa só Cali e cria barreira política | RC-05 |
+| **R-035** | **Visma (dona da Conta Azul) compra Cali/Metroex** | RC-06 |
+| **R-036** | TOTVS lança vertical de calibração via SIGAMNT/SIGAQMT melhorado | RC-07 |
+| **R-037** | CGCRE muda pra acreditação baseada em riscos | RC-08 |
+| **R-038** | INMETRO/CGCRE oferece plataforma estatal grátis | RC-09 |
+
+**Detalhes completos + mitigações** estão em `riscos.md` matriz P×I. Sempre referenciar pelo ID novo (R-NNN) em comunicações futuras.
 
 ---
 
@@ -603,10 +611,12 @@ Legenda: ⚠️ = não destacado / não documentado publicamente.
 - **Enterprise (Beamex CMX, Fluke MET/CAL+TEAM, LabWare, STARLIMS):** US$ 20k–200k+ projeto inicial, mais SSA/SaaS anual.
 - **Nacionais (Cali, Metroex, Calibre):** indícios indiretos sugerem R$ 500–5.000/mês por laboratório dependendo do número de instrumentos/usuários/módulos. **Confirmar via mystery shopping (pedir orçamento como cliente).**
 
-**Janela pra nosso produto:**
-- Entrada (lab pequeno, até 200 instrumentos, 1–3 usuários): **R$ 300–800/mês** com NFS-e + portal cliente já incluso.
-- Crescimento (lab médio, até 2.000 instrumentos, 4–10 usuários): **R$ 1.000–2.500/mês**.
-- Pro (lab acreditado RBC com escopo amplo, 10+ usuários, multi-site): **R$ 2.500–6.000/mês**.
+**Janela pra nosso produto (ajustada pós-auditoria — Auditor 1):**
+- Entrada (lab pequeno, até 200 instrumentos, 1–3 usuários): **R$ 500–1.000/mês**, com **1 mês grátis** de trial. NFS-e + portal cliente incluídos.
+- Crescimento (lab médio, até 2.000 instrumentos, 4–10 usuários): **R$ 1.500–3.000/mês**.
+- Pro (lab acreditado RBC com escopo amplo, 10+ usuários, multi-site): **R$ 3.000–6.500/mês**.
+
+**Por que subimos o piso (era R$ 300):** lab calibrador tem volume MUITO menor que e-commerce (Bling cobra R$ 55 e tem 300 mil clientes). Entrada R$ 300 cria expectativa de "barato" difícil de corrigir e abre mão de receita real. R$ 500 com 1 mês grátis dá percepção de valor + tempo de validação pro cliente.
 
 Preço **transparente** em tabela pública é diferencial defensável.
 
@@ -831,3 +841,88 @@ Preço **transparente** em tabela pública é diferencial defensável.
 - Omie — https://www.omie.com.br/precos/ • https://developer.omie.com.br/ • https://ajuda.omie.com.br/pt-BR/articles/498949-cadastrando-uma-nova-ordem-de-servico • https://www.reclameaqui.com.br/empresa/omiexperience/
 - Conta Azul — https://contaazul.com/planos/ • https://contaazul.com/funcionalidades/sistema-ordem-de-servico/ • https://contaazul.com/funcionalidades/nfs-e/ • https://braziljournal.com/visma-compra-a-contaazul-por-quase-r-2-bilhoes/ • https://www.reclameaqui.com.br/empresa/contaazul/
 - Granatum — https://www.granatum.com.br/financeiro/precos-planos • https://www.granatum.com.br/financeiro/funcionalidades • https://controlefinanceiro.granatum.com.br/sobre-nos/ • https://www.reclameaqui.com.br/empresa/granatum-controle-financeiro/
+## 14. Concorrentes adjacentes/horizontais grandes (rodada 3 — 16/05/2026)
+
+> Adicionado por orientação do Roldão (16/05/2026) — 3 concorrentes "elefantes" que ficaram de fora das rodadas anteriores: dois ERPs enterprise (TOTVS Protheus, SAP Business One) e um QMS nacional dedicado a calibração (Qualyteam). Mercado-alvo diferente do Aferê na maioria dos casos, mas precisam ser mapeados pra antecipar choque competitivo se Roldão subir o ticket médio.
+
+### 14.1 TOTVS Protheus — módulos SIGAMNT + SIGATEC + **SIGAQMT** (São Paulo/SP)
+
+| Item | Resposta |
+|---|---|
+| URL | https://produtos.totvs.com/ficha-tecnica/tudo-sobre-o-totvs-manutencao-de-ativos/ • https://tdn.totvs.com/display/public/PROT/Field+Services • https://centraldeatendimento.totvs.com/hc/pt-br/articles/360024873014 |
+| Origem | Brasil — TOTVS S.A. (B3: TOTS3), maior ERP brasileiro, **>50% de market share BR** [fonte: totvs.com/sobre + en.wikipedia.org/wiki/TOTVS] |
+| Fundação | **TOTVS marca: 2005** (aquisição da Logocenter). Raízes: SIGA 1969 (Haberkorn) → Microsiga 1983 (Cosentino+Haberkorn) → Siga Advanced 1991 → linguagem ADVPL + Microsiga Advanced Protheus 1999 [fonte: ri.totvs.com/en/the-company/history-and-profile/ • terminaldeinformacao.com/2020/08/29/a-historia-da-totvs/] |
+| Foco | ERP industrial/serviços generalista. Protheus = linha multi-segmento com >40 módulos. Calibração e assistência técnica são **módulos satélite**, não core |
+| **SIGAMNT (Manutenção de Ativos)** | Planejamento e controle de manutenção corretiva/preventiva/reformas/lubrificação, OS de oficina, custos, ferramentas, mão de obra própria + terceiros, indicadores/KPIs próprios. **Desenvolvido pela NG Informática** (parceira TOTVS), embarcado no Protheus, integrável a Logix/RM e a outros ERPs via API. Desde release 12.1.33 a Gestão de Frotas saiu pro módulo separado SIGAGFR [fonte: centraldeatendimento.totvs.com/hc/pt-br/articles/360027384893] |
+| **SIGAMNT tem calibração de instrumentos?** | **Não — a calibração está no módulo SIGAQMT (Metrologia/Manufatura), não no SIGAMNT.** SIGAQMT tem cadastro de Instrumentos (QMTA010), Cadastro de Faixas (QMTA040) com 7 tipos de calibração (Simples, Completa, Pressão, Calibrador, Soma, Calibrador Completa, Relógio), Medições (QMTA140) e cálculo automático de data de validade [fonte: centraldeatendimento.totvs.com/hc/pt-br/articles/360024873014 • centraldeatendimento.totvs.com/hc/pt-br/articles/1500003845722] |
+| **SIGATEC (Gestão de Serviços / Field Service)** | Módulo 28 do Protheus. Gerencia Manutenção, Conservação, Segurança, Limpeza, **assistência técnica de equipamentos externos**. Base Instalada (Equipamento × Cliente × série × garantia), Atendentes/Técnicos (TECA020), Contratos de Manutenção (TECA200/TECA210), OS, Orçamento de Serviços, Reserva de Equipamentos (TECA825). Integra com SIGAMNT pra locação de bens [fonte: tdn.totvs.com/pages/viewpage.action?pageId=221556886 • centraldeatendimento.totvs.com/hc/pt-br/articles/360026313074] |
+| ISO 17025 explícito | **[a confirmar — provavelmente parcial]** SIGAQMT cobre cadastro de instrumentos, faixas, medições e validade. Documentação oficial **não menciona** explicitamente ISO 17025, cálculo de incerteza GUM ou emissão de certificado padronizado. Quem precisa de 17025 normalmente integra com software especializado [a confirmar com parceiro TOTVS] |
+| Cálculo de incerteza | **[a confirmar — não documentado publicamente]** |
+| Emite certificado de calibração | **[a confirmar — não há rotina dedicada documentada publicamente]** SIGAQMT registra medições e laudo, mas template de certificado RBC/ISO 17025 não aparece nas fontes oficiais |
+| NFS-e | **Sim, nativo no Protheus fiscal** — toda a linha Protheus tem cobertura municipal ampla via add-on fiscal TOTVS. NFS-e parte do pacote padrão BR |
+| OS / chamados | **Sim, robusto** — SIGATEC é o módulo dedicado, com Base Instalada, contratos, técnicos, OS, requisição de materiais ao almoxarifado |
+| Mobile | Sim — TOTVS tem app field service mobile (TOTVS Manutenção de Ativos mobile + apps de OS); cobertura on/offline [a confirmar versão] |
+| API | Sim — APIs públicas pra integração com ERPs terceiros; arquitetura ADVPL aberta a customização via Pontos de Entrada |
+| Deploy | On-premise OU nuvem TOTVS; licença tradicional OU assinatura |
+| Preço | **Sob consulta**. Mercado: implementação Protheus para PME média parte de R$ 150–500k+ no projeto inicial, mais licenças por usuário, mais SSA. **Nenhum preço público oficial** |
+| Mercado-alvo | Média e grande empresa (>100 funcionários). PMEs entram via parceiros regionais. Indústria, serviços, agro, saúde, varejo |
+| Forte em | Cobertura funcional gigante (>40 módulos integrados), ecossistema de parceiros, fiscal BR maduro, integração entre SIGAMNT/SIGATEC/SIGAQMT/Financeiro/Compras, presença em 40+ países |
+| Fraco em | **Calibração 17025 não é first-class** (não tem cálculo de incerteza GUM nem template de certificado RBC nativos documentados); custo alto pra laboratório calibrador pequeno/médio; curva de implantação 6–12 meses; customização cara via ADVPL |
+| Reclamações | Mercado: complexidade, dependência de consultoria, ADVPL como linguagem proprietária pouco portável, custo de SSA |
+| Posicionamento vs Aferê | **Concorrente vertical superior** em ERP completo + assistência técnica, **mas inferior em calibração 17025** (não tem incerteza GUM nem certificado RBC nativos). Aferê pode ganhar laboratórios calibradores pequenos/médios que veem Protheus como "tanque pra matar mosquito" e querem 17025 first-class + NFS-e + OS num só pacote leve |
+
+---
+
+### 14.2 Qualyteam (Joinville/SC) — Software de Gestão da Qualidade com módulo de Calibrações
+
+| Item | Resposta |
+|---|---|
+| URL | https://qualyteam.com/pb/software-gestao-calibracoes-calib/ • https://qualyteam.com/pb/sobre-nos/ |
+| Origem | **Joinville/SC** (não Florianópolis — telefone (47) 3047-7300 confirma DDD de Joinville) [fonte: suporte.qualyteam.com.br/pt-BR/support/solutions/articles/35000272252] |
+| Fundação | **2008** — 16+ anos de mercado. Nasceu da necessidade real de um cliente; sócios fundadores perceberam falta de ferramenta pra automatizar SGQ [fonte: qualyteam.com/pb/sobre-nos/] |
+| Foco | **QMS (Sistema de Gestão da Qualidade) completo**, não ERP. Pilares: Software + Academy + Consulting + Auditing ("Hub da Qualidade"). Módulo Calibrações é **uma das ferramentas**, não o produto inteiro |
+| ISO 17025 | **Sim, explícito** — "auxilia na conformidade com normas como ISO 9001, ISO/IEC 17025 e outras normas de calibração, assegurando rastreabilidade, organização e controle metrológico" [fonte: qualyteam.com/pb/software-gestao-calibracoes-calib/] |
+| ISO 9001 | **Sim — é o core do produto.** Posiciona-se como "software pra gestão da qualidade mais utilizado no Brasil" |
+| Cálculo de incerteza | **[a confirmar]** — site fala em "critérios de aceitação" e "avalia adequação", mas não detalha cálculo de incerteza GUM/JCGM 100 publicamente |
+| Emite certificado de calibração | **[a confirmar — não documentado claramente no site]** — texto cita "registros organizados para auditoria de calibração" e "histórico completo de intervenções", mas não menciona emissão de certificado padronizado ISO 17025/RBC com selo |
+| OS / chamados | **Não no sentido tradicional** — gerencia calibrações terceirizadas e internas, alertas de vencimento, mas não é fluxo OS de assistência técnica externa (orçamento → atendimento → peça → laudo) |
+| NFS-e | **Não documentado** — é QMS, não ERP fiscal. Cliente precisa de ERP/sistema fiscal separado pra emitir nota |
+| Mobile | **[a confirmar]** — produto web-first; não há destaque a app nativo no site público |
+| Deploy | SaaS na nuvem Microsoft Azure; HTTPS+TLS, backups automáticos, controle de acessos granular [fonte: qualyteam.com/pb/software-gestao-calibracoes-calib/] |
+| API | "Integre ao Qualyteam Software ou outros softwares usados na empresa" [fonte: qualyteam.com/pb/software-gestao-calibracoes-calib/] — detalhe da API pública [a confirmar] |
+| Preço | **Sob consulta** — sem tabela pública. Acesso por solicitação de demonstração [fonte: conteudo.qualyteam.com.br/oferta-2024-qualyteam-software]. Reviews no Capterra mencionam **"valores altos dos planos"** e "qualquer alteração é considerada customização e cobrada à parte" [fonte: capterra.com/p/192780/Qualyteam/] |
+| Mercado-alvo | Empresas que já fazem ou querem fazer ISO 9001/17025: indústrias, defensorias públicas, saúde, agro. **+400 clientes em 4 continentes, +55 mil usuários ativos** [fonte: qualyteam.com/pb/sobre-nos/] |
+| Forte em | QMS completo (não-conformidades, documentos, auditorias, indicadores, calibrações), suporte humano sem chatbot (telefone+chat seg-sex 8h-18h), maturidade 16 anos, foco em SGQ |
+| Fraco em | **Não é ERP** — não emite NFS-e, não faz OS de campo, não tem CRM/financeiro/estoque; preço alto pra PME pequena; **customização cobrada à parte** (queixa recorrente); limitações de personalização no Módulo DOC; relatórios pouco flexíveis [fonte: capterra.com/p/192780/Qualyteam/] |
+| Reclamações | **Não há reclamações expressivas no Reclame Aqui** [fonte: pesquisa direta retornou só homônimos como "Qualy Recursos Humanos" e "Qualitá"]. Capterra: "valores altos dos planos", "alteração = customização cobrada à parte", "relatórios pouco flexíveis", "limitações no Módulo DOC". Várias reviews positivas Capterra são "incentivized" (com brinde de tempo) — ponderar [fonte: capterra.com/p/192780/Qualyteam/] |
+| Posicionamento vs Aferê | **Concorrente vertical em QMS/ISO, complementar em ERP.** Cliente Qualyteam tipicamente tem ERP separado pra financeiro/NFS-e. Aferê pode ganhar laboratório calibrador que hoje paga Qualyteam + ERP fiscal + planilha Excel, oferecendo OS + calibração + NFS-e num só produto. **Gap claro:** Qualyteam não fecha o ciclo NFS-e municipal |
+
+---
+
+### 14.3 SAP Business One — implementado por parceiros no Brasil
+
+| Item | Resposta |
+|---|---|
+| URL | https://www.sap.com/brazil/products/erp/business-one.html • https://www.sap.com/brazil/partners/find.html |
+| Origem | Alemanha (SAP SE). No Brasil opera **100% via parceiros credenciados** — SAP não vende direto [fonte: sap.com/brazil/partners/find.html] |
+| Parceiros BR ativos | ALFA (23 anos de mercado, metodologia MIA), Okser, Nexx Consulting, Inventsoftware, entre outros [fonte: alfaerp.com.br/sap-business-one-sistema-integrado-inteligente/ • okser.com.br/sap-b1/ • nexxconsulting.com.br/insights/como-funciona-sap-business-one/] |
+| Foco | ERP integrado pra **PME alta + média indústria** (não micro/pequena). 170+ países, 28 idiomas |
+| Localização fiscal BR | **Sim** — motor de impostos com tratamento explícito BR (junto com Índia, Rússia, França, Argentina). NF-e federal, NFS-e municipal, Cupons Fiscais (PDV), pacote SPED completo [fonte: docs.inventsoftware.info/TaxOne.NFSe/04-ConfigSAP.html] |
+| NFS-e | **Sim** — modelo NFS-e já existe nativo (Administração → Configuração → Finanças → Imposto → Nota Fiscal → Sequência). **Add-ons fiscais padrão de mercado:** TaxOne NFS-e (Inventsoftware), Mastersaf (Thomson Reuters) e similares [fonte: docs.inventsoftware.info/TaxOne.NFSe/04-ConfigSAP.html] |
+| Assistência técnica / módulo de serviços | **Sim, módulo "Gestão de Serviços" nativo** — incluído na licença Professional (acesso total a Contábil, Configurador de Impostos, Ativo Fixo, Projetos, Financeiro, Compras, Estoque, MRP I, Produção, CRM, Vendas, **Gestão de Serviços**, Faturamento) [fonte: alfaerp.com.br/sap-business-one-sistema-integrado-inteligente/] |
+| Calibração ISO 17025 | **Não nativamente.** SAP B1 standard não tem módulo de calibração metrológica; cliente que precisa integra software de calibração externo via API ou usa add-on de parceiro [a confirmar add-ons específicos no marketplace SAP] |
+| Cálculo de incerteza | **Não** |
+| Emite certificado de calibração ISO 17025/RBC | **Não nativamente** |
+| Mobile | Sim — apps SAP B1 mobile (consulta/aprovações). Add-ons mobile pra OS de campo via parceiros |
+| API | Sim — Service Layer (REST/OData) e DI API (.NET); ecossistema grande de integrações |
+| Deploy | **On-premise OU nuvem OU híbrido** [fonte: sap.com/brazil/products/erp/business-one/technical-information.html] |
+| Preço | **Faixa típica BR (não-oficial, levantamentos de parceiros):** Licença Professional ~**R$ 499/usuário/mês**, Limited ~**R$ 399/usuário/mês**, hospedagem em nuvem ~**R$ 180/usuário/mês**. Add-on NFS-e a partir de ~**R$ 300/mês**, Módulo Fiscal Completo ~**R$ 1.200/mês**. **Implementação: R$ 50k–150k** pra projeto básico (1 CNPJ, ~5 usuários, sem customização). Exemplo prático: **R$ 70k** pra 1 CNPJ + 5 usuários + compras/faturamento/finanças/estoque [fonte: alfaerp.com.br/sap-business-one-sistema-integrado-inteligente/ • marcosleite.tech/preco-do-sap-business-one/ • marcosleite.blog/preco-do-sap-business-one/]. ⚠️ Valores são estimativas de mercado divulgadas por parceiros — SAP não publica tabela oficial única |
+| Mercado-alvo | **PME alta + média indústria** com ticket de R$ 70k–500k+ no projeto inicial. Empresa que quer marca SAP no currículo ou que tem matriz multinacional usando SAP S/4HANA e precisa subsidiária BR aderente |
+| Implementação | **3–6 meses** projeto bem planejado; alguns parceiros (ALFA com metodologia MIA/SAP Activate) entregam pacotes Standard/Professional em até 12 semanas [fonte: alfaerp.com.br/sap-business-one-sistema-integrado-inteligente/] |
+| Forte em | Marca SAP (peso comercial), localização fiscal BR robusta com add-ons maduros, modalidades de deploy flexíveis, ecossistema gigante de parceiros e add-ons, padrão de mercado pra subsidiárias de multinacional |
+| Fraco em | **Custo inicial alto** pra laboratório pequeno (R$ 50k+ só implementação), **dependência de parceiro** pra qualquer mudança, calibração ISO 17025 **não é nativa**, complexidade de gestão, mensalidades acumulam (licença + nuvem + add-ons), gestão da mudança difícil internamente |
+| Reclamações | Custo total de propriedade alto, necessidade de consultoria pra customizações, "promessa de preço acessível" vs realidade de R$ 70k+ no projeto, dependência do parceiro escolhido |
+| Posicionamento vs Aferê | **Concorrente enterprise — fora do alvo direto do Aferê na fase 1**, mas será concorrente real quando Aferê subir pra cliente médio (40–200 funcionários). Aferê ganha em: calibração 17025 nativa, preço previsível SaaS, sem dependência de parceiro implementador, foco em laboratório calibrador BR. SAP B1 ganha em: marca, robustez fiscal multi-cenário, ecossistema |
+
+---
+

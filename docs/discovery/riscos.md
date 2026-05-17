@@ -1,7 +1,16 @@
 # Discovery — Riscos
 
 > **Artefato Rodada 0** (agente + Roldão). Inventário do que pode dar errado. Categorizado por tipo + probabilidade × impacto.
-> **Atualizado:** 2026-05-16 — refinamento com aprendizados das pesquisas de `concorrentes.md` e `normas-e-regulacao.md`. Novos riscos R16–R22 adicionados.
+> **Atualizado:** 2026-05-16 — padronização de IDs pós-auditoria (Auditor 4). Todos os riscos agora em formato R-NNN sequencial único; coluna "Origem" rastreia de onde veio cada um. Total: 38 riscos consolidados (29 originais + 9 importados de `concorrentes.md` §7).
+
+---
+
+## Convenção de IDs (Auditor 4 — aplicada 16/05/2026)
+
+- **Formato:** `R-NNN` sequencial único (sem reuso, sem buracos).
+- **Sem prefixos por categoria** (RC-*, RT-*, etc.) — categoria fica em coluna.
+- **Sem reuso de número** — se um risco for desativado, ID fica reservado eternamente (entrada vira "DEPRECATED" + motivo).
+- **Origem** rastreia onde o risco foi proposto pela primeira vez.
 
 ---
 
@@ -10,77 +19,89 @@
 - **Regulatório:** ANPD/LGPD, INMETRO/CGCRE, Receita Federal, Bacen, ANS, etc.
 - **Técnico:** stack inviável, integração impossível, performance, segurança
 - **Mercado:** TAM pequeno, concorrência forte, demanda baixa
-- **Time / operacional:** 1 pessoa + IA = bottleneck, agente vira inviável, burnout do Roldão
+- **Operacional / Time:** 1 pessoa + IA = bottleneck, agente vira inviável, burnout do Roldão
 - **Financeiro:** investimento insuficiente, custos crescendo desproporcionalmente
 - **Cliente:** "founder is customer" → produto não generaliza, primeiro cliente externo recusa
 - **Jurídico:** responsabilidade por dado vazado, IA emitindo certificado regulado
+- **Concorrencial:** movimentos de mercado que afetam diferenciação
 
 ---
 
-## Matriz Probabilidade × Impacto
+## Matriz Probabilidade × Impacto (38 riscos)
 
-| Risco | Categoria | P (1–5) | I (1–5) | Score (P×I) | Mitigação | Owner |
-|---|---|---|---|---|---|---|
-| Customização disfarçada (founder is customer) | Cliente | 4 | 5 | **20** | Discovery rigorosa com 5–10 OUTRAS empresas | Roldão |
-| Família 5 (3 auditores) virar vaporware | Operacional | 4 | 5 | **20** | Materializar prompts + triggers + veto na Rodada 4 | Agente |
-| Multi-tenant vazamento entre clientes | Técnico/Regulatório | 3 | 5 | **15** | INV-TENANT-001 + RLS + hook + drill | Auditor Segurança |
-| TAM ridículo (poucos prospects ICP) | Mercado | 3 | 5 | **15** | Validação ativa antes de comprometer | Roldão |
-| ERP de N módulos com 1 pessoa = anos sem MVP | Operacional | 5 | 4 | **20** | Faseamento por módulo + MVP-1 enxuto | Roldão |
-| NFS-e em município com padrão próprio | Regulatório/Técnico | 4 | 4 | **16** | Matriz município × padrão + Focus/NFE.io | Auditor Conformidade |
-| Conflito tríplice retenção (Receita × ISO × LGPD) | Regulatório | 4 | 5 | **20** | `retencao-matriz.md` + base legal explícita | Auditor Conformidade |
-| Prompt injection via MCP GitHub | Técnico/Segurança | 3 | 4 | **12** | `mcp-policy.md` + `agente-input-nao-confiavel.md` | Auditor Segurança |
-| Hostinger SPOF (provedor inteiro fora) | Operacional | 2 | 5 | **10** | `dr-plan.md` 3 cenários + IaC pra provedor B | Auditor Operação |
-| Token cost explosion (>R$ 50/dia) | Financeiro | 3 | 3 | **9** | Orçamento de contexto + alerta no painel | Roldão |
-| Roldão burnout (dono não-técnico sozinho) | Operacional/Humano | 3 | 5 | **15** | Limites de autonomia + status semanal forçando foco | Roldão |
-| Stack escolhida se mostra inviável após MVP-1 | Técnico | 2 | 4 | **8** | Spikes técnicos em discovery + ADR-0001 conservadora | Auditor Arquitetura |
-| Concorrente (Bling/Tiny) lança features ISO 17025 | Mercado | 2 | 4 | **8** | Foco em diferencial + nicho fiel | Roldão |
-| LGPD: incidente de vazamento → multa ANPD | Regulatório/Financeiro | 2 | 5 | **10** | `seguranca-dados.md` + 72h playbook + DPO | Auditor Conformidade |
-| Signatário técnico não-disponível (RBC NIT-DICLA-021) | Regulatório | 3 | 5 | **15** | Identificar signatário ANTES de emitir 1º certificado | Roldão |
-| **R16** — NFS-e cutover Padrão Nacional (ME/EPP em 01/09/2026; município SP mantém próprio + ADN) gera bug fiscal pro nosso 1º cliente | Regulatório/Técnico | 4 | 5 | **20** | Integrar BaaS fiscal único (Focus/PlugNotas/TecnoSpeed) em vez de implementar municipal-a-municipal; ADR-fiscal pós-stack | Auditor Conformidade |
-| **R17** — Porto Alegre desliga DANFSe local em 01/07/2026 — se algum cliente nosso usa POA, sistema quebra na data | Regulatório/Técnico | 3 | 4 | **12** | Mapear municípios dos primeiros 5 clientes; ter integração ADN pronta antes de jul/26 | Auditor Conformidade |
-| **R18** — NIT-DICLA-030 rev. 15 (item 8.2.6) — emitir certificado sem resultado de medição + incerteza é rejeitado por Cgcre | Regulatório | 5 | 5 | **25** | Hook bloqueia emissão sem cadeia completa (invariante INV-CALIB-001); validar em mock antes de 1º cliente | Auditor Conformidade |
-| **R19** — Concorrente nacional (Cali/Metroex) lança fiscal/NFS-e via parceria antes do nosso MVP | Mercado | 3 | 4 | **12** | Ir a mercado rápido (faseamento prioriza módulo metrologia + fiscal juntos), lockar com integração bancária mais profunda | Roldão |
-| **R20** — FP2 Tecnologia expande NFS-e multi-município pra cobertura nacional (hoje só Santa Maria/RS) | Mercado | 2 | 4 | **8** | Monitorar; vantagem competitiva por UX moderna SaaS + capilaridade | Roldão |
-| **R21** — ERP horizontal (Omie/Bling/Conta Azul) lança vertical de calibração ISO 17025 | Mercado | 2 | 5 | **10** | Profundidade técnica ISO 17025 (cálculo incerteza GUM, rastreabilidade, ILAC G8) que generalistas não dominam; foco em cliente acreditado RBC | Roldão |
-| **R22** — Mito "72h GDPR" virar invariante errada — ANPD Res. 15/2024 é **3 dias úteis**, não 72h corridas. Implementar errado atrai multa ou ridículo | Regulatório/Operacional | 3 | 4 | **12** | Doc `lgpd-incidente-3-dias-uteis.md` (nome correto); revisar em todos os runbooks; treinar agentes | Auditor Conformidade |
-| **R23** — Stack escolhida não suportar validação de software metrológico (cláusula 7.11 da 17025) — change control + audit trail imutável + replay determinístico | Técnico/Regulatório | 3 | 5 | **15** | ADR-0001 stack deve incluir critério "permite WORM + audit trail + replay"; spike técnico antes de cravar | Auditor Arquitetura |
-| **R24** — Anvisa RDC 658/2022 (BPF medicamentos) ou RDC 786/2023 (sistemas computadorizados) atinge cliente farma que pede do nosso software conformidade que não temos | Regulatório/Mercado | 2 | 4 | **8** | Documentar em Família 6 quais clientes-farma exigem; manter "perfil regulado farma" como add-on, não MVP-1 | Auditor Conformidade |
-| **R25** — PCI-DSS 4.0.1 (vigente desde 31/03/2025) ativada se aceitarmos pagamento online direto | Regulatório/Operacional | 3 | 4 | **12** | Não processar cartão direto; usar PSP/gateway com tokenização (Stripe/Pagar.me/PagSeguro/Asaas) → escopo SAQ A | Auditor Segurança |
-| **R26** — Confusão entre as 3 empresas com nome "AutoLab" gera erro de comunicação/posicionamento competitivo | Operacional/Marketing | 2 | 2 | **4** | Padronizar referência interna como "AutoLab/Automa" (concorrente direto), "Sistema Autolab/Arkade" (obras), "AUTOLAB/MRI" (analítico). Documentado em `concorrentes.md` §3.16 | Agente |
-| **R27** — **Prompt injection via cliente final do tenant.** Cliente do lab inclui payload malicioso em campo de cadastro de instrumento, observação de OS ou descrição de NC; agente lê esse input e executa ação indevida (ex: emitir certificado errado, expor dado de outro tenant, executar comando privilegiado). Diferente de "prompt injection MCP GitHub" — esse é input não-confiável em produção. | Técnico/Segurança/Multi-tenant | 5 | 5 | **25** | (1) `mcp-policy.md` + `agente-input-nao-confiavel.md` classificam todo input externo como "regulado-untrusted"; (2) agentes podem ler mas NÃO podem executar ações em financeiro/KMS/migrations/emissão-certificado sem aprovação humana; (3) sanitização de payload em todo campo de texto livre; (4) red team interno trimestral | Auditor Segurança |
-| **R28** — **Soberania de dados — Anthropic processa em EUA.** Cliente do lab pode atender cliente final farma (RDC 658/2022) ou setor financeiro que exija dados em território BR. Res. ANPD 19/2024 (transferência internacional) aplica. | Regulatório/Mercado | 4 | 4 | **16** | (1) DPA Anthropic em vigor; (2) cláusula contratual "dados de cliente final NÃO transitam pela API por padrão"; (3) roadmap pra modelo BR (Maritaca, Sabiá) se cliente exigir; (4) opt-out por tenant; (5) documentar fluxo de dados em RIPD | Auditor Conformidade |
-| **R29** — **Bus factor Roldão (saúde/incapacidade).** Dono não-técnico sozinho — se afastar 30 dias, produto para. Diferente de R "burnout" (sobrecarga); esse é incapacidade súbita. | Operacional/Humano | 3 | 5 | **15** | (1) Runbook de continuidade documentado; (2) procurador técnico nomeado em cartório; (3) acesso de emergência (chaves, contas, credenciais) em cofre digital com sucessor; (4) sucessor treinado pra ler `painel-do-dono.md` e operar agentes em 24h | Roldão |
+| ID | Risco (resumo) | Categoria | P | I | Score | Mitigação | Owner | Origem |
+|---|---|---|---|---|---|---|---|---|
+| **R-001** | Customização disfarçada (founder is customer) | Cliente | 4 | 5 | **20** | Discovery rigorosa com 5-10 OUTRAS empresas | Roldão | original |
+| **R-002** | Família 5 (3 auditores) virar vaporware | Operacional | 4 | 5 | **20** | Materializar prompts + triggers + veto na Rodada 4 | Agente | original |
+| **R-003** | Multi-tenant vazamento entre tenants | Técnico/Regulatório | 3 | 5 | **15** | INV-TENANT-001 + RLS + hook + drill | Auditor Segurança | original |
+| **R-004** | TAM ridículo (poucos prospects ICP) | Mercado | 3 | 5 | **15** | Validação ativa antes de comprometer | Roldão | original |
+| **R-005** | ERP de N módulos com 1 pessoa = anos sem MVP | Operacional | 5 | 4 | **20** | Faseamento por módulo + MVP-1 enxuto | Roldão | original |
+| **R-006** | NFS-e em município com padrão próprio (SP, Goiânia) | Regulatório/Técnico | 4 | 4 | **16** | Matriz município × padrão + BaaS fiscal | Auditor Conformidade | original |
+| **R-007** | Conflito tríplice retenção (Receita × ISO × LGPD) | Regulatório | 4 | 5 | **20** | `retencao-matriz.md` + base legal explícita | Auditor Conformidade | original |
+| **R-008** | Prompt injection via MCP GitHub (input dev/repo) | Técnico/Segurança | 3 | 4 | **12** | `mcp-policy.md` + `agente-input-nao-confiavel.md` | Auditor Segurança | original |
+| **R-009** | Hostinger SPOF (provedor inteiro fora) | Operacional | 2 | 5 | **10** | `dr-plan.md` 3 cenários + IaC pra provedor B | Auditor Operação | original |
+| **R-010** | Token cost explosion (>R$ 50/dia) | Financeiro | 3 | 3 | **9** | Hard cap por tenant + alerta no painel + circuit breaker (ADR-0000) | Roldão | original |
+| **R-011** | Roldão burnout (dono não-técnico sozinho) | Operacional/Humano | 3 | 5 | **15** | Limites de autonomia + status semanal forçando foco | Roldão | original |
+| **R-012** | Stack escolhida se mostra inviável após MVP-1 | Técnico | 2 | 4 | **8** | Spikes técnicos em discovery + ADR-0001 conservadora | Auditor Arquitetura | original |
+| **R-013** | Concorrente generalista lança features ISO 17025 | Mercado | 2 | 4 | **8** | Foco em diferencial + nicho fiel. **Consolidado com R-033** | Roldão | original |
+| **R-014** | LGPD: incidente de vazamento → multa ANPD | Regulatório/Financeiro | 3 | 5 | **15** | `seguranca-dados.md` + 3-dias-úteis playbook + DPO | Auditor Conformidade | original (re-scored Auditor 4: era 10) |
+| **R-015** | Signatário técnico não-disponível (RBC NIT-DICLA-021) | Regulatório | 3 | 5 | **15** | Identificar signatário ANTES de emitir 1º certificado | Roldão | original |
+| **R-016** | NFS-e cutover Padrão Nacional 01/09/2026 (ME/EPP) — Res. CGSN 189/2026 | Regulatório/Técnico | 4 | 5 | **20** | BaaS fiscal único (Focus/PlugNotas/TecnoSpeed); ADR fiscal pós-stack | Auditor Conformidade | normas-e-regulacao |
+| **R-017** | Porto Alegre desliga DANFSe local em 01/07/2026 | Regulatório/Técnico | 3 | 4 | **12** | Mapear municípios dos primeiros 5 clientes; integração ADN pronta antes de jul/26 | Auditor Conformidade | normas-e-regulacao |
+| **R-018** | NIT-DICLA-030 rev. 15 item 8.2.6 — certificado sem cadeia + incerteza rejeitado | Regulatório | 5 | 5 | **25** | Hook bloqueia emissão sem cadeia completa (INV-002); validar em mock antes do 1º cliente | Auditor Conformidade | normas-e-regulacao |
+| **R-019** | Concorrente nacional (Cali/Metroex) lança fiscal/NFS-e antes do nosso MVP | Mercado | 3 | 4 | **12** | Ir a mercado rápido (módulo metrologia + fiscal juntos); integração bancária mais profunda | Roldão | concorrentes (era RC-01) |
+| **R-020** | FP2 Tecnologia expande NFS-e multi-município pra cobertura nacional | Mercado | 2 | 4 | **8** | Monitorar M&A/expansão; vantagem por UX SaaS + capilaridade | Roldão | concorrentes (era RC-02) |
+| **R-021** | DEPRECATED — consolidado com R-033 (ERP horizontal lança vertical calibração). | — | — | — | — | Ver R-033 | — | original |
+| **R-022** | Mito "72h GDPR" virar invariante errada — ANPD é **3 dias úteis** | Regulatório/Operacional | 3 | 4 | **12** | Doc `lgpd-incidente-3-dias-uteis.md`; revisar runbooks; treinar agentes | Auditor Conformidade | normas-e-regulacao |
+| **R-023** | Stack não suporta validação de software metrológico (cláusula 7.11) | Técnico/Regulatório | 3 | 5 | **15** | ADR-0001 com critério "WORM + audit trail + replay determinístico"; spike antes de cravar | Auditor Arquitetura | concorrentes/normas |
+| **R-024** | Anvisa RDC 658/2022 ou RDC 786/2023 atinge cliente farma | Regulatório/Mercado | 2 | 4 | **8** | Documentar quais clientes farma exigem; "perfil regulado farma" como add-on, não MVP-1 | Auditor Conformidade | normas-e-regulacao |
+| **R-025** | PCI-DSS 4.0.1 ativada se aceitarmos pagamento online direto | Regulatório/Operacional | 3 | 4 | **12** | Não processar cartão direto; PSP/gateway com tokenização → SAQ A | Auditor Segurança | normas-e-regulacao |
+| **R-026** | Confusão entre 3 empresas chamadas "AutoLab" | Operacional/Marketing | 2 | 2 | **4** | Padronizar referência interna (Automa/Arkade/MRI) em `concorrentes.md` §3.16 | Agente | concorrentes |
+| **R-027** | **Prompt injection via cliente final do tenant** | Técnico/Segurança/Multi-tenant | 5 | 5 | **25** | ADR-0000 + `agente-input-nao-confiavel.md`: input externo = "regulado-untrusted"; agentes não executam ações sensíveis sem aprovação humana; sanitização; red team trimestral | Auditor Segurança | auditoria batch 1 |
+| **R-028** | Soberania de dados — Anthropic processa em EUA | Regulatório/Mercado | 4 | 4 | **16** | ADR-0000: DPA + opt-out por tenant; roadmap modelo BR (Maritaca/Sabiá) | Auditor Conformidade | auditoria batch 1 |
+| **R-029** | Bus factor Roldão (saúde/incapacidade súbita) | Operacional/Humano | 3 | 5 | **15** | Runbook continuidade; procurador técnico em cartório; cofre digital com sucessor; sucessor treinado em `painel-do-dono.md` | Roldão | auditoria batch 1 |
+| **R-030** | Cali lança fiscal/NFS-e via parceria (variante específica de R-019) | Mercado | 3 | 4 | **12** | Ver R-019. **Considerar fundir com R-019 numa próxima revisão** | Roldão | concorrentes (era RC-01) |
+| **R-031** | FP2 expande nacional (variante de R-020) | Mercado | 2 | 4 | **8** | Ver R-020 | Roldão | concorrentes (era RC-02) |
+| **R-032** | Qualer/MasterControl lança versão pt-BR + fiscal | Mercado | 1 | 3 | **3** | Foco em PME BR; gigantes entram pelo enterprise primeiro | Roldão | concorrentes (era RC-03) |
+| **R-033** | ERP horizontal (Omie/Bling/Conta Azul/Tiny) lança vertical calibração ISO 17025 | Mercado | 2 | 5 | **10** | Profundidade técnica ISO 17025 (incerteza GUM, rastreabilidade, ILAC G8) que generalistas não dominam; foco em RBC | Roldão | concorrentes (era RC-04) + original R-021 |
+| **R-034** | Fundação CERTI homologa só Cali e cria barreira política | Mercado | 1 | 4 | **4** | Buscar homologação CERTI cedo; caso de uso comparativo técnico | Roldão | concorrentes (era RC-05) |
+| **R-035** | Visma (dona da Conta Azul desde 08/2025) compra Cali/Metroex | Mercado | 3 | 5 | **15** | Monitorar M&A Visma na BR; ir a mercado rápido; lockar com integração bancária mais profunda | Roldão | concorrentes (era RC-06) |
+| **R-036** | TOTVS lança vertical de calibração via SIGAMNT/SIGAQMT melhorado | Mercado | 2 | 4 | **8** | Profundidade técnica RBC + UX moderna SaaS que TOTVS Protheus não consegue replicar | Roldão | concorrentes (era RC-07) |
+| **R-037** | CGCRE muda paradigma pra acreditação baseada em riscos | Mercado/Regulatório | 3 | 3 | **9** | Modelar audit trail extensível ao novo modelo desde dia 0; acompanhar discussões CGCRE | Auditor Conformidade | concorrentes (era RC-08) |
+| **R-038** | INMETRO/CGCRE oferece plataforma estatal grátis pra labs acreditados | Mercado | 1 | 5 | **5** | Sem ação ativa; gatilho seria comunicado oficial | Roldão | concorrentes (era RC-09) |
 
 ---
 
-## Top riscos prioritários atualizados (≥15) — após rodada 1 de pesquisa + auditoria
+## Top 15 prioritários (Score ≥ 12) — atualizado pós-padronização
 
-> Ordem reflete score P×I bruto. R18 e R27 empatam em 25; auditor 4 sugeriu R27 no topo por NÃO ter mitigação implementada ainda.
+> R-018 e R-027 empatam em 25; **R-027 fica no #1** porque NÃO tem mitigação implementada ainda (ADR-0000 escrita mas hooks pendentes); R-018 já tem hook planejado em `REGRAS-INEGOCIAVEIS.md` (INV-002).
 
-1. **R27 — Prompt injection via cliente final do tenant** — score 25. Mitigação dependente de hooks ainda não implementados. **#1 prioridade.**
-2. **R18 — Certificado sem cadeia de rastreabilidade rejeitado por Cgcre** (NIT-DICLA-030 rev. 15, item 8.2.6) — score 25. Mitigação: hook bloqueia emissão.
-3. **R16 — Cutover NFS-e Padrão Nacional 01/09/2026 (ME/EPP)** — score 20. Mitigação: BaaS fiscal único.
-4. **Customização disfarçada** (founder is customer) — score 20. Discovery rigorosa OBRIGATÓRIA.
-5. **Família 5 vaporware** — score 20. Materializar na Rodada 4.
-6. **ERP N módulos com 1 pessoa = anos sem MVP** — score 20. Faseamento essencial.
-7. **Conflito tríplice retenção** (Receita 5 anos × ISO 17025 25 anos × LGPD esquecimento) — score 20. `retencao-matriz.md` urgente.
-8. **R28 — Soberania de dados Anthropic (EUA)** — score 16. DPA + opt-out por tenant.
-9. **NFS-e em município com padrão próprio** (SP, Goiânia) — score 16. BaaS fiscal.
-10. **Multi-tenant vazamento entre clientes** — score 15. INV-TENANT-* + hooks + RLS PostgreSQL.
-11. **R29 — Bus factor Roldão** — score 15. Procurador técnico + cofre + sucessor treinado.
-12. **TAM ridículo (poucos prospects ICP)** — score 15. Validação ativa antes de comprometer.
-13. **Roldão burnout** — score 15. Limites de autonomia + status semanal forçando foco.
-14. **Signatário técnico indisponível** (RBC NIT-DICLA-021) — score 15. Identificar antes do 1º certificado.
-15. **R23 — Stack incapaz de validar software metrológico (cláusula 7.11)** — score 15. ADR-0001 com critério WORM+audit trail+replay.
+1. **R-027** — Prompt injection cliente final — 25
+2. **R-018** — Certificado sem cadeia rejeitado por Cgcre — 25
+3. **R-001** — Customização disfarçada (founder is customer) — 20
+4. **R-002** — Família 5 vaporware — 20
+5. **R-005** — ERP N módulos com 1 pessoa = anos — 20
+6. **R-007** — Conflito tríplice retenção — 20
+7. **R-016** — Cutover NFS-e Padrão Nacional 01/09/2026 — 20
+8. **R-006** — NFS-e em município com padrão próprio — 16
+9. **R-028** — Soberania de dados Anthropic — 16
+10. **R-003** — Multi-tenant vazamento — 15
+11. **R-004** — TAM ridículo — 15
+12. **R-011** — Roldão burnout — 15
+13. **R-014** — LGPD: vazamento → multa ANPD — 15
+14. **R-015** — Signatário técnico indisponível — 15
+15. **R-023** — Stack incapaz de validar software metrológico — 15
+16. **R-029** — Bus factor Roldão — 15
+17. **R-035** — Visma compra Cali/Metroex — 15
 
 ---
 
 ## Riscos "cisnes negros" (P baixa, I catastrófico)
 
-- Anthropic descontinua API (todo agente para)
-- Hostinger BR sai do ar permanentemente
-- ANPD multa milionária em SaaS multi-tenant similar (precedente)
-- INMETRO mudar política sobre software de calibração com IA
+- Anthropic descontinua API (todo agente para) — coberto pela ADR-0000 (abstração de provider obrigatória).
+- Hostinger BR sai do ar permanentemente — coberto por R-009.
+- ANPD multa milionária em SaaS multi-tenant similar (precedente) — observar.
+- INMETRO mudar política sobre software de calibração com IA — coberto por R-037.
 
 **Mitigação:** observar; sem ação ativa AGORA mas plano de contingência mental.
 
@@ -88,7 +109,9 @@
 
 ## Como esta lista evolui
 
-- Risco novo descoberto → adicionar imediatamente.
-- Mitigação implementada → marcar ✅ + reduzir score.
+- Risco novo descoberto → adicionar imediatamente como R-NNN (próximo número disponível).
+- Mitigação implementada → marcar ✅ + reduzir score residual.
 - Risco materializou → mover pra postmortem + atualizar invariante.
+- Risco descontinuado → marcar como DEPRECATED + razão (não remover linha, não reusar ID).
 - Revisão obrigatória a cada milestone (síntese, MVP-1, 1º deploy, etc.).
+- **Coluna Origem é imutável** — preserva história mesmo se risco for re-categorizado.

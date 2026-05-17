@@ -79,7 +79,7 @@
 |---|---|---|---|---|---|---|
 | 27 | ADR fiscal (BaaS único) | `docs/adr/` | ⏳ | 🔴 | R16 + Auditor 2 sugestão | Pós-stack |
 | 28 | `adr/0003-mobile-tecnico-campo.md` | `docs/adr/` | ⏳ | 🔴 | `dominio-de-negocio.md` §Mapa | Pós-stack |
-| 29 | **ADR-IA** (NOVO — sugestão Auditor 4) — abstração provider + opt-out dados cliente + IP output + hard cap por tenant + suite de eval baseline | `docs/adr/` | ⏳ | 🔴 | R27, R28, R30, R31, R32 | Mitigação de 5 riscos de IA |
+| 29 | **ADR-0000 — Uso de IA** — abstração provider + opt-out dados cliente + IP output + hard cap por tenant + suite de eval baseline + sanitização input não-confiável | `docs/adr/0000-uso-de-ia.md` | ✅ **criado 16/05/2026** | 🔴 | R-027, R-028, R-010, R-031, R-032 | (resolvido) |
 
 ---
 

@@ -29,18 +29,15 @@
 6. ✅ `docs/governanca/auditoria-decisoes-autonomas.md` — entrada nova com auditoria + correções aplicadas + 9 decisões pendentes pro Roldão.
 
 ### Próximo passo lógico
-**Aguardando Roldão decidir 9 itens não-aplicados** da auditoria (decisões de produto/escopo):
-1. Subir piso de pricing R$ 300→R$ 500-1.000 (Auditor 1)
-2. Adicionar fichas de TOTVS Protheus, Qualyteam, SAP B1 BR (Auditor 1)
-3. Refinar invariante #4 em 3 sub-regras testáveis (Auditor 2)
-4. Mover invariante #7 (BaaS único) pra ADR + adicionar invariantes #11-#15 (Auditor 2)
-5. Subdividir domínio Metrologia em 3 sub-domínios (Auditor 3)
-6. Mover Gestão de Competências pra MVP-1 (Auditor 3 — conflito com 17025 6.2)
-7. Adicionar metrologia legal como sub-domínio ou flag (Auditor 3)
-8. Padronizar IDs de risco (R-001 a R-NNN) (Auditor 4)
-9. Criar ADR-IA hoje (Auditor 4)
+**✅ Todas as 9 decisões da auditoria foram aceitas pelo Roldão e aplicadas em 16/05/2026.** Resumo do que mudou:
+- D-aud-1: pricing R$ 500-1.000 com 1 mês grátis (era R$ 300)
+- D-aud-2: 3 fichas novas (TOTVS Protheus + Qualyteam + SAP B1)
+- D-aud-3+4: 14 invariantes (era 10); INV-004 dividido em a/b/c; INV-007 movido pra ADR; INV-010 a INV-014 novos
+- D-aud-5+6+7: Metrologia subdividida em 3; Gestão de Competências promovida ao MVP-1; Metrologia Legal adicionada
+- D-aud-8: 38 riscos consolidados em R-001..R-038 (formato único)
+- D-aud-9: ADR-0000 (Uso de IA) criada
 
-Depois disso, **Rodada 0 batch 2** — agente sozinho ainda consegue:
+**Próximo: Rodada 0 batch 2** — agente sozinho ainda consegue:
 - `docs/discovery/personas-detalhadas.md` (6 papéis identificados em `dominio-de-negocio.md`)
 - `docs/discovery/jobs-to-be-done.md`
 - `docs/discovery/jornada-atual-sem-produto.md` (status quo — planilha + WhatsApp + Bling)
