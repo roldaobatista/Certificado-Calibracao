@@ -53,6 +53,11 @@ Cada categoria de dado tem:
 | **Cobrança recorrente Billing SaaS (token gateway, bandeira, últimos 4)** | Vigência + 30 dias | 5 anos para fatura | Execução contrato + obrigação fiscal | PG (token) + B2 (fatura) | Token: revogado no gateway + descartado; fatura: anonimização + crypto-shredding |
 | **Histórico de consentimento Comunicação Omnichannel (opt-in/opt-out)** | Opt-out + 6 meses (prova) | 5 anos | Cumprimento LGPD art. 8º (prova de consentimento) | B2 WORM | Anonimização (telefone/e-mail → hash) preservando registro de revogação |
 | **Sessão de Suporte SaaS (acesso remoto)** | 5 anos | 10 anos | Audit reforçado (INV-001) + defesa em incidente | B2 WORM (chave KMS separada — atendente Aferê não tem chave) | Manter (audit forense) |
+| **Cadastro de equipamento do cliente final (ativo)** | Vigência cliente + 5 anos | 25 anos se tem cert emitido (INV-025/ISO 17025 cl. 8.4) | LGPD art. 7º V + ISO 17025 cl. 8.4 quando há cert | PG (vigência) → B2 (resto) | Anonimização do vínculo `cliente_atual_id` (NULL) se cliente shredded; `cliente_id_original_hash` preservado |
+| **Equipamento sucateado/extraviado** | 5 anos pós-sucateamento | 25 anos se tem cert emitido | ISO 17025 cl. 8.4 + audit fiscal | B2 WORM | Anonimização vínculos PII; hash + dados técnicos preservados |
+| **EquipamentoEvento / audit_trail.eventos do equipamento** | 5 anos | 25 anos | ISO 17025 cl. 8.4 + INV-001 (hash chain) | B2 WORM | Payload já sanitizado (hashes); manter |
+| **QR Code (token + hash + emissão + revogação)** | Enquanto equipamento ativo + 5 anos | 25 anos se referenciado por cert | Execução contrato + ISO 17025 cl. 8.4 | PG (ativo) → B2 (revogado) | Revogação automática 90 dias após re-emissão; hash mantido em audit |
+| **Foto do equipamento (RAT-EQP-FOTO)** | Vigência equipamento + 5 anos pós-sucateamento | 25 anos se compõe evidência ISO 17025 | LGPD art. 7º V (técnica) ou art. 11 § 4º (sensível se rosto) + ISO 17025 cl. 7.4.4 (condição chegada) | PG (90 dias quente) → B2 cifrado | EXIF removido no upload; se rosto identificável → blur ou eliminação; se compõe evidência ISO → preservar 25 anos |
 
 ---
 
