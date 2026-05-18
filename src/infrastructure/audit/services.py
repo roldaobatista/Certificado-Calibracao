@@ -8,6 +8,7 @@ Outros writers esperam (em ms — auditoria sao operacoes curtas). Sem isso,
 from __future__ import annotations
 
 import hashlib
+import re
 from typing import Any
 from uuid import UUID
 
@@ -37,6 +38,67 @@ def hashear_pii_com_salt_tenant(valor: str, tenant_id: UUID | str | None) -> str
     tid = str(tenant_id) if tenant_id is not None else ""
     payload = f"afere-pii-salt:{tid}:{valor}".encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+# CONCERN Auditor Seguranca 2026-05-18 (US-002 retroativa): sanitizar payload de
+# audit antes de devolver na API. Mesmo sendo gerado por nos (nao usuario), eh
+# defesa em profundidade — se outro modulo gravar PII por engano no audit,
+# timeline da visao 360 nao expoe.
+_RE_CPF_AUDIT = re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")
+_RE_CNPJ_AUDIT = re.compile(
+    r"\b[A-Z0-9]{2}\.?[A-Z0-9]{3}\.?[A-Z0-9]{3}/?[A-Z0-9]{4}-?\d{2}\b", re.IGNORECASE
+)
+_RE_EMAIL_AUDIT = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+_RE_TELEFONE_AUDIT = re.compile(r"\b(?:\(?\d{2}\)?\s?)?\d{4,5}-?\d{4}\b")
+
+# Chaves de payload conhecidamente sensiveis — denylist explicita.
+_CHAVES_PII_DENYLIST = frozenset(
+    {
+        "nome",
+        "nome_fantasia",
+        "documento",
+        "cpf",
+        "cnpj",
+        "email",
+        "telefone",
+        "endereco",
+        "justificativa_bruta",
+        "motivo_observacao",
+        "procedencia_declarada",
+    }
+)
+
+
+def sanitizar_payload_audit(payload: Any) -> Any:
+    """Remove PII de payload antes de devolver na API.
+
+    Aplicacao: timeline da visao 360, listagem de importacoes, qualquer
+    endpoint que devolva `Auditoria.payload_jsonb` ao usuario.
+
+    Comportamento:
+    - Chaves em `_CHAVES_PII_DENYLIST` viram `[REDACTED]`.
+    - Valores string sao escaneados por regex (CPF/CNPJ/email/telefone);
+      match vira `[REDACTED]`.
+    - Estruturas aninhadas (dict, list) sao percorridas recursivamente.
+    - Tipos primitivos (int, bool, None, float) passam intactos.
+    """
+    if isinstance(payload, dict):
+        return {
+            k: ("[REDACTED]" if k in _CHAVES_PII_DENYLIST else sanitizar_payload_audit(v))
+            for k, v in payload.items()
+        }
+    if isinstance(payload, list):
+        return [sanitizar_payload_audit(item) for item in payload]
+    if isinstance(payload, str):
+        if (
+            _RE_CPF_AUDIT.search(payload)
+            or _RE_CNPJ_AUDIT.search(payload)
+            or _RE_EMAIL_AUDIT.search(payload)
+            or _RE_TELEFONE_AUDIT.search(payload)
+        ):
+            return "[REDACTED]"
+        return payload
+    return payload
 
 
 # Chave estavel do advisory lock — qualquer int64. hashtext() gera o mesmo

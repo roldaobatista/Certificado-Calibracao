@@ -10,13 +10,13 @@ R3 advogado: NAO bloqueia se `Tenant.bloqueio_automatico_inadimplencia_habilitad
 
 from __future__ import annotations
 
-import hashlib
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
 from django.core.management.base import BaseCommand
 
+from src.infrastructure.audit.services import hashear_pii_com_salt_tenant
 from src.infrastructure.clientes.bloqueio import (
     CAUSATION_TITULO_VENCIDO,
     MOTIVO_AUTOMATICO_INADIMPLENCIA_90D,
@@ -104,9 +104,9 @@ class Command(BaseCommand):
                         "tenant_id": str(tenant.id),
                         "bloqueio_id": str(bloqueio.id),
                         "motivo_categoria": MOTIVO_AUTOMATICO_INADIMPLENCIA_90D,
-                        "justificativa_hash": hashlib.sha256(
-                            justificativa.encode("utf-8")
-                        ).hexdigest(),
+                        "justificativa_hash": hashear_pii_com_salt_tenant(
+                            justificativa, tenant.id
+                        ),
                         "causation_type": CAUSATION_TITULO_VENCIDO,
                         "causation_id": str(item.causation_titulo_id),
                         "dias_vencido": item.dias_vencido,

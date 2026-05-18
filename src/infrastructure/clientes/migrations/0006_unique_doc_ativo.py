@@ -6,7 +6,7 @@ deletado, dedup nao ve perdedor, duplicata silenciosa).
 """
 
 # rls-policy: external none -- esta migration NAO cria tabela com tenant_id; so adiciona INDEX
-# tests-coverage: tests/test_clientes_us_cli_005_dedup.py
+# tests-coverage: tests/test_clientes_us_cli_005_mesclar.py
 
 from __future__ import annotations
 

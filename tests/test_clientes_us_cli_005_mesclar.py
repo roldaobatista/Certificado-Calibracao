@@ -301,7 +301,7 @@ def test_mesclar_atomico_rollback_em_falha(cenario, monkeypatch):
 
     original = services.registrar_auditoria
 
-    def falha_apenas_mesclado(*args, **kwargs):  # type: ignore[no-untyped-def]
+    def falha_apenas_mesclado(*args, **kwargs):  # type: ignore[no-untyped-def] -- closure de monkeypatch com assinatura dinamica pytest
         if kwargs.get("action") == "cliente.mesclado":
             raise RuntimeError("Audit falhou simulado")
         return original(*args, **kwargs)
@@ -334,3 +334,88 @@ def test_mesclar_atomico_rollback_em_falha(cenario, monkeypatch):
         venc_pos = Cliente.objects.get(id=venc.id)
     assert perd_pos.deletado_em is None, "Rollback falhou — perdedor foi soft-deleted"
     assert venc_pos.nome == "Vencedor LTDA", "Rollback falhou — vencedor foi alterado"
+
+
+# =============================================================
+# CONCERN Auditor Qualidade US-CLI-005 retroativa (2026-05-18) —
+# 4 ramos ErroMesclagem sem teste de mapeamento HTTP status.
+# Sem cobertura, troca de status passa verde silenciosamente.
+# =============================================================
+
+
+@pytest.mark.django_db(transaction=True)
+def test_mesclar_mesma_entidade_retorna_400(cenario):
+    """ErroMesclagem(mesma_entidade) -> HTTP 400."""
+    venc, _ = _criar_par(cenario["tenant"], cenario["admin"])
+    client = APIClient()
+    _autenticar(client, cenario["admin"], cenario["tenant"])
+
+    response = client.post(
+        f"/api/v1/clientes/{venc.id}/mesclar/{venc.id}/",
+        data={"motivo_categoria": "duplicacao_atendimento"},
+        format="json",
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "mesma_entidade"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_mesclar_vencedor_nao_encontrado_retorna_404(cenario):
+    """ErroMesclagem(vencedor_nao_encontrado) -> HTTP 404."""
+    _, perd = _criar_par(cenario["tenant"], cenario["admin"])
+    client = APIClient()
+    _autenticar(client, cenario["admin"], cenario["tenant"])
+
+    inexistente = uuid4()
+    response = client.post(
+        f"/api/v1/clientes/{inexistente}/mesclar/{perd.id}/",
+        data={"motivo_categoria": "duplicacao_atendimento"},
+        format="json",
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "vencedor_nao_encontrado"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_mesclar_perdedor_nao_encontrado_retorna_404(cenario):
+    """ErroMesclagem(perdedor_nao_encontrado) -> HTTP 404."""
+    venc, _ = _criar_par(cenario["tenant"], cenario["admin"])
+    client = APIClient()
+    _autenticar(client, cenario["admin"], cenario["tenant"])
+
+    inexistente = uuid4()
+    response = client.post(
+        f"/api/v1/clientes/{venc.id}/mesclar/{inexistente}/",
+        data={"motivo_categoria": "duplicacao_atendimento"},
+        format="json",
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "perdedor_nao_encontrado"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_mesclar_perdedor_ja_deletado_retorna_409(cenario):
+    """ErroMesclagem(perdedor_ja_deletado) -> HTTP 409.
+
+    Idempotencia reversa: tentar mesclar de novo o mesmo par retorna 409.
+    """
+    from datetime import datetime, timezone
+
+    venc, perd = _criar_par(cenario["tenant"], cenario["admin"])
+    # Marca perdedor como ja soft-deleted
+    with run_in_tenant_context(cenario["tenant"].id, usuario_id=cenario["admin"].id):
+        Cliente.all_objects.filter(id=perd.id).update(
+            deletado_em=datetime.now(timezone.utc),
+            deletado_motivo_categoria="duplicacao_atendimento",
+        )
+
+    client = APIClient()
+    _autenticar(client, cenario["admin"], cenario["tenant"])
+
+    response = client.post(
+        f"/api/v1/clientes/{venc.id}/mesclar/{perd.id}/",
+        data={"motivo_categoria": "duplicacao_atendimento"},
+        format="json",
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"] == "perdedor_ja_deletado"

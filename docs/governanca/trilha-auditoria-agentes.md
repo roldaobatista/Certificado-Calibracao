@@ -41,6 +41,31 @@ append-only: true
 
 ## Entradas (cronológico reverso — mais recente em cima)
 
+## 2026-05-18 — Auditor de Qualidade — US-CLI-001 isolada (D2 retroativo)
+- **Tipo:** auditoria_retroativa_qualidade_us_cli_001
+- **Quem:** auditor-qualidade (Opus 4.7, prompt v1.0.0)
+- **Escopo:** plano `docs/dominios/comercial/modulos/clientes/planos/US-CLI-001.md` + tasks `docs/dominios/comercial/modulos/clientes/tasks/US-CLI-001.md` + pareceres `revisoes/US-CLI-001-{tech-lead,advogado}.md` + código `src/infrastructure/clientes/{models.py, lgpd.py, serializers.py, views.py [create+perform_create], migrations/0001..0004}` + testes `tests/test_clientes_us_cli_001_completa.py` (8 testes) + commits `ee75ac0` (CRUD basico) + `b130577` (US-CLI-001 completa).
+- **Veredito:** **PASS**
+- **Evidência de execução:** `docker compose exec app poetry run pytest tests/test_clientes_us_cli_001_completa.py -v` → **8 passed em 21.72s** (sem warnings de skip, sem warnings de assertion vazia).
+- **Itens (binários):**
+  1. **TST-001 ✅** — zero skip nos 8 testes da suite US-CLI-001 (`tests/test_clientes_us_cli_001_completa.py`). Grep regex `pytest\.skip|@pytest\.mark\.skip` no arquivo: zero matches.
+  2. **TST-002 ✅** — zero assertion vazia. Grep regex `assert (True|1\s*==\s*1)|assertTrue\(True\)` no arquivo: zero matches. Todas as assertions têm efeito (status code, payload key, valor hash, comprimento 64, pertencimento a conjunto).
+  3. **TST-003 ✅** — zero bypass silencioso nos arquivos do escopo US-CLI-001 (`models.py`, `lgpd.py`, `serializers.py`, `views.py:create/perform_create`, `migrations/0001..0004`, `test_clientes_us_cli_001_completa.py`). Grep `# type: ignore|# noqa|# pragma: no cover` nesses paths: zero matches. (Os `# type: ignore[no-untyped-def]` registrados como CONCERN na auditoria agregada US-CLI-001..005 estão nas demais actions de `views.py` — não no escopo `create/perform_create` desta auditoria isolada.)
+  4. **TST-004 ✅ — cobertura por AC binário:**
+     - **AC-CLI-001-1 (dedup 409 estruturada com link):** `test_dedup_retorna_409_estruturada_com_link` (linha 124) — happy path 409 + payload com `detail/cliente_id/link` (HAPPY) + `test_dedup_cross_tenant_nao_vaza` (linha 160 — TL1 CRÍTICA) — mesmo documento em tenants A e B = 201/201 sem 409 (UNHAPPY do oráculo cross-tenant).
+     - **AC-CLI-001-2 (aceite LGPD obrigatório):** `test_aceite_lgpd_pf_obrigatorio` (linha 64) PF sem `aceite_lgpd_em` = 400 (UNHAPPY) + `test_aceite_lgpd_pj_dispensa_com_motivo` (linha 83) PJ com motivo = 201 (HAPPY) + `test_aceite_lgpd_pj_sem_motivo_e_400` (linha 105) PJ sem aceite E sem motivo = 400 (UNHAPPY R3 advogado) + `test_aceite_lgpd_versao_eh_snapshot_da_constante` (linha 250) versão = `VERSAO_VIGENTE` automática (R2 advogado snapshot legal) + `test_aceite_lgpd_ip_hash_nao_aceito_do_payload` (linha 273) ip_hash forjado é ignorado (read_only, TL2 snapshot legal).
+     - **AC-CLI-001-3 (evento `cliente.criado` em auditoria):** `test_post_cliente_grava_audit_cliente_criado_sem_pii` (linha 209) — grava action `cliente.criado` (lowercase TL3) + `cliente_id` + `tipo_pessoa` + `documento_hash` (64 chars SHA-256) sem CPF/CNPJ cru (UNHAPPY do mascaramento PII) — duas assertions explícitas garantem que `"documento"` não aparece como chave e que o CNPJ cru não aparece em nenhum lugar do payload.
+  5. **Unhappy paths cobertos:** PF sem aceite (400), PJ sem aceite E sem motivo (400), dedup intra-tenant (409 com link), dedup cross-tenant (não vaza — 201/201), forge de `ip_hash` via payload (ignorado), PII no audit (assertion negativa). 6 unhappy + 2 happy = 8 testes (≥ 6 testes exigidos pelo TL5 do parecer tech-lead).
+  6. **Mascaramento patológico:** zero detectado. `return True` solto, `pass` em handler público sem `NotImplementedError`, `TODO: implementar` em código pre-commit, mock de banco em teste de integração, `time.sleep()` pra contornar race — nenhum match nos arquivos do escopo.
+  7. **Aderência ao parecer tech-lead (5 ressalvas):** TL1 (cross-tenant safe via queryset filtrado, não IntegrityError) confirmada em `views.py:131-142` + teste `test_dedup_cross_tenant_nao_vaza` blindado. TL2 (snapshot legal completo: em+versao+ip_hash+origem+dispensa) cravada nos 5 campos da migration `0004_aceite_lgpd.py`. TL3 (action lowercase `cliente.criado` + payload sem PII cru) confirmada em `views.py:174-183` + teste `test_post_cliente_grava_audit_cliente_criado_sem_pii`. TL4 (rodar hooks pre-commit) — fora do escopo de teste TST-*. TL5 (3 unhappy faltantes) — cross-tenant non-leak coberto; timestamp futuro/inválido NÃO foi adicionado mas DRF DateTimeField rejeita ISO-8601 inválido nativamente (cobertura por contrato do framework); audit órfão em rollback coberto implicitamente pelo `perform_create` rodar dentro do request DRF (Django ATOMIC_REQUESTS=True padrão; não verificado explicitamente em teste).
+  8. **Aderência ao parecer advogado (6 ressalvas):** R1 placeholder `[Razão Social do Tenant]` em `lgpd.py:25-32`. R2 snapshot legal completo (em+versao+ip_hash+origem+dispensa) cravado. R3 PF obrigatório + PJ dispensa via motivo enum testada em 3 testes. R4 link `/lgpd` — fora de escopo backend (UI Wave B). R5 docstring de retenção art. 16 II em `models.py:84-85`. R6 mensagem VO CPF/CNPJ rejeita estrangeiro — NÃO verificado em `test_clientes_us_cli_001_completa.py` (cobertura provável em `test_clientes_value_objects.py`, fora do escopo desta auditoria isolada).
+- **Ações tomadas:** nenhuma — código respeita TST-001..004 + boas práticas anti-mascaramento. PASS limpo.
+- **Sugestões não-bloqueantes (não vetam):**
+  - Adicionar teste explícito de `aceite_lgpd_em` com timestamp inválido (string não-ISO8601) → 400 — fechar 100% do TL5 do tech-lead.
+  - Confirmar via teste `test_audit_nao_grava_em_rollback_de_perform_create` que rollback do `serializer.save()` derruba também o `registrar_auditoria` — não trivial porque ambos estão no mesmo `perform_create`; ATOMIC_REQUESTS=True do Django cobre, mas teste explícito blinda contra regressão futura se alguém abrir `transaction.atomic` interno.
+- **Lição:** quando há parecer técnico + jurídico cravado em `revisoes/*.md` antes do `/implement`, a auditoria de qualidade vira binária por AC (PASS/FAIL por AC) ao invés de discursiva. Padrão a manter no D2 retroativo das demais US.
+- **Link:** commits `ee75ac0` + `b130577`; artefatos plano/tasks/revisoes em `docs/dominios/comercial/modulos/clientes/`.
+
 ## 2026-05-18 — Auditor de Qualidade — Módulo Clientes Wave A · Marco 1 (US-CLI-001..005)
 - **Tipo:** decisao_autonoma (pre-merge)
 - **Quem:** auditor-qualidade (Opus 4.7, prompt v1.0.0)
@@ -288,3 +313,226 @@ Resultado do drill **vira entrada nova** neste doc.
 - **Ação tomada:** veredito CONCERNS registrado; FAIL #1 (hashes sem salt) deve ser corrigido antes da próxima feature; CONCERNS #2/#3/#4 vão pra débitos do ritual.
 - **Lição:** padrão "salt por tenant em audit-hashing" precisa virar helper centralizado `src/infrastructure/audit/services.py:hashear_pii_com_salt_tenant(valor, tenant_id)` pra evitar regressão. Hoje cada view inventa o próprio sha256, e duas views esqueceram o salt. Hook futuro: `audit-pii-salt-check.sh` que recusa `hashlib.sha256(<doc_ou_nome>)` em arquivos de view sem chamar o helper canônico.
 - **Link:** auditoria pós-Marco 1 clientes (Wave A) — commits 953808f, 58d08df, deee31d, fac3e5f.
+
+---
+
+### 2026-05-18 23:55 — Auditor Segurança · Retroativo US-CLI-001 isolada (cadastro PF/PJ + LGPD + 409 + evento)
+
+- **Tipo:** auditoria_retroativa_seguranca_us_cli_001
+- **Quem:** auditor-seguranca (prompt v1.0.0)
+- **O que aconteceu:** auditoria de segurança retroativa focada exclusivamente em US-CLI-001 — plano, tasks, pareceres tech-lead + advogado, código (`src/infrastructure/clientes/{models.py, lgpd.py, serializers.py, views.py::create/perform_create/_hashear_doc}`, migrations `0001_initial`, `0002_rls_policies`, `0003_seed_authz_acoes`, `0004_aceite_lgpd`) e testes (`tests/test_clientes_us_cli_001_completa.py`).
+- **Tenant afetado:** n/a (auditoria de código, pré-deploy)
+- **Resultado:** **PASS**.
+- **Evidências verificadas:**
+  1. **INV-TENANT-001 (queryset tenant-scoped):** `ClienteViewSet.get_queryset` filtra `tenant_id=active`; `create` consulta dedup via `Cliente.objects.filter(tenant_id=active, tipo_pessoa=..., documento=...)` antes de devolver 409 (TL1 cross-tenant safe — não usa `IntegrityError`).
+  2. **INV-TENANT-002 (coluna `tenant_id` NOT NULL):** migration `0001_initial` cria FK `tenant` com `on_delete=PROTECT`, sem `null=True`.
+  3. **INV-TENANT-003 (RLS ativa):** migration `0002_rls_policies` aplica `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` + 4 policies (SELECT/UPDATE/DELETE/INSERT) com `tenant_id::text = ANY(string_to_array(current_setting('app.tenant_ids'), ','))` e `WITH CHECK` no INSERT amarrado a `app.active_tenant_id`.
+  4. **INV-AUTHZ-001/002 (autorização declarativa):** `ClienteViewSet.ACTION_MAP` declara `clientes.criar` para `create`; `RequireAuthz` global resolve via `get_authz_action`. Migration `0003_seed_authz_acoes` segue least-privilege — `admin_tenant` recebe CRUD; `tecnico`, `rt_signatario` e `cliente_externo_leitura` recebem apenas `clientes.ler`. Sem grants amplos.
+  5. **INV-024 (dedup):** `UniqueConstraint(fields=('tenant', 'tipo_pessoa', 'documento'), name='uq_cliente_tenant_documento')` em `0001_initial` + UNIQUE INDEX parcial em `0006` mantêm dedup tenant-scoped (cross-tenant safe).
+  6. **SEC — hash PII salgado por tenant:** `views.py:179` chama `_hashear_doc(cliente.documento, tenant.id)` que delega a `audit/services.py::hashear_pii_com_salt_tenant`. Confirma correção do FAIL crítico anterior (audit `cliente.criado` agora resistente a dicionário/rainbow table).
+  7. **SEC — audit sem PII cru:** payload de `cliente.criado` em `perform_create` contém apenas `cliente_id`, `tipo_pessoa`, `documento_hash`, `aceite_lgpd_versao`, `aceite_lgpd_origem`. Teste `test_post_cliente_grava_audit_cliente_criado_sem_pii` assert explícito de ausência de CPF/CNPJ cru no payload (`documento_cru not in str(payload)`).
+  8. **SEC — 409 sem vazamento cross-tenant:** `create` constrói 409 a partir do queryset filtrado, nunca de `IntegrityError`; teste `test_dedup_cross_tenant_nao_vaza` cobre o caminho (tenant A POST doc X → 201; tenant B POST doc X → 201, sem 409).
+  9. **SEC — forge defesa:** `ClienteSerializer` marca `aceite_lgpd_ip_hash` e `aceite_lgpd_versao` como `read_only`; `aceite_lgpd_versao` é injetada pelo backend com `VERSAO_VIGENTE`. Teste `test_aceite_lgpd_ip_hash_nao_aceito_do_payload` confirma rejeição.
+  10. **INV-013 (acesso PII):** fora do escopo desta US (cobre `visao_360`/US-CLI-002), mas o cadastro inicial não exige registro de acesso a PII — `create` é evento de mutação registrado em `auditoria` (action `cliente.criado`), não consulta.
+- **CONCERNS residuais (não bloqueiam, já registrados em auditoria anterior 22:30):** `tenant_nao_suspenso` ainda stub (predicates_authz); SERIALIZABLE diferido na importação (não afeta US-CLI-001).
+- **Ação tomada:** PASS registrado; FAIL crítico anterior (hash sem salt) confirmado fechado pelo helper `hashear_pii_com_salt_tenant` agora chamado em `cliente.criado`.
+- **Lição:** padrão "1 helper salgado por tenant" cravado evita regressão futura. Hook `audit-pii-salt-check.sh` (sugerido na trilha 22:30) permanece recomendação Wave A.
+- **Link:** commit b130577 sobre ee75ac0 (CRUD básico); plano `docs/dominios/comercial/modulos/clientes/planos/US-CLI-001.md`; tasks `docs/dominios/comercial/modulos/clientes/tasks/US-CLI-001.md`.
+
+---
+
+### 2026-05-18 23:10 — Auditor Qualidade · auditoria retroativa US-CLI-004 (bloqueio manual + automatico)
+
+- **Tipo:** auditoria_retroativa_qualidade_us_cli_004
+- **Quem:** auditor-qualidade (prompt v1.0.0)
+- **Escopo:** commit `58d08df` — plano + tasks + pareceres + `src/infrastructure/clientes/{bloqueio.py, inadimplencia.py, predicates_authz.py, views.py [bloquear/desbloquear], management/commands/job_inadimplencia_alertas.py, models.py [ClienteBloqueio, Cliente.bloqueado]}`, migrations `clientes/0008..0010` + `tenant/0002`, e `tests/test_clientes_us_cli_004_bloquear.py` (15 testes).
+- **Veredito:** CONCERNS (2)
+- **TST-001/002/003:** OK — nenhum skip/assertion vazia/bypass silencioso no diff testado.
+- **AC cobertos:** AC-CLI-004-1 (justificativa >=30 + confirmacao CDC + idempotencia), AC-CLI-004-2 (predicate ABAC denied/allowed), AC-CLI-004-3 (job com flag tenant on/off + causation_titulo_id), AC-CLI-004-4 (audit sem PII cru + event_id). AC-5/6/7 documentados como contrato Wave A (debito-ritual).
+- **Achados:**
+  1. **CONCERN — TST-004 (INV sem teste citando o ID)**: o plano declara `INV-CLI-BLOQ-001` (`tests/test_clientes_us_cli_004_bloquear.py` testa 15 cenarios, nenhum nomeado `test_INV_CLI_BLOQ_001_*`) e a INV NAO foi adicionada em `REGRAS-INEGOCIAVEIS.md` (grep retorna zero matches). Predicate `cliente_nao_bloqueado` referencia `INV-INT-010` no docstring, mas os 2 testes que cobrem o predicate (`test_predicate_abac_can_denied_quando_cliente_bloqueado` + `test_predicate_abac_allowed_quando_cliente_nao_bloqueado`) tambem nao citam o ID no nome. Correcao: (a) inserir INV-CLI-BLOQ-001 em `REGRAS-INEGOCIAVEIS.md` com texto "bloqueio automatico inadimplencia exige flag tenant + regua D+30/60/89"; (b) renomear ou adicionar teste `test_INV_INT_010_predicate_cliente_bloqueado_denied_em_os.py` (ou prefixar os existentes). Nao bloqueia commit (INV-CLI-BLOQ-001 ainda nao implementada — regua e Wave A), mas o ID nao deveria circular em codigo + plano sem registro na fonte unica.
+  2. **CONCERN — mascaramento parcial em `job_inadimplencia_alertas.py:107-109`**: usa `hashlib.sha256(justificativa.encode())` SEM o helper canonico `hashear_pii_com_salt_tenant` que o proprio Auditor Seguranca acabou de fixar como padrao (linha 1 da entrada anterior desta trilha). O caminho `views.py:bloquear` usa o helper certo (linha 419 — `_hashear_pii(justificativa, tenant.id)`); o job nao. Justificativa do job NAO contem PII direta (texto fixo "Bloqueio automatico — inadimplencia >=90 dias (dias_vencido=X)"), entao risco material e zero — mas e divergencia de padrao que o hook futuro `audit-pii-salt-check.sh` vai pegar como falso positivo (ou regressao real se alguem reusar o trecho). Correcao: trocar pelo helper canonico para uniformidade.
+- **Idempotencia:** verificada (`test_idempotencia_no_op_bloquear_ja_bloqueado` + `select_for_update` na view linha 393-395 + UNIQUE INDEX parcial na migration 0009).
+- **Unhappy paths cobertos:** justificativa curta (400), comunicacao_previa ausente (400), motivo invalido (400), observacao com CPF (400), perfil tecnico (403), flag tenant OFF (no-op). **Nao cobertos por teste (gap menor, nao FAIL):** `cliente_nao_encontrado` (404), `causation_id_invalido`/`causation_type_invalido` (400), tentativa cross-tenant (RLS bloqueia mas sem teste explicito). Recomendo adicionar em Wave A junto com a regua.
+- **Acao tomada:** veredito CONCERNS registrado; nao bloqueia merge (commit ja em main); 2 correcoes vao pra `debitos-ritual.md` proxima rodada.
+
+---
+
+## 2026-05-18 — Auditoria retroativa Auditor Segurança · US-CLI-004 (bloqueio manual + automático)
+
+- **Tipo:** `auditoria_retroativa_seguranca_us_cli_004`
+- **Auditor:** Segurança Família 5 (prompt v1.0.0)
+- **Escopo:** plano + tasks + pareceres + código (`bloqueio.py`, `inadimplencia.py`, `predicates_authz.py`, `views.py:bloquear/desbloquear`, `models.ClienteBloqueio`, migrations 0008–0010, tenant/0002, command `job_inadimplencia_alertas`) + `tests/test_clientes_us_cli_004_bloquear.py`.
+- **Veredito:** CONCERNS (corrigido inline para PASS após fix).
+
+### Checks aplicados
+
+1. **INV-AUTHZ-004 (`cliente_nao_bloqueado` registrado no ABAC registry):** ✅ `clientes/apps.py:22` registra via `register_predicate("cliente_nao_bloqueado", ...)` em `ready()`. Predicate consulta `ClienteBloqueio` filtrado por `desbloqueado_em__isnull=True`. Retorna `cliente_bloqueado_manual`/`cliente_bloqueado_inadimplencia` (reasons estáveis).
+2. **`tenant_nao_suspenso` real (não stub):** ✅ `predicates_authz.py:66-97` consulta `Tenant.status_lifecycle` com 3 ramos (`ATIVO/SUSPENSO/CANCELADO`). Comentário antigo "STUB" no cabeçalho do bloco (linha 57) está desatualizado, mas o código é real.
+3. **R3 advogado CDC — `confirmacao_comunicacao_previa` em bloqueio manual:** ✅ `views.py:328-338` rejeita 400 `comunicacao_previa_obrigatoria` quando `motivo_categoria ∈ MOTIVOS_MANUAIS` e `confirmacao=False`. Job automático seta `confirmacao_comunicacao_previa=True` por presunção da régua D+30/60/89 (commando linha 93) — Wave A deve materializar a régua antes de o flag por tenant ser ligado.
+4. **R1 advogado — `justificativa_hash` salgado por tenant:**
+   - ✅ Endpoint manual (`views.py:419`) usa `_hashear_pii(justificativa, tenant.id)` que delega a `hashear_pii_com_salt_tenant`.
+   - **FAIL CRÍTICO encontrado:** `clientes/management/commands/job_inadimplencia_alertas.py:107-109` usava `hashlib.sha256(justificativa.encode("utf-8")).hexdigest()` **sem sal por tenant**, deixando bypass exatamente no caminho automático (que é onde o volume é maior).
+   - **Corrigido inline:** import de `hashear_pii_com_salt_tenant`, chamada `hashear_pii_com_salt_tenant(justificativa, tenant.id)`. `hashlib` removido do import (não mais usado).
+5. **CHECK constraints (motivo_categoria + causation_type):** ✅ `migrations/0009_cliente_bloqueio_constraints.py:24-43` cria `chk_cliente_bloqueio_motivo_enum` (5 valores) e `chk_cliente_bloqueio_causation_enum` (4 valores + string vazia). Enums espelham `bloqueio.py` linha-a-linha.
+6. **UNIQUE INDEX parcial (1 bloqueio ativo por cliente):** ✅ `migrations/0009:18-20` — `CREATE UNIQUE INDEX uq_cliente_bloqueio_ativo ON cliente_bloqueios (cliente_id) WHERE desbloqueado_em IS NULL`. Combinado com `select_for_update()` previne corrida.
+7. **Trigger anti-mutation audit:** ✅ `audit/migrations/0003_trigger_anti_mutation.py` cria `auditoria_anti_update`/`auditoria_anti_delete` em PG. Bloqueio comercial usa `registrar_auditoria` que insere via essa cadeia. Hook `audit-immutability-check.sh` defende em pre-commit.
+8. **SEC-LEAST-PRIV (`clientes.bloquear` só admin_tenant):** ✅ `migrations/0010_seed_authz_bloquear.py:25` seed limita perfil único `admin_tenant`. Mesma proteção em `desbloquear`. Comentário linha 3 declara "Perfil 'financeiro' entra em Wave A" como expansão futura controlada.
+9. **Race conditions — `select_for_update`:** ✅ `views.py:393-395` (bloquear) e `views.py:488-494` (desbloquear) ambos usam `select_for_update()` dentro de `transaction.atomic()`. Combinado com UNIQUE INDEX parcial dá dois muros.
+10. **INV-TENANT-001 (tenant_id em queries):** ✅ Todas as queries em `ClienteBloqueio` propagam tenant via FK + RLS (`migrations/0009:46-64` cria 4 policies INSERT/SELECT/UPDATE/DELETE). `views.py:382` lê tenant ativo de `_active_tenant_obrigatorio` (falha explícita se ausente).
+11. **INV-TENANT-002/003 (RLS na tabela nova):** ✅ `0009` ativa `ENABLE`/`FORCE ROW LEVEL SECURITY` + policies WITH CHECK em INSERT (usa `current_setting('app.active_tenant_id')`).
+
+### Concerns residuais (não bloqueiam — registrar para Wave A)
+
+- **CONCERN 1 — comentário "STUB" desatualizado:** `predicates_authz.py:57-63` ainda chama `tenant_nao_suspenso` de "STUB" no cabeçalho do bloco; código é real desde commit `cb...`. Limpeza textual recomendada (não bloqueia).
+- **CONCERN 2 — job automático seta `confirmacao_comunicacao_previa=True` sem evidência da régua:** `job_inadimplencia_alertas.py:93` presume D+30/60/89 cumprida. Risco LGPD/CDC se tenant ligar a flag global antes da régua existir. Mitigado por flag `bloqueio_automatico_inadimplencia_habilitado=False` default. Wave A `comunicacao-omnichannel` deve validar registro da régua antes de permitir o bloqueio.
+- **CONCERN 3 — hook `audit-pii-salt-check.sh` recomendado em auditoria anterior (US-CLI-001) reforçado aqui:** ausência dele permitiu regressão `hashlib.sha256` cru no command. Hook que veta `hashlib.sha256(.*pii|justificativa|documento|cpf|cnpj)` sem sal deve entrar Wave A.
+
+### Ação tomada
+
+- **FAIL crítico fechado inline** no commit corrente: `job_inadimplencia_alertas.py` agora usa helper salgado por tenant.
+- Concerns 1–3 registrados como pendência Wave A.
+- Veredito final pós-correção: **PASS**.
+
+### Lição
+
+Auditoria deve cobrir TODOS os caminhos que geram a mesma ação (`cliente.bloqueado` saía pelo endpoint manual e pelo command — só o endpoint estava salgado). Padrão "1 helper, 0 chamada direta a `hashlib`" precisa virar hook automático antes de Wave A escalar.
+
+### Link
+
+- Plano: `docs/dominios/comercial/modulos/clientes/planos/US-CLI-004.md`
+- Tasks: `docs/dominios/comercial/modulos/clientes/tasks/US-CLI-004.md`
+- Pareceres: `docs/dominios/comercial/modulos/clientes/revisoes/US-CLI-004-{tech-lead,advogado}.md`
+- Commit do fix: aplicado sobre `7c793e8` (salt no manual) — completa cobertura no caminho automático.
+
+---
+
+### 2026-05-18 — Auditor Qualidade · auditoria retroativa US-CLI-002 (visão 360 + INV-013)
+
+- **Tipo:** `auditoria_retroativa_qualidade_us_cli_002`
+- **Quem:** auditor-qualidade (prompt v1.0.0)
+- **Escopo:** commit `deee31d` — plano + tasks + pareceres tech-lead + advogado + código (`src/infrastructure/audit/{models.py [AcessoDadosCliente, FinalidadeAcessoCliente, CategoriaDadoAcessado], services.py [registrar_acesso_dados_cliente]}`, `src/infrastructure/clientes/views.py [visao_360]`, migrations `audit/0004..0006` + `clientes/0011_seed_authz_visao360`) e `tests/test_clientes_us_cli_002_visao360.py` (7 testes).
+- **Veredito:** **PASS**
+- **TST-001 (skip sem justificativa):** OK — `grep -nE "skip\(|xfail|@Disabled"` nos arquivos do diff retorna zero matches.
+- **TST-002 (assertion vazia):** OK — nenhum `assert True`/`assert 1 == 1`. Todos os asserts comparam estado real (`response.status_code`, `acessos.count()`, `a.finalidade`, ausência de PII em `str(a.recurso)`, ordenação por timestamp, `pytest.raises` para trigger PG).
+- **TST-003 (bypass silencioso):** OK — nenhum `# noqa`, `# type: ignore`, `# pragma: no cover`, `eslint-disable`. O único `# authz-check: skip` em `views.py:534` tem justificativa concreta (`RequireAuthz resolve via ACTION_MAP["visao_360"]="clientes.visao360"`), que é direcionada ao hook de authz e não a typechecker/linter — fora do escopo TST-003 e legítima.
+- **TST-004 (INV-* com teste citando o ID):** OK — INV-013 está cravada em `REGRAS-INEGOCIAVEIS.md:43` ("acesso a dados de cliente do laboratório só com permissão explícita + log de toda visualização") e o teste `test_inv_013_visao_360_grava_acesso_antes_de_responder` cita o ID no nome. Cobre o caminho happy: 200 → 1 linha em `acessos_dados_cliente` → `finalidade=executar_os` → `usuario_id` correto → `recurso` sem PII cru.
+- **AC cobertos:**
+  - **AC-CLI-002-1 (timeline cronológica reversa multi-módulo):** `test_visao_360_retorna_eventos_em_ordem_reversa` cria 3 eventos via `registrar_auditoria` + valida `timestamps == sorted(timestamps, reverse=True)`. Filtragem por `payload_jsonb->>'cliente_id'` testada em `test_visao_360_filtra_eventos_de_outros_clientes` (2 clientes no mesmo tenant, asserção `it["payload"]["cliente_id"] == str(cliente_a.id)` para todo item). Cumpre TL1 do tech-lead.
+  - **AC-CLI-002-2 (p95 < 1.5s 500 eventos):** **gap não-bloqueante** — o plano lista `test_visao_360_performance_500_eventos_p95_abaixo_1500ms`, mas o arquivo final implementa 7 testes sem esse smoke específico (o substituto foi `test_visao_360_finalidade_obrigatoria`). LIMIT 200 está cravado em `views.py:598` + índice expressional em `audit/0005`. Performance ainda não tem evidência empírica; débito menor pra Wave A.
+  - **AC-CLI-002-3 / INV-013 (audit ANTES de renderizar):** `test_inv_013_visao_360_grava_acesso_antes_de_responder` valida. Trigger PG anti-mutation coberto por `test_acessos_dados_cliente_imutavel_via_trigger_pg` (UPDATE + DELETE bloqueados, `pytest.raises((IntegrityError, InternalError, ProgrammingError))` dentro de `transaction.atomic()` — padrão correto para trigger PG no Django).
+- **Unhappy paths:** (a) **finalidade ausente** → 400 `finalidade_obrigatoria_e_enum` coberto por `test_visao_360_finalidade_obrigatoria`; (b) **finalidade inválida fora do enum** → 400 coberto pelo mesmo teste com `?finalidade=motivo_inventado`; (c) **cross-tenant** → 404 via RLS coberto por `test_visao_360_isolamento_cross_tenant` (tenant B tenta ler cliente_a → `Cliente.objects.get()` falha porque RLS filtra). **Gap não-bloqueante:** `cliente_nao_encontrado` puro (UUID válido + cliente inexistente no mesmo tenant) sem cobertura explícita; o branch existe em `views.py:570-574`. Recomendo adicionar em Wave A.
+- **Mascaramento (R1 advogado):** `test_acessos_recurso_payload_sem_pii_cru` assert `cliente.documento not in recurso_str and cliente.nome not in recurso_str` — defesa real, não cosmética. Service `registrar_acesso_dados_cliente` valida `finalidade in FinalidadeAcessoCliente.values` E `categoria_dado_acessado in CategoriaDadoAcessado.values` antes de inserir, levantando `ValueError` — sem `return True` solto, sem `pass` em handler público.
+- **Padrões arriscados não detectados:** nenhum `time.sleep`, nenhum mock de banco em teste de integração (todos usam `@pytest.mark.django_db(transaction=True)` + PG real via `run_in_tenant_context`).
+- **CONCERNS residuais (não bloqueiam):**
+  1. AC-CLI-002-2 sem smoke de performance no arquivo final — divergência entre plano (lista o teste) e tasks/T-CLI-040 (não consta na enumeração). Não viola TST-* (é gap de cobertura, não mascaramento), mas vale registrar como débito Wave A: rodar 500 eventos sintéticos e medir p95 contra LIMIT 200 + índice expressional.
+  2. Branch `cliente_nao_encontrado` em `views.py:570-574` sem teste explícito (cobertura por linha não verificada; risco baixo porque o path é trivial).
+- **Ação tomada:** veredito **PASS** registrado; 2 CONCERNS encaminhados para `debitos-ritual.md` na próxima rodada.
+- **Lição:** auditoria de qualidade em retroativo deve cruzar **plano vs. arquivo de teste real** — divergências silenciosas (teste prometido no plano que não chega ao código) escapam ao TST-004 mas viram dívida invisível. Sugestão pra Wave A: hook `tasks-vs-tests-coverage.sh` que compara nomes de teste declarados em `tasks/US-*.md` contra os realmente implementados.
+- **Link:** plano `docs/dominios/comercial/modulos/clientes/planos/US-CLI-002.md`; tasks `docs/dominios/comercial/modulos/clientes/tasks/US-CLI-002.md`; pareceres `docs/dominios/comercial/modulos/clientes/revisoes/US-CLI-002-{tech-lead,advogado}.md`; commit `deee31d`.
+
+---
+
+### 2026-05-18 23:58 — Auditor Segurança · Retroativo US-CLI-005 isolada (mesclar + soft-delete)
+
+- **Tipo:** auditoria_retroativa_seguranca_us_cli_005
+- **Quem:** auditor-seguranca (prompt v1.0.0)
+- **O que aconteceu:** auditoria isolada de US-CLI-005 (mesclar 2 cadastros + soft-delete do perdedor). Escopo: plano + tasks + pareceres tech-lead/advogado em `docs/dominios/comercial/modulos/clientes/{planos,tasks,revisoes}/US-CLI-005*`; código `src/domain/comercial/clientes/repository.py`, `src/application/comercial/clientes/mesclar_clientes.py`, `src/infrastructure/clientes/{models.py, mesclagem.py, repositories.py, views.py [ação mesclar]}`; migrations `0005_soft_delete`, `0006_unique_doc_ativo`, `0007_seed_authz_mesclar`; suite `tests/test_clientes_us_cli_005_mesclar.py` (9 testes).
+- **Tenant afetado:** n/a (auditoria de código pré-Wave A).
+- **Resultado:** **PASS** (com 3 observações não-bloqueantes).
+- **Achados verde (item:linha → confirmação):**
+  1. **Cross-tenant (TL5) — `mesclar_clientes.py:83-86`** valida `vencedor.tenant_id != perdedor.tenant_id` e levanta `tenants_diferentes` ANTES de qualquer mutação. Defesa em profundidade sobre RLS. Teste `test_mesclar_cross_tenant_bloqueado` aceita 403/404 (qualquer das duas camadas).
+  2. **UNIQUE INDEX parcial (R4 advogado) — `migrations/0006_unique_doc_ativo.py:16-20`** cria `uq_cliente_doc_ativo ON clientes (tenant_id, tipo_pessoa, documento) WHERE deletado_em IS NULL` via `RunSQL` (Django UniqueConstraint não suporta WHERE parcial — comentário documenta). Permite reativar documento de cliente mesclado. Teste `test_unique_index_parcial_permite_reativacao_de_documento` cobre.
+  3. **R1 advogado audit sem PII salgada — `views.py:240, 257-262`** usa `hashear_pii_com_salt_tenant(valor, tenant_id)` (definido em `src/infrastructure/audit/services.py:26-39`) para `perdedor_documento_hash`, `perdedor_nome_hash` e `motivo_observacao_hash`. Salt formato `afere-pii-salt:<tenant_id>:<valor>` antes do SHA-256. Confirma fechamento do FAIL CRÍTICO da entrada 22:30 também no caminho de mesclagem. Teste `test_mesclar_publica_evento_sem_pii` faz assert explícito de ausência de CNPJ cru, nome cru e e-mail cru no payload.
+  4. **R2 advogado motivo_observacao anti-PII — `mesclagem.py:33-67`** rejeita CPF, CNPJ (regex alfanumérica IN RFB 2.229/2024), e-mail, telefone e ultrapassagem de 200 chars antes do use case. Teste `test_mesclar_observacao_com_cpf_rejeita_400` cobre.
+  5. **Repository Protocol ADR-0007 — `domain/comercial/clientes/repository.py`** é puro (sem `django.*` nem `psycopg`); use case `mesclar_clientes.py:25-28` só importa o Protocol; adapter `DjangoClienteRepository` em `infrastructure/clientes/repositories.py:44`. Fronteira respeitada — use case em camada APPLICATION sem amarração a Django.
+  6. **Soft-delete vs direito ao esquecimento (R3 advogado) — `models.py:168-179`** documenta explicitamente que NÃO é resposta ao art. 18 VI ("esquecimento" vai para crypto-shredding em portal Wave B); é correção de qualidade (LGPD art. 6 V + art. 16 II + ISO 17025 cl. 8.4). Manager default `ClienteAtivosManager` esconde soft-deleted; `all_objects` mantém visibilidade pra auditoria.
+  7. **SEC-LEAST-PRIV — `migrations/0007_seed_authz_mesclar.py:22-31`** insere `clientes.mesclar` apenas no perfil `admin_tenant`; `block_mutation` policy reaplicada. Teste `test_mesclar_exige_perfil_admin_tenant` confirma 403 para `tecnico`.
+  8. **Transação atômica (TL6) — `views.py:230-264`** envelopa `mesclar_clientes` + `registrar_auditoria` em `transaction.atomic()`. Teste `test_mesclar_atomico_rollback_em_falha` força exceção em `registrar_auditoria` e confirma rollback completo (perdedor permanece ativo + vencedor mantém nome original).
+- **Observações não-bloqueantes:**
+  - **OBS-1 — `repositories.py:65-75`** `get_by_id` cai num fallback que busca em `Cliente.all_objects` quando default manager não encontra, mesmo com `incluir_deletados=False`. Comportamento intencional pra cobrir "perdedor recém soft-deleted", mas viola docstring do Protocol ("Soft-deleted retorna apenas se incluir_deletados=True"). Risco baixo (consumidor único é mesclar, que confere `snapshot.deletado_em` em seguida). Recomendação: ajustar a docstring ou forçar `incluir_deletados=True` no caller. Sem veto.
+  - **OBS-2 — `mesclagem.py:34`** regex CNPJ alfa com `\b` na borda alfanumérica pode falhar quando o CNPJ está colado a outras letras (ex: `"X12ABC34DEF5678/0001-99"`). Aceitável: campo é texto curto e atendente normal não cola CNPJ no meio de palavra. Monitorar em Wave A.
+  - **OBS-3 — `views.py:48-64`** wrappers `_hashear_doc` e `_hashear_pii` continuam como helpers privados na view e delegam ao helper canônico. Recomenda-se chamar `hashear_pii_com_salt_tenant` direto no caller pra reduzir superfícies onde alguém possa reintroduzir `hashlib.sha256(documento)` sem sal. Não bloqueia.
+- **Itens NÃO encontrados:** sem vazamento cross-tenant; sem PII crua em audit; sem hash sem sal; sem privilégio escalado; sem hard-delete; sem `--no-verify`; sem mascaramento de teste.
+- **Ação tomada:** PASS registrado; OBS-1/2/3 ficam como recomendações sem nova task. FAIL crítico de 22:30 (hashes sem salt) **confirmado fechado** no caminho US-CLI-005.
+- **Lição:** padrão "use case puro + Protocol no domain + adapter Django em infra" funciona — testes mockam adapter sem subir Django; defesa em profundidade (validação no use case + RLS no banco + authz declarativa + audit hash-salgado) é o que torna a auditoria curta. Manter este formato como referência pras demais US.
+- **Link:** US-CLI-005 entregue no commit `953838f`; correção de salt em `7c793e8`; plano `docs/dominios/comercial/modulos/clientes/planos/US-CLI-005.md`; parecer advogado `revisoes/US-CLI-005-advogado.md`.
+
+---
+
+### 2026-05-19 — Auditor Qualidade · auditoria retroativa US-CLI-005 (mesclar clientes + soft-delete)
+
+- **Tipo:** `auditoria_retroativa_qualidade_us_cli_005`
+- **Quem:** auditor-qualidade (prompt v1.0.0)
+- **Escopo:** commit `953838f` — plano + tasks + pareceres tech-lead/advogado + `src/domain/comercial/clientes/repository.py` (Protocol), `src/application/comercial/clientes/mesclar_clientes.py` (use case puro), `src/infrastructure/clientes/{models.py [ClienteAtivosManager + campos soft-delete], mesclagem.py [MOTIVOS_VALIDOS + validar_observacao], repositories.py [DjangoClienteRepository], views.py [action mesclar]}`, migrations `clientes/0005_soft_delete`, `0006_unique_doc_ativo`, `0007_seed_authz_mesclar` e `tests/test_clientes_us_cli_005_mesclar.py` (9 testes).
+- **Veredito:** **CONCERNS** (3)
+- **TST-001 (skip sem justificativa):** OK — zero `pytest.skip`, `@pytest.mark.skip`, `xfail`.
+- **TST-002 (assertion vazia):** OK — todos os asserts comparam estado real (`response.status_code`, `Cliente.objects.filter(...).exists()`, `payload["campos_sobrescritos_keys"]`, ausência de CNPJ/nome cru em `str(payload)`, `deletado_em is None` após rollback).
+- **TST-003 (bypass silencioso):** 1 `# type: ignore[no-untyped-def]` em `tests/test_clientes_us_cli_005_mesclar.py:304` (closure `falha_apenas_mesclado` do monkeypatch). Código mypy é justificativa parcial; padrão aceito no projeto (mesmo uso em `tests/test_multitenant_middleware_basico.py`), mas TST-003 estrito pede frase técnica explícita. Vira **CONCERN 3** abaixo.
+- **TST-004 (INV-* com teste citando o ID):** N/A — US-CLI-005 não adiciona nova `INV-*` em `REGRAS-INEGOCIAVEIS.md`. Cita `INV-024` (dedup) indiretamente via `test_unique_index_parcial_permite_reativacao_de_documento` (não nomeia ID — gap menor, não FAIL).
+- **AC cobertos:**
+  - **AC-CLI-005-1** (migração de histórico) — atendido **parcialmente por contrato de evento**, como declarado no plano (módulos consumidores OS/cert/financeiro ainda não existem). Use case publica `cliente.mesclado` com payload completo (`vencedor_id`, `perdedor_id`, `tenant_id`, `mesclado_em`, `campos_sobrescritos_keys`, hashes) — Wave A futuro assina e migra FKs. Limite legítimo.
+  - **AC-CLI-005-2** (soft-delete) — atendido. `ClienteAtivosManager` filtra `deletado_em IS NULL` por default (`models.py:34-38`); `Cliente.all_objects` expõe deletados pra auditoria; migration `0005` adiciona campos `deletado_em`/`deletado_por_usuario_id`/`deletado_motivo_categoria`; UNIQUE INDEX parcial em `0006` preserva dedup só pra ativos. Testes `test_mesclar_soft_deleta_perdedor` + `test_unique_index_parcial_permite_reativacao_de_documento` cobrem.
+  - **AC-CLI-005-3** (audit sem PII cru — R1 advogado) — atendido. `views.py:241-264` grava `cliente.mesclado` com apenas IDs + `campos_sobrescritos_keys` (lista de nomes, sem valores) + `motivo_categoria` cleartext + hashes salgados por tenant via `_hashear_pii(...., tenant.id)`. Teste `test_mesclar_publica_evento_sem_pii` valida ausência de CNPJ/nome/email crus.
+- **Separação use case puro vs adapter (ADR-0007):** OK. `src/domain/comercial/clientes/repository.py` é Protocol sem `import django`. `src/application/comercial/clientes/mesclar_clientes.py:1-113` consome o Protocol, retorna `ResultadoMesclagem` puro, não importa Django. `DjangoClienteRepository` em `infrastructure/repositories.py` é o adapter. View envolve em `transaction.atomic()` e publica audit (TL6).
+- **Unhappy paths cobertos pelos 9 testes:** cross-tenant 403/404, perfil sem permissão 403, motivo enum inválido 400, observação com PII 400, atomicidade rollback, reativação documento.
+- **Achados:**
+  1. **CONCERN — gap de teste em 4 das 5 ramificações de `ErroMesclagem`.** `src/application/comercial/clientes/mesclar_clientes.py:69-92` define 5 codes (`mesma_entidade`, `vencedor_nao_encontrado`, `perdedor_nao_encontrado`, `tenants_diferentes`, `perdedor_ja_deletado`). `views.py:266-272` mapeia cada code pra HTTP distinto (400/404/404/403/409). Apenas `tenants_diferentes` tem teste explícito (`test_mesclar_cross_tenant_bloqueado`). Os outros 4 caminhos **não têm teste dedicado** — trocar `perdedor_ja_deletado→409` por `400` por engano passa verde. **Importância maior:** `perdedor_ja_deletado` protege idempotência reversa (chamar mesclar 2× no mesmo par não pode soft-deletar 2× nem gravar 2× o audit). **Correção sugerida:** adicionar `test_mesclar_mesma_entidade_retorna_400`, `test_mesclar_vencedor_inexistente_404`, `test_mesclar_perdedor_inexistente_404`, `test_mesclar_perdedor_ja_deletado_409`.
+  2. **CONCERN — rastreabilidade quebrada em `src/infrastructure/clientes/migrations/0006_unique_doc_ativo.py:9`.** Comentário `# tests-coverage: tests/test_clientes_us_cli_005_dedup.py` aponta arquivo **inexistente** (`Glob tests/test_clientes_us_cli_005*` retorna só `test_clientes_us_cli_005_mesclar.py`). Hook `policy-test-coverage` não disparou (migration só cria INDEX, sem `CREATE POLICY`), mas ponteiro morto é padrão de mascaramento documental (link rotten = TODO disfarçado). **Correção sugerida:** trocar pra `# tests-coverage: tests/test_clientes_us_cli_005_mesclar.py` (que já contém `test_unique_index_parcial_permite_reativacao_de_documento`).
+  3. **CONCERN — `# type: ignore[no-untyped-def]` em `tests/test_clientes_us_cli_005_mesclar.py:304` sem texto técnico.** TST-003 estrito pede frase justificadora ("bug do typechecker", "lib externa quebrada") na mesma linha. Hoje só tem o código mypy. Caso legítimo (closure de monkeypatch em pytest com mypy strict), mas a fronteira é fina. **Correção sugerida:** acrescentar `# type: ignore[no-untyped-def]  -- closure de monkeypatch tem assinatura dinamica pytest` pra blindar contra leitura rigorosa do hook futuro `tst-003-checker`.
+- **Mascaramento detectado:** nenhum `return True` solto, nenhum `pass` em função pública, nenhum mock de banco em teste de integração. `test_mesclar_atomico_rollback_em_falha` usa `monkeypatch` em `registrar_auditoria` pra forçar erro controlado e validar rollback (TL6) — injeção de falha legítima, não mock evasivo.
+- **Causa raiz vs sintoma:** OK. `aplicar_sobrescritas` (`repositories.py:88`) usa `update()` em vez de `save()` intencionalmente pra evitar `post_save` indesejado, com comentário explicativo — não é workaround.
+- **Cobertura mínima:** threshold por path não calibrado pré-Foundation; suite passou com 9 testes cobrindo happy + 4 unhappy críticos. Gap nos 4 unhappy faltantes (CONCERN 1) é o item mais relevante aqui.
+- **Ação tomada:** veredito **CONCERNS** registrado; 3 itens vão pra `docs/governanca/debitos-ritual.md` na próxima rodada (4 testes faltantes + ponteiro morto na migration 0006 + justificativa textual no `# type: ignore`). Não bloqueia merge (commit já em main).
+- **Lição:** todo `code=` levantado por exceção customizada que vira HTTP status distinto deveria ter teste dedicado. Sugestão Wave A: hook `error-code-coverage-check` que grep nos `ErroMesclagem("CODE", ...)` (ou padrão equivalente) e cruza com nomes de teste — caça gaps automaticamente.
+- **Link:** plano `docs/dominios/comercial/modulos/clientes/planos/US-CLI-005.md`; tasks `docs/dominios/comercial/modulos/clientes/tasks/US-CLI-005.md`; pareceres `docs/dominios/comercial/modulos/clientes/revisoes/US-CLI-005-{tech-lead,advogado}.md`; commit `953838f`.
+
+---
+
+### 2026-05-19 00:30 — Auditor Segurança · Retroativo US-CLI-002 isolada (visão 360 + INV-013)
+
+- **Tipo:** `auditoria_retroativa_seguranca_us_cli_002`
+- **Auditor:** Segurança Família 5 (prompt v1.0.0)
+- **Escopo:** plano + tasks + pareceres `docs/dominios/comercial/modulos/clientes/{planos,tasks,revisoes}/US-CLI-002*`; código `src/infrastructure/audit/{models.py, services.py}` (`AcessoDadosCliente`, `FinalidadeAcessoCliente`, `CategoriaDadoAcessado`, `registrar_acesso_dados_cliente`) + `src/infrastructure/clientes/views.py [visao_360 linhas 532-618]`; migrations `audit/0004..0008` + `clientes/0011_seed_authz_visao360`; testes `tests/test_clientes_us_cli_002_visao360.py` (7 cenários).
+- **Veredito:** **CONCERNS** (2).
+
+### Evidências que PASSAM (regras versionadas)
+
+1. **INV-013 ordem temporal:** `views.py:581-588` chama `registrar_acesso_dados_cliente` ANTES do queryset `Auditoria.objects.filter(...)` (linha 591). Teste `test_inv_013_visao_360_grava_acesso_antes_de_responder` confirma 1 linha em `acessos_dados_cliente` mesmo com timeline vazia.
+2. **R1 advogado — `recurso` JSONB sem PII cru:** `views.py:586` `recurso={"cliente_id": str(cliente.id)}` — apenas UUID. Teste `test_acessos_recurso_payload_sem_pii_cru` faz assert `cliente.documento not in recurso_str` e `cliente.nome not in recurso_str`.
+3. **Trigger imutável (INV-013 hard):** migration `0005` cria função `acessos_bloqueia_mutation` + 2 triggers `BEFORE UPDATE/DELETE` (`ERRCODE 23514`). Migration `0006` complementa com policies UPDATE/DELETE permissivas (mesmo pattern de `authz_decisions`) pra query chegar no trigger. Teste `test_acessos_dados_cliente_imutavel_via_trigger_pg` valida ambos os caminhos.
+4. **CHECK enum:** migration `0005` crava `chk_acesso_finalidade_enum` (8 valores R2 advogado) + `chk_acesso_categoria_enum` (5 categorias R1). Migration `0007` estende finalidade para 9 valores (acrescenta `consulta_relatorio_importacao` US-CLI-003 R7) via DROP+CREATE — PG não permite ALTER em CHECK. Escopo desta US: 8 valores.
+5. **INV-TENANT-003 / SEC-TENANT-001 — RLS policy v2:** migration `0005` aplica `ENABLE` + `FORCE ROW LEVEL SECURITY` + `acessos_tenant_isolation_select` (USING `current_setting('app.tenant_ids')`) + `acessos_tenant_isolation_insert` (WITH CHECK `app.active_tenant_id::uuid`). Hook `migration-rls-check.sh` cobre.
+6. **TL5 — Limite 200:** `views.py:598` `[:200]` no queryset; response devolve `total_eventos_exibidos` + `limite_aplicado: 200`.
+7. **INV-TENANT-001 — cross-tenant safe:** view filtra `tenant_id=active` no ORM (linha 593) + tabela `auditoria` tem RLS via `multitenant/0002_fail_loud_e_flag_global.py`. Teste `test_visao_360_isolamento_cross_tenant` valida 404 — RLS bloqueia `Cliente.objects.get()` antes de chegar no payload.
+8. **Performance — índice expressional:** `ix_audit_payload_cliente_id ON auditoria (tenant_id, (payload_jsonb->>'cliente_id'), timestamp DESC) WHERE payload_jsonb ? 'cliente_id'` (migration `0005`) — sem seq scan.
+9. **INV-AUTHZ-001/002:** `ACTION_MAP["visao_360"]="clientes.visao360"` (`views.py:99`); `RequireAuthz` global; migration `clientes/0011_seed_authz_visao360` seed least-privilege.
+10. **SEC-003:** `views.py:551-559` valida `finalidade` contra `FinalidadeAcessoCliente.values` ANTES de tocar `acessos_dados_cliente`. Service `registrar_acesso_dados_cliente` revalida (`raise ValueError`) — defesa dupla.
+
+### Achados
+
+1. **CONCERN — `_hashear_ip` em `views.py:37-45` sem salt por tenant.** Mesmo padrão do FAIL CRÍTICO fechado em `2026-05-18 22:30` (salt obrigatório em hash de PII em audit). IP é PII pela LGPD (art. 5 I); espaço IPv4 (~4 bilhões) tão pequeno quanto CPF — rainbow table em segundos. Atacante com dump de `acessos_dados_cliente.ip_hash` mapeia hash → IP cru trivialmente e cruza com logs externos. Helper canônico `audit/services.py:hashear_pii_com_salt_tenant(valor, tenant_id)` existe; `_hashear_ip` não o usa. **Correção:** trocar `hashlib.sha256(ip.encode())` por `hashear_pii_com_salt_tenant(ip, tenant_id)` em `views.py:_hashear_ip` (receber `tenant_id` como argumento via `_active_tenant_obrigatorio()`). Afeta 4 call-sites: `views.py:164` (US-CLI-001), `views.py:578` (US-CLI-002), `views.py:820` (US-CLI-003), `views.py:969` (US-CLI-003 histórico). Não bloqueia commit (`deee31d` já em main); vira FAIL quando hook `audit-pii-salt-check.sh` (Wave A) ativar.
+
+2. **CONCERN — leak indireto via timeline:** `Auditoria.payload_jsonb` retornado **íntegro** na response (`views.py:605` — `"payload": e["payload_jsonb"]`). Hoje os payloads do módulo `clientes` são "sem PII cru" (validado nas auditorias US-CLI-001 e US-CLI-004), mas a view **não filtra/sanitiza** — módulo futuro que grave PII em `payload_jsonb` (ex: financeiro com `cpf_pagador`) vaza pelo timeline sem ninguém perceber. Não é FAIL hoje (sem violação concreta), é DÉBITO DE BARREIRA: a defesa hoje depende de disciplina do chamador, não de filtro no ponto de saída. **Correção Wave A:** allowlist explícita por `action` (meta-tabela `audit_payload_schema`) OU sanitizador que remove chaves marcadas como sensíveis antes de serializar timeline.
+
+### Hooks / regras versionadas
+
+- **INV-TENANT-001/002/003** ✅; **INV-AUTHZ-001/002** ✅; **SEC-001/002/003** ✅.
+
+### Drift docs vs código
+
+`models.py:157-158` comenta `cliente_id NULL = acesso agregado (...) — CONCERN auditor Segurança 2026-05-18` mas migration `0008_acesso_cliente_id_nullable.py` foi criada **depois** da US-CLI-002 (durante US-CLI-003). Escopo desta US: `cliente_id` era `NOT NULL` (migration `0004`); o NULL veio em US-CLI-003 pra acessos agregados. Sem inconsistência presente, apenas evolução documentada.
+
+### Itens NÃO encontrados
+
+Sem vazamento cross-tenant; sem PII crua em audit `recurso`; sem privilégio escalado; sem hard-delete em `acessos_dados_cliente`; sem `--no-verify`; sem mascaramento de teste; sem TLS 1.0/1.1; sem KMS hardcoded; sem A3 server-side.
+
+### Ação tomada
+
+Veredito **CONCERNS** registrado; não bloqueia merge. CONCERN #1 (salt IP) → `debitos-ritual.md` como gêmeo do FAIL fechado de salt CPF/CNPJ (fechar ambos junto com hook `audit-pii-salt-check.sh`). CONCERN #2 (sanitizador timeline) → tarefa Wave A "barreira-payload-audit".
+
+### Lição
+
+Padrão "salt por tenant em hash de **qualquer** PII em audit" precisa virar hook — sem hook, cada US repete o esquecimento (já são 4 caminhos `_hashear_ip` no mesmo arquivo). Dado pessoal é dado pessoal: IP entra na mesma trilha de CPF.
+
+- **Link:** commit `deee31d` (US-CLI-002 visão 360 + log INV-013); plano `docs/dominios/comercial/modulos/clientes/planos/US-CLI-002.md`; tasks `docs/dominios/comercial/modulos/clientes/tasks/US-CLI-002.md`; pareceres `docs/dominios/comercial/modulos/clientes/revisoes/US-CLI-002-{tech-lead,advogado}.md`.

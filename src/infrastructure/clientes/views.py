@@ -34,15 +34,19 @@ from src.infrastructure.clientes.serializers import ClienteSerializer
 from src.infrastructure.multitenant.context import active_tenant_context
 
 
-def _hashear_ip(request) -> str:
-    """SHA-256 do IP do request (LGPD — nao armazena IP cru)."""
+def _hashear_ip(request, tenant_id: UUID | str | None = None) -> str:
+    """SHA-256 do IP do request, salgado por tenant (LGPD — nao armazena IP cru).
+
+    CONCERN auditor Seguranca 2026-05-18 (US-002 retroativa): IP eh PII LGPD
+    e espaco IPv4 eh trivial pra rainbow table. Adicionado sal por tenant.
+    """
+    from src.infrastructure.audit.services import hashear_pii_com_salt_tenant
+
     ip = (
         request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
         or request.META.get("REMOTE_ADDR", "")
     )
-    if not ip:
-        return ""
-    return hashlib.sha256(ip.encode("utf-8")).hexdigest()
+    return hashear_pii_com_salt_tenant(ip, tenant_id)
 
 
 def _hashear_doc(documento: str, tenant_id: UUID | str | None = None) -> str:
@@ -161,7 +165,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         tenant = Tenant.objects.filter(id=active).get()
 
         # Injeta IP hash + tenant
-        ip_hash = _hashear_ip(self.request)
+        ip_hash = _hashear_ip(self.request, tenant.id)
         cliente = serializer.save(tenant=tenant, aceite_lgpd_ip_hash=ip_hash)
 
         # Audit `cliente.criado` — sem PII cru
@@ -575,7 +579,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
         usuario_id = usuario_id_context.get()
         active = _active_tenant_obrigatorio()
-        ip_hash = _hashear_ip(request)
+        ip_hash = _hashear_ip(request, active)
 
         # INV-013 — grava acesso ANTES de ler timeline.
         registrar_acesso_dados_cliente(
@@ -597,12 +601,17 @@ class ClienteViewSet(viewsets.ModelViewSet):
             .values("id", "action", "timestamp", "payload_jsonb")
             [:200]  # LIMIT 200 (TL5)
         )
+        from src.infrastructure.audit.services import sanitizar_payload_audit
+
         items = [
             {
                 "id": str(e["id"]),
                 "action": e["action"],
                 "timestamp": e["timestamp"].isoformat(),
-                "payload": e["payload_jsonb"],
+                # Defesa em profundidade — se algum modulo gravou PII por
+                # engano em audit, redact antes de devolver pra UI
+                # (CONCERN Auditor Seguranca 2026-05-18 US-002 retroativa).
+                "payload": sanitizar_payload_audit(e["payload_jsonb"]),
             }
             for e in eventos
         ]
@@ -817,7 +826,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             arquivo_nome_hash = hashlib.sha256(
                 (upload.name or "").encode("utf-8")
             ).hexdigest()
-            ip_hash = _hashear_ip(request)
+            ip_hash = _hashear_ip(request, tenant.id)
             salt_tenant = hashlib.sha256(
                 f"afere-salt:{tenant.id}".encode("utf-8")
             ).hexdigest()
@@ -966,7 +975,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
         active = _active_tenant_obrigatorio()
         usuario_id = usuario_id_context.get()
-        ip_hash = _hashear_ip(request)
+        ip_hash = _hashear_ip(request, active)
 
         # INV-013 — registra acesso ao historico de importacoes.
         # cliente_id=None pra acessos agregados (migration audit/0008 — CONCERN
