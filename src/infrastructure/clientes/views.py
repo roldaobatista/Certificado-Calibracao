@@ -67,6 +67,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         "mesclar": "clientes.mesclar",  # US-CLI-005
         "bloquear": "clientes.bloquear",  # US-CLI-004
         "desbloquear": "clientes.desbloquear",  # US-CLI-004
+        "visao_360": "clientes.visao360",  # US-CLI-002
     }
 
     def get_authz_action(self, request) -> str | None:  # type: ignore[no-untyped-def]
@@ -500,6 +501,94 @@ class ClienteViewSet(viewsets.ModelViewSet):
             {
                 "ja_estava_desbloqueado": False,
                 "bloqueio_id_encerrado": str(ativo.id),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    # =============================================================
+    # US-CLI-002 — Visao 360 do cliente (AC-1 + AC-3 INV-013)
+    # authz-check: skip -- RequireAuthz resolve via ACTION_MAP["visao_360"]="clientes.visao360"
+    # =============================================================
+    @action(detail=True, methods=["get"], url_path="visao-360")
+    def visao_360(self, request, pk=None):  # type: ignore[no-untyped-def]
+        """GET /clientes/{id}/visao-360/?finalidade=executar_os
+
+        Registra acesso em `acessos_dados_cliente` ANTES de ler timeline (INV-013).
+        Timeline le de `auditoria` filtrada por payload_jsonb->>'cliente_id'.
+        """
+        from src.infrastructure.audit.models import (
+            Auditoria,
+            FinalidadeAcessoCliente,
+        )
+        from src.infrastructure.audit.services import registrar_acesso_dados_cliente
+        from src.infrastructure.clientes.models import Cliente
+        from src.infrastructure.multitenant.context import usuario_id_context
+
+        finalidade = request.query_params.get("finalidade", "")
+        if finalidade not in FinalidadeAcessoCliente.values:
+            return Response(
+                {
+                    "detail": "finalidade_obrigatoria_e_enum",
+                    "validas": list(FinalidadeAcessoCliente.values),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            cliente_uuid = UUID(str(pk))
+        except (ValueError, TypeError):
+            return Response(
+                {"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            cliente = Cliente.objects.get(id=cliente_uuid)
+        except Cliente.DoesNotExist:
+            return Response(
+                {"detail": "cliente_nao_encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        usuario_id = usuario_id_context.get()
+        active = active_tenant_context.get()
+        ip_hash = _hashear_ip(request)
+
+        # INV-013 — grava acesso ANTES de ler timeline.
+        registrar_acesso_dados_cliente(
+            tenant_id=active,
+            usuario_id=usuario_id,
+            cliente_id=cliente.id,
+            finalidade=finalidade,
+            recurso={"cliente_id": str(cliente.id)},  # sem PII cru (R1 advogado)
+            ip_hash=ip_hash,
+        )
+
+        # Timeline via auditoria filtrada pelo cliente_id no payload_jsonb (TL1).
+        eventos = (
+            Auditoria.objects.filter(
+                tenant_id=active,
+                payload_jsonb__cliente_id=str(cliente.id),
+            )
+            .order_by("-timestamp")
+            .values("id", "action", "timestamp", "payload_jsonb")
+            [:200]  # LIMIT 200 (TL5)
+        )
+        items = [
+            {
+                "id": str(e["id"]),
+                "action": e["action"],
+                "timestamp": e["timestamp"].isoformat(),
+                "payload": e["payload_jsonb"],
+            }
+            for e in eventos
+        ]
+
+        return Response(
+            {
+                "cliente_id": str(cliente.id),
+                "eventos": items,
+                "total_eventos_exibidos": len(items),
+                "limite_aplicado": 200,
             },
             status=status.HTTP_200_OK,
         )

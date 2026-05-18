@@ -14,7 +14,12 @@ from django.db import connection, transaction
 
 from .canonicalizar import canonicalizar
 from .hash_chain import calcular_hash
-from .models import Auditoria
+from .models import (
+    AcessoDadosCliente,
+    Auditoria,
+    CategoriaDadoAcessado,
+    FinalidadeAcessoCliente,
+)
 
 
 # Chave estavel do advisory lock — qualquer int64. hashtext() gera o mesmo
@@ -90,3 +95,38 @@ def verificar_integridade_cadeia(limit: int | None = None) -> tuple[bool, int, l
         hash_anterior_esperado = linha.hash_atual
 
     return (len(quebrados) == 0, total, quebrados)
+
+
+def registrar_acesso_dados_cliente(
+    *,
+    tenant_id: UUID,
+    usuario_id: UUID | None,
+    cliente_id: UUID,
+    finalidade: str,
+    categoria_dado_acessado: str = CategoriaDadoAcessado.PII_IDENTIFICADORA,
+    recurso: dict[str, Any] | None = None,
+    ip_hash: str = "",
+) -> AcessoDadosCliente:
+    """INV-013 — log de visualizacao de dados de cliente.
+
+    Tabela INSERT-only com trigger PG anti-mutation. Chamada ANTES de retornar
+    response na view (visao 360). R1 advogado: `recurso` JSONB sem PII cru.
+    """
+    if finalidade not in FinalidadeAcessoCliente.values:
+        raise ValueError(
+            f"Finalidade invalida: {finalidade}. Use FinalidadeAcessoCliente."
+        )
+    if categoria_dado_acessado not in CategoriaDadoAcessado.values:
+        raise ValueError(
+            f"Categoria invalida: {categoria_dado_acessado}."
+        )
+
+    return AcessoDadosCliente.objects.create(
+        tenant_id=tenant_id,
+        usuario_id=usuario_id,
+        cliente_id=cliente_id,
+        finalidade=finalidade,
+        categoria_dado_acessado=categoria_dado_acessado,
+        recurso=recurso or {},
+        ip_hash=ip_hash,
+    )

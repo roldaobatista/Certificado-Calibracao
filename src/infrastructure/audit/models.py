@@ -100,3 +100,89 @@ class Auditoria(models.Model):
             "Auditoria e INSERT-only. DELETE bloqueado em codigo (Marco 2) e "
             "em trigger PG (Marco 4)."
         )
+
+
+# =============================================================
+# Acesso a dados de cliente (US-CLI-002 — INV-013)
+# Tabela paralela a `auditoria` focada em LOG DE VISUALIZACAO de PII.
+# 8 finalidades cravadas (R2 advogado) + 5 categorias de dado (R1).
+# =============================================================
+
+
+class FinalidadeAcessoCliente(models.TextChoices):
+    """Cravado pelo advogado em 2026-05-18 (R2 US-CLI-002).
+
+    Distinto das 4 bases legais (`finalidades-lgpd.md`) — aqui sao
+    propositos operacionais que justificam visualizar dados do cliente.
+    """
+
+    ATENDIMENTO_POS_VENDA = "atendimento_pos_venda"
+    PREPARAR_ORCAMENTO = "preparar_orcamento"
+    EXECUTAR_OS = "executar_os"
+    EMITIR_DOCUMENTO_FISCAL = "emitir_documento_fiscal"
+    COBRANCA_INADIMPLENCIA = "cobranca_inadimplencia"
+    AUDITORIA_INTERNA = "auditoria_interna"
+    ATENDIMENTO_LGPD_TITULAR = "atendimento_lgpd_titular"
+    INVESTIGACAO_INCIDENTE = "investigacao_incidente"
+
+
+class CategoriaDadoAcessado(models.TextChoices):
+    """R1 advogado — ANPD precisa estimar gravidade em incidente."""
+
+    PII_IDENTIFICADORA = "pii_identificadora", "PII identificadora (nome, CPF/CNPJ, contato)"
+    PII_SENSIVEL = "pii_sensivel", "PII sensivel (LGPD art. 5 II)"
+    DADO_FISCAL = "dado_fiscal", "Dado fiscal (NF-e, retencao)"
+    DADO_REGULATORIO = "dado_regulatorio", "Dado regulatorio (certificado ISO 17025)"
+    METADADO = "metadado", "Metadado (sem PII — UUIDs, timestamps)"
+
+
+class AcessoDadosCliente(models.Model):
+    """Log de visualizacao de dados de cliente (US-CLI-002 — INV-013).
+
+    Tabela imutavel. Trigger PG bloqueia UPDATE/DELETE (migration 0005).
+    RLS pattern v2 + retencao 5 anos (R4 advogado — `retencao-matriz.md`
+    linha "audit acoes sensiveis"). Crypto-shredding Wave B.
+
+    `recurso` JSONB sem PII cru (R1 advogado) — apenas UUIDs.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant_id = models.UUIDField(db_index=True)
+    usuario_id = models.UUIDField(null=True, blank=True, db_index=True)
+    cliente_id = models.UUIDField(db_index=True)
+    finalidade = models.CharField(
+        max_length=40,
+        choices=FinalidadeAcessoCliente.choices,
+        help_text="Enum cravado pelo advogado (R2). CHECK constraint na migration.",
+    )
+    categoria_dado_acessado = models.CharField(
+        max_length=30,
+        choices=CategoriaDadoAcessado.choices,
+        default=CategoriaDadoAcessado.PII_IDENTIFICADORA,
+    )
+    recurso = models.JSONField(
+        default=dict,
+        help_text="UUIDs + metadados (sem PII cru) — R1 advogado.",
+    )
+    ip_hash = models.CharField(max_length=64, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        app_label = "audit"
+        db_table = "acessos_dados_cliente"
+        verbose_name = "Acesso a dados de cliente (INV-013)"
+        verbose_name_plural = "Acessos a dados de cliente"
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(
+                fields=["tenant_id", "cliente_id", "-timestamp"],
+                name="ix_acessos_tenant_cli_ts",
+            ),
+            models.Index(
+                fields=["tenant_id", "usuario_id", "-timestamp"],
+                name="ix_acessos_tenant_user_ts",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.timestamp:%Y-%m-%d %H:%M} cli={self.cliente_id} ({self.finalidade})"
