@@ -81,6 +81,7 @@ def cenario(db):
 
 @pytest.mark.django_db(transaction=True)
 def test_inv_authz_001_admin_cria_cliente_pj_201(cenario):
+    """PJ sem PF associada — aceite LGPD dispensado (R3 advogado)."""
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
 
@@ -90,6 +91,7 @@ def test_inv_authz_001_admin_cria_cliente_pj_201(cenario):
             "tipo_pessoa": "PJ",
             "documento": "11.222.333/0001-81",
             "nome": "Empresa Teste LTDA",
+            "aceite_lgpd_dispensa_motivo": "pj_sem_pf_associada",
         },
         format="json",
     )
@@ -145,6 +147,7 @@ def test_adr_0017_cnpj_alfanumerico_aceito_via_api(cenario):
             "tipo_pessoa": "PJ",
             "documento": "12.ABC.345/01DE-35",
             "nome": "Empresa Alfa LTDA",
+            "aceite_lgpd_dispensa_motivo": "pj_sem_pf_associada",
         },
         format="json",
     )

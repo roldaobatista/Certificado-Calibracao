@@ -88,7 +88,9 @@ class CNPJ:
         if not _CNPJ_FORMATO_RE.match(limpo):
             raise ValueError(
                 f"CNPJ formato invalido: {self.value!r} -> {limpo!r} "
-                f"(esperado 12 alfanumericos + 2 digitos verificadores)"
+                f"(esperado 12 alfanumericos + 2 digitos verificadores). "
+                f"Documento estrangeiro (passaporte/RNE) sera suportado em V2 — "
+                f"nao use CPF/CNPJ de terceiro como workaround."
             )
 
         # Rejeita sequencias "trivial" (todos iguais) que passam no DV mas
@@ -136,7 +138,9 @@ class CPF:
         limpo = re.sub(r"\D", "", self.value)
         if not _CPF_FORMATO_RE.match(limpo):
             raise ValueError(
-                f"CPF formato invalido: {self.value!r} (esperado 11 digitos)"
+                f"CPF formato invalido: {self.value!r} (esperado 11 digitos). "
+                f"Documento estrangeiro (passaporte/RNE) sera suportado em V2 — "
+                f"nao use CPF de terceiro como workaround."
             )
         if len(set(limpo)) == 1:
             raise ValueError(f"CPF invalido (sequencia trivial): {limpo!r}")

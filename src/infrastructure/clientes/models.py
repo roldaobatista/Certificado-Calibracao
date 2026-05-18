@@ -68,6 +68,55 @@ class Cliente(models.Model):
         blank=True,
         help_text="Formato livre nesta fase; normalizacao entra com modulo comunicacao.",
     )
+
+    # =============================================================
+    # Aceite LGPD (US-CLI-001 AC-2 + RAT-03)
+    # Validado pelo subagente advogado-saas-regulado em 2026-05-18.
+    # Snapshot legal completo (R2 advogado): em + versao + ip_hash + origem.
+    # Retencao (R5 advogado): art. 16 II LGPD — acessorios a execucao do
+    # contrato; mesma matriz do cliente principal; crypto-shredding Wave B.
+    # =============================================================
+    aceite_lgpd_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Datetime do aceite. Obrigatorio em PF. Pode ser NULL em PJ se "
+            "aceite_lgpd_dispensa_motivo informado (R3 advogado — PJ sem PF associada)."
+        ),
+    )
+    aceite_lgpd_versao = models.CharField(
+        max_length=40,
+        blank=True,
+        help_text=(
+            "Snapshot da versao vigente do texto no momento do aceite. "
+            "Ver src/infrastructure/clientes/lgpd.py TEXTOS_HISTORICOS pra recuperar "
+            "o texto exato que o titular aceitou. Imutavel apos gravacao."
+        ),
+    )
+    aceite_lgpd_ip_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text=(
+            "SHA-256 do IP do request (LGPD art. 6 V — qualidade + INV-013 "
+            "rastreabilidade). Vazio se origem=balcao (titular nao presente)."
+        ),
+    )
+    aceite_lgpd_origem = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text=(
+            "balcao | portal | importacao | api_terceiro. Ver lgpd.py ORIGENS_VALIDAS."
+        ),
+    )
+    aceite_lgpd_dispensa_motivo = models.CharField(
+        max_length=60,
+        blank=True,
+        help_text=(
+            "Preenchido em PJ sem PF associada (R3 advogado). Valor padrao: "
+            "'pj_sem_pf_associada'. Ver lgpd.py DISPENSAS_VALIDAS."
+        ),
+    )
+
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
@@ -95,8 +144,17 @@ class Cliente(models.Model):
         return f"{self.nome} ({self.tipo_pessoa} {self.documento})"
 
     def clean(self) -> None:
-        """Validacao no boundary — chamado por full_clean()."""
+        """Validacao no boundary — chamado por full_clean().
+
+        Regras LGPD (R3 advogado):
+        - PF: aceite_lgpd_em obrigatorio.
+        - PJ: aceite_lgpd_em opcional, MAS se omitido exige
+          aceite_lgpd_dispensa_motivo (ex: 'pj_sem_pf_associada').
+        """
+        from .lgpd import DISPENSAS_VALIDAS, ORIGENS_VALIDAS
+
         super().clean()
+        # Documento
         try:
             if self.tipo_pessoa == TipoPessoa.PF:
                 CPF(self.documento)
@@ -106,3 +164,40 @@ class Cliente(models.Model):
                 raise ValidationError({"tipo_pessoa": "Tipo invalido"})
         except ValueError as e:
             raise ValidationError({"documento": str(e)}) from e
+
+        # Aceite LGPD
+        if self.tipo_pessoa == TipoPessoa.PF and self.aceite_lgpd_em is None:
+            raise ValidationError(
+                {"aceite_lgpd_em": "PF exige aceite LGPD (data + versao + origem)."}
+            )
+        if (
+            self.tipo_pessoa == TipoPessoa.PJ
+            and self.aceite_lgpd_em is None
+            and not self.aceite_lgpd_dispensa_motivo
+        ):
+            raise ValidationError(
+                {
+                    "aceite_lgpd_dispensa_motivo": (
+                        "PJ sem aceite LGPD exige motivo de dispensa "
+                        "(ex: 'pj_sem_pf_associada' — R3 advogado)."
+                    )
+                }
+            )
+        # Origem valida quando aceite preenchido
+        if self.aceite_lgpd_em is not None and self.aceite_lgpd_origem:
+            if self.aceite_lgpd_origem not in ORIGENS_VALIDAS:
+                raise ValidationError(
+                    {"aceite_lgpd_origem": f"Origem invalida; use {ORIGENS_VALIDAS}"}
+                )
+        # Dispensa valida quando preenchida
+        if (
+            self.aceite_lgpd_dispensa_motivo
+            and self.aceite_lgpd_dispensa_motivo not in DISPENSAS_VALIDAS
+        ):
+            raise ValidationError(
+                {
+                    "aceite_lgpd_dispensa_motivo": (
+                        f"Dispensa invalida; use {DISPENSAS_VALIDAS}"
+                    )
+                }
+            )
