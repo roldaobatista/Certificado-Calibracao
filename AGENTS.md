@@ -85,21 +85,24 @@ Inventário de subagentes técnicos genéricos (code-reviewer, test-runner, etc.
 
 ---
 
-## 6. Comandos (a definir quando Foundation F-A começar)
+## 6. Comandos (Foundation F-A — Marco 1 entregue 2026-05-17)
 
-Pré-código de produto — sem `npm install` ou `manage.py` ainda. Quando F-A começar (Portão 3 da ADR-0001), preencher:
+Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em Docker Compose local (memória `project_deploy_so_quando_roldao_quiser`).
 
 | Operação | Comando |
 |---|---|
-| Setup dev | _a definir_ |
-| Rodar testes | _a definir_ |
-| Lint/format | _a definir_ |
-| Build | _a definir_ |
-| Migration | _a definir_ |
-| Servir local | _a definir_ |
-
-Por enquanto, comandos disponíveis:
-- `bash .claude/hooks/_test-runner.sh` — testa hooks (23 casos)
+| Setup local (dono) | ver `docs/operacao/setup-local.md` |
+| Subir sistema | `docker compose up` |
+| Derrubar sistema | `docker compose down` (mantém dados) / `docker compose down -v` (apaga banco) |
+| Rebuild após mudança Python | `docker compose up --build` |
+| Rodar testes | `docker compose exec app poetry run pytest` |
+| Cobertura HTML | `reports/coverage/index.html` após pytest |
+| Lint + format | `poetry run ruff check . && poetry run ruff format .` |
+| Type-check | `poetry run mypy src config` |
+| Migration nova | `docker compose exec app poetry run python manage.py makemigrations` |
+| Aplicar migrations | `docker compose exec app poetry run python manage.py migrate` |
+| Shell Django | `docker compose exec app poetry run python manage.py shell_plus` |
+| Testar hooks | `bash .claude/hooks/_test-runner.sh` (71 casos) |
 
 ---
 

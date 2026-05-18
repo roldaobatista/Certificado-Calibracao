@@ -1,0 +1,65 @@
+# Docker Compose para desenvolvimento local (Foundation F-A em diante).
+# Sobe: PostgreSQL 16 + aplicacao Django.
+# Uso: `docker compose up` no PC do Roldao. Sem deploy remoto.
+# Ver memoria project_deploy_so_quando_roldao_quiser.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: afere-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-afere}
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres_dev_change_in_prod}
+      # Passwords das 2 roles app (NOBYPASSRLS) passadas pro init script
+      APP_USER_PASSWORD: ${APP_USER_PASSWORD:-app_user_dev_change_in_prod}
+      APP_MIGRATOR_PASSWORD: ${APP_MIGRATOR_PASSWORD:-app_migrator_dev_change_in_prod}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - afere-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: afere-app
+    restart: unless-stopped
+    command: >
+      sh -c "
+        poetry run python manage.py migrate --noinput &&
+        poetry run python manage.py runserver 0.0.0.0:8000
+      "
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      DATABASE_URL: postgres://${APP_USER:-app_user}:${APP_USER_PASSWORD:-app_user_dev_change_in_prod}@db:5432/${POSTGRES_DB:-afere}
+      DATABASE_MIGRATOR_URL: postgres://${APP_MIGRATOR:-app_migrator}:${APP_MIGRATOR_PASSWORD:-app_migrator_dev_change_in_prod}@db:5432/${POSTGRES_DB:-afere}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-only-secret-do-NOT-use-in-prod-xkF7sNcaZpQ8wR4mY2v}
+      DJANGO_DEBUG: "True"
+    volumes:
+      - ./:/app:cached
+    ports:
+      - "${DJANGO_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - afere-net
+
+volumes:
+  db_data:
+    name: afere_db_data
+
+networks:
+  afere-net:
+    name: afere-net
+    driver: bridge
