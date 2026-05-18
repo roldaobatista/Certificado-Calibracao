@@ -108,9 +108,10 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 | Lint + format | `poetry run ruff check . && poetry run ruff format .` |
 | Type-check | `poetry run mypy src config` |
 | Migration nova | `docker compose exec app poetry run python manage.py makemigrations` |
-| Aplicar migrations | `docker compose exec app poetry run python manage.py migrate` |
+| Aplicar migrations | `docker compose exec app poetry run python manage.py migrate --database=migrator` |
+| Verificar objetos de segurança no banco (FA-A4) | `docker compose exec app poetry run python manage.py verificar_objetos_seguranca` |
 | Shell Django | `docker compose exec app poetry run python manage.py shell_plus` |
-| Testar hooks | `bash .claude/hooks/_test-runner.sh` (71 casos) |
+| Testar hooks | `bash .claude/hooks/_test-runner.sh` (113 casos) |
 
 ---
 
