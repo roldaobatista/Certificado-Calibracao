@@ -34,7 +34,7 @@ from src.infrastructure.clientes.serializers import ClienteSerializer
 from src.infrastructure.multitenant.context import active_tenant_context
 
 
-def _hashear_ip(request) -> str:  # type: ignore[no-untyped-def]
+def _hashear_ip(request) -> str:
     """SHA-256 do IP do request (LGPD — nao armazena IP cru)."""
     ip = (
         request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
@@ -64,6 +64,21 @@ def _hashear_pii(valor: str, tenant_id: UUID | str | None) -> str:
     return hashear_pii_com_salt_tenant(valor, tenant_id)
 
 
+def _active_tenant_obrigatorio() -> UUID:
+    """Retorna o tenant ativo ou levanta — defesa em profundidade ao middleware.
+
+    O TenantMiddleware ja garante que endpoints protegidos so passam com
+    active_tenant setado. Esta funcao eh failsafe: se chegar aqui sem tenant,
+    eh bug ou bypass do middleware — preferimos crash explicito a query None.
+    """
+    from rest_framework.exceptions import PermissionDenied
+
+    active_inner = active_tenant_context.get()
+    if active_inner is None:
+        raise PermissionDenied("tenant_nao_resolvido")
+    return active_inner
+
+
 class ClienteViewSet(viewsets.ModelViewSet):
     """CRUD de Cliente — autorizado por `RequireAuthz`."""
 
@@ -87,27 +102,27 @@ class ClienteViewSet(viewsets.ModelViewSet):
         "importacoes": "clientes.importar",  # US-CLI-003 — listagem historico
     }
 
-    def get_authz_action(self, request) -> str | None:  # type: ignore[no-untyped-def]
+    def get_authz_action(self, request) -> str | None:
         action = getattr(self, "action", None)
         return self.ACTION_MAP.get(action) if action else None
 
-    def get_authz_resource(self, request):  # type: ignore[no-untyped-def]
+    def get_authz_resource(self, request):
         return {}
 
-    def get_queryset(self):  # type: ignore[no-untyped-def]
-        active = active_tenant_context.get()
+    def get_queryset(self):
+        active = _active_tenant_obrigatorio()
         if active is None:
             return Cliente.objects.none()
         return Cliente.objects.filter(tenant_id=active)
 
-    def create(self, request, *args, **kwargs):  # type: ignore[no-untyped-def]
+    def create(self, request, *args, **kwargs):
         """POST /clientes/ — dedup cross-tenant safe + 409 estruturada (TL1).
 
         Detectamos duplicata via QUERYSET FILTRADO POR active_tenant — nunca via
         IntegrityError (que poderia vazar existencia cross-tenant). 409 retorna
         link pro cliente existente DENTRO do mesmo tenant.
         """
-        active = active_tenant_context.get()
+        active = _active_tenant_obrigatorio()
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -132,7 +147,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
 
-    def perform_create(self, serializer) -> None:  # type: ignore[no-untyped-def]
+    def perform_create(self, serializer) -> None:
         """Cria cliente + grava audit `cliente.criado` sem PII cru (TL3).
 
         Audit fica em `auditoria` (F-A) como event-as-audit-trail enquanto
@@ -142,11 +157,11 @@ class ClienteViewSet(viewsets.ModelViewSet):
         from src.infrastructure.audit.services import registrar_auditoria
         from src.infrastructure.tenant.models import Tenant
 
-        active = active_tenant_context.get()
+        active = _active_tenant_obrigatorio()
         tenant = Tenant.objects.filter(id=active).get()
 
         # Injeta IP hash + tenant
-        ip_hash = _hashear_ip(self.request)  # type: ignore[attr-defined]
+        ip_hash = _hashear_ip(self.request)
         cliente = serializer.save(tenant=tenant, aceite_lgpd_ip_hash=ip_hash)
 
         # Audit `cliente.criado` — sem PII cru
@@ -172,7 +187,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
     # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP["mesclar"]="clientes.mesclar"
     # =============================================================
     @action(detail=True, methods=["post"], url_path=r"mesclar/(?P<perdedor_id>[^/.]+)")
-    def mesclar(self, request, pk=None, perdedor_id=None):  # type: ignore[no-untyped-def]
+    def mesclar(self, request, pk=None, perdedor_id=None):
         """Mescla `perdedor_id` em `pk` (vencedor). Soft-delete do perdedor."""
         from src.infrastructure.audit.services import registrar_auditoria
         from src.infrastructure.multitenant.context import usuario_id_context
@@ -209,7 +224,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         repo = DjangoClienteRepository()
         usuario_id = usuario_id_context.get()
         agora = datetime.now(timezone.utc)
-        active = active_tenant_context.get()
+        active = _active_tenant_obrigatorio()
 
         try:
             with transaction.atomic():
@@ -277,7 +292,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
     # authz-check: skip -- RequireAuthz resolve via ACTION_MAP
     # =============================================================
     @action(detail=True, methods=["post"], url_path="bloquear")
-    def bloquear(self, request, pk=None):  # type: ignore[no-untyped-def]
+    def bloquear(self, request, pk=None):
         """Bloqueia cliente. Idempotente: no-op se ja bloqueado."""
         from src.infrastructure.audit.services import registrar_auditoria
         from src.infrastructure.clientes.bloqueio import (
@@ -363,7 +378,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             )
 
         usuario_id = usuario_id_context.get()
-        active = active_tenant_context.get()
+        active = _active_tenant_obrigatorio()
         tenant = Tenant.objects.filter(id=active).get()
 
         try:
@@ -432,7 +447,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         )
 
     @action(detail=True, methods=["post"], url_path="desbloquear")
-    def desbloquear(self, request, pk=None):  # type: ignore[no-untyped-def]
+    def desbloquear(self, request, pk=None):
         """Desbloqueia cliente. No-op se nao havia bloqueio ativo."""
         from src.infrastructure.audit.services import registrar_auditoria
         from src.infrastructure.clientes.models import Cliente, ClienteBloqueio
@@ -466,7 +481,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             )
 
         usuario_id = usuario_id_context.get()
-        active = active_tenant_context.get()
+        active = _active_tenant_obrigatorio()
         agora = datetime.now(timezone.utc)
 
         with transaction.atomic():
@@ -519,7 +534,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
     # authz-check: skip -- RequireAuthz resolve via ACTION_MAP["visao_360"]="clientes.visao360"
     # =============================================================
     @action(detail=True, methods=["get"], url_path="visao-360")
-    def visao_360(self, request, pk=None):  # type: ignore[no-untyped-def]
+    def visao_360(self, request, pk=None):
         """GET /clientes/{id}/visao-360/?finalidade=executar_os
 
         Registra acesso em `acessos_dados_cliente` ANTES de ler timeline (INV-013).
@@ -559,7 +574,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             )
 
         usuario_id = usuario_id_context.get()
-        active = active_tenant_context.get()
+        active = _active_tenant_obrigatorio()
         ip_hash = _hashear_ip(request)
 
         # INV-013 — grava acesso ANTES de ler timeline.
@@ -612,7 +627,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         methods=["post"],
         url_path="importar-preview",
     )
-    def importar_preview(self, request):  # type: ignore[no-untyped-def]
+    def importar_preview(self, request):
         """POST /clientes/importar-preview/ — devolve mapeamento sugerido + amostra."""
         from src.infrastructure.clientes.csv_io import (
             ErroCsvIo,
@@ -697,12 +712,18 @@ class ClienteViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
 
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP["importar_executar"]="clientes.importar"
+    # `@transaction.non_atomic_requests` desativa ATOMIC_REQUESTS pra esta
+    # view especifica — necessario pra que `repositories.bulk_upsert` consiga
+    # setar `SET TRANSACTION ISOLATION LEVEL SERIALIZABLE` antes de iniciar
+    # a transacao (R3 tech-lead resolvido 2026-05-18 noite final).
+    @transaction.non_atomic_requests
     @action(
         detail=False,
         methods=["post"],
         url_path="importar-executar",
     )
-    def importar_executar(self, request):  # type: ignore[no-untyped-def]
+    def importar_executar(self, request):
         """POST /clientes/importar-executar/ — cria/atualiza em lote + audit."""
         from src.application.comercial.clientes.importar_clientes import (
             ContextoImportacao,
@@ -763,7 +784,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             )
 
-        active = active_tenant_context.get()
+        active = _active_tenant_obrigatorio()
         if active is None:
             return Response(
                 {"detail": "tenant_nao_resolvido"},
@@ -930,7 +951,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 pass
 
     @action(detail=False, methods=["get"], url_path="importacoes")
-    def importacoes(self, request):  # type: ignore[no-untyped-def]
+    def importacoes(self, request):
         """GET /clientes/importacoes/ — histórico de importações do tenant.
 
         Cada chamada dispara INV-013 com finalidade `consulta_relatorio_importacao`
@@ -943,7 +964,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         from src.infrastructure.clientes.models import ClienteImportacaoDeclaracao
         from src.infrastructure.multitenant.context import usuario_id_context
 
-        active = active_tenant_context.get()
+        active = _active_tenant_obrigatorio()
         usuario_id = usuario_id_context.get()
         ip_hash = _hashear_ip(request)
 

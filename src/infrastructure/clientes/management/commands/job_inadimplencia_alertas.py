@@ -33,7 +33,7 @@ class Command(BaseCommand):
         "inadimplentes >=90d, respeitando flag bloqueio_automatico_inadimplencia_habilitado."
     )
 
-    def add_arguments(self, parser):  # type: ignore[no-untyped-def]
+    def add_arguments(self, parser):
         parser.add_argument(
             "--dry-run",
             action="store_true",

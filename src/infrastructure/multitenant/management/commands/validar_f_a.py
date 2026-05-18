@@ -45,14 +45,14 @@ from src.infrastructure.usuario.models import Usuario
 class Command(BaseCommand):
     help = "Roda o drill de validacao Foundation F-A (5 criterios automaveis)."
 
-    def add_arguments(self, parser):  # type: ignore[no-untyped-def]
+    def add_arguments(self, parser):
         parser.add_argument(
             "--quick",
             action="store_true",
             help="Pula benchmark p99 (mais rapido pra desenvolvimento).",
         )
 
-    def handle(self, *args, **options):  # type: ignore[no-untyped-def]
+    def handle(self, *args, **options):
         quick = options.get("quick", False)
         resultados: list[tuple[str, bool, str]] = []
 

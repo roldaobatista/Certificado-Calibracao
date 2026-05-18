@@ -135,30 +135,84 @@ class DjangoClienteRepository:
         update_existing: bool,
         agora: datetime,
     ) -> ResultadoImportacao:
-        """Insere/atualiza em lote dentro de uma transacao SERIALIZABLE."""
+        """Insere/atualiza em lote dentro de uma transacao SERIALIZABLE (R3 tech-lead).
+
+        Pré-condição: caller (view `importar_executar`) DEVE estar decorado
+        com `@transaction.non_atomic_requests` — caso contrario Django
+        ATOMIC_REQUESTS abre transacao com READ COMMITTED antes da view
+        rodar e `SET TRANSACTION ISOLATION LEVEL` falha.
+
+        Estrategia (R3 tech-lead resolvido 2026-05-18 noite final):
+        1. `SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL
+           SERIALIZABLE` antes de qualquer query (afeta apenas esta sessao
+           pelo restante da operacao; reset no `finally`).
+        2. `transaction.atomic()` envolve o trabalho — qualquer erro
+           rollback automatico.
+        3. Advisory lock por tenant serializa importacoes simultaneas do
+           mesmo tenant.
+        4. Retry em SerializationFailure (max 3 tentativas, backoff 50/200/800ms).
+
+        SERIALIZABLE + advisory lock + UNIQUE INDEX parcial elimina
+        lost-update e phantom read.
+        """
         if not linhas:
             return ResultadoImportacao(
                 criados=0, atualizados=0, sem_mudanca=0, rejeitados=()
             )
 
+        import time
+
+        from psycopg import errors as pg_errors
+
+        MAX_TENTATIVAS = 3
+        for tentativa in range(MAX_TENTATIVAS):
+            try:
+                return self._bulk_upsert_serializable(
+                    tenant_id=tenant_id,
+                    linhas=linhas,
+                    update_existing=update_existing,
+                    agora=agora,
+                )
+            except pg_errors.SerializationFailure:
+                if tentativa == MAX_TENTATIVAS - 1:
+                    raise
+                # Backoff exponencial: 50ms, 200ms, 800ms
+                time.sleep(0.05 * (4 ** tentativa))
+        # Inalcancavel — loop sempre retorna ou levanta.
+        raise RuntimeError("bulk_upsert: estado inalcancavel apos retry")
+
+    def _bulk_upsert_serializable(
+        self,
+        *,
+        tenant_id: UUID,
+        linhas: list[ClienteImportacaoInput],
+        update_existing: bool,
+        agora: datetime,
+    ) -> ResultadoImportacao:
+        """Executa o bulk_upsert numa transacao SERIALIZABLE — caminho real."""
         rejeitados: list[LinhaRejeitada] = []
         ids_criados: list[UUID] = []
         ids_atualizados: list[UUID] = []
         sem_mudanca = 0
 
-        # Hash do tenant pra advisory lock (32-bit signed precisa caber).
-        # postgres pg_advisory_xact_lock(bigint) — hashtext devolve int4.
-        with transaction.atomic():
-            # SERIALIZABLE diferido pra Wave A (precisa setar antes da 1a query
-            # da transacao da view; em Django ATOMIC_REQUESTS=True a transacao
-            # ja esta aberta com READ COMMITTED quando chegamos aqui). Advisory
-            # lock por tenant ja serializa importacoes simultaneas do mesmo
-            # tenant — suficiente pra Marco 1 dogfooding.
-            with connection.cursor() as cur:
-                cur.execute(
-                    "SELECT pg_advisory_xact_lock(hashtext(%s));",
-                    [f"importacao_clientes:{tenant_id}"],
-                )
+        # SET SESSION CHARACTERISTICS afeta a proxima transacao iniciada
+        # nesta conexao. Tem que rodar FORA de transacao ativa (eh comando
+        # de configuracao da sessao). Reset depois pra READ COMMITTED.
+        # Pre-condicao @transaction.non_atomic_requests garante que estamos
+        # em autocommit antes desta linha.
+        with connection.cursor() as cur:
+            cur.execute(
+                "SET SESSION CHARACTERISTICS AS TRANSACTION "
+                "ISOLATION LEVEL SERIALIZABLE;"
+            )
+
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cur:
+                    cur.execute(
+                        "SELECT pg_advisory_xact_lock(hashtext(%s));",
+                        [f"importacao_clientes:{tenant_id}"],
+                    )
 
             # Detectar documentos que pertencem a clientes soft-deleted (mesclados).
             # Se existir, rejeita com motivo especifico (E risco tech-lead).
@@ -290,11 +344,19 @@ class DjangoClienteRepository:
                 for novo in novos_por_chave.values():
                     ids_criados.append(novo.id)
 
-        return ResultadoImportacao(
-            criados=len(ids_criados),
-            atualizados=len(ids_atualizados),
-            sem_mudanca=sem_mudanca,
-            rejeitados=tuple(rejeitados),
-            ids_criados=tuple(ids_criados),
-            ids_atualizados=tuple(ids_atualizados),
-        )
+            return ResultadoImportacao(
+                criados=len(ids_criados),
+                atualizados=len(ids_atualizados),
+                sem_mudanca=sem_mudanca,
+                rejeitados=tuple(rejeitados),
+                ids_criados=tuple(ids_criados),
+                ids_atualizados=tuple(ids_atualizados),
+            )
+        finally:
+            # Reset isolation level pra READ COMMITTED — proximas operacoes
+            # nesta conexao nao precisam de SERIALIZABLE.
+            with connection.cursor() as cur:
+                cur.execute(
+                    "SET SESSION CHARACTERISTICS AS TRANSACTION "
+                    "ISOLATION LEVEL READ COMMITTED;"
+                )

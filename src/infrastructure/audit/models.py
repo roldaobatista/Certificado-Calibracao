@@ -12,6 +12,7 @@ a cadeia quebra na proxima verificacao. Conformidade ISO 17025 + RBC + LGPD.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from django.db import models
 
@@ -82,7 +83,7 @@ class Auditoria(models.Model):
     def __str__(self) -> str:
         return f"{self.timestamp:%Y-%m-%d %H:%M:%S} {self.action} ({self.resource_summary})"
 
-    def save(self, *args: object, **kwargs: object) -> None:
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """Modelo Auditoria so permite INSERT (defesa de aplicacao).
 
         Trigger PG no Marco 4 reforca isso a nivel de banco. Quem tentar
@@ -95,7 +96,7 @@ class Auditoria(models.Model):
             )
         super().save(*args, **kwargs)
 
-    def delete(self, *args: object, **kwargs: object) -> None:
+    def delete(self, *args: Any, **kwargs: Any) -> "tuple[int, dict[str, int]]":
         raise RuntimeError(
             "Auditoria e INSERT-only. DELETE bloqueado em codigo (Marco 2) e "
             "em trigger PG (Marco 4)."

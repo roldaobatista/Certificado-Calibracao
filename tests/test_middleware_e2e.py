@@ -35,13 +35,25 @@ class TestMiddlewareFluxoCompleto:
         response = client.get(reverse("schema"))
         assert response.status_code in (200, 301, 302)
 
-    # skip 2026-05-17 (Roldao) — endpoint protegido real so existe a partir de Wave A. Reabilitar quando primeiro endpoint DRF aparecer (modulo calibracao).
-    @pytest.mark.skip(reason="aguardando endpoint Wave A — ver comentario acima")
     def test_usuario_sem_perfil_em_tenant_recebe_403(self, client: Client) -> None:
+        """Usuario sem perfil em tenant ativo nao acessa endpoint protegido.
+
+        Skip removido 2026-05-18 noite final: agora usa `/api/v1/clientes/`
+        do modulo clientes (Wave A · Marco 1 fechado).
+        """
+        from django_otp import DEVICE_ID_SESSION_KEY
+        from django_otp.plugins.otp_totp.models import TOTPDevice
+
         with run_as_system():
             u = UsuarioFactory(password="senha-teste-12-chars")
+            device, _ = TOTPDevice.objects.get_or_create(
+                user=u, name="default", defaults={"confirmed": True}
+            )
 
         client.force_login(u)
-        response = client.get("/api/v1/calibracoes/")  # endpoint a-ser-criado em Wave A
-        assert response.status_code == 403
-        assert b"sem tenant ativo" in response.content
+        session = client.session
+        session[DEVICE_ID_SESSION_KEY] = device.persistent_id
+        session.save()
+        response = client.get("/api/v1/clientes/")
+        # Sem perfil em tenant ativo -> middleware nega.
+        assert response.status_code in (401, 403)

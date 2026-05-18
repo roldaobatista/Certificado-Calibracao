@@ -13,6 +13,7 @@ UsuarioPerfilTenant (M:N):
 
 from __future__ import annotations
 
+import typing
 import uuid
 from typing import Any
 
@@ -79,7 +80,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     objects = UsuarioManager()
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS: list[str] = []
+    REQUIRED_FIELDS: typing.ClassVar[list[str]] = []
 
     class Meta:
         app_label = "usuario"

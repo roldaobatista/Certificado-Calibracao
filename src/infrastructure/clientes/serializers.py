@@ -62,7 +62,7 @@ class ClienteSerializer(serializers.ModelSerializer):
             "atualizado_em",
         ]
 
-    def validate(self, attrs):  # type: ignore[no-untyped-def]
+    def validate(self, attrs):
         """Normaliza documento + aplica regras LGPD PF/PJ (R3 advogado)."""
         tipo = attrs.get("tipo_pessoa") or getattr(self.instance, "tipo_pessoa", None)
         doc = attrs.get("documento")
@@ -152,7 +152,7 @@ class ImportarExecutarSerializer(serializers.Serializer):
     skip_invalid = serializers.BooleanField(default=False)
     update_existing = serializers.BooleanField(default=True)
 
-    def validate_declaracao(self, value):  # type: ignore[no-untyped-def]
+    def validate_declaracao(self, value):
         """Garante shape do dict + decodifica via DeclaracaoProcedenciaSerializer."""
         decl_ser = DeclaracaoProcedenciaSerializer(data=value)
         decl_ser.is_valid(raise_exception=True)

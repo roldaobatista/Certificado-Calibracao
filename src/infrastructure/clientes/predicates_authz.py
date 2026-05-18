@@ -69,12 +69,29 @@ def tenant_nao_suspenso(
 ) -> tuple[bool, str]:
     """Predicate ABAC — INV-INT-009 (suspensao de tenant desliga features).
 
-    Stub atual: retorna sempre (True, "") porque ADR-0015 fluxo 3 ainda nao
-    foi implementado. Quando entrar, consulta `Tenant.modo_suspensao` e
-    nega com reason `tenant_suspenso_bloqueado_total` ou similar.
+    Consulta `Tenant.status_lifecycle` (criado na Foundation, com 3 valores:
+    ATIVO/SUSPENSO/CANCELADO). Endereca CONCERN Seguranca 4 do Auditor
+    Familia 5 em 2026-05-18 noite final — substituiu o stub anterior.
 
-    Usado por `clientes.importar`. Quando ADR-0015 estiver pronto, basta
-    trocar o corpo deste predicate — view e use case nao mudam.
+    Usado por `clientes.importar`. Outras actions de alto impacto (mesclar,
+    bloquear) podem reusar quando ADR-0015 fluxo 3 estender o ciclo de vida
+    (modos: ativo/aviso/restrito/bloqueado_total/cancelado).
     """
-    # TODO(US-ADR-0015 fluxo 3): trocar pelo lookup real em Tenant.modo_suspensao.
+    if tenant_id is None:
+        return True, ""  # nao aplica
+
+    # Import tardio — apps loading
+    from src.infrastructure.tenant.models import StatusLifecycle, Tenant
+
+    tenant = (
+        Tenant.objects.filter(id=tenant_id)
+        .only("status_lifecycle")
+        .first()
+    )
+    if tenant is None:
+        return False, "tenant_nao_existe"
+    if tenant.status_lifecycle == StatusLifecycle.SUSPENSO:
+        return False, "tenant_suspenso"
+    if tenant.status_lifecycle == StatusLifecycle.CANCELADO:
+        return False, "tenant_cancelado"
     return True, ""

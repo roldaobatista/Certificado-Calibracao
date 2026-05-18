@@ -37,7 +37,9 @@ class RequireAuthz(BasePermission):
 
     message = "Acesso negado"
 
-    def has_permission(self, request, view) -> bool:  # type: ignore[no-untyped-def]
+    # authz-check: skip -- este eh o proprio AuthorizationProvider gateway; quem
+    # chama provider.can() eh o has_permission abaixo.
+    def has_permission(self, request, view) -> bool:
         # Caminho 1: view explicitamente pública.
         if getattr(view, "authz_public", False):
             return True
@@ -71,19 +73,21 @@ class RequireAuthz(BasePermission):
         )
         if not decision.allowed:
             self.message = f"Acesso negado: {decision.reason}"
-            request._authz_decision = decision  # type: ignore[attr-defined]
+            request._authz_decision = decision
             return False
-        request._authz_decision = decision  # type: ignore[attr-defined]
+        request._authz_decision = decision
         return True
 
     @staticmethod
-    def _extrair_acao(request, view) -> str | None:  # type: ignore[no-untyped-def]
+    def _extrair_acao(request, view) -> str | None:
         if hasattr(view, "get_authz_action"):
-            return view.get_authz_action(request)
-        return getattr(view, "authz_action", None)
+            acao: str | None = view.get_authz_action(request)
+            return acao
+        valor = getattr(view, "authz_action", None)
+        return valor if isinstance(valor, str) else None
 
     @staticmethod
-    def _extrair_resource(request, view) -> dict[str, Any]:  # type: ignore[no-untyped-def]
+    def _extrair_resource(request, view) -> dict[str, Any]:
         if hasattr(view, "get_authz_resource"):
             return view.get_authz_resource(request) or {}
         return {}

@@ -26,11 +26,11 @@ from src.infrastructure.usuario.models import Usuario
 class Command(BaseCommand):
     help = "Popula DB com 5 tenants x 10k auditorias pra drill restore PG ser significativo."
 
-    def add_arguments(self, parser):  # type: ignore[no-untyped-def]
+    def add_arguments(self, parser):
         parser.add_argument("--tenants", type=int, default=5)
         parser.add_argument("--linhas-por-tenant", type=int, default=10_000)
 
-    def handle(self, *args, **options):  # type: ignore[no-untyped-def]
+    def handle(self, *args, **options):
         n_tenants = options["tenants"]
         n_linhas = options["linhas_por_tenant"]
 

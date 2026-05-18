@@ -16,7 +16,7 @@ Estrategia (3 camadas):
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Iterator
+from typing import Any, Iterator
 from uuid import UUID
 
 from django.db import connection, connections, transaction
@@ -31,7 +31,7 @@ from .context import (
 
 
 @receiver(connection_created)
-def _resetar_app_settings_na_conexao(sender, connection, **kwargs) -> None:  # type: ignore[no-untyped-def]
+def _resetar_app_settings_na_conexao(sender: object, connection: Any, **kwargs: Any) -> None:
     """No checkout de conexao nova do pool, garante que `app.*` vem zerado.
 
     NAO podemos confiar que a sessao PG anterior limpou. Defesa em profundidade.

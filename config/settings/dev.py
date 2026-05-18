@@ -10,7 +10,11 @@ ALLOWED_HOSTS = ["*"]
 INSTALLED_APPS += ["django_extensions"]  # noqa: F405 — INSTALLED_APPS vem do star import de base.py (padrao Django settings overlay)
 
 # Logging verboso pra agente IA debugar.
-LOGGING["root"]["level"] = "DEBUG"  # noqa: F405 — LOGGING vem do star import de base.py
+# LOGGING vem do star import de base.py; cast pra dict pra mypy.
+from typing import Any, Dict, cast
+
+_LOGGING: Dict[str, Any] = cast(Dict[str, Any], LOGGING)  # noqa: F405 — star import
+_LOGGING["root"]["level"] = "DEBUG"
 
 # Em dev permite SECRET_KEY default insegura via .env, mas registra warning.
 # Em prod (config/settings/prod.py) SECRET_KEY sem default — falha duro.

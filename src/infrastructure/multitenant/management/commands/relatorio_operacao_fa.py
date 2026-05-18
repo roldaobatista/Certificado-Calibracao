@@ -30,7 +30,7 @@ INICIO_F_A = datetime(2026, 5, 17, tzinfo=timezone.utc)
 class Command(BaseCommand):
     help = "Reporta estado atual dos 4 indicadores operacionais do critério 7 (F-A)."
 
-    def handle(self, *args, **options):  # type: ignore[no-untyped-def]
+    def handle(self, *args, **options):
         agora = datetime.now(timezone.utc)
         dias_em_fa = (agora - INICIO_F_A).days
         semanas = dias_em_fa / 7

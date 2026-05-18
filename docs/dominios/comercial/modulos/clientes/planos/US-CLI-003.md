@@ -52,10 +52,15 @@ Cada ressalva está mapeada para tasks T-CLI-041 a T-CLI-060 abaixo.
 
 ### 2.4. Dedup transacional + concorrência (R3 tech-lead)
 
-- **Isolation level**: `SERIALIZABLE` por importação (`SET TRANSACTION ISOLATION LEVEL SERIALIZABLE`).
+- **Isolation level: SERIALIZABLE** (R3 tech-lead + CONCERN Auditor Segurança 3 — **RESOLVIDO 2026-05-18 noite final**):
+  - View `importar_executar` decorada com `@transaction.non_atomic_requests` — desativa Django ATOMIC_REQUESTS pra esta view.
+  - `repositories._bulk_upsert_serializable` executa `SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL SERIALIZABLE` antes de `transaction.atomic()`.
+  - Retry de até 3 tentativas em `psycopg.errors.SerializationFailure` com backoff exponencial 50ms/200ms/800ms.
+  - `finally` reseta SESSION CHARACTERISTICS pra READ COMMITTED ao final.
+  - SERIALIZABLE + advisory lock por tenant + UNIQUE INDEX parcial cobrem lost-update, phantom read e race entre tenants.
 - **Advisory lock por tenant**: `pg_advisory_xact_lock(hashtext('importacao_clientes:' || tenant_id::text))` no início — duas importações simultâneas do mesmo tenant serializam; tenants diferentes não competem.
 - **Dedup intra-arquivo**: pré-processamento agrupa por `(tipo_pessoa, documento)`; **última linha vence**; relatório reporta `linhas_colapsadas_intra_arquivo: N`.
-- **bulk_upsert** via `Cliente.objects.bulk_create(update_conflicts=True, unique_fields=["tenant_id","tipo_pessoa","documento"], update_fields=[...])` — usa Django 5.0 nativo, respeita UNIQUE INDEX parcial criado em US-CLI-005.
+- **bulk_upsert**: por UNIQUE INDEX ser parcial (`WHERE deletado_em IS NULL`), `bulk_create(update_conflicts=True)` não consegue ON CONFLICT — loop explícito que faz `.update()` em existentes e `.bulk_create()` em novos. Aceitável até 1000 linhas; Wave A pode evoluir pra COPY temp + MERGE quando volume crescer.
 
 ### 2.5. Atomicidade (R9 tech-lead)
 

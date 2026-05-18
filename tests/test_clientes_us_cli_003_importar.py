@@ -844,10 +844,38 @@ def test_predicate_tenant_nao_suspenso_stub_passa():
     assert reason == ""
 
 
-# skip 2026-05-18 (Roldao) — ADR-0015 fluxo 3 cria tenant.modo_suspensao
-@pytest.mark.skip(reason="ADR-0015 fluxo 3 pendente — predicate eh stub allowed=True")
-def test_importar_com_tenant_suspenso_nega_403():
-    """Quando ADR-0015 fluxo 3 entrar, predicate `tenant_nao_suspenso` nega."""
+@pytest.mark.django_db(transaction=True)
+def test_importar_com_tenant_suspenso_nega_403(cenario):
+    """Tenant SUSPENSO -> predicate `tenant_nao_suspenso` retorna denied.
+
+    CONCERN Seguranca 4 (Auditor Familia 5 2026-05-18) — predicate
+    deixou de ser stub. Consulta `Tenant.status_lifecycle` de verdade.
+    """
+    from src.infrastructure.tenant.models import StatusLifecycle
+    from src.infrastructure.clientes.predicates_authz import tenant_nao_suspenso
+
+    tenant = cenario["tenant"]
+    tenant.status_lifecycle = StatusLifecycle.SUSPENSO
+    tenant.save(update_fields=["status_lifecycle"])
+
+    allowed, reason = tenant_nao_suspenso(resource={}, tenant_id=tenant.id)
+    assert allowed is False
+    assert reason == "tenant_suspenso"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_importar_com_tenant_cancelado_nega(cenario):
+    """Tenant CANCELADO -> predicate nega com reason `tenant_cancelado`."""
+    from src.infrastructure.tenant.models import StatusLifecycle
+    from src.infrastructure.clientes.predicates_authz import tenant_nao_suspenso
+
+    tenant = cenario["tenant"]
+    tenant.status_lifecycle = StatusLifecycle.CANCELADO
+    tenant.save(update_fields=["status_lifecycle"])
+
+    allowed, reason = tenant_nao_suspenso(resource={}, tenant_id=tenant.id)
+    assert allowed is False
+    assert reason == "tenant_cancelado"
 
 
 # =============================================================

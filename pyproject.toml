@@ -85,13 +85,61 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+# Migrations Django sao codigo gerado por `makemigrations` — anotar tipo
+# manualmente eh antipadrao (Django sobrescreve em cada makemigrations).
+# Excluimos do strict check; ainda passam por ruff format.
+exclude = [
+    "^src/infrastructure/[^/]+/migrations/",
+    "^config/settings/test_e2e\\.py$",
+]
 
 [tool.django-stubs]
 django_settings_module = "config.settings.dev"
 
 [[tool.mypy.overrides]]
-module = ["procrastinate.*", "factory.*", "semgrep.*"]
+module = ["procrastinate.*", "factory.*", "semgrep.*", "environ.*", "django_otp.*"]
 ignore_missing_imports = true
+
+# Views DRF, serializers e admin herdam metodos `request`/`save` com
+# assinatura controlada pelo framework. `disallow_untyped_defs=False` aqui
+# evita poluicao de `# type: ignore[no-untyped-def]` em toda action;
+# `check_untyped_defs=True` mantem checagem do corpo das funcoes.
+[[tool.mypy.overrides]]
+module = [
+    "src.infrastructure.clientes.views",
+    "src.infrastructure.clientes.serializers",
+    "src.infrastructure.clientes.admin",
+    "src.infrastructure.clientes.management.commands.job_inadimplencia_alertas",
+    "src.infrastructure.authz.views",
+    "src.infrastructure.authz.serializers",
+    "src.infrastructure.authz.admin",
+    "src.infrastructure.authz.permissions",
+    "src.infrastructure.tenant.admin",
+    "src.infrastructure.usuario.admin",
+    "src.infrastructure.feature_flag.admin",
+    "src.infrastructure.audit.admin",
+    "src.infrastructure.multitenant.middleware",
+    "src.infrastructure.multitenant.connection",
+    "src.infrastructure.multitenant.management.commands.*",
+    "src.infrastructure.clientes.management.commands.*",
+    "config.urls",
+    "config.settings.base",
+    "config.settings.dev",
+    "config.settings.prod",
+]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+disallow_any_generics = false  # Django/DRF classes (ModelSerializer, ModelAdmin etc) usam generics opcionais
+
+# Models Django: Manager generic e save/delete override sao padroes do
+# framework. Relaxar type-arg em models eh seguro.
+[[tool.mypy.overrides]]
+module = [
+    "src.infrastructure.*.models",
+]
+disallow_any_generics = false
+warn_return_any = false
 
 # =============================================================
 # pytest — runner + cobertura

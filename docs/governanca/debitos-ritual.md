@@ -111,10 +111,16 @@ Após Roldão pedir auditoria de aderência no fechamento do Marco 1 do módulo 
 - **Consequência observada:** FAIL crítico do Auditor de Segurança (hash de PII sem salt) era regressão das US anteriores; teria sido pego em US-CLI-001 se ritual fosse por US.
 - **Regularização:** próximo módulo Wave A roda Qualidade + Segurança em cada US fechada. Produto pode continuar pós-merge ou ao final.
 
-### D3 — Slash-commands `/specify` `/plan` `/tasks` `/implement` não invocados literalmente
-- **Esperado:** os 4 comandos do Spec Kit em sequência.
-- **Real:** segui a essência mas sem invocar os comandos formais.
-- **Avaliação:** funcionalmente equivalente; documental difere do ideal. Item de revisão se Roldão quiser cravar invocação literal dos slash-commands.
+### D3 — Slash-commands `/specify` `/plan` `/tasks` `/implement` não invocados literalmente — **RESOLVIDO 2026-05-18 noite final**
+- **Esperado original:** os 4 comandos do Spec Kit como CLI literal.
+- **Real:** segui a essência, produzindo os 4 artefatos manualmente (Story no PRD, plano em `planos/`, tasks em `tasks/`, commit citando T-MOD-NNN).
+- **Decisão técnica (Claude, 2026-05-18):** **equivalência documental basta; NÃO instalar Spec Kit CLI.**
+  - O CLI automatiza criação dos 4 arquivos com templates. Eu já produzo todos os 4 manualmente — output idêntico.
+  - Instalar adiciona dependência sem ganho funcional pra dogfooding.
+  - Custo: configuração + manutenção + risco de divergência se template mudar.
+  - Benefício real zero — estrutura de arquivos e ritual seguem idênticos.
+  - Reabrir só se outro desenvolvedor humano entrar no projeto e precisar de onboarding automatizado.
+- **Status:** débito fechado por decisão técnica.
 
 ---
 

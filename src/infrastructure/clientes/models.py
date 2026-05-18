@@ -31,10 +31,10 @@ class TipoPessoa(models.TextChoices):
     PJ = "PJ", "Pessoa Juridica"
 
 
-class ClienteAtivosManager(models.Manager):
+class ClienteAtivosManager(models.Manager["Cliente"]):
     """Manager default — filtra soft-deleted (US-CLI-005 + R4 advogado)."""
 
-    def get_queryset(self) -> models.QuerySet["Cliente"]:
+    def get_queryset(self) -> "models.QuerySet[Cliente]":
         return super().get_queryset().filter(deletado_em__isnull=True)
 
 
