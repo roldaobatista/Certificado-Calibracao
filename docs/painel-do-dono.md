@@ -25,9 +25,11 @@
 
 ---
 
-## ⏱️ Estado em 2026-05-17 NOITE (pós-auditoria 12 agentes + 24 correções aplicadas)
+## ⏱️ Estado em 2026-05-17 MADRUGADA do dia seguinte (Discovery STABLE v1.0 — Caminho A diferido pra V2)
 
-**Fase:** **Rodada 0 Discovery — batch 3 EXECUTADO + auditoria 12 agentes + 24 achados aplicados em lote**
+**Fase:** **Rodada 0 Discovery FECHADA em STABLE v1.0** — input pronto pra destravar Foundation F-A. 11 commits aplicaram: 7 ADRs novas (0010-0016), 16 invariantes novas (INV-INT-001..013 + INV-AUTHZ-001..003 + INV-047), 3 hooks novos, doc isolamento-multi-tenant, doc faseamento Foundation/Waves, auditoria de consistência v8 com 6 agentes paralelos, 11 decisões Roldão aplicadas, drift de §12/§2/§3 corrigido, e síntese-final discovery fechada em STABLE v1.0. **Foundation F-A pode começar quando Roldão quiser.**
+
+**Fase anterior (referência):** Rodada 0 Discovery — batch 3 + auditoria 12 agentes + 24 achados aplicados em lote
 **Última atividade:** sessão da noite 17/05/2026 — Roldão pediu auditoria com 12 agentes em ângulos novos (sem repetir batches 1+2). Disparados 12 auditores em paralelo cobrindo: Pricing, Sequenciamento MVP, Calibração scores, Defensibilidade, Testabilidade, ICP, Legal/trabalhista, GTM, Founder bias, Cross-doc, Blind spots, LEAP #1. **24 achados (12 críticos + 12 altos).** Roldão aprovou ACEITAR TUDO. 4 subagentes em paralelo aplicaram as 24 correções em 9 docs do Discovery.
 
 **O que mudou nos docs (delta total: ~3.500 linhas):**

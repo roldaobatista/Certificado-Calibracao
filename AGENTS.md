@@ -184,8 +184,7 @@ Por enquanto, comandos disponíveis:
 
 ### Pendências reais
 
-- **Síntese-final discovery:** sair de DRAFT v3 → STABLE (decisão "sem cliente externo agora" precisa ser cravada explicitamente como input, não pendência aberta)
-- **Foundation F-A** — código real ainda não começou; Portão 2/3 da ADR-0001 dependem dele. Definição completa de fases em `docs/faseamento-foundation-waves.md`.
+- **Foundation F-A** — código real ainda não começou; Portão 2/3 da ADR-0001 dependem dele. Definição completa de fases em `docs/faseamento-foundation-waves.md`. **Todos os pré-requisitos doc/governança estão prontos.**
 
 ### Hooks (todos os 11 declarados existem)
 
@@ -203,5 +202,6 @@ Todos os hooks complementares declarados em INV-INT/INV-AUTHZ estão em `.claude
 - ~~`isolamento-multi-tenant.md`~~ → criado em 2026-05-17 noite (481 linhas)
 - ~~3 hooks complementares~~ → `bus-envelope-validator.sh`, `authz-check.sh`, `provisioning-checkpoint-check.sh` criados em 2026-05-17 noite e registrados em `.claude/settings.json`
 - ~~Doc canônico Foundation/Waves~~ → `docs/faseamento-foundation-waves.md` criado em 2026-05-17 noite (372 linhas)
+- ~~Síntese-final discovery DRAFT v3 → STABLE~~ → `docs/discovery/sintese-final.md` fechada em STABLE v1.0 em 2026-05-17 madrugada do dia seguinte (Caminho A diferido pra V2 por decisão Roldão)
 
 Ver também: `docs/INDICE.md` (sitemap) + `docs/documentos-do-projeto.md` (mapa de docs).

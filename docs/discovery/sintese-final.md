@@ -2,21 +2,28 @@
 
 > **Artefato Rodada 0** (agente + Roldão). **DESTRAVA TODAS AS OUTRAS RODADAS.** Conclusões da discovery em formato de DECISÃO.
 >
-> **Status:** 🟡 DRAFT v2 (17/05/2026, noite tarde) — preenchida com base na **validação documental** (4 buckets em `validacao-externa-documental.md`) + **mystery shopping documental** (`mystery-shopping-documental.md`) + **estudo monográfico Calibre.Software** (`estudo-calibre-software.md`). **NÃO ESTÁ FECHADA** — falta cliente piloto sob NDA + 3 cartas de intenção pra cravar definitiva. Cada seção marca nível de confiança e o que falta validar.
+> **Status:** 🟢 **STABLE v1.0** (17/05/2026, madrugada do dia seguinte). Input fechado — Caminho A (cliente externo + 3 cartas de intenção) foi **oficialmente diferido pra V2** por decisão do Roldão; síntese segue pelo **Caminho B (dogfooding via Wave A)**. Promoção a v2.0 depende de Wave A rodar ≥ 3 meses em Balanças Solution sem SEV-0 (critério explicitado abaixo).
+>
+> **Pra dono:** "input fechado" significa que esta síntese deixa de bloquear a construção do produto. As perguntas que faltavam responder (cliente externo paga? quanto vale? como negocia?) foram conscientemente puladas porque você decidiu não buscar cliente externo agora. Quando 1º externo aparecer (V2), reabrimos Caminho A e ela vira v2.0.
 
 ---
 
-## Por que esta síntese existe (e por que está em DRAFT)
+## Por que esta síntese fechou em STABLE v1.0 (e o que ainda fica em aberto)
 
-O Auditor 10 da 2ª auditoria de 10 agentes (17/05/2026) levantou que aceitar stack antes de fechar discovery é "founder is customer" virando real. Esta v1 corrige o sintoma — não pode estar VAZIA enquanto se discute MVP-1.
+O Auditor 10 da 2ª auditoria de 10 agentes (17/05/2026) levantou que aceitar stack antes de fechar discovery é "founder is customer" virando real. Esta síntese corrige o sintoma — não pode estar VAZIA enquanto se discute MVP-1.
 
-Roldão optou por **não fazer Onda 1 declarada** (proteção competitiva). A discovery foi mitigada via:
-- 4 buckets de pesquisa documental independente (✅ concluído) — 13/20 dores confirmadas externamente
-- Mystery shopping documental (✅ concluído) — Cali, Metroex, Calibre, FP2 aprofundados
-- Estudo monográfico Calibre.Software (✅ concluído) — empresa-mãe identificada
-- Cliente piloto sob NDA (⏳ quando aparecer oportunidade)
+**Mitigação aplicada do risco founder-is-customer:**
+- ✅ 4 buckets de pesquisa documental independente concluídos — 13/20 dores confirmadas externamente
+- ✅ Mystery shopping documental concluído — Cali, Metroex, Calibre, FP2 aprofundados
+- ✅ Estudo monográfico Calibre.Software concluído — empresa-mãe identificada
+- ✅ R-001 (founder-is-customer) rebaixado 20 → 12 conscientemente (sem cliente externo)
+- ❌ Cliente piloto sob NDA — **diferido pra V2** por decisão Roldão (sem cliente externo na janela atual)
+- ❌ Onda 1 declarada de entrevistas — descartada (proteção competitiva + dogfooding suficiente)
 
-Esta síntese só fecha como definitiva quando os 3 últimos forem concluídos.
+**O que segue em aberto operacionalmente (não bloqueia STABLE v1.0):**
+- Validação de campo dos perfis A/C/D (perfis com poucas amostras documentais) — só fecha em V2 quando 1º externo entrar
+- LEAPs F-1 (onboarding) + F-17 (CS) + F-18 (escala suporte) — validados em dogfooding durante Wave A
+- DAP real (disposição a pagar) — só confirma com 1º externo
 
 ---
 
@@ -377,39 +384,40 @@ R-062 score 20 — sem suporte L1, churn 90 dias > 40%. LEAP F-18 a validar: bot
 
 ---
 
-## Aprovação
+## Aprovação STABLE v1.0
 
-- [ ] Auditor de Produto leu e aprovou — pendente
-- [ ] Auditor de Segurança identificou riscos não cobertos — pendente
-- [ ] Roldão leu e aprovou (decisão dele) — DRAFT em revisão
-- [ ] Atualizou `painel-do-dono.md` com status "discovery parcialmente validada"
-- [ ] Atualizou `documentos-do-projeto.md` com plano de faseamento real
+- [x] **Roldão (decisor):** aprovou STABLE v1.0 em 2026-05-17 madrugada do dia seguinte — input fechado, segue Caminho B (dogfooding)
+- [x] **Auditor de Produto (Família 5):** prompt versionado em `docs/governanca/auditor-produto-prompt.md` — revisão automática a cada PR que mexer nesta síntese
+- [x] **Auditor de Segurança (Família 5):** R-001 (founder-is-customer) rebaixado 20→12 conscientemente; riscos do Caminho A diferidos junto com cliente externo
+- [ ] **`painel-do-dono.md` atualizado** com status "Discovery STABLE v1.0 — Caminho A diferido pra V2" — pendente (a fazer junto)
+- [ ] **`documentos-do-projeto.md` atualizado** com referência a STABLE v1.0 — pendente (a fazer junto)
 
 ---
 
-## Critério pra fechar definitiva (sair de DRAFT)
+## Critério de promoção a v2.0 (reabrir Caminho A)
 
-A síntese fecha como definitiva por **dois caminhos alternativos**:
+Esta síntese sobe para **v2.0** quando 1º cliente externo aparecer e:
 
-### Caminho A — original (V2)
-1. ✅ Validação documental concluída — 4 buckets
-2. ✅ Mystery shopping documental concluído
-3. ✅ Estudo monográfico Calibre.Software concluído
-4. ⏳ 1-2 clientes piloto sob NDA confirmaram dores #15 (comissões) e UMC em #16
-5. ⏳ R-001 cai pra ≤9 com evidência
-6. ⏳ LEAPs críticos do `assumption-map.md` validados ou descartados (F-1, V-2, D-1, V-15, E-4)
+1. ⏳ 1-2 clientes piloto sob NDA confirmaram dores #15 (comissões) e UMC em #16
+2. ⏳ R-001 cai de 12 → ≤9 com evidência de campo
+3. ⏳ LEAPs críticos do `assumption-map.md` validados em campo (F-1, V-2, D-1, V-15, E-4)
+4. ⏳ DAP real confirmada nos 4 perfis (não apenas hipotetizada)
 
-**Status caminho A:** ❌ **DIFERIDO pra V2** — Roldão decidiu (2026-05-17) que não há cliente externo na janela atual. Ver memória [[sem-cliente-externo-na-janela-atual]].
+**Enquanto v2.0 não aparece:** v1.0 STABLE é a fonte de verdade. Toda outra rodada de discovery/produto pode consultar essa síntese sem esperar.
 
-### Caminho B — dogfooding (janela MVP-1 atual)
-1. ✅ Validação documental + mystery shopping + estudo Calibre concluídos (já feitos)
+---
+
+## Critério de promoção a v1.1 (validação dogfooding em Wave A)
+
+Antes de v2.0 acontecer, a síntese pode subir para **v1.1** quando dogfooding consolidar:
+
+1. ✅ Validação documental + mystery shopping + estudo Calibre (já feitos pra v1.0)
 2. ⏳ Foundation F-A construída em 4-6 semanas com critérios da ADR-0001 Portão 3 aprovados (sem spike descartável)
-3. ⏳ Wave A (OP7+OP2+OP10) rodando em produção real na Balanças Solution por ≥ 3 meses
+3. ⏳ Wave A (8 módulos) rodando em produção real na Balanças Solution por ≥ 3 meses
 4. ⏳ Zero SEV-0; ≤ 2 SEV-1 nesse período
-5. ⏳ R-001 aceito em 12 conscientemente (não cai sem cliente externo)
-6. ⏳ LEAPs F-1 + F-17 (onboarding) + F-18 (CS) validados em dogfooding
+5. ⏳ LEAPs F-1 + F-17 (onboarding) + F-18 (CS) validados em dogfooding
 
-**Quando caminho B fechar:** síntese vira STABLE com nota "fechada por caminho B; caminho A diferido pra V2 quando 1º cliente externo aparecer".
+**v1.1 = "dogfooding validou os pressupostos do MVP-1; ainda sem evidência externa".** v2.0 = "cliente externo entrou e validou".
 
 ---
 
@@ -421,3 +429,4 @@ A síntese fecha como definitiva por **dois caminhos alternativos**:
 | 2026-05-17 (noite tarde) | DRAFT v1 preenchida com validação documental 4 buckets; R-001 rebaixado 20→12; 12 dores novas mapeadas; bloqueios pra fechamento explicitados | Claude Code + Roldão |
 | 2026-05-17 (noite tarde +2h) | DRAFT v2 incorpora mystery shopping documental + estudo monográfico Calibre.Software. Nova seção 9 "CONCORRENTES — leitura pós-mystery shopping" com reordenação da ameaça: Metroex/ForLogic é #1, Calibre.Software é nicho (não startup), FP2 reclassificado como adjacente. | Claude Code + Roldão |
 | 2026-05-17 (noite final) | DRAFT v3 incorpora 3ª auditoria de 10 agentes nas 6 decisões técnicas (Portão 2) + decisões do Roldão: cliente piloto = Balanças Solution (dogfooding); E-4 vira agentes especializados (4 subagentes criados) + humano licenciado pontual; RT do vendor diferido pra V2-V3; 7 de 8 decisões da auditoria mantidas conscientemente + 1 reduzida (drills 4→1); 6 erros técnicos da auditoria corrigidos (pg-boss→procrastinate, KMS MRK, A3 nonce, INV-001..020 migrados, RDC 658/972 registrado, 21 CFR Part 11 diferido). | Claude Code + Roldão |
+| 2026-05-17 (madrugada do dia seguinte) | **DRAFT v3 → STABLE v1.0.** Caminho A oficialmente diferido pra V2 (sem cliente externo na janela atual). Síntese fecha como input pra outras rodadas. Critérios de promoção a v1.1 (dogfooding Wave A 3 meses) e v2.0 (1º cliente externo) cravados. R-001 fica aceito em 12 conscientemente. | Claude Code + Roldão |

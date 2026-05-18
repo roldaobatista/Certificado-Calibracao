@@ -148,7 +148,7 @@ Ajustes incorporados na v5 (Auditoria 2):
 
 ## As 8 famílias de documento (v5)
 
-### Família 0 — Discovery (NOVA na v3, EXPANDIDA na v5, ATUALIZADA na v6) 🟡 (síntese ainda DRAFT v3)
+### Família 0 — Discovery (NOVA na v3, EXPANDIDA na v5, ATUALIZADA na v6) 🟢 (síntese **STABLE v1.0** em 2026-05-17 madrugada — Caminho A diferido pra V2)
 
 **17 artefatos** (15 originais + 2 adicionados em v6: validação externa documental + roteiro de próximos artefatos). Bloqueia todas as outras famílias do MVP até `sintese-final.md` virar STABLE.
 
@@ -171,7 +171,7 @@ Ajustes incorporados na v5 (Auditoria 2):
 | `spikes-tecnicos/` | ⏳ | 🟡 | Agente | POCs: emitir NF-e em município com padrão próprio, integração bancária, cálculo de incerteza, XML INMETRO, multi-tenant isolation. |
 | `riscos.md` | ✅ | 🔴 | Agente + Roldão | Regulatório, técnico, mercado, time, **customização disfarçada** (founder is customer). |
 | `proximos-artefatos.md` (NOVO v6, meta) | ✅ | ⚪ | Agente | Working doc temporário com roteiro dos próximos passos de discovery. Pode ser deletado quando síntese fechar. |
-| `sintese-final.md` ⭐ | 🟡 (DRAFT v3) | 🔴 | Agente + Roldão | **Saídas:** cliente ideal, **N total de módulos**, plano de **faseamento** (qual MÓDULO-1, MÓDULO-2... entra em produção), modelo de negócio (SaaS multi-tenant vs on-prem), stack candidate, mobile sim/não. Trava critério de saída antes de começar (nº mín entrevistas, saturação documentada, leap-of-faith validados). |
+| `sintese-final.md` ⭐ | 🟢 **STABLE v1.0** (input fechado em 2026-05-17 madrugada; Caminho A diferido pra V2) | 🔴 | Agente + Roldão | **Saídas:** cliente ideal, **N total de módulos**, plano de **faseamento** (qual MÓDULO-1, MÓDULO-2... entra em produção), modelo de negócio (SaaS multi-tenant vs on-prem), stack candidate, mobile sim/não. Promove a v1.1 (dogfooding Wave A 3 meses verdes) ou v2.0 (1º cliente externo). |
 
 ---
 
@@ -705,7 +705,7 @@ Família 5 governança 100% materializada; Família 6 conformidade com fiscal + 
 - ✅ 3 GitHub Actions (auditor-seguranca, auditor-qualidade, auditor-produto) — pendem secret `ANTHROPIC_API_KEY`
 - ⏳ Família 6 calibração (`docs/dominios/metrologia/modulos/calibracao/conformidade-iso-17025.md` etc.)
 - ⏳ Foundation F-A (4-6 semanas) com critérios da ADR-0001 Portão 3 — destrava Wave A. Sem spike descartável ([[nao-construir-codigo-descartavel]]).
-- ⏳ Síntese final discovery: sair de DRAFT v3 → STABLE via **caminho B** (dogfooding)
+- ✅ Síntese final discovery: **STABLE v1.0** em 2026-05-17 madrugada (Caminho A diferido). Promoção a v1.1 quando Wave A rodar 3 meses; v2.0 quando 1º externo entrar.
 
 **Diferidos pra V2 (decidido Roldão 2026-05-17 — ver [[sem-cliente-externo-na-janela-atual]]):**
 - Cliente externo pago sob NDA / 3 cartas de intenção / Portão 1 ADR-0001 / R-001 ≤ 9
