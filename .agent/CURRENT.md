@@ -1,36 +1,30 @@
 # .agent/CURRENT.md
 
-> ≤40 linhas. Atualizado a cada fechamento de Foundation/Wave.
+> ≤40 linhas. Atualizado a cada fechamento de Foundation/Wave/Marco.
 
-**Fase:** **Foundation F-B FECHADA (verde, 2026-05-18)** — aguardando autorização Roldão pra arrancar Wave A
-**Modo:** AUTÔNOMO durante F-A + F-B. Wave A requer autorização explícita.
+**Fase:** **Wave A em andamento** — Marco 1 (`clientes`) FECHADO verde 2026-05-18 noite
+**Modo:** AUTÔNOMO (Roldão "vamos iniciar")
 
-**F-B — resultado final:**
-- ✅ ADRs 0012 + 0006 promovidas proposta → **aceita**
-- ✅ App `authz` criado: porta `AuthorizationProvider` (domain) + adapter Django + 3 tabelas + 4 perfis seed
-- ✅ `RequireAuthz` DRF permission deny-by-default + decorator `@public` + `@requires_authz`
-- ✅ `MfaRequiredMiddleware` (SEC-MFA-001) força TOTP pros perfis sensíveis
-- ✅ INV-AUTHZ-001/002/003 cravadas e testadas
-- ✅ Drill 7/7 critérios automáveis verde
-- ✅ 88 passed, 1 skipped (58 F-A + 30 F-B: 16 E2E + 5 audit + 3 isolamento + 5 MFA + 1 fuzzing 500)
-- ✅ Hooks 103/103 verdes
+**Marco 1 — clientes (Wave A):**
+- ✅ VOs `CNPJ` (alfanumérico ADR-0017 + numérico retrocompatível) e `CPF` (Receita)
+- ✅ Modelo `Cliente` PF/PJ com dedup INV-024 + UNIQUE INV-036 + RLS pattern v2
+- ✅ API REST `/api/v1/clientes/` (CRUD) com `RequireAuthz` deny-by-default
+- ✅ Matriz authz seed por migration do próprio módulo (4 ações × 4 perfis)
+- ✅ 39 testes novos: 21 VOs (vetores numéricos + alfanuméricos Serpro + edge) + 11 modelo/isolamento (UNHAPPY paths cravados) + 7 E2E API
+- ✅ Bug LATENTE de F-A corrigido: middleware fazia `SET LOCAL` sem transaction.atomic — RLS bloqueava resolução de tenants. Só apareceu agora com primeiro endpoint protegido real
 
-**Ajustes na aceitação ADR-0012:**
-- django-allauth diferido pra Wave A (Django auth nativo + django-otp atendem)
-- Cache em `LocMemCache` em F-B; Redis em Wave A (sem mexer no domain)
-- 4 perfis seed em F-B; os 12 restantes destravam por módulo na Wave A
+**Suite total: 127 passed + 1 skipped + hooks 103/103.**
 
-**Estado do sistema agora:**
-- Containers `afere-db` e `afere-app` rodando
-- Banco `afere` com schema authz; `test_afere` recriado com grants + extensões
-- 9 entradas matriz `authz_perfil_acao` seed; 0 decisões em `authz_decisions` (banco virgem pós-drill)
-- Pra parar tudo: `docker compose down`
+**Estado do sistema:**
+- Containers `afere-db` + `afere-app` rodando
+- Banco `afere` com schema clientes + matriz authz seed
+- `test_afere` migrado em paralelo
+- Pra parar: `docker compose down`
 
-**Próximo passo lógico (PENDE autorização Roldão):**
-Wave A — MVP-1 com 18 módulos (faseamento §4). Pré-requisitos:
-- F-A + F-B verdes ✅
-- 18 PRDs Wave A em `stable` (escrever)
-- 6 ADRs em proposta precisam ser aceitas (0003, 0004, 0008, 0009, 0010, 0014, 0015, 0016)
-- 3 hooks complementares já existem ✅
+**Próximo passo lógico (autônomo, sem precisar perguntar):**
+Continuar Wave A com próximo módulo. Candidato natural: `equipamentos` (entidade base que OS e certificado referenciam, junto com clientes). Ou `orcamentos` (próximo passo comercial).
 
-**Bloqueio:** Wave A requer aprovação manual do Roldão (gate de fase).
+**Bloqueios reais (gates):**
+- 17 PRDs Wave A em `stable` (escrever conforme módulos entrarem)
+- 6 ADRs ainda em proposta destravam módulos específicos: 0003 (mobile→app-tecnico), 0004 (sync→app-tecnico), 0008 (fiscal→fiscal/NFS-e), 0009 (A3→certificados), 0010 (telas), 0014/0015/0016 (integrações)
+- Não bloqueiam módulos isolados como `equipamentos`, `orcamentos`, `chamados`
