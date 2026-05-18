@@ -941,3 +941,75 @@ def test_executar_update_existing_false_rejeita_duplicata(cenario):
     body = response.json()
     assert body["totais"]["rejeitados"] == 1
     assert body["rejeitados_motivos_agregados"].get("ja_existe_no_tenant") == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_importacao_e_atomica_falha_no_meio_reverte_update(cenario, monkeypatch):
+    """SANEA-01 (auditoria 10 lentes — 01 D-01 / 02 SEG-D2).
+
+    Regressao: o advisory_xact_lock + o trabalho de upsert tem que viver na
+    MESMA transacao. Antes, o `with transaction.atomic()` fechava logo apos
+    o lock e TODO o upsert rodava fora de transacao (autocommit por statement
+    em SERIALIZABLE). Consequencia: se o `bulk_create` (clientes novos)
+    falhasse, o `.update()` ja aplicado nos clientes EXISTENTES NAO era
+    revertido — persistia parcial. Este teste forca o bulk_create a estourar
+    no meio e exige que o UPDATE do cliente existente tenha sido revertido.
+
+    Com o codigo ANTERIOR ao conserto este teste FALHA (o nome viria "Novo").
+    """
+    with run_in_tenant_context(cenario["tenant"].id, usuario_id=cenario["admin"].id):
+        Cliente.objects.create(
+            tenant=cenario["tenant"],
+            tipo_pessoa=TipoPessoa.PJ,
+            documento=CNPJ_VALIDO_1,
+            nome="Antigo LTDA",
+            aceite_lgpd_dispensa_motivo="pj_sem_pf_associada",
+        )
+
+    # bulk_create estoura DEPOIS do loop que ja aplicou o .update() no
+    # existente. Se a transacao nao englobar tudo, o update vaza.
+    def _boom(*args, **kwargs):
+        raise RuntimeError("falha simulada no bulk_create (SANEA-01)")
+
+    monkeypatch.setattr(type(Cliente.objects), "bulk_create", _boom)
+
+    csv_bytes = (
+        "CNPJ;Razao Social\r\n"
+        f"{CNPJ_VALIDO_1};Novo LTDA\r\n"          # vai pro ramo UPDATE
+        f"{CNPJ_VALIDO_2};Cliente Novo\r\n"      # vai pro ramo bulk_create -> boom
+    ).encode("utf-8")
+    # raise_request_exception=False: o DRF, por padrao, re-levanta excecao
+    # nao-tratada no test client. Queremos a resposta 500 real + observar o
+    # estado do banco apos o rollback.
+    client = APIClient(raise_request_exception=False)
+    _autenticar(client, cenario["admin"], cenario["tenant"])
+    arquivo = _upload("atomic.csv", csv_bytes)
+    response = client.post(
+        "/api/v1/clientes/importar-executar/",
+        data={
+            "arquivo": arquivo,
+            "mapeamento": '{"documento":"CNPJ","nome":"Razao Social"}',
+            "declaracao": (
+                '{"tem_base_legal":true,"compromisso_comunicar_titulares":true,'
+                '"declara_sem_dados_sensiveis":true,"procedencia_declarada":"x"}'
+            ),
+            "update_existing": "true",
+            "skip_invalid": "true",
+        },
+        format="multipart",
+    )
+
+    assert response.status_code == 500, response.content
+    with run_in_tenant_context(cenario["tenant"].id, usuario_id=cenario["admin"].id):
+        existente = Cliente.objects.get(
+            tenant_id=cenario["tenant"].id, documento=CNPJ_VALIDO_1
+        )
+        # Atomicidade: o UPDATE foi revertido junto com o bulk_create que falhou.
+        assert existente.nome == "Antigo LTDA", (
+            "SANEA-01: update do cliente existente NAO foi revertido — "
+            "advisory lock/transacao nao englobam o trabalho inteiro"
+        )
+        # E o cliente novo nunca foi criado.
+        assert not Cliente.objects.filter(
+            tenant_id=cenario["tenant"].id, documento=CNPJ_VALIDO_2
+        ).exists()

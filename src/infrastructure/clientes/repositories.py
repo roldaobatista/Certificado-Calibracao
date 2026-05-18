@@ -142,14 +142,17 @@ class DjangoClienteRepository:
         ATOMIC_REQUESTS abre transacao com READ COMMITTED antes da view
         rodar e `SET TRANSACTION ISOLATION LEVEL` falha.
 
-        Estrategia (R3 tech-lead resolvido 2026-05-18 noite final):
+        Estrategia (SANEA-01 — auditoria 10 lentes corrigiu o D-01: ate entao
+        o `transaction.atomic()` fechava logo apos o advisory lock e o
+        trabalho rodava SEM transacao; "resolvido" era afirmacao falsa):
         1. `SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL
            SERIALIZABLE` antes de qualquer query (afeta apenas esta sessao
            pelo restante da operacao; reset no `finally`).
-        2. `transaction.atomic()` envolve o trabalho — qualquer erro
-           rollback automatico.
+        2. `transaction.atomic()` envolve o advisory lock E todo o trabalho
+           na MESMA transacao — qualquer erro faz rollback total e o lock
+           (transaction-scoped) so e liberado no commit final.
         3. Advisory lock por tenant serializa importacoes simultaneas do
-           mesmo tenant.
+           mesmo tenant (vive ate o fim do trabalho, nao so do SELECT).
         4. Retry em SerializationFailure (max 3 tentativas, backoff 50/200/800ms).
 
         SERIALIZABLE + advisory lock + UNIQUE INDEX parcial elimina
@@ -214,96 +217,130 @@ class DjangoClienteRepository:
                         [f"importacao_clientes:{tenant_id}"],
                     )
 
-            # Detectar documentos que pertencem a clientes soft-deleted (mesclados).
-            # Se existir, rejeita com motivo especifico (E risco tech-lead).
-            chaves_validas: list[ClienteImportacaoInput] = []
-            for entrada in linhas:
-                soft = (
+                # SANEA-01 (auditoria 10 lentes — 01 D-01 / 02 SEG-D2 / 09 P1).
+                # O advisory_xact_lock e TODO o trabalho de upsert tem que
+                # viver na MESMA transacao. Antes o `with transaction.atomic()`
+                # fechava logo apos o lock: como pg_advisory_xact_lock e
+                # transaction-scoped, era liberado no commit e o upsert inteiro
+                # rodava SEM lock e SEM atomicidade — duas importacoes
+                # concorrentes do mesmo tenant nao eram serializadas apesar de
+                # todo o aparato SERIALIZABLE+advisory lock. Indentado pra
+                # dentro do atomic; o lock agora vive ate o commit final.
+
+                # Detectar documentos de clientes soft-deleted (mesclados).
+                # P1: 1 query agregada (era N+1 — uma query por linha dentro
+                # da transacao SERIALIZABLE, segurando o lock por 1000
+                # round-trips em import grande).
+                chaves_lote = {(e.tipo_pessoa, e.documento) for e in linhas}
+                tipos_lote = list({t for t, _ in chaves_lote})
+                docs_lote = list({d for _, d in chaves_lote})
+                soft_deletados = set(
                     Cliente.all_objects.filter(
                         tenant_id=tenant_id,
-                        tipo_pessoa=entrada.tipo_pessoa,
-                        documento=entrada.documento,
+                        tipo_pessoa__in=tipos_lote,
+                        documento__in=docs_lote,
                         deletado_em__isnull=False,
-                    )
-                    .only("id")
-                    .first()
+                    ).values_list("tipo_pessoa", "documento")
                 )
-                if soft is not None:
-                    rejeitados.append(
-                        LinhaRejeitada(
-                            linha_numero=entrada.linha_numero,
-                            linha_hash=entrada.linha_hash,
-                            motivo="documento_pertence_a_cliente_mesclado",
-                            motivo_descricao_curta=(
-                                "Documento pertence a cliente soft-deleted "
-                                "(mesclado em outro registro)."
-                            ),
-                        )
-                    )
-                    continue
-                chaves_validas.append(entrada)
 
-            # Detecta linhas com update_existing=False + documento ja existe.
-            existentes_map: dict[tuple[str, str], Cliente] = {}
-            if chaves_validas:
-                pares = [(e.tipo_pessoa, e.documento) for e in chaves_validas]
-                tipos = list({p[0] for p in pares})
-                docs = [p[1] for p in pares]
-                qs = Cliente.objects.filter(
-                    tenant_id=tenant_id,
-                    tipo_pessoa__in=tipos,
-                    documento__in=docs,
-                ).only(
-                    "id", "tipo_pessoa", "documento", "nome", "nome_fantasia",
-                    "email", "telefone",
-                )
-                for c in qs:
-                    existentes_map[(c.tipo_pessoa, c.documento)] = c
-
-            if not update_existing:
-                novas = []
-                for entrada in chaves_validas:
-                    chave = (entrada.tipo_pessoa, entrada.documento)
-                    if chave in existentes_map:
+                chaves_validas: list[ClienteImportacaoInput] = []
+                for entrada in linhas:
+                    if (entrada.tipo_pessoa, entrada.documento) in soft_deletados:
                         rejeitados.append(
                             LinhaRejeitada(
                                 linha_numero=entrada.linha_numero,
                                 linha_hash=entrada.linha_hash,
-                                motivo="ja_existe_no_tenant",
+                                motivo="documento_pertence_a_cliente_mesclado",
                                 motivo_descricao_curta=(
-                                    "Documento ja cadastrado no tenant."
+                                    "Documento pertence a cliente soft-deleted "
+                                    "(mesclado em outro registro)."
                                 ),
                             )
                         )
-                    else:
-                        novas.append(entrada)
-                chaves_validas = novas
+                        continue
+                    chaves_validas.append(entrada)
 
-            # UNIQUE INDEX parcial (WHERE deletado_em IS NULL) impede usar
-            # bulk_create(update_conflicts=True) — postgres exige UNIQUE
-            # constraint completa pra ON CONFLICT. Por isso fazemos um loop
-            # explicito: existente -> compara + update; novo -> create.
-            # Wave A: substituir por COPY temp + MERGE quando volume forcar
-            # (alem de 1000 linhas precisa async).
-            novos_por_chave: dict[tuple[str, str], Cliente] = {}
-            for entrada in chaves_validas:
-                chave = (entrada.tipo_pessoa, entrada.documento)
-                nome_sanit = sanitizar_celula_csv(entrada.nome)
-                nome_fant_sanit = sanitizar_celula_csv(entrada.nome_fantasia)
-                email_sanit = sanitizar_celula_csv(entrada.email)
-                telefone_sanit = sanitizar_celula_csv(entrada.telefone)
-                if chave in existentes_map:
-                    existente = existentes_map[chave]
-                    igual = (
-                        existente.nome == nome_sanit
-                        and existente.nome_fantasia == nome_fant_sanit
-                        and existente.email == email_sanit
-                        and existente.telefone == telefone_sanit
+                # Detecta linhas com update_existing=False + documento ja existe.
+                existentes_map: dict[tuple[str, str], Cliente] = {}
+                if chaves_validas:
+                    pares = [(e.tipo_pessoa, e.documento) for e in chaves_validas]
+                    tipos = list({p[0] for p in pares})
+                    docs = [p[1] for p in pares]
+                    qs = Cliente.objects.filter(
+                        tenant_id=tenant_id,
+                        tipo_pessoa__in=tipos,
+                        documento__in=docs,
+                    ).only(
+                        "id", "tipo_pessoa", "documento", "nome", "nome_fantasia",
+                        "email", "telefone",
                     )
-                    if igual:
-                        sem_mudanca += 1
+                    for c in qs:
+                        existentes_map[(c.tipo_pessoa, c.documento)] = c
+
+                if not update_existing:
+                    novas = []
+                    for entrada in chaves_validas:
+                        chave = (entrada.tipo_pessoa, entrada.documento)
+                        if chave in existentes_map:
+                            rejeitados.append(
+                                LinhaRejeitada(
+                                    linha_numero=entrada.linha_numero,
+                                    linha_hash=entrada.linha_hash,
+                                    motivo="ja_existe_no_tenant",
+                                    motivo_descricao_curta=(
+                                        "Documento ja cadastrado no tenant."
+                                    ),
+                                )
+                            )
+                        else:
+                            novas.append(entrada)
+                    chaves_validas = novas
+
+                # UNIQUE INDEX parcial (WHERE deletado_em IS NULL) impede usar
+                # bulk_create(update_conflicts=True) — postgres exige UNIQUE
+                # constraint completa pra ON CONFLICT. Por isso fazemos um loop
+                # explicito: existente -> compara + update; novo -> create.
+                # Wave A: substituir por COPY temp + MERGE quando volume forcar
+                # (alem de 1000 linhas precisa async).
+                novos_por_chave: dict[tuple[str, str], Cliente] = {}
+                for entrada in chaves_validas:
+                    chave = (entrada.tipo_pessoa, entrada.documento)
+                    nome_sanit = sanitizar_celula_csv(entrada.nome)
+                    nome_fant_sanit = sanitizar_celula_csv(entrada.nome_fantasia)
+                    email_sanit = sanitizar_celula_csv(entrada.email)
+                    telefone_sanit = sanitizar_celula_csv(entrada.telefone)
+                    if chave in existentes_map:
+                        existente = existentes_map[chave]
+                        igual = (
+                            existente.nome == nome_sanit
+                            and existente.nome_fantasia == nome_fant_sanit
+                            and existente.email == email_sanit
+                            and existente.telefone == telefone_sanit
+                        )
+                        if igual:
+                            sem_mudanca += 1
+                        else:
+                            Cliente.objects.filter(id=existente.id).update(
+                                nome=nome_sanit,
+                                nome_fantasia=nome_fant_sanit,
+                                email=email_sanit,
+                                telefone=telefone_sanit,
+                                aceite_lgpd_em=entrada.aceite_lgpd_em,
+                                aceite_lgpd_versao=entrada.aceite_lgpd_versao,
+                                aceite_lgpd_origem=entrada.aceite_lgpd_origem,
+                                aceite_lgpd_dispensa_motivo=entrada.aceite_lgpd_dispensa_motivo,
+                                aceite_lgpd_base_legal=entrada.aceite_lgpd_base_legal,
+                                aceite_lgpd_evidencia_externa=entrada.aceite_lgpd_evidencia_externa,
+                                aceite_lgpd_pendente=entrada.aceite_lgpd_pendente,
+                                aceite_lgpd_ip_hash=entrada.aceite_lgpd_ip_hash,
+                                cpf_responsavel_legal=entrada.cpf_responsavel_legal,
+                            )
+                            ids_atualizados.append(existente.id)
                     else:
-                        Cliente.objects.filter(id=existente.id).update(
+                        novos_por_chave[chave] = Cliente(
+                            tenant_id=tenant_id,
+                            tipo_pessoa=entrada.tipo_pessoa,
+                            documento=entrada.documento,
                             nome=nome_sanit,
                             nome_fantasia=nome_fant_sanit,
                             email=email_sanit,
@@ -318,40 +355,20 @@ class DjangoClienteRepository:
                             aceite_lgpd_ip_hash=entrada.aceite_lgpd_ip_hash,
                             cpf_responsavel_legal=entrada.cpf_responsavel_legal,
                         )
-                        ids_atualizados.append(existente.id)
-                else:
-                    novos_por_chave[chave] = Cliente(
-                        tenant_id=tenant_id,
-                        tipo_pessoa=entrada.tipo_pessoa,
-                        documento=entrada.documento,
-                        nome=nome_sanit,
-                        nome_fantasia=nome_fant_sanit,
-                        email=email_sanit,
-                        telefone=telefone_sanit,
-                        aceite_lgpd_em=entrada.aceite_lgpd_em,
-                        aceite_lgpd_versao=entrada.aceite_lgpd_versao,
-                        aceite_lgpd_origem=entrada.aceite_lgpd_origem,
-                        aceite_lgpd_dispensa_motivo=entrada.aceite_lgpd_dispensa_motivo,
-                        aceite_lgpd_base_legal=entrada.aceite_lgpd_base_legal,
-                        aceite_lgpd_evidencia_externa=entrada.aceite_lgpd_evidencia_externa,
-                        aceite_lgpd_pendente=entrada.aceite_lgpd_pendente,
-                        aceite_lgpd_ip_hash=entrada.aceite_lgpd_ip_hash,
-                        cpf_responsavel_legal=entrada.cpf_responsavel_legal,
-                    )
 
-            if novos_por_chave:
-                Cliente.objects.bulk_create(list(novos_por_chave.values()))
-                for novo in novos_por_chave.values():
-                    ids_criados.append(novo.id)
+                if novos_por_chave:
+                    Cliente.objects.bulk_create(list(novos_por_chave.values()))
+                    for novo in novos_por_chave.values():
+                        ids_criados.append(novo.id)
 
-            return ResultadoImportacao(
-                criados=len(ids_criados),
-                atualizados=len(ids_atualizados),
-                sem_mudanca=sem_mudanca,
-                rejeitados=tuple(rejeitados),
-                ids_criados=tuple(ids_criados),
-                ids_atualizados=tuple(ids_atualizados),
-            )
+                return ResultadoImportacao(
+                    criados=len(ids_criados),
+                    atualizados=len(ids_atualizados),
+                    sem_mudanca=sem_mudanca,
+                    rejeitados=tuple(rejeitados),
+                    ids_criados=tuple(ids_criados),
+                    ids_atualizados=tuple(ids_atualizados),
+                )
         finally:
             # Reset isolation level pra READ COMMITTED — proximas operacoes
             # nesta conexao nao precisam de SERIALIZABLE.
