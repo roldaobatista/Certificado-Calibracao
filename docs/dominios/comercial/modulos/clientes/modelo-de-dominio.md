@@ -14,7 +14,7 @@ diataxis: reference
 ## Entidades
 
 ### Cliente (agregado raiz)
-- **Atributos obrigatórios:** `id` (uuid), `tenant_id` (FK), `tipo` (PF/PJ), `nome_ou_razao`, `documento` (CPF ou CNPJ normalizado), `criado_em`, `criado_por`, `lgpd_aceite_em`, `lgpd_aceite_versao`.
+- **Atributos obrigatórios:** `id` (uuid), `tenant_id` (FK), `tipo` (PF/PJ), `nome_ou_razao`, `documento` (CPF ou CNPJ normalizado — CNPJ pode ser alfanumérico a partir de jul/2026, ver ADR-0017), `criado_em`, `criado_por`, `lgpd_aceite_em`, `lgpd_aceite_versao`.
 - **Atributos opcionais:** `nome_fantasia` (PJ), `ie`, `im`, `rating` (A/B/C/D), `segmento_ids` (array), `limite_credito`, `bloqueio_comercial` (struct: ativo, motivo, em).
 - **Invariantes:** `INV-024` (dedup mesmo documento), `INV-TENANT-001/002/003`.
 - **Ciclo de vida:** criado → ativo → (opcional bloqueado) → arquivado (soft-delete). NUNCA hard-delete (LGPD requer retenção fiscal + auditoria).
@@ -47,7 +47,7 @@ diataxis: reference
 
 | VO | Definição | Imutável? |
 |---|---|---|
-| Documento | CPF ou CNPJ normalizado (só dígitos) com algoritmo validado | Sim |
+| Documento | CPF (11 dígitos) ou CNPJ (14 caracteres `[A-Z0-9]{12}[0-9]{2}`, maiúsculo, normalizado sem máscara) com DV validado por Módulo 11. CNPJ alfanumérico a partir de jul/2026 — ver ADR-0017. | Sim |
 | LimiteCredito | { valor: Decimal, moeda: BRL } | Sim |
 | BloqueioComercial | { ativo: bool, motivo: enum, em: datetime, por: user_id } | Sim |
 

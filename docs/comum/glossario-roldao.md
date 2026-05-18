@@ -81,6 +81,7 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **CMN** — Conselho Monetário Nacional. Aparece nas resoluções de Open Banking.
 - **CNAB 240 / CNAB 400** — formatos antigos de arquivo bancário pra trocar dados de pagamento/cobrança com o banco. Hoje sendo substituído por PIX e API direta.
 - **CNAE** — Código Nacional de Atividade Econômica. Define que tipo de empresa o cliente é (lab de calibração tem CNAE 7120-1/00).
+- **CNPJ alfanumérico** — a partir de **julho/2026** (IN RFB 2.229/2024), CNPJs **novos** vão poder ter **letras** misturadas com números (ex: `12.ABC.345/01DE-35` no lugar de `12.345.678/0001-95`). Os CNPJs **velhos continuam funcionando pra sempre** — não precisa converter nada. O sistema vai aceitar os dois formatos automaticamente. Decisão técnica em ADR-0017.
 - **Commit** — em humano: cada "save" individual do código no sistema de versões. A gente fala "fiz commit" como vocês diriam "salvei a alteração".
 - **Compliance** — conformidade com regras (LGPD, ISO 17025, Bacen). Significa "cumprir o que a lei/norma manda".
 - **ComprasNet** — portal de compras do governo federal. Pra vender pro setor público, é onde licitação acontece.

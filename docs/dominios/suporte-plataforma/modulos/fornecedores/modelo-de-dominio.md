@@ -15,7 +15,7 @@ dominio: suporte-plataforma
 - **Atributos imutáveis:** `cnpj`, `criado_em`
 - **Atributos mutáveis:** `razao_social`, `nome_fantasia`, `categorias` (lista), `condicao_pagamento_padrao`, `dados_bancarios`
 - **Atributos operacionais:** `status` (em_homologacao / ativo / inativo / bloqueado)
-- **Invariantes:** `INV-TENANT-001`, CNPJ válido (algoritmo brasileiro).
+- **Invariantes:** `INV-TENANT-001`, CNPJ válido (Módulo 11 conforme ADR-0017 — aceita alfanumérico a partir de jul/2026).
 - **Ciclo:** criado → em_homologacao → ativo → (inativo/bloqueado) → reativa.
 
 ### ContatoFornecedor
@@ -62,7 +62,7 @@ dominio: suporte-plataforma
 
 | Agregado raiz | Entidades | Invariantes |
 |---|---|---|
-| Fornecedor | Contato, Documento | CNPJ válido, `INV-TENANT-001` |
+| Fornecedor | Contato, Documento | CNPJ válido (ADR-0017), `INV-TENANT-001` |
 | Cotacao | Linha, Convite, Resposta | token único, expiração 7d |
 | PedidoCompra | Linhas | requer cotação prévia se > teto config. |
 | AvaliacaoFornecedor | — | 1 avaliação por pedido |

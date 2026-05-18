@@ -219,6 +219,14 @@ Atualizações relevantes de 2025 ([mattosfilho.com.br](https://www.mattosfilho.
 - **NT 2026.001 — Split Payment**: introduz grupo de informações de vinculação da transação de pagamento nos DF-e (NF-e, NFC-e, CT-e, BP-e, NF3e, NFCom, NFAg, NFGas).
 - **2ª NT 2026 — IBS/CBS/IS**: inclusão de campos pra IBS, CBS e IS em NF-e e NFC-e a partir de jan/2026 (caráter informativo em 2026, obrigatório efetivo conforme cronograma da reforma).
 
+### 6.4 CNPJ alfanumérico — IN RFB nº 2.229/2024
+
+- **IN RFB nº 2.229/2024** (publicada 16/10/2024) — vigência **julho/2026**. Novos CNPJs poderão ter letras `[A-Z]` nas 12 primeiras posições (raiz + ordem do estabelecimento); 2 dígitos verificadores continuam numéricos. CNPJs antigos permanecem válidos para sempre.
+- **Formato:** `^[A-Z0-9]{12}[0-9]{2}$` (14 caracteres, sempre maiúsculo na persistência).
+- **Algoritmo DV:** Módulo 11 com pesos 2–9; conversão de caractere = `ord(c) - 48` (retrocompatível com numérico antigo). Nota Técnica Conjunta NF-e/NFS-e 2025.001 detalha integração fiscal.
+- **Códigos de referência Serpro** disponíveis em Python, Java e TypeScript em https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/cnpj-alfanumerico
+- **Decisão arquitetural:** ADR-0017 (proposta 18/05/2026).
+
 ### 6.3 Contingência NF-e (estado atual)
 
 - **SCAN está MORTO desde 30/09/2014** (NT 007/13). Quem ainda referencia SCAN está com sistema antigo. ([sefaz.pe.gov.br](https://www.sefaz.pe.gov.br/Servicos/nota-fiscal-eletronica/Paginas/Conting%C3%AAncia-SVC-RS.aspx), [enotas.com.br](https://enotas.com.br/blog/tipos-de-contingencia/))

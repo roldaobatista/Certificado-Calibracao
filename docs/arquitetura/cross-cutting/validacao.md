@@ -56,7 +56,8 @@ status: draft
 
 | Tipo | Lib |
 |------|-----|
-| CPF / CNPJ | `validate-docbr` (Python) + lib equivalente Flutter |
+| CPF | `validate-docbr` (Python) + lib equivalente Flutter |
+| CNPJ | **Implementação própria** no VO `CNPJ` (`src/domain/shared/value_objects.py`) baseada nos códigos de referência Serpro — aceita alfanumérico a partir de jul/2026 (IN RFB nº 2.229/2024). Ver ADR-0017. `validate-docbr` só quando lançar suporte estável ao novo formato. |
 | CEP | `pycep-correios` ou regex + lookup ViaCEP |
 | Telefone BR | `phonenumbers` |
 | Valor monetário | `decimal.Decimal` + tipo customizado |

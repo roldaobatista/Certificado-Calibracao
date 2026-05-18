@@ -176,6 +176,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 | ADR-0014 | Transições regulatórias críticas (6 fluxos ISO 17025) | 🟡 proposta — pós-auditoria integrações 17/05 | Wave A (regulatório) | ADR-0002, ADR-0012 |
 | ADR-0015 | Lifecycle tenant (provisioning atômico + sync plano-features + inadimplência) | 🟡 proposta — pós-auditoria integrações 17/05 | Wave A (onboarding+suspensão) | ADR-0002, ADR-0006, ADR-0012 |
 | ADR-0016 | Operação consistente (desligamento síncrono + BOM + NC notifica + 10 médios) | 🟡 proposta — pós-auditoria integrações 17/05 | Wave A (operação) | ADR-0002, ADR-0012, ADR-0014 |
+| ADR-0017 | CNPJ alfanumérico (IN RFB 2.229/2024 — vigência jul/2026) | ✅ aceito (2026-05-18) | Wave A (todo módulo que persista CNPJ) | ADR-0007, ADR-0002 |
 
 **Como ler a tabela:** "Bloqueia fase" = essa ADR precisa estar aprovada+implementada antes que a fase comece. "Depende de" = essa ADR usa decisões de outras (`soft` = referência conceitual, não bloqueante). Detalhe das fases em `docs/faseamento-foundation-waves.md`.
 
@@ -188,6 +189,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 ### Pendências reais
 
 - **Drill Foundation F-A** — **5/5 critérios automáveis VERDE em 2026-05-18** (execução autônoma no Docker). 8 marcos entregues + 2 migrations de refinamento descobertas pelo próprio drill (fail-loud RLS via `require_tenant_ctx()`; policies de `feature_flags` e `usuario_perfil_tenant` cirurgicamente liberadas pra INSERT system + tenant). Suite final: 58 passed, 1 skipped (justificado Wave A). Falta apenas critérios 6+7 (drill restore PG manual + métricas operacionais 4-6 semanas). Detalhes em `docs/faseamento/drill-f-a-saida.md`.
+- **Wave A do VO `CNPJ`** — ADR-0017 aceita pelo Roldão em 2026-05-18 (gap detectado e corrigido no mesmo dia: 9 docs canônicas alinhadas + IN RFB 2.229/2024 acrescentada às normas). Implementação do VO + suite de testes oficial Serpro acontece em Wave A, sob revisão do subagente `tech-lead-saas-regulado`.
 
 ### Hooks (13 ativos — 88/88 testes verdes)
 

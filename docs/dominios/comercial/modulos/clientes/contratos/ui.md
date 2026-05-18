@@ -52,7 +52,7 @@ diataxis: reference
 
 ## Componentes reutilizáveis
 
-- `<DocumentoInput>` (CPF/CNPJ com validação + máscara) — promover pra `../../../comum/contratos/ui.md` se reaparecer.
+- `<DocumentoInput>` (CPF/CNPJ com validação + máscara — CNPJ aceita alfanumérico `[A-Z0-9]{12}[0-9]{2}` a partir de jul/2026, ver ADR-0017; input normaliza pra maiúsculas antes de validar) — promover pra `../../../comum/contratos/ui.md` se reaparecer.
 - `<TimelineCliente>` (lista cronológica filtrável).
 
 ## Acessibilidade

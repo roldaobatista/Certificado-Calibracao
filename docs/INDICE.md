@@ -40,7 +40,7 @@
 - `../REGRAS-INEGOCIAVEIS.md`
 - `comum/glossario.md` (a criar)
 - `comum/automacoes-catalogo.md` — 13 ações do engine de automação
-- `adr/*.md` (16 ADRs ativas — 0000 a 0016)
+- `adr/*.md` (17 ADRs ativas — 0000 a 0017; ADR-0017 = CNPJ alfanumérico IN RFB 2.229/2024)
 - `orcamento-financeiro.md` — projeção ano 1/3/5
 - `dominios/financeiro/modulos/billing-saas/calculadora-fatura.md` — algoritmo de fatura composicional + 30 casos
 
