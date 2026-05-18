@@ -8,10 +8,12 @@ Outros writers esperam (em ms — auditoria sao operacoes curtas). Sem isso,
 from __future__ import annotations
 
 import hashlib
+import hmac
 import re
 from typing import Any
 from uuid import UUID
 
+from django.conf import settings
 from django.db import connection, transaction
 
 from .canonicalizar import canonicalizar
@@ -24,20 +26,27 @@ from .models import (
 )
 
 
-def hashear_pii_com_salt_tenant(valor: str, tenant_id: UUID | str | None) -> str:
-    """SHA-256 salgado por tenant pra referenciar PII em audit.
+def hashear_pii_com_salt_tenant(valor: str, tenant_id: UUID | str) -> str:
+    """HMAC-SHA256 de PII pra referenciar em audit sem expor o dado cru.
 
-    Endereca FAIL CRITICO do Auditor de Seguranca em 2026-05-18 — hash sem sal
-    eh invertivel pra espacos pequenos como CPF/CNPJ (rainbow table em segundos).
+    SANEA-02 (auditoria 10 lentes — Lente 05 D1 / 07 R-CLI-05). A versao
+    anterior fazia sha256("afere-pii-salt:{tenant_id}:{valor}"). O tenant_id
+    e publico (aparece em URLs/payloads), entao o "sal" era reconstruivel por
+    qualquer um => rainbow-table de CPF/CNPJ de volta. Agora usa HMAC com
+    `settings.PII_HASH_KEY` (chave de servidor, nao derivavel do tenant_id):
+    irreversivel sem a chave mesmo conhecendo tenant_id + algoritmo. O
+    tenant_id continua na mensagem pra manter o hash distinto por tenant
+    (mesmo CPF em tenants diferentes => hashes diferentes).
 
-    Sem sal por tenant, atacante com dump do audit consegue cruzar CPF com
-    nomes em vazamentos publicos.
+    `tenant_id` e obrigatorio: sem ele o hash perde a separacao por tenant e
+    fica cross-tenant correlacionavel. Falha alto (nao silencia com "").
     """
     if not valor:
         return ""
-    tid = str(tenant_id) if tenant_id is not None else ""
-    payload = f"afere-pii-salt:{tid}:{valor}".encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()
+    if tenant_id is None:
+        raise ValueError("hashear_pii_com_salt_tenant exige tenant_id (SANEA-02)")
+    msg = f"{tenant_id}:{valor}".encode("utf-8")
+    return hmac.new(settings.PII_HASH_KEY, msg, hashlib.sha256).hexdigest()
 
 
 # CONCERN Auditor Seguranca 2026-05-18 (US-002 retroativa): sanitizar payload de

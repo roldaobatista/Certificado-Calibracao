@@ -12,9 +12,11 @@ no banco, mas filtramos no ORM tambem — defesa em profundidade).
 from __future__ import annotations
 
 import hashlib
+import hmac
 from datetime import datetime, timezone
 from uuid import UUID, uuid4 as uuid_module_uuid4
 
+from django.conf import settings
 from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -34,11 +36,11 @@ from src.infrastructure.clientes.serializers import ClienteSerializer
 from src.infrastructure.multitenant.context import active_tenant_context
 
 
-def _hashear_ip(request, tenant_id: UUID | str | None = None) -> str:
-    """SHA-256 do IP do request, salgado por tenant (LGPD — nao armazena IP cru).
+def _hashear_ip(request, tenant_id: UUID | str) -> str:
+    """HMAC do IP do request por tenant (LGPD — nao armazena IP cru).
 
-    CONCERN auditor Seguranca 2026-05-18 (US-002 retroativa): IP eh PII LGPD
-    e espaco IPv4 eh trivial pra rainbow table. Adicionado sal por tenant.
+    IP eh PII LGPD e espaco IPv4 eh trivial pra rainbow table. SANEA-02:
+    tenant_id obrigatorio (removido o default None — era brecha cross-tenant).
     """
     from src.infrastructure.audit.services import hashear_pii_com_salt_tenant
 
@@ -49,20 +51,20 @@ def _hashear_ip(request, tenant_id: UUID | str | None = None) -> str:
     return hashear_pii_com_salt_tenant(ip, tenant_id)
 
 
-def _hashear_doc(documento: str, tenant_id: UUID | str | None = None) -> str:
-    """SHA-256 salgado por tenant — endereca FAIL CRITICO Auditor Seguranca
-    2026-05-18 (hash sem sal eh invertivel pra espacos pequenos como CPF/CNPJ).
+def _hashear_doc(documento: str, tenant_id: UUID | str) -> str:
+    """HMAC de CPF/CNPJ por tenant pra referenciar em audit sem o dado cru.
 
-    `tenant_id=None` mantido por retrocompatibilidade transitoria; chamadas
-    novas DEVEM passar tenant_id.
+    SANEA-02: tenant_id obrigatorio (removido o default None — auditores
+    Seguranca SEG-D5 / LGPD D5 / corretora R-CLI-05: hash sem tenant fica
+    cross-tenant correlacionavel). Agora Marco 1 fechou — sem retrocompat.
     """
     from src.infrastructure.audit.services import hashear_pii_com_salt_tenant
 
     return hashear_pii_com_salt_tenant(documento, tenant_id)
 
 
-def _hashear_pii(valor: str, tenant_id: UUID | str | None) -> str:
-    """SHA-256 salgado por tenant pra qualquer PII em audit (nome, email, etc)."""
+def _hashear_pii(valor: str, tenant_id: UUID | str) -> str:
+    """HMAC por tenant pra qualquer PII em audit (nome, email, etc)."""
     from src.infrastructure.audit.services import hashear_pii_com_salt_tenant
 
     return hashear_pii_com_salt_tenant(valor, tenant_id)
@@ -827,8 +829,13 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 (upload.name or "").encode("utf-8")
             ).hexdigest()
             ip_hash = _hashear_ip(request, tenant.id)
-            salt_tenant = hashlib.sha256(
-                f"afere-salt:{tenant.id}".encode("utf-8")
+            # SANEA-02: chave de hash da linha derivada da PII_HASH_KEY
+            # (segredo de servidor) por tenant — NAO mais sha256 de string
+            # com tenant.id (que e publico e reconstruivel).
+            linha_hash_key = hmac.new(
+                settings.PII_HASH_KEY,
+                f"import-linha:{tenant.id}".encode("utf-8"),
+                hashlib.sha256,
             ).hexdigest()
 
             sensiveis = detectar_colunas_sensiveis(norm.headers)
@@ -859,7 +866,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 arquivo_nome_hash=arquivo_nome_hash,
                 delimitador=norm.delimitador,
                 encoding=norm.encoding,
-                salt_tenant=salt_tenant,
+                linha_hash_key=linha_hash_key,
                 aceite_lgpd_versao=VERSAO_VIGENTE,
                 aceite_lgpd_ip_hash=ip_hash,
                 agora=agora,

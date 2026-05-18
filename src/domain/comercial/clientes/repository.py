@@ -107,7 +107,7 @@ class ClienteImportacaoInput:
     """
 
     linha_numero: int
-    linha_hash: str  # sha256(linha original + salt_tenant) — referencia sem PII
+    linha_hash: str  # HMAC(linha original, chave servidor) — referencia sem PII
     tipo_pessoa: str  # "PF" | "PJ"
     documento: str
     nome: str

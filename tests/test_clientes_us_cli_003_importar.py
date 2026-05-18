@@ -577,16 +577,32 @@ def test_audit_documento_hash_eh_salgado_por_tenant(cenario):
         ).first()
     assert aud is not None
     doc_hash = aud.payload_jsonb["documento_hash"]
-    # Hash SEM sal (vulneravel) — NAO deve bater.
-    hash_sem_sal = hashlib.sha256(CNPJ_VALIDO_2.encode("utf-8")).hexdigest()
+    # Hash SEM sal (vulneravel) — NAO deve bater. Contra-exemplo intencional.
+    hash_sem_sal = hashlib.sha256(CNPJ_VALIDO_2.encode("utf-8")).hexdigest()  # audit-pii-salt: skip -- contra-exemplo prova que hash inseguro nao e usado
     assert doc_hash != hash_sem_sal, (
         "Hash em audit precisa ser salgado por tenant (Auditor Seguranca FAIL critico)"
     )
-    # Hash COM sal correto — deve bater.
-    hash_com_sal = hashlib.sha256(
+    # SANEA-02: o salt PREVISIVEL antigo (sha256 de string derivavel do
+    # tenant_id, que e publico) NAO pode mais reproduzir o hash. Se este
+    # assert falhar, alguem so com o tenant_id reconstruiu o hash de CPF.
+    hash_salt_previsivel = hashlib.sha256(  # audit-pii-salt: skip -- contra-exemplo prova que salt previsivel nao reproduz
         f"afere-pii-salt:{cenario['tenant'].id}:{CNPJ_VALIDO_2}".encode("utf-8")
     ).hexdigest()
-    assert doc_hash == hash_com_sal
+    assert doc_hash != hash_salt_previsivel, (
+        "SANEA-02: hash nao pode ser reproduzivel so com tenant_id (HMAC "
+        "com chave de servidor — Lente 05 D1 / 07 R-CLI-05)"
+    )
+    # Reproducao legitima exige a chave de servidor (settings.PII_HASH_KEY),
+    # via a funcao canonica — prova determinismo sem expor a chave no teste.
+    from src.infrastructure.audit.services import hashear_pii_com_salt_tenant
+
+    assert doc_hash == hashear_pii_com_salt_tenant(
+        CNPJ_VALIDO_2, cenario["tenant"].id
+    )
+    # Separacao por tenant: mesmo documento, tenant diferente => hash diferente.
+    import uuid as _uuid
+
+    assert doc_hash != hashear_pii_com_salt_tenant(CNPJ_VALIDO_2, _uuid.uuid4())
 
 
 @pytest.mark.django_db(transaction=True)

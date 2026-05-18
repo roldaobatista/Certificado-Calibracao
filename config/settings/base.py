@@ -30,6 +30,23 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
 
+# Chave server-side pra HMAC de PII em audit (SANEA-02 — auditoria 10 lentes,
+# Lente 05 D1 / 07 R-CLI-05). O hash de CPF/CNPJ/IP NAO pode ser derivavel do
+# tenant_id: o tenant_id e publico (aparece em URLs/payloads). Salt =
+# sha256("afere-pii-salt:{tenant_id}:{valor}") era reconstruivel por qualquer
+# um que soubesse o tenant_id => rainbow-table de CPF de novo. HMAC com chave
+# secreta de servidor torna o hash irreversivel sem a chave, mesmo conhecendo
+# tenant_id + algoritmo. Override dedicado via env PII_HASH_KEY (rotacao);
+# default deriva de SECRET_KEY (obrigatoria, sem default em prod).
+import hashlib as _hashlib
+
+_pii_hash_key_env = env("PII_HASH_KEY", default="")
+PII_HASH_KEY: bytes = (
+    _pii_hash_key_env.encode("utf-8")
+    if _pii_hash_key_env
+    else _hashlib.sha256(f"afere-pii-hmac-v1:{SECRET_KEY}".encode("utf-8")).digest()
+)
+
 # =============================================================
 # Apps
 # =============================================================

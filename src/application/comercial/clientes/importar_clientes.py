@@ -17,7 +17,7 @@ Fluxo:
         - PJ com PF sem declaracao: `pj_com_pf_pendente_aceite` + flag.
         - PF sem `pf_aceite_origem`: rejeita (motivo `pf_sem_aceite`).
         - PF com `pf_aceite_origem`: cria com base legal explicita + evidencia.
-   - Calcula hash da linha (sha256(bytes + salt_tenant)) pra referencia sem PII.
+   - Calcula hash da linha (HMAC com chave de servidor) pra referencia sem PII.
    - Dedup intra-arquivo: ultima linha vence; reporta `linhas_colapsadas`.
 2. skip_invalid=False + qualquer invalida -> levanta ErroImportacao(400).
    skip_invalid=True -> validas seguem; invalidas viram rejeitados[].
@@ -31,6 +31,7 @@ garantir delete do tempfile (R3 advogado).
 from __future__ import annotations
 
 import hashlib
+import hmac
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -92,7 +93,7 @@ class ContextoImportacao:
     arquivo_nome_hash: str
     delimitador: str
     encoding: str
-    salt_tenant: str
+    linha_hash_key: str
     aceite_lgpd_versao: str
     aceite_lgpd_ip_hash: str
     agora: datetime
@@ -114,9 +115,13 @@ class ResultadoExecucao:
     pf_rejeitadas_por_falta_aceite: int
 
 
-def _hash_linha(linha: tuple[str, ...], salt: str) -> str:
-    payload = ("|".join(linha)).encode("utf-8") + salt.encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()
+def _hash_linha(linha: tuple[str, ...], hash_key: str) -> str:
+    # SANEA-02: HMAC com chave de servidor (derivada de PII_HASH_KEY na
+    # camada infra e injetada aqui). Antes era sha256(payload + salt) com
+    # salt = sha256("afere-salt:{tenant_id}") — reconstruivel por quem
+    # soubesse o tenant_id (publico), entao a linha com CPF era atacavel.
+    payload = ("|".join(linha)).encode("utf-8")
+    return hmac.new(hash_key.encode("utf-8"), payload, hashlib.sha256).hexdigest()
 
 
 def _normalizar_documento(doc_bruto: str) -> str:
@@ -233,7 +238,7 @@ def importar_clientes(
         return linha[idx].strip()
 
     for numero, linha in enumerate(contexto.linhas, start=2):  # linha 1 = header
-        linha_hash = _hash_linha(linha, contexto.salt_tenant)
+        linha_hash = _hash_linha(linha, contexto.linha_hash_key)
 
         # Conta dados sensiveis descartados.
         for idx in indices_sensiveis:
