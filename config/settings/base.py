@@ -206,12 +206,31 @@ REST_FRAMEWORK = {
     ],
 }
 
-# F-B: cache local Django pra invalidacao de autorizacao (TTL 5 min).
-# Wave A troca pra Redis sem mexer no domain (porta `AuthorizationProvider`).
+# Cache:
+# - Default: Redis (Wave A Marco 2 — decisao Roldao 2026-05-18 noite apos review tech-lead US-EQP-003).
+#   Razao: rate-limit por IP em multi-worker (django-ratelimit funciona com Redis, nao com
+#   LocMemCache que e per-process), idempotency_keys (US-EQP-004/005), cache compartilhado
+#   da ficha 360 quando p95 estourar (RBC C5).
+# - Fallback LocMem: settings/test.py override pra testes sem dependencia externa.
+# Override seguro via env var REDIS_URL.
+import os as _os
+_REDIS_URL = _os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "afere-authz-cache",
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": _REDIS_URL,
+        "OPTIONS": {
+            "db": "1",  # DB 1 para cache geral
+        },
+        "KEY_PREFIX": "afere",
+    },
+    "ratelimit": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": _REDIS_URL,
+        "OPTIONS": {
+            "db": "2",  # DB 2 isolado para rate-limit (TTLs curtos, alta rotatividade)
+        },
+        "KEY_PREFIX": "afere-rl",
     },
 }
 

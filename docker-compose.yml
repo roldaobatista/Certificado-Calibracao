@@ -46,6 +46,7 @@ services:
       DATABASE_MIGRATOR_URL: postgres://${APP_MIGRATOR:-app_migrator}:${APP_MIGRATOR_PASSWORD:-app_migrator_dev_change_in_prod}@db:5432/${POSTGRES_DB:-afere}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-only-secret-do-NOT-use-in-prod-xkF7sNcaZpQ8wR4mY2v}
       DJANGO_DEBUG: "True"
+      REDIS_URL: redis://redis:6379/0
     volumes:
       - ./:/app:cached
     ports:
@@ -53,12 +54,37 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - afere-net
+
+  # Redis adicionado em 2026-05-18 noite por decisao Roldao apos review tech-lead US-EQP-003.
+  # Destrava: rate-limit por IP em multi-worker (US-EQP-003), idempotency_keys (US-EQP-004/005),
+  # cache compartilhado da ficha 360 se p95 estourar (RBC C5 — medir primeiro).
+  # Sem deploy remoto (memoria project_deploy_so_quando_roldao_quiser preservada — so local).
+  redis:
+    image: redis:7-alpine
+    container_name: afere-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks:
       - afere-net
 
 volumes:
   db_data:
     name: afere_db_data
+  redis_data:
+    name: afere_redis_data
 
 networks:
   afere-net:
