@@ -13,34 +13,32 @@ Cenarios cobertos:
 - T7: 50 threads x 100 queries cruzadas, ZERO vazamentos (fuzzing)
 
 Criterio de saida F-A (faseamento §2): "RLS bloqueia cross-tenant em 100%
-dos testes de fuzzing concorrente (50 threads × 1000 queries)".
+dos testes de fuzzing concorrente (50 threads x 1000 queries)".
 """
 
 from __future__ import annotations
 
 import threading
-import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from uuid import UUID
 
 import pytest
 from django.db import IntegrityError, connection
 from django.db.utils import DataError, InternalError, ProgrammingError
-
-# Exceções equivalentes — PG ERRCODE varia, Django mapeia diferente conforme contexto
-ERROS_RLS = (IntegrityError, InternalError, ProgrammingError, DataError)
-
 from src.infrastructure.audit.models import Auditoria
 from src.infrastructure.feature_flag.models import FeatureFlag, FonteFlag
 from src.infrastructure.multitenant.connection import (
     run_as_system,
     run_in_tenant_context,
 )
+
 from tests.factories import (
-    FeatureFlagFactory,
     TenantFactory,
     UsuarioFactory,
 )
+
+# Exceções equivalentes — PG ERRCODE varia, Django mapeia diferente conforme contexto
+ERROS_RLS = (IntegrityError, InternalError, ProgrammingError, DataError)
 
 pytestmark = pytest.mark.tenant_isolation  # marker requer PG vivo + RLS aplicada
 
@@ -116,6 +114,7 @@ class TestRLSBloqueiaCrossTenant:
 class TestFeatureFlagGlobal:
     def test_flag_global_visivel_mesmo_em_contexto_tenant(self) -> None:
         from uuid import uuid4 as _uuid
+
         flag_global_key = f"dark-mode-{_uuid().hex[:6]}"
         flag_tenant_key = f"x-{_uuid().hex[:6]}"
 
@@ -143,6 +142,17 @@ class TestFeatureFlagGlobal:
 
 @pytest.mark.django_db(transaction=True)
 class TestTriggerPGAntiMutation:
+    # FA-C1 (decisão 3 do design hash-chain, aprovada pelo tech-lead):
+    # a policy de UPDATE/DELETE da `auditoria` virou `USING (false)`. Para a
+    # role do app (app_user, NOBYPASSRLS) a linha fica INVISÍVEL ao
+    # UPDATE/DELETE → 0 linhas afetadas, SEM exceção (Postgres não erra em
+    # UPDATE/DELETE que casa 0 linhas), conteúdo intacto. A imutabilidade
+    # ficou MAIS forte: policy USING(false) barra a role do app + triggers
+    # `auditoria_anti_update/delete` continuam de backstop para roles que
+    # furam RLS. O invariante que estes testes provam — "auditoria não pode
+    # ser adulterada via SQL bruto" — agora se demonstra por 0-linhas +
+    # linha inalterada, NÃO por exceção (assertiva antiga regrediria a
+    # garantia: aceitaria erro mas não provaria que o dado sobreviveu).
     def test_trigger_pg_bloqueia_update_mesmo_via_raw_sql(self) -> None:
         with run_as_system():
             t = TenantFactory()
@@ -158,13 +168,17 @@ class TestTriggerPGAntiMutation:
                 hash_atual="hash-trigger-1",
             )
 
-            # Tentativa de UPDATE via SQL bruto — trigger PG levanta exception
-            with pytest.raises(ERROS_RLS):
-                with connection.cursor() as cur:
-                    cur.execute(
-                        "UPDATE auditoria SET action = 'tampered' WHERE id = %s",
-                        [str(linha.id)],
-                    )
+            with connection.cursor() as cur:
+                cur.execute(
+                    "UPDATE auditoria SET action = 'tampered' WHERE id = %s",
+                    [str(linha.id)],
+                )
+                linhas_afetadas = cur.rowcount
+
+            assert linhas_afetadas == 0  # policy USING(false) filtrou a linha
+
+            linha.refresh_from_db()
+            assert linha.action == "evento.trigger"  # conteúdo intacto
 
     def test_trigger_pg_bloqueia_delete_mesmo_via_raw_sql(self) -> None:
         with run_as_system():
@@ -181,15 +195,19 @@ class TestTriggerPGAntiMutation:
                 hash_atual="hash-trigger-del",
             )
 
-            with pytest.raises(ERROS_RLS):
-                with connection.cursor() as cur:
-                    cur.execute("DELETE FROM auditoria WHERE id = %s", [str(linha.id)])
+            with connection.cursor() as cur:
+                cur.execute("DELETE FROM auditoria WHERE id = %s", [str(linha.id)])
+                linhas_afetadas = cur.rowcount
+
+            assert linhas_afetadas == 0  # policy USING(false) filtrou a linha
+
+            assert Auditoria.objects.filter(id=linha.id).exists()  # não deletada
 
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.slow
 class TestFuzzingConcorrente:
-    """Criterio de saida F-A: 50 threads × 1000 queries, ZERO vazamento."""
+    """Criterio de saida F-A: 50 threads x 1000 queries, ZERO vazamento."""
 
     def test_50_threads_x_100_queries_zero_vazamento(self) -> None:
         # Setup: 2 tenants, 1 usuario por tenant
@@ -203,15 +221,21 @@ class TestFuzzingConcorrente:
             for i in range(100):
                 with run_in_tenant_context(tenant_id=t_a.id, usuario_id=u_a.id):
                     Auditoria.objects.create(
-                        tenant=t_a, usuario=u_a,
-                        action="a", resource_summary=f"a-{i}",
-                        payload_jsonb={"i": i}, hash_atual=f"a-{i}",
+                        tenant=t_a,
+                        usuario=u_a,
+                        action="a",
+                        resource_summary=f"a-{i}",
+                        payload_jsonb={"i": i},
+                        hash_atual=f"a-{i}",
                     )
                 with run_in_tenant_context(tenant_id=t_b.id, usuario_id=u_b.id):
                     Auditoria.objects.create(
-                        tenant=t_b, usuario=u_b,
-                        action="b", resource_summary=f"b-{i}",
-                        payload_jsonb={"i": i}, hash_atual=f"b-{i}",
+                        tenant=t_b,
+                        usuario=u_b,
+                        action="b",
+                        resource_summary=f"b-{i}",
+                        payload_jsonb={"i": i},
+                        hash_atual=f"b-{i}",
                     )
 
         # Fuzzing: 50 threads alternando tenants, contam o que veem
