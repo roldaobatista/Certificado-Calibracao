@@ -57,6 +57,8 @@ LOCAL_APPS = [
     "src.infrastructure.feature_flag.apps.FeatureFlagConfig",
     # Multi-tenancy operacional (Marco 3 — 2026-05-17): middleware + RLS policies
     "src.infrastructure.multitenant.apps.MultitenantConfig",
+    # Autorizacao (Foundation F-B — 2026-05-18): porta + RBAC + audit synchronous
+    "src.infrastructure.authz.apps.AuthzConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -82,6 +84,9 @@ MIDDLEWARE = [
     # Trava de isolamento entre clientes — bypass automatico de /healthz/, /admin/,
     # /api/schema/, /api/docs/, /static/, /media/. Detalhes em middleware.py.
     "src.infrastructure.multitenant.middleware.TenantMiddleware",
+    # F-B: enforcement MFA TOTP pros perfis sensiveis (SEC-MFA-001).
+    # Depois de TenantMiddleware (le active_tenant_context).
+    "src.infrastructure.authz.middleware.MfaRequiredMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -188,12 +193,24 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # =============================================================
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # F-B: deny-by-default — toda view DRF precisa declarar `authz_action`
+    # OU `authz_public = True`. INV-AUTHZ-001 cravada na borda.
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
+        "src.infrastructure.authz.permissions.RequireAuthz",
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
     ],
+}
+
+# F-B: cache local Django pra invalidacao de autorizacao (TTL 5 min).
+# Wave A troca pra Redis sem mexer no domain (porta `AuthorizationProvider`).
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "afere-authz-cache",
+    },
 }
 
 SPECTACULAR_SETTINGS = {
