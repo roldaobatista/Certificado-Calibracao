@@ -66,3 +66,4 @@ Thumbs.db
 *.sqlite3
 *.db
 dumps/
+.coverage

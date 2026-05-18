@@ -122,6 +122,10 @@ DATABASES = {
         "OPTIONS": {
             "application_name": "afere-app-runtime",
         },
+        # pytest-django reusa este DB em testes. Nome fixo evita prefixacao
+        # automatica 'test_' que confunde quando temos 2 alias apontando
+        # pro mesmo banco fisico de teste.
+        "TEST": {"NAME": "test_afere", "MIGRATE": True},
     },
     "migrator": {
         **env.db("DATABASE_MIGRATOR_URL"),
@@ -130,6 +134,9 @@ DATABASES = {
         "OPTIONS": {
             "application_name": "afere-app-migrator",
         },
+        # Em teste, migrator aponta pro MESMO banco que default — o test
+        # database. Sem isso, migrate corre contra o DB de prod.
+        "TEST": {"NAME": "test_afere", "MIGRATE": True, "DEPENDENCIES": []},
     },
 }
 

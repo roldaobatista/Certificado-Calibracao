@@ -11,11 +11,17 @@ Cobertura:
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pytest
 from django.db import IntegrityError
 
 from src.infrastructure.audit.models import Auditoria
 from src.infrastructure.feature_flag.models import FeatureFlag, FonteFlag
+from src.infrastructure.multitenant.connection import (
+    run_as_system,
+    run_in_tenant_context,
+)
 from src.infrastructure.tenant.models import StatusLifecycle, Tenant
 from src.infrastructure.usuario.models import Usuario, UsuarioPerfilTenant
 
@@ -57,29 +63,47 @@ class TestUsuarioBasico:
             Usuario.objects.create_user(email="a@b.com", password="outra-12-chars")
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.tenant_isolation
 class TestUsuarioPerfilTenant:
+    """Tabela usuario_perfil_tenant tem RLS — INSERT exige run_as_system,
+    SELECT exige run_in_tenant_context com usuario_id setado.
+    """
+
     def test_unique_constraint_usuario_tenant_perfil(self) -> None:
-        t = Tenant.objects.create(slug="t1", nome_fantasia="T1")
-        u = Usuario.objects.create_user(email="u@x.com", password="senha-12-chars")
-        UsuarioPerfilTenant.objects.create(usuario=u, tenant=t, perfil="admin_tenant")
-        with pytest.raises(IntegrityError):
+        uid = uuid4().hex[:8]
+        with run_as_system():
+            t = Tenant.objects.create(slug=f"upt-u-{uid}", nome_fantasia="UPT")
+            u = Usuario.objects.create_user(email=f"upt-u-{uid}@x.com", password="senha-teste-12-chars")
             UsuarioPerfilTenant.objects.create(usuario=u, tenant=t, perfil="admin_tenant")
+            with pytest.raises(IntegrityError):
+                UsuarioPerfilTenant.objects.create(usuario=u, tenant=t, perfil="admin_tenant")
 
     def test_perfis_diferentes_no_mesmo_tenant_sao_permitidos(self) -> None:
-        t = Tenant.objects.create(slug="t2", nome_fantasia="T2")
-        u = Usuario.objects.create_user(email="u2@x.com", password="senha-12-chars")
-        UsuarioPerfilTenant.objects.create(usuario=u, tenant=t, perfil="admin_tenant")
-        UsuarioPerfilTenant.objects.create(usuario=u, tenant=t, perfil="rt_signatario")
-        assert UsuarioPerfilTenant.objects.filter(usuario=u, tenant=t).count() == 2
+        uid = uuid4().hex[:8]
+        with run_as_system():
+            t = Tenant.objects.create(slug=f"upt-m-{uid}", nome_fantasia="UPT")
+            u = Usuario.objects.create_user(email=f"upt-m-{uid}@x.com", password="senha-teste-12-chars")
+            UsuarioPerfilTenant.objects.create(usuario=u, tenant=t, perfil="admin_tenant")
+            UsuarioPerfilTenant.objects.create(usuario=u, tenant=t, perfil="rt_signatario")
+        # Leitura requer contexto onde app.usuario_id casa upt_self_select
+        with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
+            assert UsuarioPerfilTenant.objects.filter(usuario=u, tenant=t).count() == 2
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.tenant_isolation
 class TestAuditoriaImutabilidadeCodigo:
-    """Marco 2 defende em CODIGO. Marco 4 reforca em TRIGGER PG."""
+    """Marco 2 defende em CODIGO. Marco 4 reforca em TRIGGER PG.
 
-    def _criar_linha(self) -> Auditoria:
+    Marcado tenant_isolation porque a tabela auditoria tem RLS — exige
+    contexto tenant pra INSERT/SELECT. Roda em ambiente com PG vivo + RLS.
+    """
+
+    def _criar_linha_em_contexto(self, tenant_id, usuario_id) -> Auditoria:
         return Auditoria.objects.create(
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
             action="usuario.criado",
             resource_summary="teste",
             payload_jsonb={"email": "x@y.com"},
@@ -87,35 +111,57 @@ class TestAuditoriaImutabilidadeCodigo:
         )
 
     def test_insert_permitido(self) -> None:
-        linha = self._criar_linha()
-        assert linha.pk is not None
+        uid = uuid4().hex[:8]
+        with run_as_system():
+            t = Tenant.objects.create(slug=f"aud-i-{uid}", nome_fantasia="Aud")
+            u = Usuario.objects.create_user(email=f"aud-i-{uid}@x.com", password="senha-teste-12-chars")
+        with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
+            linha = self._criar_linha_em_contexto(t.id, u.id)
+            assert linha.pk is not None
 
     def test_update_bloqueado_em_codigo(self) -> None:
-        linha = self._criar_linha()
-        linha.action = "usuario.atualizado"
-        with pytest.raises(RuntimeError, match="INSERT-only"):
-            linha.save()
+        uid = uuid4().hex[:8]
+        with run_as_system():
+            t = Tenant.objects.create(slug=f"aud-u-{uid}", nome_fantasia="Aud")
+            u = Usuario.objects.create_user(email=f"aud-u-{uid}@x.com", password="senha-teste-12-chars")
+        with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
+            linha = self._criar_linha_em_contexto(t.id, u.id)
+            linha.action = "usuario.atualizado"
+            with pytest.raises(RuntimeError, match="INSERT-only"):
+                linha.save()
 
     def test_delete_bloqueado_em_codigo(self) -> None:
-        linha = self._criar_linha()
-        with pytest.raises(RuntimeError, match="INSERT-only"):
-            linha.delete()
+        uid = uuid4().hex[:8]
+        with run_as_system():
+            t = Tenant.objects.create(slug=f"aud-d-{uid}", nome_fantasia="Aud")
+            u = Usuario.objects.create_user(email=f"aud-d-{uid}@x.com", password="senha-teste-12-chars")
+        with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
+            linha = self._criar_linha_em_contexto(t.id, u.id)
+            with pytest.raises(RuntimeError, match="INSERT-only"):
+                linha.delete()
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.tenant_isolation
 class TestFeatureFlag:
-    def test_flag_global_tenant_null(self) -> None:
-        f = FeatureFlag.objects.create(
-            modulo="calibracao",
-            feature_key="NFS-e-automatico",
-            ativo=True,
-            fonte=FonteFlag.GLOBAL,
-        )
-        assert f.tenant is None
-        assert "(global)" in str(f)
+    """Marcado tenant_isolation pois INSERT em feature_flags passa por policy."""
 
     def test_flag_por_tenant_unique_com_modulo_e_key(self) -> None:
-        t = Tenant.objects.create(slug="t3", nome_fantasia="T3")
-        FeatureFlag.objects.create(tenant=t, modulo="m", feature_key="k", ativo=True)
-        with pytest.raises(IntegrityError):
-            FeatureFlag.objects.create(tenant=t, modulo="m", feature_key="k", ativo=False)
+        uid = uuid4().hex[:8]
+        with run_as_system():
+            t = Tenant.objects.create(slug=f"ff-uniq-{uid}", nome_fantasia="FF")
+        with run_in_tenant_context(tenant_id=t.id, usuario_id=None):
+            FeatureFlag.objects.create(tenant=t, modulo="m", feature_key=f"k-{uid}", ativo=True)
+            with pytest.raises(IntegrityError):
+                FeatureFlag.objects.create(tenant=t, modulo="m", feature_key=f"k-{uid}", ativo=False)
+
+    def test_flag_global_tenant_null(self) -> None:
+        with run_as_system():
+            f = FeatureFlag.objects.create(
+                modulo="calibracao",
+                feature_key="NFS-e-automatico",
+                ativo=True,
+                fonte=FonteFlag.GLOBAL,
+            )
+            assert f.tenant is None
+            assert "(global)" in str(f)

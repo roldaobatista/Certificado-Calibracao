@@ -12,6 +12,8 @@ Uso:
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 import factory
 from factory.django import DjangoModelFactory
 from factory.faker import Faker
@@ -27,7 +29,7 @@ class TenantFactory(DjangoModelFactory):
         model = Tenant
         django_get_or_create = ("slug",)
 
-    slug = factory.Sequence(lambda n: f"tenant-{n}")
+    slug = factory.LazyFunction(lambda: f"tenant-{uuid4().hex[:8]}")
     nome_fantasia = factory.LazyAttribute(lambda obj: f"Empresa {obj.slug.title()}")
     plano = "placeholder"
     status_lifecycle = StatusLifecycle.ATIVO
@@ -39,7 +41,7 @@ class UsuarioFactory(DjangoModelFactory):
         django_get_or_create = ("email",)
         skip_postgeneration_save = True
 
-    email = factory.Sequence(lambda n: f"user{n}@teste.local")
+    email = factory.LazyFunction(lambda: f"user-{uuid4().hex[:8]}@teste.local")
     nome_completo = Faker("name", locale="pt_BR")
     is_active = True
     is_staff = False
@@ -68,7 +70,7 @@ class FeatureFlagFactory(DjangoModelFactory):
 
     tenant = factory.SubFactory(TenantFactory)
     modulo = "calibracao"
-    feature_key = factory.Sequence(lambda n: f"feature-{n}")
+    feature_key = factory.LazyFunction(lambda: f"feature-{uuid4().hex[:8]}")
     ativo = False
     fonte = FonteFlag.PLANO
 
@@ -85,7 +87,7 @@ class AuditoriaFactoryNoChain(DjangoModelFactory):
     tenant = factory.SubFactory(TenantFactory)
     usuario = factory.SubFactory(UsuarioFactory)
     action = "usuario.criado"
-    resource_summary = factory.Sequence(lambda n: f"recurso-{n}")
+    resource_summary = factory.LazyFunction(lambda: f"recurso-{uuid4().hex[:8]}")
     payload_jsonb = factory.LazyAttribute(lambda obj: {"action": obj.action})
     hash_anterior = None
     hash_atual = "placeholder-sem-chain-test"

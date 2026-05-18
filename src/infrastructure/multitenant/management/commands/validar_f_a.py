@@ -170,11 +170,13 @@ class Command(BaseCommand):
                     resource_summary=f"drill-{i}",
                     payload={"i": i},
                 )
-
-        with run_as_system():
+            # Verificacao DENTRO do mesmo contexto — RLS permite leitura
+            # das linhas deste tenant. Limit cobre as 5 que acabamos de inserir.
             ok, total, quebrados = verificar_integridade_cadeia(limit=100)
         if not ok:
             return False, f"cadeia quebrada em {len(quebrados)} elos: {quebrados[:3]}"
+        if total < 5:
+            return False, f"esperava >=5 linhas, achei {total} (RLS pode estar filtrando)"
         return True, f"{total} linhas verificadas, 0 quebras"
 
     def _benchmark_p99(self) -> tuple[bool, str]:

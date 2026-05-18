@@ -187,7 +187,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 
 ### Pendências reais
 
-- **Drill Foundation F-A** — **CODE-COMPLETE em 2026-05-17**. 8 marcos entregues em 1 sessão autônoma (esqueleto Django + 4 entidades núcleo + multi-tenancy operacional + audit trail com hash chain + 2 hooks + suite de testes com fuzzing + convenções Django + management command `validar_f_a`). 90/90 testes de hook verdes. Falta Roldão subir Docker no PC e rodar `docker compose exec app poetry run python manage.py validar_f_a` pra fechar os 5/7 critérios automáveis. 2 critérios operacionais (memória + auditor) avaliam-se nas 4–6 semanas seguintes. Detalhes em `docs/faseamento/drill-f-a-saida.md`.
+- **Drill Foundation F-A** — **5/5 critérios automáveis VERDE em 2026-05-18** (execução autônoma no Docker). 8 marcos entregues + 2 migrations de refinamento descobertas pelo próprio drill (fail-loud RLS via `require_tenant_ctx()`; policies de `feature_flags` e `usuario_perfil_tenant` cirurgicamente liberadas pra INSERT system + tenant). Suite final: 58 passed, 1 skipped (justificado Wave A). Falta apenas critérios 6+7 (drill restore PG manual + métricas operacionais 4-6 semanas). Detalhes em `docs/faseamento/drill-f-a-saida.md`.
 
 ### Hooks (13 ativos — 88/88 testes verdes)
 

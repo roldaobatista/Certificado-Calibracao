@@ -2,36 +2,39 @@
 
 > ≤40 linhas. Atualizado a cada conclusão de Marco F-A.
 
-**Fase:** Foundation F-A — **CODE-COMPLETE** (aguardando drill no ambiente Roldão)
-**Modo:** AUTÔNOMO (autorizado por Roldão em 2026-05-17 — "pode fazer fa completo em modo autônomo")
-**Marcos concluídos:** 8/8 (gate administrativo + 8 entregáveis técnicos).
-**Próximo passo:** Roldão sobe Docker no PC, roda `validar_f_a`, confere 5/7 critérios automáveis verde; 2/7 critérios operacionais ficam abertos pelas 4–6 semanas seguintes.
+**Fase:** Foundation F-A — **DRILL 5/5 VERDE** (2026-05-18)
+**Modo:** AUTÔNOMO (Roldão "pode continuar")
+**Marcos:** 8/8 + drill executado no Docker do PC
+**Próximo passo:** critérios 6+7 (drill restore PG manual + 4-6 semanas operação)
 
-**Quadro F-A (12 tarefas — todas concluídas):**
-- ✅ #11 ADR-0002 aceito | ✅ #9 ADR-0007 aceito | ✅ #10 AGENTS.md atualizado | ✅ #7 CURRENT.md atualizado
-- ✅ #2 **Marco 1** Esqueleto Django + Docker (commit 20e79c7)
-- ✅ #1 **Marco 2** 4 tabelas-núcleo (commit 60263ac)
-- ✅ #6 **Marco 3** Multi-tenancy operacional (commit 8b286cd)
-- ✅ #12 **Marco 4** Audit trail com hash chain (commit 97ef55b)
-- ✅ #3 **Marco 5** 2 hooks faltantes (commit d2f5edc)
-- ✅ #8 **Marco 6** Suite de testes + fuzzing (commit b22afae)
-- ✅ #5 **Marco 7** Convenções Django (commit f323379)
-- ✅ #4 **Marco 8** Drill + management command (este commit)
+**Resultado do drill (2026-05-18):**
+- ✅ Hooks 90/90 verdes
+- ✅ Roles app_user/app_migrator NOBYPASSRLS + NOSUPERUSER
+- ✅ Trigger auditoria_anti_* (update + delete) existe
+- ✅ Hash chain íntegro (5 linhas verificadas, 0 quebras)
+- ✅ p99 query operacional = 6.1ms (limite 200ms — folga 33x)
+- ✅ Fuzzing 50 threads × 100 queries → ZERO vazamento
+- ✅ Suite pytest: 58 passed, 1 skipped (justificado Wave A)
 
-**Estatísticas da F-A:**
-- Commits: 9 (incluindo gate + 8 marcos)
-- Arquivos novos: ~50 (config, src/{domain,infrastructure,application}, tests, docker, docs)
-- Linhas adicionadas: ~3000 (estimativa pré-último commit)
-- Hooks ativos: 13 (88→90 testes verdes após adicionar 2 hooks F-A + 2 novos casos)
-- Testes: 6 arquivos puros (sem PG) + 3 arquivos E2E (`@pytest.mark.tenant_isolation`)
+**Bugs descobertos PELO drill e corrigidos (justifica o drill):**
+1. PEP 440 inválido em version do pyproject (`0.1.0-foundation-f-a` → `0.1.0`)
+2. Syntax errado pra extras Poetry (`"psycopg[binary,pool]"` → inline table)
+3. Dockerfile faltava deps dev (django-extensions)
+4. Ordem de migrations circular (audit.0002 dep audit.0001) → renomeado 0003
+5. **fail-soft em RLS:** `current_setting('app.tenant_ids')` vazio retornava `''` em vez de erro → migration 0002 adiciona função `require_tenant_ctx()` que RAISE EXCEPTION
+6. **Policy `ff_block_mutation` muito restritiva:** bloqueava INSERT de flag global em system → migration 0002 substitui por policies cirúrgicas (INSERT permitido em system OR contexto tenant)
+7. **Policy `upt_block_mutation` idem:** factory de teste / provisioning admin não conseguia INSERT → migration 0003 permite INSERT em system
+8. Test DB `test_afere` precisa permissões manuais (`GRANT ALL ON SCHEMA public` + DEFAULT PRIVILEGES) porque app_user é NOCREATEDB
 
-**Falta no ambiente Roldão (não-código):**
-1. Subir Docker: `docker compose up` (instruções `docs/operacao/setup-local.md`)
-2. Rodar drill: `docker compose exec app poetry run python manage.py validar_f_a`
-3. Rodar fuzzing: `docker compose exec app poetry run pytest -m "tenant_isolation and slow"`
-4. Drill manual restore PG < 30min (uma vez no período F-A)
-5. Acompanhar métricas operacionais nas 4–6 semanas (intervenções, SEV-1, tokens, vetos auditor)
+**Migrations novas durante drill:**
+- `multitenant.0002_fail_loud_e_flag_global` (require_tenant_ctx + ff policies cirúrgicas)
+- `multitenant.0003_upt_permite_insert_system`
+- `audit.0003_trigger_anti_mutation` (renomeado de 0002)
 
-**Quando 7/7 critérios verde → autorizar Foundation F-B.**
+**Pendências Roldão (não-código):**
+- Drill manual restore PG < 30min com pgBackRest (uma vez no período)
+- Acompanhar 4-6 semanas: ≤ 2 intervenções/sem, ≤ 3 SEV-1, ≤ R$1.500 LLM, auditor sem veto
 
-**Bloqueio:** nenhum no código; só falta gate operacional (Roldão).
+**Quando 7/7 verde → F-A FECHA → autorizar F-B (autenticação + RBAC + MFA).**
+
+**Bloqueio:** nenhum.

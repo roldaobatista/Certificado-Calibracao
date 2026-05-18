@@ -45,7 +45,7 @@ DROP FUNCTION IF EXISTS auditoria_bloqueia_mutation();
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("audit", "0001_initial"),
+        ("audit", "0002_initial"),
     ]
 
     operations = [

@@ -23,8 +23,10 @@ RUN pip install "poetry==${POETRY_VERSION}"
 WORKDIR /app
 
 # Camada de cache de dependencias (so reinvalida quando pyproject muda)
+# F-A em diante: instala dev tambem (pytest, django-extensions etc). Deploy
+# autorizado pelo Roldao vai introduzir multi-stage com --without dev.
 COPY pyproject.toml poetry.lock* ./
-RUN poetry install --no-root --without dev
+RUN poetry install --no-root
 
 # Codigo da aplicacao
 COPY . .
