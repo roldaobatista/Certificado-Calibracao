@@ -145,11 +145,17 @@ warn_return_any = false
 # pytest — runner + cobertura
 # =============================================================
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "config.settings.dev"
+DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
+    # -ds na CLI vence a env var DJANGO_SETTINGS_MODULE=config.settings.dev que
+    # o docker-compose injeta no container (o servidor roda em dev; a suite NAO
+    # pode — dev usa RedisCache e o pacote `redis` nao esta instalado). Sem isto
+    # `pytest` sem --ds explicito cai em dev e quebra com ModuleNotFoundError.
+    # SANEA-06 (auditoria 10 lentes — Lente 03 Q1).
+    "--ds=config.settings.test",
     "--strict-markers",
     "--strict-config",
     "--reuse-db",
