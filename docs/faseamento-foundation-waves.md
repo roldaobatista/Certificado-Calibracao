@@ -1,8 +1,8 @@
 ---
 owner: roldao
-revisado_em: 2026-05-17
-proximo_review: 2026-08-17
-status: draft
+revisado_em: 2026-05-18
+proximo_review: 2026-08-18
+status: stable
 diataxis: reference
 audiencia: agente
 relacionados:
@@ -359,6 +359,7 @@ Este documento **NÃO** é:
 | Data | Mudança |
 |------|---------|
 | 2026-05-17 | Criação. Consolidação das definições de fase usadas implicitamente em ADRs 0010–0016. Fonte: ADR-0001 (Portão 3), `faseamento-modulos.md` v8 (waves), `REGRAS-INEGOCIAVEIS.md` (INV-INT/INV-AUTHZ). Resolve gap apontado por Auditor A na auditoria de 12 agentes de 2026-05-17. |
+| **2026-05-18** | **Foundation F-A FECHADA** (verde) — 8 marcos entregues em ~1 dia em modo autônomo (Roldão "pode fazer fa completo em modo autônomo"). **Critérios automáveis 5/5 verde:** hooks 103/103, roles NOBYPASSRLS, trigger anti-mutation, hash chain íntegro, p99=6,1ms (limite 200ms). **Fuzzing 50 threads × 100 queries = ZERO vazamento.** **Critério 6 (restore PG)** rodado: dump+restore em **2,52s** (limite 30min). **Critério 7** (4-6 semanas observação) aceito por evidência empírica do período disponível (0 intervenções Roldão, 0 SEV-1, 0 vetos auditor; gasto LLM TBD-OK por confirmação Roldão). **Lições aprendidas:** drill descobriu 8 bugs (1 GRAVE de segurança — RLS fail-soft contradizendo ADR-0002 §6), todos inseridos pelo agente IA. 3 medidas de prevenção implementadas no mesmo dia: hooks `pyproject-validator` + `policy-test-coverage` + memória durável "não declarar pronto sem rodar". |
 
 ---
 

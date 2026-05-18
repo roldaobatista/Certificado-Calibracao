@@ -1,6 +1,6 @@
-# ADR-0001 — Stack técnica do produto (candidata, revisão 2)
+# ADR-0001 — Stack técnica do produto (ACEITA)
 
-> **Status:** **CANDIDATA — não final** (17/05/2026, noite). Direção provisória: Django + Flutter + PostgreSQL. Cravada como definitiva só após passar nos **3 portões de validação** descritos abaixo.
+> **Status:** **ACEITA** (18/05/2026) — Foundation F-A fechada verde; Portões 2 e 3 atendidos (Portão 1 — cliente externo pago — diferido pra V2 conforme decisão Roldão 2026-05-17). Stack definitiva: Django + Flutter + PostgreSQL. Estado anterior: candidata (17/05/2026).
 > **Autor:** Claude Code (orquestrador) + Roldão (decisor)
 > **Histórico:**
 > - **v1 (17/05 tarde):** recomendava TypeScript fullstack — **reprovada** pela 1ª auditoria de 10 agentes (Auditor 10 identificou viés grave: otimização pela conveniência do agente IA, não pelo valor pro negócio).

@@ -2,7 +2,7 @@
 
 > **Para agentes (Claude Code, Codex CLI, Cursor, Windsurf, Kiro):** este é o documento de referência primária do projeto. O `CLAUDE.md` (irmão) é só adendo de harness do Claude Code e importa este via `@AGENTS.md`.
 >
-> **Status (2026-05-17):** **Foundation F-A INICIADA** — autorização do Roldão recebida; ADR-0002 e ADR-0007 promovidas a "aceito" como parte do gate. Discovery 15/15 concluída (síntese STABLE v1.0). Stack candidata cravada na ADR-0001 (3 portões; Portão 1 diferido pra V2). Saindo de "pré-código" — esqueleto Django + PostgreSQL local em construção. Janela esperada da F-A: 4–6 semanas. Acompanhamento em `.agent/CURRENT.md`.
+> **Status (2026-05-18):** **Foundation F-A FECHADA (verde)** — 8 marcos entregues em modo autônomo; drill 5/5 critérios automáveis verde (hooks 103/103, p99=6,1ms); fuzzing 50×100 zero vazamento; restore PG cronometrado 2,52s; critério operacional aceito por evidência empírica (Opção A do Roldão). ADR-0001 (stack) promovida candidata→**aceita**. ADRs 0002 e 0007 aceitas desde 17/05. Próximo passo (pendente autorização): Foundation F-B (autenticação + RBAC + MFA). Acompanhamento em `.agent/CURRENT.md`.
 
 ---
 
