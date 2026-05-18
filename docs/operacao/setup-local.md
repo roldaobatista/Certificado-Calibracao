@@ -122,6 +122,33 @@ O `-v` apaga o volume com os dados. Sem ele, os dados ficam pra próxima.
 
 ---
 
+## Rodar a suite de testes
+
+Em outro Git Bash (deixa o `docker compose up` rodando):
+
+```bash
+cd "/c/PROJETOS/Certificado de calibracao"
+
+# Suite completa (rápida + lenta com fuzzing)
+docker compose exec app poetry run pytest
+
+# Só os rápidos (sem isolamento cross-tenant)
+docker compose exec app poetry run pytest -m "not tenant_isolation and not slow"
+
+# Só fuzzing de isolamento (50 threads x 100 queries)
+docker compose exec app poetry run pytest -m "tenant_isolation and slow"
+
+# Cobertura HTML
+docker compose exec app poetry run pytest
+# Abre depois: reports/coverage/index.html
+```
+
+Se tudo passar, sai algo tipo:
+```
+=== 38 passed, 1 skipped in 12.4s ===
+Coverage: 87.5%
+```
+
 ## Quando algo dá errado
 
 | Sintoma | O que tentar |
