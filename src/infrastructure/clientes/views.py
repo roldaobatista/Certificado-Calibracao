@@ -12,11 +12,24 @@ no banco, mas filtramos no ORM tambem — defesa em profundidade).
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime, timezone
+from uuid import UUID
 
+from django.db import transaction
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from src.application.comercial.clientes.mesclar_clientes import (
+    ErroMesclagem,
+    mesclar_clientes,
+)
+from src.infrastructure.clientes.mesclagem import (
+    MOTIVOS_VALIDOS,
+    validar_observacao,
+)
 from src.infrastructure.clientes.models import Cliente
+from src.infrastructure.clientes.repositories import DjangoClienteRepository
 from src.infrastructure.clientes.serializers import ClienteSerializer
 from src.infrastructure.multitenant.context import active_tenant_context
 
@@ -51,6 +64,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         "update": "clientes.atualizar",
         "partial_update": "clientes.atualizar",
         "destroy": "clientes.deletar",
+        "mesclar": "clientes.mesclar",  # US-CLI-005
     }
 
     def get_authz_action(self, request) -> str | None:  # type: ignore[no-untyped-def]
@@ -131,4 +145,113 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 "aceite_lgpd_versao": cliente.aceite_lgpd_versao or None,
                 "aceite_lgpd_origem": cliente.aceite_lgpd_origem or None,
             },
+        )
+
+    # =============================================================
+    # US-CLI-005 — mesclar 2 clientes (dedup manual)
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP["mesclar"]="clientes.mesclar"
+    # =============================================================
+    @action(detail=True, methods=["post"], url_path=r"mesclar/(?P<perdedor_id>[^/.]+)")
+    def mesclar(self, request, pk=None, perdedor_id=None):  # type: ignore[no-untyped-def]
+        """Mescla `perdedor_id` em `pk` (vencedor). Soft-delete do perdedor."""
+        from src.infrastructure.audit.services import registrar_auditoria
+        from src.infrastructure.multitenant.context import usuario_id_context
+
+        sobrescritas = request.data.get("sobrescrever") or {}
+        motivo_categoria = request.data.get("motivo_categoria") or ""
+        motivo_observacao = request.data.get("motivo_observacao") or ""
+
+        if motivo_categoria not in MOTIVOS_VALIDOS:
+            return Response(
+                {
+                    "detail": "motivo_categoria_invalido",
+                    "validos": list(MOTIVOS_VALIDOS),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if motivo_observacao:
+            try:
+                validar_observacao(motivo_observacao)
+            except ValueError as e:
+                return Response(
+                    {"detail": "motivo_observacao_com_pii", "erro": str(e)},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        try:
+            vencedor_uuid = UUID(str(pk))
+            perdedor_uuid = UUID(str(perdedor_id))
+        except (ValueError, TypeError):
+            return Response(
+                {"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        repo = DjangoClienteRepository()
+        usuario_id = usuario_id_context.get()
+        agora = datetime.now(timezone.utc)
+        active = active_tenant_context.get()
+
+        try:
+            with transaction.atomic():
+                resultado = mesclar_clientes(
+                    repository=repo,
+                    vencedor_id=vencedor_uuid,
+                    perdedor_id=perdedor_uuid,
+                    sobrescritas=sobrescritas,
+                    motivo_categoria=motivo_categoria,
+                    usuario_id=usuario_id,
+                    agora=agora,
+                )
+                obs_hash = (
+                    hashlib.sha256(motivo_observacao.encode("utf-8")).hexdigest()
+                    if motivo_observacao
+                    else ""
+                )
+                registrar_auditoria(
+                    tenant_id=active,
+                    usuario_id=usuario_id,
+                    action="cliente.mesclado",
+                    resource_summary=str(resultado.vencedor.id),
+                    payload={
+                        "vencedor_id": str(resultado.vencedor.id),
+                        "perdedor_id": str(resultado.perdedor.id),
+                        "tenant_id": str(active) if active else None,
+                        "mesclado_em": resultado.mesclado_em.isoformat(),
+                        "campos_sobrescritos_keys": list(
+                            resultado.campos_sobrescritos_keys
+                        ),
+                        "motivo_categoria": resultado.motivo_categoria,
+                        "motivo_observacao_hash": obs_hash,
+                        "usuario_id": str(usuario_id) if usuario_id else None,
+                        "perdedor_documento_hash": _hashear_doc(
+                            resultado.perdedor.documento
+                        ),
+                        "perdedor_nome_hash": hashlib.sha256(
+                            resultado.perdedor.nome.encode("utf-8")
+                        ).hexdigest(),
+                    },
+                )
+        except ErroMesclagem as e:
+            mapping = {
+                "vencedor_nao_encontrado": status.HTTP_404_NOT_FOUND,
+                "perdedor_nao_encontrado": status.HTTP_404_NOT_FOUND,
+                "tenants_diferentes": status.HTTP_403_FORBIDDEN,
+                "mesma_entidade": status.HTTP_400_BAD_REQUEST,
+                "perdedor_ja_deletado": status.HTTP_409_CONFLICT,
+            }
+            return Response(
+                {"detail": e.code, "erro": str(e)},
+                status=mapping.get(e.code, status.HTTP_400_BAD_REQUEST),
+            )
+
+        return Response(
+            {
+                "vencedor_id": str(resultado.vencedor.id),
+                "perdedor_id": str(resultado.perdedor.id),
+                "mesclado_em": resultado.mesclado_em.isoformat(),
+                "campos_sobrescritos_keys": list(
+                    resultado.campos_sobrescritos_keys
+                ),
+            },
+            status=status.HTTP_200_OK,
         )

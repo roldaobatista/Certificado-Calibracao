@@ -31,6 +31,13 @@ class TipoPessoa(models.TextChoices):
     PJ = "PJ", "Pessoa Juridica"
 
 
+class ClienteAtivosManager(models.Manager):
+    """Manager default — filtra soft-deleted (US-CLI-005 + R4 advogado)."""
+
+    def get_queryset(self) -> models.QuerySet["Cliente"]:
+        return super().get_queryset().filter(deletado_em__isnull=True)
+
+
 class Cliente(models.Model):
     """Cliente PF ou PJ de um tenant.
 
@@ -117,8 +124,26 @@ class Cliente(models.Model):
         ),
     )
 
+    # =============================================================
+    # Soft-delete (US-CLI-005). R3 advogado: NAO eh direito ao esquecimento
+    # (LGPD art. 18 VI — esse vai pra crypto-shredding em portal Wave B).
+    # Soft-delete eh correcao de qualidade (art. 6 V) + retencao (art. 16 II +
+    # ISO 17025 cl. 8.4 ~25 anos quando ha certificado emitido pro cliente).
+    # =============================================================
+    deletado_em = models.DateTimeField(null=True, blank=True, db_index=True)
+    deletado_por_usuario_id = models.UUIDField(null=True, blank=True)
+    deletado_motivo_categoria = models.CharField(
+        max_length=40,
+        blank=True,
+        help_text="Enum MotivoMesclagem (ver lgpd.py / mesclagem.py).",
+    )
+
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
+
+    # Manager default filtra ativos; all_objects expoe deletados (auditoria).
+    objects = ClienteAtivosManager()
+    all_objects = models.Manager()
 
     class Meta:
         app_label = "clientes"
@@ -126,15 +151,10 @@ class Cliente(models.Model):
         verbose_name = "Cliente"
         verbose_name_plural = "Clientes"
         ordering = ["nome"]
-        constraints = [
-            # INV-024 + INV-036: dedup por (tenant_id, tipo_pessoa, documento).
-            # Mesmo CPF/CNPJ pode existir em tenants diferentes — multi-tenancy
-            # preservado. Dentro de um tenant nao duplica.
-            models.UniqueConstraint(
-                fields=["tenant", "tipo_pessoa", "documento"],
-                name="uq_cliente_tenant_documento",
-            ),
-        ]
+        # UNIQUE INDEX parcial criado por migration SQL (T-CLI-009b R4 advogado):
+        #   CREATE UNIQUE INDEX uq_cliente_doc_ativo ON clientes
+        #     (tenant_id, tipo_pessoa, documento) WHERE deletado_em IS NULL;
+        # Substitui UniqueConstraint Django, que nao suporta WHERE parcial.
         indexes = [
             models.Index(fields=["tenant", "documento"], name="ix_cliente_tenant_doc"),
             models.Index(fields=["tenant", "nome"], name="ix_cliente_tenant_nome"),
