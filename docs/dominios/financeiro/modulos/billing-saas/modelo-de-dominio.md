@@ -115,10 +115,15 @@ Cada plano tem **uma lista ordenada** de componentes. Fatura é calculada agrega
 - **Ciclo de vida:** publicado por módulo que consome recurso (fiscal, omnichannel, gestão-documental) → consumido no fechamento de ciclo pelo job `agregar_uso_variavel` → grava `processado_em_fatura_id` (não move/apaga — WORM).
 
 ### Cupom (mantido v1, sem mudança)
-- (Inalterado — ver v1 acima — pode virar `ComponenteDesconto` com `aplicavel_se=cupom_X` futuramente)
+- **Atributos obrigatórios:** `id`, `codigo`, `tipo` (`percentual`/`valor_fixo`), `valor`, `validade_inicio`, `validade_fim`, `usos_max`, `usos_atuais`, `recorrencia` (`unica`/`N_ciclos`).
+- **Atributos opcionais:** `planos_aplicaveis` (lista), `descricao`.
+- **Invariantes:** `codigo` único globalmente; cupom expirado/esgotado não aplicável.
+- **Nota:** pode virar `ComponenteDesconto` com `aplicavel_se=cupom_X` futuramente.
 
-### MetodoPagamento (mantido v1, sem mudança)
-- (Inalterado — `SEC-PCI-001` preservado)
+### MetodoPagamento (mantido v1)
+- **Atributos obrigatórios:** `id`, `tenant_id`, `tipo` (`cartao`/`boleto`/`pix`), `gateway`, `gateway_token` (tokenizado — NUNCA PAN/CVV — `SEC-PCI-001`), `ativo`.
+- **Atributos opcionais:** `bandeira`, `ultimos_4`, `nome_titular`, `vencimento_mes`, `vencimento_ano`.
+- **Invariantes:** `SEC-PCI-001` — proibido armazenar dados completos de cartão; apenas token do gateway.
 
 ### HistoricoAssinatura (mantido v1, expandido com novos eventos)
 - **Atributos:** `id`, `assinatura_id`, `evento` (criação, upgrade, downgrade, suspensão, reativação, cancelamento, **addon_contratado**, **addon_cancelado**, **plano_migrado_versao**), `de_plano_versao`, `para_plano_versao`, `de_status`, `para_status`, `quando`, `quem` (user_id ou `system`), `motivo`, `dados_adicionais` (JSONB — ex: `{addon: marketplace}`).
@@ -292,32 +297,6 @@ classDiagram
 - Atributo novo em Plano → migration + versionamento automático (assinaturas existentes mantêm snapshot).
 - Recurso mensurável novo (ex: `ocr_processados`) → entrar em `recursos-mensuraveis.md` + hook valida.
 - Status novo de assinatura → ADR explicando transições válidas.
-
-### Assinatura
-- **Atributos obrigatórios:** `id`, `tenant_id` (`INV-TENANT-001`), `plano_id`, `plano_versao`, `status` (`trial`/`ativa`/`suspensa`/`cancelada`/`trial_expirado`), `data_inicio`, `proximo_vencimento`, `ciclo` (`mensal`/`anual`), `metodo_pagamento_id`.
-- **Atributos opcionais:** `trial_termina_em`, `cancelada_em`, `motivo_cancelamento`.
-- **Invariantes:** uma única assinatura ATIVA por tenant; mudanças de status registradas em histórico.
-- **Ciclo de vida:** criada na contratação → trial (se aplicável) → ativa → (suspensa↔ativa por inadimplência) → cancelada (terminal).
-
-### Fatura SaaS
-- **Atributos obrigatórios:** `id`, `tenant_id`, `assinatura_id`, `numero`, `data_emissao`, `data_vencimento`, `valor`, `status` (`aberta`/`paga`/`falhou`/`estornada`), `tentativas_cobranca`.
-- **Atributos opcionais:** `cupons_aplicados`, `desconto_total`, `valor_liquido`, `pago_em`, `gateway_transacao_id`, `nfse_id` (ID interno do `FiscalProvider`), `nfse_authorization_code`, `nfse_pdf_url`, `nfse_status` (`pendente`/`emitida`/`rejeitada`/`cancelada`), `nfse_rejection_reason`.
-- **Invariantes:** `numero` sequencial por tenant; fatura paga é imutável (correção via estorno + nova fatura); emissão de NFS-e é idempotente (`INV-026`) — uma NFS-e por fatura paga.
-- **Ciclo de vida:** gerada por job → tentativa cobrança → paga (dispara emissão NFS-e via `FiscalProvider`) OU falhou (retentativas D+1, D+3, D+7) OU estornada.
-
-### Cupom
-- **Atributos obrigatórios:** `id`, `codigo`, `tipo` (`percentual`/`valor_fixo`), `valor`, `validade_inicio`, `validade_fim`, `usos_max`, `usos_atuais`, `recorrencia` (`unica`/`N_ciclos`).
-- **Atributos opcionais:** `planos_aplicaveis` (lista), `descricao`.
-- **Invariantes:** `codigo` único globalmente; cupom expirado/esgotado não aplicável.
-
-### MetodoPagamento
-- **Atributos obrigatórios:** `id`, `tenant_id`, `tipo` (`cartao`/`boleto`/`pix`), `gateway`, `gateway_token` (tokenizado — NUNCA PAN/CVV — `SEC-PCI-001`), `ativo`.
-- **Atributos opcionais:** `bandeira`, `ultimos_4`, `nome_titular`, `vencimento_mes`, `vencimento_ano`.
-- **Invariantes:** `SEC-PCI-001` — proibido armazenar dados completos de cartão; apenas token do gateway.
-
-### HistoricoAssinatura
-- **Atributos:** `id`, `assinatura_id`, `evento` (criação, upgrade, downgrade, suspensão, reativação, cancelamento), `de_plano`, `para_plano`, `de_status`, `para_status`, `quando`, `quem` (user_id ou `system`), `motivo`.
-- **Invariantes:** imutável (append-only WORM); toda mudança em Assinatura gera linha aqui.
 
 ---
 

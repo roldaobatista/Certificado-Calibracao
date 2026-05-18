@@ -272,7 +272,7 @@ Ajustes incorporados na v5 (Auditoria 2):
 | `docs/seguranca/agente-input-nao-confiavel.md` (NOVO) | 🔴 | Auditor 1. Todo input externo (PR comment, issue, email, anexo de cliente) classificado como "regulado-untrusted"; agentes podem ler mas **não podem executar ações em financeiro/KMS/migrations** sem aprovação humana explícita. |
 | `docs/seguranca/supply-chain.md` | 🔴 | Lockfile, SBOM, allowlist registries, hook "pacote novo = ADR". |
 | `docs/seguranca/classificacao-dados.md` | 🟡 | Público/interno/confidencial/regulado. |
-| `docs/comum/isolamento-multi-tenant.md` (NOVO) | 🔴 | Auditor 1. INV-TENANT-001 ("toda query SQL/ORM contém `tenant_id` no WHERE — enforced por linter") + SEC-TENANT-001 ("RLS ativa em todas tabelas de cliente"). |
+| `docs/conformidade/comum/isolamento-multi-tenant.md` (A CRIAR) | 🔴 | Auditor 1. INV-TENANT-001 ("toda query SQL/ORM contém `tenant_id` no WHERE — enforced por linter") + SEC-TENANT-001 ("RLS ativa em todas tabelas de cliente"). **Único doc-base de conformidade MVP-1 ainda não criado** — ver AGENTS §12. |
 | `docs/comum/integracoes-externas/` (NOVO) | 🟡 | Auditor 3. Pasta com 1 doc por parceiro (SEFAZ, Pluggy/Belvo, Bling/Tiny pra migração, gateway pagamento, e-mail transacional, WhatsApp Business). Cada: auth, retry, circuit breaker, fallback, custo/mês. |
 
 #### Por domínio/módulo (específico)
@@ -786,7 +786,7 @@ Certificado de calibracao/
     │   ├── personas.md, metricas-sucesso.md
     │   ├── modelo-de-dominio.md, schema-banco.md
     │   ├── contratos/{ui,api,exports}.md
-    │   ├── isolamento-multi-tenant.md  (NOVO)
+    │   ├── isolamento-multi-tenant.md  (A CRIAR — único pendente da base de conformidade MVP-1)
     │   ├── integracoes-inter-modulos.md (NOVO)
     │   ├── governanca-modelo-comum.md   (NOVO)
     │   └── integracoes-externas/        (NOVO — 1 doc por parceiro)

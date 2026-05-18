@@ -35,9 +35,11 @@ Critérios originais (preservados pra referência V2):
 - [x] **ADR-0007 camada de domínio + gerador spec→código** — pipeline spec PT → YAML → Django+Pydantic+OpenAPI+Dart ✅ proposta (17/05/2026)
 - [x] **ADR-0008 fiscal pluggable** — interface `FiscalProvider` agnóstica de país (BR/AR/MX); PlugNotas 1ª impl + Focus NFe smoke trimestral ✅ proposta (17/05/2026)
 - [x] **ADR-0009 onde A3 assina** — A3 sempre cliente-side via Web PKI Lacuna; A1 server-side com KMS ✅ proposta (17/05/2026)
-- [x] `docs/arquitetura/anti-corrosion-layer.md` — 11 portas (Fiscal, Signature, LLM, Storage, Hosting, Auth, Queue, Sync, MultiTenant, OmniChannel, PaymentGateway) ✅ criado (17/05/2026), v2 com #10-#11 (auditoria 12 agentes achado C6)
-- [x] `REGRAS-INEGOCIAVEIS.md` — INV-TENANT-004 + INV-AGENT-001 adicionadas ✅ (17/05/2026)
+- [x] `docs/arquitetura/anti-corrosion-layer.md` — v3 com **18 portas** (era 11; expandido pós-auditoria 10 agentes: +AuthorizationProvider, BpmEngineProvider, RuleEngineProvider, AnalyticsBackend, DocumentSearchProvider, MarketplaceExtensionProvider, EmailTemplateProvider) ✅ (17/05/2026)
+- [x] `REGRAS-INEGOCIAVEIS.md` — INV-TENANT-004 + INV-AGENT-001 + INV-INT-001..013 + INV-AUTHZ-001..003 adicionadas ✅ (17/05/2026)
 - [ ] Aprovação do Roldão nas 4 ADRs + ACL — pendente
+
+> **Nota (17/05/2026 noite):** ADRs 0010-0016 nasceram **após** este portão, como derivadas das auditorias pós-48 módulos (0010-0012) + pós-integrações inter-modulares (0013-0016). **Não bloqueiam Portão 2** — confirmam que a stack candidata aguenta o escopo expandido. Lista das 7: ADR-0010 (telas), 0011 (BI separado), 0012 (autorização), 0013 (pricing), 0014 (transições regulatórias), 0015 (lifecycle tenant), 0016 (operação consistente).
 
 ### Portão 3 — Foundation F-A construída + critérios de validação (bloqueia MVP-1)
 

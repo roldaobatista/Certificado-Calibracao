@@ -1,6 +1,6 @@
 ---
-owner: Roldão
-revisado-em: 2026-05-17
+owner: roldao
+revisado_em: 2026-05-17
 proximo_review: 2026-08-17
 status: draft
 diataxis: reference

@@ -35,7 +35,7 @@
 
 **Stack está CANDIDATA, não final** — vira definitiva após Portões 2+3 da ADR-0001 (Portão 1 diferido pra V2). O teste real é construir a Foundation F-A (multi-tenant + RLS + audit) em 4-6 semanas com critérios de validação aplicados — sem spike descartável. Ver memória `nao-construir-codigo-descartavel`.
 
-Veja também: ADR-0002 (multi-tenancy), ADR-0007 (camada domínio + gerador spec→código), ADR-0008 (fiscal pluggable), ADR-0009 (onde A3 assina), `docs/arquitetura/anti-corrosion-layer.md` (11 portas: Fiscal, Signature, LLM, Storage, Hosting, Auth, Queue, Sync, MultiTenant, OmniChannel, PaymentGateway).
+Veja também: ADR-0002 (multi-tenancy), ADR-0007 (camada domínio + gerador spec→código), ADR-0008 (fiscal pluggable), ADR-0009 (onde A3 assina), `docs/arquitetura/anti-corrosion-layer.md` (**v3 com 18 portas**: as 11 originais Fiscal, Signature, LLM, Storage, Hosting, Auth, Queue, Sync, MultiTenant, OmniChannel, PaymentGateway + AuthorizationProvider, BpmEngineProvider, RuleEngineProvider, AnalyticsBackend, DocumentSearchProvider, MarketplaceExtensionProvider, EmailTemplateProvider — adicionadas na auditoria 10 agentes de 17/05).
 
 ---
 
@@ -51,7 +51,7 @@ Ver `.specify/memory/constitution.md` (6 princípios) + `REGRAS-INEGOCIAVEIS.md`
 5. **IDs rastreáveis** — `US-<MOD>-NNN` → `AC-<MOD>-NNN-N` → `T<MOD>NNN` → commit.
 6. **Negócio vence conveniência do agente** — não otimizar pelo que o agente IA erra menos; otimizar pelo Roldão/produto. Critério "agentes dominam X" é tiebreaker, nunca principal.
 
-**Regra mestre:** regra crítica vira **hook**, não só doc. Hoje: `block-destructive.sh`, `secrets-scanner.sh` (+ INV-checker, tenant-id-validator, anti-mascaramento ainda a criar).
+**Regra mestre:** regra crítica vira **hook**, não só doc. Hoje em `.claude/hooks/`: `block-destructive.sh`, `secrets-scanner.sh`, `_test-runner.sh`, `INV-checker.sh`, `tenant-id-validator.sh`, `anti-mascaramento.sh`, `context-budget.sh`, `paths-frontmatter-validator.sh`. Faltam: `bus-envelope-validator`, `authz-check.sh`, `provisioning-checkpoint-check` (ver §12).
 
 ---
 
@@ -185,7 +185,7 @@ Por enquanto, comandos disponíveis:
 - **Síntese-final discovery:** sair de DRAFT v3 → STABLE (decisão "sem cliente externo agora" precisa ser cravada explicitamente como input, não pendência aberta)
 - **`isolamento-multi-tenant.md`** em `docs/conformidade/comum/` — único doc-base de conformidade MVP-1 que ainda falta (lgpd-rat ✅, seguranca-dados ✅, retencao-matriz ✅, fiscal ✅, dpa-modelo ✅, ripd-modelo ✅, dpia-modulos-novos ✅, incidente-anpd-modelo ✅, pci-dss ✅, open-banking ✅, transferencia-internacional ✅, fiscal-contingencia ✅)
 - **Foundation F-A** — código real ainda não começou; Portão 2/3 da ADR-0001 dependem dele
-- **Hooks complementares** declarados em INV-INT/INV-AUTHZ: `bus-envelope-validator`, `authz-check.sh`, `provisioning-checkpoint-check`, `tenant-id-validator`, anti-mascaramento — só `block-destructive.sh` + `secrets-scanner.sh` existem hoje
+- **3 hooks complementares declarados em INV-INT/INV-AUTHZ ainda a criar:** `bus-envelope-validator` (INV-INT-001/009), `authz-check.sh` (INV-AUTHZ-001), `provisioning-checkpoint-check` (INV-INT-007). Os outros 8 (`block-destructive`, `secrets-scanner`, `_test-runner`, `INV-checker`, `tenant-id-validator`, `anti-mascaramento`, `context-budget`, `paths-frontmatter-validator`) já existem em `.claude/hooks/`.
 
 ### Diferido por decisão (não tratar como pendência)
 

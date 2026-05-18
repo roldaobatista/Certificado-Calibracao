@@ -1,10 +1,12 @@
 ---
-owner: Roldão
-revisado-em: 2026-05-17
+owner: roldao
+revisado_em: 2026-05-17
+proximo_review: 2026-08-17
 status: draft
 modulo: clientes
 dominio: comercial
 diataxis: explanation
+audiencia: agente
 ---
 
 # PRD — Módulo Clientes
@@ -56,6 +58,8 @@ Ver `../../personas.md` (P-COM-01 Atendente, P-COM-02 Vendedor, P-COM-05 Dono). 
 **Como** atendente/vendedor, **quero** abrir `/clientes/{id}` e ver tudo do cliente em uma tela, **para** atender sem trocar de aba 6 vezes.
 - AC-1: Timeline cronológica reversa com eventos de todos os módulos (OS criada/concluída, certificado emitido, NF-e, NPS, contato registrado).
 - AC-2: Carregamento p95 < 1.5s pra clientes com até 500 eventos.
+- AC-3 (INV-013): cada abertura de visão 360° grava linha em `audit_trail.acessos_dados_cliente` com `{user_id, tenant_id, cliente_id, finalidade, timestamp, ip_hash}` antes de renderizar — LGPD exige saber quem viu CPF/dados pessoais do cliente.
+- **INV:** INV-013 (confidencialidade — log de visualização), INV-TENANT-001.
 
 ### US-CLI-003: Importar planilha de clientes (1-clique)
 **Como** dono migrando de Cali/Bling, **quero** subir CSV/XLSX e ver mapeamento automático, **para** não digitar 800 cadastros.

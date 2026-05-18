@@ -111,12 +111,11 @@ Antes desses gates, Django state machine + outbox + Celery cobre.
    - `comparar(campo, operador, valor)` — `valor > 100`, `status = "EMITIDO"`, etc.
    - `intervalo_tempo(campo, "30d", "antes")` — vencimento próximo
    - `contagem(entidade, filtro) >= N` — "≥ 5 OS atrasadas"
-3. **Catálogo de ações:** funções pré-aprovadas:
-   - `enviar_whatsapp(template, destinatário)`
-   - `enviar_email(template, destinatário)`
-   - `criar_os(template, cliente)`
-   - `notificar_painel(severidade, mensagem)`
-   - `escalar_para(papel)`
+3. **Catálogo de ações:** funções pré-aprovadas. A v1 desta ADR listou 5 ações iniciais; pós-auditoria de integrações inter-modulares (17/05/2026) o catálogo foi expandido para **13 ações** — ver `docs/comum/automacoes-catalogo.md` (fonte de verdade). Resumo:
+   - **Comunicação (4):** `enviar_whatsapp`, `enviar_email`, `enviar_sms`, `notificar_painel`
+   - **Criação (4):** `criar_tarefa_crm`, `criar_os_rascunho`, `criar_cotacao_fornecedores`, `criar_nc`
+   - **Bloqueio (3):** `bloquear_emissao_certificado`, `bloquear_alocacao_tecnico`, `bloquear_cliente`
+   - **Escalação/Aprovação (2):** `escalar_para(papel)`, `solicitar_aprovacao`
 4. **DSL YAML versionada por tenant:**
    ```yaml
    nome: "Lembrete recalibração 30d"
