@@ -2,12 +2,15 @@
 
 > **Para agentes (Claude Code, Codex CLI, Cursor, Windsurf, Kiro):** este é o documento de referência primária do projeto. O `CLAUDE.md` (irmão) é só adendo de harness do Claude Code e importa este via `@AGENTS.md`.
 >
-> **Status (2026-05-18, noite final):** **Foundation F-A + F-B FECHADAS + Wave A Marco 1 (`clientes`) FECHADO + Wave A Marco 2 (`equipamentos`) PRD STABLE.**
+> **Status (2026-05-18, madrugada do dia seguinte):** **Foundation F-A + F-B FECHADAS + Wave A Marco 1 (`clientes`) FECHADO + Wave A Marco 2 (`equipamentos`) — PRD v2 + 7 planos US revisados FECHADOS.**
 > - F-A + F-B fechadas em 2026-05-18 (ADRs 0001/0002/0007 + 0012/0006 aceitas).
 > - Marco 1 `clientes`: 5 US verdes, 3 auditores Família 5 aprovaram, suite 207 passed + 2 skipped, cobertura 86.01%.
-> - Marco 2 `equipamentos`: PRD subido pra STABLE v2 após auditoria de 4 subagentes (`tech-lead`, `advogado`, `corretora`, `rbc`) endereçando 16 bloqueadores + criação de **ADR-0018** (scanner QR em PWA) + **ADR-0019** (responsabilidade agente IA) + cravação de **INV-049/050/051/INV-EQP-LOC-001** + **RAT-EQP-FOTO** + 5 linhas novas na matriz de retenção + `qr-publico-allowlist.md`. **Escopo expandido para 6 US (decisão Roldão — completo ISO 17025).**
-> - **Suite total: 88 (F-A+F-B) + 207 (M1 clientes) = 295 passed + 3 skipped; hooks 103/103.**
-> Próximo passo (Wave A Marco 2): `/specify` por US (EQP-001..006) → `/plan` revisado pelos 4 subagentes → `/tasks` → `/implement` → 3 auditores Família 5. Acompanhamento em `.agent/CURRENT.md`.
+> - Marco 2 `equipamentos`: PRD STABLE v2 + 7 planos US revisados (após auditoria de 4 subagentes no PRD + 12 reviews por US — tech-lead + advogado). 3 decisões Roldão: (1) Redis no docker-compose agora, (2) fatiar US-EQP-002 em 002+002b, (3) Caminho A para cadastro provisório (`RecebimentoProvisorio` separada).
+> - ADRs novas: **ADR-0018** (PWA scanner QR) + **ADR-0019** (responsabilidade agente IA).
+> - INVs novas: **INV-049/050/051/INV-EQP-LOC-001/INV-EQP-VERSAO-001/002/INV-EQP-ANOM-001/002/INV-EQP-PROV-001** (9 invariantes).
+> - Docs novas: `RAT-EQP-FOTO`, matriz retenção (+5 linhas), `qr-publico-allowlist.md`, `controles-compensatorios-codigo-ia.md`, `transferencia-aceite-presencial-marco2.md`.
+> - **Suite total: 88 (F-A+F-B) + 207 (M1 clientes) = 295 passed + 3 skipped; hooks 113/113.**
+> Próximo passo (Wave A Marco 2): `/tasks` por US → `/implement` → 3 auditores Família 5. Acompanhamento em `.agent/CURRENT.md`.
 
 ---
 
