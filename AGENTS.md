@@ -154,25 +154,27 @@ Por enquanto, comandos disponíveis:
 
 ## 11. ADRs ativas
 
-| # | Tema | Status |
-|---|------|--------|
-| ADR-0000 | Uso de IA | ✅ aceito |
-| ADR-0001 | Stack (Django + Flutter + PG) | 🟡 candidata — 3 portões |
-| ADR-0002 | Multi-tenancy (schema-shared + RLS) | 🟡 proposta |
-| ADR-0003 | Mobile (técnico de campo) | 🟡 proposta |
-| ADR-0004 | Sync mobile offline-first | 🟡 proposta |
-| ADR-0005 | Engine de automações | 🟡 proposta |
-| ADR-0006 | Feature flags | 🟡 proposta |
-| ADR-0007 | Camada domínio + gerador spec→código | 🟡 proposta |
-| ADR-0008 | Fiscal pluggable (FiscalProvider) | 🟡 proposta |
-| ADR-0009 | Onde A3 assina (cliente-side via Lacuna) | 🟡 proposta |
-| ADR-0010 | Estratégia de tela (HTMX núcleo + 4 SPAs isoladas) | 🟡 proposta — pós-auditoria 10 agentes 17/05 |
-| ADR-0011 | Banco analítico/BI separado do operacional (3 fases) | 🟡 proposta — pós-auditoria 10 agentes 17/05 |
-| ADR-0012 | Autorização unificada (porta AuthorizationProvider) | 🟡 proposta — pós-auditoria 10 agentes 17/05 |
-| ADR-0013 | Pricing composicional billing-saas (7 tipos de componente) | 🟡 proposta — requisito Roldão 17/05 |
-| ADR-0014 | Transições regulatórias críticas (6 fluxos ISO 17025) | 🟡 proposta — pós-auditoria integrações 17/05 |
-| ADR-0015 | Lifecycle tenant (provisioning atômico + sync plano-features + inadimplência) | 🟡 proposta — pós-auditoria integrações 17/05 |
-| ADR-0016 | Operação consistente (desligamento síncrono + BOM + NC notifica + 10 médios) | 🟡 proposta — pós-auditoria integrações 17/05 |
+| # | Tema | Status | Bloqueia fase | Depende de |
+|---|------|--------|---------------|------------|
+| ADR-0000 | Uso de IA | ✅ aceito | — | — |
+| ADR-0001 | Stack (Django + Flutter + PG) | 🟡 candidata — 3 portões | Foundation F-A | — |
+| ADR-0002 | Multi-tenancy (schema-shared + RLS v2) | 🟡 proposta | Foundation F-A | ADR-0001 |
+| ADR-0003 | Mobile (técnico de campo) | 🟡 proposta | Wave A (app-tecnico) | ADR-0001 |
+| ADR-0004 | Sync mobile offline-first | 🟡 proposta | Wave A (app-tecnico) | ADR-0003 |
+| ADR-0005 | Engine de automações | 🟡 proposta | Wave B (automacoes-bpm) | ADR-0006 |
+| ADR-0006 | Feature flags | 🟡 proposta | Foundation F-B | ADR-0002, ADR-0012 |
+| ADR-0007 | Camada domínio + gerador spec→código | 🟡 proposta | Foundation F-A | ADR-0001 |
+| ADR-0008 | Fiscal pluggable (FiscalProvider) | 🟡 proposta | Wave A (fiscal/NFS-e) | — |
+| ADR-0009 | Onde A3 assina (cliente-side via Lacuna) | 🟡 proposta | Wave A (certificados) | — |
+| ADR-0010 | Estratégia de tela (HTMX núcleo + 4 SPAs isoladas) | 🟡 proposta — pós-auditoria 10 agentes 17/05 | Wave A (UI) | ADR-0001, ADR-0007 |
+| ADR-0011 | Banco analítico/BI separado do operacional (3 fases) | 🟡 proposta — pós-auditoria 10 agentes 17/05 | Wave B (bi) | ADR-0002 |
+| ADR-0012 | Autorização unificada (porta AuthorizationProvider) | 🟡 proposta — pós-auditoria 10 agentes 17/05 | Foundation F-B | ADR-0002, ADR-0006 |
+| ADR-0013 | Pricing composicional billing-saas (7 tipos de componente) | 🟡 proposta — requisito Roldão 17/05 | Wave B (billing-saas full) | ADR-0005 (soft), ADR-0015 |
+| ADR-0014 | Transições regulatórias críticas (6 fluxos ISO 17025) | 🟡 proposta — pós-auditoria integrações 17/05 | Wave A (regulatório) | ADR-0002, ADR-0012 |
+| ADR-0015 | Lifecycle tenant (provisioning atômico + sync plano-features + inadimplência) | 🟡 proposta — pós-auditoria integrações 17/05 | Wave A (onboarding+suspensão) | ADR-0002, ADR-0006, ADR-0012 |
+| ADR-0016 | Operação consistente (desligamento síncrono + BOM + NC notifica + 10 médios) | 🟡 proposta — pós-auditoria integrações 17/05 | Wave A (operação) | ADR-0002, ADR-0012, ADR-0014 |
+
+**Como ler a tabela:** "Bloqueia fase" = essa ADR precisa estar aprovada+implementada antes que a fase comece. "Depende de" = essa ADR usa decisões de outras (`soft` = referência conceitual, não bloqueante). Detalhe das fases em `docs/faseamento-foundation-waves.md`.
 
 ---
 
@@ -183,9 +185,11 @@ Por enquanto, comandos disponíveis:
 ### Pendências reais
 
 - **Síntese-final discovery:** sair de DRAFT v3 → STABLE (decisão "sem cliente externo agora" precisa ser cravada explicitamente como input, não pendência aberta)
-- **`isolamento-multi-tenant.md`** em `docs/conformidade/comum/` — único doc-base de conformidade MVP-1 que ainda falta (lgpd-rat ✅, seguranca-dados ✅, retencao-matriz ✅, fiscal ✅, dpa-modelo ✅, ripd-modelo ✅, dpia-modulos-novos ✅, incidente-anpd-modelo ✅, pci-dss ✅, open-banking ✅, transferencia-internacional ✅, fiscal-contingencia ✅)
-- **Foundation F-A** — código real ainda não começou; Portão 2/3 da ADR-0001 dependem dele
-- **3 hooks complementares declarados em INV-INT/INV-AUTHZ ainda a criar:** `bus-envelope-validator` (INV-INT-001/009), `authz-check.sh` (INV-AUTHZ-001), `provisioning-checkpoint-check` (INV-INT-007). Os outros 8 (`block-destructive`, `secrets-scanner`, `_test-runner`, `INV-checker`, `tenant-id-validator`, `anti-mascaramento`, `context-budget`, `paths-frontmatter-validator`) já existem em `.claude/hooks/`.
+- **Foundation F-A** — código real ainda não começou; Portão 2/3 da ADR-0001 dependem dele. Definição completa de fases em `docs/faseamento-foundation-waves.md`.
+
+### Hooks (todos os 11 declarados existem)
+
+Todos os hooks complementares declarados em INV-INT/INV-AUTHZ estão em `.claude/hooks/`: `block-destructive`, `secrets-scanner`, `_test-runner`, `INV-checker`, `tenant-id-validator`, `anti-mascaramento`, `context-budget`, `paths-frontmatter-validator`, `bus-envelope-validator` (INV-INT-001/009), `authz-check` (INV-AUTHZ-001), `provisioning-checkpoint-check` (INV-INT-007 — modo warning pré-código).
 
 ### Diferido por decisão (não tratar como pendência)
 
@@ -196,5 +200,8 @@ Por enquanto, comandos disponíveis:
 - ~~PRD do produto~~ → `docs/prd.md` (draft, status correto pré-Foundation)
 - ~~Faseamento dos módulos~~ → `docs/faseamento-modulos.md` v8 (48 módulos, Foundation + Wave A + Wave B)
 - ~~3 prompts auditores Família 5~~ → `docs/governanca/auditor-{seguranca,qualidade,produto}-prompt.md` v1.0.0 (commit 238fa45)
+- ~~`isolamento-multi-tenant.md`~~ → criado em 2026-05-17 noite (481 linhas)
+- ~~3 hooks complementares~~ → `bus-envelope-validator.sh`, `authz-check.sh`, `provisioning-checkpoint-check.sh` criados em 2026-05-17 noite e registrados em `.claude/settings.json`
+- ~~Doc canônico Foundation/Waves~~ → `docs/faseamento-foundation-waves.md` criado em 2026-05-17 noite (372 linhas)
 
 Ver também: `docs/INDICE.md` (sitemap) + `docs/documentos-do-projeto.md` (mapa de docs).

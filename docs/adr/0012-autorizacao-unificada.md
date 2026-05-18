@@ -232,31 +232,16 @@ Sem esse ponto único, feature flag e RBAC podem divergir (feature desabilitada 
 
 ## Cross-tenant — como o RLS aguenta usuário em N tenants
 
-Hoje o middleware ADR-0002 faz `SET LOCAL app.tenant_id = '<um único uuid>'`. Quebra pra parceiro marketplace que precisa ver N tenants.
+> **Descrição técnica consolidada em ADR-0002** (§3 Middleware v2 + §6 Policy RLS v2). Aqui só o resumo + o que ADR-0012 acrescenta.
 
-**Mudança proposta:** middleware passa a setar **lista** de tenants permitidos:
+**O que ADR-0002 define:** middleware seta `SET LOCAL app.tenant_ids = '<uuid1>,<uuid2>,...'` (lista, não tenant único) + policies RLS usam `ANY(string_to_array(current_setting('app.tenant_ids'), ','))`. Role `app_user` continua `NOBYPASSRLS` (defesa em profundidade preservada — INV-TENANT-004). Fonte de verdade da lista: tabela `auth_usuario_perfil` (nunca aceita lista vinda do cliente). Cravado como `INV-AUTHZ-003`.
 
-```sql
-SET LOCAL app.tenant_ids = '<uuid1>,<uuid2>,<uuid3>';
-```
+**O que ADR-0012 acrescenta sobre o tema:**
+- A lista do RLS é populada a partir do agregado de `auth_usuario_perfil` (M:N user × tenant com `valido_de/ate`) — tabela definida nesta ADR (§ "Dados — 4 tabelas que materializam a porta").
+- `AuthorizationProvider.can(user_id, action, resource, tenant_id, purpose)` recebe `tenant_id` específico do request (dentro da lista RLS) — porta + RLS são defesa #3 + #4 da pirâmide (§ "Como a porta vira realidade — 4 camadas").
+- Auditor 2 da auditoria de 10 agentes (17/05/2026) alertou: a mudança de RLS é **bloqueante pra Wave B** (marketplace + portal cliente matriz+filiais). Wave A não usa ainda.
 
-E as policies RLS passam de:
-
-```sql
-USING (tenant_id = current_setting('app.tenant_id')::uuid)
-```
-
-Pra:
-
-```sql
-USING (tenant_id::text = ANY(string_to_array(current_setting('app.tenant_ids'), ',')))
-```
-
-**Impacto:** ~50 policies RLS precisam ser regeradas (script SQL). Comportamento existente (1 tenant) continua funcionando — só passa a aceitar N tenants.
-
-**Defesa em profundidade mantida:** mesmo com a lista, role `app_user` continua `NOBYPASSRLS`. Não há brecha.
-
-**Auditor 2 da auditoria de 10 agentes alertou:** esta mudança é **bloqueante** pra qualquer feature cross-tenant (marketplace, portal cliente matriz+filiais). Wave A não usa, mas Wave B sim.
+**Impacto operacional:** ~50 policies RLS precisam ser regeradas via script SQL na transição (Foundation F-B). Ver ADR-0002 § "Itens a fazer / Bloqueantes pra Foundation F-B".
 
 ---
 

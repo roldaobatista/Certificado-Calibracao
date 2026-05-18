@@ -11,6 +11,7 @@
 .specify/memory/constitution.md         @roldao
 REGRAS-INEGOCIAVEIS.md                  @roldao
 docs/conformidade/                      @roldao
+docs/comum/automacoes-catalogo.md       @roldao   # catálogo fechado de ações do engine — ANTI-11
 
 # === Pastas críticas de ERP financeiro (Auditor 1 v2 expandiu) ===
 # Estas pastas ainda não existem como código — entram quando stack for definida (ADR-0001).

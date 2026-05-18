@@ -34,6 +34,28 @@ relacionados:
 
 ---
 
+## Custo marginal de ADR-0013 (pricing composicional)
+
+> **Pra dono:** quando você decidiu em 17/05/2026 que o billing precisava de 7 tipos de componente (mensalidade base, faixa de usuários, addon, uso variável, etc.) em vez de 1 preço fixo, o produto ficou mais flexível pra cobrar de jeitos diferentes — mas custou tempo de construção a mais. Esta tabela mostra quanto.
+
+| Item | Sem ADR-0013 (baseline simples) | Com ADR-0013 (composicional) | Delta |
+|---|---|---|---|
+| Entidades no modelo de billing | 5 (`Plano`, `Assinatura`, `Fatura`, `Cupom`, `MetodoPagamento`) | 14 (+9 — `ComponenteBase`, `ComponenteFaixaUsuarios`, `ComponenteAdicionalUsuario`, `ComponenteBundleModulos`, `ComponenteAddon`, `ComponenteUsoVariavel`, `ComponenteDesconto`, `LimiteDuro`, `LinhaFatura`, `MeterUsoEvent`) | +9 entidades |
+| Linhas de spec (PRD + modelo + calculadora) | ~600 | ~1.800 | +1.200 linhas |
+| Horas-agente estimadas pra escrever specs | ~6h | ~18h | +12h-agente |
+| Horas-agente estimadas pra implementar (Foundation F-B + Wave A billing) | ~80h | ~140h | +60h-agente |
+| Custo LLM estimado (a ~R$ 8/h-agente) | ~R$ 50 | ~R$ 200 | +R$ 150 (one-time, mês de construção) |
+| Custo runtime (cálculo de fatura) | desprezível | ~R$ 5/mês por 1k tenants (PostgreSQL agregação `MeterUsoEvent`) | +R$ 5/mês escala |
+| Risco de bug de cobrança | baixo (1 preço fixo) | médio (7 cenários × edge cases) | mais testes E2E (30 casos em `calculadora-fatura.md`) |
+
+**Valor compensa o custo?**
+- **Sim, se Roldão pretende vender com pricing complexo:** faixas de usuários, addons, uso variável (NFS-e/WhatsApp), descontos automáticos por volume. Concorrente direto (Cali/Metroex/Calibre) cobra preço fixo único — diferencial real.
+- **Não, se MVP-1 vai cobrar preço único por plano:** baseline simples bastava. Mas a flexibilidade vira chave pra Wave B (cliente farma exige uso variável; cliente RBC exige addon de PT/proficiência).
+
+**Decisão:** mantida. R$ 150 de LLM extra one-time + R$ 5/mês marginal não muda significativamente o orçamento ano 1.
+
+---
+
 ## Glossário rápido (pra Roldão)
 
 | Termo | O que é, na prática |

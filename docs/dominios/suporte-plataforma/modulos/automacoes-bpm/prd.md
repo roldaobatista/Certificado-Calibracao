@@ -171,11 +171,13 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 | 12 | `escalar_para` | Escalação | automacoes-bpm |
 | 13 | `solicitar_aprovacao` | Aprovação | automacoes-bpm |
 
+**Governança (decisão Roldão 2026-05-17):** `docs/comum/automacoes-catalogo.md` está em `.github/CODEOWNERS` como path que **exige aprovação do Roldão**. Adicionar/remover/mudar ação no catálogo = mudar esse arquivo = PR só passa com aprovação manual + ADR explicando a ação. Trava ANTI-11 reforçada.
+
 **Critérios de aceite:**
-- **AC-BPM-008-1**: GIVEN ação nova é proposta, WHEN PR é aberto, THEN Auditor de Segurança + Auditor de Produto **revisam pre-merge**.
+- **AC-BPM-008-1**: GIVEN ação nova é proposta, WHEN PR muda `docs/comum/automacoes-catalogo.md`, THEN CODEOWNERS exige aprovação `@roldao` + ADR nova obrigatória + Auditor de Segurança + Auditor de Produto **revisam pre-merge**.
 - **AC-BPM-008-2**: GIVEN tenant tenta usar ação não-catalogada, WHEN UI valida, THEN bloqueia + mensagem "ação fora do catálogo — solicite ao Aferê".
 - **AC-BPM-008-3**: GIVEN ação executada, WHEN handler completa, THEN grava em `audit_trail.automacoes_executadas(evento_disparador, condicoes_avaliadas, acoes_executadas, resultado)`.
-- **AC-BPM-008-4**: GIVEN ação envolve recurso bloqueado (ex: `bloquear_cliente` mas usuário não tem perm `cliente.bloquear`), WHEN `AuthorizationProvider.can()` é invocado antes da ação, THEN bloqueio: regra de tenant não pode executar ação que tenant não pode executar manualmente (ANTI-11 + INV-AUTHZ-001 reforçados).
+- **AC-BPM-008-4**: validação CI via hook `authz-check.sh` (INV-AUTHZ-001) — o mesmo cão de guarda que bloqueia endpoint Django novo sem `AuthorizationProvider.can()` cobre ações do engine: handler de ação que envolve recurso autorizado precisa chamar `can()` antes de executar. Regra de tenant não pode executar ação que tenant não pode executar manualmente (ANTI-11 + INV-AUTHZ-001 reforçados).
 - **AC-BPM-008-5**: Versionamento: catálogo segue semver. Ação adicionada = versão MINOR. Ação removida/mudança breaking = MAJOR + breaking change comunicado via `release-management`.
 
 **Lista de 15 automações iniciais publicadas:** Ver `docs/comum/automacoes-catalogo.md` (AUT-001..015) — Wave A entrega 8 automações, Wave B entrega 7.

@@ -114,11 +114,14 @@ Cada plano tem **uma lista ordenada** de componentes. Fatura é calculada agrega
 - **Invariantes:** append-only (WORM); `(tenant_id, recurso, referencia_externa)` único — idempotência forte (evento duplicado não cobra duas vezes).
 - **Ciclo de vida:** publicado por módulo que consome recurso (fiscal, omnichannel, gestão-documental) → consumido no fechamento de ciclo pelo job `agregar_uso_variavel` → grava `processado_em_fatura_id` (não move/apaga — WORM).
 
-### Cupom (mantido v1, sem mudança)
+### Cupom (v2 — vinculado a versão de plano)
 - **Atributos obrigatórios:** `id`, `codigo`, `tipo` (`percentual`/`valor_fixo`), `valor`, `validade_inicio`, `validade_fim`, `usos_max`, `usos_atuais`, `recorrencia` (`unica`/`N_ciclos`).
-- **Atributos opcionais:** `planos_aplicaveis` (lista), `descricao`.
-- **Invariantes:** `codigo` único globalmente; cupom expirado/esgotado não aplicável.
-- **Nota:** pode virar `ComponenteDesconto` com `aplicavel_se=cupom_X` futuramente.
+- **Atributos opcionais:** `planos_aplicaveis_versoes` (lista de `{plano_codigo, plano_versao}` — ex: `[{codigo: pro, versao: v1}, {codigo: pro, versao: v2}]`), `descricao`.
+- **Invariantes:**
+  - `codigo` único globalmente; cupom expirado/esgotado não aplicável.
+  - **Vinculo a versão de plano (decisão Roldão 2026-05-17):** cupom emitido com `planos_aplicaveis_versoes = [{pro, v1}]` vale APENAS pra assinaturas em `pro@v1`. Quando plano sobe pra `pro@v2`, cupom NÃO se aplica automaticamente — operador comercial decide se emite cupom novo ou estende o atual adicionando `{pro, v2}` à lista (audit).
+  - Aplicar cupom em fatura faz lookup `(assinatura.plano_versao IN cupom.planos_aplicaveis_versoes)`. Sem match → erro `cupom_nao_aplica_versao`.
+- **Nota:** pode virar `ComponenteDesconto` com `aplicavel_se=cupom_X` futuramente; nesse caso a regra de versão é replicada como condição da regra.
 
 ### MetodoPagamento (mantido v1)
 - **Atributos obrigatórios:** `id`, `tenant_id`, `tipo` (`cartao`/`boleto`/`pix`), `gateway`, `gateway_token` (tokenizado — NUNCA PAN/CVV — `SEC-PCI-001`), `ativo`.
