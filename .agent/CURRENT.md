@@ -16,8 +16,8 @@
 | Redis no docker-compose + settings (decisão Roldão) | ✅ FECHADO |
 | `/specify` por US (EQP-001..006 + 002b) | ✅ FECHADO (7 planos) |
 | `/plan` revisado pelos 2 subagentes (12 reviews) | ✅ FECHADO (3 decisões Roldão: Redis+002b+RecebimentoProvisorio) |
-| `/tasks` por US (T-EQP-NNN) | ⏳ PENDENTE |
-| `/implement` das 7 US | ⏳ PENDENTE |
+| `/tasks` por US (T-EQP-NNN) | ✅ FECHADO (7 arquivos `tasks/US-EQP-NNN.md` — ~100 tasks) |
+| `/implement` das 7 US | ⏳ PENDENTE (próximo — começa por US-EQP-001) |
 | 3 auditores Família 5 — Marco 2 | ⏳ PENDENTE |
 
 ## US do Marco 2 (7 US — após fatiar 002 + 002b)
@@ -34,7 +34,7 @@
 
 ## Próximo passo
 
-`/tasks` por US — gerar `tasks/US-EQP-NNN.md` com lista atômica de T-EQP-NNN seguindo padrão Marco 1 clientes.
+`/implement` US-EQP-001 (fundação do módulo) — app Django + entidade domain + migration 0001 (UNIQUE tenant_id+tag + RLS) + QR HMAC + hook `qr-hmac-check.sh`. Subir Redis no docker-compose só ao chegar em US-EQP-003. Após cada US: 3 auditores Família 5.
 
 ## Estado do sistema
 
