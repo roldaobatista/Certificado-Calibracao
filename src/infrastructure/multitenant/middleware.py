@@ -108,27 +108,29 @@ class TenantMiddleware:
             usuario_id_context.reset(token_user)
 
     def _resolver_tenants_permitidos(self, usuario_id: UUID) -> list[UUID]:
-        """Consulta UsuarioPerfilTenant filtrando por janela de validade."""
-        # Import tardio pra evitar problema circular Django apps loading.
+        """Consulta UsuarioPerfilTenant filtrando por janela de validade.
+
+        SET LOCAL `app.usuario_id` precisa rodar dentro de uma transacao
+        — caso contrario expira imediatamente e a policy RLS bloqueia.
+        """
         from src.infrastructure.usuario.models import UsuarioPerfilTenant
 
         agora = timezone.now()
-        # Seta app.usuario_id ANTES desta query — policy RLS de
-        # usuario_perfil_tenant permite leitura quando bate.
-        setar_contexto_pg_na_conexao(
-            tenant_ids=[],
-            active_tenant=None,
-            usuario_id=usuario_id,
-        )
-        return list(
-            UsuarioPerfilTenant.objects.filter(
+        with transaction.atomic():
+            setar_contexto_pg_na_conexao(
+                tenant_ids=[],
+                active_tenant=None,
                 usuario_id=usuario_id,
-                valido_de__lte=agora,
             )
-            .filter(models_q_valido_ate_ok(agora))
-            .values_list("tenant_id", flat=True)
-            .distinct()
-        )
+            return list(
+                UsuarioPerfilTenant.objects.filter(
+                    usuario_id=usuario_id,
+                    valido_de__lte=agora,
+                )
+                .filter(models_q_valido_ate_ok(agora))
+                .values_list("tenant_id", flat=True)
+                .distinct()
+            )
 
     def _extrair_active_tenant(
         self, request: HttpRequest, tenant_ids: list[UUID]
