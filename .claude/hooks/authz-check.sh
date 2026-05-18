@@ -53,18 +53,23 @@ file_path=$(printf '%s' "$input" | perl -MJSON::PP -e '
 
 [ -z "$content" ] && exit 0
 
-case "$file_path" in
+# Normaliza separadores Windows (backslash → forward) para case patterns funcionarem
+norm_path="${file_path//\\//}"
+
+case "$norm_path" in
     *.py) ;;
     *) exit 0 ;;
 esac
 
-# Pula testes, migrations, management commands, admin
-case "$file_path" in
-    */tests/*|*/test_*|*_test.py|*/migrations/*|*/management/*|*/admin.py|*/fixtures/*) exit 0 ;;
+# Pula testes, migrations, management commands, admin, models, apps Django
+# (esses arquivos podem ter metodos com nomes semelhantes a HTTP verbs —
+# Auditoria.delete() bloqueia DELETE em codigo; nao e endpoint REST)
+case "$norm_path" in
+    */tests/*|*/test_*|*_test.py|*/migrations/*|*/management/*|*/admin.py|*/models.py|*/apps.py|*/fixtures/*) exit 0 ;;
 esac
 
 # Allowlist de paths publicos / sistema
-case "$file_path" in
+case "$norm_path" in
     */health*|*/metrics*|*/status*|*/webhooks/*) exit 0 ;;
 esac
 

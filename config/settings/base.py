@@ -50,12 +50,18 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
-    # Apps de produto entram aqui quando F-A criar os primeiros modelos.
-    # Apos Marco 2 (tabelas-nucleo): "src.infrastructure.tenant",
-    #                                "src.infrastructure.audit", etc.
+    # 4 tabelas-nucleo da Foundation F-A (Marco 2 — 2026-05-17)
+    "src.infrastructure.tenant.apps.TenantConfig",
+    "src.infrastructure.usuario.apps.UsuarioConfig",
+    "src.infrastructure.audit.apps.AuditConfig",
+    "src.infrastructure.feature_flag.apps.FeatureFlagConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+
+# AUTH_USER_MODEL customizado (Usuario com email como USERNAME_FIELD).
+# CRITICO: setado ANTES de qualquer migration — Django nao permite mudar depois.
+AUTH_USER_MODEL = "usuario.Usuario"
 
 # =============================================================
 # Middleware

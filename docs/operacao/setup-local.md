@@ -83,10 +83,30 @@ docker compose up
 Abra o navegador em:
 
 - http://localhost:8000/healthz/ — deve mostrar `{"status": "ok", "fase": "foundation-f-a"}`
-- http://localhost:8000/admin/ — tela de login do Django (vazia ainda; sem usuário criado)
+- http://localhost:8000/admin/ — tela de login do Django
 - http://localhost:8000/api/docs/ — documentação da API (vazia ainda; endpoints entram em Wave A)
 
 Se as 3 telas carregarem, o esqueleto está de pé. ✅
+
+### Criar o primeiro usuário (1 vez só, pra conseguir entrar no /admin/)
+
+Em outro Git Bash (deixa o `docker compose up` rodando no primeiro):
+
+```bash
+cd "/c/PROJETOS/Certificado de calibracao"
+docker compose exec app poetry run python manage.py createsuperuser
+```
+
+O comando vai pedir:
+- **Email:** seu email (vira o login)
+- **Password:** uma senha de **no mínimo 12 caracteres**
+- **Password (de novo):** confirma
+
+Depois disso, abra http://localhost:8000/admin/ e faça login. Você vai ver 4 grupos de tabelas:
+- **Tenants** — clientes do sistema
+- **Usuarios** — quem loga (esta tabela já tem você)
+- **Auditoria** — trilha imutável (vazia, vai encher com eventos)
+- **Feature flags** — liga/desliga funcionalidade por cliente
 
 ---
 
@@ -120,7 +140,8 @@ Quando aparecer qualquer outro erro, **copie a mensagem inteira e cole numa conv
 
 | Marco | O que muda | Como você vai notar |
 |---|---|---|
-| **Marco 2** (em ~1 semana) | 4 tabelas-núcleo criadas | Em `/admin/` aparecem 4 entradas pra gerenciar |
+| ~~**Marco 1**~~ (entregue 2026-05-17) | Esqueleto técnico + Docker local | Tela `/admin/` carrega |
+| ~~**Marco 2**~~ (entregue 2026-05-17) | 4 tabelas-núcleo criadas | Em `/admin/` aparecem 4 grupos (Tenants, Usuarios, Auditoria, Feature flags) |
 | **Marco 3** (em ~2 semanas) | Trava de isolamento entre clientes | Imperceptível na tela — testes provam que cliente A não vê dado de cliente B |
-| **Marco 4** (em ~3 semanas) | Trilha de auditoria | Toda ação no `/admin/` deixa rastro num registro imutável |
+| **Marco 4** (em ~3 semanas) | Trilha de auditoria com hash em cadeia | Toda ação no `/admin/` deixa rastro num registro impossível de adulterar |
 | **Marco final** (4–6 semanas) | F-A fechada | Sistema pronto pra começar Foundation F-B (autenticação + perfis) |
