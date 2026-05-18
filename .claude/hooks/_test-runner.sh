@@ -48,6 +48,18 @@ run_case "7  echo dropdown (false +)" PASS  block-destructive.sh '{"tool_input":
 run_case "8  git status"              PASS  block-destructive.sh '{"tool_input":{"command":"git status"}}'
 run_case "9  SELECT em aspas"         PASS  block-destructive.sh '{"tool_input":{"command":"sqlite3 db.sqlite \"SELECT * FROM users\""}}'
 run_case "10 chmod 777"               BLOCK block-destructive.sh '{"tool_input":{"command":"chmod 777 /etc"}}'
+run_case "11a git commit --no-verify" BLOCK block-destructive.sh '{"tool_input":{"command":"git commit -m \"foo\" --no-verify"}}'
+run_case "11b git commit -n"          BLOCK block-destructive.sh '{"tool_input":{"command":"git commit -n -m \"foo\""}}'
+run_case "11c git commit -an"         BLOCK block-destructive.sh '{"tool_input":{"command":"git commit -an -m \"foo\""}}'
+run_case "11d git push --no-verify"   BLOCK block-destructive.sh '{"tool_input":{"command":"git push --no-verify origin main"}}'
+run_case "11e git commit normal"      PASS  block-destructive.sh '{"tool_input":{"command":"git commit -m \"foo\""}}'
+run_case "11f git commit -am normal"  PASS  block-destructive.sh '{"tool_input":{"command":"git commit -am \"foo bar\""}}'
+run_case "11g rebase --no-gpg-sign"   BLOCK block-destructive.sh '{"tool_input":{"command":"git rebase --no-gpg-sign main"}}'
+run_case "11h -n dentro da msg"       PASS  block-destructive.sh '{"tool_input":{"command":"git commit -m \"texto explica -n combinado\""}}'
+run_case "11i -n dentro msg single"   PASS  block-destructive.sh '{"tool_input":{"command":"git commit -m '"'"'tipo -n example'"'"'"}}'
+run_case "11j --no-verify na msg"     PASS  block-destructive.sh '{"tool_input":{"command":"git commit -m \"fala de --no-verify aqui\""}}'
+run_case "11k push --force na msg"    PASS  block-destructive.sh '{"tool_input":{"command":"git commit -m \"a docu sobre git push --force\""}}'
+run_case "11l reset --hard na msg"    PASS  block-destructive.sh '{"tool_input":{"command":"git commit -m \"sobre git reset --hard\""}}'
 
 echo ""
 echo "===== secrets-scanner ====="
@@ -101,6 +113,21 @@ run_case "Y  rule sem frontmatter"    BLOCK paths-frontmatter-validator.sh '{"to
 run_case "Z  rule sem paths:"         BLOCK paths-frontmatter-validator.sh '{"tool_input":{"file_path":".claude/rules/foo.md","content":"---\nowner: Roldao\n---\n# Regra"}}'
 run_case "AA rule com paths:"         PASS  paths-frontmatter-validator.sh '{"tool_input":{"file_path":".claude/rules/foo.md","content":"---\npaths: [\"src/**/*.py\"]\n---\n# Regra"}}'
 run_case "AB doc normal ignora"       PASS  paths-frontmatter-validator.sh '{"tool_input":{"file_path":"docs/foo.md","content":"# titulo"}}'
+
+echo ""
+echo "===== mock-in-production ====="
+
+run_case "MK1 FAKE_USERS em produc"   BLOCK mock-in-production.sh '{"tool_input":{"file_path":"src/views/pedidos.py","content":"FAKE_USERS = [{\"id\": 1}]"}}'
+run_case "MK2 FAKE_USERS em tests"    PASS  mock-in-production.sh '{"tool_input":{"file_path":"tests/test_x.py","content":"FAKE_USERS = [{\"id\": 1}]"}}'
+run_case "MK3 // MOCK em produc"      BLOCK mock-in-production.sh '{"tool_input":{"file_path":"src/api.ts","content":"// MOCK\nconst x = 1"}}'
+run_case "MK4 # FAKE DATA em produc"  BLOCK mock-in-production.sh '{"tool_input":{"file_path":"src/handlers.py","content":"# FAKE DATA\nx = 1"}}'
+run_case "MK5 lorem ipsum em produc"  BLOCK mock-in-production.sh '{"tool_input":{"file_path":"src/email.py","content":"body = \"Lorem ipsum dolor sit amet\""}}'
+run_case "MK6 fakeNews variavel OK"   PASS  mock-in-production.sh '{"tool_input":{"file_path":"src/news.py","content":"def detect_fake_news(text): pass"}}'
+run_case "MK7 .md ignora"             PASS  mock-in-production.sh '{"tool_input":{"file_path":"docs/x.md","content":"FAKE_USERS = [{...}]"}}'
+run_case "MK8 fixtures ignora"        PASS  mock-in-production.sh '{"tool_input":{"file_path":"app/fixtures/users.py","content":"FAKE_USERS = [{}]"}}'
+run_case "MK9 migrations ignora"      PASS  mock-in-production.sh '{"tool_input":{"file_path":"app/migrations/0001.py","content":"MOCK_DATA = [{}]"}}'
+run_case "MKa MOCK_RESPONSE producao" BLOCK mock-in-production.sh '{"tool_input":{"file_path":"src/svc.py","content":"MOCK_RESPONSE = {\"ok\":1}"}}'
+run_case "MKb DATA_FAKE sufixo"       BLOCK mock-in-production.sh '{"tool_input":{"file_path":"src/svc.py","content":"DATA_FAKE = []"}}'
 
 echo ""
 echo "===== INV-checker ====="
