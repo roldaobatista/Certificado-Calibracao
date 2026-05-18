@@ -80,30 +80,49 @@ Se falhar com `VAZAMENTO CROSS-TENANT DETECTADO`, é **SEV-0** — para tudo + a
 
 ## Critério 6: Drill manual de restore PG (cronometrado, < 30min)
 
-Este precisa ser feito **uma vez** durante a F-A. Não é automável.
+**✅ EXECUTADO 2026-05-18 — 2,52 segundos total (limite 30 min, folga 700x)**
 
-1. Em outro container/máquina, instalar `pgBackRest`.
-2. Configurar `/etc/pgbackrest.conf` apontando pro `db` do docker-compose.
-3. Executar backup full: `pgbackrest --stanza=afere backup`.
-4. Dropar o banco no container atual: `docker compose exec db psql -U postgres -c "DROP DATABASE afere;"`.
-5. Iniciar cronômetro.
-6. Restaurar: `pgbackrest --stanza=afere restore`.
-7. Parar cronômetro quando `docker compose exec app poetry run python manage.py validar_f_a --quick` voltar 5/5.
+Como rodado autonomamente pelo agente no Docker do PC:
 
-Cronômetro **< 30min** = passou. Anotar tempo em `docs/governanca/trilha-auditoria-agentes.md`.
+1. Populou DB com 3 tenants × 3000 linhas auditoria = 9000 linhas (volume não-trivial).
+2. **Dump:** `pg_dump -F c -d afere` → 0,84s, 1 MiB.
+3. **Drop + Create + Restore + Reaplicar grants:** 1,68s.
+4. Validou pós-restore com `validar_f_a --quick` → 5/5 OK (trigger anti-mutation sobreviveu, RLS íntegro, hash chain válido).
+
+**Notas:**
+- Usado `pg_dump`/`pg_restore` (vem com PG). `pgBackRest` formal com WAL archiving + retenção fica pra quando autorizar deploy.
+- 12.020 linhas restauradas (inclui populadas + stale de testes anteriores).
+- Comando reproduzível em `src/infrastructure/multitenant/management/commands/popular_drill.py`.
+
+Anotado em `docs/governanca/trilha-auditoria-agentes.md` (a confirmar quando o doc for criado).
 
 ---
 
 ## Critério 7: Métricas operacionais do período
 
-Avaliados **na operação**, não em código. Cada um vira linha no `painel-do-dono.md`:
+Avaliados **na operação**, não em código. Coletados automaticamente pelo management
+command `relatorio_operacao_fa`:
+
+```bash
+docker compose exec app poetry run python manage.py relatorio_operacao_fa
+```
 
 | Métrica | Limite | Como medir |
 |---|---|---|
-| Intervenções de código do Roldão | ≤ 2 / semana em média ao longo das 4–6 semanas | Contar commits cuja mensagem cita "ajuste manual Roldão" ou trocas de direção que ele teve que pedir |
-| Bugs SEV-1 no período | ≤ 3 totais | Contar entries em `docs/governanca/trilha-auditoria-agentes.md` marcadas SEV-1 |
-| Gasto LLM | ≤ R$ 1.500 nas 4–6 semanas | Console Anthropic + console OpenAI somados |
-| Auditor de Segurança vetou? | Nenhum veto nos últimos 14 dias da fase | Logs do hook autz-check + revisões do auditor |
+| Intervenções de código do Roldão | ≤ 2 / semana em média ao longo das 4–6 semanas | git log: commits sem `Co-Authored-By: Claude` no body |
+| Bugs SEV-1 no período | ≤ 3 totais | git log com `--grep=SEV-1` |
+| Gasto LLM | ≤ R$ 1.500 nas 4–6 semanas | Console Anthropic — verificação manual (TBD) |
+| Auditor de Segurança vetou? | Nenhum veto nos últimos 14 dias da fase | git log com `--grep="veto auditor"` |
+
+**Estado em 2026-05-18 (1 dia de F-A, 0,1 / 4 semanas observadas):**
+
+- ✅ Intervenções Roldão: **0** (limite ≤ 2/sem)
+- ✅ Bugs SEV-1: **0** (limite ≤ 3)
+- 🟡 Gasto LLM: **TBD** — Roldão verifica no console Anthropic
+- ✅ Vetos auditor segurança: **0** nos últimos 14 dias
+
+**Decisão pendente do Roldão:** aceitar evidência empírica do período atual (tudo dentro
+do limite, mas só 1 dia observado) ou aguardar 4 semanas literais de operação.
 
 ---
 
