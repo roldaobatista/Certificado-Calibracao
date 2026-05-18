@@ -1,18 +1,20 @@
 """URLconf raiz do projeto.
 
-Foundation F-A: so admin + endpoint de health + OpenAPI docs.
-Apps de produto plugam aqui via include() conforme entram em Wave A.
+Wave A · Marco 1 acrescenta `/api/v1/clientes/` ao Foundation.
 """
 
 from django.contrib import admin
 from django.http import JsonResponse
-from django.urls import path
+from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from src.infrastructure.authz.decorators import public
 
+
+@public
 def healthz(_request):
     """Endpoint trivial pra docker-compose validar que app esta de pe."""
-    return JsonResponse({"status": "ok", "fase": "foundation-f-a"})
+    return JsonResponse({"status": "ok", "fase": "wave-a"})
 
 
 urlpatterns = [
@@ -21,4 +23,6 @@ urlpatterns = [
     # OpenAPI / docs
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
+    # Wave A modulos
+    path("api/v1/", include("src.infrastructure.clientes.urls")),
 ]

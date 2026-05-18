@@ -59,6 +59,8 @@ LOCAL_APPS = [
     "src.infrastructure.multitenant.apps.MultitenantConfig",
     # Autorizacao (Foundation F-B — 2026-05-18): porta + RBAC + audit synchronous
     "src.infrastructure.authz.apps.AuthzConfig",
+    # Wave A Marco 1 — Clientes (comercial). PF/PJ + dedup INV-024 + CNPJ alfanumerico.
+    "src.infrastructure.clientes.apps.ClientesConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

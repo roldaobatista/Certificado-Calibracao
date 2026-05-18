@@ -33,4 +33,4 @@ def test_argon2_eh_primeiro_password_hasher(settings) -> None:
 def test_healthz_responde_ok(client: Client) -> None:
     response = client.get(reverse("healthz"))
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "fase": "foundation-f-a"}
+    assert response.json() == {"status": "ok", "fase": "wave-a"}
