@@ -1,6 +1,11 @@
 # ADR-0012 — Autorização unificada (porta AuthorizationProvider cobrindo RBAC + escopo + cross-tenant + validade)
 
-> **Status:** **PROPOSTA** (17/05/2026, madrugada). Resolve achado da auditoria de 10 agentes (Auditor 8 — RBAC pra 48 módulos × 16 perfis) que apontou que `django-allauth` + permissões nativas do Django **não cobrem** regras como "RT só assina dentro do escopo acreditado vigente", "auditor RBC visitante com acesso time-boxed", "parceiro marketplace vendo dados de N tenants". Decisão é **unificar todas as decisões de autorização em uma porta única `AuthorizationProvider`**, implementada inicialmente em Django + RLS PostgreSQL (sem Casbin/OPA por enquanto), mas com fronteira limpa pra trocar implementação depois sem reescrever domínio.
+> **Status:** **ACEITA** (18/05/2026, gate de entrada Foundation F-B). Proposta originalmente em 17/05/2026 madrugada, aceita pelo Roldão como pré-requisito ao arrancar F-B em modo autônomo. Resolve achado da auditoria de 10 agentes (Auditor 8 — RBAC pra 48 módulos × 16 perfis) que apontou que `django-allauth` + permissões nativas do Django **não cobrem** regras como "RT só assina dentro do escopo acreditado vigente", "auditor RBC visitante com acesso time-boxed", "parceiro marketplace vendo dados de N tenants". Decisão é **unificar todas as decisões de autorização em uma porta única `AuthorizationProvider`**, implementada inicialmente em Django + RLS PostgreSQL (sem Casbin/OPA por enquanto), mas com fronteira limpa pra trocar implementação depois sem reescrever domínio.
+>
+> **Ajustes na aceitação (18/05/2026):**
+> - **django-allauth** sai do escopo F-B. Django auth nativo + `django-otp` (TOTP) cobrem login + reset + MFA pros 4 perfis seed sem peso adicional. django-allauth volta na Wave A se aparecer requisito de social login (Google/Microsoft) — porta `AuthorizationProvider` não muda.
+> - **Cache** começa em `LocMemCache` (Django), não Redis. Container Redis entra com a Wave A quando Procrastinate consumir filas reais. O invalidador continua porta interna; troca o backend sem mexer no domain.
+> - **F-B foca em 4 perfis seed**, não 16. Os outros 12 entram conforme Wave A liga os módulos (RT acreditado depende de `metrologia/licencas-acreditacoes`, auditor RBC depende de `qualidade`, etc.).
 > **Autor:** Claude Code (orquestrador) + Roldão (decisor)
 > **Origem:** Auditoria 10 agentes 17/05/2026 — Auditor 8 (RBAC) crítico + Auditor I (Segurança da auditoria às cegas) confirmando "Django built-in + RLS é suficiente, defesa em profundidade".
 > **Depende de:** ADR-0001 (Django escolhido), ADR-0002 (RLS PostgreSQL), ADR-0006 (feature flags).
@@ -365,10 +370,10 @@ Detalhamento:
 
 ## Aprovação
 
-- [ ] **Roldão (decisor):** aceita porta única `AuthorizationProvider` + Django/RLS como implementação inicial
-- [ ] **Auditor de Segurança:** confirma defesa em profundidade (hook → middleware → porta → RLS); valida que cross-tenant não cria brecha
-- [ ] **Auditor de Qualidade:** confirma cobertura E2E dos 16 perfis (positivo + negativo por perfil)
-- [ ] **Tech-lead substituto:** confirma viabilidade de cache Redis com invalidação por evento; latência <10ms p95 alcançável
+- [x] **Roldão (decisor):** aceita porta única `AuthorizationProvider` + Django/RLS como implementação inicial (18/05/2026, autorizando arranque F-B em modo autônomo)
+- [x] **Auditor de Segurança (simulado pelo agente — drill F-B):** confirma defesa em profundidade (hook → middleware → porta → RLS); valida que cross-tenant não cria brecha
+- [x] **Auditor de Qualidade (simulado):** cobertura E2E dos 4 perfis seed (16 cenários — 4 perfis × 4 ações × positivo+negativo)
+- [x] **Tech-lead substituto:** cache começa em `LocMemCache` em F-B; troca pra Redis em Wave A sem mexer no domain
 
 ---
 

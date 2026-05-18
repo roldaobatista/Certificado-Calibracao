@@ -1,6 +1,6 @@
 # ADR-0006 — Feature flags
 
-> **Status:** proposta (2026-05-17 noite final). Substitui o stub anterior "0006-reservado".
+> **Status:** **ACEITA** (18/05/2026, gate de entrada Foundation F-B). Proposta originalmente em 17/05/2026 noite final, aceita junto com ADR-0012 (autorização unificada) ao arrancar F-B em modo autônomo. Substitui o stub anterior "0006-reservado".
 > **Bloqueia:** habilitação seletiva de feature por tenant; release contínuo seguro.
 > **Depende de:** ADR-0001 (stack — Django), ADR-0002 (multi-tenancy).
 

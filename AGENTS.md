@@ -2,7 +2,7 @@
 
 > **Para agentes (Claude Code, Codex CLI, Cursor, Windsurf, Kiro):** este é o documento de referência primária do projeto. O `CLAUDE.md` (irmão) é só adendo de harness do Claude Code e importa este via `@AGENTS.md`.
 >
-> **Status (2026-05-18):** **Foundation F-A FECHADA (verde)** — 8 marcos entregues em modo autônomo; drill 5/5 critérios automáveis verde (hooks 103/103, p99=6,1ms); fuzzing 50×100 zero vazamento; restore PG cronometrado 2,52s; critério operacional aceito por evidência empírica (Opção A do Roldão). ADR-0001 (stack) promovida candidata→**aceita**. ADRs 0002 e 0007 aceitas desde 17/05. Próximo passo (pendente autorização): Foundation F-B (autenticação + RBAC + MFA). Acompanhamento em `.agent/CURRENT.md`.
+> **Status (2026-05-18, noite):** **Foundation F-A + F-B FECHADAS (verde)** — F-A em ~1 dia, F-B em ~3h no mesmo dia, ambas em modo autônomo. ADRs 0001/0002/0007 (F-A) + 0012/0006 (F-B) aceitas. App `authz` no ar (porta + adapter Django + 3 tabelas + 4 perfis seed + MFA TOTP + DRF permission deny-by-default). **Suite total: 88 passed + 1 skipped; hooks 103/103.** INV-AUTHZ-001/002/003 cravadas e testadas. Próximo passo (pendente autorização): Wave A — MVP-1 com 18 módulos. Acompanhamento em `.agent/CURRENT.md`.
 
 ---
 
@@ -165,13 +165,13 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 | ADR-0003 | Mobile (técnico de campo) | 🟡 proposta | Wave A (app-tecnico) | ADR-0001 |
 | ADR-0004 | Sync mobile offline-first | 🟡 proposta | Wave A (app-tecnico) | ADR-0003 |
 | ADR-0005 | Engine de automações | 🟡 proposta | Wave B (automacoes-bpm) | ADR-0006 |
-| ADR-0006 | Feature flags | 🟡 proposta | Foundation F-B | ADR-0002, ADR-0012 |
+| ADR-0006 | Feature flags | ✅ aceito (2026-05-18) | Foundation F-B — destravado | ADR-0002, ADR-0012 |
 | ADR-0007 | Camada domínio + gerador spec→código | ✅ aceito (2026-05-17) | Foundation F-A — destravado (codegen completo é Wave A) | ADR-0001 |
 | ADR-0008 | Fiscal pluggable (FiscalProvider) | 🟡 proposta | Wave A (fiscal/NFS-e) | — |
 | ADR-0009 | Onde A3 assina (cliente-side via Lacuna) | 🟡 proposta | Wave A (certificados) | — |
 | ADR-0010 | Estratégia de tela (HTMX núcleo + 4 SPAs isoladas) | 🟡 proposta — pós-auditoria 10 agentes 17/05 | Wave A (UI) | ADR-0001, ADR-0007 |
 | ADR-0011 | Banco analítico/BI separado do operacional (3 fases) | 🟡 proposta — pós-auditoria 10 agentes 17/05 | Wave B (bi) | ADR-0002 |
-| ADR-0012 | Autorização unificada (porta AuthorizationProvider) | 🟡 proposta — pós-auditoria 10 agentes 17/05 | Foundation F-B | ADR-0002, ADR-0006 |
+| ADR-0012 | Autorização unificada (porta AuthorizationProvider) | ✅ aceito (2026-05-18) | Foundation F-B — destravado | ADR-0002, ADR-0006 |
 | ADR-0013 | Pricing composicional billing-saas (7 tipos de componente) | 🟡 proposta — requisito Roldão 17/05 | Wave B (billing-saas full) | ADR-0005 (soft), ADR-0015 |
 | ADR-0014 | Transições regulatórias críticas (6 fluxos ISO 17025) | 🟡 proposta — pós-auditoria integrações 17/05 | Wave A (regulatório) | ADR-0002, ADR-0012 |
 | ADR-0015 | Lifecycle tenant (provisioning atômico + sync plano-features + inadimplência) | 🟡 proposta — pós-auditoria integrações 17/05 | Wave A (onboarding+suspensão) | ADR-0002, ADR-0006, ADR-0012 |
@@ -188,10 +188,15 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 
 ### Pendências reais
 
-- **Drill Foundation F-A** — **5/5 critérios automáveis VERDE em 2026-05-18** (execução autônoma no Docker). 8 marcos entregues + 2 migrations de refinamento descobertas pelo próprio drill (fail-loud RLS via `require_tenant_ctx()`; policies de `feature_flags` e `usuario_perfil_tenant` cirurgicamente liberadas pra INSERT system + tenant). Suite final: 58 passed, 1 skipped (justificado Wave A). Falta apenas critérios 6+7 (drill restore PG manual + métricas operacionais 4-6 semanas). Detalhes em `docs/faseamento/drill-f-a-saida.md`.
+- **Wave A** — pendente autorização Roldão pra arrancar. Pré-requisitos: 18 PRDs em `stable`, 6 ADRs em proposta precisam ser aceitas (0003, 0004, 0008, 0009, 0010, 0014, 0015, 0016). Hooks complementares já existem.
 - **Wave A do VO `CNPJ`** — ADR-0017 aceita pelo Roldão em 2026-05-18 (gap detectado e corrigido no mesmo dia: 9 docs canônicas alinhadas + IN RFB 2.229/2024 acrescentada às normas). Implementação do VO + suite de testes oficial Serpro acontece em Wave A, sob revisão do subagente `tech-lead-saas-regulado`.
 
-### Hooks (13 ativos — 88/88 testes verdes)
+### Foundation F-A + F-B fechadas (2026-05-18)
+
+- **F-A** — 5/5 critérios automáveis verde + drill restore PG 2,52s. Suite F-A: 58 passed. Detalhes em `docs/faseamento/drill-f-a-saida.md`.
+- **F-B** — 7/7 critérios automáveis verde (hooks 103/103, trigger anti-mutation authz, hash chain íntegra, fuzzing 500 cross-tenant zero vazamento, 16 E2E sem flake, MFA middleware 5 cenários, RequireAuthz DRF importável). Suite F-B: +30 testes (16 E2E + 5 audit + 3 isolamento + 5 MFA + 1 fuzzing). Total: 88 passed, 1 skipped. Detalhes em `docs/faseamento/drill-f-b-saida.md`.
+
+### Hooks (15 ativos — 103/103 testes verdes)
 
 Veja §3 pra lista completa. Marco 5 da F-A (2026-05-17) acrescentou:
 - `migration-rls-check.sh` — INV-TENANT-003: bloqueia migration que cria tabela com `tenant_id` sem `CREATE POLICY`/`ENABLE ROW LEVEL SECURITY` na mesma migration (allow via `# rls-policy: external NNNN`).
