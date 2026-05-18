@@ -110,3 +110,50 @@ class ClienteSerializer(serializers.ModelSerializer):
                 attrs["aceite_lgpd_origem"] = "balcao"
 
         return attrs
+
+
+# =============================================================
+# US-CLI-003 — serializers de importacao
+# =============================================================
+
+
+class DeclaracaoProcedenciaSerializer(serializers.Serializer):
+    """3 checkboxes + procedencia textual (R6 advogado — bloqueante)."""
+
+    tem_base_legal = serializers.BooleanField()
+    compromisso_comunicar_titulares = serializers.BooleanField()
+    declara_sem_dados_sensiveis = serializers.BooleanField()
+    procedencia_declarada = serializers.CharField(max_length=200, allow_blank=False)
+
+
+class ImportarPreviewSerializer(serializers.Serializer):
+    """Entrada do POST /clientes/importar-preview/."""
+
+    arquivo = serializers.FileField()
+
+
+class ImportarExecutarSerializer(serializers.Serializer):
+    """Entrada do POST /clientes/importar-executar/.
+
+    Em multipart, JSON nested vem como string — `declaracao` e `mapeamento` aceitam
+    str (sera parseado em `to_internal_value`) ou dict (JSON puro).
+    """
+
+    arquivo = serializers.FileField()
+    mapeamento = serializers.JSONField(binary=False)
+    declaracao = serializers.JSONField(binary=False)
+    pf_aceite_origem = serializers.CharField(
+        max_length=40, required=False, allow_blank=True, default=""
+    )
+    cpf_responsavel_destino = serializers.ChoiceField(
+        choices=("atributo_pj", "contato_pf_separado", "descartar"),
+        default="contato_pf_separado",
+    )
+    skip_invalid = serializers.BooleanField(default=False)
+    update_existing = serializers.BooleanField(default=True)
+
+    def validate_declaracao(self, value):  # type: ignore[no-untyped-def]
+        """Garante shape do dict + decodifica via DeclaracaoProcedenciaSerializer."""
+        decl_ser = DeclaracaoProcedenciaSerializer(data=value)
+        decl_ser.is_valid(raise_exception=True)
+        return decl_ser.validated_data

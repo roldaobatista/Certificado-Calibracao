@@ -215,6 +215,18 @@ CACHES = {
     },
 }
 
+# =============================================================
+# Upload limites (US-CLI-003 R1 tech-lead — DoS) — 2 MiB suficiente pra ~10000
+# linhas CSV razoaveis; 1000 linhas reais cabem em ~150 KiB.
+# Excedido => 413 estruturada na view; nao consome mais que isto na memoria
+# antes do parser cortar.
+# =============================================================
+_MIB = 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * _MIB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * _MIB
+# Quantidade de campos de formulario (defesa adicional contra hash-collision DoS).
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "Aferê API (nome do produto provisorio)",
     "DESCRIPTION": (

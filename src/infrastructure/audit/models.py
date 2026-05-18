@@ -124,6 +124,8 @@ class FinalidadeAcessoCliente(models.TextChoices):
     AUDITORIA_INTERNA = "auditoria_interna"
     ATENDIMENTO_LGPD_TITULAR = "atendimento_lgpd_titular"
     INVESTIGACAO_INCIDENTE = "investigacao_incidente"
+    # US-CLI-003 R7 advogado: leitura do historico de importacoes dispara INV-013.
+    CONSULTA_RELATORIO_IMPORTACAO = "consulta_relatorio_importacao"
 
 
 class CategoriaDadoAcessado(models.TextChoices):

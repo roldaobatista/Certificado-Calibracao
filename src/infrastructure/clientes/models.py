@@ -125,6 +125,46 @@ class Cliente(models.Model):
     )
 
     # =============================================================
+    # US-CLI-003 R2/R8 advogado — base legal e evidencia externa pra
+    # PF importada com flag de procedencia + pendencia de aceite quando
+    # PJ traz contato PF.
+    # =============================================================
+    aceite_lgpd_base_legal = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text=(
+            "Enum (lgpd.py BASES_LEGAIS_VALIDAS): art_7_v (execucao de contrato), "
+            "art_7_i (consentimento) — usado quando aceite veio de fora (importacao "
+            "com flag pf_aceite_origem). CHECK constraint na migration."
+        ),
+    )
+    aceite_lgpd_evidencia_externa = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text=(
+            "SHA-256 do termo declarado pelo tenant na importacao (R2 advogado). "
+            "Vazio quando aceite eh do proprio sistema."
+        ),
+    )
+    aceite_lgpd_pendente = models.BooleanField(
+        default=False,
+        help_text=(
+            "True quando PJ traz contato/socio PF que ainda nao deu aceite "
+            "(R1 advogado caminho 3). Bloqueia comunicacao WhatsApp em RAT-06 "
+            "ate titular re-aceitar via portal Wave B."
+        ),
+    )
+    cpf_responsavel_legal = models.CharField(
+        max_length=11,
+        blank=True,
+        help_text=(
+            "CPF do responsavel/socio em PJ (R8 advogado caminho a). So preenchido "
+            "quando tenant declara aceite do responsavel; caso contrario, contato PF "
+            "separado eh criado (caminho b)."
+        ),
+    )
+
+    # =============================================================
     # Soft-delete (US-CLI-005). R3 advogado: NAO eh direito ao esquecimento
     # (LGPD art. 18 VI — esse vai pra crypto-shredding em portal Wave B).
     # Soft-delete eh correcao de qualidade (art. 6 V) + retencao (art. 16 II +
@@ -299,3 +339,87 @@ class ClienteBloqueio(models.Model):
     def __str__(self) -> str:
         status_ = "ATIVO" if self.desbloqueado_em is None else "encerrado"
         return f"Bloqueio {self.id} {status_} ({self.motivo_categoria})"
+
+
+class ClienteImportacaoDeclaracao(models.Model):
+    """Declaracao de procedencia do tenant em importacao em massa.
+
+    US-CLI-003 R6 advogado — bloqueante. Tenant precisa marcar 3 checkboxes
+    + declarar origem do sistema anterior antes de executar `importar`.
+    Esses fatos sao preservados pra demonstrar responsabilidade quando
+    titular exercer art. 18 IV LGPD ou quando ANPD pedir prova de procedencia
+    (art. 39 §unico — solidariedade operador/controlador).
+
+    Retencao: 5 anos default (R4 advogado matriz `retencao-matriz.md`).
+    Crypto-shredding de tenant cobre essa tabela em Wave B.
+    Audit `cliente.importacao_executada` referencia esta linha por hash.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.PROTECT, related_name="importacao_declaracoes"
+    )
+    usuario_id = models.UUIDField(
+        null=True, blank=True, help_text="Quem operou a importacao."
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    arquivo_hash = models.CharField(
+        max_length=64,
+        help_text="SHA-256 dos bytes do arquivo CSV (sem PII — hash).",
+    )
+    arquivo_tamanho_bytes = models.PositiveIntegerField()
+    tem_base_legal = models.BooleanField(
+        help_text=(
+            "Checkbox 1: tenant declara que tem base legal documentada "
+            "(contrato/consentimento/obrigacao legal) pra tratar os dados."
+        ),
+    )
+    compromisso_comunicar_titulares = models.BooleanField(
+        help_text=(
+            "Checkbox 2: tenant declara que ja comunicou ou comunicara em ate "
+            "10 dias uteis aos titulares (LGPD art. 9)."
+        ),
+    )
+    declara_sem_dados_sensiveis = models.BooleanField(
+        help_text=(
+            "Checkbox 3: tenant declara ausencia de dados sensiveis "
+            "(LGPD art. 5 II)."
+        ),
+    )
+    procedencia_declarada = models.CharField(
+        max_length=200,
+        help_text=(
+            "Campo livre <=200 chars (ex: 'Bling v3 export 2026-04')."
+        ),
+    )
+    pf_aceite_origem = models.CharField(
+        max_length=40,
+        blank=True,
+        help_text=(
+            "Quando tenant libera PF em lote (R2 advogado): enum "
+            "{contrato_preexistente_documentado, consentimento_coletado_offline, "
+            "migracao_sistema_anterior_com_aceite}. Vazio = PF rejeitada."
+        ),
+    )
+
+    class Meta:
+        app_label = "clientes"
+        db_table = "cliente_importacao_declaracoes"
+        verbose_name = "Declaracao de procedencia (importacao)"
+        verbose_name_plural = "Declaracoes de procedencia"
+        ordering = ["-criado_em"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "-criado_em"],
+                name="ix_imp_decl_tenant_ts",
+            ),
+            models.Index(
+                fields=["tenant", "arquivo_hash"],
+                name="ix_imp_decl_tenant_hash",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"ImpDecl {self.id} tenant={self.tenant_id} arquivo={self.arquivo_hash[:8]}"
+        )

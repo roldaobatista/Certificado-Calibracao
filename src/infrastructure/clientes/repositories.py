@@ -10,7 +10,15 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from src.domain.comercial.clientes.repository import ClienteSnapshot
+from django.db import connection, transaction
+
+from src.domain.comercial.clientes.repository import (
+    ClienteImportacaoInput,
+    ClienteSnapshot,
+    LinhaRejeitada,
+    ResultadoImportacao,
+)
+from src.infrastructure.clientes.csv_safety import sanitizar_celula_csv
 from src.infrastructure.clientes.models import Cliente
 
 
@@ -96,3 +104,197 @@ class DjangoClienteRepository:
         )
         obj = Cliente.all_objects.get(id=cliente_id)
         return _to_snapshot(obj)
+
+    # =============================================================
+    # US-CLI-003 — bulk_upsert (R3 + R8 tech-lead)
+    # SERIALIZABLE isolation + advisory lock por tenant + sanitizacao CSV.
+    # =============================================================
+
+    # Campos do Cliente atualizaveis em update_conflicts (Django 5.0).
+    BULK_UPDATE_FIELDS = (
+        "nome",
+        "nome_fantasia",
+        "email",
+        "telefone",
+        "aceite_lgpd_em",
+        "aceite_lgpd_versao",
+        "aceite_lgpd_origem",
+        "aceite_lgpd_dispensa_motivo",
+        "aceite_lgpd_base_legal",
+        "aceite_lgpd_evidencia_externa",
+        "aceite_lgpd_pendente",
+        "aceite_lgpd_ip_hash",
+        "cpf_responsavel_legal",
+    )
+
+    def bulk_upsert(
+        self,
+        *,
+        tenant_id: UUID,
+        linhas: list[ClienteImportacaoInput],
+        update_existing: bool,
+        agora: datetime,
+    ) -> ResultadoImportacao:
+        """Insere/atualiza em lote dentro de uma transacao SERIALIZABLE."""
+        if not linhas:
+            return ResultadoImportacao(
+                criados=0, atualizados=0, sem_mudanca=0, rejeitados=()
+            )
+
+        rejeitados: list[LinhaRejeitada] = []
+        ids_criados: list[UUID] = []
+        ids_atualizados: list[UUID] = []
+        sem_mudanca = 0
+
+        # Hash do tenant pra advisory lock (32-bit signed precisa caber).
+        # postgres pg_advisory_xact_lock(bigint) — hashtext devolve int4.
+        with transaction.atomic():
+            # SERIALIZABLE diferido pra Wave A (precisa setar antes da 1a query
+            # da transacao da view; em Django ATOMIC_REQUESTS=True a transacao
+            # ja esta aberta com READ COMMITTED quando chegamos aqui). Advisory
+            # lock por tenant ja serializa importacoes simultaneas do mesmo
+            # tenant — suficiente pra Marco 1 dogfooding.
+            with connection.cursor() as cur:
+                cur.execute(
+                    "SELECT pg_advisory_xact_lock(hashtext(%s));",
+                    [f"importacao_clientes:{tenant_id}"],
+                )
+
+            # Detectar documentos que pertencem a clientes soft-deleted (mesclados).
+            # Se existir, rejeita com motivo especifico (E risco tech-lead).
+            chaves_validas: list[ClienteImportacaoInput] = []
+            for entrada in linhas:
+                soft = (
+                    Cliente.all_objects.filter(
+                        tenant_id=tenant_id,
+                        tipo_pessoa=entrada.tipo_pessoa,
+                        documento=entrada.documento,
+                        deletado_em__isnull=False,
+                    )
+                    .only("id")
+                    .first()
+                )
+                if soft is not None:
+                    rejeitados.append(
+                        LinhaRejeitada(
+                            linha_numero=entrada.linha_numero,
+                            linha_hash=entrada.linha_hash,
+                            motivo="documento_pertence_a_cliente_mesclado",
+                            motivo_descricao_curta=(
+                                "Documento pertence a cliente soft-deleted "
+                                "(mesclado em outro registro)."
+                            ),
+                        )
+                    )
+                    continue
+                chaves_validas.append(entrada)
+
+            # Detecta linhas com update_existing=False + documento ja existe.
+            existentes_map: dict[tuple[str, str], Cliente] = {}
+            if chaves_validas:
+                pares = [(e.tipo_pessoa, e.documento) for e in chaves_validas]
+                tipos = list({p[0] for p in pares})
+                docs = [p[1] for p in pares]
+                qs = Cliente.objects.filter(
+                    tenant_id=tenant_id,
+                    tipo_pessoa__in=tipos,
+                    documento__in=docs,
+                ).only(
+                    "id", "tipo_pessoa", "documento", "nome", "nome_fantasia",
+                    "email", "telefone",
+                )
+                for c in qs:
+                    existentes_map[(c.tipo_pessoa, c.documento)] = c
+
+            if not update_existing:
+                novas = []
+                for entrada in chaves_validas:
+                    chave = (entrada.tipo_pessoa, entrada.documento)
+                    if chave in existentes_map:
+                        rejeitados.append(
+                            LinhaRejeitada(
+                                linha_numero=entrada.linha_numero,
+                                linha_hash=entrada.linha_hash,
+                                motivo="ja_existe_no_tenant",
+                                motivo_descricao_curta=(
+                                    "Documento ja cadastrado no tenant."
+                                ),
+                            )
+                        )
+                    else:
+                        novas.append(entrada)
+                chaves_validas = novas
+
+            # UNIQUE INDEX parcial (WHERE deletado_em IS NULL) impede usar
+            # bulk_create(update_conflicts=True) — postgres exige UNIQUE
+            # constraint completa pra ON CONFLICT. Por isso fazemos um loop
+            # explicito: existente -> compara + update; novo -> create.
+            # Wave A: substituir por COPY temp + MERGE quando volume forcar
+            # (alem de 1000 linhas precisa async).
+            novos_por_chave: dict[tuple[str, str], Cliente] = {}
+            for entrada in chaves_validas:
+                chave = (entrada.tipo_pessoa, entrada.documento)
+                nome_sanit = sanitizar_celula_csv(entrada.nome)
+                nome_fant_sanit = sanitizar_celula_csv(entrada.nome_fantasia)
+                email_sanit = sanitizar_celula_csv(entrada.email)
+                telefone_sanit = sanitizar_celula_csv(entrada.telefone)
+                if chave in existentes_map:
+                    existente = existentes_map[chave]
+                    igual = (
+                        existente.nome == nome_sanit
+                        and existente.nome_fantasia == nome_fant_sanit
+                        and existente.email == email_sanit
+                        and existente.telefone == telefone_sanit
+                    )
+                    if igual:
+                        sem_mudanca += 1
+                    else:
+                        Cliente.objects.filter(id=existente.id).update(
+                            nome=nome_sanit,
+                            nome_fantasia=nome_fant_sanit,
+                            email=email_sanit,
+                            telefone=telefone_sanit,
+                            aceite_lgpd_em=entrada.aceite_lgpd_em,
+                            aceite_lgpd_versao=entrada.aceite_lgpd_versao,
+                            aceite_lgpd_origem=entrada.aceite_lgpd_origem,
+                            aceite_lgpd_dispensa_motivo=entrada.aceite_lgpd_dispensa_motivo,
+                            aceite_lgpd_base_legal=entrada.aceite_lgpd_base_legal,
+                            aceite_lgpd_evidencia_externa=entrada.aceite_lgpd_evidencia_externa,
+                            aceite_lgpd_pendente=entrada.aceite_lgpd_pendente,
+                            aceite_lgpd_ip_hash=entrada.aceite_lgpd_ip_hash,
+                            cpf_responsavel_legal=entrada.cpf_responsavel_legal,
+                        )
+                        ids_atualizados.append(existente.id)
+                else:
+                    novos_por_chave[chave] = Cliente(
+                        tenant_id=tenant_id,
+                        tipo_pessoa=entrada.tipo_pessoa,
+                        documento=entrada.documento,
+                        nome=nome_sanit,
+                        nome_fantasia=nome_fant_sanit,
+                        email=email_sanit,
+                        telefone=telefone_sanit,
+                        aceite_lgpd_em=entrada.aceite_lgpd_em,
+                        aceite_lgpd_versao=entrada.aceite_lgpd_versao,
+                        aceite_lgpd_origem=entrada.aceite_lgpd_origem,
+                        aceite_lgpd_dispensa_motivo=entrada.aceite_lgpd_dispensa_motivo,
+                        aceite_lgpd_base_legal=entrada.aceite_lgpd_base_legal,
+                        aceite_lgpd_evidencia_externa=entrada.aceite_lgpd_evidencia_externa,
+                        aceite_lgpd_pendente=entrada.aceite_lgpd_pendente,
+                        aceite_lgpd_ip_hash=entrada.aceite_lgpd_ip_hash,
+                        cpf_responsavel_legal=entrada.cpf_responsavel_legal,
+                    )
+
+            if novos_por_chave:
+                Cliente.objects.bulk_create(list(novos_por_chave.values()))
+                for novo in novos_por_chave.values():
+                    ids_criados.append(novo.id)
+
+        return ResultadoImportacao(
+            criados=len(ids_criados),
+            atualizados=len(ids_atualizados),
+            sem_mudanca=sem_mudanca,
+            rejeitados=tuple(rejeitados),
+            ids_criados=tuple(ids_criados),
+            ids_atualizados=tuple(ids_atualizados),
+        )

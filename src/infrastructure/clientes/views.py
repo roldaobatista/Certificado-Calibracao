@@ -68,6 +68,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
         "bloquear": "clientes.bloquear",  # US-CLI-004
         "desbloquear": "clientes.desbloquear",  # US-CLI-004
         "visao_360": "clientes.visao360",  # US-CLI-002
+        "importar_preview": "clientes.importar",  # US-CLI-003
+        "importar_executar": "clientes.importar",  # US-CLI-003
+        "importacoes": "clientes.importar",  # US-CLI-003 — listagem historico
     }
 
     def get_authz_action(self, request) -> str | None:  # type: ignore[no-untyped-def]
@@ -590,5 +593,385 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 "total_eventos_exibidos": len(items),
                 "limite_aplicado": 200,
             },
+            status=status.HTTP_200_OK,
+        )
+
+    # =============================================================
+    # US-CLI-003 — importacao 1-clique CSV
+    # authz-check: skip -- RequireAuthz resolve via ACTION_MAP["importar_*"]="clientes.importar"
+    # =============================================================
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP["importar_preview"]="clientes.importar"
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="importar-preview",
+    )
+    def importar_preview(self, request):  # type: ignore[no-untyped-def]
+        """POST /clientes/importar-preview/ — devolve mapeamento sugerido + amostra."""
+        from src.infrastructure.clientes.csv_io import (
+            ErroCsvIo,
+            LIMITE_BYTES,
+            detectar_colunas_cpf_responsavel,
+            detectar_colunas_sensiveis,
+            ler_csv_normalizado,
+            sugerir_mapeamento,
+        )
+        from src.infrastructure.clientes.serializers import (
+            ImportarPreviewSerializer,
+        )
+
+        ser = ImportarPreviewSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        upload = ser.validated_data["arquivo"]
+
+        ct = (getattr(upload, "content_type", "") or "").lower()
+        if ct and ct not in {
+            "text/csv",
+            "application/csv",
+            "application/vnd.ms-excel",
+            "text/plain",
+            "application/octet-stream",
+        }:
+            return Response(
+                {"detail": "content_type_invalido", "content_type": ct},
+                status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            )
+
+        # R3 advogado: garantir delete do tempfile em try/finally.
+        arquivo_bytes = b""
+        try:
+            arquivo_bytes = upload.read()
+            if len(arquivo_bytes) > LIMITE_BYTES:
+                return Response(
+                    {
+                        "detail": "arquivo_excede_limite",
+                        "limite_bytes": LIMITE_BYTES,
+                    },
+                    status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                )
+            try:
+                norm = ler_csv_normalizado(arquivo_bytes)
+            except ErroCsvIo as e:
+                return Response(
+                    {"detail": e.code, "erro": str(e)},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            mapeamento_sugerido = sugerir_mapeamento(norm.headers)
+            sensiveis = detectar_colunas_sensiveis(norm.headers)
+            cpf_resp = detectar_colunas_cpf_responsavel(norm.headers)
+            arquivo_hash = hashlib.sha256(arquivo_bytes).hexdigest()
+            amostra = [list(linha) for linha in norm.linhas[:10]]
+            return Response(
+                {
+                    "delimitador_detectado": norm.delimitador,
+                    "encoding_detectado": norm.encoding,
+                    "linhas_amostra": amostra,
+                    "headers_arquivo": list(norm.headers),
+                    "mapeamento_sugerido": mapeamento_sugerido,
+                    "campos_destino_disponiveis": [
+                        "documento",
+                        "nome",
+                        "nome_fantasia",
+                        "email",
+                        "telefone",
+                        "tipo_pessoa",
+                    ],
+                    "colunas_sensiveis_detectadas": list(sensiveis),
+                    "colunas_cpf_responsavel_detectadas": list(cpf_resp),
+                    "total_linhas": norm.total_linhas,
+                    "arquivo_hash": arquivo_hash,
+                },
+                status=status.HTTP_200_OK,
+            )
+        finally:
+            # Forca o Django a apagar tempfile (se houver) — defesa R3 advogado.
+            try:
+                upload.close()
+            except Exception:
+                pass
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="importar-executar",
+    )
+    def importar_executar(self, request):  # type: ignore[no-untyped-def]
+        """POST /clientes/importar-executar/ — cria/atualiza em lote + audit."""
+        from src.application.comercial.clientes.importar_clientes import (
+            ContextoImportacao,
+            ErroImportacao,
+            importar_clientes,
+        )
+        from src.infrastructure.audit.services import registrar_auditoria
+        from src.infrastructure.clientes.csv_io import (
+            ErroCsvIo,
+            LIMITE_BYTES,
+            detectar_colunas_cpf_responsavel,
+            detectar_colunas_sensiveis,
+            ler_csv_normalizado,
+        )
+        from src.infrastructure.clientes.lgpd import (
+            PF_ACEITE_ORIGENS_VALIDAS,
+            VERSAO_VIGENTE,
+        )
+        from src.infrastructure.clientes.models import (
+            Cliente,
+            ClienteImportacaoDeclaracao,
+        )
+        from src.infrastructure.clientes.serializers import (
+            ImportarExecutarSerializer,
+        )
+        from src.infrastructure.multitenant.context import usuario_id_context
+        from src.infrastructure.tenant.models import Tenant
+
+        ser = ImportarExecutarSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        upload = ser.validated_data["arquivo"]
+        mapeamento = ser.validated_data["mapeamento"] or {}
+        declaracao = ser.validated_data["declaracao"]
+        pf_aceite_origem = (ser.validated_data.get("pf_aceite_origem") or "").strip()
+        cpf_responsavel_destino = ser.validated_data["cpf_responsavel_destino"]
+        skip_invalid = ser.validated_data["skip_invalid"]
+        update_existing = ser.validated_data["update_existing"]
+
+        if pf_aceite_origem and pf_aceite_origem not in PF_ACEITE_ORIGENS_VALIDAS:
+            return Response(
+                {
+                    "detail": "pf_aceite_origem_invalido",
+                    "validos": list(PF_ACEITE_ORIGENS_VALIDAS),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ct = (getattr(upload, "content_type", "") or "").lower()
+        if ct and ct not in {
+            "text/csv",
+            "application/csv",
+            "application/vnd.ms-excel",
+            "text/plain",
+            "application/octet-stream",
+        }:
+            return Response(
+                {"detail": "content_type_invalido", "content_type": ct},
+                status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            )
+
+        active = active_tenant_context.get()
+        if active is None:
+            return Response(
+                {"detail": "tenant_nao_resolvido"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get()
+        agora = datetime.now(timezone.utc)
+        tenant = Tenant.objects.filter(id=active).get()
+
+        arquivo_bytes = b""
+        try:
+            arquivo_bytes = upload.read()
+            if len(arquivo_bytes) > LIMITE_BYTES:
+                return Response(
+                    {
+                        "detail": "arquivo_excede_limite",
+                        "limite_bytes": LIMITE_BYTES,
+                    },
+                    status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                )
+            try:
+                norm = ler_csv_normalizado(arquivo_bytes)
+            except ErroCsvIo as e:
+                return Response(
+                    {"detail": e.code, "erro": str(e)},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            arquivo_hash = hashlib.sha256(arquivo_bytes).hexdigest()
+            arquivo_nome_hash = hashlib.sha256(
+                (upload.name or "").encode("utf-8")
+            ).hexdigest()
+            ip_hash = _hashear_ip(request)
+            salt_tenant = hashlib.sha256(
+                f"afere-salt:{tenant.id}".encode("utf-8")
+            ).hexdigest()
+
+            sensiveis = detectar_colunas_sensiveis(norm.headers)
+            cpf_resp = detectar_colunas_cpf_responsavel(norm.headers)
+
+            contexto = ContextoImportacao(
+                tenant_id=tenant.id,
+                usuario_id=usuario_id,
+                headers=norm.headers,
+                linhas=norm.linhas,
+                mapeamento={k: v for k, v in mapeamento.items() if isinstance(v, str)},
+                declaracao_tem_base_legal=bool(declaracao["tem_base_legal"]),
+                declaracao_compromisso_comunicar=bool(
+                    declaracao["compromisso_comunicar_titulares"]
+                ),
+                declaracao_sem_sensiveis=bool(
+                    declaracao["declara_sem_dados_sensiveis"]
+                ),
+                procedencia_declarada=declaracao["procedencia_declarada"],
+                pf_aceite_origem=pf_aceite_origem,
+                cpf_responsavel_destino=cpf_responsavel_destino,
+                colunas_sensiveis=sensiveis,
+                colunas_cpf_responsavel=cpf_resp,
+                skip_invalid=skip_invalid,
+                update_existing=update_existing,
+                arquivo_hash=arquivo_hash,
+                arquivo_tamanho_bytes=len(arquivo_bytes),
+                arquivo_nome_hash=arquivo_nome_hash,
+                delimitador=norm.delimitador,
+                encoding=norm.encoding,
+                salt_tenant=salt_tenant,
+                aceite_lgpd_versao=VERSAO_VIGENTE,
+                aceite_lgpd_ip_hash=ip_hash,
+                agora=agora,
+            )
+
+            repo = DjangoClienteRepository()
+            try:
+                with transaction.atomic():
+                    resultado = importar_clientes(
+                        repository=repo, contexto=contexto
+                    )
+                    # R6 advogado — grava declaracao (RLS) + audit.
+                    declaracao_obj = ClienteImportacaoDeclaracao.objects.create(
+                        tenant=tenant,
+                        usuario_id=usuario_id,
+                        arquivo_hash=arquivo_hash,
+                        arquivo_tamanho_bytes=len(arquivo_bytes),
+                        tem_base_legal=contexto.declaracao_tem_base_legal,
+                        compromisso_comunicar_titulares=contexto.declaracao_compromisso_comunicar,
+                        declara_sem_dados_sensiveis=contexto.declaracao_sem_sensiveis,
+                        procedencia_declarada=contexto.procedencia_declarada,
+                        pf_aceite_origem=contexto.pf_aceite_origem,
+                    )
+                    # R5 advogado — audit sanitizado (sem PII)
+                    rejeitados_hashes = [
+                        {
+                            "linha_numero": r.linha_numero,
+                            "linha_hash": r.linha_hash,
+                            "motivo": r.motivo,
+                        }
+                        for r in resultado.rejeitados[:200]
+                    ]
+                    totais = dict(resultado.totais)
+                    totais["dados_sensiveis_filtrados"] = resultado.dados_sensiveis_filtrados
+                    totais["pj_dispensa_aceite"] = resultado.pj_dispensa_aceite
+                    totais["pj_com_pf_pendente_aceite"] = resultado.pj_com_pf_pendente_aceite
+                    totais["pf_rejeitadas_por_falta_aceite"] = resultado.pf_rejeitadas_por_falta_aceite
+
+                    registrar_auditoria(
+                        tenant_id=tenant.id,
+                        usuario_id=usuario_id,
+                        action="cliente.importacao_executada",
+                        resource_summary=str(resultado.importacao_id),
+                        payload={
+                            "event_id": str(uuid_module_uuid4()),
+                            "tenant_id": str(tenant.id),
+                            "importacao_id": str(resultado.importacao_id),
+                            "declaracao_id": str(declaracao_obj.id),
+                            "declaracao_hash": resultado.declaracao_hash,
+                            "arquivo_hash": arquivo_hash,
+                            "arquivo_nome_hash": arquivo_nome_hash,
+                            "arquivo_tamanho_bytes": len(arquivo_bytes),
+                            "delimitador": norm.delimitador,
+                            "encoding": norm.encoding,
+                            "update_existing": update_existing,
+                            "skip_invalid": skip_invalid,
+                            "pf_aceite_origem": pf_aceite_origem or None,
+                            "procedencia_declarada": contexto.procedencia_declarada,
+                            "totais": totais,
+                            "rejeitados_motivos_agregados": (
+                                resultado.rejeitados_motivos_agregados
+                            ),
+                            "rejeitados_linhas_hashes": rejeitados_hashes,
+                            "ip_hash": ip_hash,
+                            "usuario_id": (
+                                str(usuario_id) if usuario_id else None
+                            ),
+                        },
+                    )
+            except ErroImportacao as e:
+                return Response(
+                    {"detail": e.code, "erro": str(e), **e.detalhes},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            return Response(
+                {
+                    "importacao_id": str(resultado.importacao_id),
+                    "totais": totais,
+                    "rejeitados_motivos_agregados": (
+                        resultado.rejeitados_motivos_agregados
+                    ),
+                    "rejeitados_amostra": [
+                        {
+                            "linha_numero": r.linha_numero,
+                            "motivo_codigo": r.motivo,
+                            "motivo_descricao_curta": r.motivo_descricao_curta,
+                        }
+                        for r in resultado.rejeitados[:50]
+                    ],
+                },
+                status=status.HTTP_200_OK,
+            )
+        finally:
+            try:
+                upload.close()
+            except Exception:
+                pass
+
+    @action(detail=False, methods=["get"], url_path="importacoes")
+    def importacoes(self, request):  # type: ignore[no-untyped-def]
+        """GET /clientes/importacoes/ — histórico de importações do tenant.
+
+        Cada chamada dispara INV-013 com finalidade `consulta_relatorio_importacao`
+        (R7 advogado).
+        """
+        from src.infrastructure.audit.models import (
+            AcessoDadosCliente,
+            FinalidadeAcessoCliente,
+        )
+        from src.infrastructure.clientes.models import ClienteImportacaoDeclaracao
+        from src.infrastructure.multitenant.context import usuario_id_context
+
+        active = active_tenant_context.get()
+        usuario_id = usuario_id_context.get()
+        ip_hash = _hashear_ip(request)
+
+        # INV-013 — registra acesso ao historico de importacoes.
+        AcessoDadosCliente.objects.create(
+            tenant_id=active,
+            usuario_id=usuario_id,
+            cliente_id=uuid_module_uuid4(),  # placeholder — listagem agregada
+            finalidade=FinalidadeAcessoCliente.CONSULTA_RELATORIO_IMPORTACAO,
+            recurso={
+                "tabela": "cliente_importacao_declaracoes",
+                "tipo_consulta": "lista_historica",
+            },
+            ip_hash=ip_hash,
+        )
+
+        qs = ClienteImportacaoDeclaracao.objects.filter(tenant_id=active).order_by(
+            "-criado_em"
+        )[:200]
+        items = [
+            {
+                "id": str(d.id),
+                "criado_em": d.criado_em.isoformat(),
+                "arquivo_hash": d.arquivo_hash,
+                "arquivo_tamanho_bytes": d.arquivo_tamanho_bytes,
+                "procedencia_declarada": d.procedencia_declarada,
+                "pf_aceite_origem": d.pf_aceite_origem or None,
+                "usuario_id": (
+                    str(d.usuario_id) if d.usuario_id else None
+                ),
+            }
+            for d in qs
+        ]
+        return Response(
+            {"importacoes": items, "total_exibido": len(items), "limite": 200},
             status=status.HTTP_200_OK,
         )
