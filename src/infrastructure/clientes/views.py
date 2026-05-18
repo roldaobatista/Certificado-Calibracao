@@ -948,10 +948,13 @@ class ClienteViewSet(viewsets.ModelViewSet):
         ip_hash = _hashear_ip(request)
 
         # INV-013 — registra acesso ao historico de importacoes.
+        # cliente_id=None pra acessos agregados (migration audit/0008 — CONCERN
+        # auditor Seguranca 2026-05-18). Quebra de rastreabilidade que existia
+        # com placeholder fake `uuid4()` eliminada.
         AcessoDadosCliente.objects.create(
             tenant_id=active,
             usuario_id=usuario_id,
-            cliente_id=uuid_module_uuid4(),  # placeholder — listagem agregada
+            cliente_id=None,
             finalidade=FinalidadeAcessoCliente.CONSULTA_RELATORIO_IMPORTACAO,
             recurso={
                 "tabela": "cliente_importacao_declaracoes",

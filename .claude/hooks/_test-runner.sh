@@ -183,5 +183,19 @@ run_case "PC6 tests-coverage caminho errado"    BLOCK policy-test-coverage.sh '{
 run_case "PC7 nao-migration ignora"             PASS  policy-test-coverage.sh '{"tool_input":{"file_path":"src/models.py","content":"CREATE POLICY whatever"}}'
 
 echo ""
+echo "===== audit-pii-salt-check (anti-regressao FAIL Auditor Seguranca 2026-05-18) ====="
+
+run_case "APS1 hash documento sem salt"          BLOCK audit-pii-salt-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","new_string":"doc_hash = hashlib.sha256(documento.encode(\"utf-8\")).hexdigest()"}}'
+run_case "APS2 hash nome sem salt"               BLOCK audit-pii-salt-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","new_string":"nome_hash = hashlib.sha256(nome.encode(\"utf-8\")).hexdigest()"}}'
+run_case "APS3 ip_hash isento"                   PASS  audit-pii-salt-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","new_string":"ip_hash = hashlib.sha256(ip.encode(\"utf-8\")).hexdigest()"}}'
+run_case "APS4 chamada helper salgado"           PASS  audit-pii-salt-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","new_string":"doc_hash = hashear_pii_com_salt_tenant(documento, tenant.id)"}}'
+run_case "APS5 string com salt na linha"         PASS  audit-pii-salt-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","new_string":"sha256(f\"afere-salt:{tenant_id}:{valor}\".encode(\"utf-8\")).hexdigest()"}}'
+run_case "APS6 override com justificativa"       PASS  audit-pii-salt-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","new_string":"h = hashlib.sha256(x).hexdigest()  # audit-pii-salt: skip -- valor publico nao eh PII"}}'
+run_case "APS7 override curto rejeita"           BLOCK audit-pii-salt-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","new_string":"h = hashlib.sha256(x).hexdigest()  # audit-pii-salt: skip -- ok"}}'
+run_case "APS8 audit/services.py isento"         PASS  audit-pii-salt-check.sh '{"tool_input":{"file_path":"src/infrastructure/audit/services.py","new_string":"return hashlib.sha256(payload).hexdigest()"}}'
+run_case "APS9 audit/hash_chain.py isento"       PASS  audit-pii-salt-check.sh '{"tool_input":{"file_path":"src/infrastructure/audit/hash_chain.py","new_string":"return hashlib.sha256(prev + payload).hexdigest()"}}'
+run_case "APS10 .md ignora"                      PASS  audit-pii-salt-check.sh '{"tool_input":{"file_path":"docs/exemplo.md","content":"hashlib.sha256(x).hexdigest()"}}'
+
+echo ""
 echo "===== resumo: $pass ok, $fail falhas ====="
 exit $fail

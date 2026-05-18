@@ -151,7 +151,10 @@ class AcessoDadosCliente(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant_id = models.UUIDField(db_index=True)
     usuario_id = models.UUIDField(null=True, blank=True, db_index=True)
-    cliente_id = models.UUIDField(db_index=True)
+    # cliente_id NULL = acesso agregado (lista historica de importacoes, busca
+    # de clientes, etc — INV-013 cobre tambem visualizacoes sem cliente unico).
+    # CONCERN auditor Seguranca 2026-05-18.
+    cliente_id = models.UUIDField(null=True, blank=True, db_index=True)
     finalidade = models.CharField(
         max_length=40,
         choices=FinalidadeAcessoCliente.choices,

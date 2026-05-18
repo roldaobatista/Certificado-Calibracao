@@ -118,7 +118,7 @@ def registrar_acesso_dados_cliente(
     *,
     tenant_id: UUID,
     usuario_id: UUID | None,
-    cliente_id: UUID,
+    cliente_id: UUID | None,
     finalidade: str,
     categoria_dado_acessado: str = CategoriaDadoAcessado.PII_IDENTIFICADORA,
     recurso: dict[str, Any] | None = None,
