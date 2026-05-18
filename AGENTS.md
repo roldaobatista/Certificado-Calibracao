@@ -51,7 +51,7 @@ Ver `.specify/memory/constitution.md` (6 princípios) + `REGRAS-INEGOCIAVEIS.md`
 5. **IDs rastreáveis** — `US-<MOD>-NNN` → `AC-<MOD>-NNN-N` → `T<MOD>NNN` → commit.
 6. **Negócio vence conveniência do agente** — não otimizar pelo que o agente IA erra menos; otimizar pelo Roldão/produto. Critério "agentes dominam X" é tiebreaker, nunca principal.
 
-**Regra mestre:** regra crítica vira **hook**, não só doc. Hoje em `.claude/hooks/`: `block-destructive.sh`, `secrets-scanner.sh`, `_test-runner.sh`, `INV-checker.sh`, `tenant-id-validator.sh`, `anti-mascaramento.sh`, `context-budget.sh`, `paths-frontmatter-validator.sh`. Faltam: `bus-envelope-validator`, `authz-check.sh`, `provisioning-checkpoint-check` (ver §12).
+**Regra mestre:** regra crítica vira **hook**, não só doc. Hoje em `.claude/hooks/` (13 hooks ativos, 88/88 testes verdes): `block-destructive`, `secrets-scanner`, `_test-runner`, `INV-checker`, `tenant-id-validator`, `anti-mascaramento`, `context-budget`, `paths-frontmatter-validator`, `bus-envelope-validator`, `authz-check`, `provisioning-checkpoint-check`, `mock-in-production`, `migration-rls-check` (Marco 5 — exige policy RLS na mesma migration que cria tenant_id), `audit-immutability-check` (Marco 5 — bloqueia DROP TRIGGER/DELETE/UPDATE/TRUNCATE em `auditoria`).
 
 ---
 
@@ -189,9 +189,13 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 
 - **Foundation F-A** — **INICIADA em 2026-05-17** após autorização do Roldão. Quadro de 12 tarefas em curso (esqueleto Django + 4 entidades núcleo + multi-tenancy + audit trail + 2 hooks faltantes + testes + convenções + drill final). ADR-0002 e ADR-0007 promovidas a "aceito" no mesmo gate. Pré-requisitos doc/governança 100% prontos. Janela esperada: 4–6 semanas. Acompanhamento em `.agent/CURRENT.md`.
 
-### Hooks (todos os 11 declarados existem)
+### Hooks (13 ativos — 88/88 testes verdes)
 
-Todos os hooks complementares declarados em INV-INT/INV-AUTHZ estão em `.claude/hooks/`: `block-destructive`, `secrets-scanner`, `_test-runner`, `INV-checker`, `tenant-id-validator`, `anti-mascaramento`, `context-budget`, `paths-frontmatter-validator`, `bus-envelope-validator` (INV-INT-001/009), `authz-check` (INV-AUTHZ-001), `provisioning-checkpoint-check` (INV-INT-007 — modo warning pré-código).
+Veja §3 pra lista completa. Marco 5 da F-A (2026-05-17) acrescentou:
+- `migration-rls-check.sh` — INV-TENANT-003: bloqueia migration que cria tabela com `tenant_id` sem `CREATE POLICY`/`ENABLE ROW LEVEL SECURITY` na mesma migration (allow via `# rls-policy: external NNNN`).
+- `audit-immutability-check.sh` — bloqueia DROP TRIGGER `auditoria_anti_*`, DROP FUNCTION `auditoria_bloqueia_mutation`, ALTER TABLE auditoria DISABLE RLS, TRUNCATE/DELETE/UPDATE em `auditoria`. Allow via `# audit-immutability: skip -- <razão ≥10 chars>`.
+
+Também fix no `authz-check.sh`: allowlist expandida para `*/models.py` e `*/apps.py`; normalização de separadores Windows (backslash→forward).
 
 ### Diferido por decisão (não tratar como pendência)
 

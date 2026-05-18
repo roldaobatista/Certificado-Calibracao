@@ -135,5 +135,30 @@ echo "===== INV-checker ====="
 run_case "AC PostToolUse outro arq"   PASS  INV-checker.sh '{"tool_input":{"file_path":"src/foo.py"}}'
 
 echo ""
+echo "===== migration-rls-check ====="
+
+run_case "RLS1 migration tenant_id sem policy"  BLOCK migration-rls-check.sh '{"tool_input":{"file_path":"app/migrations/0001_initial.py","content":"class Migration:\n    operations = [\n        migrations.CreateModel(name=\"Pedido\", fields=[(\"id\", models.AutoField()),(\"tenant_id\", models.UUIDField())]),\n    ]"}}'
+run_case "RLS2 migration tenant_id COM policy"  PASS  migration-rls-check.sh '{"tool_input":{"file_path":"app/migrations/0001_initial.py","content":"class Migration:\n    operations = [\n        migrations.CreateModel(name=\"Pedido\", fields=[(\"tenant_id\", models.UUIDField())]),\n        migrations.RunSQL(\"ALTER TABLE pedidos ENABLE ROW LEVEL SECURITY; CREATE POLICY p1 ON pedidos USING (true);\"),\n    ]"}}'
+run_case "RLS3 migration tenant_id override ext" PASS migration-rls-check.sh '{"tool_input":{"file_path":"app/migrations/0001_initial.py","content":"# rls-policy: external 0002_rls_setup\nclass Migration:\n    operations = [migrations.CreateModel(name=\"X\", fields=[(\"tenant_id\", models.UUIDField())])]"}}'
+run_case "RLS4 migration SEM tenant_id"         PASS  migration-rls-check.sh '{"tool_input":{"file_path":"app/migrations/0001_initial.py","content":"class Migration:\n    operations = [migrations.CreateModel(name=\"Global\", fields=[(\"id\", models.AutoField())])]"}}'
+run_case "RLS5 nao-migration ignora"            PASS  migration-rls-check.sh '{"tool_input":{"file_path":"app/views.py","content":"CreateModel(\"Pedido\", tenant_id=1)"}}'
+run_case "RLS6 __init__.py migration ignora"    PASS  migration-rls-check.sh '{"tool_input":{"file_path":"app/migrations/__init__.py","content":""}}'
+
+echo ""
+echo "===== audit-immutability-check ====="
+
+run_case "AI1 DROP TRIGGER auditoria"   BLOCK audit-immutability-check.sh '{"tool_input":{"file_path":"x.sql","content":"DROP TRIGGER auditoria_anti_update ON auditoria;"}}'
+run_case "AI2 DROP FUNCTION bloqueia"   BLOCK audit-immutability-check.sh '{"tool_input":{"file_path":"x.py","content":"sql = \"DROP FUNCTION auditoria_bloqueia_mutation\""}}'
+run_case "AI3 DISABLE RLS auditoria"    BLOCK audit-immutability-check.sh '{"tool_input":{"file_path":"x.sql","content":"ALTER TABLE auditoria DISABLE ROW LEVEL SECURITY;"}}'
+run_case "AI4 TRUNCATE auditoria"       BLOCK audit-immutability-check.sh '{"tool_input":{"file_path":"x.py","content":"cursor.execute(\"TRUNCATE TABLE auditoria\")"}}'
+run_case "AI5 DELETE FROM auditoria"    BLOCK audit-immutability-check.sh '{"tool_input":{"file_path":"x.py","content":"cursor.execute(\"DELETE FROM auditoria WHERE id=1\")"}}'
+run_case "AI6 UPDATE auditoria SET"     BLOCK audit-immutability-check.sh '{"tool_input":{"file_path":"x.py","content":"cursor.execute(\"UPDATE auditoria SET action=2\")"}}'
+run_case "AI7 override com motivo"      PASS  audit-immutability-check.sh '{"tool_input":{"file_path":"x.sql","content":"# audit-immutability: skip -- procedimento ANPD documentado em DR-2026-001\nDROP TRIGGER auditoria_anti_update ON auditoria;"}}'
+run_case "AI8 override curto rejeita"   BLOCK audit-immutability-check.sh '{"tool_input":{"file_path":"x.sql","content":"# audit-immutability: skip -- ok\nDROP TRIGGER auditoria_anti_update ON auditoria;"}}'
+run_case "AI9 .md ignora"               PASS  audit-immutability-check.sh '{"tool_input":{"file_path":"docs/x.md","content":"DROP TRIGGER auditoria_anti_update"}}'
+run_case "AIa migration de criacao OK"  PASS  audit-immutability-check.sh '{"tool_input":{"file_path":"app/migrations/0002_trigger_anti_mutation.py","content":"reverse = \"DROP TRIGGER auditoria_anti_delete\"\nsql = \"CREATE TRIGGER auditoria_anti_update BEFORE UPDATE ON auditoria FOR EACH ROW EXECUTE FUNCTION x()\""}}'
+run_case "AIb tests ignoram"            PASS  audit-immutability-check.sh '{"tool_input":{"file_path":"tests/test_audit.py","content":"DROP TRIGGER auditoria_anti_update"}}'
+
+echo ""
 echo "===== resumo: $pass ok, $fail falhas ====="
 exit $fail
