@@ -51,7 +51,7 @@ Ver `.specify/memory/constitution.md` (6 princípios) + `REGRAS-INEGOCIAVEIS.md`
 5. **IDs rastreáveis** — `US-<MOD>-NNN` → `AC-<MOD>-NNN-N` → `T<MOD>NNN` → commit.
 6. **Negócio vence conveniência do agente** — não otimizar pelo que o agente IA erra menos; otimizar pelo Roldão/produto. Critério "agentes dominam X" é tiebreaker, nunca principal.
 
-**Regra mestre:** regra crítica vira **hook**, não só doc. Hoje em `.claude/hooks/` (13 hooks ativos, 88/88 testes verdes): `block-destructive`, `secrets-scanner`, `_test-runner`, `INV-checker`, `tenant-id-validator`, `anti-mascaramento`, `context-budget`, `paths-frontmatter-validator`, `bus-envelope-validator`, `authz-check`, `provisioning-checkpoint-check`, `mock-in-production`, `migration-rls-check` (Marco 5 — exige policy RLS na mesma migration que cria tenant_id), `audit-immutability-check` (Marco 5 — bloqueia DROP TRIGGER/DELETE/UPDATE/TRUNCATE em `auditoria`).
+**Regra mestre:** regra crítica vira **hook**, não só doc. Hoje em `.claude/hooks/` (15 hooks ativos, 103/103 testes verdes): `block-destructive`, `secrets-scanner`, `_test-runner`, `INV-checker`, `tenant-id-validator`, `anti-mascaramento`, `context-budget`, `paths-frontmatter-validator`, `bus-envelope-validator`, `authz-check`, `provisioning-checkpoint-check`, `mock-in-production`, `migration-rls-check`, `audit-immutability-check`, `pyproject-validator` (drill F-A 2026-05-18 — valida PEP 440 + sintaxe extras Poetry), `policy-test-coverage` (drill F-A 2026-05-18 — exige `# tests-coverage:` apontando teste happy+unhappy quando migration cria policy RLS).
 
 ---
 
