@@ -196,7 +196,7 @@ Pra cada um dos **18 módulos** da Wave A (lista em `faseamento-modulos.md` §"W
 - **metrologia:** `calibracao`, `certificados`, `licencas-acreditacoes`
 - **rh-frota-qualidade:** `treinamentos`, `seguranca-trabalho`
 - **suporte-plataforma:** `estoque`, `equipamentos`, `acesso-seguranca`
-- **comercial:** `clientes`, `orcamentos`
+- **comercial:** `clientes` ✅ Marco 1 FECHADO 2026-05-18 (5/5 US verdes — cadastro PF/PJ, visão 360, importação CSV, bloqueio, dedup; 3 auditores Família 5 aprovaram), `orcamentos`
 - **financeiro:** `fiscal`, `contas-receber`, `caixa-tecnico`
 
 ### Critérios de saída (mortalidade)
