@@ -4,12 +4,14 @@ revisado-em: 2026-05-18
 status: stable
 modulo: equipamentos
 dominio: suporte-plataforma
-versao: 2
+versao: 3
 ---
 
 # Modelo de domínio — Equipamentos do cliente
 
-> **v2 (2026-05-18):** revisão pelos 4 subagentes endereçou 16 bloqueadores. `EquipamentoEvento` removido (usa `audit_trail.eventos`), `cliente_id_original` separado em hash + UUID nullable, `perfil_tenant_no_momento_cadastro` snapshot imutável, `RecebimentoEquipamento` entidade nova, motivo de versionamento enum, portas stub para módulos certificados/OS.
+> **v2 (2026-05-18 manhã):** revisão pelos 4 subagentes endereçou 16 bloqueadores. `EquipamentoEvento` removido (usa `audit_trail.eventos`), `cliente_id_original` separado em hash + UUID nullable, `perfil_tenant_no_momento_cadastro` snapshot imutável, `RecebimentoEquipamento` entidade nova, motivo de versionamento enum, portas stub para módulos certificados/OS.
+>
+> **v3 (2026-05-18 noite):** revisão de 12 planos de US endereçou ressalvas finas: (a) `fotos_chegada`/`fotos_devolucao` guardam `storage_key` (não URL — tech-lead US-006), (b) `recebimento_aberto_id` materializado no `Equipamento` resolve ambiguidade `status=em_calibracao_lab` com múltiplos recebimentos, (c) `consentimento_compartilhamento_historico_em_transferencia` migrou para `TransferenciaEquipamentoAceite` (imutável no aceite) + flag derivada `mostrar_historico_anterior` no `Equipamento`, (d) entidade nova `RecebimentoProvisorio` (separada de `EquipamentoRecebimento` — decisão Roldão Caminho A).
 
 ## Entidades
 
@@ -35,10 +37,11 @@ versao: 2
 - `status: enum {ativo, inativo_temporario, aposentado, em_calibracao_lab, sucata, orfao_pendente_decisao, extraviado}`
 - `cliente_atual_id: FK NULL` (FK com `ON DELETE SET NULL` — espelho LGPD)
 - `cliente_id_original: FK NULL` (referência mutável "viva" enquanto cliente original existir; vira NULL quando shredded — par com `cliente_id_original_hash`)
-- `foto_principal_url: URL NULL` (imutável após primeira foto — só re-upload via "errata cadastro inicial"; EXIF removido no upload)
+- `foto_principal_storage_key: string NULL` — chave opaca no `FotoStorageService` (NÃO URL — URL é regenerada via signed URL TTL curto; v3 tech-lead US-006); imutável após primeira foto; EXIF removido no upload
 - `material_etiqueta: enum {poliester_laminado, vinil_termico, metalica_alumarca}` (default `poliester_laminado` em perfil A)
 - `numero_etiqueta_calibracao_atual: FK opcional` ao selo vigente (módulo `certificados` quando chegar)
-- `consentimento_compartilhamento_historico_em_transferencia: boolean` (default false; preenchido pelo cliente cedente no momento da transferência — RBC B6)
+- `mostrar_historico_anterior: boolean` (derivada — flag espelho do consentimento dado no último aceite de transferência. **Imutabilidade do consentimento está em `TransferenciaEquipamentoAceite`**, não aqui. Default true se nunca houve transferência. v3 tech-lead US-004)
+- `recebimento_aberto_id: FK NULL` (materializado via trigger — aponta para `EquipamentoRecebimento` ativo se há um; NULL quando não há. Resolve ambiguidade do `status=em_calibracao_lab` com múltiplos recebimentos. v3 tech-lead US-006)
 
 **Ciclo de vida:** criada no cadastro → ativa → versões geradas a cada edição pós-cert → sucateada (terminal) / aposentada (reversível com avaliação técnica) / extraviada (alerta).
 
@@ -88,7 +91,7 @@ class SnapshotAtributosVersionaveis(BaseModel):
 - `data_hora_recebimento: timestamp`
 - `recebido_por: usuario_id`
 - `condicao_visual_chegada: enum {integro, amassado, lacre_violado, contaminado, sem_acessorios, outros}`
-- `fotos_chegada: array<URL>` (≥1 obrigatória em perfil A; opcional B/C/D; EXIF removido no upload)
+- `fotos_chegada: array<string>` — array de `storage_key` opacos do `FotoStorageService` (NÃO URL — v3 tech-lead US-006); ≥1 obrigatória em perfil A; opcional B/C/D; EXIF removido no upload
 - `anomalias_observadas: text`
 - `decisao_apos_anomalia: enum {prosseguir, contatar_cliente_aguardando, recusar_devolver, prosseguir_com_ressalva}` (exigido se condição != integro)
 - `justificativa_decisao: text` (≥30 chars se decisao != prosseguir)
@@ -98,10 +101,34 @@ class SnapshotAtributosVersionaveis(BaseModel):
   - Caminhos alternativos terminais: `nao_conformidade_recebimento`, `nao_conformidade_calibracao`
 - `data_hora_devolucao: timestamp NULL`
 - `condicao_visual_devolucao: enum` (mesmo conjunto)
-- `fotos_devolucao: array<URL>` (EXIF removido)
-- `termo_devolucao_assinado_url: URL NULL` (assinatura cliente via portal ou presencial)
+- `fotos_devolucao: array<string>` — `storage_key` opacos (EXIF removido; v3 tech-lead US-006)
+- `termo_devolucao_assinado_storage_key: string NULL` (comprovante de devolução assinado — v3 advogado US-006 R2 — qualificado como documento particular CPC art. 411 III, não Lei 14.063/2020; Wave B+ com portal-cliente migra pra art. 4º I Lei 14.063/2020)
 
 **Invariantes:** INV-AUTHZ-001, ISO 17025 cl. 7.4.4 + 7.4.5 + 7.10.
+
+### RecebimentoProvisorio (entidade nova v3 — decisão Roldão Caminho A)
+
+> Almoxarife recebe equipamento físico sem cadastro prévio (cliente trouxe instrumento novo). Tabela SEPARADA de `EquipamentoRecebimento` para não exigir migration NULL→NOT NULL em `Equipamento.cliente_atual_id` futuramente (tech-lead US-006 R1).
+
+- `id: UUID`
+- `tenant_id: FK`
+- `numero_provisorio_lab: string` (TAG provisória de bancada, formato `{LAB}-PROV-{ANO}-{SEQ}`)
+- `data_hora_recebimento: timestamp`
+- `recebido_por: usuario_id`
+- `cliente_id_provisorio: FK NULL` (preenchido se almoxarife identifica cliente; vazio se desconhecido)
+- `descricao_aparelho: text` (texto livre — almoxarife descreve o que recebeu — regex anti-PII INV-EQP-LOC-001)
+- `fabricante_declarado: text NULL`
+- `numero_serie_declarado: text NULL`
+- `fotos_chegada: array<string>` — storage_key opacos; obrigatório em perfil A
+- `condicao_visual_chegada: enum {integro, amassado, lacre_violado, contaminado, sem_acessorios, outros}`
+- `anomalias_observadas: text` — regex anti-PII INV-EQP-ANOM-001
+- `decisao_apos_anomalia: enum` (mesmas opções de EquipamentoRecebimento)
+- `justificativa_decisao: text` — INV-EQP-ANOM-002
+- `status: enum {aguardando_promocao, promovido, recusado, devolvido_sem_promocao}`
+- `promovido_para_equipamento_id: FK NULL` (preenchido após promoção)
+- `promovido_em: timestamp NULL`
+
+**Não emite cert e não participa de OS até ser promovido** (INV-EQP-PROV-001). Promoção dispara evento `equipamento.promovido_de_provisorio` com payload `{provisorio_id, equipamento_id, perfil_tenant_no_momento_cadastro}`. Trigger PG `bloquear_fk_certificado_para_provisorio` impede INSERT em `certificado` referenciando `RecebimentoProvisorio.id`.
 
 ### QrCode (value object)
 
