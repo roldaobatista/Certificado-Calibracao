@@ -1,0 +1,159 @@
+"""TenantMiddleware — porteiro que ativa o contexto de tenant em cada request.
+
+Fluxo (ADR-0002 v2 §3):
+1. Extrai user_id do request (session do Django Admin; JWT entra em Marco F-B)
+2. Resolve lista de tenants vigentes consultando UsuarioPerfilTenant (com
+   `app.usuario_id` ja setado — policy RLS dessa tabela permite leitura)
+3. Le tenant "ativo" do header `X-Aferê-Active-Tenant` ou query param
+4. Valida que active_tenant in tenant_ids
+5. Seta `app.tenant_ids` + `app.active_tenant_id` no PG via SET LOCAL
+6. Chama proxima view (todas as queries protegidas)
+7. Limpa contexto no finally
+
+Endpoints publicos (`/healthz/`, `/admin/login/`, `/api/schema/`, `/api/docs/`)
+bypass o middleware via lista hardcoded.
+"""
+
+from __future__ import annotations
+
+from typing import Callable
+from uuid import UUID
+
+from django.conf import settings
+from django.db import transaction
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.urls import reverse
+from django.utils import timezone
+
+from .connection import setar_contexto_pg_na_conexao
+from .context import (
+    active_tenant_context,
+    tenant_ids_context,
+    usuario_id_context,
+)
+
+
+# Paths que NAO exigem tenant context. Mantido pequeno e explicito.
+PUBLIC_PATHS_PREFIX = (
+    "/healthz",
+    "/api/schema",
+    "/api/docs",
+    "/static/",
+    "/media/",
+)
+
+# /admin/ tem casos especiais: login/logout sao publicos, resto exige usuario logado
+# mas NAO exige tenant context (admin acessa diretamente sem RLS — usado pra suporte).
+ADMIN_PATH_PREFIX = "/admin/"
+
+
+class TenantMiddleware:
+    """Middleware DJANGO classico (request -> response).
+
+    Roda DEPOIS de AuthenticationMiddleware (precisa de request.user). Ver
+    config/settings/base.py — ordem importa.
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        path = request.path
+
+        # Bypass de paths publicos / admin
+        if path.startswith(PUBLIC_PATHS_PREFIX) or path.startswith(ADMIN_PATH_PREFIX):
+            return self.get_response(request)
+
+        # Sem usuario logado em path nao-publico = 401
+        if not getattr(request, "user", None) or not request.user.is_authenticated:
+            return JsonResponse(
+                {"detail": "Autenticacao obrigatoria"},
+                status=401,
+            )
+
+        usuario_id: UUID = request.user.pk
+        tenant_ids = self._resolver_tenants_permitidos(usuario_id)
+        if not tenant_ids:
+            return JsonResponse(
+                {"detail": "Usuario sem tenant ativo"},
+                status=403,
+            )
+
+        active_tenant = self._extrair_active_tenant(request, tenant_ids)
+        if active_tenant is None:
+            return JsonResponse(
+                {
+                    "detail": (
+                        "Tenant ativo nao informado. Inclua header "
+                        "'X-Afere-Active-Tenant' OU query param 'tenant'."
+                    )
+                },
+                status=400,
+            )
+
+        token_list = tenant_ids_context.set(tenant_ids)
+        token_active = active_tenant_context.set(active_tenant)
+        token_user = usuario_id_context.set(usuario_id)
+        try:
+            with transaction.atomic():
+                setar_contexto_pg_na_conexao(
+                    tenant_ids=tenant_ids,
+                    active_tenant=active_tenant,
+                    usuario_id=usuario_id,
+                )
+                return self.get_response(request)
+        finally:
+            tenant_ids_context.reset(token_list)
+            active_tenant_context.reset(token_active)
+            usuario_id_context.reset(token_user)
+
+    def _resolver_tenants_permitidos(self, usuario_id: UUID) -> list[UUID]:
+        """Consulta UsuarioPerfilTenant filtrando por janela de validade."""
+        # Import tardio pra evitar problema circular Django apps loading.
+        from src.infrastructure.usuario.models import UsuarioPerfilTenant
+
+        agora = timezone.now()
+        # Seta app.usuario_id ANTES desta query — policy RLS de
+        # usuario_perfil_tenant permite leitura quando bate.
+        setar_contexto_pg_na_conexao(
+            tenant_ids=[],
+            active_tenant=None,
+            usuario_id=usuario_id,
+        )
+        return list(
+            UsuarioPerfilTenant.objects.filter(
+                usuario_id=usuario_id,
+                valido_de__lte=agora,
+            )
+            .filter(models_q_valido_ate_ok(agora))
+            .values_list("tenant_id", flat=True)
+            .distinct()
+        )
+
+    def _extrair_active_tenant(
+        self, request: HttpRequest, tenant_ids: list[UUID]
+    ) -> UUID | None:
+        """Header > query param > default (se so 1 tenant)."""
+        raw = request.headers.get("X-Afere-Active-Tenant") or request.GET.get("tenant")
+        if raw:
+            try:
+                active = UUID(raw)
+            except (ValueError, TypeError):
+                return None
+            return active if active in tenant_ids else None
+        # Default: se usuario tem 1 tenant so, usa ele.
+        if len(tenant_ids) == 1:
+            return tenant_ids[0]
+        return None
+
+
+def models_q_valido_ate_ok(agora):  # type: ignore[no-untyped-def]
+    """Helper isolado pra `valido_ate IS NULL OR valido_ate >= agora`."""
+    from django.db.models import Q
+
+    return Q(valido_ate__isnull=True) | Q(valido_ate__gte=agora)
+
+
+# Suprime warning de import nao usado de settings (futuro: feature flag de modo strict)
+_ = settings
+_ = reverse

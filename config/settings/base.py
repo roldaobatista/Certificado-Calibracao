@@ -55,6 +55,8 @@ LOCAL_APPS = [
     "src.infrastructure.usuario.apps.UsuarioConfig",
     "src.infrastructure.audit.apps.AuditConfig",
     "src.infrastructure.feature_flag.apps.FeatureFlagConfig",
+    # Multi-tenancy operacional (Marco 3 — 2026-05-17): middleware + RLS policies
+    "src.infrastructure.multitenant.apps.MultitenantConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -76,8 +78,10 @@ MIDDLEWARE = [
     "django_otp.middleware.OTPMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    # TenantMiddleware entra no Marco 3 (Multi-tenancy operacional)
-    # "src.infrastructure.multitenant.middleware.TenantMiddleware",
+    # Marco 3: depois de AuthenticationMiddleware (precisa de request.user).
+    # Trava de isolamento entre clientes — bypass automatico de /healthz/, /admin/,
+    # /api/schema/, /api/docs/, /static/, /media/. Detalhes em middleware.py.
+    "src.infrastructure.multitenant.middleware.TenantMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -102,22 +106,34 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 # =============================================================
-# Banco de dados
+# Banco de dados — 2 alias com roles distintas (ADR-0002 §2)
 #
-# Conexao runtime usa app_user (NOBYPASSRLS) — defesa em profundidade.
-# Migrations rodam via "django.db.backends.postgresql" mas com OPTIONS apontando
-# pra DATABASE_MIGRATOR_URL (settings.dev e prod fazem a logica).
+# default  → app_user      (NOBYPASSRLS, runtime do app + workers)
+# migrator → app_migrator  (NOBYPASSRLS, apenas DDL — migrate/makemigrations)
+#
+# Router em src/infrastructure/multitenant/router.py manda allow_migrate
+# apenas pro alias `migrator`. Comando: `manage.py migrate --database=migrator`.
 # =============================================================
 DATABASES = {
     "default": {
         **env.db("DATABASE_URL"),
-        "ATOMIC_REQUESTS": True,  # transacao por request — base pra Marco 3
+        "ATOMIC_REQUESTS": True,
         "CONN_MAX_AGE": 60,
         "OPTIONS": {
-            "application_name": "afere-app",
+            "application_name": "afere-app-runtime",
+        },
+    },
+    "migrator": {
+        **env.db("DATABASE_MIGRATOR_URL"),
+        "ATOMIC_REQUESTS": False,
+        "CONN_MAX_AGE": 0,
+        "OPTIONS": {
+            "application_name": "afere-app-migrator",
         },
     },
 }
+
+DATABASE_ROUTERS = ["src.infrastructure.multitenant.router.TenantMultiRoleRouter"]
 
 # =============================================================
 # Auth / passwords
