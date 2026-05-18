@@ -107,7 +107,13 @@ class TestCsvSafety:
         assert sanitizar_celula_csv("-3+10") == "'-3+10"
 
     def test_celula_com_whitespace_inicial_e_gatilho_neutraliza(self):
-        assert sanitizar_celula_csv("  =cmd").startswith("'")
+        # Regressao SANEA-03 (auditoria 10 lentes — Lente 10 D6): o apostrofo
+        # TEM que ficar colado no gatilho. "'  =cmd" (apostrofo antes dos
+        # espacos) ainda e interpretado como formula pelo Excel. .startswith
+        # passava com o bug; aqui exige o resultado exato sem o whitespace.
+        assert sanitizar_celula_csv("  =cmd") == "'=cmd"
+        assert sanitizar_celula_csv("\t\t@SUM(1+1)") == "'@SUM(1+1)"
+        assert sanitizar_celula_csv("  \r\n -3+10") == "'-3+10"
 
     def test_celula_normal_passa_inalterada(self):
         assert sanitizar_celula_csv("Joao Silva") == "Joao Silva"

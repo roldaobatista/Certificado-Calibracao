@@ -33,5 +33,9 @@ def sanitizar_celula_csv(valor: str | None) -> str:
     # lstrip remove tab/space/newline iniciais (atacante usa pra burlar).
     sem_ws_ini = valor.lstrip(" \t\r\n")
     if sem_ws_ini.startswith(GATILHOS_FORMULA):
-        return "'" + valor
+        # Apostrofo TEM que ficar colado no gatilho. Retornar "'" + valor
+        # original deixaria "'  =cmd" (apostrofo antes do whitespace) e o
+        # Excel ainda interpreta a formula. O whitespace inicial nao e dado
+        # legitimo aqui — e o proprio vetor de evasao —, entao descarta-se.
+        return "'" + sem_ws_ini
     return valor
