@@ -2,7 +2,12 @@
 
 > **Para agentes (Claude Code, Codex CLI, Cursor, Windsurf, Kiro):** este é o documento de referência primária do projeto. O `CLAUDE.md` (irmão) é só adendo de harness do Claude Code e importa este via `@AGENTS.md`.
 >
-> **Status (2026-05-18, noite):** **Foundation F-A + F-B FECHADAS (verde)** — F-A em ~1 dia, F-B em ~3h no mesmo dia, ambas em modo autônomo. ADRs 0001/0002/0007 (F-A) + 0012/0006 (F-B) aceitas. App `authz` no ar (porta + adapter Django + 3 tabelas + 4 perfis seed + MFA TOTP + DRF permission deny-by-default). **Suite total: 88 passed + 1 skipped; hooks 103/103.** INV-AUTHZ-001/002/003 cravadas e testadas. Próximo passo (pendente autorização): Wave A — MVP-1 com 18 módulos. Acompanhamento em `.agent/CURRENT.md`.
+> **Status (2026-05-18, noite final):** **Foundation F-A + F-B FECHADAS + Wave A Marco 1 (`clientes`) FECHADO + Wave A Marco 2 (`equipamentos`) PRD STABLE.**
+> - F-A + F-B fechadas em 2026-05-18 (ADRs 0001/0002/0007 + 0012/0006 aceitas).
+> - Marco 1 `clientes`: 5 US verdes, 3 auditores Família 5 aprovaram, suite 207 passed + 2 skipped, cobertura 86.01%.
+> - Marco 2 `equipamentos`: PRD subido pra STABLE v2 após auditoria de 4 subagentes (`tech-lead`, `advogado`, `corretora`, `rbc`) endereçando 16 bloqueadores + criação de **ADR-0018** (scanner QR em PWA) + **ADR-0019** (responsabilidade agente IA) + cravação de **INV-049/050/051/INV-EQP-LOC-001** + **RAT-EQP-FOTO** + 5 linhas novas na matriz de retenção + `qr-publico-allowlist.md`. **Escopo expandido para 6 US (decisão Roldão — completo ISO 17025).**
+> - **Suite total: 88 (F-A+F-B) + 207 (M1 clientes) = 295 passed + 3 skipped; hooks 103/103.**
+> Próximo passo (Wave A Marco 2): `/specify` por US (EQP-001..006) → `/plan` revisado pelos 4 subagentes → `/tasks` → `/implement` → 3 auditores Família 5. Acompanhamento em `.agent/CURRENT.md`.
 
 ---
 
@@ -177,6 +182,8 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 | ADR-0015 | Lifecycle tenant (provisioning atômico + sync plano-features + inadimplência) | 🟡 proposta — pós-auditoria integrações 17/05 | Wave A (onboarding+suspensão) | ADR-0002, ADR-0006, ADR-0012 |
 | ADR-0016 | Operação consistente (desligamento síncrono + BOM + NC notifica + 10 médios) | 🟡 proposta — pós-auditoria integrações 17/05 | Wave A (operação) | ADR-0002, ADR-0012, ADR-0014 |
 | ADR-0017 | CNPJ alfanumérico (IN RFB 2.229/2024 — vigência jul/2026) | ✅ aceito (2026-05-18) | Wave A (todo módulo que persista CNPJ) | ADR-0007, ADR-0002 |
+| ADR-0018 | Scanner QR em PWA + BarcodeDetector até Flutter chegar | 🟡 proposta — pós-auditoria PRD `equipamentos` Wave A Marco 2 (2026-05-18) | Wave A Marco 2 (US-EQP-003) | ADR-0001, ADR-0010 |
+| ADR-0019 | Responsabilidade civil + segurabilidade de código gerado por agentes IA | 🟡 proposta — pós-auditoria PRD `equipamentos` Wave A Marco 2 (2026-05-18) | Contratação de apólice antes do 1º tenant externo pago | ADR-0000 |
 
 **Como ler a tabela:** "Bloqueia fase" = essa ADR precisa estar aprovada+implementada antes que a fase comece. "Depende de" = essa ADR usa decisões de outras (`soft` = referência conceitual, não bloqueante). Detalhe das fases em `docs/faseamento-foundation-waves.md`.
 
