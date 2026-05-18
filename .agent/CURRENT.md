@@ -1,36 +1,36 @@
 # .agent/CURRENT.md
 
-> ≤40 linhas. Atualizado a cada conclusão de Marco F-A.
+> ≤40 linhas. Atualizado a cada fechamento de Foundation/Wave.
 
-**Fase:** **Foundation F-A FECHADA (verde, 2026-05-18)** — aguardando autorização Roldão pra arrancar F-B
-**Modo:** AUTÔNOMO durante F-A. F-B requer autorização explícita Roldão.
+**Fase:** **Foundation F-B FECHADA (verde, 2026-05-18)** — aguardando autorização Roldão pra arrancar Wave A
+**Modo:** AUTÔNOMO durante F-A + F-B. Wave A requer autorização explícita.
 
-**F-A — resultado final:**
-- ✅ 8 marcos entregues (gate + esqueleto + 4 tabelas + multi-tenancy + audit + 2 hooks + suite + convenções + drill)
-- ✅ Drill 5/5 critérios automáveis verde (hooks 103/103, NOBYPASSRLS, trigger, hash chain, p99=6,1ms)
-- ✅ Fuzzing 50 threads × 100 queries → **ZERO vazamento cross-tenant**
-- ✅ Restore PG cronometrado: **2,52s** (limite 30min, folga 700x)
-- ✅ Critério operacional aceito por evidência empírica (0 intervenções Roldão, 0 SEV-1, 0 vetos auditor, gasto LLM TBD-OK)
-- ✅ 8 bugs encontrados pelo drill — todos corrigidos no mesmo dia + 3 medidas de prevenção aplicadas (hooks pyproject-validator + policy-test-coverage + memória durável)
+**F-B — resultado final:**
+- ✅ ADRs 0012 + 0006 promovidas proposta → **aceita**
+- ✅ App `authz` criado: porta `AuthorizationProvider` (domain) + adapter Django + 3 tabelas + 4 perfis seed
+- ✅ `RequireAuthz` DRF permission deny-by-default + decorator `@public` + `@requires_authz`
+- ✅ `MfaRequiredMiddleware` (SEC-MFA-001) força TOTP pros perfis sensíveis
+- ✅ INV-AUTHZ-001/002/003 cravadas e testadas
+- ✅ Drill 7/7 critérios automáveis verde
+- ✅ 88 passed, 1 skipped (58 F-A + 30 F-B: 16 E2E + 5 audit + 3 isolamento + 5 MFA + 1 fuzzing 500)
+- ✅ Hooks 103/103 verdes
 
-**ADRs atualizadas no fechamento:**
-- ADR-0001 (stack Django+Flutter+PostgreSQL): candidata → **aceita**
-- ADR-0002 (multi-tenancy v2): aceita (desde 17/05)
-- ADR-0007 (camada domínio + gerador): aceita (desde 17/05)
-- `docs/faseamento-foundation-waves.md`: status draft → **stable**, §11 histórico atualizado
-
-**Próximo passo lógico (PENDE autorização Roldão):**
-Foundation F-B — autenticação + RBAC + AuthorizationProvider + MFA TOTP. Janela 2-3 semanas. Pré-requisitos:
-- ADR-0012 (autorização unificada) ainda em proposta → precisa ser aceita
-- ADR-0006 (feature flags) em proposta → consistente com ADR-0015 INV-INT-008
-- 16 cenários E2E (4 perfis × 4 ações × positivo+negativo)
-- django-allauth + django-otp integrados
-- AuthorizationProvider porta + adapter local
+**Ajustes na aceitação ADR-0012:**
+- django-allauth diferido pra Wave A (Django auth nativo + django-otp atendem)
+- Cache em `LocMemCache` em F-B; Redis em Wave A (sem mexer no domain)
+- 4 perfis seed em F-B; os 12 restantes destravam por módulo na Wave A
 
 **Estado do sistema agora:**
-- Containers `afere-db` e `afere-app` continuam rodando no Docker do PC
-- Banco `afere` populado com 12k linhas auditoria (drill)
-- Banco `test_afere` com migrations aplicadas (pra pytest)
+- Containers `afere-db` e `afere-app` rodando
+- Banco `afere` com schema authz; `test_afere` recriado com grants + extensões
+- 9 entradas matriz `authz_perfil_acao` seed; 0 decisões em `authz_decisions` (banco virgem pós-drill)
 - Pra parar tudo: `docker compose down`
 
-**Bloqueio:** F-B requer aprovação manual do Roldão (gate de fase).
+**Próximo passo lógico (PENDE autorização Roldão):**
+Wave A — MVP-1 com 18 módulos (faseamento §4). Pré-requisitos:
+- F-A + F-B verdes ✅
+- 18 PRDs Wave A em `stable` (escrever)
+- 6 ADRs em proposta precisam ser aceitas (0003, 0004, 0008, 0009, 0010, 0014, 0015, 0016)
+- 3 hooks complementares já existem ✅
+
+**Bloqueio:** Wave A requer aprovação manual do Roldão (gate de fase).
