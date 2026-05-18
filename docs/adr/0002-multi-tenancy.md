@@ -1,7 +1,8 @@
 # ADR-0002 — Modelo de multi-tenancy
 
-> **Status:** proposta v2 (17/05/2026 madrugada — revisão pós-auditoria 10 agentes pós-48-módulos). Bloqueante do Portão 2 da ADR-0001 candidata.
+> **Status:** **aceito v2** (17/05/2026 — aprovada pelo Roldão como parte da autorização pra arrancar Foundation F-A). Estado anterior: proposta v2 (madrugada do mesmo dia, revisão pós-auditoria 10 agentes pós-48-módulos). Bloqueante do Portão 2 da ADR-0001 candidata, agora destravado.
 > **Autor:** Claude Code (orquestrador) + Roldão (decisor)
+> **Nota terminológica (2026-05-17):** o termo "spike" usado em "Spike-MT-1..4" deve ser lido como **"validação aplicada sobre código F-A real"**, não como código descartável — coerente com a memória `feedback_sem_codigo_descartavel` (proibido construir pra jogar fora). Renomear em revisão menor v2.1 quando F-A entrar em ritmo.
 > **Origem:** Auditor 2 da 1ª auditoria de 10 agentes (17/05/2026) — 3 vetores críticos + 5 altos de fuga em multi-tenant. Parecer 1 + Parecer 8 da 2ª auditoria confirmaram severidade. **v2:** Auditor 2 + Auditor 8 da auditoria pós-48-módulos apontaram que `1 usuário = 1 tenant` quebra com marketplace, portal cliente matriz+filiais, auditor RBC visitante multi-laboratório. Esta revisão introduz suporte cross-tenant sem violar defesa em profundidade.
 > **Depende de:** ADR-0001 v2 (stack Django + PostgreSQL + Celery)
 > **Relacionado:** `docs/arquitetura/anti-corrosion-layer.md` (porta `MultiTenantDiscriminator`), ADR-0012 (autorização unificada).
@@ -369,7 +370,7 @@ Pipeline `export_tenant(tenant_id: UUID) -> ZipFile`:
 
 ## Aprovação
 
-- [ ] **Roldão (decisor):** aceita schema-shared + RLS + 2 roles? — pendente
-- [ ] **Auditor 2 (multi-tenant — 1ª auditoria):** confirma que 3 críticos + 5 altos estão cobertos? — pendente
-- [ ] **Auditor 6 (segurança):** confirma defesa em profundidade adequada? — pendente
-- [ ] **Spike-MT-1..4 verde:** pendente (6 dias úteis)
+- [x] **Roldão (decisor):** aceita schema-shared + RLS + 2 roles — ✅ aprovado em 2026-05-17 como parte da autorização pra arrancar Foundation F-A
+- [ ] **Auditor 2 (multi-tenant — 1ª auditoria):** confirma que 3 críticos + 5 altos estão cobertos? — roda durante F-A
+- [ ] **Auditor 6 (segurança):** confirma defesa em profundidade adequada? — roda durante F-A (transferido pra novo Auditor de Segurança da Família 5)
+- [ ] **Spike-MT-1..4 verde:** roda **dentro** da F-A como validação sobre código real (não descartável); ver `docs/faseamento-foundation-waves.md` §2 critérios de saída

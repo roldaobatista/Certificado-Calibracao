@@ -1,7 +1,8 @@
 # ADR-0007 — Camada de domínio + gerador spec→código
 
-> **Status:** proposta (17/05/2026 noite final) — aguardando aprovação do Roldão. Bloqueante do Portão 2 da ADR-0001 candidata.
+> **Status:** **aceito** (17/05/2026 — aprovada pelo Roldão como parte da autorização pra arrancar Foundation F-A). Estado anterior: proposta (noite do mesmo dia). Bloqueante do Portão 2 da ADR-0001 candidata, agora destravado.
 > **Autor:** Claude Code (orquestrador) + Roldão (decisor)
+> **Nota de implementação:** o **pipeline spec→código completo** (parser markdown→YAML + templates Jinja2 + `make spec-sync`) é entregável de **Wave A**, não de F-A. F-A entrega apenas a **estrutura de pastas** (`domain/`, `infrastructure/`, `application/`) e o **boilerplate mínimo** (EventBus Protocol, value objects, DomainEvent base) — ver `docs/faseamento-foundation-waves.md` §2 entregável 7 (convenções django). Codegen completo entra quando a 1ª spec real (Wave A — `calibracao`) precisar dele.
 > **Origem:** Parecer 6 da 2ª auditoria de 10 agentes — *"Django ORM + DRF serializer + Pydantic + Dart = 4 representações do mesmo conceito que divergem em 2 sprints sem gerador. Spec-as-source (D2) precisa de pipeline real, não de promessa."*
 > **Depende de:** ADR-0001 v2 (stack Django + Flutter), decisão fundadora D2 (spec-as-source)
 > **Relacionado:** `docs/arquitetura/anti-corrosion-layer.md`, `REGRAS-INEGOCIAVEIS.md` (INV-NNN como invariantes)
@@ -306,6 +307,6 @@ Domain code **NUNCA** importa `from django.db import models`. Sempre via Protoco
 
 ## Aprovação
 
-- [ ] **Roldão (decisor):** aceita pipeline spec→código + camada de domínio separada? — pendente
-- [ ] **Auditor 6 (spec-as-source — 2ª auditoria):** confirma que 4-representações-divergem foi resolvido? — pendente
-- [ ] **Auditor de qualidade (Família 5):** confirma TST-004 compatível com test stubs gerados? — pendente
+- [x] **Roldão (decisor):** aceita pipeline spec→código + camada de domínio separada — ✅ aprovado em 2026-05-17 como parte da autorização pra arrancar Foundation F-A (com nota: pipeline completo é entregável de Wave A; F-A entrega só a estrutura de pastas + boilerplate)
+- [ ] **Auditor 6 (spec-as-source — 2ª auditoria):** confirma que 4-representações-divergem foi resolvido? — valida durante Wave A (quando codegen real roda)
+- [ ] **Auditor de qualidade (Família 5):** confirma TST-004 compatível com test stubs gerados? — valida durante Wave A

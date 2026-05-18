@@ -2,7 +2,7 @@
 
 > **Para agentes (Claude Code, Codex CLI, Cursor, Windsurf, Kiro):** este é o documento de referência primária do projeto. O `CLAUDE.md` (irmão) é só adendo de harness do Claude Code e importa este via `@AGENTS.md`.
 >
-> **Status (2026-05-17):** Discovery 15/15 artefatos concluída (síntese em DRAFT v3). Stack cravada como **CANDIDATA** na ADR-0001 (3 portões de validação). Pré-código de produto.
+> **Status (2026-05-17):** **Foundation F-A INICIADA** — autorização do Roldão recebida; ADR-0002 e ADR-0007 promovidas a "aceito" como parte do gate. Discovery 15/15 concluída (síntese STABLE v1.0). Stack candidata cravada na ADR-0001 (3 portões; Portão 1 diferido pra V2). Saindo de "pré-código" — esqueleto Django + PostgreSQL local em construção. Janela esperada da F-A: 4–6 semanas. Acompanhamento em `.agent/CURRENT.md`.
 
 ---
 
@@ -158,12 +158,12 @@ Por enquanto, comandos disponíveis:
 |---|------|--------|---------------|------------|
 | ADR-0000 | Uso de IA | ✅ aceito | — | — |
 | ADR-0001 | Stack (Django + Flutter + PG) | 🟡 candidata — 3 portões | Foundation F-A | — |
-| ADR-0002 | Multi-tenancy (schema-shared + RLS v2) | 🟡 proposta | Foundation F-A | ADR-0001 |
+| ADR-0002 | Multi-tenancy (schema-shared + RLS v2) | ✅ aceito v2 (2026-05-17) | Foundation F-A — destravado | ADR-0001 |
 | ADR-0003 | Mobile (técnico de campo) | 🟡 proposta | Wave A (app-tecnico) | ADR-0001 |
 | ADR-0004 | Sync mobile offline-first | 🟡 proposta | Wave A (app-tecnico) | ADR-0003 |
 | ADR-0005 | Engine de automações | 🟡 proposta | Wave B (automacoes-bpm) | ADR-0006 |
 | ADR-0006 | Feature flags | 🟡 proposta | Foundation F-B | ADR-0002, ADR-0012 |
-| ADR-0007 | Camada domínio + gerador spec→código | 🟡 proposta | Foundation F-A | ADR-0001 |
+| ADR-0007 | Camada domínio + gerador spec→código | ✅ aceito (2026-05-17) | Foundation F-A — destravado (codegen completo é Wave A) | ADR-0001 |
 | ADR-0008 | Fiscal pluggable (FiscalProvider) | 🟡 proposta | Wave A (fiscal/NFS-e) | — |
 | ADR-0009 | Onde A3 assina (cliente-side via Lacuna) | 🟡 proposta | Wave A (certificados) | — |
 | ADR-0010 | Estratégia de tela (HTMX núcleo + 4 SPAs isoladas) | 🟡 proposta — pós-auditoria 10 agentes 17/05 | Wave A (UI) | ADR-0001, ADR-0007 |
@@ -184,7 +184,7 @@ Por enquanto, comandos disponíveis:
 
 ### Pendências reais
 
-- **Foundation F-A** — código real ainda não começou; Portão 2/3 da ADR-0001 dependem dele. Definição completa de fases em `docs/faseamento-foundation-waves.md`. **Todos os pré-requisitos doc/governança estão prontos.**
+- **Foundation F-A** — **INICIADA em 2026-05-17** após autorização do Roldão. Quadro de 12 tarefas em curso (esqueleto Django + 4 entidades núcleo + multi-tenancy + audit trail + 2 hooks faltantes + testes + convenções + drill final). ADR-0002 e ADR-0007 promovidas a "aceito" no mesmo gate. Pré-requisitos doc/governança 100% prontos. Janela esperada: 4–6 semanas. Acompanhamento em `.agent/CURRENT.md`.
 
 ### Hooks (todos os 11 declarados existem)
 
