@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import datetime, timezone
-from uuid import UUID
+from uuid import UUID, uuid4 as uuid_module_uuid4
 
 from django.db import transaction
 from rest_framework import status, viewsets
@@ -65,6 +65,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
         "partial_update": "clientes.atualizar",
         "destroy": "clientes.deletar",
         "mesclar": "clientes.mesclar",  # US-CLI-005
+        "bloquear": "clientes.bloquear",  # US-CLI-004
+        "desbloquear": "clientes.desbloquear",  # US-CLI-004
     }
 
     def get_authz_action(self, request) -> str | None:  # type: ignore[no-untyped-def]
@@ -252,6 +254,252 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 "campos_sobrescritos_keys": list(
                     resultado.campos_sobrescritos_keys
                 ),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    # =============================================================
+    # US-CLI-004 — bloquear/desbloquear cliente
+    # authz-check: skip -- RequireAuthz resolve via ACTION_MAP
+    # =============================================================
+    @action(detail=True, methods=["post"], url_path="bloquear")
+    def bloquear(self, request, pk=None):  # type: ignore[no-untyped-def]
+        """Bloqueia cliente. Idempotente: no-op se ja bloqueado."""
+        from src.infrastructure.audit.services import registrar_auditoria
+        from src.infrastructure.clientes.bloqueio import (
+            CAUSATION_MANUAL_DECISAO_ADMIN,
+            CAUSATION_TYPES_VALIDOS,
+            JUSTIFICATIVA_MIN_CHARS,
+            MOTIVOS_MANUAIS,
+            MOTIVOS_VALIDOS,
+        )
+        from src.infrastructure.clientes.mesclagem import validar_observacao
+        from src.infrastructure.clientes.models import (
+            Cliente,
+            ClienteBloqueio,
+        )
+        from src.infrastructure.multitenant.context import usuario_id_context
+        from src.infrastructure.tenant.models import Tenant
+
+        motivo_categoria = request.data.get("motivo_categoria") or ""
+        justificativa = request.data.get("justificativa") or ""
+        motivo_observacao = request.data.get("motivo_observacao") or ""
+        confirmacao = bool(request.data.get("confirmacao_comunicacao_previa"))
+        causation_type = request.data.get("causation_type") or CAUSATION_MANUAL_DECISAO_ADMIN
+        causation_id_raw = request.data.get("causation_id")
+
+        if motivo_categoria not in MOTIVOS_VALIDOS:
+            return Response(
+                {
+                    "detail": "motivo_categoria_invalido",
+                    "validos": list(MOTIVOS_VALIDOS),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if motivo_categoria in MOTIVOS_MANUAIS and not confirmacao:
+            return Response(
+                {
+                    "detail": "comunicacao_previa_obrigatoria",
+                    "hint": (
+                        "Bloqueio manual exige confirmacao_comunicacao_previa=True "
+                        "(CDC art. 6 III/IV + Lei 14.181/2021 — R3 advogado)."
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(justificativa) < JUSTIFICATIVA_MIN_CHARS:
+            return Response(
+                {
+                    "detail": "justificativa_muito_curta",
+                    "minimo": JUSTIFICATIVA_MIN_CHARS,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if motivo_observacao:
+            try:
+                validar_observacao(motivo_observacao)
+            except ValueError as e:
+                return Response(
+                    {"detail": "motivo_observacao_com_pii", "erro": str(e)},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        if causation_type and causation_type not in CAUSATION_TYPES_VALIDOS:
+            return Response(
+                {
+                    "detail": "causation_type_invalido",
+                    "validos": list(CAUSATION_TYPES_VALIDOS),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        causation_id_uuid: UUID | None = None
+        if causation_id_raw:
+            try:
+                causation_id_uuid = UUID(str(causation_id_raw))
+            except (ValueError, TypeError):
+                return Response(
+                    {"detail": "causation_id_invalido"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        try:
+            cliente_uuid = UUID(str(pk))
+        except (ValueError, TypeError):
+            return Response(
+                {"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        usuario_id = usuario_id_context.get()
+        active = active_tenant_context.get()
+        tenant = Tenant.objects.filter(id=active).get()
+
+        try:
+            cliente = Cliente.objects.get(id=cliente_uuid)
+        except Cliente.DoesNotExist:
+            return Response(
+                {"detail": "cliente_nao_encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        with transaction.atomic():
+            ativo = ClienteBloqueio.objects.filter(
+                cliente=cliente, desbloqueado_em__isnull=True
+            ).select_for_update().first()
+            if ativo is not None:
+                # TL3: idempotente — no-op
+                return Response(
+                    {
+                        "ja_estava_bloqueado": True,
+                        "bloqueio_atual_id": str(ativo.id),
+                        "motivo_categoria": ativo.motivo_categoria,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            bloqueio = ClienteBloqueio.objects.create(
+                cliente=cliente,
+                tenant=tenant,
+                motivo_categoria=motivo_categoria,
+                motivo_observacao=motivo_observacao,
+                justificativa_bruta=justificativa,
+                causation_type=causation_type or "",
+                causation_id=causation_id_uuid,
+                confirmacao_comunicacao_previa=confirmacao,
+                bloqueado_por_usuario_id=usuario_id,
+            )
+            # Audit `cliente.bloqueado` — sem PII cru (R1 advogado + TL6)
+            justif_hash = hashlib.sha256(
+                justificativa.encode("utf-8")
+            ).hexdigest()
+            registrar_auditoria(
+                tenant_id=tenant.id,
+                usuario_id=usuario_id,
+                action="cliente.bloqueado",
+                resource_summary=str(cliente.id),
+                payload={
+                    "event_id": str(uuid_module_uuid4()),
+                    "cliente_id": str(cliente.id),
+                    "tenant_id": str(tenant.id),
+                    "bloqueio_id": str(bloqueio.id),
+                    "motivo_categoria": motivo_categoria,
+                    "justificativa_hash": justif_hash,
+                    "causation_type": causation_type or None,
+                    "causation_id": str(causation_id_uuid)
+                    if causation_id_uuid
+                    else None,
+                    "usuario_id": str(usuario_id) if usuario_id else None,
+                },
+            )
+
+        return Response(
+            {
+                "ja_estava_bloqueado": False,
+                "bloqueio_atual_id": str(bloqueio.id),
+                "motivo_categoria": bloqueio.motivo_categoria,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["post"], url_path="desbloquear")
+    def desbloquear(self, request, pk=None):  # type: ignore[no-untyped-def]
+        """Desbloqueia cliente. No-op se nao havia bloqueio ativo."""
+        from src.infrastructure.audit.services import registrar_auditoria
+        from src.infrastructure.clientes.models import Cliente, ClienteBloqueio
+        from src.infrastructure.multitenant.context import usuario_id_context
+
+        motivo = (request.data.get("motivo") or "").strip()
+        if motivo:
+            from src.infrastructure.clientes.mesclagem import validar_observacao
+
+            try:
+                validar_observacao(motivo)
+            except ValueError as e:
+                return Response(
+                    {"detail": "motivo_com_pii", "erro": str(e)},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        try:
+            cliente_uuid = UUID(str(pk))
+        except (ValueError, TypeError):
+            return Response(
+                {"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            cliente = Cliente.objects.get(id=cliente_uuid)
+        except Cliente.DoesNotExist:
+            return Response(
+                {"detail": "cliente_nao_encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        usuario_id = usuario_id_context.get()
+        active = active_tenant_context.get()
+        agora = datetime.now(timezone.utc)
+
+        with transaction.atomic():
+            ativo = (
+                ClienteBloqueio.objects.filter(
+                    cliente=cliente, desbloqueado_em__isnull=True
+                )
+                .select_for_update()
+                .first()
+            )
+            if ativo is None:
+                return Response(
+                    {"ja_estava_desbloqueado": True}, status=status.HTTP_200_OK
+                )
+            ativo.desbloqueado_em = agora
+            ativo.desbloqueado_por_usuario_id = usuario_id
+            ativo.desbloqueado_motivo = motivo
+            ativo.save(
+                update_fields=[
+                    "desbloqueado_em",
+                    "desbloqueado_por_usuario_id",
+                    "desbloqueado_motivo",
+                ]
+            )
+            registrar_auditoria(
+                tenant_id=active,
+                usuario_id=usuario_id,
+                action="cliente.desbloqueado",
+                resource_summary=str(cliente.id),
+                payload={
+                    "event_id": str(uuid_module_uuid4()),
+                    "cliente_id": str(cliente.id),
+                    "tenant_id": str(active) if active else None,
+                    "bloqueio_id": str(ativo.id),
+                    "motivo_hash": hashlib.sha256(motivo.encode("utf-8")).hexdigest()
+                    if motivo
+                    else "",
+                    "usuario_id": str(usuario_id) if usuario_id else None,
+                },
+            )
+
+        return Response(
+            {
+                "ja_estava_desbloqueado": False,
+                "bloqueio_id_encerrado": str(ativo.id),
             },
             status=status.HTTP_200_OK,
         )

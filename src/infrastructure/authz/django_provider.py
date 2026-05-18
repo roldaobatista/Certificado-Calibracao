@@ -148,12 +148,17 @@ class DjangoAuthorizationProvider:
         action: str,
         resource: dict[str, Any],
     ) -> AuthDecision:
-        """RBAC clássico — F-B. ABAC entra em Wave A.
+        """RBAC classico + predicates ABAC (US-CLI-004 TL2).
 
-        Sem perfis = denied "sem_perfil".
-        Algum perfil tem PerfilAcao(acao, pode_executar=True) = allowed.
-        Caso contrário = denied "rbac_denied".
+        Pipeline:
+        1. Sem perfis → denied "sem_perfil_no_tenant".
+        2. RBAC: algum perfil tem PerfilAcao(acao, pode_executar=True)?
+           Não → "rbac_denied".
+        3. ABAC: todos os predicates registrados que se aplicam ao resource
+           passam? Primeiro denied curto-circuita.
         """
+        from .predicates import get_predicates
+
         if not perfis:
             return AuthDecision(
                 allowed=False,
@@ -168,16 +173,28 @@ class DjangoAuthorizationProvider:
                 pode_executar=True,
             ).values_list("perfil__codigo", flat=True)
         )
-        if permitidos:
+        if not permitidos:
             return AuthDecision(
-                allowed=True,
-                reason="ok",
-                perfis_aplicados=tuple(sorted(permitidos)),
+                allowed=False,
+                reason="rbac_denied",
+                perfis_aplicados=tuple(sorted(perfis)),
             )
+
+        # ABAC: consulta predicates registrados — primeiro denied curto-circuita
+        for nome, fn in get_predicates().items():
+            ok, motivo = fn(resource)
+            if not ok:
+                return AuthDecision(
+                    allowed=False,
+                    reason=motivo or f"abac_denied:{nome}",
+                    perfis_aplicados=tuple(sorted(permitidos)),
+                    escopo_avaliado={"predicate_negado": nome},
+                )
+
         return AuthDecision(
-            allowed=False,
-            reason="rbac_denied",
-            perfis_aplicados=tuple(sorted(perfis)),
+            allowed=True,
+            reason="ok",
+            perfis_aplicados=tuple(sorted(permitidos)),
         )
 
     def _gravar_audit(

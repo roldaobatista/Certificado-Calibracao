@@ -12,3 +12,11 @@ class ClientesConfig(AppConfig):
     name = "src.infrastructure.clientes"
     label = "clientes"
     verbose_name = "Clientes (comercial)"
+
+    def ready(self) -> None:
+        """Registra predicates ABAC no AuthorizationProvider (US-CLI-004 TL2)."""
+        from src.infrastructure.authz.predicates import register_predicate
+
+        from .predicates_authz import cliente_nao_bloqueado
+
+        register_predicate("cliente_nao_bloqueado", cliente_nao_bloqueado)

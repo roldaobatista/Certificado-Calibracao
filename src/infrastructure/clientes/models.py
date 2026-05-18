@@ -163,14 +163,15 @@ class Cliente(models.Model):
     def __str__(self) -> str:
         return f"{self.nome} ({self.tipo_pessoa} {self.documento})"
 
-    def clean(self) -> None:
-        """Validacao no boundary — chamado por full_clean().
+    @property
+    def bloqueado(self) -> bool:
+        """True se ha 1 ClienteBloqueio ativo (US-CLI-004 — TL1)."""
+        return ClienteBloqueio.objects.filter(
+            cliente_id=self.id, desbloqueado_em__isnull=True
+        ).exists()
 
-        Regras LGPD (R3 advogado):
-        - PF: aceite_lgpd_em obrigatorio.
-        - PJ: aceite_lgpd_em opcional, MAS se omitido exige
-          aceite_lgpd_dispensa_motivo (ex: 'pj_sem_pf_associada').
-        """
+    def clean(self) -> None:
+        """Validacao no boundary — chamado por full_clean()."""
         from .lgpd import DISPENSAS_VALIDAS, ORIGENS_VALIDAS
 
         super().clean()
@@ -203,21 +204,98 @@ class Cliente(models.Model):
                     )
                 }
             )
-        # Origem valida quando aceite preenchido
         if self.aceite_lgpd_em is not None and self.aceite_lgpd_origem:
             if self.aceite_lgpd_origem not in ORIGENS_VALIDAS:
                 raise ValidationError(
                     {"aceite_lgpd_origem": f"Origem invalida; use {ORIGENS_VALIDAS}"}
                 )
-        # Dispensa valida quando preenchida
         if (
             self.aceite_lgpd_dispensa_motivo
             and self.aceite_lgpd_dispensa_motivo not in DISPENSAS_VALIDAS
         ):
             raise ValidationError(
-                {
-                    "aceite_lgpd_dispensa_motivo": (
-                        f"Dispensa invalida; use {DISPENSAS_VALIDAS}"
-                    )
-                }
+                {"aceite_lgpd_dispensa_motivo": f"Use {DISPENSAS_VALIDAS}"}
             )
+
+
+class ClienteBloqueio(models.Model):
+    """Historico 1:N de bloqueios comerciais do cliente (US-CLI-004 — TL1).
+
+    Mantém histórico de bloqueios + desbloqueios. UNIQUE INDEX parcial em
+    `(cliente_id) WHERE desbloqueado_em IS NULL` garante que apenas 1 bloqueio
+    pode estar ativo por cliente (migration 0008).
+
+    R1 advogado: `justificativa_bruta` fica APENAS aqui (tenant operacional,
+    crypto-shredding Wave B); audit grava só hash. Confidencialidade reforçada
+    (INV-013 estendida).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    cliente = models.ForeignKey(
+        Cliente, on_delete=models.PROTECT, related_name="bloqueios"
+    )
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.PROTECT, related_name="cliente_bloqueios"
+    )
+    motivo_categoria = models.CharField(
+        max_length=40,
+        help_text=(
+            "Enum (ver bloqueio.py): manual_inadimplencia, manual_quebra_confianca, "
+            "manual_solicitacao_juridico, manual_outro, automatico_inadimplencia_90d."
+        ),
+    )
+    motivo_observacao = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Texto livre limitado; rejeita CPF/CNPJ/email/telefone (R2 advogado).",
+    )
+    justificativa_bruta = models.TextField(
+        help_text=(
+            "Texto da justificativa (>=30 chars). Confidencial — INV-013 estendida. "
+            "Audit grava apenas SHA-256 (R1 advogado)."
+        ),
+    )
+    causation_type = models.CharField(
+        max_length=40,
+        blank=True,
+        help_text=(
+            "Enum (TL4): titulo_vencido | importacao_batch | politica_inadimplencia | "
+            "manual_decisao_admin. CHECK constraint na migration."
+        ),
+    )
+    causation_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="FK opcional para entidade que originou (ex: TituloVencido em Wave A).",
+    )
+    confirmacao_comunicacao_previa = models.BooleanField(
+        default=False,
+        help_text=(
+            "R3 advogado (CDC art. 6 III/IV + Lei 14.181/2021): bloqueio manual "
+            "exige checkbox 'confirmo que comuniquei o cliente previamente'."
+        ),
+    )
+    bloqueado_em = models.DateTimeField(auto_now_add=True)
+    bloqueado_por_usuario_id = models.UUIDField(null=True, blank=True)
+    desbloqueado_em = models.DateTimeField(null=True, blank=True, db_index=True)
+    desbloqueado_por_usuario_id = models.UUIDField(null=True, blank=True)
+    desbloqueado_motivo = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        app_label = "clientes"
+        db_table = "cliente_bloqueios"
+        verbose_name = "Bloqueio de cliente"
+        verbose_name_plural = "Bloqueios de cliente"
+        ordering = ["-bloqueado_em"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "cliente"], name="ix_cli_bloq_tenant_cli"
+            ),
+            models.Index(
+                fields=["tenant", "bloqueado_em"], name="ix_cli_bloq_tenant_data"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        status_ = "ATIVO" if self.desbloqueado_em is None else "encerrado"
+        return f"Bloqueio {self.id} {status_} ({self.motivo_categoria})"
