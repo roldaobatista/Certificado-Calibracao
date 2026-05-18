@@ -187,7 +187,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 
 ### Pendências reais
 
-- **Foundation F-A** — **INICIADA em 2026-05-17** após autorização do Roldão. Quadro de 12 tarefas em curso (esqueleto Django + 4 entidades núcleo + multi-tenancy + audit trail + 2 hooks faltantes + testes + convenções + drill final). ADR-0002 e ADR-0007 promovidas a "aceito" no mesmo gate. Pré-requisitos doc/governança 100% prontos. Janela esperada: 4–6 semanas. Acompanhamento em `.agent/CURRENT.md`.
+- **Drill Foundation F-A** — **CODE-COMPLETE em 2026-05-17**. 8 marcos entregues em 1 sessão autônoma (esqueleto Django + 4 entidades núcleo + multi-tenancy operacional + audit trail com hash chain + 2 hooks + suite de testes com fuzzing + convenções Django + management command `validar_f_a`). 90/90 testes de hook verdes. Falta Roldão subir Docker no PC e rodar `docker compose exec app poetry run python manage.py validar_f_a` pra fechar os 5/7 critérios automáveis. 2 critérios operacionais (memória + auditor) avaliam-se nas 4–6 semanas seguintes. Detalhes em `docs/faseamento/drill-f-a-saida.md`.
 
 ### Hooks (13 ativos — 88/88 testes verdes)
 

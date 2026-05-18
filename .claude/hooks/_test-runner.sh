@@ -90,6 +90,8 @@ run_case "N  @ts-ignore sem motivo"   BLOCK anti-mascaramento.sh '{"tool_input":
 run_case "O  @ts-ignore justificado"  PASS  anti-mascaramento.sh '{"tool_input":{"file_path":"src/app.ts","content":"// @ts-ignore -- lib @vendor/x sem stubs ate v2\nconst x = api.legacy"}}'
 run_case "P  assert real"             PASS  anti-mascaramento.sh '{"tool_input":{"file_path":"src/test_x.py","content":"def test_x():\n    assert resultado == 42"}}'
 run_case "Q  .md ignora"              PASS  anti-mascaramento.sh '{"tool_input":{"file_path":"docs/foo.md","content":"# titulo\nassertTrue(true)"}}'
+run_case "Q2 SystemExit nao e skip"   PASS  anti-mascaramento.sh '{"tool_input":{"file_path":"src/x.py","content":"def main():\n    raise SystemExit(1)"}}'
+run_case "Q3 xit() real bloqueia"     BLOCK anti-mascaramento.sh '{"tool_input":{"file_path":"src/spec.js","content":"describe(\"x\", () => {\n    xit(\"pendente\", () => {})\n})"}}'
 
 echo ""
 echo "===== context-budget ====="

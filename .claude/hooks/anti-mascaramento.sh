@@ -69,12 +69,12 @@ done
 
 # TST-001: skip sem comentario com data e dono
 # Permite "skip 2026-XX-XX (Nome)" ou similar nas 3 linhas adjacentes
-if printf '%s' "$content" | grep -nE '(pytest\.skip|unittest\.skip|@Disabled|xit\(|it\.skip|test\.skip|@pytest\.mark\.skip)' > /tmp/_amask_skip 2>/dev/null; then
+if printf '%s' "$content" | grep -nE '(pytest\.skip|unittest\.skip|@Disabled|(^|[^a-zA-Z_])xit\(|it\.skip|test\.skip|@pytest\.mark\.skip)' > /tmp/_amask_skip 2>/dev/null; then
     skip_lines=$(cat /tmp/_amask_skip)
     rm -f /tmp/_amask_skip
     # Para cada linha com skip, verifica se ha comentario com data na propria linha
     # ou nas 2 linhas acima do content
-    if ! printf '%s' "$content" | grep -B 2 -E '(pytest\.skip|unittest\.skip|@Disabled|xit\(|it\.skip|test\.skip|@pytest\.mark\.skip)' | grep -qE '#.*20[0-9]{2}-[0-9]{2}-[0-9]{2}.*\([A-Za-z]'; then
+    if ! printf '%s' "$content" | grep -B 2 -E '(pytest\.skip|unittest\.skip|@Disabled|(^|[^a-zA-Z_])xit\(|it\.skip|test\.skip|@pytest\.mark\.skip)' | grep -qE '#.*20[0-9]{2}-[0-9]{2}-[0-9]{2}.*\([A-Za-z]'; then
         echo "anti-mascaramento (TST-001): skip() sem comentario com data e dono em $file_path" >&2
         echo "$skip_lines" >&2
         echo "Formato aceito: # skip YYYY-MM-DD (Nome) — razao tecnica" >&2
