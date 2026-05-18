@@ -41,11 +41,15 @@ DROP POLICY IF EXISTS authz_perfil_select ON authz_perfil;
 ALTER TABLE authz_perfil DISABLE ROW LEVEL SECURITY;
 """
 
+# tests-coverage: tests/test_authz_isolamento.py
 AUTHZ_PERFIL_ACAO_POLICY = """
 ALTER TABLE authz_perfil_acao ENABLE ROW LEVEL SECURITY;
 ALTER TABLE authz_perfil_acao FORCE ROW LEVEL SECURITY;
 
--- SELECT livre — matriz é catálogo global lido por todos
+-- SELECT livre — matriz é catálogo global lido por todos.
+-- INV-AUTHZ-004 (preventiva, criada 2026-05-18): vazamento zero ENQUANTO todos os
+-- perfis tem tenant_id NULL. Quando Wave A criar primeiro perfil tenant-specific,
+-- regerar esta policy pra filtrar via EXISTS no perfil pai (ver REGRAS-INEGOCIAVEIS).
 CREATE POLICY authz_perfil_acao_select ON authz_perfil_acao
     FOR SELECT
     USING (true);

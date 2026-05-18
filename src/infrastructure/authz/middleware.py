@@ -20,6 +20,10 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 PERFIS_SENSIVEIS = frozenset({"admin_tenant", "rt_signatario", "financeiro"})
 
 # Paths que bypassa MFA check (auth setup, healthz, OTP enroll futuro).
+# Auditor de Seguranca concern #3 (2026-05-18): removida entrada generica
+# "/accounts/" — qualquer view nova ali ganhava bypass silencioso. Quando
+# Wave A criar fluxo de enroll TOTP, ADICIONE path especifico (ex:
+# "/accounts/2fa/enroll/" ou "/accounts/2fa/qr/").
 MFA_BYPASS_PREFIX = (
     "/healthz",
     "/api/schema",
@@ -28,7 +32,6 @@ MFA_BYPASS_PREFIX = (
     "/media/",
     "/admin/login/",
     "/admin/logout/",
-    "/accounts/",  # placeholder django auth views
 )
 
 

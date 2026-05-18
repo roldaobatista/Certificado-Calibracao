@@ -192,9 +192,17 @@ class DjangoAuthorizationProvider:
         perfis_aplicados: tuple[str, ...],
         escopo_avaliado: dict[str, Any],
     ) -> AuthzDecision:
-        """INSERT na cadeia. Trigger PG bloqueia UPDATE/DELETE (INV-AUTHZ-002)."""
+        """INSERT na cadeia. Trigger PG bloqueia UPDATE/DELETE (INV-AUTHZ-002).
+
+        select_for_update() na ultima linha impede race condition: 2 cans
+        simultaneos poderiam ler a mesma "ultima linha" e gerar irmas com mesmo
+        hash_anterior (Auditor de Seguranca concern #1, 2026-05-18).
+        """
         ultimo = (
-            AuthzDecision.objects.order_by("-timestamp").only("hash_atual").first()
+            AuthzDecision.objects.select_for_update()
+            .order_by("-timestamp")
+            .only("hash_atual")
+            .first()
         )
         hash_anterior = ultimo.hash_atual if ultimo else ""
 

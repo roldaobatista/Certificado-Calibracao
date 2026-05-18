@@ -127,6 +127,12 @@ omit = [
     "config/wsgi.py",
     "config/asgi.py",
     "manage.py",
+    # Management commands de drill/operacao — ferramenta interna, não código de produto.
+    # Auditor de Qualidade (concern #2 2026-05-18): paths críticos ficam >=83% sem isso.
+    "src/infrastructure/multitenant/management/commands/popular_drill.py",
+    "src/infrastructure/multitenant/management/commands/relatorio_operacao_fa.py",
+    "src/infrastructure/multitenant/management/commands/validar_f_a.py",
+    "src/infrastructure/authz/management/commands/validar_f_b.py",
 ]
 
 [tool.coverage.report]
