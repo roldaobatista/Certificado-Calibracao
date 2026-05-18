@@ -334,9 +334,11 @@ Append-only via trigger PG. Toda query que toca dado classe "regulado" (PII de c
 | `tenant_id` | UUID (escopo da consulta) |
 | `recurso` | tabela + chave consultada (sem PII bruta) |
 | `finalidade` | base LGPD ("execucao_contrato", "obrigacao_legal", "legitimo_interesse", …) |
-| `ip_hash` | SHA-256 do IP (LGPD: não armazena IP cru) |
+| `ip_hash` | SHA-256 do IP **salgado por tenant** (HMAC com `tenant_id` da query) |
 
 Retenção: 5 anos quente + cópia hourly Backblaze WORM.
+
+**Exceção — Escopo C de QR público (INV-051):** scan anônimo sem sessão usa **salt institucional global do Aferê** (`settings.AFERE_AUDIT_GLOBAL_SALT`), NÃO `tenant_id` do equipamento. Razão: salgar com `tenant_id` do equipamento em audit de scan anônimo permitiria correlação cross-tenant em dump consolidado de scans públicos. Decisão pós-auditoria advogado US-EQP-003 R2 (2026-05-18). Audit de scan público fica em `audit_trail.eventos` action=`equipamento.qr_scanned` com `escopo=anonimo`. Detalhes técnicos: `docs/conformidade/equipamentos/qr-publico-allowlist.md` §3.
 
 ### 8.2 Tabela `audit_trail.authz_decisions` (INV-AUTHZ-002)
 

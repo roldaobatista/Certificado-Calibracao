@@ -140,7 +140,7 @@ versao: 2
 **Pré:** sem OS aberta (consulta porta `OSQueryService`).
 
 **Comportamento:**
-- Cert vigente (`OSQueryService.equipamento_tem_certificado_vigente()`) + `confirmacao_dupla=false` → 412 "confirmação dupla obrigatória — equipamento tem certificado vigente".
+- Cert vigente (`CertificadoQueryService.equipamento_tem_certificado_vigente()`) + `confirmacao_dupla=false` → 412 "confirmação dupla obrigatória — equipamento tem certificado vigente".
 - Sucata é estado terminal.
 
 **Erros:** 409 (OS aberta), 412 (confirmação dupla pendente).
@@ -298,7 +298,7 @@ termo_devolucao_assinado_url: string? (URL portal cliente)
   "modelo": "string|null",
   "status": "ativo|inativo|sucata|em_calibracao_lab",
   "mensagem": "Este ativo está cadastrado no Aferê. Para acessar detalhes técnicos, entre em contato com o laboratório responsável.",
-  "aferê_url_institucional": "https://afere.com.br"
+  "afere_url_institucional": "https://afere.com.br"
 }
 ```
 

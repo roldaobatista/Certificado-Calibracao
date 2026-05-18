@@ -71,7 +71,7 @@ escopo: módulo equipamentos — política de exposição de campos via QR Code 
   "modelo": "string|null",
   "status": "ativo|inativo|sucata|em_calibracao",
   "mensagem": "Este ativo está cadastrado no Aferê. Para acessar detalhes técnicos, entre em contato com o laboratório responsável.",
-  "aferê_url_institucional": "https://afere.com.br"
+  "afere_url_institucional": "https://afere.com.br"
 }
 ```
 
@@ -89,7 +89,7 @@ Note: `status` aparece em alto nível pra que um terceiro escaneando consiga dis
   "faixa_medicao": "string|null",
   "classe_exatidao": "string|null",
   "mensagem": "Este ativo pertence a outro tenant da plataforma Aferê. Detalhes técnicos protegidos por confidencialidade.",
-  "aferê_url_institucional": "https://afere.com.br"
+  "afere_url_institucional": "https://afere.com.br"
 }
 ```
 
@@ -100,6 +100,7 @@ Note: `status` aparece em alto nível pra que um terceiro escaneando consiga dis
 | Camada | Controle | Onde implementa |
 |---|---|---|
 | **Token** | HMAC-SHA256 sobre `(equipamento_id, tenant_id, emitido_em_iso8601)` + KMS_qr_secret; ≥128 bits entropia; base64url ≥22 chars | `src/infrastructure/equipamentos/qr_token.py` (a criar Wave A) |
+| **Salt para audit em scan** | **Escopo A/B** (sessão autenticada): `ip_hash` e `user_agent_hash` salgados pelo `tenant_id` do equipamento (padrão Marco 1). **Escopo C** (anônimo, sem sessão): salt institucional **global** do Aferê (`settings.AFERE_AUDIT_GLOBAL_SALT`), NÃO `tenant_id` do equipamento — evita correlação cross-tenant em dump consolidado de scans anônimos. (Advogado US-EQP-003 R2) | `src/infrastructure/equipamentos/audit_qr_scan.py` |
 | **Segredo** | `KMS_qr_secret` em AWS KMS MRK (sa-east-1 ↔ us-east-1); rotação anual; rotação NÃO invalida hashes existentes (validação consulta tabela, não recomputa) | AWS console + `src/infrastructure/kms/qr_secret.py` |
 | **Autenticação** | `AuthorizationProvider.can(...)` decide escopo A/B/C com `purpose='leitura_publica_pos_scan'` para B/C | `src/infrastructure/authz/...` |
 | **Rate limit por usuário** | 60 req/min/usuário autenticado | Django Ratelimit |
