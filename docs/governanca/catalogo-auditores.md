@@ -1,13 +1,14 @@
-# Catálogo dos 3 auditores-agentes
+# Catálogo dos auditores-agentes
 
-> **Pra quê:** materializar os 3 auditores que substituem reviewers humanos. Auditor 10 v2 alertou: sem operacionalização, "Família 5 é vaporware".
+> **Pra quê:** materializar os auditores que substituem reviewers humanos. Auditor 10 v2 alertou: sem operacionalização, "Família 5 é vaporware".
 >
-> **Status atual:** materializado (17/05/2026). Os 3 prompts foram criados em v1.0.0:
+> **Status atual (2026-05-17):** 3 auditores originais materializados em v1.0.0 + 1 auditor adicional criado como parte da aplicação do `plano-defesas-anti-erros-ia.md`:
 > - `auditor-seguranca-prompt.md` ✅
 > - `auditor-qualidade-prompt.md` ✅
 > - `auditor-produto-prompt.md` ✅
+> - `auditor-drift-docs-prompt.md` ✅ — novo, sem poder de veto (consultivo)
 >
-> Ainda dependem da stack final pra calibrar thresholds (ex: % de cobertura mínima do Auditor de Qualidade depende de ADR-0001 fechar) e dos hooks pre-commit/pre-merge serem criados.
+> Os 3 originais ainda dependem da stack final pra calibrar thresholds (ex: % de cobertura mínima do Auditor de Qualidade depende de ADR-0001 fechar). O auditor de drift opera independente de stack.
 
 ---
 
@@ -18,6 +19,7 @@
 | **Segurança** | `REGRAS-INEGOCIAVEIS.md` (SEC-*, INV-TENANT-*), `docs/seguranca/`, diff do commit | Pre-commit em código que toca `financeiro/`, `auth/`, `tenant/`, `kms/`, `migrations/`, `.claude/hooks/` | **Bloqueia commit** se SEC-* violado |
 | **Qualidade** | `REGRAS-INEGOCIAVEIS.md` (TST-*), `tests/`, diff | Pre-commit em qualquer código | **Bloqueia commit** se TST-* violado ou cobertura abaixo do mínimo |
 | **Produto** | `docs/dominios/<mod>/prd.md`, `docs/comum/glossario.md`, US em foco | Pre-merge em feature (após implementação completa) | **Bloqueia merge** se AC binário não passa |
+| **Drift de docs** | `docs/`, `.claude/`, `.specify/`, raízes canônicas, `MEMORY.md`, `git log` | Manual (`@auditor-drift-docs`) ou semanal | **Nenhum** — só reporta drifts (D1–D8) |
 
 ---
 
@@ -102,8 +104,9 @@ A cada 3 meses, simular cenários conhecidos:
 - ✅ ~~`auditor-seguranca-prompt.md`~~ — criado v1.0.0 em 17/05/2026
 - ✅ ~~`auditor-qualidade-prompt.md`~~ — criado v1.0.0 em 17/05/2026
 - ✅ ~~`auditor-produto-prompt.md`~~ — criado v1.0.0 em 17/05/2026
-- ⏳ Hook `pre-commit` que invoca os 3 subagents (Segurança + Qualidade — Produto roda pre-merge)
-- ⏳ GitHub Action `.github/workflows/auditor-{seguranca,qualidade,produto}.yml` (camada B do híbrido)
-- ⏳ `.claude/agents/auditor-{seguranca,qualidade,produto}.md` — descritor leve do subagent apontando pro prompt
+- ✅ ~~`auditor-drift-docs-prompt.md`~~ — criado v1.0.0 em 17/05/2026 (consultivo, sem veto)
+- ✅ ~~`.claude/agents/auditor-{seguranca,qualidade,produto,drift-docs}.md`~~ — veículos criados
+- ⏳ Hook `pre-commit` que invoca Segurança + Qualidade (Produto roda pre-merge; Drift roda manual/semanal)
+- ⏳ GitHub Action `.github/workflows/auditor-{seguranca,qualidade,produto,drift-docs}.yml` (camada B do híbrido)
 - ⏳ `docs/governanca/metricas-operacao-agentes.md` — tracking de falsos positivos/negativos
 - ⏳ `docs/governanca/trilha-auditoria-agentes.md` — append-only de cada veto/PASS, retenção 2 anos
