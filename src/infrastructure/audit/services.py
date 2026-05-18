@@ -110,9 +110,15 @@ def sanitizar_payload_audit(payload: Any) -> Any:
     return payload
 
 
-# Chave estavel do advisory lock — qualquer int64. hashtext() gera o mesmo
-# id em qualquer maquina, then deriva o lock.
-_ADVISORY_LOCK_KEY = 0x_AFE_AED17_AED17_0  # "afere audit" memoseado
+# FA-C1: namespace de 2 args pro advisory lock (pg_advisory_xact_lock(int4,
+# int4)). 1º arg = classe constante "auditoria" — isola o espaco de locks
+# de auditoria de qualquer outro advisory lock no sistema (evita deadlock
+# sutil por colisao de hashtext). 2º arg = hashtext(chave por-tenant).
+_ADVISORY_LOCK_CLASSE_AUDIT = 0x_AFE_AED  # 'afe aed' — classe de locks de auditoria
+
+# Sentinela: "verificar TODAS as cadeias" (distinto de tenant_id=None, que
+# significa a cadeia "sistema").
+_TODAS_AS_CADEIAS = object()
 
 
 def registrar_auditoria(
@@ -123,24 +129,35 @@ def registrar_auditoria(
     tenant_id: UUID | None = None,
     usuario_id: UUID | None = None,
 ) -> Auditoria:
-    """Insere linha imutavel na trilha. Calcula hash_atual encadeando com a anterior.
+    """Insere linha imutavel na cadeia hash DO TENANT (FA-C1).
 
-    Chamadores tipicos:
-    - signal post_save (UsuarioPerfilTenant criada/modificada)
-    - use case (`emitir_certificado`, `cancelar_os`)
-    - middleware de webhook (recebimento NFS-e)
+    Cada tenant tem cadeia independente; eventos sem tenant (tenant_id=None)
+    formam a cadeia "sistema" (exige run_as_system — modo_sistema='1').
+    Encadeia no ultimo elo DO MESMO tenant, ordenado por `sequencia`
+    (monotonica; timestamp colide em microssegundo sob o lock).
 
-    Idempotencia: nao garantida no Marco 4. Marco F-B vai adicionar
-    `correlation_id` UNIQUE pra dedupe.
+    Chamadores tipicos: signal post_save, use case, middleware webhook.
+    Idempotencia: nao garantida no Marco 4 (F-B adiciona correlation_id).
     """
     payload_canon = canonicalizar(payload)
+    chave_cadeia = str(tenant_id) if tenant_id is not None else "SYSTEM"
 
     with transaction.atomic():
-        # Serializa inserts da trilha — outros writers esperam ate commit
+        # Lock POR tenant (nao global): inserts de tenants distintos nao se
+        # serializam entre si. Namespace de 2 args isola locks de auditoria.
         with connection.cursor() as cur:
-            cur.execute("SELECT pg_advisory_xact_lock(%s);", [_ADVISORY_LOCK_KEY])
+            cur.execute(
+                "SELECT pg_advisory_xact_lock(%s, hashtext(%s));",
+                [_ADVISORY_LOCK_CLASSE_AUDIT, chave_cadeia],
+            )
 
-        anterior = Auditoria.objects.order_by("-timestamp").first()
+        # Ultimo elo DA CADEIA DESTE tenant (RLS deixa ver as proprias
+        # linhas no contexto do request; cadeia sistema sob run_as_system).
+        anterior = (
+            Auditoria.objects.filter(tenant_id=tenant_id)
+            .order_by("-sequencia")
+            .first()
+        )
         hash_anterior = anterior.hash_atual if anterior else None
         hash_atual = calcular_hash(hash_anterior, payload_canon)
 
@@ -155,34 +172,74 @@ def registrar_auditoria(
         )
 
 
-def verificar_integridade_cadeia(limit: int | None = None) -> tuple[bool, int, list[str]]:
-    """Recalcula todos os hashes em ordem e compara com `hash_atual` salvo.
+def _verificar_uma_cadeia(tenant_id: UUID | None) -> tuple[bool, int, list[str]]:
+    """Recalcula a cadeia de UM tenant (None = cadeia sistema) por `sequencia`.
 
-    Roda no Marco 8 (drill final F-A) + auditoria interna periodica.
-
-    Returns:
-        (ok, total_verificado, [ids_quebrados])
+    Q-02 corrigido: `hash_anterior_esperado = recalc` (encadeia no
+    RECALCULADO, nao no salvo). Assim adulteracao no MEIO quebra esse elo
+    E TODOS os seguintes — propriedade real de hash chain. A versao
+    anterior usava o hash salvo e so acusava o elo adulterado.
     """
-    qs = Auditoria.objects.order_by("timestamp")
-    if limit is not None:
-        qs = qs[:limit]
-
     quebrados: list[str] = []
     total = 0
     hash_anterior_esperado: str | None = None
 
-    for linha in qs.iterator(chunk_size=500):
+    qs = (
+        Auditoria.objects.filter(tenant_id=tenant_id)
+        .order_by("sequencia")
+        .iterator(chunk_size=500)
+    )
+    for linha in qs:
         total += 1
         payload_canon = canonicalizar(linha.payload_jsonb)
         recalc = calcular_hash(hash_anterior_esperado, payload_canon)
         if recalc != linha.hash_atual:
             quebrados.append(str(linha.id))
-        # Cadeia segue mesmo se quebrou — quero detectar TODOS os elos ruins,
-        # nao parar no primeiro. Mas hash_anterior_esperado pega o SALVO (nao
-        # o recalculado) porque queremos saber onde a divergencia comecou.
-        hash_anterior_esperado = linha.hash_atual
+        hash_anterior_esperado = recalc
 
     return (len(quebrados) == 0, total, quebrados)
+
+
+def verificar_integridade_cadeia(
+    tenant_id: UUID | None | object = _TODAS_AS_CADEIAS,
+) -> dict[str | None, tuple[bool, int, list[str]]]:
+    """Verifica a hash chain — uma cadeia INDEPENDENTE por tenant (FA-C1).
+
+    - Sem argumento: verifica TODAS as cadeias (cada tenant de
+      `Tenant.objects` + a cadeia "sistema" de tenant NULL).
+    - `tenant_id=X`: só a cadeia de X (caso CGCRE — trilha de 1 lab).
+    - `tenant_id=None`: só a cadeia "sistema".
+
+    Cada cadeia e lida no seu proprio contexto: tenant via
+    `run_in_tenant_context` (RLS deixa ver as linhas do tenant); cadeia
+    sistema via `run_as_system` (modo_sistema='1' libera tenant NULL).
+
+    Returns: {tenant_id_str_ou_None: (ok, total, [ids_quebrados])}
+    """
+    from src.infrastructure.multitenant.connection import (
+        run_as_system,
+        run_in_tenant_context,
+    )
+    from src.infrastructure.tenant.models import Tenant
+
+    if tenant_id is _TODAS_AS_CADEIAS:
+        alvos: list[UUID | None] = list(
+            Tenant.objects.values_list("id", flat=True)
+        )
+        alvos.append(None)  # cadeia sistema
+    else:
+        alvos = [tenant_id]  # type: ignore[list-item]
+
+    resultado: dict[str | None, tuple[bool, int, list[str]]] = {}
+    for tid in alvos:
+        chave = str(tid) if tid is not None else None
+        if tid is None:
+            with run_as_system():
+                resultado[chave] = _verificar_uma_cadeia(None)
+        else:
+            with run_in_tenant_context(tenant_id=tid):
+                resultado[chave] = _verificar_uma_cadeia(tid)
+    return resultado
 
 
 def registrar_acesso_dados_cliente(

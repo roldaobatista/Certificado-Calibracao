@@ -2,51 +2,49 @@
 
 > ≤40 linhas. Atualizado a cada fechamento de Fase/Marco/US.
 
-**Fase:** Wave A · **Marco 2 (módulo `equipamentos`)** — `/specify` + `/plan` (revisado pelos 2 subagentes) FECHADOS.
-**Modo:** AUTÔNOMO; ritual orquestrador OBRIGATÓRIO (memória `feedback_ritual_orquestrador`).
+**Fase:** SANEAMENTO da fundação ANTES do Marco 2. Estratégia Roldão 2026-05-18:
+auditar F-A → corrigir → reauditar (loop) → F-B mesmo loop → resolver tudo →
+só então fechar Marco 1 (`clientes`) → Marco 2 (`equipamentos`).
+**Modo:** AUTÔNOMO.
 
-## Marco 2 — estado atual (2026-05-18 noite final)
+## Onde paramos (2026-05-18 — sessão encerrada pelo Roldão)
 
-| Etapa do ritual | Status |
-|---|---|
-| PRD draft → review 4 subagentes → STABLE v2 | ✅ FECHADO |
-| INVs novas (049/050/051 + EQP-LOC-001 + VERSAO-001/002 + ANOM-001/002 + PROV-001) | ✅ FECHADO (9 INVs) |
-| ADR-0018 (PWA) + ADR-0019 (resp. agente IA) | ✅ FECHADO (propostas) |
-| RAT-EQP-FOTO + matriz retenção + qr-publico-allowlist + controles-compensatorios + transferencia-aceite-presencial | ✅ FECHADO |
-| Redis no docker-compose + settings (decisão Roldão) | ✅ FECHADO |
-| `/specify` por US (EQP-001..006 + 002b) | ✅ FECHADO (7 planos) |
-| `/plan` revisado pelos 2 subagentes (12 reviews) | ✅ FECHADO (3 decisões Roldão: Redis+002b+RecebimentoProvisorio) |
-| `/tasks` por US (T-EQP-NNN) | ✅ FECHADO (7 arquivos `tasks/US-EQP-NNN.md` — ~100 tasks) |
-| `/implement` das 7 US | ⏳ PENDENTE (próximo — começa por US-EQP-001) |
-| 3 auditores Família 5 — Marco 2 | ⏳ PENDENTE |
+### Fechado e commitado (verde)
+- SANEA-06 (suite roda no padrão, 215→), SANEA-03 (anti-injection CSV),
+  SANEA-02 (hash PII via HMAC server-side), SANEA-01 (advisory lock atômico).
+- **FA-A4** (rede contra migration mentirosa) — commit `1fcbfff`. 217 passed.
+- Auditoria F-A rodada 1: consolidado `docs/faseamento/auditorias/F-A-CONSOLIDADO-rodada-1.md`.
+  Design FA-C1 fechado pelo tech-lead: `FA-C1-design-hash-chain.md`.
 
-## US do Marco 2 (7 US — após fatiar 002 + 002b)
+### EM ANDAMENTO — FA-C1 (hash chain por-tenant) — NÃO commitado, NÃO pronto
+Estado: **222 passed / 3 failed** na suite. Arquivos alterados (working tree):
+`connection.py` (GUC `app.modo_sistema`), `audit/services.py` (cadeia por-tenant
++ lock 2-args + Q-02 fix), `audit/models.py` (campo `sequencia` db_default),
+`audit/migrations/0009_auditoria_sequencia.py` (novo), `multitenant/migrations/
+0004_audit_hash_chain_por_tenant.py` (novo — policies), `validar_f_a.py`,
+`tests/test_audit_chain_e2e.py`, `tests/test_audit_cadeia_por_tenant.py` (novo, T1-T8).
 
-| US | Tema | Invariantes principais |
-|---|---|---|
-| US-EQP-001 | Cadastrar + QR HMAC + snapshot perfil_tenant | INV-049, INV-051, INV-EQP-LOC-001 |
-| US-EQP-002 | Editar com versionamento + motivo enum + A3 RT | INV-025, INV-EQP-VERSAO-001/002 |
-| US-EQP-002b | Workflow gestor_qualidade aprovando motivo=outros | INV-EQP-VERSAO-001/002 + ISO 17025 cl. 6.2 |
-| US-EQP-003 | Ficha 360° + scan dual-mode + PWA + Redis | INV-051, INV-AUTHZ-001 |
-| US-EQP-004 | Transferir intra-tenant com aceite duplo | INV-050, INV-025 |
-| US-EQP-005 | Sucatar com notificação | RBC B5 |
-| US-EQP-006 | Receber no lab (+ RecebimentoProvisorio) | INV-EQP-ANOM-001/002, INV-EQP-PROV-001, ISO 17025 cl. 7.4 |
+**3 testes a resolver (hipóteses pra retomar rápido):**
+1. `test_t3_cadeia_sistema_tenant_null_encadeia` — passa ISOLADO (14/14), falha
+   na suite completa → poluição de estado entre testes (outro teste deixa
+   linha tenant=NULL ou contexto). Investigar isolamento/ordem.
+2+3. `test_isolamento_cross_tenant.py::test_trigger_pg_bloqueia_update/delete_via_raw_sql`
+   — FA-C1 trocou policies UPDATE/DELETE da auditoria pra `USING(false)`; agora
+   a POLICY bloqueia ANTES do trigger, com erro diferente do que o teste
+   asserta. Conserto = ajustar o teste pra aceitar bloqueio por policy OU
+   trigger (imutabilidade ficou MAIS forte: policy + trigger). NÃO é bug de
+   produção.
 
-## Próximo passo
+### test_afere
+Recriado limpo manualmente (drop+create owner app_migrator + migrate
+--database=migrator + grants do 01-roles.sh replicados). Migrations todas
+aplicadas incl. audit.0009 + multitenant.0004.
 
-`/implement` US-EQP-001 (fundação do módulo) — app Django + entidade domain + migration 0001 (UNIQUE tenant_id+tag + RLS) + QR HMAC + hook `qr-hmac-check.sh`. Subir Redis no docker-compose só ao chegar em US-EQP-003. Após cada US: 3 auditores Família 5.
+## Próximo passo (retomar)
+Resolver os 3 testes (hipóteses acima) → suite verde → commitar FA-C1 →
+seguir loop F-A: FA-A2 (template RLS único — clientes sem fail-loud, já
+investigado: clientes/0002 usa current_setting cru), FA-A1+M2 (PII_HASH_KEY
+dedicada), FA-A5+M1 (drill robusto + números), FA-M3 → reauditar F-A rodada 2.
 
-## Estado do sistema
-
-- Containers `afere-db` + `afere-app` rodando (Redis ainda não subido — ao começar /implement, rebuilde docker-compose).
-- Banco `afere` + `test_afere` migrados até última migration (clientes.0013, audit.0007, tenant.0002).
-- Hooks 113/113 verdes.
-
-## ADRs novas (propostas — aceitar antes de Marco 2 codar)
-
-- ADR-0018 (PWA + BarcodeDetector) — destrava US-EQP-003.
-- ADR-0019 (responsabilidade agente IA) — pré-condição apólice.
-
-## Pareceres dos subagentes (16 total — 4 PRD + 12 US)
-
-`docs/dominios/suporte-plataforma/modulos/equipamentos/revisoes/` — 16 pareceres aplicados, todos `stable`.
+## Fila de tarefas
+Ver TaskList (#22 FA-C1 in_progress; #24-27 demais FA-*; #21 F-B; #12-19 SANEA Marco1 parqueados).

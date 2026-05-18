@@ -170,9 +170,9 @@ class Command(BaseCommand):
                     resource_summary=f"drill-{i}",
                     payload={"i": i},
                 )
-            # Verificacao DENTRO do mesmo contexto — RLS permite leitura
-            # das linhas deste tenant. Limit cobre as 5 que acabamos de inserir.
-            ok, total, quebrados = verificar_integridade_cadeia(limit=100)
+        # FA-C1: verificacao POR cadeia, FORA do contexto (a funcao gerencia
+        # o proprio contexto por tenant). Pede a cadeia deste tenant.
+        ok, total, quebrados = verificar_integridade_cadeia(tenant_id=t.id)[str(t.id)]
         if not ok:
             return False, f"cadeia quebrada em {len(quebrados)} elos: {quebrados[:3]}"
         if total < 5:

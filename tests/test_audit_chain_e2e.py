@@ -84,8 +84,9 @@ class TestHashChainE2E:
                     resource_summary=f"r-{i}",
                     payload={"i": i, "msg": f"acao numero {i}"},
                 )
-            # Verificacao DENTRO do contexto — RLS exige (migration 0002 fail-loud).
-            ok, total, quebrados = verificar_integridade_cadeia(limit=100)
+        # FA-C1: verificacao POR cadeia, FORA do contexto (a funcao gerencia
+        # o proprio contexto por tenant).
+        ok, total, quebrados = verificar_integridade_cadeia(tenant_id=t.id)[str(t.id)]
         assert ok is True
         assert total >= 10
         assert quebrados == []

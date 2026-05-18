@@ -42,6 +42,10 @@ def _resetar_app_settings_na_conexao(sender: object, connection: Any, **kwargs: 
         cur.execute("RESET app.tenant_ids;")
         cur.execute("RESET app.active_tenant_id;")
         cur.execute("RESET app.usuario_id;")
+        # FA-C1: modo_sistema libera leitura/escrita da cadeia de auditoria
+        # "sistema" (tenant_id IS NULL) APENAS sob run_as_system. Resetar no
+        # checkout impede vazar '1' pra um request normal que pegue a conexao.
+        cur.execute("RESET app.modo_sistema;")
 
 
 def setar_contexto_pg_na_conexao(
@@ -49,11 +53,16 @@ def setar_contexto_pg_na_conexao(
     active_tenant: UUID | None,
     usuario_id: UUID | None,
     using: str = "default",
+    modo_sistema: bool = False,
 ) -> None:
-    """SET LOCAL nas 3 GUCs PG. Exige transacao aberta — chamador garante.
+    """SET LOCAL nas 4 GUCs PG. Exige transacao aberta — chamador garante.
 
     Lista vira string CSV (PG `string_to_array(current_setting('app.tenant_ids'), ',')`
     nas policies — ADR-0002 v2 §6).
+
+    `modo_sistema` (FA-C1): '1' libera a cadeia de auditoria sistema
+    (tenant_id IS NULL); só `run_as_system` passa True. Qualquer contexto
+    vazio SEM modo_sistema continua RAISE (fail-loud — ADR-0002 §6).
     """
     conn = connections[using]
     if conn.vendor != "postgresql":
@@ -62,14 +71,16 @@ def setar_contexto_pg_na_conexao(
     tenant_ids_csv = ",".join(str(tid) for tid in tenant_ids) if tenant_ids else ""
     active_str = str(active_tenant) if active_tenant else ""
     usuario_str = str(usuario_id) if usuario_id else ""
+    modo_sistema_str = "1" if modo_sistema else ""
 
     with conn.cursor() as cur:
         # set_config(name, value, is_local=true) = SET LOCAL — vive ate COMMIT
         cur.execute(
             "SELECT set_config('app.tenant_ids', %s, true), "
             "set_config('app.active_tenant_id', %s, true), "
-            "set_config('app.usuario_id', %s, true);",
-            [tenant_ids_csv, active_str, usuario_str],
+            "set_config('app.usuario_id', %s, true), "
+            "set_config('app.modo_sistema', %s, true);",
+            [tenant_ids_csv, active_str, usuario_str, modo_sistema_str],
         )
 
 
@@ -101,6 +112,7 @@ def run_in_tenant_context(
                 active_tenant=tenant_id,
                 usuario_id=usuario_id,
                 using=using,
+                modo_sistema=False,  # contexto de tenant NUNCA é modo_sistema
             )
             yield
     finally:
@@ -129,6 +141,7 @@ def run_as_system(using: str = "default") -> Iterator[None]:
                 active_tenant=None,
                 usuario_id=None,
                 using=using,
+                modo_sistema=True,  # FA-C1: libera cadeia auditoria sistema
             )
             yield
     finally:

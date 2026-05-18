@@ -67,6 +67,17 @@ class Auditoria(models.Model):
         help_text="sha256(hash_anterior || payload_canonicalizado). Calculado no Marco 4.",
     )
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    # FA-C1: ordem monotonica da cadeia (SEQUENCE global). Encadeamento e
+    # por-tenant; sequencia so desempata (timestamp colide em microssegundo
+    # sob lock). `db_default=nextval('auditoria_seq')` (Django 5.0) faz o
+    # INSERT do ORM emitir DEFAULT em vez de NULL — a sequence (criada em
+    # audit/0009) preenche. NOT NULL no banco.
+    sequencia = models.BigIntegerField(
+        editable=False,
+        db_default=models.Func(
+            models.Value("auditoria_seq"), function="nextval"
+        ),
+    )
 
     class Meta:
         app_label = "audit"
