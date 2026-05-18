@@ -92,6 +92,29 @@ relacionados:
 1. **Leia o PRD do módulo ANTES de qualquer linha de código.** Constituição §1 (Documento = estado compartilhado): se existe doc no disco, é a verdade.
 2. **MVP do meu MVP é violação ANTI-1.** Implementar 30% da Story sem documentar o restante não é "incremental" — é descarrilhar.
 3. **Ritual orquestrador é mandatório, não decorativo.** Memória `feedback_ritual_orquestrador.md` salva isso.
+4. **Rodar auditores por US, não por módulo** (lição da auto-auditoria 2026-05-18 noite final — ver D2 abaixo).
+
+---
+
+## Débito remanescente (auto-auditoria 2026-05-18 noite final)
+
+Após Roldão pedir auditoria de aderência no fechamento do Marco 1 do módulo `clientes`, 3 gaps identificados:
+
+### D1 — `tasks/US-MOD-NNN.md` não foi criado por US
+- **Esperado:** ritual prevê arquivo dedicado em `docs/dominios/<dominio>/modulos/<modulo>/tasks/US-MOD-NNN.md` como saída do `/tasks`.
+- **Real:** lista de tasks embutida no plano (`planos/US-MOD-NNN.md` seção 4).
+- **Regularização:** US-CLI-003 ganhou `tasks/US-CLI-003.md` (2026-05-18). US-CLI-001/002/004/005 ficam como débito retroativo; criar quando entrar em revisão dedicada ou no próximo módulo.
+
+### D2 — Os 3 auditores Família 5 rodaram só ao final do módulo, não por US
+- **Esperado:** review pós-implementação por US (Qualidade → Segurança → Produto).
+- **Real:** os 3 rodaram só depois das 5 US fecharem.
+- **Consequência observada:** FAIL crítico do Auditor de Segurança (hash de PII sem salt) era regressão das US anteriores; teria sido pego em US-CLI-001 se ritual fosse por US.
+- **Regularização:** próximo módulo Wave A roda Qualidade + Segurança em cada US fechada. Produto pode continuar pós-merge ou ao final.
+
+### D3 — Slash-commands `/specify` `/plan` `/tasks` `/implement` não invocados literalmente
+- **Esperado:** os 4 comandos do Spec Kit em sequência.
+- **Real:** segui a essência mas sem invocar os comandos formais.
+- **Avaliação:** funcionalmente equivalente; documental difere do ideal. Item de revisão se Roldão quiser cravar invocação literal dos slash-commands.
 
 ---
 
@@ -99,4 +122,5 @@ relacionados:
 
 | Data | Mudança |
 |------|---------|
-| 2026-05-18 | Criação após Roldão exigir orquestração de verdade. |
+| 2026-05-18 manhã | Criação após Roldão exigir orquestração de verdade. |
+| 2026-05-18 noite final | Auto-auditoria pós Marco 1 módulo `clientes`. 3 débitos remanescentes (D1, D2, D3) registrados. Lição estrutural: rodar auditores **por US** evita regressão crítica acumular. |
