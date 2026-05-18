@@ -162,5 +162,26 @@ run_case "AIa migration de criacao OK"  PASS  audit-immutability-check.sh '{"too
 run_case "AIb tests ignoram"            PASS  audit-immutability-check.sh '{"tool_input":{"file_path":"tests/test_audit.py","content":"DROP TRIGGER auditoria_anti_update"}}'
 
 echo ""
+echo "===== pyproject-validator (descoberto no drill F-A) ====="
+
+run_case "PY1 versao PEP 440 valida"      PASS  pyproject-validator.sh '{"tool_input":{"file_path":"pyproject.toml","content":"[tool.poetry]\nversion = \"0.1.0\""}}'
+run_case "PY2 versao com sufixo invalido" BLOCK pyproject-validator.sh '{"tool_input":{"file_path":"pyproject.toml","content":"[tool.poetry]\nversion = \"0.1.0-foundation-f-a\""}}'
+run_case "PY3 versao dev valida"          PASS  pyproject-validator.sh '{"tool_input":{"file_path":"pyproject.toml","content":"[tool.poetry]\nversion = \"0.1.0.dev0\""}}'
+run_case "PY4 extras inline-table OK"     PASS  pyproject-validator.sh '{"tool_input":{"file_path":"pyproject.toml","content":"[tool.poetry]\nversion = \"0.1.0\"\n[tool.poetry.dependencies]\npsycopg = {version = \"^3.2\", extras = [\"binary\"]}"}}'
+run_case "PY5 extras sintaxe pip ERRADA"  BLOCK pyproject-validator.sh '{"tool_input":{"file_path":"pyproject.toml","content":"[tool.poetry]\nversion = \"0.1.0\"\n[tool.poetry.dependencies]\n\"psycopg[binary,pool]\" = \"^3.2\""}}'
+run_case "PY6 outros arquivos ignora"     PASS  pyproject-validator.sh '{"tool_input":{"file_path":"settings.py","content":"version = \"bad-format\""}}'
+
+echo ""
+echo "===== policy-test-coverage (descoberto no drill F-A) ====="
+
+run_case "PC1 migration CREATE POLICY sem cov"  BLOCK policy-test-coverage.sh '{"tool_input":{"file_path":"app/migrations/0042.py","content":"from django.db import migrations\nsql = \"CREATE POLICY p1 ON t USING (true)\""}}'
+run_case "PC2 migration COM tests-coverage"     PASS  policy-test-coverage.sh '{"tool_input":{"file_path":"app/migrations/0042.py","content":"# tests-coverage: tests/test_rls.py\nfrom django.db import migrations\nsql = \"CREATE POLICY p1 ON t USING (true)\""}}'
+run_case "PC3 migration sem CREATE POLICY"      PASS  policy-test-coverage.sh '{"tool_input":{"file_path":"app/migrations/0042.py","content":"from django.db import migrations\nclass M(migrations.Migration): pass"}}'
+run_case "PC4 override skip com motivo"         PASS  policy-test-coverage.sh '{"tool_input":{"file_path":"app/migrations/0042.py","content":"# policy-test-coverage: skip -- migration de revert temporaria autorizada Roldao\nCREATE POLICY p1 ON t USING (true)"}}'
+run_case "PC5 override skip curto rejeita"      BLOCK policy-test-coverage.sh '{"tool_input":{"file_path":"app/migrations/0042.py","content":"# policy-test-coverage: skip -- ok\nCREATE POLICY p1 ON t USING (true)"}}'
+run_case "PC6 tests-coverage caminho errado"    BLOCK policy-test-coverage.sh '{"tool_input":{"file_path":"app/migrations/0042.py","content":"# tests-coverage: src/foo.py\nCREATE POLICY p1 ON t USING (true)"}}'
+run_case "PC7 nao-migration ignora"             PASS  policy-test-coverage.sh '{"tool_input":{"file_path":"src/models.py","content":"CREATE POLICY whatever"}}'
+
+echo ""
 echo "===== resumo: $pass ok, $fail falhas ====="
 exit $fail

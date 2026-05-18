@@ -9,6 +9,8 @@ UPDATE/DELETE continuam bloqueados — perfis se invalidam via valido_ate, nunca
 sao apagados.
 """
 
+# tests-coverage: tests/test_isolamento_cross_tenant.py, tests/test_middleware_e2e.py
+
 from __future__ import annotations
 
 from django.db import migrations

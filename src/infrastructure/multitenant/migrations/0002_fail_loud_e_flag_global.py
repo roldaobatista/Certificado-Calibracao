@@ -13,6 +13,8 @@
      muda via management command, nunca em runtime.
 """
 
+# tests-coverage: tests/test_isolamento_cross_tenant.py
+
 from __future__ import annotations
 
 from django.db import migrations

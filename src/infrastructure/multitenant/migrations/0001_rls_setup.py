@@ -8,6 +8,8 @@ Depende de:
 NAO aplica RLS em `tenants` nem `usuarios` (SHARED ACROSS TENANTS).
 """
 
+# tests-coverage: tests/test_isolamento_cross_tenant.py
+
 from __future__ import annotations
 
 from django.db import migrations
