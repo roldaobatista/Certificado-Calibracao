@@ -7,6 +7,7 @@ Outros writers esperam (em ms — auditoria sao operacoes curtas). Sem isso,
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 from uuid import UUID
 
@@ -20,6 +21,22 @@ from .models import (
     CategoriaDadoAcessado,
     FinalidadeAcessoCliente,
 )
+
+
+def hashear_pii_com_salt_tenant(valor: str, tenant_id: UUID | str | None) -> str:
+    """SHA-256 salgado por tenant pra referenciar PII em audit.
+
+    Endereca FAIL CRITICO do Auditor de Seguranca em 2026-05-18 — hash sem sal
+    eh invertivel pra espacos pequenos como CPF/CNPJ (rainbow table em segundos).
+
+    Sem sal por tenant, atacante com dump do audit consegue cruzar CPF com
+    nomes em vazamentos publicos.
+    """
+    if not valor:
+        return ""
+    tid = str(tenant_id) if tenant_id is not None else ""
+    payload = f"afere-pii-salt:{tid}:{valor}".encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 # Chave estavel do advisory lock — qualquer int64. hashtext() gera o mesmo

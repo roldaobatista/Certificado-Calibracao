@@ -45,9 +45,23 @@ def _hashear_ip(request) -> str:  # type: ignore[no-untyped-def]
     return hashlib.sha256(ip.encode("utf-8")).hexdigest()
 
 
-def _hashear_doc(documento: str) -> str:
-    """SHA-256 do documento — pra gravar em audit sem PII cru (TL3)."""
-    return hashlib.sha256(documento.encode("utf-8")).hexdigest()
+def _hashear_doc(documento: str, tenant_id: UUID | str | None = None) -> str:
+    """SHA-256 salgado por tenant — endereca FAIL CRITICO Auditor Seguranca
+    2026-05-18 (hash sem sal eh invertivel pra espacos pequenos como CPF/CNPJ).
+
+    `tenant_id=None` mantido por retrocompatibilidade transitoria; chamadas
+    novas DEVEM passar tenant_id.
+    """
+    from src.infrastructure.audit.services import hashear_pii_com_salt_tenant
+
+    return hashear_pii_com_salt_tenant(documento, tenant_id)
+
+
+def _hashear_pii(valor: str, tenant_id: UUID | str | None) -> str:
+    """SHA-256 salgado por tenant pra qualquer PII em audit (nome, email, etc)."""
+    from src.infrastructure.audit.services import hashear_pii_com_salt_tenant
+
+    return hashear_pii_com_salt_tenant(valor, tenant_id)
 
 
 class ClienteViewSet(viewsets.ModelViewSet):
@@ -147,7 +161,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             payload={
                 "cliente_id": str(cliente.id),
                 "tipo_pessoa": cliente.tipo_pessoa,
-                "documento_hash": _hashear_doc(cliente.documento),
+                "documento_hash": _hashear_doc(cliente.documento, tenant.id),
                 "aceite_lgpd_versao": cliente.aceite_lgpd_versao or None,
                 "aceite_lgpd_origem": cliente.aceite_lgpd_origem or None,
             },
@@ -208,11 +222,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                     usuario_id=usuario_id,
                     agora=agora,
                 )
-                obs_hash = (
-                    hashlib.sha256(motivo_observacao.encode("utf-8")).hexdigest()
-                    if motivo_observacao
-                    else ""
-                )
+                obs_hash = _hashear_pii(motivo_observacao, active) if motivo_observacao else ""
                 registrar_auditoria(
                     tenant_id=active,
                     usuario_id=usuario_id,
@@ -230,11 +240,11 @@ class ClienteViewSet(viewsets.ModelViewSet):
                         "motivo_observacao_hash": obs_hash,
                         "usuario_id": str(usuario_id) if usuario_id else None,
                         "perdedor_documento_hash": _hashear_doc(
-                            resultado.perdedor.documento
+                            resultado.perdedor.documento, active
                         ),
-                        "perdedor_nome_hash": hashlib.sha256(
-                            resultado.perdedor.nome.encode("utf-8")
-                        ).hexdigest(),
+                        "perdedor_nome_hash": _hashear_pii(
+                            resultado.perdedor.nome, active
+                        ),
                     },
                 )
         except ErroMesclagem as e:
@@ -391,9 +401,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 bloqueado_por_usuario_id=usuario_id,
             )
             # Audit `cliente.bloqueado` — sem PII cru (R1 advogado + TL6)
-            justif_hash = hashlib.sha256(
-                justificativa.encode("utf-8")
-            ).hexdigest()
+            justif_hash = _hashear_pii(justificativa, tenant.id)
             registrar_auditoria(
                 tenant_id=tenant.id,
                 usuario_id=usuario_id,
@@ -493,9 +501,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                     "cliente_id": str(cliente.id),
                     "tenant_id": str(active) if active else None,
                     "bloqueio_id": str(ativo.id),
-                    "motivo_hash": hashlib.sha256(motivo.encode("utf-8")).hexdigest()
-                    if motivo
-                    else "",
+                    "motivo_hash": _hashear_pii(motivo, active) if motivo else "",
                     "usuario_id": str(usuario_id) if usuario_id else None,
                 },
             )

@@ -452,6 +452,138 @@ def test_executar_skip_invalid_false_com_linha_invalida_nao_persiste_nada(cenari
 
 
 @pytest.mark.django_db(transaction=True)
+def test_executar_documento_ausente_rejeita_linha(cenario):
+    """Linha sem coluna documento — rejeita motivo `documento_ausente`."""
+    csv_bytes = (
+        "CNPJ;Razao Social\r\n"
+        f"{CNPJ_VALIDO_1};Boa LTDA\r\n"
+        ";Sem documento\r\n"
+    ).encode("utf-8")
+    client = APIClient()
+    _autenticar(client, cenario["admin"], cenario["tenant"])
+    arquivo = _upload("ausente.csv", csv_bytes)
+    response = client.post(
+        "/api/v1/clientes/importar-executar/",
+        data={
+            "arquivo": arquivo,
+            "mapeamento": '{"documento":"CNPJ","nome":"Razao Social"}',
+            "declaracao": (
+                '{"tem_base_legal":true,"compromisso_comunicar_titulares":true,'
+                '"declara_sem_dados_sensiveis":true,"procedencia_declarada":"x"}'
+            ),
+            "skip_invalid": "true",
+        },
+        format="multipart",
+    )
+    assert response.status_code == 200, response.content
+    body = response.json()
+    assert body["rejeitados_motivos_agregados"].get("documento_ausente") == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_executar_documento_tamanho_invalido_rejeita_linha(cenario):
+    """Documento com 13 chars (nem PF nem PJ) — rejeita motivo `documento_tamanho_invalido`."""
+    csv_bytes = (
+        "CNPJ;Razao Social\r\n"
+        "1122233344455;Tamanho errado\r\n"  # 13 chars
+    ).encode("utf-8")
+    client = APIClient()
+    _autenticar(client, cenario["admin"], cenario["tenant"])
+    arquivo = _upload("tamanho.csv", csv_bytes)
+    response = client.post(
+        "/api/v1/clientes/importar-executar/",
+        data={
+            "arquivo": arquivo,
+            "mapeamento": '{"documento":"CNPJ","nome":"Razao Social"}',
+            "declaracao": (
+                '{"tem_base_legal":true,"compromisso_comunicar_titulares":true,'
+                '"declara_sem_dados_sensiveis":true,"procedencia_declarada":"x"}'
+            ),
+            "skip_invalid": "true",
+        },
+        format="multipart",
+    )
+    assert response.status_code == 200, response.content
+    body = response.json()
+    assert body["rejeitados_motivos_agregados"].get("documento_tamanho_invalido") == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_executar_nome_ausente_rejeita_linha(cenario):
+    """Documento valido + nome vazio — rejeita motivo `nome_ausente`."""
+    csv_bytes = (
+        "CNPJ;Razao Social\r\n"
+        f"{CNPJ_VALIDO_1};\r\n"
+    ).encode("utf-8")
+    client = APIClient()
+    _autenticar(client, cenario["admin"], cenario["tenant"])
+    arquivo = _upload("nome.csv", csv_bytes)
+    response = client.post(
+        "/api/v1/clientes/importar-executar/",
+        data={
+            "arquivo": arquivo,
+            "mapeamento": '{"documento":"CNPJ","nome":"Razao Social"}',
+            "declaracao": (
+                '{"tem_base_legal":true,"compromisso_comunicar_titulares":true,'
+                '"declara_sem_dados_sensiveis":true,"procedencia_declarada":"x"}'
+            ),
+            "skip_invalid": "true",
+        },
+        format="multipart",
+    )
+    assert response.status_code == 200, response.content
+    body = response.json()
+    assert body["rejeitados_motivos_agregados"].get("nome_ausente") == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_audit_documento_hash_eh_salgado_por_tenant(cenario):
+    """FAIL critico Auditor Seguranca 2026-05-18: hash de PII em audit
+    precisa ser salgado por tenant (rainbow-table-proof)."""
+    import hashlib
+    import json
+
+    with run_in_tenant_context(cenario["tenant"].id, usuario_id=cenario["admin"].id):
+        Cliente.objects.create(
+            tenant=cenario["tenant"],
+            tipo_pessoa=TipoPessoa.PJ,
+            documento=CNPJ_VALIDO_1,
+            nome="Acme LTDA",
+            aceite_lgpd_dispensa_motivo="pj_sem_pf_associada",
+        )
+    client = APIClient()
+    _autenticar(client, cenario["admin"], cenario["tenant"])
+    # Criar via API pra ter audit `cliente.criado`.
+    response = client.post(
+        "/api/v1/clientes/",
+        data={
+            "tipo_pessoa": "PJ",
+            "documento": CNPJ_VALIDO_2,
+            "nome": "BB SA",
+            "aceite_lgpd_dispensa_motivo": "pj_sem_pf_associada",
+        },
+        format="json",
+    )
+    assert response.status_code == 201, response.content
+    with run_in_tenant_context(cenario["tenant"].id, usuario_id=cenario["admin"].id):
+        aud = Auditoria.objects.filter(
+            tenant_id=cenario["tenant"].id, action="cliente.criado"
+        ).first()
+    assert aud is not None
+    doc_hash = aud.payload_jsonb["documento_hash"]
+    # Hash SEM sal (vulneravel) — NAO deve bater.
+    hash_sem_sal = hashlib.sha256(CNPJ_VALIDO_2.encode("utf-8")).hexdigest()
+    assert doc_hash != hash_sem_sal, (
+        "Hash em audit precisa ser salgado por tenant (Auditor Seguranca FAIL critico)"
+    )
+    # Hash COM sal correto — deve bater.
+    hash_com_sal = hashlib.sha256(
+        f"afere-pii-salt:{cenario['tenant'].id}:{CNPJ_VALIDO_2}".encode("utf-8")
+    ).hexdigest()
+    assert doc_hash == hash_com_sal
+
+
+@pytest.mark.django_db(transaction=True)
 def test_executar_skip_invalid_true_persiste_validas_e_relata_invalidas(cenario):
     csv_bytes = (
         "CNPJ;Razao Social\r\n"
