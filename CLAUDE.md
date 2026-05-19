@@ -64,7 +64,7 @@ Ambiente operacional, sem código de produto ainda. Discovery concluída; arquit
 
 **`.claude/` (versionado):**
 - `settings.json` ✅ — permissões + hooks
-- `hooks/` ✅ — 15 hooks ativos, **113 casos** no `_test-runner` (lista completa em AGENTS §3). Nenhum faltando (drift FA-M1 corrigido — antes dizia "8 hooks / 23 casos / faltam 3").
+- `hooks/` ✅ — 15 hooks ativos, **118 casos** no `_test-runner` (lista completa em AGENTS §3; +5 authz-check FB-C2). Nenhum faltando (drift FA-M1 corrigido — antes dizia "8 hooks / 23 casos / faltam 3").
 - `agents/` ✅ — 4 subagentes humanos-substitutos: `tech-lead-saas-regulado`, `advogado-saas-regulado`, `corretora-seguros-saas`, `consultor-rbc-iso17025`
 - `output-styles/pt-br-conciso.md` ✅
 - `skills/`, `commands/`, `rules/` — vazios por escolha; criar quando padrão repetir 3 vezes
@@ -107,7 +107,7 @@ Confirmar antes de operações irreversíveis: `git reset --hard`, `git push --f
 ├── agents/                ← 4 subagentes humanos-substitutos (tech-lead, advogado, corretora, RBC)
 ├── skills/                ← vazio (criar quando padrão repetir 3x)
 ├── commands/              ← vazio (preferir skills no padrão novo)
-├── hooks/                 ← 15 hooks ativos (113 casos no _test-runner) — lista completa em AGENTS §3
+├── hooks/                 ← 15 hooks ativos (118 casos no _test-runner) — lista completa em AGENTS §3
 ├── rules/                 ← vazio (criar com `paths:` frontmatter — lazy)
 └── output-styles/         ← pt-br-conciso.md
 ```
@@ -123,4 +123,4 @@ A máquina é Windows 11. Hooks rodam via Git Bash. Considerar:
 - Path com espaços (`C:\PROJETOS\Certificado de calibracao`) — sempre usar `"${CLAUDE_PROJECT_DIR}"` com aspas.
 - `chmod +x` não é confiável no Windows — invocar hooks via `bash script.sh`.
 - Sandboxing nativo não suportado (só WSL2).
-- Validar mudanças nos hooks rodando `bash .claude/hooks/_test-runner.sh` — 23 casos cobrindo bypass conhecidos e regressões.
+- Validar mudanças nos hooks rodando `bash .claude/hooks/_test-runner.sh` — 118 casos cobrindo bypass conhecidos e regressões.

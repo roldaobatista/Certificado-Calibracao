@@ -1,3 +1,7 @@
+# authz-check: skip -- este arquivo DEFINE a válvula pública (@public /
+# PublicEndpoint) e o helper is_public que materializam a exceção legítima
+# do INV-AUTHZ-001; não é um endpoint. Mesmo precedente de permissions.py.
+
 """Decorators + helpers que fazem a porta `AuthorizationProvider` valer
 na borda da aplicação (INV-AUTHZ-001).
 
@@ -23,6 +27,13 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from .django_provider import get_provider
 
 
+# authz-check: skip -- definição da válvula pública (não é endpoint)
+# FB-C2: nome canônico ÚNICO do marcador público. `@public` (função),
+# `PublicEndpoint` (mixin CBV/DRF) e `is_public` (consumidores: middleware,
+# RequireAuthz, hook) usam ESTE atributo — nada de `authz_public` divergente.
+ATTR_PUBLIC = "_authz_public"
+
+
 def public(view_func: Callable[..., HttpResponse]) -> Callable[..., HttpResponse]:
     """Marca view explicitamente pública (sem `can()`).
 
@@ -32,9 +43,23 @@ def public(view_func: Callable[..., HttpResponse]) -> Callable[..., HttpResponse
     Uso típico: health checks, schema OpenAPI público, página de
     login, callback de webhook autenticado por HMAC (autorização vem da
     assinatura HMAC, não do provider).
+
+    Para views DRF baseadas em classe (APIView/ViewSet) use o mixin
+    `PublicEndpoint` — `@public` em função não propaga atributo pra
+    classe (era o bug FB-C2).
     """
-    view_func._authz_public = True  # type: ignore[attr-defined]
+    setattr(view_func, ATTR_PUBLIC, True)
     return view_func
+
+
+class PublicEndpoint:
+    """Mixin pra APIView/ViewSet DRF explicitamente publica (FB-C2).
+
+    Equivalente CBV do `@public`. `RequireAuthz` reconhece via `is_public`.
+    Uso: `class HealthView(PublicEndpoint, APIView): ...`
+    """
+
+    _authz_public = True
 
 
 def requires_authz(
@@ -94,6 +119,25 @@ def requires_authz(
     return decorator
 
 
-def is_public(view_func: Callable[..., HttpResponse]) -> bool:
-    """Util pra middleware / hooks consultarem."""
-    return getattr(view_func, "_authz_public", False)
+# authz-check: skip -- helper da válvula pública (não é endpoint)
+def is_public(view: Any, request: Any = None) -> bool:
+    """Marcador público resolvido — FONTE ÚNICA (FB-C2).
+
+    Reconhece `_authz_public` em qualquer forma legítima: função decorada
+    com `@public`; classe/instância DRF com mixin `PublicEndpoint` (ou
+    atributo `_authz_public = True`); função DRF embrulhada (atributo via
+    `view.cls`); ou o handler do método HTTP corrente quando `request`
+    é fornecido. Antes do FB-C2 cada consumidor lia um nome diferente
+    (`authz_public` vs `_authz_public`) → toda view pública DRF era NEGADA.
+    """
+    if getattr(view, ATTR_PUBLIC, False):
+        return True
+    cls = getattr(view, "cls", None)
+    if cls is not None and getattr(cls, ATTR_PUBLIC, False):
+        return True
+    if request is not None:
+        metodo = getattr(request, "method", "") or ""
+        handler = getattr(view, metodo.lower(), None)
+        if handler is not None and getattr(handler, ATTR_PUBLIC, False):
+            return True
+    return False

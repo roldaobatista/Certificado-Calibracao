@@ -88,6 +88,13 @@ fi
 if printf '%s' "$content" | grep -qE 'permission_classes[[:space:]]*=[[:space:]]*\[[[:space:]]*AllowAny'; then
     exit 0
 fi
+# FB-C2: valvula publica canonica do projeto. @public (funcao),
+# PublicEndpoint (mixin CBV/DRF) ou _authz_public = True sao marcacao
+# legitima de "view sem can()" — equivalente a AllowAny. is_public
+# (fonte unica) resolve em runtime; aqui o hook so reconhece o texto.
+if printf '%s' "$content" | grep -qE '(^|[^a-zA-Z_])@public([^a-zA-Z_]|$)|PublicEndpoint|_authz_public[[:space:]]*=[[:space:]]*True'; then
+    exit 0
+fi
 if printf '%s' "$content" | grep -qE '#[[:space:]]*authz-check:[[:space:]]*skip'; then
     exit 0  # bypass intencional, justificado em comentario adjacente
 fi

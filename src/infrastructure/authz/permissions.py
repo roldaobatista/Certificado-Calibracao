@@ -26,6 +26,7 @@ from typing import Any
 
 from rest_framework.permissions import BasePermission
 
+from .decorators import is_public
 from .django_provider import get_provider
 
 
@@ -40,8 +41,11 @@ class RequireAuthz(BasePermission):
     # authz-check: skip -- este eh o proprio AuthorizationProvider gateway; quem
     # chama provider.can() eh o has_permission abaixo.
     def has_permission(self, request, view) -> bool:
-        # Caminho 1: view explicitamente pública.
-        if getattr(view, "authz_public", False):
+        # Caminho 1: view explicitamente pública (FB-C2: helper ÚNICO
+        # is_public reconhece @public, mixin PublicEndpoint e função DRF
+        # embrulhada; antes lia `authz_public` e toda view pública DRF
+        # era negada por nome divergente).
+        if is_public(view, request):
             return True
 
         # Caminho 2: deny-by-default — exige `authz_action`.

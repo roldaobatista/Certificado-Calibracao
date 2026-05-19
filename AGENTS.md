@@ -111,7 +111,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 | Aplicar migrations | `docker compose exec app poetry run python manage.py migrate --database=migrator` |
 | Verificar objetos de segurança no banco (FA-A4) | `docker compose exec app poetry run python manage.py verificar_objetos_seguranca` |
 | Shell Django | `docker compose exec app poetry run python manage.py shell_plus` |
-| Testar hooks | `bash .claude/hooks/_test-runner.sh` (113 casos) |
+| Testar hooks | `bash .claude/hooks/_test-runner.sh` (118 casos) |
 
 ---
 
@@ -207,7 +207,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 - **F-A** — atingiu 5/5 critérios automáveis em 2026-05-18, **mas reaberta EM SANEAMENTO** pela auditoria 10 lentes (drill era fraco). FA-A5 endureceu o drill (3 tenants intercalados + detecção de adulteração + concorrência + fuzzing 50×1000 + benchmark multi-tenant). Só fecha definitivo na reauditoria rodada 2 sem CRÍTICO/ALTO. Detalhes em `docs/faseamento/drill-f-a-saida.md` + `auditorias/F-A-CONSOLIDADO-rodada-1.md`.
 - **F-B** — 7/7 critérios automáveis verde no fechamento original. Suite F-B: +30 testes (16 E2E + 5 audit + 3 isolamento + 5 MFA + 1 fuzzing). **Suite total pós-saneamento F-A: 259 passed; hooks 113/113** (números "88/103" eram pré-saneamento/driftados — FA-M1). F-B só retoma após F-A rodada 2 verde. Detalhes em `docs/faseamento/drill-f-b-saida.md`.
 
-### Hooks (15 ativos — 113/113 testes verdes)
+### Hooks (15 ativos — 118/118 testes verdes; +5 casos authz-check FB-C2)
 
 Veja §3 pra lista completa. Marco 5 da F-A (2026-05-17) acrescentou:
 - `migration-rls-check.sh` — INV-TENANT-003: bloqueia migration que cria tabela com `tenant_id` sem `CREATE POLICY`/`ENABLE ROW LEVEL SECURITY` na mesma migration (allow via `# rls-policy: external NNNN`).

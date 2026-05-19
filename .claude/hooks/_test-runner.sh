@@ -196,6 +196,13 @@ run_case "APS8 audit/services.py isento"         PASS  audit-pii-salt-check.sh '
 run_case "APS9 audit/hash_chain.py isento"       PASS  audit-pii-salt-check.sh '{"tool_input":{"file_path":"src/infrastructure/audit/hash_chain.py","new_string":"return hashlib.sha256(prev + payload).hexdigest()"}}'
 run_case "APS10 .md ignora"                      PASS  audit-pii-salt-check.sh '{"tool_input":{"file_path":"docs/exemplo.md","content":"hashlib.sha256(x).hexdigest()"}}'
 
+# --- authz-check.sh: valvula publica canonica FB-C2 ---------------------------
+run_case "AZ1 endpoint sem can() BLOQUEIA"       BLOCK authz-check.sh '{"tool_input":{"file_path":"src/infrastructure/os/views.py","content":"from rest_framework.views import APIView\nclass OsView(APIView):\n    def post(self, request):\n        return Response({})"}}'
+run_case "AZ2 endpoint com .can() PASSA"         PASS  authz-check.sh '{"tool_input":{"file_path":"src/infrastructure/os/views.py","content":"class OsView(APIView):\n    def post(self, request):\n        get_provider().can(\"os.criar\", usuario_id=u)\n        return Response({})"}}'
+run_case "AZ3 @public reconhecido (FB-C2)"       PASS  authz-check.sh '{"tool_input":{"file_path":"src/infrastructure/health/views.py","content":"@public\n@api_view([\"GET\"])\ndef healthz(request):\n    return Response({\"ok\": True})"}}'
+run_case "AZ4 PublicEndpoint mixin (FB-C2)"      PASS  authz-check.sh '{"tool_input":{"file_path":"src/infrastructure/health/views.py","content":"class HealthView(PublicEndpoint, APIView):\n    def get(self, request):\n        return Response({\"ok\": True})"}}'
+run_case "AZ5 _authz_public=True (FB-C2)"        PASS  authz-check.sh '{"tool_input":{"file_path":"src/infrastructure/health/views.py","content":"class HealthView(APIView):\n    _authz_public = True\n    def get(self, request):\n        return Response({})"}}'
+
 echo ""
 echo "===== resumo: $pass ok, $fail falhas ====="
 exit $fail
