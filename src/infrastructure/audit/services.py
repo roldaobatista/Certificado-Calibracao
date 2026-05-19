@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import re
 from typing import Any
 from uuid import UUID
 
 from django.conf import settings
-from django.db import connection, transaction
+from django.db import connection, models, transaction
 
 from .canonicalizar import canonicalizar
 from .hash_chain import calcular_hash
@@ -152,28 +153,100 @@ def sanitizar_payload_audit(payload: Any) -> Any:
 # FA-C1: namespace de 2 args pro advisory lock (pg_advisory_xact_lock(int4,
 # int4)). 1º arg = classe constante "auditoria" — isola o espaco de locks
 # de auditoria de qualquer outro advisory lock no sistema (evita deadlock
-# sutil por colisao de hashtext). 2º arg = hashtext(chave por-tenant).
+# sutil por colisao de hashtext). 2º arg = hashtext(chave da cadeia).
 _ADVISORY_LOCK_CLASSE_AUDIT = 0x_AFE_AED  # 'afe aed' — classe de locks de auditoria
+
+# FB-C1: classe DISTINTA pra cadeia authz_decisions — auditoria e authz NAO
+# compartilham espaco de lock (senao um INSERT de auditoria serializaria um
+# can()). Liga INV-AUTHZ-002. Constante visivel e estavel (review tech-lead).
+_ADVISORY_LOCK_CLASSE_AUTHZ = 0x_A07_2EC  # 'a07 2ec' — classe de locks da cadeia authz
+
+
+def _chave_lock_de_filtro(cadeia_filtro: dict[str, Any]) -> str:
+    """Deriva a string do advisory lock A PARTIR do filtro da cadeia.
+
+    FB-C1 BLOQ #1: `chave_cadeia` e `cadeia_filtro` NÃO podem ser parâmetros
+    independentes — se divergirem, dois inserts da MESMA cadeia pegam locks
+    diferentes, não se serializam e a cadeia bifurca SILENCIOSAMENTE (a
+    classe de bug que FA-C1 matou). Derivar a chave do filtro por construção
+    elimina a divergência: mesma cadeia ⟺ mesmo filtro ⟺ mesma chave.
+    """
+    return json.dumps(cadeia_filtro, sort_keys=True, default=str)
+
+
+def _ultimo_hash_da_cadeia(
+    model: type[models.Model], cadeia_filtro: dict[str, Any]
+) -> str | None:
+    """Hash do último elo da cadeia identificada por `cadeia_filtro`.
+
+    Genérico (paramétrico no model — NÃO importa Auditoria/AuthzDecision).
+    Ordena por `sequencia` (monotônica; timestamp colide em µs sob o lock).
+    Deve rodar DENTRO do advisory lock + transação do helper.
+    """
+    anterior = (
+        model._default_manager.filter(**cadeia_filtro).order_by("-sequencia").first()
+    )
+    # `model` é genérico (qualquer tabela INSERT-only com cadeia hash); o
+    # campo hash_atual existe por contrato — getattr c/ default mantém o
+    # helper paramétrico sem `type: ignore`.
+    hash_anterior: str | None = getattr(anterior, "hash_atual", None) if anterior else None
+    return hash_anterior
+
+
+def registrar_em_cadeia(
+    model: type[models.Model],
+    *,
+    classe_lock: int,
+    cadeia_filtro: dict[str, Any],
+    payload_hash: dict[str, Any],
+    campos: dict[str, Any],
+) -> models.Model:
+    """Insere 1 elo numa cadeia hash INSERT-only particionável (FB-C1).
+
+    Padrão único reusado por `auditoria` e `authz_decisions` (mata a
+    divergência de algoritmo: era `_hash_linha` ≠ `calcular_hash`).
+
+    - `cadeia_filtro`: ORM kwargs que identificam a cadeia (ex.:
+      `{"tenant_id": tid}` ou `{"tenant_id__isnull": True,
+      "usuario_id": uid}`). Define TANTO o elo anterior lido QUANTO a
+      chave de lock (derivada por construção — BLOQ #1).
+    - `classe_lock`: namespace do advisory lock por tabela
+      (`_ADVISORY_LOCK_CLASSE_AUDIT` | `_AUTHZ`).
+    - `payload_hash`: dict canonicalizado que entra no sha256.
+    - `campos`: colunas a persistir (helper preenche hash_anterior/atual).
+
+    Concorrência: `pg_advisory_xact_lock` serializa escritores da MESMA
+    cadeia. Sob `ATOMIC_REQUESTS=True` (request HTTP) o lock vive até o
+    COMMIT do request (este `atomic()` vira savepoint), NÃO até o fim do
+    helper — idêntico ao `registrar_auditoria` original, não é regressão.
+    Liberar o lock antes do commit seria INCORRETO: o próximo escritor não
+    veria a linha não-commitada (MVCC) e bifurcaria. Por isso xact-lock.
+    """
+    if not any(f.name == "sequencia" for f in model._meta.get_fields()):
+        raise TypeError(
+            f"{model.__name__} sem coluna 'sequencia' — registrar_em_cadeia "
+            f"exige cadeia ordenável monotonicamente (FB-C1)."
+        )
+    chave_cadeia = _chave_lock_de_filtro(cadeia_filtro)
+
+    with transaction.atomic():
+        with connection.cursor() as cur:
+            cur.execute(
+                "SELECT pg_advisory_xact_lock(%s, hashtext(%s));",
+                [classe_lock, chave_cadeia],
+            )
+        hash_anterior = _ultimo_hash_da_cadeia(model, cadeia_filtro)
+        hash_atual = calcular_hash(hash_anterior, canonicalizar(payload_hash))
+        criado: models.Model = model._default_manager.create(
+            **campos,
+            hash_anterior=hash_anterior,
+            hash_atual=hash_atual,
+        )
+        return criado
 
 # Sentinela: "verificar TODAS as cadeias" (distinto de tenant_id=None, que
 # significa a cadeia "sistema").
 _TODAS_AS_CADEIAS = object()
-
-
-def _obter_hash_anterior(tenant_id: UUID | None) -> str | None:
-    """Hash do último elo da cadeia DESTE tenant (None = cadeia sistema).
-
-    FA-M3: extraído de `registrar_auditoria` (era god-function:
-    lock+leitura+cálculo+persistência num corpo só). Deve rodar DENTRO do
-    advisory lock por-tenant + transação do chamador — senão 2 inserts
-    concorrentes leem o mesmo elo e bifurcam a cadeia. Ordena por
-    `sequencia` (monotônica; timestamp colide em µs sob o lock — FA-C1).
-    """
-    qs = Auditoria.objects.order_by("-sequencia")
-    anterior = (
-        qs.filter(tenant_id__isnull=True) if tenant_id is None else qs.filter(tenant_id=tenant_id)
-    ).first()
-    return anterior.hash_atual if anterior else None
 
 
 def registrar_auditoria(
@@ -191,35 +264,30 @@ def registrar_auditoria(
     Encadeia no ultimo elo DO MESMO tenant, ordenado por `sequencia`
     (monotonica; timestamp colide em microssegundo sob o lock).
 
+    FB-C1: delega ao helper compartilhado `registrar_em_cadeia` (algoritmo
+    ÚNICO de hash/lock). Wrapper fino — `cadeia_filtro` reproduz byte-a-byte
+    o comportamento original (`tenant_id__isnull` vs `tenant_id=`), logo os
+    testes T1-T8 passam sem 1 caractere alterado (contrato de não-regressão).
+
     Chamadores tipicos: signal post_save, use case, middleware webhook.
     Idempotencia: nao garantida no Marco 4 (F-B adiciona correlation_id).
     """
-    payload_canon = canonicalizar(payload)
-    chave_cadeia = str(tenant_id) if tenant_id is not None else "SYSTEM"
-
-    with transaction.atomic():
-        # Lock POR tenant (nao global): inserts de tenants distintos nao se
-        # serializam entre si. Namespace de 2 args isola locks de auditoria.
-        with connection.cursor() as cur:
-            cur.execute(
-                "SELECT pg_advisory_xact_lock(%s, hashtext(%s));",
-                [_ADVISORY_LOCK_CLASSE_AUDIT, chave_cadeia],
-            )
-
-        # Ultimo elo DA CADEIA DESTE tenant — dentro do lock + transacao
-        # (RLS deixa ver as proprias linhas; cadeia sistema sob run_as_system).
-        hash_anterior = _obter_hash_anterior(tenant_id)
-        hash_atual = calcular_hash(hash_anterior, payload_canon)
-
-        return Auditoria.objects.create(
-            tenant_id=tenant_id,
-            usuario_id=usuario_id,
-            action=action,
-            resource_summary=resource_summary,
-            payload_jsonb=payload,
-            hash_anterior=hash_anterior,
-            hash_atual=hash_atual,
-        )
+    cadeia_filtro: dict[str, Any] = (
+        {"tenant_id__isnull": True} if tenant_id is None else {"tenant_id": tenant_id}
+    )
+    return registrar_em_cadeia(  # type: ignore[return-value]
+        Auditoria,
+        classe_lock=_ADVISORY_LOCK_CLASSE_AUDIT,
+        cadeia_filtro=cadeia_filtro,
+        payload_hash=payload,
+        campos={
+            "tenant_id": tenant_id,
+            "usuario_id": usuario_id,
+            "action": action,
+            "resource_summary": resource_summary,
+            "payload_jsonb": payload,
+        },
+    )
 
 
 def _verificar_uma_cadeia(tenant_id: UUID | None) -> tuple[bool, int, list[str]]:

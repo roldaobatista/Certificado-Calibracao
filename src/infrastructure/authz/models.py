@@ -164,12 +164,23 @@ class AuthzDecision(models.Model):
     )
     hash_anterior = models.CharField(
         max_length=64,
+        null=True,
         blank=True,
-        help_text="SHA-256 da linha anterior na cadeia. Vazio = primeira linha.",
+        help_text="SHA-256 da linha anterior na cadeia. NULL = primeira linha.",
     )
     hash_atual = models.CharField(
         max_length=64,
         help_text="SHA-256(hash_anterior || payload_canonico_desta_linha).",
+    )
+    # FB-C1: ordem monotonica da cadeia (SEQUENCE — espelha audit/0009).
+    # Encadeamento e por-tenant OU por-usuario (cadeia pre-tenant); sequencia
+    # so desempata (timestamp colide em µs sob o advisory lock). `db_default`
+    # faz o INSERT do ORM emitir DEFAULT — a sequence (authz/0004) preenche.
+    sequencia = models.BigIntegerField(
+        editable=False,
+        db_default=models.Func(
+            models.Value("authz_decisions_seq"), function="nextval"
+        ),
     )
 
     class Meta:
@@ -177,15 +188,19 @@ class AuthzDecision(models.Model):
         db_table = "authz_decisions"
         verbose_name = "Decisão de autorização (audit)"
         verbose_name_plural = "Decisões de autorização (audit)"
-        ordering = ["-timestamp"]
+        ordering = ["sequencia"]
         indexes = [
             models.Index(
-                fields=["tenant_id", "timestamp"],
-                name="ix_authzdec_tenant_ts",
+                fields=["tenant_id", "sequencia"],
+                name="ix_authzdec_tenant_seq",
             ),
+            # FB-C1 (review tech-lead Q2): índice PARCIAL exatamente o caminho
+            # de leitura da cadeia pré-tenant POR-USUÁRIO — `.first()` O(log n)
+            # dentro do advisory lock (sem ele = seq scan segurando o lock).
             models.Index(
-                fields=["usuario_id", "timestamp"],
-                name="ix_authzdec_user_ts",
+                fields=["usuario_id", "sequencia"],
+                name="ix_authzdec_user_seq_pretenant",
+                condition=models.Q(tenant_id__isnull=True),
             ),
         ]
 

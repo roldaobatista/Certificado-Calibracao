@@ -122,6 +122,41 @@ def run_in_tenant_context(
 
 
 @contextmanager
+def run_in_user_context(
+    usuario_id: UUID,
+    using: str = "default",
+) -> Iterator[None]:
+    """Contexto AUTENTICADO PRÉ-TENANT: usuário identificado, sem tenant ativo.
+
+    FB-C1+C3 (BLOQ #2). Fluxos legítimos: login pós-credencial, "listar meus
+    tenants", qualquer `can()` pré-tenant. NÃO é `run_as_system` (tem dono: o
+    usuário) nem `run_in_tenant_context` (não há tenant selecionado ainda).
+
+    `app.usuario_id` setado + `tenant_ids=[]` + `modo_sistema=False`. A policy
+    `authz_decisions` (authz/0005) lê/grava a cadeia pré-tenant POR-USUÁRIO
+    com base nesse `app.usuario_id` — sem este contexto a cadeia pré-tenant
+    bifurcaria silenciosamente (era o bug FB-C1⇄FB-C3).
+    """
+    token_list = tenant_ids_context.set([])
+    token_active = active_tenant_context.set(None)
+    token_user = usuario_id_context.set(usuario_id)
+    try:
+        with transaction.atomic(using=using):
+            setar_contexto_pg_na_conexao(
+                tenant_ids=[],
+                active_tenant=None,
+                usuario_id=usuario_id,
+                using=using,
+                modo_sistema=False,  # tem dono (usuário) — NÃO é modo_sistema
+            )
+            yield
+    finally:
+        tenant_ids_context.reset(token_list)
+        active_tenant_context.reset(token_active)
+        usuario_id_context.reset(token_user)
+
+
+@contextmanager
 def run_as_system(using: str = "default") -> Iterator[None]:
     """Contexto para operacoes do sistema (cron, manutencao) sem tenant.
 

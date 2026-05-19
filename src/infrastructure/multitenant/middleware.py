@@ -28,7 +28,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 
-from .connection import setar_contexto_pg_na_conexao
+from .connection import run_in_user_context, setar_contexto_pg_na_conexao
 from .context import (
     active_tenant_context,
     tenant_ids_context,
@@ -113,18 +113,16 @@ class TenantMiddleware:
     def _resolver_tenants_permitidos(self, usuario_id: UUID) -> list[UUID]:
         """Consulta UsuarioPerfilTenant filtrando por janela de validade.
 
-        SET LOCAL `app.usuario_id` precisa rodar dentro de uma transacao
-        — caso contrario expira imediatamente e a policy RLS bloqueia.
+        Roda no contexto AUTENTICADO PRÉ-TENANT (`run_in_user_context`):
+        `app.usuario_id` setado dentro de transacao (SET LOCAL expira no
+        commit) — a policy RLS de UsuarioPerfilTenant permite leitura. FB-C1+C3
+        BLOQ #2: este é o MESMO contexto que `can()` pré-tenant exige; fonte
+        única em `connection.run_in_user_context`.
         """
         from src.infrastructure.usuario.models import UsuarioPerfilTenant
 
         agora = timezone.now()
-        with transaction.atomic():
-            setar_contexto_pg_na_conexao(
-                tenant_ids=[],
-                active_tenant=None,
-                usuario_id=usuario_id,
-            )
+        with run_in_user_context(usuario_id):
             return list(
                 UsuarioPerfilTenant.objects.filter(
                     usuario_id=usuario_id,
