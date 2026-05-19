@@ -73,6 +73,11 @@ tenant_id), `INV-TENANT-002` (coluna tenant_id NOT NULL), `INV-TENANT-003`
 
 ## 2. Como ler as User Stories
 
+> **Convenção de ID (auditor-produto P5 BAIXO-1):** a Constituição §6
+> grafa `T-<MOD>NNN`; este projeto adota a variante hifenizada
+> `T-FA-NNN`/`US-FA-NNN`/`AC-FA-NNN-N` (mais legível, consistente em
+> todo o repo) — variante aceita, não reabrir a cada módulo.
+
 `US-FA-NNN` → `AC-FA-NNN-N` (aceite **binário**: passou / não passou).
 Cada AC tem coluna **Estado de reconciliação** preenchida em P3
 (`tasks.md`): `OK` (código satisfaz, validado), `GAP` (diverge — vira
@@ -349,6 +354,14 @@ F-A só **fecha** quando, sobre o código reconciliado a esta spec:
 7. Ambiente de teste replica matriz de roles/grants de produção,
    verificável por comando (AC-FA-008-6 — senão #1 é falso-verde).
 8. 3 auditores Família 5 sem CRÍTICO/ALTO (P5).
+9. **Critério Roldão (ADR-0001 Portão 3 — espelho fiel de
+   foundation-waves §2):** ≤2 intervenções de código/semana; ≤3 bugs
+   SEV-1 no período; gasto LLM ≤ R$ 1.500 — **aceito por evidência
+   empírica** do período F-A (histórico foundation-waves 2026-05-18;
+   peso do gasto LLM reduzido por `project_sem_cliente_externo_agora`).
+10. **Auditor de Segurança não bloqueou merge nos 14 dias finais** —
+   aceito por evidência (auditor-seguranca P5 = PASS, zero CRÍTICO/ALTO;
+   reauditorias rodada 2 / Família 5 sem veto).
 
 Reprovar → muda estratégia (ADR-0001/0002), **mantém** modelos e
 migrations.
@@ -381,6 +394,17 @@ ISO real (rastrear em `foundation-waves` + `retencao-matriz`):
   PII amarrada à matriz de retenção (não aposentar antes do prazo legal).
 - **GATE-5** (BLOQ-2): se ANPD/CGCRE exigir, encadeamento hash de
   `AcessoDadosCliente` (em F-A só trigger PG).
+- **GATE-6** (auditor-produto P5 MÉDIO-1): **ADR-0020 decidido +
+  executado (REGRAS ≤ orçamento)** ANTES de Wave A arrancar — Wave A
+  multiplica `INV-` e agrava o estouro; barreira rastreada igual aos
+  demais gates (não fica `proposta` indefinidamente).
+- **GATE-7** (auditor-seguranca P5 CONCERN-1): unificar higiene de
+  pattern — `auditoria_chain_insert`/`ff_insert_validated` comparam
+  `tenant_id::text = current_setting('app.active_tenant_id')` sem
+  `::uuid` (seguro em contexto vazio: '' não casa UUID; escolha
+  consciente documentada na migration), divergente do template
+  genérico fail-loud `::uuid` (22P02). Rastreado p/ Wave A (não
+  vaza; assimetria de robustez entre builders).
 
 ---
 

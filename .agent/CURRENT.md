@@ -2,88 +2,44 @@
 
 > ≤40 linhas. Atualizado a cada fechamento de Fase/Marco/US.
 
-**Fase:** SANEAMENTO F-A **CONCLUÍDO** (rodada 2 verde). Próxima fase:
-saneamento F-B (mesmo loop) → Marco 1 `clientes` definitivo → Marco 2
-`equipamentos`. **Modo:** AUTÔNOMO.
+**Fase:** Foundation reconstruída via ritual Spec Kit. **F-A FECHADA**
+(2026-05-19). Próximo: **P6** (F-B spec forward). **Modo:** AUTÔNOMO.
 
-## F-A SANEADA E FECHADA (2026-05-18)
+## Virada de método (decisão Roldão 2026-05-19)
 
-Loop auditar→corrigir→reauditar completo. Rodada 1 (1 CRÍTICO + 6 ALTO +
-3 MÉDIO) → todos fechados via ritual (design → review subagente →
-implement → verde → commit/push):
+Remendo auditoria-a-auditoria não convergia — causa de fundo: o ritual
+Spec Kit foi pulado em F-A/F-B. Decisão: recriar spec FORWARD do zero
+(governa o código) + ritual completo + reconciliar código existente.
+Programa P1..P9: F-A primeiro, F-B sobre F-A fechada (lição C1⇄C3).
 
-- `1fcbfff` FA-A4 — rede contra migration mentirosa
-- `3b08bbb` FA-C1+FA-A3 — hash chain por-tenant + cadeia sistema + Q-02 +
-  lock por-tenant + sequência monotônica
-- `2eb986a` FA-A2 — template RLS único + fail-loud em clientes
-- `7243684` FA-A1+FA-M2 — PII_HASH_KEY versionada + registry redatado +
-  gate de prod por entropia + colunas ip_hash→TextField
-- `d7e7e0b` FA-A5+FA-M1 — drill robusto + números/status sincronizados
-- `9bf092e` FA-M3 — higiene (limpar_contexto removido, god-function
-  quebrada, base.py E402)
-- `a8cb79e` drift migration clientes (makemigrations --check verde)
+Trabalho válido anterior NÃO descartado — foi validado pela spec
+(FB-C1+C3 `32aa278`, FB-C2 `53e3cc2`, FB-C4+C5 `7924390` seguem de pé).
 
-**Reauditoria rodada 2 — 3 lentes, código real: ZERO CRÍTICO / ZERO
-ALTO.** Segurança (`auditor-seguranca`) PASS, arquitetura
-(`tech-lead`) APROVA, qualidade (`auditor-qualidade`) PASS.
-Consolidado: `docs/faseamento/auditorias/F-A-CONSOLIDADO-rodada-2.md`.
-Suite 259 passed (0 skip), cobertura 84.84%, hooks 113/113.
+## F-A FECHADA via ritual (commits `4951389`..`f3711d7`)
 
-## SANEAMENTO F-B — em andamento (rodada 1 feita)
+- P1 spec forward `docs/faseamento/F-A/spec.md` (substitui stories-f-a).
+- P2 plan + review 3 subagentes (tech-lead/advogado/RBC) → bloqueantes
+  absorvidos (eliminação×imutabilidade LGPD, marco de corte CGCRE,
+  grants test=prod, etc.).
+- P3 matriz: núcleo OK; 8 GAPs → T-FA-01..08.
+- P4: 7 fechados causa-raiz + T-FA-08→ADR-0020. Suite 280, hooks
+  118/118, makemigrations limpo.
+- P5: **3 auditores Família 5 = PASS, ZERO CRÍTICO/ALTO.** Reparos
+  MÉDIO/BAIXO resolvidos. Consolidado:
+  `docs/faseamento/F-A/auditoria-familia5.md`.
 
-Rodada 1 (3 lentes) consolidada em `auditorias/F-B-CONSOLIDADO-rodada-1.md`
-+ commit `d02e9aa`: 5 CRÍTICO + 7 ALTO. Tema: F-B escrita contra
-contrato PRÉ-FA-C1; saneamento F-A divergiu/quebrou ela.
+Gates Wave A rastreados (não bloqueiam F-A dogfooding): GATE-1..7
+(B2/WORM, verificação periódica, NTP, ciclo chave PII, hash
+AcessoDadosCliente, ADR-0020, higiene pattern `::uuid`).
 
-**Descoberta crítica no review FB-C1 (tech-lead):** FB-C1 e FB-C3 estão
-ACOPLADOS. A policy `authz_decisions_select` libera a cadeia pré-tenant
-só com `app.usuario_id=''`, mas decisão pré-tenant autenticada tem
-usuario_id setado → o helper de cadeia não leria o elo anterior → cadeia
-authz pré-tenant bifurca. Viraram UMA frente (#11). Recomendação
-preliminar: cadeia pré-tenant authz POR-USUÁRIO (não global). Análise +
-3 bloqueantes em `auditorias/FB-C1-design-cadeia-compartilhada.md`
-§Correções.
+## Próximo passo (P6 — retomar)
 
-## FB-C1+C3 conjunto FECHADO (#11) — commit `32aa278` (2026-05-18)
+F-B spec forward → P7 plan+review subagentes → P8 reconciliação
+(absorve ALTOs FB-A1/A4/A5/A6/A7 como GAPs) + conserto → P9 Família 5
++ **fechar Foundation**. Depois: backlog Wave-A (#7/#8), Marco 1
+`clientes` definitivo → Marco 2 `equipamentos`.
 
-Design reaberto + re-review tech-lead (APROVA c/ 4 bloqueantes —
-absorvidos): helper ÚNICO `registrar_em_cadeia` (chave do lock derivada
-do filtro — BLOQ #1), `run_in_user_context` + can() pré-tenant fail-loud
-(BLOQ #2), fronteira transacional documentada / deadlock probe → drill
-#12 (BLOQ #3), `_normalizar_para_hash` fonte única hash+persistência +
-`verificar_integridade_cadeia_authz` (BLOQ #4). Policy authz reescrita
-via builder único em `rls_templates.py` (modo_sistema canônico +
-pré-tenant POR-USUÁRIO, sem permissivo morto no INSERT). `AuthzDecision.
-sequencia` (migration 0004) + policy (0005). **T1-T8 audit sem 1 char
-alterado. Suite 267 passed, cobertura 85.05%, hooks 113/113.**
+## Fila
 
-> Foot-gun FA-A4 confirmado e contornado: `test_afere` precisa ser
-> criado por superuser + `ALTER DEFAULT PRIVILEGES FOR app_migrator …
-> TO app_user` DENTRO de test_afere ANTES do `migrate --database=
-> migrator` (default privileges são por-banco; não herdam de `afere`).
-> `--create-db` do pytest NÃO funciona (app_user/app_migrator são
-> NOCREATEDB). Isso é o backlog R2-S1 (#8) — fragilidade conhecida.
-
-## FB-C2 FECHADO (#13) — 2026-05-18
-
-`@public` setava `_authz_public` mas `RequireAuthz` lia `authz_public`
-→ toda view DRF pública era NEGADA. Causa-raiz: helper ÚNICO
-`is_public(view, request)` (reconhece `@public`, mixin `PublicEndpoint`
-CBV/DRF, função embrulhada e handler do método); `RequireAuthz` e
-middleware passam a usá-lo; hook `authz-check.sh` reconhece a válvula
-canônica (+5 casos `_test-runner` → **118/118**). Teste
-`test_authz_require_authz.py` (público→True, sem action→False,
-denied→False, allowed→True — cobre FB-A7 também). Docs canônicas
-sincronizadas (113→118; corrigido drift "23 casos" no CLAUDE.md).
-
-## Próximo passo (retomar)
-1. FB-C4+C5 (#12 drill `validar_f_b` robusto + prova cripto), ALTOs (#10).
-3. Reauditar F-B rodada 2 (#14 — 3 lentes código real). Loop até zero
-   CRÍTICO/ALTO.
-4. Backlog Wave-A (#8), lint sweep (#7) — NÃO reabrem F-A/F-B.
-5. F-B saneada → Marco 1 `clientes` definitivo → Marco 2.
-
-## Fila de tarefas
-TaskList: ✅ #11 FB-C1+C3 (commit `32aa278`). PRÓXIMO #13 FB-C2 →
-#12 FB-C4+C5 → #10 ALTOs F-B → #14 reauditoria F-B r2 → #7/#8 Wave-A.
-Consolidados em `docs/faseamento/auditorias/`.
+TaskList P9 do programa Spec Kit. Estado vivo aqui;
+docs em `docs/faseamento/F-A/` e `docs/faseamento/F-B/`.
