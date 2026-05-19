@@ -2,9 +2,10 @@
 owner: roldao
 revisado_em: 2026-05-18
 proximo_review: 2026-08-18
-status: stable
+status: deprecated
 diataxis: reference
 audiencia: agente
+substituido_por: docs/faseamento/F-B/spec.md
 relacionados:
   - docs/faseamento-foundation-waves.md
   - docs/governanca/debitos-ritual.md
