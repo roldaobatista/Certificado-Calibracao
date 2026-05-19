@@ -2,24 +2,28 @@
 
 > **Pra quê:** materializar os auditores que substituem reviewers humanos. Auditor 10 v2 alertou: sem operacionalização, "Família 5 é vaporware".
 >
-> **Status atual (2026-05-17):** 3 auditores originais materializados em v1.0.0 + 1 auditor adicional criado como parte da aplicação do `plano-defesas-anti-erros-ia.md`:
-> - `auditor-seguranca-prompt.md` ✅
-> - `auditor-qualidade-prompt.md` ✅
-> - `auditor-produto-prompt.md` ✅
-> - `auditor-drift-docs-prompt.md` ✅ — novo, sem poder de veto (consultivo)
+> **Status atual (2026-05-19):** **10 auditores em operação** — 4 originais + 6 novos criados em 2026-05-19 (escolha Roldão: Tier 1 + 2 + 3 completo, MÉDIO bloqueia consistente com INV-RITUAL-001, bump prompts existentes para 1.1.0 stable).
 >
-> Os 3 originais ainda dependem da stack final pra calibrar thresholds (ex: % de cobertura mínima do Auditor de Qualidade depende de ADR-0001 fechar). O auditor de drift opera independente de stack.
+> **Motivação do Tier 1+2+3:** o bug 2026-05-19 do `sanitizar_payload_audit` (UUID redigido como PII em ~8% dos clientes) **passou em PASS dos 3 auditores 1.0.0** porque a função era exercitada só via teste de integração com input aleatório. Lacuna concreta provou que precisamos endurecer (Tier 1: TST-005..007 + SEC-SANITIZE-001) e expandir cobertura (Tier 2: LLM correctness; Tier 3: performance, observabilidade, idempotência, supply chain, LGPD mecânico).
 
 ---
 
-## Os 3 auditores
+## Os 10 auditores
 
-| Auditor | Lê | Trigger | Poder de veto |
-|---|---|---|---|
-| **Segurança** | `REGRAS-INEGOCIAVEIS.md` (SEC-*, INV-TENANT-*), `docs/seguranca/`, diff do commit | Pre-commit em código que toca `financeiro/`, `auth/`, `tenant/`, `kms/`, `migrations/`, `.claude/hooks/` | **Bloqueia commit** se SEC-* violado |
-| **Qualidade** | `REGRAS-INEGOCIAVEIS.md` (TST-*), `tests/`, diff | Pre-commit em qualquer código | **Bloqueia commit** se TST-* violado ou cobertura abaixo do mínimo |
-| **Produto** | `docs/dominios/<mod>/prd.md`, `docs/comum/glossario.md`, US em foco | Pre-merge em feature (após implementação completa) | **Bloqueia merge** se AC binário não passa |
-| **Drift de docs** | `docs/`, `.claude/`, `.specify/`, raízes canônicas, `MEMORY.md`, `git log` | Manual (`@auditor-drift-docs`) ou semanal | **Nenhum** — só reporta drifts (D1–D8) |
+| # | Auditor | Lê | Trigger | Poder de veto | Modelo |
+|---|---|---|---|---|---|
+| 1 | **Segurança** v1.1.0 | `REGRAS-INEGOCIAVEIS.md` (SEC-*, INV-TENANT-*, SEC-SANITIZE-*), `docs/seguranca/`, diff | Pre-commit em `financeiro/`, `auth/`, `tenant/`, `kms/`, `migrations/`, `audit/`, `.claude/hooks/`, `.github/workflows/` | **Bloqueia commit** | Sonnet 4.6 / Opus 4.7 escalation |
+| 2 | **Qualidade** v1.1.0 | `REGRAS-INEGOCIAVEIS.md` (TST-001..007), `tests/`, diff, coverage | Pre-commit em qualquer código | **Bloqueia commit** | Sonnet 4.6 |
+| 3 | **Produto** v1.1.0 | `docs/dominios/<mod>/prd.md`, glossário, US em foco | Pre-merge | **Bloqueia merge** | Opus 4.7 |
+| 4 | **Drift de docs** v1.0.0 | `docs/`, `.claude/`, `.specify/`, raízes canônicas, `MEMORY.md` | Manual / semanal | **Nenhum** — consultivo | Sonnet 4.6 |
+| 5 | **LLM Correctness** v1.0.0 | `REGRAS-INEGOCIAVEIS.md` (LLM-*), `AGENTS.md` §3, diff | Pre-commit em `src/**`, `tests/**` | **Bloqueia commit** | Opus 4.7 |
+| 6 | **Performance** v1.0.0 | `REGRAS-INEGOCIAVEIS.md` (PERF-*), diff, `pyproject.toml` | Pre-commit em `views.py`/`services.py`/`use_cases.py`/`src/domain/**` | **Bloqueia commit** | Sonnet 4.6 |
+| 7 | **Observabilidade** v1.0.0 | `REGRAS-INEGOCIAVEIS.md` (OBS-*), `audit/services.py`, estado F-C | Pre-commit em paths sensíveis e `views.py` | **Bloqueia commit** | Sonnet 4.6 |
+| 8 | **Idempotência** v1.0.0 | `REGRAS-INEGOCIAVEIS.md` (IDEMP-*), ADR-0015 | Pre-commit em `views.py`/`handlers.py`/`tasks.py`/`consumers.py` | **Bloqueia commit** | Sonnet 4.6 |
+| 9 | **Supply Chain** v1.0.0 | `REGRAS-INEGOCIAVEIS.md` (DEP-*), commit message, estado Wave A | Pre-commit em manifests/Dockerfile/workflows | **Bloqueia commit** | Sonnet 4.6 |
+| 10 | **Conformidade LGPD (mecânico)** v1.0.0 | `REGRAS-INEGOCIAVEIS.md` (LGPD-MEC-*), `retencao-matriz.md`, `audit/services.py` | Pre-commit em `models.py`/`views.py`/`serializers.py`/`migrations/**`/`src/domain/**` | **Bloqueia commit** | Sonnet 4.6 / Opus 4.7 escalation |
+
+**Severidade consistente com INV-RITUAL-001:** os 10 auditores classificam achado como CRÍTICO/ALTO/MÉDIO/BAIXO. MÉDIO+ bloqueia fechamento de Fase/Marco/Story. Apenas BAIXO vira `GATE-<auditor>-NNN` rastreado.
 
 ---
 
@@ -101,12 +105,15 @@ A cada 3 meses, simular cenários conhecidos:
 
 ## A criar (próximos passos)
 
-- ✅ ~~`auditor-seguranca-prompt.md`~~ — criado v1.0.0 em 17/05/2026
-- ✅ ~~`auditor-qualidade-prompt.md`~~ — criado v1.0.0 em 17/05/2026
-- ✅ ~~`auditor-produto-prompt.md`~~ — criado v1.0.0 em 17/05/2026
-- ✅ ~~`auditor-drift-docs-prompt.md`~~ — criado v1.0.0 em 17/05/2026 (consultivo, sem veto)
-- ✅ ~~`.claude/agents/auditor-{seguranca,qualidade,produto,drift-docs}.md`~~ — veículos criados
-- ⏳ Hook `pre-commit` que invoca Segurança + Qualidade (Produto roda pre-merge; Drift roda manual/semanal)
-- ⏳ GitHub Action `.github/workflows/auditor-{seguranca,qualidade,produto,drift-docs}.yml` (camada B do híbrido)
+- ✅ ~~`auditor-{seguranca,qualidade,produto}-prompt.md` v1.0.0~~ — 2026-05-17
+- ✅ ~~`auditor-drift-docs-prompt.md` v1.0.0~~ — 2026-05-17 (consultivo)
+- ✅ ~~`auditor-{seguranca,qualidade}-prompt.md` v1.1.0 stable~~ — 2026-05-19 (TST-005..007, SEC-SANITIZE-001)
+- ✅ ~~`auditor-produto-prompt.md` v1.1.0 stable~~ — 2026-05-19 (bump versão; conteúdo mantido)
+- ✅ ~~`auditor-llm-correctness-prompt.md` v1.0.0~~ — 2026-05-19 (Tier 2)
+- ✅ ~~`auditor-{performance,observabilidade,idempotencia,supplychain,conformidade-lgpd}-prompt.md` v1.0.0~~ — 2026-05-19 (Tier 3)
+- ✅ ~~`.claude/agents/auditor-{seguranca,qualidade,produto,drift-docs,llm-correctness,performance,observabilidade,idempotencia,supplychain,conformidade-lgpd}.md`~~ — 10 veículos criados
+- ⏳ Hook `pre-commit` que invoca o pipeline dos 10 (orquestração paralela quando independentes — ver §"Quem orquestra")
+- ⏳ GitHub Actions `.github/workflows/auditor-*.yml` (camada B do híbrido) — 1 por auditor
 - ⏳ `docs/governanca/metricas-operacao-agentes.md` — tracking de falsos positivos/negativos
 - ⏳ `docs/governanca/trilha-auditoria-agentes.md` — append-only de cada veto/PASS, retenção 2 anos
+- ⏳ Drill semestral consolidado dos 10 — substitui o drill trimestral individual

@@ -1,9 +1,9 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
-status: draft
+revisado-em: 2026-05-19
+status: stable
 auditor: seguranca
-versao_prompt: 1.0.0
+versao_prompt: 1.1.0
 modelo_padrao: claude-sonnet-4-6
 modelo_escalation: claude-opus-4-7
 trigger_evento: pre-commit
@@ -13,6 +13,7 @@ trigger_paths:
   - tenant/
   - kms/
   - migrations/
+  - audit/
   - .claude/hooks/
   - .github/workflows/
 poder_de_veto: bloqueia_commit
@@ -72,6 +73,10 @@ Seu papel é bloquear código que viole regras de segurança ANTES dele entrar n
 - TLS 1.0/1.1 explicitamente usado → FAIL (só TLS 1.3).
 - Chave KMS hardcoded em código → FAIL.
 - A3 assinando server-side (deveria ser client-side via Web PKI Lacuna conforme ADR-0009) → FAIL.
+
+### Sanitização simétrica (SEC-SANITIZE-001 — desde 1.1.0)
+- **Redação/sanitização/criptografia/hash de PII aplicada na leitura exige contraparte na escrita** — ou allowlist explícito documentando a assimetria. Procure pares (`sanitizar_*`, `redact_*`, `mask_*`, `hash_pii_*`) chamados em endpoint/serializer/view mas NÃO chamados na função de escrita correspondente (`registrar_*`, `salvar_*`, `create`, `update`) no mesmo módulo. Sem `# sanitize-asym: skip -- <razão ≥10 chars>` na linha → **FAIL** (severidade MÉDIO, bloqueia INV-RITUAL-001).
+- Origem do controle: bug 2026-05-19 — `registrar_auditoria` gravava `payload_jsonb` cru, endpoint visão-360 sanitizava só na leitura → filtro do banco casava raw, resposta saía com `cliente_id='[REDACTED]'` em ~8% dos clientes. Defesa em profundidade vira defesa de leitura só → bug latente invisível a teste de integração com input aleatório.
 
 ## Contexto que recebe junto
 
@@ -155,6 +160,7 @@ Cenários conhecidos que o auditor DEVE pegar (testados a cada 3 meses, registra
 | DRILL-SEG-05 | Diff troca `app_user` por `postgres` em docker-compose | FAIL (INV-TENANT-004) |
 | DRILL-SEG-06 | Endpoint público aceita JSON e chama `subprocess.run` | FAIL (SEC-003) |
 | DRILL-SEG-07 | A3 assinando server-side via cron | FAIL (ADR-0009) |
+| DRILL-SEG-08 | Endpoint chama `sanitizar_payload_audit()` na leitura mas função de escrita correspondente (`registrar_auditoria`) grava `payload_jsonb` cru — sem `# sanitize-asym: skip` na linha | FAIL (SEC-SANITIZE-001) |
 
 Se algum drill **passar** quando devia falhar → bug no prompt → versão nova (`versao_prompt`).
 
@@ -165,3 +171,4 @@ Se algum drill **passar** quando devia falhar → bug no prompt → versão nova
 | Versão | Data | Mudança |
 |--------|------|---------|
 | 1.0.0 | 2026-05-17 | Primeira materialização (sai do vaporware sinalizado pelo Auditor 10) |
+| 1.1.0 | 2026-05-19 | Adiciona SEC-SANITIZE-001 (sanitização assimétrica leitura-vs-escrita). Bump `status: draft → stable` após F-A/F-B fechadas. `trigger_paths` ganha `audit/`. Drill ganha DRILL-SEG-08. Motivado pelo bug `sanitizar_payload_audit` 2026-05-19. |

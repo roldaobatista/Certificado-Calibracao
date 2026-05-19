@@ -78,15 +78,30 @@ Não reabrir sem ADR.
 
 **4 subagentes especialistas em `.claude/agents/` (humanos-substitutos):**
 - `tech-lead-saas-regulado` — arquitetura, decisões técnicas
-- `advogado-saas-regulado` — LGPD, contratos, compliance regulatório
+- `advogado-saas-regulado` — LGPD, contratos, compliance regulatório (parecer estratégico)
 - `corretora-seguros-saas` — risco, seguro cyber + RC profissional
 - `consultor-rbc-iso17025` — calibração, NIT-DICLA, RBC
 
-**3 auditores Família 5 (Segurança, Qualidade, Produto)** — operam pré-commit/pré-merge via prompts versionados (`docs/governanca/auditor-*-prompt.md` — pendente). Catálogo em `docs/governanca/catalogo-auditores.md`.
+**10 auditores Família 5** (expandido em 2026-05-19, motivado pelo bug `sanitizar_payload_audit` que passou em PASS dos 3 auditores 1.0.0) — operam pré-commit/pré-merge via prompts versionados em `docs/governanca/auditor-*-prompt.md`. Catálogo em `docs/governanca/catalogo-auditores.md`.
+
+| # | Auditor | Versão | Bloqueia |
+|---|---|---|---|
+| 1 | `auditor-seguranca` | 1.1.0 stable | commit |
+| 2 | `auditor-qualidade` | 1.1.0 stable | commit |
+| 3 | `auditor-produto` | 1.1.0 stable | merge |
+| 4 | `auditor-drift-docs` | 1.0.0 | consultivo |
+| 5 | `auditor-llm-correctness` | 1.0.0 stable | commit |
+| 6 | `auditor-performance` | 1.0.0 stable | commit |
+| 7 | `auditor-observabilidade` | 1.0.0 stable | commit |
+| 8 | `auditor-idempotencia` | 1.0.0 stable | commit |
+| 9 | `auditor-supplychain` | 1.0.0 stable | commit |
+| 10 | `auditor-conformidade-lgpd` | 1.0.0 stable | commit |
+
+Severidade consistente com INV-RITUAL-001 — MÉDIO+ bloqueia fechamento de Fase/Marco/Story.
 
 **Humano licenciado contratado SOB DEMANDA** para casos que exigem assinatura legal (apólice SUSEP, parecer OAB, dossiê CGCRE).
 
-Inventário de subagentes técnicos genéricos (code-reviewer, test-runner, etc.) **NÃO existe por escolha** — o trabalho deles está distribuído entre os 4 substitutos + 3 auditores.
+Inventário de subagentes técnicos genéricos (code-reviewer, test-runner, etc.) **NÃO existe por escolha** — o trabalho deles está distribuído entre os 4 substitutos + 10 auditores.
 
 ---
 

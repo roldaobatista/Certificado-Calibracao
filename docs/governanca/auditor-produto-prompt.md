@@ -1,9 +1,9 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
-status: draft
+revisado-em: 2026-05-19
+status: stable
 auditor: produto
-versao_prompt: 1.0.0
+versao_prompt: 1.1.0
 modelo_padrao: claude-opus-4-7
 trigger_evento: pre-merge
 trigger_escopo: feature_completa
@@ -192,3 +192,4 @@ Todos os AC ✅ + zero non-goal violado + glossário coerente em UX externa + se
 | Versão | Data | Mudança |
 |--------|------|---------|
 | 1.0.0 | 2026-05-17 | Primeira materialização |
+| 1.1.0 | 2026-05-19 | Bump `status: draft → stable` após F-A/F-B fechadas via ritual completo. Conteúdo mantido — não houve incidente de produto que motive nova regra. Próxima revisão: pós-Marco 1 `clientes` definitivo. |

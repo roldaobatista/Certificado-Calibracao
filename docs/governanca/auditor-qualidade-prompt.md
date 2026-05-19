@@ -1,9 +1,9 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
-status: draft
+revisado-em: 2026-05-19
+status: stable
 auditor: qualidade
-versao_prompt: 1.0.0
+versao_prompt: 1.1.0
 modelo_padrao: claude-sonnet-4-6
 trigger_evento: pre-commit
 trigger_paths:
@@ -57,6 +57,11 @@ Você NÃO opina sobre design, NÃO sugere refactor, NÃO comenta naming. Você 
 ### Invariantes com teste
 - **TST-004** Toda regra **INV-*** crítica precisa de ≥1 teste cujo nome cita o ID. Exemplo: `def test_INV_TENANT_001_query_sem_tenant_id_falha():`. Se diff adiciona INV-* sem teste correspondente OU remove o último teste que cita um INV-* existente → FAIL.
 
+### Cobertura efetiva (não só percentual)
+- **TST-005** Função pública nova que case com `def sanitizar_*`, `def parse_*`, `def validar_*`, `def converter_*`, `def normalizar_*`, `def redact_*`, `def mask_*`, `def hash_pii_*` ou similar (transformação/sanitização/parser/validador) **exige teste unitário direto** no padrão `tests/test_<modulo>.py` com `def test_<funcao>_*` cobrindo no mínimo happy path + 1 caso de borda. Não basta ser exercitada via teste de integração. **MÉDIO** (bloqueia INV-RITUAL-001). Origem: bug 2026-05-19 `sanitizar_payload_audit` redigia UUID em ~8% dos clientes; só era exercitada via integração com input aleatório → bug latente passou em PASS dos auditores 1.0.0.
+- **TST-006** Teste cujo corpo usa fonte aleatória não-seeded (`uuid.uuid4()`, `os.urandom`, `secrets.token_*`, `time.time_ns`) **exige ≥1 outro `test_*` no mesmo arquivo com input literal fixo** cobrindo casos de borda (ex: UUID digit-heavy `01234567-89ab-4cde-8f01-234567890123`, ULID começando com `0`, slug com underline). **MÉDIO**. Origem: uuid4 vem de `os.urandom`, não obedece semente do `pytest-randomly` → falha 8% das vezes parece "aleatória" e auditor fecha fase achando que está limpo.
+- **TST-007** Função com `re.compile(...)` ou regex inline sobre input externo (parâmetro string) **exige teste varrendo ≥1000 amostras de classes adjacentes sem falso positivo** no padrão `test_<funcao>_zero_falsos_positivos_em_<classe>` em loop. Classes mínimas: UUID v4 (5000+), ULID (1000+), slug `[a-z0-9-]+` (1000+), base64-url (1000+). Casos positivos obrigatórios: e-mail real, CPF/CNPJ/telefone reais. **MÉDIO**.
+
 ### Cobertura mínima (a calibrar após Foundation F-A)
 - Threshold: a definir em ADR-0001 final (sugestão inicial 70% global, 90% em `financeiro/`, `tenant/`, `auth/`, `kms/`, `migrations/`).
 - Diff que **reduz** cobertura em path crítico → FAIL.
@@ -98,6 +103,9 @@ FAIL 1: <regra ID ou padrão> — <arquivo:linha>
 - TST-002 violado (assertion vazia)
 - TST-003 violado (bypass silencioso)
 - TST-004 violado (INV-* sem teste)
+- TST-005 violado (função de sanitização/parser/validador sem teste unitário direto)
+- TST-006 violado (teste com input aleatório sem caso determinístico de borda)
+- TST-007 violado (regex sem varredura de falsos positivos em classes adjacentes)
 - Mascaramento detectado (return True solto, etc.)
 - Cobertura abaixo do threshold em path crítico
 
@@ -143,6 +151,9 @@ Diff respeita as regras + adiciona ou mantém testes adequados. PASS é normal.
 | DRILL-QLD-05 | Diff que reduz cobertura de `tenant/` de 95% pra 70% | FAIL |
 | DRILL-QLD-06 | Diff com `def emit_nfse(): pass` em handler público | FAIL (mascaramento) |
 | DRILL-QLD-07 | Diff só `.md` (doc) sem código | PASS |
+| DRILL-QLD-08 | Diff adiciona `def sanitizar_payload_v2(payload):` em `src/infrastructure/audit/services.py` sem `tests/test_sanitizar_payload_v2.py` | FAIL (TST-005) |
+| DRILL-QLD-09 | Teste usa `uuid.uuid4()` em asserção mas não tem teste-irmão com UUID literal de borda | FAIL (TST-006) |
+| DRILL-QLD-10 | Função `def validar_documento(s)` com `re.compile(r"\\d{11}")` sem teste varrendo 1000+ UUID/ULID/slug | FAIL (TST-007) |
 
 ---
 
@@ -151,3 +162,4 @@ Diff respeita as regras + adiciona ou mantém testes adequados. PASS é normal.
 | Versão | Data | Mudança |
 |--------|------|---------|
 | 1.0.0 | 2026-05-17 | Primeira materialização |
+| 1.1.0 | 2026-05-19 | Adiciona TST-005 (função pública de transformação sem teste unitário direto), TST-006 (input aleatório sem caso determinístico), TST-007 (regex sem varredura de falsos positivos). Bump `status: draft → stable` após F-A/F-B fechadas. Drill ganha 3 cenários (DRILL-QLD-08..10). Motivado pelo bug do `sanitizar_payload_audit` 2026-05-19 que passou em PASS 1.0.0. |
