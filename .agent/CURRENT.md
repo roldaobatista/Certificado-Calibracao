@@ -58,6 +58,18 @@ não fechava.
 - **Lint sweep #7** (commit `3aeb3d4`, no servidor): ruff 193→0,
   format 100%, avisos de critério na causa-raiz. Suíte 293 verde em
   ordem fixa. NÃO reabre Foundation.
+- **Expansão Família 5: 4 → 10 auditores** (commit `3fb9caa`, no
+  servidor): Tier 1+2+3 completo motivado pelo bug `sanitizar_payload_audit`
+  que passou em PASS dos auditores 1.0.0. Tier 1 endurece 3 prompts
+  existentes (bump 1.1.0 stable) com TST-005..007 + SEC-SANITIZE-001.
+  Tier 2 cria `auditor-llm-correctness` (LLM-001..003, Opus 4.7). Tier 3
+  cria 5 auditores novos: performance (PERF-001..003), observabilidade
+  (OBS-001..003), idempotência (IDEMP-001..002), supply chain
+  (DEP-001..003), conformidade-LGPD mecânico (LGPD-MEC-001..003).
+  Severidade consistente com INV-RITUAL-001 — MÉDIO+ bloqueia fechamento.
+  AGENTS §5 + catálogo + memória `project_no_human_consultants` alinhados.
+  130/130 hooks verdes. Pendências rastreadas (não bloqueiam): hook
+  pre-commit orquestrador, 10 GitHub Actions, métricas/trilha de operação.
 - **Flake visão-360 RESOLVIDO na causa-raiz** (commit `6c3e7b8`, no
   servidor): bug de PRODUÇÃO, não artefato de teste. `sanitizar_payload_audit`
   redigia `cliente_id` quando o UUID coincidia com regex de CPF/telefone
