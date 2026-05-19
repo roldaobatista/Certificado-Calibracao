@@ -14,6 +14,8 @@ relacionados:
 
 # Drill de saída — Foundation F-A
 
+> **STATUS 2026-05-18 — F-A FECHADA COM RESSALVAS, EM SANEAMENTO (rodada 1→2).** A auditoria de 10 lentes (`auditorias/F-A-CONSOLIDADO-rodada-1.md`) achou débitos CRÍTICO/ALTO. Loop de saneamento em curso: FA-A4/FA-C1/FA-A2/FA-A1+FA-M2/FA-A5+FA-M1 fechados; FA-M3 + reauditoria rodada 2 pendentes. F-A **não** está fechada definitivamente — só fecha quando a rodada 2 vier sem CRÍTICO/ALTO. Este drill foi **endurecido** pelo FA-A5 (era fraco: 1 tenant/5 linhas/só feliz, 50×100, p99 1 tenant).
+>
 > **Pra que serve:** F-A só fecha (e Foundation F-B só começa) quando os 7 critérios abaixo estiverem todos verdes. Este doc lista cada critério + como rodar.
 >
 > **Quando rodar:** ao final das 4–6 semanas da F-A, antes de Roldão autorizar passar pra F-B.
@@ -39,11 +41,11 @@ Vai aparecer algo tipo:
 [5/5] Benchmark p99 (pode demorar)...
 
 ===== RESUMO DRILL F-A =====
-  [OK ] Hooks 88/88 verdes: resumo: 88 ok, 0 falhas
+  [OK ] Hooks _test-runner verdes: resumo: 113 ok, 0 falhas
   [OK ] Roles app_user/app_migrator NOBYPASSRLS: ambas NOBYPASSRLS + NOSUPERUSER
   [OK ] Trigger auditoria_anti_* existe: triggers: ['auditoria_anti_delete', 'auditoria_anti_update']
-  [OK ] Hash chain do audit trail integro: 5 linhas verificadas, 0 quebras
-  [OK ] p99 query operacional < 200ms: p50=4.2ms p99=18.7ms (limite 200ms)
+  [OK ] Hash chain do audit trail integro: 3 tenants intercalados OK; adulteracao detectada (1 elos); 80 inserts concorrentes -> 84 elos integros
+  [OK ] p99 query operacional < 200ms: 3 tenants x 500 = 1500 linhas: p50=3.0ms p99=7.2ms (lim 200ms)
 
 F-A drill: 5/5 criterios automaveis OK. Falta validar 2 criterios operacionais (memoria + auditor).
 ```
@@ -58,9 +60,10 @@ docker compose exec app poetry run python manage.py validar_f_a --quick
 
 ---
 
-## Rodar fuzzing cross-tenant (50 threads × 100 queries)
+## Rodar fuzzing cross-tenant (50 threads × 1000 queries)
 
-Critério: **ZERO vazamento** em fuzzing concorrente.
+Critério §2 L94: **ZERO vazamento** em fuzzing concorrente (50×1000 —
+FA-A5 corrigiu o drill fraco anterior que era 50×100).
 
 ```bash
 docker compose exec app poetry run pytest \
@@ -70,8 +73,8 @@ docker compose exec app poetry run pytest \
 
 Saída esperada:
 ```
-test_50_threads_x_100_queries_zero_vazamento PASSED  [100%]
-=== 1 passed in 18.4s ===
+test_50_threads_x_1000_queries_zero_vazamento PASSED  [100%]
+=== 1 passed in ~145s ===
 ```
 
 Se falhar com `VAZAMENTO CROSS-TENANT DETECTADO`, é **SEV-0** — para tudo + abrir postmortem.

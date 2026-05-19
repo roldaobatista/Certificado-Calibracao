@@ -4,11 +4,13 @@ Uso:
     docker compose exec app poetry run python manage.py validar_f_a
 
 Executa os 5 criterios de saida AUTOMAVEIS (faseamento-foundation-waves §2):
-  1. Hooks 88/88 verdes (bash _test-runner.sh)
+  1. Hooks verdes (bash _test-runner.sh — contagem lida do output, nao fixa)
   2. Verifica que NOBYPASSRLS esta ativo nas roles app_user e app_migrator
   3. Verifica que trigger anti-mutation existe em auditoria
-  4. Hash chain do audit trail integro
-  5. Benchmark p99 simples (insercoes em escala reduzida)
+  4. Hash chain ROBUSTO (FA-A5): 3 tenants intercalados + verificacao
+     por-tenant + injecao de elo adulterado (exige DETECCAO) + concorrencia
+  5. Benchmark p99 MULTI-TENANT (FA-A5): --escala aproxima 10k linhas x
+     50 tenants (§2 L95); default reduzido pra dev
 
 Criterios NAO automaveis (operacao do periodo F-A — 4-6 semanas):
   6. Drill restore PG cronometrado (rodar manual com pgBackRest)
@@ -23,6 +25,7 @@ from __future__ import annotations
 import statistics
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from uuid import uuid4
@@ -30,6 +33,7 @@ from uuid import uuid4
 from django.core.management.base import BaseCommand
 from django.db import connection
 
+from src.infrastructure.audit.models import Auditoria
 from src.infrastructure.audit.services import (
     registrar_auditoria,
     verificar_integridade_cadeia,
@@ -51,6 +55,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Pula benchmark p99 (mais rapido pra desenvolvimento).",
         )
+        parser.add_argument(
+            "--escala",
+            action="store_true",
+            help="Benchmark pesado: 50 tenants x 200 linhas (~10k, §2 L95).",
+        )
 
     def handle(self, *args, **options):
         quick = options.get("quick", False)
@@ -58,7 +67,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.NOTICE("[1/5] Hooks _test-runner..."))
         ok, msg = self._verificar_hooks()
-        resultados.append(("Hooks 88/88 verdes", ok, msg))
+        resultados.append(("Hooks _test-runner verdes", ok, msg))
 
         self.stdout.write(self.style.NOTICE("[2/5] Roles NOBYPASSRLS..."))
         ok, msg = self._verificar_roles_nobypassrls()
@@ -76,7 +85,7 @@ class Command(BaseCommand):
             resultados.append(("Benchmark p99 < 200ms", True, "pulado (--quick)"))
         else:
             self.stdout.write(self.style.NOTICE("[5/5] Benchmark p99 (pode demorar)..."))
-            ok, msg = self._benchmark_p99()
+            ok, msg = self._benchmark_p99(escala=options.get("escala", False))
             resultados.append(("p99 query operacional < 200ms", ok, msg))
 
         self.stdout.write("")
@@ -98,9 +107,7 @@ class Command(BaseCommand):
                 )
             )
             return
-        self.stdout.write(
-            self.style.ERROR(f"F-A drill REPROVADO: {falhas} criterio(s) falharam.")
-        )
+        self.stdout.write(self.style.ERROR(f"F-A drill REPROVADO: {falhas} criterio(s) falharam."))
         sys.exit(1)
 
     # =============================================================
@@ -112,8 +119,8 @@ class Command(BaseCommand):
         if not runner.exists():
             return False, f"runner nao encontrado em {runner}"
         try:
-            result = subprocess.run(  # noqa: S603 — runner conhecido versionado no repo
-                ["bash", str(runner)],
+            result = subprocess.run(
+                ["bash", str(runner)],  # noqa: S603,S607 -- runner versionado conhecido no repo, sem input externo do usuario
                 capture_output=True,
                 text=True,
                 timeout=60,
@@ -152,59 +159,145 @@ class Command(BaseCommand):
         return False, f"esperava >=2 triggers anti-mutation, achei {triggers}"
 
     def _verificar_hash_chain(self) -> tuple[bool, str]:
+        """FA-A5: drill robusto — NAO mais 1 tenant / 5 linhas / so feliz.
+
+        Prova: (a) 3 tenants intercalados c/ cadeias independentes integras;
+        (b) injecao de elo adulterado num tenant EXIGE deteccao (se nao
+        detectar, REPROVA — drill que mente e o bug que FA-A5 conserta);
+        (c) concorrencia: N threads no mesmo tenant -> cadeia final integra.
+        """
         with run_as_system():
-            t = Tenant.objects.create(
-                slug=f"drill-{uuid4().hex[:8]}",
-                nome_fantasia="Drill",
-            )
+            tenants = [
+                Tenant.objects.create(
+                    slug=f"drill-{i}-{uuid4().hex[:8]}", nome_fantasia=f"Drill{i}"
+                )
+                for i in range(3)
+            ]
             u = Usuario.objects.create_user(
                 email=f"drill-{uuid4().hex[:8]}@x.com",
-                password="drill-teste-12-chars",
+                password="drill-teste-12-chars",  # noqa: S106 -- credencial descartavel de usuario de drill, nao e segredo
             )
 
-        with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
-            for i in range(5):
-                registrar_auditoria(
-                    tenant_id=t.id, usuario_id=u.id,
-                    action=f"drill.{i}",
-                    resource_summary=f"drill-{i}",
-                    payload={"i": i},
+        # (a) inserts INTERCALADOS A,B,C,A,B,C... (4 rodadas = 4 elos/tenant)
+        for rodada in range(4):
+            for t in tenants:
+                with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
+                    registrar_auditoria(
+                        tenant_id=t.id,
+                        usuario_id=u.id,
+                        action=f"drill.r{rodada}",
+                        resource_summary=f"intercalado-{rodada}",
+                        payload={"r": rodada},
+                    )
+        for t in tenants:
+            ok, total, quebrados = verificar_integridade_cadeia(tenant_id=t.id)[str(t.id)]
+            if not ok:
+                return False, (
+                    f"tenant {t.slug}: cadeia quebrada (intercalacao): " f"{quebrados[:3]}"
                 )
-        # FA-C1: verificacao POR cadeia, FORA do contexto (a funcao gerencia
-        # o proprio contexto por tenant). Pede a cadeia deste tenant.
-        ok, total, quebrados = verificar_integridade_cadeia(tenant_id=t.id)[str(t.id)]
-        if not ok:
-            return False, f"cadeia quebrada em {len(quebrados)} elos: {quebrados[:3]}"
-        if total < 5:
-            return False, f"esperava >=5 linhas, achei {total} (RLS pode estar filtrando)"
-        return True, f"{total} linhas verificadas, 0 quebras"
+            if total < 4:
+                return False, (
+                    f"tenant {t.slug}: esperava >=4 elos, achei {total} "
+                    f"(RLS pode estar filtrando entre tenants)"
+                )
 
-    def _benchmark_p99(self) -> tuple[bool, str]:
-        with run_as_system():
-            t = Tenant.objects.create(
-                slug=f"bench-{uuid4().hex[:8]}",
-                nome_fantasia="Bench",
+        # (b) ADULTERACAO: poe elo mentiroso no tenant[0]; verificacao DEVE
+        #     acusar. Se passar limpo, o drill estaria mentindo (FA-A5).
+        alvo = tenants[0]
+        with run_in_tenant_context(tenant_id=alvo.id, usuario_id=u.id):
+            Auditoria.objects.create(
+                tenant_id=alvo.id,
+                usuario_id=u.id,
+                action="drill.poison",
+                resource_summary="elo-adulterado",
+                payload_jsonb={"x": 1},
+                hash_anterior="0" * 64,
+                hash_atual="f" * 64,
             )
+        ok_pos, _, quebrados_pos = verificar_integridade_cadeia(tenant_id=alvo.id)[str(alvo.id)]
+        if ok_pos or not quebrados_pos:
+            return False, (
+                "FALHA CRITICA: elo adulterado NAO detectado — o drill "
+                "estaria dando F-A como verde mentindo (FA-A5)"
+            )
+        # tenant nao adulterado continua integro (isolamento da deteccao)
+        ok_b, _, _ = verificar_integridade_cadeia(tenant_id=tenants[1].id)[str(tenants[1].id)]
+        if not ok_b:
+            return False, "deteccao vazou: tenant integro acusado junto"
+
+        # (c) CONCORRENCIA: 8 threads x 10 inserts no tenant[2] sob lock
+        #     por-tenant (FA-C1) -> cadeia final integra.
+        conc = tenants[2]
+        erros: list[str] = []
+
+        def _inserir(n: int) -> None:
+            try:
+                with run_in_tenant_context(tenant_id=conc.id, usuario_id=u.id):
+                    registrar_auditoria(
+                        tenant_id=conc.id,
+                        usuario_id=u.id,
+                        action=f"conc.{n}",
+                        resource_summary=f"c{n}",
+                        payload={"n": n},
+                    )
+            except Exception as e:  # drill captura tudo p/ reportar no resumo
+                erros.append(f"{type(e).__name__}:{e}")
+
+        threads = [threading.Thread(target=_inserir, args=(n,)) for n in range(80)]
+        for th in threads:
+            th.start()
+        for th in threads:
+            th.join()
+        if erros:
+            return False, f"concorrencia: {len(erros)} erros, ex: {erros[0]}"
+        ok_c, total_c, quebrados_c = verificar_integridade_cadeia(tenant_id=conc.id)[str(conc.id)]
+        if not ok_c:
+            return False, (
+                f"concorrencia quebrou cadeia: {quebrados_c[:3]} " f"(lock por-tenant FA-C1 falhou)"
+            )
+        return True, (
+            f"3 tenants intercalados OK; adulteracao detectada "
+            f"({len(quebrados_pos)} elos); 80 inserts concorrentes -> "
+            f"{total_c} elos integros"
+        )
+
+    def _benchmark_p99(self, escala: bool = False) -> tuple[bool, str]:
+        """FA-A5: benchmark MULTI-TENANT intercalado (nao 1 tenant seq).
+
+        §2 L95 exige p99 < 200ms com 10k linhas x 50 tenants. `--escala`
+        roda 50 tenants x 200 = 10k linhas intercaladas (proximo do literal).
+        Default dev = 3 tenants x 500 (rapido; mesma forma multi-tenant).
+        """
+        n_tenants, por_tenant = (50, 200) if escala else (3, 500)
+        with run_as_system():
+            tenants = [
+                Tenant.objects.create(slug=f"bench-{i}-{uuid4().hex[:8]}", nome_fantasia=f"B{i}")
+                for i in range(n_tenants)
+            ]
             u = Usuario.objects.create_user(
                 email=f"bench-{uuid4().hex[:8]}@x.com",
-                password="bench-teste-12-chars",
+                password="bench-teste-12-chars",  # noqa: S106 -- credencial descartavel de usuario de drill, nao e segredo
             )
 
         tempos_ms: list[float] = []
-
-        with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
-            for i in range(1000):
-                inicio = time.perf_counter()
-                registrar_auditoria(
-                    tenant_id=t.id, usuario_id=u.id,
-                    action="bench",
-                    resource_summary=f"linha-{i}",
-                    payload={"i": i, "msg": "benchmark"},
-                )
-                tempos_ms.append((time.perf_counter() - inicio) * 1000)
+        # Intercalado: rodada externa, todos os tenants por rodada — exercita
+        # o lock por-tenant + indice (tenant_id, sequencia) sob alternancia.
+        for i in range(por_tenant):
+            for t in tenants:
+                with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
+                    inicio = time.perf_counter()
+                    registrar_auditoria(
+                        tenant_id=t.id,
+                        usuario_id=u.id,
+                        action="bench",
+                        resource_summary=f"l-{i}",
+                        payload={"i": i, "msg": "benchmark"},
+                    )
+                    tempos_ms.append((time.perf_counter() - inicio) * 1000)
 
         p99 = statistics.quantiles(tempos_ms, n=100)[98]
         p50 = statistics.median(tempos_ms)
+        escopo = f"{n_tenants} tenants x {por_tenant} = {len(tempos_ms)} linhas"
         if p99 < 200:
-            return True, f"p50={p50:.1f}ms p99={p99:.1f}ms (limite 200ms)"
-        return False, f"p99={p99:.1f}ms (>= 200ms — investigar indices)"
+            return True, f"{escopo}: p50={p50:.1f}ms p99={p99:.1f}ms (lim 200ms)"
+        return False, f"{escopo}: p99={p99:.1f}ms (>=200ms — investigar indices)"

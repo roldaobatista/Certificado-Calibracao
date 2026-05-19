@@ -2,15 +2,15 @@
 
 > **Para agentes (Claude Code, Codex CLI, Cursor, Windsurf, Kiro):** este é o documento de referência primária do projeto. O `CLAUDE.md` (irmão) é só adendo de harness do Claude Code e importa este via `@AGENTS.md`.
 >
-> **Status (2026-05-18, madrugada do dia seguinte):** **Foundation F-A + F-B FECHADAS + Wave A Marco 1 (`clientes`) FECHADO + Wave A Marco 2 (`equipamentos`) — PRD v2 + 7 planos US revisados FECHADOS.**
-> - F-A + F-B fechadas em 2026-05-18 (ADRs 0001/0002/0007 + 0012/0006 aceitas).
+> **Status (2026-05-18, saneamento F-A):** **F-A FECHADA COM RESSALVAS — EM SANEAMENTO (rodada 1→2).** A auditoria de 10 lentes (`docs/faseamento/auditorias/F-A-CONSOLIDADO-rodada-1.md`) achou débitos CRÍTICO/ALTO. Loop em curso: **FA-A4/FA-C1/FA-A2/FA-A1+FA-M2/FA-A5+FA-M1 fechados verdes**; FA-M3 + reauditoria rodada 2 pendentes. F-A **não** está fechada definitivamente; F-B/Marco 2 NÃO retomam até rodada 2 sem CRÍTICO/ALTO. Estado vivo em `.agent/CURRENT.md`.
+> - F-A + F-B atingiram critérios em 2026-05-18 (ADRs 0001/0002/0007 + 0012/0006 aceitas), mas F-A reaberta em saneamento pela auditoria (drill era fraco — FA-A5 endureceu).
 > - Marco 1 `clientes`: 5 US verdes, 3 auditores Família 5 aprovaram, suite 207 passed + 2 skipped, cobertura 86.01%.
 > - Marco 2 `equipamentos`: PRD STABLE v2 + 7 planos US revisados (após auditoria de 4 subagentes no PRD + 12 reviews por US — tech-lead + advogado). 3 decisões Roldão: (1) Redis no docker-compose agora, (2) fatiar US-EQP-002 em 002+002b, (3) Caminho A para cadastro provisório (`RecebimentoProvisorio` separada).
 > - ADRs novas: **ADR-0018** (PWA scanner QR) + **ADR-0019** (responsabilidade agente IA).
 > - INVs novas: **INV-049/050/051/INV-EQP-LOC-001/INV-EQP-VERSAO-001/002/INV-EQP-ANOM-001/002/INV-EQP-PROV-001** (9 invariantes).
 > - Docs novas: `RAT-EQP-FOTO`, matriz retenção (+5 linhas), `qr-publico-allowlist.md`, `controles-compensatorios-codigo-ia.md`, `transferencia-aceite-presencial-marco2.md`.
-> - **Suite total: 88 (F-A+F-B) + 207 (M1 clientes) = 295 passed + 3 skipped; hooks 113/113.**
-> Próximo passo (Wave A Marco 2): `/tasks` por US → `/implement` → 3 auditores Família 5. Acompanhamento em `.agent/CURRENT.md`.
+> - **Suite total (pós-saneamento FA-A4..FA-A5, verificado 2026-05-18): 259 passed, cobertura ~85% (84.x), hooks 113/113.** (O "295 passed/86.01%" anterior era pré-saneamento e driftado — FA-M1.)
+> Próximo passo: continuar loop F-A — FA-M3 → reauditoria rodada 2 (10 lentes) → só então F-B/Marco 2. Acompanhamento em `.agent/CURRENT.md`.
 
 ---
 
@@ -204,10 +204,10 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 
 ### Foundation F-A + F-B fechadas (2026-05-18)
 
-- **F-A** — 5/5 critérios automáveis verde + drill restore PG 2,52s. Suite F-A: 58 passed. Detalhes em `docs/faseamento/drill-f-a-saida.md`.
-- **F-B** — 7/7 critérios automáveis verde (hooks 103/103, trigger anti-mutation authz, hash chain íntegra, fuzzing 500 cross-tenant zero vazamento, 16 E2E sem flake, MFA middleware 5 cenários, RequireAuthz DRF importável). Suite F-B: +30 testes (16 E2E + 5 audit + 3 isolamento + 5 MFA + 1 fuzzing). Total: 88 passed, 1 skipped. Detalhes em `docs/faseamento/drill-f-b-saida.md`.
+- **F-A** — atingiu 5/5 critérios automáveis em 2026-05-18, **mas reaberta EM SANEAMENTO** pela auditoria 10 lentes (drill era fraco). FA-A5 endureceu o drill (3 tenants intercalados + detecção de adulteração + concorrência + fuzzing 50×1000 + benchmark multi-tenant). Só fecha definitivo na reauditoria rodada 2 sem CRÍTICO/ALTO. Detalhes em `docs/faseamento/drill-f-a-saida.md` + `auditorias/F-A-CONSOLIDADO-rodada-1.md`.
+- **F-B** — 7/7 critérios automáveis verde no fechamento original. Suite F-B: +30 testes (16 E2E + 5 audit + 3 isolamento + 5 MFA + 1 fuzzing). **Suite total pós-saneamento F-A: 259 passed; hooks 113/113** (números "88/103" eram pré-saneamento/driftados — FA-M1). F-B só retoma após F-A rodada 2 verde. Detalhes em `docs/faseamento/drill-f-b-saida.md`.
 
-### Hooks (15 ativos — 103/103 testes verdes)
+### Hooks (15 ativos — 113/113 testes verdes)
 
 Veja §3 pra lista completa. Marco 5 da F-A (2026-05-17) acrescentou:
 - `migration-rls-check.sh` — INV-TENANT-003: bloqueia migration que cria tabela com `tenant_id` sem `CREATE POLICY`/`ENABLE ROW LEVEL SECURITY` na mesma migration (allow via `# rls-policy: external NNNN`).

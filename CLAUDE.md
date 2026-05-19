@@ -64,7 +64,7 @@ Ambiente operacional, sem código de produto ainda. Discovery concluída; arquit
 
 **`.claude/` (versionado):**
 - `settings.json` ✅ — permissões + hooks
-- `hooks/` ✅ — 8 hooks: `block-destructive`, `secrets-scanner`, `_test-runner` (23 casos), `INV-checker`, `tenant-id-validator`, `anti-mascaramento`, `context-budget`, `paths-frontmatter-validator`. Faltam 3 (ver AGENTS §12)
+- `hooks/` ✅ — 15 hooks ativos, **113 casos** no `_test-runner` (lista completa em AGENTS §3). Nenhum faltando (drift FA-M1 corrigido — antes dizia "8 hooks / 23 casos / faltam 3").
 - `agents/` ✅ — 4 subagentes humanos-substitutos: `tech-lead-saas-regulado`, `advogado-saas-regulado`, `corretora-seguros-saas`, `consultor-rbc-iso17025`
 - `output-styles/pt-br-conciso.md` ✅
 - `skills/`, `commands/`, `rules/` — vazios por escolha; criar quando padrão repetir 3 vezes
@@ -107,7 +107,7 @@ Confirmar antes de operações irreversíveis: `git reset --hard`, `git push --f
 ├── agents/                ← 4 subagentes humanos-substitutos (tech-lead, advogado, corretora, RBC)
 ├── skills/                ← vazio (criar quando padrão repetir 3x)
 ├── commands/              ← vazio (preferir skills no padrão novo)
-├── hooks/                 ← 8 hooks: block-destructive, secrets-scanner, _test-runner, INV-checker, tenant-id-validator, anti-mascaramento, context-budget, paths-frontmatter-validator
+├── hooks/                 ← 15 hooks ativos (113 casos no _test-runner) — lista completa em AGENTS §3
 ├── rules/                 ← vazio (criar com `paths:` frontmatter — lazy)
 └── output-styles/         ← pt-br-conciso.md
 ```

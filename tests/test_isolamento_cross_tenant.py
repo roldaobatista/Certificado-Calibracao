@@ -209,7 +209,9 @@ class TestTriggerPGAntiMutation:
 class TestFuzzingConcorrente:
     """Criterio de saida F-A: 50 threads x 1000 queries, ZERO vazamento."""
 
-    def test_50_threads_x_100_queries_zero_vazamento(self) -> None:
+    def test_50_threads_x_1000_queries_zero_vazamento(self) -> None:
+        # FA-A5: §2 L94 exige 50 threads x 1000 queries (era 50x100 — drill
+        # fraco que declarava F-A verde sem o volume do criterio real).
         # Setup: 2 tenants, 1 usuario por tenant
         with run_as_system():
             t_a = TenantFactory()
@@ -260,9 +262,9 @@ class TestFuzzingConcorrente:
             futuros = []
             for i in range(50):
                 if i % 2 == 0:
-                    futuros.append(ex.submit(worker, t_a.id, "a", 100))
+                    futuros.append(ex.submit(worker, t_a.id, "a", 1000))
                 else:
-                    futuros.append(ex.submit(worker, t_b.id, "b", 100))
+                    futuros.append(ex.submit(worker, t_b.id, "b", 1000))
             for f in as_completed(futuros):
                 f.result()
 
