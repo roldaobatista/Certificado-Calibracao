@@ -221,6 +221,20 @@ def registrar_em_cadeia(
     helper — idêntico ao `registrar_auditoria` original, não é regressão.
     Liberar o lock antes do commit seria INCORRETO: o próximo escritor não
     veria a linha não-commitada (MVCC) e bifurcaria. Por isso xact-lock.
+
+    **INVARIANTE T-FA-01 (AC-FA-005-2b — review tech-lead P-A1):** uma
+    transação registra elos em **no máximo UMA cadeia por classe de
+    lock**. Dois requests que travem cadeias distintas em ordem inversa
+    (req1: A→B; req2: B→A) dão deadlock (xact-lock vive até o COMMIT).
+    Mitigação causa-raiz: o helper detecta, via `pg_locks` (fonte de
+    verdade da transação — xact-lock some no commit/rollback, sem
+    bookkeeping Python que vaza no pool), se JÁ HÁ outra cadeia travada
+    nesta transação e **falha alto** (proibido multi-cadeia/tx — a mais
+    simples das 2 opções do tech-lead) em vez de arriscar deadlock
+    silencioso. Chamadores atuais (1 tenant ativo/request; job usa
+    `run_in_tenant_context` por iteração = tx separada) não violam.
+    Prova empírica de ausência de deadlock sob concorrência real =
+    drill + pentest ASVS L2 externos (limite honesto de code review).
     """
     if not any(f.name == "sequencia" for f in model._meta.get_fields()):
         raise TypeError(
@@ -234,6 +248,31 @@ def registrar_em_cadeia(
             cur.execute(
                 "SELECT pg_advisory_xact_lock(%s, hashtext(%s));",
                 [classe_lock, chave_cadeia],
+            )
+            # T-FA-01: invariante é "≤1 cadeia POR CLASSE de lock por
+            # transação". auditoria (classe _AUDIT) e authz (classe
+            # _AUTHZ) são espaços SEPARADOS de propósito — uma transação
+            # que audita E autoriza é legítima (classes distintas). O
+            # risco de deadlock cross-request é DENTRO de uma classe: 2
+            # cadeias distintas da MESMA classe travadas em ordem inversa.
+            # Detecta classe com >1 objid distinto (fonte de verdade =
+            # pg_locks; xact-lock some no commit/rollback).
+            cur.execute(
+                "SELECT classid, count(DISTINCT objid) FROM pg_locks "
+                "WHERE locktype='advisory' AND pid=pg_backend_pid() "
+                "AND objsubid=2 AND classid = ANY(%s) "
+                "GROUP BY classid HAVING count(DISTINCT objid) > 1;",
+                [[_ADVISORY_LOCK_CLASSE_AUDIT, _ADVISORY_LOCK_CLASSE_AUTHZ]],
+            )
+            classe_violada = cur.fetchone()
+        if classe_violada is not None:
+            raise RuntimeError(
+                "T-FA-01: multi-cadeia na MESMA transação dentro da classe "
+                f"de lock {classe_violada[0]} ({classe_violada[1]} cadeias "
+                "distintas) — risco de deadlock cross-request "
+                "(AC-FA-005-2b). Registre cada cadeia em transação separada "
+                "(ex.: run_in_tenant_context por iteração) ou em ordem "
+                "total determinística."
             )
         hash_anterior = _ultimo_hash_da_cadeia(model, cadeia_filtro)
         hash_atual = calcular_hash(hash_anterior, canonicalizar(payload_hash))
@@ -288,6 +327,44 @@ def registrar_auditoria(
             "payload_jsonb": payload,
         },
     )
+
+
+def verificar_pii_hash_resposta_titular(
+    valor: str,
+    tenant_id: UUID | str,
+    hash_armazenado: str,
+    *,
+    usuario_id: UUID | None = None,
+    finalidade: str = "resposta_titular_anpd",
+) -> bool:
+    """`verificar_pii_hash` para uso em RESPOSTA a titular/ANPD (T-FA-04).
+
+    AC-FA-006-3b / advogado B-1: a função base `verificar_pii_hash`
+    permanece pura (levanta `ChavePIIIndisponivel`). Quando a verificação
+    sustenta uma resposta a titular/ANPD, a **inconclusividade tem que
+    deixar rastro próprio** (accountability LGPD art. 6 X) — senão o
+    relatório final diria "não localizado" sem registrar que houve falha
+    de verificação por chave ausente. Grava evento na cadeia hash DO
+    TENANT (a verificação é sobre PII daquele tenant; não exige
+    run_as_system) **sem o valor cru** e re-levanta.
+    """
+    try:
+        return verificar_pii_hash(valor, tenant_id, hash_armazenado)
+    except ChavePIIIndisponivel as exc:
+        key_id = hash_armazenado.partition(":")[0]
+        registrar_auditoria(
+            tenant_id=tenant_id if not isinstance(tenant_id, str) else UUID(tenant_id),
+            usuario_id=usuario_id,
+            action="pii.verificacao_inconclusiva",
+            resource_summary="verificar_pii_hash",
+            payload={
+                "key_id_ausente": key_id,
+                "hash_consultado_prefixo": hash_armazenado[:16],
+                "finalidade": finalidade,
+                "motivo": "ChavePIIIndisponivel",
+            },
+        )
+        raise exc
 
 
 def _verificar_uma_cadeia(tenant_id: UUID | None) -> tuple[bool, int, list[str]]:

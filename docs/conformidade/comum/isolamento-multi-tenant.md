@@ -1,8 +1,8 @@
 ---
 owner: roldao
-revisado_em: 2026-05-17
-proximo_review: 2026-08-17
-status: draft
+revisado_em: 2026-05-19
+proximo_review: 2026-08-19
+status: stable
 diataxis: reference
 audiencia: agente
 relacionados:
@@ -42,26 +42,50 @@ relacionados:
 
 ---
 
-## 1. Status de pendência das implementações
+## 1. Status de implementação (reconciliado — F-A P3, 2026-05-19)
 
-| Invariante | Documento existe? | Hook automatizado existe? | Código existe? | Quando entra |
+> Atualizado de "pendência" para **evidência de implementação real**
+> (T-FA-07 / AC-FA-009-2). A tabela abaixo reflete o código reconciliado
+> contra a especificação forward — evidência rastreável em
+> `docs/faseamento/F-A/spec.md` (o quê), `plan.md` (como, revisado por
+> tech-lead + advogado + RBC) e `tasks.md` (matriz AC↔código).
+
+| Invariante | Documento | Hook | Código | Estado (P3) |
 |---|---|---|---|---|
-| INV-TENANT-001 (toda query tem `tenant_id`) | sim (REGRAS-INEGOCIAVEIS) | **falta** (`tenant-id-validator.sh`) | não | Foundation F-A |
-| INV-TENANT-002 (toda tabela tem coluna `tenant_id`) | sim | **falta** (migration linter) | não | Foundation F-A |
-| INV-TENANT-003 (RLS ativa em toda tabela) | sim | **falta** (migration linter) | não | Foundation F-A |
-| INV-TENANT-004 (role NOBYPASSRLS + NOSUPERUSER) | sim | **falta** (CI gate) | não | Foundation F-A |
-| INV-AUTHZ-001 (decisão única na porta) | sim (ADR-0012) | **falta** (`authz-check.sh`) | não | Foundation F-B |
-| INV-AUTHZ-002 (audit trail síncrono imutável) | sim | **falta** (migration linter + release gate) | não | Foundation F-B |
-| INV-AUTHZ-003 (RLS aceita lista de tenants) | sim | **falta** (migration linter pattern) | não | Foundation F-B |
-| INV-INT-007 (provisioning atômico) | sim (ADR-0015) | **falta** (`provisioning-checkpoint-check`) | não | Onda Wave A |
-| INV-013 (log de visualização de PII de cliente) | sim | parcial (decorator `@classified`) | não | Wave A |
+| INV-TENANT-001 (toda query tem `tenant_id`) | REGRAS | `tenant-id-validator.sh` ✅ | sim | OK |
+| INV-TENANT-002 (coluna `tenant_id` NOT NULL) | REGRAS | `migration-rls-check.sh` ✅ | sim | OK |
+| INV-TENANT-003 (RLS ativa) | REGRAS | `migration-rls-check.sh` ✅ | sim (`rls_templates.py` fonte única) | OK |
+| INV-TENANT-004 (role NOBYPASSRLS+NOSUPERUSER) | REGRAS | drill + teste T-FA-06 | sim (`01-roles.sh`) | OK |
+| INV-AUTHZ-003 (RLS aceita lista de tenants) | REGRAS | `migration-rls-check.sh` ✅ | sim (pattern `ANY(string_to_array)`) | OK |
+| INV-001 (auditoria imutável) | REGRAS | `audit-immutability-check.sh` ✅ | sim (hash chain por-cadeia + trigger PG) | OK |
+| INV-013 (log de visualização de PII) | REGRAS | trigger PG anti-mutation | sim (`AcessoDadosCliente`, sem hash chain — decisão consciente AC-FA-005-7) | OK |
+| INV-AUTHZ-001/002 (porta única + audit síncrono) | ADR-0012 | `authz-check.sh` ✅ | sim (preparado em F-A; materializado em F-B) | F-B |
 
-**Resumo:** 3 hooks complementares precisam ser criados como bloqueantes da Foundation F-A:
-1. `tenant-id-validator.sh` — bloqueia query que não passa pelo helper de contexto tenant
-2. `migration-linter` (Python) — verifica `tenant_id NOT NULL` + policy RLS v2 + trigger imutabilidade em audit
-3. `authz-check.sh` — bloqueia endpoint Django novo sem chamada de `AuthorizationProvider.can()`
+**Camadas de isolamento (resumo da evidência):**
+1. **Middleware** resolve a lista de tenants de `UsuarioPerfilTenant`
+   (nunca do cliente) e injeta GUCs sob transação.
+2. **RLS PG fail-loud** (`require_tenant_ctx()` RAISE 42501; não
+   "vê-zero") gerada por **fonte única** `rls_templates.py`; `auditoria`
+   e `authz_decisions` usam builders dedicados (tenant_id nullable por
+   design — modo_sistema / pré-tenant POR-USUÁRIO).
+3. **Roles** `app_user`/`app_migrator` NOBYPASSRLS+NOSUPERUSER —
+   guarda anti-falso-verde no fuzzing (teste T-FA-06: se a suíte
+   rodasse como superuser, o fuzzing passaria mentindo).
+4. **Trilha de auditoria** hash chain por-tenant + cadeia sistema,
+   advisory lock por classe, recomputo no recalculado (adulteração no
+   meio quebra esse elo e os seguintes). Invariante T-FA-01: uma
+   transação grava em ≤1 cadeia por classe de lock (fail-loud).
+5. **Marco de corte** (T-FA-02): a fronteira entre cadeia
+   pré-Foundation (ordem heap, não-autoritativa cronologicamente) e
+   autoritativa é um **elo imutável gravado na própria trilha**
+   (`manage.py marcar_cadeia_autoritativa`), não frase em doc.
 
-(Ver AGENTS.md §12 "O que está pendente" — esta seção é o status atualizado.)
+**Gates rastreados ANTES de dado real (NÃO bloqueiam F-A dogfooding —
+ver F-A/spec.md §3.2):** export B2/WORM operacional; verificação de
+integridade periódica com evidência; carimbo de tempo de fonte
+confiável (NTP); política formal de ciclo de vida de chave PII amarrada
+à matriz de retenção; hash chain de `AcessoDadosCliente` se ANPD/CGCRE
+exigir.
 
 ---
 

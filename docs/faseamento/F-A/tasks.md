@@ -106,6 +106,22 @@ GATE-1..5 = **TRACK** (rastreado, não T-FA; F-A fecha sem eles —
 dogfooding-only). 8 tarefas de conserto P4. Nenhuma reabre arquitetura
 nem joga código fora — todas aditivas/causa-raiz.
 
+### Desfecho P4 (2026-05-19)
+
+| T-FA | Desfecho | Prova |
+|------|----------|-------|
+| T-FA-01 | ✅ FECHADO | guarda fail-loud multi-cadeia/tx via `pg_locks` em `registrar_em_cadeia`; testes `test_t_fa_01_*` (viola→RuntimeError; cadeia única→ok) |
+| T-FA-02 | ✅ FECHADO | command `marcar_cadeia_autoritativa` (elo imutável encadeado, idempotente); teste `test_t_fa_02_*` |
+| T-FA-03 | ✅ FECHADO | teste `test_t_fa_03_*` prova trigger PG rejeita UPDATE/DELETE em `acessos_dados_cliente` |
+| T-FA-04 | ✅ FECHADO | `verificar_pii_hash_resposta_titular` grava evento próprio na cadeia do tenant (sem valor cru); testes `test_t_fa_04_*` |
+| T-FA-05 | ✅ FECHADO | governado por spec AC-FA-006-5 + `isolamento-multi-tenant.md` §5 (crypto-shredding + retenção vence) `stable` |
+| T-FA-06 | ✅ FECHADO | teste `test_t_fa_06_*` reprova se conexão de teste for SUPERUSER/BYPASSRLS (anti falso-verde do fuzzing) |
+| T-FA-07 | ✅ FECHADO | `isolamento-multi-tenant.md` §1 reconciliado + `status: stable` |
+| T-FA-08 | ↪ ENCAMINHADO | **ADR-0020** (proposta) — REGRAS > orçamento; mudança de doc canônico CODEOWNERS exige ADR + aprovação Roldão. **Não bloqueia P5** (débito de governança documental, não de invariante de produto/segurança); hook continua avisando (sinal honesto, não silenciado). |
+
+7 fechados causa-raiz; 1 encaminhado ao canal de governança correto
+(ADR-0020) — nenhum varrido/mascarado.
+
 > **Próximo (P4):** executar T-FA-01..08 (causa-raiz), commits atômicos,
 > suíte verde + hooks + `validar_f_a` + makemigrations limpo; então P5
 > (3 auditores Família 5, loop até zero crítico/alto). Só então F-A
