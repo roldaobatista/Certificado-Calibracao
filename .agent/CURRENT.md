@@ -64,10 +64,20 @@ alterado. Suite 267 passed, cobertura 85.05%, hooks 113/113.**
 > `--create-db` do pytest NÃO funciona (app_user/app_migrator são
 > NOCREATEDB). Isso é o backlog R2-S1 (#8) — fragilidade conhecida.
 
+## FB-C2 FECHADO (#13) — 2026-05-18
+
+`@public` setava `_authz_public` mas `RequireAuthz` lia `authz_public`
+→ toda view DRF pública era NEGADA. Causa-raiz: helper ÚNICO
+`is_public(view, request)` (reconhece `@public`, mixin `PublicEndpoint`
+CBV/DRF, função embrulhada e handler do método); `RequireAuthz` e
+middleware passam a usá-lo; hook `authz-check.sh` reconhece a válvula
+canônica (+5 casos `_test-runner` → **118/118**). Teste
+`test_authz_require_authz.py` (público→True, sem action→False,
+denied→False, allowed→True — cobre FB-A7 também). Docs canônicas
+sincronizadas (113→118; corrigido drift "23 casos" no CLAUDE.md).
+
 ## Próximo passo (retomar)
-1. **FB-C2 (#13)**: unificar `authz_public` (@public seta `_authz_public`
-   mas RequireAuthz lê `authz_public`) + mixin CBV DRF + hook.
-2. FB-C4+C5 (#12 drill+cripto), ALTOs (#10).
+1. FB-C4+C5 (#12 drill `validar_f_b` robusto + prova cripto), ALTOs (#10).
 3. Reauditar F-B rodada 2 (#14 — 3 lentes código real). Loop até zero
    CRÍTICO/ALTO.
 4. Backlog Wave-A (#8), lint sweep (#7) — NÃO reabrem F-A/F-B.
