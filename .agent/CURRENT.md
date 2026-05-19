@@ -2,8 +2,9 @@
 
 > ≤40 linhas. Atualizado a cada fechamento de Fase/Marco/US.
 
-**Fase:** Foundation reconstruída via ritual Spec Kit. **F-A FECHADA**
-(2026-05-19). Próximo: **P6** (F-B spec forward). **Modo:** AUTÔNOMO.
+**Fase:** **FOUNDATION F-A + F-B FECHADA via ritual Spec Kit**
+(2026-05-19). Próximo: backlog Wave-A (#7/#8) → Marco 1 `clientes`
+definitivo → Marco 2 `equipamentos`. **Modo:** AUTÔNOMO.
 
 ## Virada de método (decisão Roldão 2026-05-19)
 
@@ -32,12 +33,26 @@ Gates Wave A rastreados (não bloqueiam F-A dogfooding): GATE-1..7
 (B2/WORM, verificação periódica, NTP, ciclo chave PII, hash
 AcessoDadosCliente, ADR-0020, higiene pattern `::uuid`).
 
-## Próximo passo (P6 — retomar)
+## F-B FECHADA via ritual (P6..P9)
 
-F-B spec forward → P7 plan+review subagentes → P8 reconciliação
-(absorve ALTOs FB-A1/A4/A5/A6/A7 como GAPs) + conserto → P9 Família 5
-+ **fechar Foundation**. Depois: backlog Wave-A (#7/#8), Marco 1
-`clientes` definitivo → Marco 2 `equipamentos`.
+P6 spec forward → P7 plan + review tech-lead+advogado (bloqueantes
+absorvidos: binding, vigência única, ip_hash HMAC contexto,
+atomicidade≠commit, allowlist anti-PII, GATE-FB-2/3/4) → P8 matriz +
+6 T-FB causa-raiz (T-FB-01..06) → P9 **3 auditores Família 5 = PASS,
+ZERO CRÍTICO/ALTO**. Suite 293, cobertura 85.60%, hooks 118/118,
+drills verdes. Consolidado: `docs/faseamento/F-B/auditoria-familia5.md`.
+
+**FOUNDATION (F-A + F-B) FECHADA pelo ritual completo.** A virada de
+método convergiu — o ritual fechou de forma coerente o que o remendo
+não fechava.
+
+## Próximo passo (retomar)
+
+Backlog Wave-A: #7 (lint sweep pré-existente, baseline 208 ruff —
+I001/UP035/F401) + #8 (médios rodada 2 F-A) — NÃO reabrem Foundation.
+Depois: Marco 1 `clientes` definitivo → Marco 2 `equipamentos` (ritual
+orquestrador obrigatório). Gates Wave A (GATE-1..7 + GATE-FB-1..4)
+rastreados pré-1º tenant externo.
 
 ## Fila
 

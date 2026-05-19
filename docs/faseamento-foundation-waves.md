@@ -159,6 +159,19 @@ Login funciona + 4 perfis básicos funcionam + MFA TOTP obrigatório pros perfis
 - Falha em cenários E2E → debug pontual, sem mudar estratégia (escopo pequeno).
 - Performance do `can()` < 5ms p99 não atingida → ajusta cache; se inviável, ADR-0012 reabre para avaliar OPA/Cerbos como adapter externo.
 
+> **Reconciliação 2026-05-19 (ritual Spec Kit — fonte executável =
+> `docs/faseamento/F-B/spec.md`):** 3 itens deste §3 foram corrigidos
+> por autoridade superior e ficam aqui registrados p/ não driftar:
+> (a) "cache Redis" → **LocMemCache** e (b) "destino B2 real" →
+> **B2 diferido (gate)** — ambos por ajuste de aceitação da **ADR-0012**
+> (autoridade > este contrato; texto §3 era pré-ajuste);
+> (c) critério "`can()` retorna apenas após commit do audit log" →
+> **atomicidade decisão↔audit / rollback-órfão** (BLOQ-4 review
+> tech-lead): "commit antes do retorno" é tecnicamente falso sob
+> `ATOMIC_REQUESTS` (savepoint) — a garantia ficou mais forte (sem
+> decisão órfã), não reduzida. Detalhe em `F-B/spec.md` §3/§4 +
+> `F-B/plan.md` §Correções.
+
 ---
 
 ## 4. Wave A — MVP-1 com 18 módulos

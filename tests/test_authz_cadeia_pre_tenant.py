@@ -281,7 +281,7 @@ class TestCadeiaPreTenantPorUsuario:
         provider = DjangoAuthorizationProvider()
         with pytest.raises(ValueError, match="POR-USUÁRIO"):
             provider._gravar_audit(
-                usuario_id=None,  # type: ignore[arg-type]
+                usuario_id=None,  # type: ignore[arg-type]  # proposital: prova guard fail-loud de usuario ausente
                 tenant_id=None,
                 action="tenant.listar",
                 resource={},

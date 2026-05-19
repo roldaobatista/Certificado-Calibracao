@@ -76,7 +76,7 @@ FB-A7 (AC-FB-005-5) já fechado em FB-C2 — confirmado OK na matriz.
 |------|----------|-------|
 | T-FB-01 | ✅ | `register_predicate` exige escopo (erro import-time); `_decidir`→`predicates_aplicaveis(action)`; ação sem predicate=ABAC neutro. Testes binding |
 | T-FB-02 | ✅ | `usuario/vigencia.py` fonte ÚNICA (janela completa); 3 cópias removidas; perfil sensível expirado não barra MFA. Testes |
-| T-FB-03 | ✅ | testes `django-otp` REAL (`TOTPDevice`+`OTPMiddleware`+`otp_login`) — mata o stub `_FakeUserMFAOff` (FB-A6) |
+| T-FB-03 | ✅ | testes `django-otp` REAL (`TOTPDevice`+`OTPMiddleware`+`otp_login`) exercitam `is_verified()` autêntico (FB-A6 fechado). O stub `_FakeUserMFAOff` SOBREVIVE em `test_authz_mfa.py` cobrindo só lógica ortogonal de middleware (flag `mfa_obrigatorio`, perfil não-sensível) — não mascara a integração (teste real paralelo é a evidência de AC-FB-007-6) |
 | T-FB-04 | ✅ | `ip_hash` HMAC versionado via `ip_hash_context` (token+reset no middleware, não param de can()); no payload E coluna (round-trip íntegro); coluna→TextField (migration 0006). Testes |
 | T-FB-05 | ✅ | `_validar_resource_sem_pii` allowlist de topo (imposta por código); `cpf`/`nome`→fail-loud antes da transação. Testes |
 | T-FB-06 | ✅ | teste rollback-órfão (atomicidade real — não "commit antes do retorno"); + caso commit persiste |

@@ -101,7 +101,7 @@ class TestVigenciaUnicaT_FB_02:
                 valido_de=timezone.now() - timedelta(days=10),
                 valido_ate=ontem,  # EXPIRADO
             )
-        mw = MfaRequiredMiddleware(lambda req: None)  # type: ignore[arg-type,return-value]
+        mw = MfaRequiredMiddleware(lambda req: None)  # type: ignore[arg-type,return-value]  # test double: get_response callable
 
         class _Req:
             method = "GET"
@@ -125,7 +125,7 @@ class TestVigenciaUnicaT_FB_02:
                 valido_de=timezone.now() - timedelta(days=1),
                 valido_ate=None,  # vigente (sem fim)
             )
-        mw = MfaRequiredMiddleware(lambda req: None)  # type: ignore[arg-type,return-value]
+        mw = MfaRequiredMiddleware(lambda req: None)  # type: ignore[arg-type,return-value]  # test double: get_response callable
 
         class _Req:
             method = "GET"
@@ -362,7 +362,7 @@ class TestMfaDjangoOtpRealT_FB_03:
             )
         req = self._request_otp(usuario, verificar=False)
         assert req.user.is_verified() is False  # django-otp REAL, sem stub
-        mw = MfaRequiredMiddleware(lambda r: None)  # type: ignore[arg-type,return-value]
+        mw = MfaRequiredMiddleware(lambda r: None)  # type: ignore[arg-type,return-value]  # test double: get_response callable
         with run_in_tenant_context(tenant.id, usuario_id=usuario.id):
             resp = mw(req)
         assert resp is not None and resp.status_code == 401

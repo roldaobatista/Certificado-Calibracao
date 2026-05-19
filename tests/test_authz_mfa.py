@@ -56,7 +56,7 @@ def test_sec_mfa_001_usuario_mfa_obrigatorio_sem_otp_e_401():
     usuario = UsuarioFactory(email=f"mfa-{suffix}@local")
     user = _FakeUserMFAOff(pk=usuario.id, mfa_obrigatorio=True)
 
-    mw = MfaRequiredMiddleware(lambda r: None)  # type: ignore[arg-type]
+    mw = MfaRequiredMiddleware(lambda r: None)  # type: ignore[arg-type]  # test double: get_response e callable, nao precisa tipar HttpResponse
     request = _make_request(user=user)
 
     with run_in_tenant_context(tenant.id, usuario_id=usuario.id):
@@ -78,7 +78,7 @@ def test_sec_mfa_001_perfil_sensivel_sem_otp_e_401():
     )
     user = _FakeUserMFAOff(pk=usuario.id, mfa_obrigatorio=False)
 
-    mw = MfaRequiredMiddleware(lambda r: None)  # type: ignore[arg-type]
+    mw = MfaRequiredMiddleware(lambda r: None)  # type: ignore[arg-type]  # test double: get_response e callable, nao precisa tipar HttpResponse
     request = _make_request(user=user)
 
     with run_in_tenant_context(tenant.id, usuario_id=usuario.id):
@@ -106,7 +106,7 @@ def test_sec_mfa_001_perfil_nao_sensivel_passa_sem_otp():
         chamado["passou"] = True
         return "ok"
 
-    mw = MfaRequiredMiddleware(next_view)  # type: ignore[arg-type]
+    mw = MfaRequiredMiddleware(next_view)  # type: ignore[arg-type]  # test double: get_response e callable, nao precisa tipar HttpResponse
     request = _make_request(user=user)
 
     with run_in_tenant_context(tenant.id, usuario_id=usuario.id):
@@ -133,7 +133,7 @@ def test_sec_mfa_001_perfil_sensivel_com_otp_passa():
         chamado["passou"] = True
         return "ok"
 
-    mw = MfaRequiredMiddleware(next_view)  # type: ignore[arg-type]
+    mw = MfaRequiredMiddleware(next_view)  # type: ignore[arg-type]  # test double: get_response e callable, nao precisa tipar HttpResponse
     request = _make_request(user=user)
 
     with run_in_tenant_context(tenant.id, usuario_id=usuario.id):

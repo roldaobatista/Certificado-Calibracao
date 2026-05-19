@@ -2,15 +2,12 @@
 
 > **Para agentes (Claude Code, Codex CLI, Cursor, Windsurf, Kiro):** este é o documento de referência primária do projeto. O `CLAUDE.md` (irmão) é só adendo de harness do Claude Code e importa este via `@AGENTS.md`.
 >
-> **Status (2026-05-18, F-A SANEADA E FECHADA):** **F-A FECHADA (saneada — rodada 2 verde).** Loop auditar→corrigir→reauditar concluído: 1 CRÍTICO + 6 ALTO + 3 MÉDIO da rodada 1 fechados (FA-A4/FA-C1/FA-A3/FA-A2/FA-A1/FA-M2/FA-A5/FA-M1/FA-M3 + drift migration). **Reauditoria rodada 2 (3 lentes — segurança, arquitetura, qualidade): ZERO CRÍTICO / ZERO ALTO** (`docs/faseamento/auditorias/F-A-CONSOLIDADO-rodada-2.md`). Resíduo só MÉDIO/BAIXO → backlog Wave-A (não reabre F-A). **Próxima fase: saneamento F-B (mesmo loop) → Marco 1 definitivo → Marco 2.** Estado vivo em `.agent/CURRENT.md`.
-> - F-A + F-B atingiram critérios em 2026-05-18; F-A passou por saneamento completo (rodada 1→2) e está sólida. F-B aguarda o mesmo loop antes de Wave A retomar.
-> - Marco 1 `clientes`: 5 US verdes, 3 auditores Família 5 aprovaram, suite 207 passed + 2 skipped, cobertura 86.01%.
-> - Marco 2 `equipamentos`: PRD STABLE v2 + 7 planos US revisados (após auditoria de 4 subagentes no PRD + 12 reviews por US — tech-lead + advogado). 3 decisões Roldão: (1) Redis no docker-compose agora, (2) fatiar US-EQP-002 em 002+002b, (3) Caminho A para cadastro provisório (`RecebimentoProvisorio` separada).
-> - ADRs novas: **ADR-0018** (PWA scanner QR) + **ADR-0019** (responsabilidade agente IA).
-> - INVs novas: **INV-049/050/051/INV-EQP-LOC-001/INV-EQP-VERSAO-001/002/INV-EQP-ANOM-001/002/INV-EQP-PROV-001** (9 invariantes).
-> - Docs novas: `RAT-EQP-FOTO`, matriz retenção (+5 linhas), `qr-publico-allowlist.md`, `controles-compensatorios-codigo-ia.md`, `transferencia-aceite-presencial-marco2.md`.
-> - **Suite total (pós-saneamento FA-A4..FA-A5, verificado 2026-05-18): 259 passed, cobertura ~85% (84.x), hooks 113/113.** (O "295 passed/86.01%" anterior era pré-saneamento e driftado — FA-M1.)
-> Próximo passo: continuar loop F-A — FA-M3 → reauditoria rodada 2 (10 lentes) → só então F-B/Marco 2. Acompanhamento em `.agent/CURRENT.md`.
+> **Status (2026-05-19 — FOUNDATION F-A + F-B FECHADA via ritual Spec Kit):** decisão Roldão: o remendo auditoria-a-auditoria não convergia (ritual pulado era a causa de fundo); recriadas as **specs FORWARD** de F-A e F-B do zero (governam o código), ritual completo (spec → plan + review 3 subagentes → matriz reconciliação spec↔código → conserto causa-raiz → 3 auditores Família 5), código existente reconciliado (não descartado). **F-A e F-B: 3 auditores Família 5 = PASS, ZERO CRÍTICO / ZERO ALTO** (`docs/faseamento/F-A/auditoria-familia5.md`, `docs/faseamento/F-B/auditoria-familia5.md`).
+> - Docs canônicas da Foundation: `docs/faseamento/{F-A,F-B}/{spec,plan,tasks,auditoria-familia5}.md`. `stories-f-a.md`/`stories-f-b.md` → `deprecated` (retrofit retroativo).
+> - F-A: 8 GAPs (T-FA-01..08) — 7 causa-raiz + ADR-0020 (REGRAS>orçamento, decisão CODEOWNERS). F-B: 6 GAPs (T-FB-01..06) — predicate binding, vigência fonte-única, MFA django-otp real, ip_hash HMAC, allowlist anti-PII, rollback-órfão.
+> - **Suite total (Foundation reconciliada, verificado 2026-05-19): 293 passed, cobertura 85.60%, hooks 118/118, makemigrations limpo, drill validar_f_a/validar_f_b verdes.** (Números anteriores "259/113" eram pré-reconciliação.)
+> - **Gates Wave A rastreados (não bloqueiam Foundation dogfooding; pré-1º tenant externo):** GATE-1..7 (B2/WORM, verificação periódica, NTP, ciclo chave PII, hash AcessoDadosCliente, ADR-0020, higiene `::uuid`) + GATE-FB-1..4 (perfil tenant-specific/INV-AUTHZ-004, retenção authz_decisions+ip_hash, redator escopo PII, texto INV-AUTHZ-002 via ADR).
+> - Marco 2 `equipamentos`: PRD STABLE v2 + 7 planos US revisados. ADRs **0018/0019/0020**. Próximo: backlog Wave-A (#7 lint sweep, #8 médios) → Marco 1 `clientes` definitivo → Marco 2. Estado vivo em `.agent/CURRENT.md`.
 
 ---
 
