@@ -44,17 +44,36 @@ preliminar: cadeia pré-tenant authz POR-USUÁRIO (não global). Análise +
 3 bloqueantes em `auditorias/FB-C1-design-cadeia-compartilhada.md`
 §Correções.
 
+## FB-C1+C3 conjunto FECHADO (#11) — commit `32aa278` (2026-05-18)
+
+Design reaberto + re-review tech-lead (APROVA c/ 4 bloqueantes —
+absorvidos): helper ÚNICO `registrar_em_cadeia` (chave do lock derivada
+do filtro — BLOQ #1), `run_in_user_context` + can() pré-tenant fail-loud
+(BLOQ #2), fronteira transacional documentada / deadlock probe → drill
+#12 (BLOQ #3), `_normalizar_para_hash` fonte única hash+persistência +
+`verificar_integridade_cadeia_authz` (BLOQ #4). Policy authz reescrita
+via builder único em `rls_templates.py` (modo_sistema canônico +
+pré-tenant POR-USUÁRIO, sem permissivo morto no INSERT). `AuthzDecision.
+sequencia` (migration 0004) + policy (0005). **T1-T8 audit sem 1 char
+alterado. Suite 267 passed, cobertura 85.05%, hooks 113/113.**
+
+> Foot-gun FA-A4 confirmado e contornado: `test_afere` precisa ser
+> criado por superuser + `ALTER DEFAULT PRIVILEGES FOR app_migrator …
+> TO app_user` DENTRO de test_afere ANTES do `migrate --database=
+> migrator` (default privileges são por-banco; não herdam de `afere`).
+> `--create-db` do pytest NÃO funciona (app_user/app_migrator são
+> NOCREATEDB). Isso é o backlog R2-S1 (#8) — fragilidade conhecida.
+
 ## Próximo passo (retomar)
-1. **FB-C1+C3 conjunto** (#11): reabrir design contemplando cadeia
-   pré-tenant authz por-usuário → review tech-lead → implementar helper
-   compartilhado `registrar_em_cadeia` (algoritmo único) + sequencia +
-   normalização resource JSON-safe + 5 testes + não-regressão T1-T8.
-2. FB-C2 (#13 authz_public), FB-C4+C5 (#12 drill+cripto), ALTOs (#10).
-3. Reauditar F-B rodada 2 (#14). Loop até zero CRÍTICO/ALTO.
+1. **FB-C2 (#13)**: unificar `authz_public` (@public seta `_authz_public`
+   mas RequireAuthz lê `authz_public`) + mixin CBV DRF + hook.
+2. FB-C4+C5 (#12 drill+cripto), ALTOs (#10).
+3. Reauditar F-B rodada 2 (#14 — 3 lentes código real). Loop até zero
+   CRÍTICO/ALTO.
 4. Backlog Wave-A (#8), lint sweep (#7) — NÃO reabrem F-A/F-B.
 5. F-B saneada → Marco 1 `clientes` definitivo → Marco 2.
 
 ## Fila de tarefas
-TaskList: #11 FB-C1+C3 conjunto (PRÓXIMO — design reaberto), #12/#13
-demais CRÍTICOs F-B, #10 ALTOs F-B, #14 reauditoria F-B r2, #8/#7
-Wave-A. Consolidados em `docs/faseamento/auditorias/`.
+TaskList: ✅ #11 FB-C1+C3 (commit `32aa278`). PRÓXIMO #13 FB-C2 →
+#12 FB-C4+C5 → #10 ALTOs F-B → #14 reauditoria F-B r2 → #7/#8 Wave-A.
+Consolidados em `docs/faseamento/auditorias/`.
