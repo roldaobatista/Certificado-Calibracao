@@ -85,15 +85,29 @@ não fechava.
   `tests/test_sanitizar_payload_audit.py` varre 5000 uuid4. Suíte
   **299 passed** (293→299), cobertura **85.85%** (85.60→85.85), hooks
   130/130. **MÉDIO sob INV-RITUAL-001 destravado.**
+- **#8 médios rodada 2 F-A RESOLVIDOS** (commit `5aa1882`): R2-M1 +
+  R2-M2 fechados na causa-raiz. R2-M1 (drill acumula lixo): drill é
+  destrutivo-acumulativo por design (Auditoria INSERT-only + Tenant FK
+  PROTECT), única limpeza é dropar+recriar banco; conserto = guard
+  `--em-banco-descartavel` (aborta exit 2 se NAME ≠ test*) + contagem
+  antes/depois honesta (Auditoria iterada por contexto, sem burlar RLS).
+  R2-M2 (premissa Tenant globalmente legível): `isolamento-multi-tenant.md`
+  §2.3.1 nova subseção explica galinha-e-ovo do middleware multi-tenant +
+  segurança preservada (só metadados, sem PII); docstring de
+  `verificar_integridade_cadeia` aponta pra §2.3.1. Validado: ruff +
+  format + mypy 0 issues, pytest 299/85.85%, hooks 130/130, drill 5/5
+  verde com contagem honesta (35T/21U/15093A operacional). Foundation
+  intacta — não reabre auditoria.
 
 ## Próximo passo (retomar) — tarefa ativa
 
-Backlog Wave-A #8 (médios rodada 2 F-A) → Marco 1 `clientes` definitivo →
-Marco 2 `equipamentos` (ritual obrigatório). Gates Wave A
-(GATE-1..7 + GATE-FB-1..4) rastreados pré-1º tenant externo.
+Marco 1 `clientes` definitivo → Marco 2 `equipamentos` (ritual
+obrigatório). Gates Wave A (GATE-1..7 + GATE-FB-1..4) rastreados pré-1º
+tenant externo.
 
 ## Fila
 
-#7 lint sweep ✅ + #6 flake visão-360 ✅ — fila zera com Foundation
-intacta. Próxima: #8. Estado vivo aqui; docs em `docs/faseamento/F-A/` e
+#6 flake visão-360 ✅ + #7 lint sweep ✅ + #8 médios rodada 2 F-A ✅ —
+fila zera com Foundation intacta. Próxima frente: ritual Spec Kit para
+Marco 1 `clientes`. Estado vivo aqui; docs em `docs/faseamento/F-A/` e
 `.../F-B/`.
