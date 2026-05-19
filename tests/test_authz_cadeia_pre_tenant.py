@@ -209,6 +209,46 @@ class TestCadeiaPreTenantPorUsuario:
         assert total >= 3
         assert quebrados == []
 
+    def test_adulteracao_no_meio_quebra_todos_os_seguintes(self) -> None:
+        """FB-C5 (prova cripto, espelha T4 do audit): elo envenenado no MEIO
+        quebra ESSE elo E TODOS os seguintes — `verificar_integridade_cadeia_
+        authz` recomputa sha256 e encadeia no RECALCULADO (não no salvo)."""
+        with run_as_system():
+            tenant = TenantFactory()
+            usuario = UsuarioFactory()
+            UsuarioPerfilTenantFactory(
+                usuario=usuario, tenant=tenant, perfil="admin_tenant"
+            )
+        invalidate_user_cache(usuario.id, tenant.id)
+        provider = DjangoAuthorizationProvider()
+
+        with run_in_tenant_context(tenant.id, usuario_id=usuario.id):
+            provider.can(usuario_id=usuario.id, action="os.criar", tenant_id=tenant.id)
+            provider.can(usuario_id=usuario.id, action="os.criar", tenant_id=tenant.id)
+            # Elo ENVENENADO: hash_atual não corresponde ao payload.
+            AuthzDecision.objects.create(
+                usuario_id=usuario.id,
+                tenant_id=tenant.id,
+                action="os.criar",
+                resource_summary={},
+                purpose="execucao_contrato",
+                decision="allowed",
+                reason="ok",
+                perfis_aplicados=["admin_tenant"],
+                escopo_avaliado={},
+                hash_anterior="0" * 64,
+                hash_atual="0" * 64,
+            )
+            provider.can(usuario_id=usuario.id, action="os.criar", tenant_id=tenant.id)
+            provider.can(usuario_id=usuario.id, action="os.criar", tenant_id=tenant.id)
+            ok, total, quebrados = verificar_integridade_cadeia_authz(
+                {"tenant_id": tenant.id}
+            )
+        assert ok is False
+        assert total == 5
+        # Elo envenenado + os 2 seguintes (encadeiam no recalculado): >=3.
+        assert len(quebrados) >= 3
+
     def test_insert_sob_run_as_system_negado(self) -> None:
         """Review Q4: NÃO há branch `modo_sistema` no INSERT (permissivo
         morto = furo). INSERT em authz_decisions sob run_as_system → negado."""
