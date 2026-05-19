@@ -2,8 +2,8 @@
 
 > **Para agentes (Claude Code, Codex CLI, Cursor, Windsurf, Kiro):** este é o documento de referência primária do projeto. O `CLAUDE.md` (irmão) é só adendo de harness do Claude Code e importa este via `@AGENTS.md`.
 >
-> **Status (2026-05-18, saneamento F-A):** **F-A FECHADA COM RESSALVAS — EM SANEAMENTO (rodada 1→2).** A auditoria de 10 lentes (`docs/faseamento/auditorias/F-A-CONSOLIDADO-rodada-1.md`) achou débitos CRÍTICO/ALTO. Loop em curso: **FA-A4/FA-C1/FA-A2/FA-A1+FA-M2/FA-A5+FA-M1 fechados verdes**; FA-M3 + reauditoria rodada 2 pendentes. F-A **não** está fechada definitivamente; F-B/Marco 2 NÃO retomam até rodada 2 sem CRÍTICO/ALTO. Estado vivo em `.agent/CURRENT.md`.
-> - F-A + F-B atingiram critérios em 2026-05-18 (ADRs 0001/0002/0007 + 0012/0006 aceitas), mas F-A reaberta em saneamento pela auditoria (drill era fraco — FA-A5 endureceu).
+> **Status (2026-05-18, F-A SANEADA E FECHADA):** **F-A FECHADA (saneada — rodada 2 verde).** Loop auditar→corrigir→reauditar concluído: 1 CRÍTICO + 6 ALTO + 3 MÉDIO da rodada 1 fechados (FA-A4/FA-C1/FA-A3/FA-A2/FA-A1/FA-M2/FA-A5/FA-M1/FA-M3 + drift migration). **Reauditoria rodada 2 (3 lentes — segurança, arquitetura, qualidade): ZERO CRÍTICO / ZERO ALTO** (`docs/faseamento/auditorias/F-A-CONSOLIDADO-rodada-2.md`). Resíduo só MÉDIO/BAIXO → backlog Wave-A (não reabre F-A). **Próxima fase: saneamento F-B (mesmo loop) → Marco 1 definitivo → Marco 2.** Estado vivo em `.agent/CURRENT.md`.
+> - F-A + F-B atingiram critérios em 2026-05-18; F-A passou por saneamento completo (rodada 1→2) e está sólida. F-B aguarda o mesmo loop antes de Wave A retomar.
 > - Marco 1 `clientes`: 5 US verdes, 3 auditores Família 5 aprovaram, suite 207 passed + 2 skipped, cobertura 86.01%.
 > - Marco 2 `equipamentos`: PRD STABLE v2 + 7 planos US revisados (após auditoria de 4 subagentes no PRD + 12 reviews por US — tech-lead + advogado). 3 decisões Roldão: (1) Redis no docker-compose agora, (2) fatiar US-EQP-002 em 002+002b, (3) Caminho A para cadastro provisório (`RecebimentoProvisorio` separada).
 > - ADRs novas: **ADR-0018** (PWA scanner QR) + **ADR-0019** (responsabilidade agente IA).

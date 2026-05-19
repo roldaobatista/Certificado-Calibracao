@@ -14,7 +14,7 @@ relacionados:
 
 # Drill de saída — Foundation F-A
 
-> **STATUS 2026-05-18 — F-A FECHADA COM RESSALVAS, EM SANEAMENTO (rodada 1→2).** A auditoria de 10 lentes (`auditorias/F-A-CONSOLIDADO-rodada-1.md`) achou débitos CRÍTICO/ALTO. Loop de saneamento em curso: FA-A4/FA-C1/FA-A2/FA-A1+FA-M2/FA-A5+FA-M1 fechados; FA-M3 + reauditoria rodada 2 pendentes. F-A **não** está fechada definitivamente — só fecha quando a rodada 2 vier sem CRÍTICO/ALTO. Este drill foi **endurecido** pelo FA-A5 (era fraco: 1 tenant/5 linhas/só feliz, 50×100, p99 1 tenant).
+> **STATUS 2026-05-18 — F-A SANEADA E FECHADA (rodada 2 verde).** Loop auditar→corrigir→reauditar concluído. Rodada 1 (`auditorias/F-A-CONSOLIDADO-rodada-1.md`) achou 1 CRÍTICO + 6 ALTO + 3 MÉDIO; todos fechados (FA-A4/FA-C1/FA-A3/FA-A2/FA-A1/FA-M2/FA-A5/FA-M1/FA-M3 + drift). **Rodada 2 (3 lentes: segurança/arquitetura/qualidade) = ZERO CRÍTICO / ZERO ALTO** (`auditorias/F-A-CONSOLIDADO-rodada-2.md`). Este drill foi **endurecido** pelo FA-A5 (era fraco: 1 tenant/5 linhas/só feliz, 50×100, p99 1 tenant). Resíduo só MÉDIO/BAIXO → backlog Wave-A.
 >
 > **Pra que serve:** F-A só fecha (e Foundation F-B só começa) quando os 7 critérios abaixo estiverem todos verdes. Este doc lista cada critério + como rodar.
 >
