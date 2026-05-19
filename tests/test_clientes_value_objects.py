@@ -10,9 +10,7 @@ CPF: 11 digitos com algoritmo Receita.
 from __future__ import annotations
 
 import pytest
-
 from src.domain.shared.value_objects import CNPJ, CPF
-
 
 # ============================================================================
 # CNPJ — vetores oficiais + edge cases

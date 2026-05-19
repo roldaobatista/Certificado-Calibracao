@@ -17,12 +17,12 @@ from django.db import migrations
 def seed(apps, schema_editor):
     with schema_editor.connection.cursor() as cur:
         cur.execute("ALTER TABLE authz_perfil_acao DISABLE ROW LEVEL SECURITY;")
+        cur.execute("DROP POLICY IF EXISTS authz_perfil_acao_block_mutation ON authz_perfil_acao;")
         cur.execute(
-            "DROP POLICY IF EXISTS authz_perfil_acao_block_mutation ON authz_perfil_acao;"
+            "SELECT codigo, id FROM authz_perfil WHERE codigo = ANY(%s);",
+            [["admin_tenant", "tecnico", "rt_signatario", "cliente_externo_leitura"]],
         )
-        cur.execute("SELECT codigo, id FROM authz_perfil WHERE codigo = ANY(%s);",
-                    [["admin_tenant", "tecnico", "rt_signatario", "cliente_externo_leitura"]])
-        for codigo, pid in cur.fetchall():
+        for _codigo, pid in cur.fetchall():
             cur.execute(
                 "INSERT INTO authz_perfil_acao (id, perfil_id, acao, pode_executar, criado_em) "
                 "VALUES (%s, %s, 'clientes.visao360', TRUE, now()) "
@@ -40,9 +40,7 @@ def seed(apps, schema_editor):
 def unseed(apps, schema_editor):
     with schema_editor.connection.cursor() as cur:
         cur.execute("ALTER TABLE authz_perfil_acao DISABLE ROW LEVEL SECURITY;")
-        cur.execute(
-            "DROP POLICY IF EXISTS authz_perfil_acao_block_mutation ON authz_perfil_acao;"
-        )
+        cur.execute("DROP POLICY IF EXISTS authz_perfil_acao_block_mutation ON authz_perfil_acao;")
         cur.execute("DELETE FROM authz_perfil_acao WHERE acao = 'clientes.visao360';")
         cur.execute(
             "CREATE POLICY authz_perfil_acao_block_mutation ON authz_perfil_acao "

@@ -34,9 +34,7 @@ class Command(BaseCommand):
             )
             return
         self.stdout.write(
-            self.style.ERROR(
-                f"FALHA — {len(problemas)} objeto(s) de seguranca ausente(s):"
-            )
+            self.style.ERROR(f"FALHA — {len(problemas)} objeto(s) de seguranca ausente(s):")
         )
         for p in problemas:
             self.stdout.write(self.style.ERROR(f"  - {p}"))

@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+import tempfile
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 def _destino_local(janela_inicio: datetime) -> Path:
     """Arquivo JSONL por hora. Apenas stub local — substituir por B2 em deploy."""
     nome = janela_inicio.strftime("audit-export-%Y-%m-%d-%H.jsonl")
-    return Path("/tmp") / nome
+    return Path(tempfile.gettempdir()) / nome
 
 
 def exportar_janela_horaria(janela_inicio: datetime | None = None) -> int:
@@ -38,7 +39,7 @@ def exportar_janela_horaria(janela_inicio: datetime | None = None) -> int:
     from .models import Auditoria
 
     if janela_inicio is None:
-        agora = datetime.now(timezone.utc)
+        agora = datetime.now(UTC)
         janela_inicio = agora.replace(minute=0, second=0, microsecond=0) - timedelta(hours=1)
     janela_fim = janela_inicio + timedelta(hours=1)
 

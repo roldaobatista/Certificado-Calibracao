@@ -15,11 +15,12 @@ Estrategia (3 camadas):
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any
 from uuid import UUID
 
-from django.db import connection, connections, transaction
+from django.db import connections, transaction
 from django.db.backends.signals import connection_created
 from django.dispatch import receiver
 

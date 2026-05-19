@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from django.db import migrations
 
-
 CREATE_SQL = """
 CREATE UNIQUE INDEX uq_cliente_doc_ativo
     ON clientes (tenant_id, tipo_pessoa, documento)

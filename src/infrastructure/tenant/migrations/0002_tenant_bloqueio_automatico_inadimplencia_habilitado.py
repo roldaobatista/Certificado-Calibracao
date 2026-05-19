@@ -4,15 +4,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('tenant', '0001_initial'),
+        ("tenant", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='tenant',
-            name='bloqueio_automatico_inadimplencia_habilitado',
-            field=models.BooleanField(default=False, help_text='Se True, job D+90 marca clientes inadimplentes como bloqueados. Wave A: exige tambem registro da regua D+30/60/89 antes do bloqueio (CDC art. 6 III/IV + Lei 14.181/2021).'),
+            model_name="tenant",
+            name="bloqueio_automatico_inadimplencia_habilitado",
+            field=models.BooleanField(
+                default=False,
+                help_text="Se True, job D+90 marca clientes inadimplentes como bloqueados. Wave A: exige tambem registro da regua D+30/60/89 antes do bloqueio (CDC art. 6 III/IV + Lei 14.181/2021).",
+            ),
         ),
     ]

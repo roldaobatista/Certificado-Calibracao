@@ -9,7 +9,7 @@ Decisao 2026-05-18 noite, pos-review tech-lead US-EQP-003 (Redis no dev/prod;
 LocMem em test pra nao acoplar CI a container externo).
 """
 
-from .base import *  # noqa: F401,F403
+from .base import *
 
 # Sobrescreve cache Redis -> LocMem em testes.
 # Memoria `feedback_nao_declarar_pronto_sem_rodar`: testes precisam rodar isolados.

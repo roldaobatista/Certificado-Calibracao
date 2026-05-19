@@ -4,29 +4,32 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('clientes', '0004_aceite_lgpd'),
+        ("clientes", "0004_aceite_lgpd"),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='cliente',
-            name='uq_cliente_tenant_documento',
+            model_name="cliente",
+            name="uq_cliente_tenant_documento",
         ),
         migrations.AddField(
-            model_name='cliente',
-            name='deletado_em',
+            model_name="cliente",
+            name="deletado_em",
             field=models.DateTimeField(blank=True, db_index=True, null=True),
         ),
         migrations.AddField(
-            model_name='cliente',
-            name='deletado_motivo_categoria',
-            field=models.CharField(blank=True, help_text='Enum MotivoMesclagem (ver lgpd.py / mesclagem.py).', max_length=40),
+            model_name="cliente",
+            name="deletado_motivo_categoria",
+            field=models.CharField(
+                blank=True,
+                help_text="Enum MotivoMesclagem (ver lgpd.py / mesclagem.py).",
+                max_length=40,
+            ),
         ),
         migrations.AddField(
-            model_name='cliente',
-            name='deletado_por_usuario_id',
+            model_name="cliente",
+            name="deletado_por_usuario_id",
             field=models.UUIDField(blank=True, null=True),
         ),
     ]

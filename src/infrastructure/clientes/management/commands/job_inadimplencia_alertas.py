@@ -11,7 +11,6 @@ R3 advogado: NAO bloqueia se `Tenant.bloqueio_automatico_inadimplencia_habilitad
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
 from typing import Any
 
 from django.core.management.base import BaseCommand
@@ -43,7 +42,6 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **opts: Any) -> None:
         dry = opts.get("dry_run", False)
         source = get_source()
-        agora = datetime.now(timezone.utc)
         contadores = {"avaliados": 0, "bloqueados": 0, "skip_flag_off": 0, "skip_ja_bloqueado": 0}
 
         for item in source.iter_inadimplentes_90d():
@@ -71,9 +69,7 @@ class Command(BaseCommand):
 
                 if dry:
                     contadores["bloqueados"] += 1
-                    self.stdout.write(
-                        f"[DRY] bloquearia cliente {cliente.id} tenant {tenant.id}"
-                    )
+                    self.stdout.write(f"[DRY] bloquearia cliente {cliente.id} tenant {tenant.id}")
                     continue
 
                 from src.infrastructure.audit.services import registrar_auditoria
@@ -104,9 +100,7 @@ class Command(BaseCommand):
                         "tenant_id": str(tenant.id),
                         "bloqueio_id": str(bloqueio.id),
                         "motivo_categoria": MOTIVO_AUTOMATICO_INADIMPLENCIA_90D,
-                        "justificativa_hash": hashear_pii_com_salt_tenant(
-                            justificativa, tenant.id
-                        ),
+                        "justificativa_hash": hashear_pii_com_salt_tenant(justificativa, tenant.id),
                         "causation_type": CAUSATION_TITULO_VENCIDO,
                         "causation_id": str(item.causation_titulo_id),
                         "dias_vencido": item.dias_vencido,

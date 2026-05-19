@@ -34,7 +34,7 @@ class TipoPessoa(models.TextChoices):
 class ClienteAtivosManager(models.Manager["Cliente"]):
     """Manager default — filtra soft-deleted (US-CLI-005 + R4 advogado)."""
 
-    def get_queryset(self) -> "models.QuerySet[Cliente]":
+    def get_queryset(self) -> models.QuerySet[Cliente]:
         return super().get_queryset().filter(deletado_em__isnull=True)
 
 
@@ -111,9 +111,7 @@ class Cliente(models.Model):
     aceite_lgpd_origem = models.CharField(
         max_length=20,
         blank=True,
-        help_text=(
-            "balcao | portal | importacao | api_terceiro. Ver lgpd.py ORIGENS_VALIDAS."
-        ),
+        help_text=("balcao | portal | importacao | api_terceiro. Ver lgpd.py ORIGENS_VALIDAS."),
     )
     aceite_lgpd_dispensa_motivo = models.CharField(
         max_length=60,
@@ -182,8 +180,11 @@ class Cliente(models.Model):
     atualizado_em = models.DateTimeField(auto_now=True)
 
     # Manager default filtra ativos; all_objects expoe deletados (auditoria).
+    # Ordem fields -> managers -> Meta (Django-canonica). noqa DJ012: quirk
+    # do ruff com manager tipado generico (models.Manager["Cliente"]) que
+    # reporta falso desvio de ordem mesmo com a ordem correta.
     objects = ClienteAtivosManager()
-    all_objects = models.Manager()
+    all_objects = models.Manager()  # noqa: DJ012
 
     class Meta:
         app_label = "clientes"
@@ -253,9 +254,7 @@ class Cliente(models.Model):
             self.aceite_lgpd_dispensa_motivo
             and self.aceite_lgpd_dispensa_motivo not in DISPENSAS_VALIDAS
         ):
-            raise ValidationError(
-                {"aceite_lgpd_dispensa_motivo": f"Use {DISPENSAS_VALIDAS}"}
-            )
+            raise ValidationError({"aceite_lgpd_dispensa_motivo": f"Use {DISPENSAS_VALIDAS}"})
 
 
 class ClienteBloqueio(models.Model):
@@ -271,12 +270,8 @@ class ClienteBloqueio(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    cliente = models.ForeignKey(
-        Cliente, on_delete=models.PROTECT, related_name="bloqueios"
-    )
-    tenant = models.ForeignKey(
-        Tenant, on_delete=models.PROTECT, related_name="cliente_bloqueios"
-    )
+    cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, related_name="bloqueios")
+    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="cliente_bloqueios")
     motivo_categoria = models.CharField(
         max_length=40,
         help_text=(
@@ -328,12 +323,8 @@ class ClienteBloqueio(models.Model):
         verbose_name_plural = "Bloqueios de cliente"
         ordering = ["-bloqueado_em"]
         indexes = [
-            models.Index(
-                fields=["tenant", "cliente"], name="ix_cli_bloq_tenant_cli"
-            ),
-            models.Index(
-                fields=["tenant", "bloqueado_em"], name="ix_cli_bloq_tenant_data"
-            ),
+            models.Index(fields=["tenant", "cliente"], name="ix_cli_bloq_tenant_cli"),
+            models.Index(fields=["tenant", "bloqueado_em"], name="ix_cli_bloq_tenant_data"),
         ]
 
     def __str__(self) -> str:
@@ -359,9 +350,7 @@ class ClienteImportacaoDeclaracao(models.Model):
     tenant = models.ForeignKey(
         Tenant, on_delete=models.PROTECT, related_name="importacao_declaracoes"
     )
-    usuario_id = models.UUIDField(
-        null=True, blank=True, help_text="Quem operou a importacao."
-    )
+    usuario_id = models.UUIDField(null=True, blank=True, help_text="Quem operou a importacao.")
     criado_em = models.DateTimeField(auto_now_add=True)
     arquivo_hash = models.CharField(
         max_length=64,
@@ -381,16 +370,11 @@ class ClienteImportacaoDeclaracao(models.Model):
         ),
     )
     declara_sem_dados_sensiveis = models.BooleanField(
-        help_text=(
-            "Checkbox 3: tenant declara ausencia de dados sensiveis "
-            "(LGPD art. 5 II)."
-        ),
+        help_text=("Checkbox 3: tenant declara ausencia de dados sensiveis " "(LGPD art. 5 II)."),
     )
     procedencia_declarada = models.CharField(
         max_length=200,
-        help_text=(
-            "Campo livre <=200 chars (ex: 'Bling v3 export 2026-04')."
-        ),
+        help_text=("Campo livre <=200 chars (ex: 'Bling v3 export 2026-04')."),
     )
     pf_aceite_origem = models.CharField(
         max_length=40,
@@ -420,6 +404,4 @@ class ClienteImportacaoDeclaracao(models.Model):
         ]
 
     def __str__(self) -> str:
-        return (
-            f"ImpDecl {self.id} tenant={self.tenant_id} arquivo={self.arquivo_hash[:8]}"
-        )
+        return f"ImpDecl {self.id} tenant={self.tenant_id} arquivo={self.arquivo_hash[:8]}"

@@ -23,6 +23,4 @@ def janela_vigente(agora: datetime) -> Q:
     o middleware MFA filtrava só `valido_de` e barrava por perfil já
     expirado).
     """
-    return Q(valido_de__lte=agora) & (
-        Q(valido_ate__isnull=True) | Q(valido_ate__gte=agora)
-    )
+    return Q(valido_de__lte=agora) & (Q(valido_ate__isnull=True) | Q(valido_ate__gte=agora))

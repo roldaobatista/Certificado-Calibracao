@@ -17,21 +17,20 @@ from __future__ import annotations
 
 import re
 import subprocess
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from django.core.management.base import BaseCommand
 
-
 # Marco inicial da F-A
-INICIO_F_A = datetime(2026, 5, 17, tzinfo=timezone.utc)
+INICIO_F_A = datetime(2026, 5, 17, tzinfo=UTC)
 
 
 class Command(BaseCommand):
     help = "Reporta estado atual dos 4 indicadores operacionais do critério 7 (F-A)."
 
     def handle(self, *args, **options):
-        agora = datetime.now(timezone.utc)
+        agora = datetime.now(UTC)
         dias_em_fa = (agora - INICIO_F_A).days
         semanas = dias_em_fa / 7
 
@@ -48,20 +47,26 @@ class Command(BaseCommand):
         intervenções = self._contar_intervencoes_roldao()
         media_semanal = intervenções / max(semanas, 1)
         if media_semanal <= 2:
-            self.stdout.write(self.style.SUCCESS(
-                f"  [OK ] {intervenções} intervencoes em {semanas:.1f} sem = "
-                f"{media_semanal:.1f}/sem (limite ≤ 2)"
-            ))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"  [OK ] {intervenções} intervencoes em {semanas:.1f} sem = "
+                    f"{media_semanal:.1f}/sem (limite ≤ 2)"
+                )
+            )
         else:
-            self.stdout.write(self.style.ERROR(
-                f"  [XXX] {intervenções} intervencoes em {semanas:.1f} sem = "
-                f"{media_semanal:.1f}/sem (excedeu limite 2)"
-            ))
+            self.stdout.write(
+                self.style.ERROR(
+                    f"  [XXX] {intervenções} intervencoes em {semanas:.1f} sem = "
+                    f"{media_semanal:.1f}/sem (excedeu limite 2)"
+                )
+            )
 
         # ---------------------------------------------------------------
         # 2. Bugs SEV-1
         # ---------------------------------------------------------------
-        self.stdout.write(self.style.NOTICE("[2/4] Bugs SEV-1 (busca em commits + trilha-auditoria)"))
+        self.stdout.write(
+            self.style.NOTICE("[2/4] Bugs SEV-1 (busca em commits + trilha-auditoria)")
+        )
         sev1 = self._contar_sev1()
         if sev1 <= 3:
             self.stdout.write(self.style.SUCCESS(f"  [OK ] {sev1} SEV-1 no período (limite ≤ 3)"))
@@ -72,10 +77,12 @@ class Command(BaseCommand):
         # 3. Gasto LLM (não-automatizável — TBD)
         # ---------------------------------------------------------------
         self.stdout.write(self.style.NOTICE("[3/4] Gasto LLM (console Anthropic)"))
-        self.stdout.write(self.style.WARNING(
-            "  [TBD] Verificar manualmente em https://console.anthropic.com/settings/usage"
-        ))
-        self.stdout.write("        Limite: R$ 1.500 no período de 4–6 semanas")
+        self.stdout.write(
+            self.style.WARNING(
+                "  [TBD] Verificar manualmente em https://console.anthropic.com/settings/usage"
+            )
+        )
+        self.stdout.write("        Limite: R$ 1.500 no período de 4-6 semanas")
 
         # ---------------------------------------------------------------
         # 4. Vetos do Auditor de Segurança
@@ -92,15 +99,17 @@ class Command(BaseCommand):
         # ---------------------------------------------------------------
         self.stdout.write("")
         if semanas < 4:
-            self.stdout.write(self.style.WARNING(
-                f"PERÍODO MÍNIMO NÃO ATINGIDO: {semanas:.1f}/4 semanas. "
-                "Critério 7 exige 4-6 semanas observadas — Roldão decide se aceita "
-                "evidência empírica do período atual ou aguarda período completo."
-            ))
+            self.stdout.write(
+                self.style.WARNING(
+                    f"PERÍODO MÍNIMO NÃO ATINGIDO: {semanas:.1f}/4 semanas. "
+                    "Critério 7 exige 4-6 semanas observadas — Roldão decide se aceita "
+                    "evidência empírica do período atual ou aguarda período completo."
+                )
+            )
         elif media_semanal <= 2 and sev1 <= 3 and vetos == 0:
-            self.stdout.write(self.style.SUCCESS(
-                "CRITÉRIO 7 ATENDIDO (validar gasto LLM manualmente)."
-            ))
+            self.stdout.write(
+                self.style.SUCCESS("CRITÉRIO 7 ATENDIDO (validar gasto LLM manualmente).")
+            )
         else:
             self.stdout.write(self.style.ERROR("CRITÉRIO 7 REPROVADO."))
 
@@ -112,8 +121,10 @@ class Command(BaseCommand):
         """Roda git e devolve stdout."""
         repo = Path(__file__).resolve().parents[5]
         try:
-            r = subprocess.run(  # noqa: S603 — args internos controlados
-                ["git", *args],
+            # S603/S607: comando dev-only; args internos fixos (nunca
+            # input externo), git resolvido do PATH do dev.
+            r = subprocess.run(
+                ["git", *args],  # noqa: S603, S607
                 capture_output=True,
                 text=True,
                 cwd=str(repo),
@@ -170,7 +181,7 @@ class Command(BaseCommand):
         Pré-deploy não há logs persistidos — depende de menções em commit messages.
         Pós-deploy, trocar por leitura de docs/governanca/trilha-auditoria-agentes.md
         """
-        desde = datetime.now(timezone.utc) - timedelta(days=14)
+        desde = datetime.now(UTC) - timedelta(days=14)
         log = self._git(
             "log",
             f"--since={desde:%Y-%m-%d}",

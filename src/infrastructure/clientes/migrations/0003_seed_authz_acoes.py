@@ -18,7 +18,6 @@ import uuid
 
 from django.db import migrations
 
-
 MATRIZ = [
     ("admin_tenant", "clientes.criar"),
     ("admin_tenant", "clientes.ler"),
@@ -39,7 +38,7 @@ def seed(apps, schema_editor):
         # Pega ids dos perfis pelo codigo
         cur.execute(
             "SELECT codigo, id FROM authz_perfil WHERE codigo = ANY(%s);",
-            [list(set(p for p, _ in MATRIZ))],
+            [list({p for p, _ in MATRIZ})],
         )
         perfil_id_por_codigo = dict(cur.fetchall())
 
@@ -66,7 +65,7 @@ def unseed(apps, schema_editor):
         cur.execute("DROP POLICY IF EXISTS authz_perfil_acao_block_mutation ON authz_perfil_acao;")
         cur.execute(
             "DELETE FROM authz_perfil_acao WHERE acao = ANY(%s);",
-            [list(set(a for _, a in MATRIZ))],
+            [list({a for _, a in MATRIZ})],
         )
         cur.execute(
             "CREATE POLICY authz_perfil_acao_block_mutation ON authz_perfil_acao "

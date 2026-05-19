@@ -56,7 +56,7 @@ class Auditoria(models.Model):
     payload_jsonb = models.JSONField(
         help_text="Payload completo da acao. Canonicalizado antes de calcular hash.",
     )
-    hash_anterior = models.CharField(
+    hash_anterior = models.CharField(  # noqa: DJ001 -- NULL = genese da cadeia (sem predecessor), semanticamente != "" (string vazia seria hash valido)
         max_length=64,
         null=True,
         blank=True,
@@ -74,9 +74,7 @@ class Auditoria(models.Model):
     # audit/0009) preenche. NOT NULL no banco.
     sequencia = models.BigIntegerField(
         editable=False,
-        db_default=models.Func(
-            models.Value("auditoria_seq"), function="nextval"
-        ),
+        db_default=models.Func(models.Value("auditoria_seq"), function="nextval"),
     )
 
     class Meta:
@@ -107,7 +105,7 @@ class Auditoria(models.Model):
             )
         super().save(*args, **kwargs)
 
-    def delete(self, *args: Any, **kwargs: Any) -> "tuple[int, dict[str, int]]":
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
         raise RuntimeError(
             "Auditoria e INSERT-only. DELETE bloqueado em codigo (Marco 2) e "
             "em trigger PG (Marco 4)."

@@ -14,7 +14,6 @@ no boundary de saida — defesa em profundidade.
 
 from __future__ import annotations
 
-
 # Caracteres que disparam interpretacao de formula no Excel/LibreOffice/Numbers.
 GATILHOS_FORMULA = ("=", "+", "-", "@", "\t", "\r")
 

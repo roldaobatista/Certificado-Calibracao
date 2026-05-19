@@ -19,7 +19,6 @@ import uuid
 import django.db.models.deletion
 from django.db import migrations, models
 
-
 RLS_DECLARACAO = """
 ALTER TABLE cliente_importacao_declaracoes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cliente_importacao_declaracoes FORCE ROW LEVEL SECURITY;
@@ -75,7 +74,6 @@ ALTER TABLE clientes DROP CONSTRAINT IF EXISTS ck_cliente_base_legal;
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("clientes", "0011_seed_authz_visao360"),
         ("tenant", "0002_tenant_bloqueio_automatico_inadimplencia_habilitado"),

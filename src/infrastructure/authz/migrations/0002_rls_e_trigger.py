@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from django.db import migrations
 
-
 AUTHZ_PERFIL_POLICY = """
 ALTER TABLE authz_perfil ENABLE ROW LEVEL SECURITY;
 ALTER TABLE authz_perfil FORCE ROW LEVEL SECURITY;

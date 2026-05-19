@@ -62,12 +62,8 @@ class TestCadeiaPreTenantPorUsuario:
         provider = DjangoAuthorizationProvider()
 
         with run_in_user_context(usuario.id):
-            d1 = provider.can(
-                usuario_id=usuario.id, action="tenant.listar", tenant_id=None
-            )
-            d2 = provider.can(
-                usuario_id=usuario.id, action="tenant.listar", tenant_id=None
-            )
+            d1 = provider.can(usuario_id=usuario.id, action="tenant.listar", tenant_id=None)
+            d2 = provider.can(usuario_id=usuario.id, action="tenant.listar", tenant_id=None)
             l1 = AuthzDecision.objects.get(id=d1.audit_id)
             l2 = AuthzDecision.objects.get(id=d2.audit_id)
 
@@ -88,9 +84,7 @@ class TestCadeiaPreTenantPorUsuario:
         with run_in_user_context(ub.id):
             # B NÃO enxerga a linha pré-tenant de A (RLS por-usuário)
             visiveis = list(
-                AuthzDecision.objects.filter(tenant_id__isnull=True).values_list(
-                    "id", flat=True
-                )
+                AuthzDecision.objects.filter(tenant_id__isnull=True).values_list("id", flat=True)
             )
             assert la.id not in visiveis
             db = provider.can(usuario_id=ub.id, action="tenant.listar", tenant_id=None)
@@ -131,9 +125,7 @@ class TestCadeiaPreTenantPorUsuario:
         with run_as_system():
             tenant = TenantFactory()
             usuario = UsuarioFactory()
-            UsuarioPerfilTenantFactory(
-                usuario=usuario, tenant=tenant, perfil="admin_tenant"
-            )
+            UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="admin_tenant")
         invalidate_user_cache(usuario.id, tenant.id)
         provider = DjangoAuthorizationProvider()
 
@@ -183,9 +175,7 @@ class TestCadeiaPreTenantPorUsuario:
         with run_as_system():
             tenant = TenantFactory()
             usuario = UsuarioFactory()
-            UsuarioPerfilTenantFactory(
-                usuario=usuario, tenant=tenant, perfil="admin_tenant"
-            )
+            UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="admin_tenant")
         invalidate_user_cache(usuario.id, tenant.id)
         provider = DjangoAuthorizationProvider()
 
@@ -210,9 +200,7 @@ class TestCadeiaPreTenantPorUsuario:
                     resource=resource,
                     tenant_id=tenant.id,
                 )
-            ok, total, quebrados = verificar_integridade_cadeia_authz(
-                {"tenant_id": tenant.id}
-            )
+            ok, total, quebrados = verificar_integridade_cadeia_authz({"tenant_id": tenant.id})
         assert ok is True, f"cadeia acusou adulteração falsa: {quebrados}"
         assert total >= 3
         assert quebrados == []
@@ -224,9 +212,7 @@ class TestCadeiaPreTenantPorUsuario:
         with run_as_system():
             tenant = TenantFactory()
             usuario = UsuarioFactory()
-            UsuarioPerfilTenantFactory(
-                usuario=usuario, tenant=tenant, perfil="admin_tenant"
-            )
+            UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="admin_tenant")
         invalidate_user_cache(usuario.id, tenant.id)
         provider = DjangoAuthorizationProvider()
 
@@ -249,9 +235,7 @@ class TestCadeiaPreTenantPorUsuario:
             )
             provider.can(usuario_id=usuario.id, action="os.criar", tenant_id=tenant.id)
             provider.can(usuario_id=usuario.id, action="os.criar", tenant_id=tenant.id)
-            ok, total, quebrados = verificar_integridade_cadeia_authz(
-                {"tenant_id": tenant.id}
-            )
+            ok, total, quebrados = verificar_integridade_cadeia_authz({"tenant_id": tenant.id})
         assert ok is False
         assert total == 5
         # Elo envenenado + os 2 seguintes (encadeiam no recalculado): >=3.

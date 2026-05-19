@@ -65,11 +65,21 @@ ignore = [
     "S101",  # uso de assert (ok em testes)
     "E501",  # linhas longas (line-length cobre)
 ]
+# "×" (U+00D7 sinal de multiplicacao) e correto em texto tecnico PT:
+# "Receita 5 anos × ISO 17025 8.4 (~25 anos)". Nao e confusable de "x".
+allowed-confusables = ["×"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106"]  # senhas/asserts em fixtures sao OK
 "**/migrations/*.py" = ["E501", "RUF012"]
 "config/settings/*.py" = ["F405", "F403"]  # settings usam wildcard import
+# RUF012: Django/DRF declaram atributos de classe mutaveis por design
+# (Meta.permissions/indexes/constraints, Serializer.Meta.fields,
+# ViewSet.permission_classes). ClassVar nao e idiomatico aqui — mesmo
+# criterio ja aplicado a migrations acima (framework-estrutural).
+"**/models.py" = ["RUF012"]
+"**/serializers.py" = ["RUF012"]
+"**/views.py" = ["RUF012"]
 
 [tool.ruff.format]
 quote-style = "double"

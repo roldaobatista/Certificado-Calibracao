@@ -34,7 +34,9 @@ class Command(BaseCommand):
         n_tenants = options["tenants"]
         n_linhas = options["linhas_por_tenant"]
 
-        self.stdout.write(self.style.NOTICE(f"Populando {n_tenants} tenants × {n_linhas} linhas..."))
+        self.stdout.write(
+            self.style.NOTICE(f"Populando {n_tenants} tenants × {n_linhas} linhas...")
+        )
 
         # Cria tenants + usuario por tenant
         tenants_e_usuarios = []
@@ -47,7 +49,7 @@ class Command(BaseCommand):
                 )
                 u = Usuario.objects.create_user(
                     email=f"drill-pop-{uid}@x.com",
-                    password="drill-teste-12-chars",
+                    password="drill-teste-12-chars",  # noqa: S106 -- credencial de drill local (comando dev-only), nunca usada em producao
                 )
                 tenants_e_usuarios.append((t, u))
 
@@ -58,7 +60,8 @@ class Command(BaseCommand):
                 with transaction.atomic():
                     for i in range(n_linhas):
                         registrar_auditoria(
-                            tenant_id=t.id, usuario_id=u.id,
+                            tenant_id=t.id,
+                            usuario_id=u.id,
                             action=f"drill.evento.{i}",
                             resource_summary=f"recurso-{i}",
                             payload={"i": i, "tenant": str(t.id)},

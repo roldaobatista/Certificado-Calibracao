@@ -17,9 +17,7 @@ from django.db import migrations
 def seed(apps, schema_editor):
     with schema_editor.connection.cursor() as cur:
         cur.execute("ALTER TABLE authz_perfil_acao DISABLE ROW LEVEL SECURITY;")
-        cur.execute(
-            "DROP POLICY IF EXISTS authz_perfil_acao_block_mutation ON authz_perfil_acao;"
-        )
+        cur.execute("DROP POLICY IF EXISTS authz_perfil_acao_block_mutation ON authz_perfil_acao;")
         cur.execute("SELECT id FROM authz_perfil WHERE codigo = 'admin_tenant';")
         row = cur.fetchone()
         if row:
@@ -40,9 +38,7 @@ def seed(apps, schema_editor):
 def unseed(apps, schema_editor):
     with schema_editor.connection.cursor() as cur:
         cur.execute("ALTER TABLE authz_perfil_acao DISABLE ROW LEVEL SECURITY;")
-        cur.execute(
-            "DROP POLICY IF EXISTS authz_perfil_acao_block_mutation ON authz_perfil_acao;"
-        )
+        cur.execute("DROP POLICY IF EXISTS authz_perfil_acao_block_mutation ON authz_perfil_acao;")
         cur.execute("DELETE FROM authz_perfil_acao WHERE acao = 'clientes.mesclar';")
         cur.execute(
             "CREATE POLICY authz_perfil_acao_block_mutation ON authz_perfil_acao "

@@ -7,7 +7,6 @@ Justificativa minima de chars exigida no boundary (R3 implicito).
 
 from __future__ import annotations
 
-
 # Motivos do bloqueio (R2 advogado)
 MOTIVO_MANUAL_INADIMPLENCIA = "manual_inadimplencia"
 MOTIVO_MANUAL_QUEBRA_CONFIANCA = "manual_quebra_confianca"

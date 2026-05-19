@@ -7,7 +7,6 @@ from uuid import uuid4
 import pytest
 from django.db import IntegrityError, transaction
 from django.db.utils import InternalError, ProgrammingError
-
 from src.infrastructure.authz.django_provider import (
     DjangoAuthorizationProvider,
     invalidate_user_cache,
@@ -130,9 +129,7 @@ def test_inv_authz_002_hash_chain_encadeia_linhas():
             decisoes_ids.append(d.audit_id)
         # FB-C1: ordena por `sequencia` (monotônica) — `timestamp` colide em
         # µs sob o advisory lock (era o bug; correção alinhada ao invariante).
-        linhas = list(
-            AuthzDecision.objects.filter(id__in=decisoes_ids).order_by("sequencia")
-        )
+        linhas = list(AuthzDecision.objects.filter(id__in=decisoes_ids).order_by("sequencia"))
     # Primeira linha do tenant pode ser a 1a do test_db ou nao;
     # garantimos apenas que cada hash_atual e diferente e hash_anterior
     # de linhas subsequentes bate com hash_atual anterior dentro da serie.

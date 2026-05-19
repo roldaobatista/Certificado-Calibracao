@@ -12,7 +12,6 @@ no Cliente.aceite_lgpd_versao.
 
 from __future__ import annotations
 
-
 # Versao vigente do texto. INCREMENTE quando o texto mudar.
 # Formato sugerido: vMAJOR.MINOR-YYYY-MM-DD.
 VERSAO_VIGENTE = "v1.0-2026-05-18"
@@ -35,8 +34,8 @@ TEXTOS_HISTORICOS: dict[str, str] = {
 
 
 # Origens validas do aceite (R2 advogado + TL2 tech-lead).
-ORIGEM_BALCAO = "balcao"        # atendente cadastrou no balcao (sem IP do titular)
-ORIGEM_PORTAL = "portal"        # titular se cadastrou no portal-cliente (V2)
+ORIGEM_BALCAO = "balcao"  # atendente cadastrou no balcao (sem IP do titular)
+ORIGEM_PORTAL = "portal"  # titular se cadastrou no portal-cliente (V2)
 ORIGEM_IMPORTACAO = "importacao"  # importacao CSV em massa
 ORIGEM_API_TERCEIRO = "api_terceiro"  # integracao com sistema legado
 
@@ -63,8 +62,8 @@ DISPENSAS_VALIDAS = (
 # Bases legais (R2 advogado US-CLI-003) — usadas quando aceite veio de fora
 # (importacao com flag `pf_aceite_origem`). Valor None/vazio = aceite gerado
 # pelo proprio Afere (origem balcao/portal).
-BASE_LEGAL_ART_7_V = "art_7_v"   # execucao de contrato
-BASE_LEGAL_ART_7_I = "art_7_i"   # consentimento
+BASE_LEGAL_ART_7_V = "art_7_v"  # execucao de contrato
+BASE_LEGAL_ART_7_I = "art_7_i"  # consentimento
 
 BASES_LEGAIS_VALIDAS = (BASE_LEGAL_ART_7_V, BASE_LEGAL_ART_7_I)
 

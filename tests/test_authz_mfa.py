@@ -10,10 +10,9 @@ from uuid import uuid4
 
 import pytest
 from django.test import RequestFactory
-
 from src.infrastructure.authz.middleware import (
-    MfaRequiredMiddleware,
     PERFIS_SENSIVEIS,
+    MfaRequiredMiddleware,
 )
 from src.infrastructure.multitenant.connection import run_in_tenant_context
 
@@ -73,9 +72,7 @@ def test_sec_mfa_001_perfil_sensivel_sem_otp_e_401():
     suffix = uuid4().hex[:8]
     tenant = TenantFactory(slug=f"mfa-{suffix}")
     usuario = UsuarioFactory(email=f"sens-{suffix}@local")
-    UsuarioPerfilTenantFactory(
-        usuario=usuario, tenant=tenant, perfil="admin_tenant"
-    )
+    UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="admin_tenant")
     user = _FakeUserMFAOff(pk=usuario.id, mfa_obrigatorio=False)
 
     mw = MfaRequiredMiddleware(lambda r: None)  # type: ignore[arg-type]  # test double: get_response e callable, nao precisa tipar HttpResponse
@@ -95,9 +92,7 @@ def test_sec_mfa_001_perfil_nao_sensivel_passa_sem_otp():
     suffix = uuid4().hex[:8]
     tenant = TenantFactory(slug=f"mfa-{suffix}")
     usuario = UsuarioFactory(email=f"tec-{suffix}@local")
-    UsuarioPerfilTenantFactory(
-        usuario=usuario, tenant=tenant, perfil="tecnico"
-    )
+    UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="tecnico")
     user = _FakeUserMFAOff(pk=usuario.id, mfa_obrigatorio=False)
 
     chamado = {"passou": False}
@@ -122,9 +117,7 @@ def test_sec_mfa_001_perfil_sensivel_com_otp_passa():
     suffix = uuid4().hex[:8]
     tenant = TenantFactory(slug=f"mfa-{suffix}")
     usuario = UsuarioFactory(email=f"adm-{suffix}@local")
-    UsuarioPerfilTenantFactory(
-        usuario=usuario, tenant=tenant, perfil="admin_tenant"
-    )
+    UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="admin_tenant")
     user = _FakeUserMFAOn(pk=usuario.id, mfa_obrigatorio=True)
 
     chamado = {"passou": False}

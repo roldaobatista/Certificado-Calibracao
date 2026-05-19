@@ -22,7 +22,6 @@ from __future__ import annotations
 
 from django.db import migrations
 
-
 FORWARD = """
 DROP POLICY IF EXISTS auditoria_tenant_isolation_select ON auditoria;
 CREATE POLICY auditoria_chain_select ON auditoria
@@ -78,7 +77,6 @@ CREATE POLICY auditoria_tenant_isolation_delete ON auditoria
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("multitenant", "0003_upt_permite_insert_system"),
         ("audit", "0009_auditoria_sequencia"),

@@ -12,7 +12,6 @@ from uuid import uuid4
 import pytest
 from django.db import IntegrityError, transaction
 from django.db.utils import ProgrammingError
-
 from src.infrastructure.clientes.models import Cliente, TipoPessoa
 from src.infrastructure.multitenant.connection import run_in_tenant_context
 

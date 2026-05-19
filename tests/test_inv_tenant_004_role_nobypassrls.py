@@ -18,18 +18,17 @@ def test_inv_tenant_004_role_app_user_e_nobypassrls_e_nosuperuser():
     """Role corrente (app_user em runtime) tem rolbypassrls=false E rolsuper=false."""
     with connection.cursor() as cur:
         cur.execute(
-            "SELECT rolname, rolbypassrls, rolsuper FROM pg_roles "
-            "WHERE rolname = current_user;"
+            "SELECT rolname, rolbypassrls, rolsuper FROM pg_roles " "WHERE rolname = current_user;"
         )
         row = cur.fetchone()
     assert row is not None
     rolname, bypass, superuser = row
-    assert bypass is False, (
-        f"INV-TENANT-004 VIOLADA: role {rolname} tem BYPASSRLS — RLS pode ser ignorada"
-    )
-    assert superuser is False, (
-        f"INV-TENANT-004 VIOLADA: role {rolname} eh SUPERUSER — bypassa toda seguranca"
-    )
+    assert (
+        bypass is False
+    ), f"INV-TENANT-004 VIOLADA: role {rolname} tem BYPASSRLS — RLS pode ser ignorada"
+    assert (
+        superuser is False
+    ), f"INV-TENANT-004 VIOLADA: role {rolname} eh SUPERUSER — bypassa toda seguranca"
 
 
 @pytest.mark.django_db

@@ -6,12 +6,11 @@ JSON canonico. Sem isso, hash chain quebra com falso-positivo.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
 import pytest
-
 from src.infrastructure.audit.canonicalizar import canonicalizar
 
 
@@ -36,7 +35,7 @@ class TestOrdemDeterministica:
 
 class TestTiposCustom:
     def test_datetime_utc_isoformat(self) -> None:
-        dt = datetime(2026, 5, 17, 14, 30, 0, tzinfo=timezone.utc)
+        dt = datetime(2026, 5, 17, 14, 30, 0, tzinfo=UTC)
         out = canonicalizar({"ts": dt})
         assert '"ts":"2026-05-17T14:30:00+00:00"' in out
 

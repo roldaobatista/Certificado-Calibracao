@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from django.db import migrations
 
-
 REQUIRE_TENANT_CTX_FN = """
 CREATE OR REPLACE FUNCTION require_tenant_ctx() RETURNS text
 LANGUAGE plpgsql
@@ -116,7 +115,6 @@ CREATE POLICY ff_block_mutation ON feature_flags
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("multitenant", "0001_rls_setup"),
     ]

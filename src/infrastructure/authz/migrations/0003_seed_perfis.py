@@ -21,7 +21,6 @@ import uuid
 
 from django.db import migrations
 
-
 PERFIS = [
     ("admin_tenant", "Administrador do Tenant"),
     ("tecnico", "Técnico de campo"),

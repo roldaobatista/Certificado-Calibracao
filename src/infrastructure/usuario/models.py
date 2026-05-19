@@ -29,7 +29,7 @@ class UsuarioManager(BaseUserManager["Usuario"]):
 
     use_in_migrations = True
 
-    def _create_user(self, email: str, password: str | None, **extra: Any) -> "Usuario":
+    def _create_user(self, email: str, password: str | None, **extra: Any) -> Usuario:
         if not email:
             raise ValueError("Email obrigatorio")
         email = self.normalize_email(email).lower()
@@ -38,14 +38,12 @@ class UsuarioManager(BaseUserManager["Usuario"]):
         user.save(using=self._db)
         return user
 
-    def create_user(self, email: str, password: str | None = None, **extra: Any) -> "Usuario":
+    def create_user(self, email: str, password: str | None = None, **extra: Any) -> Usuario:
         extra.setdefault("is_staff", False)
         extra.setdefault("is_superuser", False)
         return self._create_user(email, password, **extra)
 
-    def create_superuser(
-        self, email: str, password: str | None = None, **extra: Any
-    ) -> "Usuario":
+    def create_superuser(self, email: str, password: str | None = None, **extra: Any) -> Usuario:
         extra.setdefault("is_staff", True)
         extra.setdefault("is_superuser", True)
         if extra.get("is_staff") is not True:

@@ -17,7 +17,6 @@ from uuid import uuid4
 import factory
 from factory.django import DjangoModelFactory
 from factory.faker import Faker
-
 from src.infrastructure.audit.models import Auditoria
 from src.infrastructure.feature_flag.models import FeatureFlag, FonteFlag
 from src.infrastructure.tenant.models import StatusLifecycle, Tenant

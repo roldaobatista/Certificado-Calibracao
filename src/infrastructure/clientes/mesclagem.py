@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import re
 
-
 MOTIVO_DUPLICACAO_ATENDIMENTO = "duplicacao_atendimento"
 MOTIVO_MIGRACAO_SISTEMA_LEGADO = "migracao_sistema_legado"
 MOTIVO_ALTERACAO_PF_PJ = "alteracao_pf_pj"
@@ -31,7 +30,9 @@ MOTIVOS_VALIDOS: tuple[str, ...] = (
 # - Email: padrao basico
 # - Telefone: BR — 10/11 digitos com DDD
 _RE_CPF = re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")
-_RE_CNPJ = re.compile(r"\b[A-Z0-9]{2}\.?[A-Z0-9]{3}\.?[A-Z0-9]{3}/?[A-Z0-9]{4}-?\d{2}\b", re.IGNORECASE)
+_RE_CNPJ = re.compile(
+    r"\b[A-Z0-9]{2}\.?[A-Z0-9]{3}\.?[A-Z0-9]{3}/?[A-Z0-9]{4}-?\d{2}\b", re.IGNORECASE
+)
 _RE_EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 _RE_TELEFONE = re.compile(r"\b(?:\(?\d{2}\)?\s?)?\d{4,5}-?\d{4}\b")
 
@@ -45,8 +46,7 @@ def validar_observacao(texto: str) -> None:
     """
     if len(texto) > 200:
         raise ValueError(
-            "Observacao da mesclagem maior que 200 caracteres — "
-            "use categoria + texto sucinto."
+            "Observacao da mesclagem maior que 200 caracteres — " "use categoria + texto sucinto."
         )
 
     achados: list[str] = []

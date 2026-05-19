@@ -16,13 +16,12 @@ bypass o middleware via lista hardcoded.
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 from uuid import UUID
 
 from django.conf import settings
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.urls import reverse
 from django.utils import timezone
 
 from .connection import run_in_user_context, setar_contexto_pg_na_conexao
@@ -145,9 +144,7 @@ class TenantMiddleware:
                 .distinct()
             )
 
-    def _extrair_active_tenant(
-        self, request: HttpRequest, tenant_ids: list[UUID]
-    ) -> UUID | None:
+    def _extrair_active_tenant(self, request: HttpRequest, tenant_ids: list[UUID]) -> UUID | None:
         """Header > query param > default (se so 1 tenant)."""
         raw = request.headers.get("X-Afere-Active-Tenant") or request.GET.get("tenant")
         if raw:

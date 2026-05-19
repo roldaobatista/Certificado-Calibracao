@@ -14,12 +14,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 from rest_framework.test import APIClient
-
 from src.infrastructure.audit.models import Auditoria
 from src.infrastructure.authz.django_provider import invalidate_user_cache
 from src.infrastructure.clientes.models import Cliente, TipoPessoa
@@ -308,7 +307,6 @@ def test_mesclar_atomico_rollback_em_falha(cenario, monkeypatch):
 
     monkeypatch.setattr(services, "registrar_auditoria", falha_apenas_mesclado)
     # E re-importa no namespace que a view importou
-    from src.infrastructure.clientes import views as views_module
 
     monkeypatch.setattr(
         "src.infrastructure.audit.services.registrar_auditoria",
@@ -399,13 +397,12 @@ def test_mesclar_perdedor_ja_deletado_retorna_409(cenario):
 
     Idempotencia reversa: tentar mesclar de novo o mesmo par retorna 409.
     """
-    from datetime import datetime, timezone
 
     venc, perd = _criar_par(cenario["tenant"], cenario["admin"])
     # Marca perdedor como ja soft-deleted
     with run_in_tenant_context(cenario["tenant"].id, usuario_id=cenario["admin"].id):
         Cliente.all_objects.filter(id=perd.id).update(
-            deletado_em=datetime.now(timezone.utc),
+            deletado_em=datetime.now(UTC),
             deletado_motivo_categoria="duplicacao_atendimento",
         )
 

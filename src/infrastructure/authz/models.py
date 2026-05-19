@@ -166,7 +166,7 @@ class AuthzDecision(models.Model):
             "varchar(64) — mesma decisão FA-A1 p/ ip_hash (T-FB-04)."
         ),
     )
-    hash_anterior = models.CharField(
+    hash_anterior = models.CharField(  # noqa: DJ001 -- NULL = genese da cadeia (sem predecessor), semanticamente != "" (string vazia seria hash valido)
         max_length=64,
         null=True,
         blank=True,
@@ -182,9 +182,7 @@ class AuthzDecision(models.Model):
     # faz o INSERT do ORM emitir DEFAULT — a sequence (authz/0004) preenche.
     sequencia = models.BigIntegerField(
         editable=False,
-        db_default=models.Func(
-            models.Value("authz_decisions_seq"), function="nextval"
-        ),
+        db_default=models.Func(models.Value("authz_decisions_seq"), function="nextval"),
     )
 
     class Meta:

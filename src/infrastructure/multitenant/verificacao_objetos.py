@@ -88,8 +88,7 @@ def verificar_objetos_seguranca() -> list[str]:
 
         # 3. Triggers anti-mutation existem.
         cur.execute(
-            "SELECT tgrelid::regclass::text, tgname FROM pg_trigger "
-            "WHERE NOT tgisinternal;"
+            "SELECT tgrelid::regclass::text, tgname FROM pg_trigger " "WHERE NOT tgisinternal;"
         )
         triggers = {(r[0], r[1]) for r in cur.fetchall()}
         for tabela, trig in TRIGGERS_ANTI_MUTATION:

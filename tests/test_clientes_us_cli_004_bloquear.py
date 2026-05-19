@@ -7,7 +7,6 @@ from uuid import uuid4
 import pytest
 from django.core.management import call_command
 from rest_framework.test import APIClient
-
 from src.infrastructure.audit.models import Auditoria
 from src.infrastructure.authz.django_provider import (
     DjangoAuthorizationProvider,
@@ -306,7 +305,9 @@ def test_historico_bloqueio_preservado(cenario):
     _autenticar(client, cenario["admin"], cenario["tenant"])
 
     client.post(f"/api/v1/clientes/{cliente.id}/bloquear/", data=_payload_manual(), format="json")
-    client.post(f"/api/v1/clientes/{cliente.id}/desbloquear/", data={"motivo": "Quitou"}, format="json")
+    client.post(
+        f"/api/v1/clientes/{cliente.id}/desbloquear/", data={"motivo": "Quitou"}, format="json"
+    )
     client.post(f"/api/v1/clientes/{cliente.id}/bloquear/", data=_payload_manual(), format="json")
 
     with run_in_tenant_context(cenario["tenant"].id):
@@ -390,8 +391,6 @@ def test_job_automatico_bloqueia_quando_flag_on(cenario, settings):
     call_command("job_inadimplencia_alertas")
 
     with run_in_tenant_context(cenario["tenant"].id):
-        ativo = ClienteBloqueio.objects.get(
-            cliente=cliente, desbloqueado_em__isnull=True
-        )
+        ativo = ClienteBloqueio.objects.get(cliente=cliente, desbloqueado_em__isnull=True)
         assert ativo.motivo_categoria == MOTIVO_AUTOMATICO_INADIMPLENCIA_90D
         assert ativo.causation_id == titulo_id

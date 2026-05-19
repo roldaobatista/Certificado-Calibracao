@@ -13,7 +13,6 @@ from uuid import uuid4
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
-
 from src.infrastructure.audit.models import (
     AcessoDadosCliente,
     Auditoria,
@@ -39,7 +38,6 @@ from tests.factories import (
     UsuarioFactory,
     UsuarioPerfilTenantFactory,
 )
-
 
 CPF_VALIDO_1 = "52998224725"
 CNPJ_VALIDO_1 = "11222333000181"
@@ -85,7 +83,7 @@ def _csv_pj_basico() -> bytes:
         "CNPJ;Razao Social;E-mail;Telefone\r\n"
         f"{CNPJ_VALIDO_1};Petrobras LTDA;contato@petrobras.com.br;11999999999\r\n"
         f"{CNPJ_VALIDO_2};BB SA;contato@bb.com.br;1133333333\r\n"
-    ).encode("utf-8")
+    ).encode()
 
 
 # =============================================================
@@ -153,7 +151,7 @@ class TestCsvIo:
         assert "UTF-8" in str(exc.value)
 
     def test_ler_csv_excede_limite_linhas(self):
-        from src.infrastructure.clientes.csv_io import ErroCsvIo, LIMITE_LINHAS
+        from src.infrastructure.clientes.csv_io import LIMITE_LINHAS, ErroCsvIo
 
         linhas = ["CNPJ"] + [f"line-{i}" for i in range(LIMITE_LINHAS + 1)]
         csv_bytes = "\n".join(linhas).encode("utf-8")
@@ -214,10 +212,7 @@ def test_preview_devolve_amostra_e_mapeamento_sugerido(cenario):
 def test_preview_detecta_coluna_dados_sensiveis(cenario):
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
-    csv_bytes = (
-        "CNPJ;Razao Social;Diagnostico\r\n"
-        f"{CNPJ_VALIDO_1};X;hipertensao\r\n"
-    ).encode("utf-8")
+    csv_bytes = ("CNPJ;Razao Social;Diagnostico\r\n" f"{CNPJ_VALIDO_1};X;hipertensao\r\n").encode()
     arquivo = _upload("sensivel.csv", csv_bytes)
     response = client.post(
         "/api/v1/clientes/importar-preview/",
@@ -237,10 +232,8 @@ def test_preview_detecta_coluna_dados_sensiveis(cenario):
 @pytest.mark.django_db(transaction=True)
 def test_executar_cria_pj_em_lote_dispensa_sem_pf(cenario):
     csv_bytes = (
-        "CNPJ;Razao Social\r\n"
-        f"{CNPJ_VALIDO_1};Petrobras\r\n"
-        f"{CNPJ_VALIDO_2};BB\r\n"
-    ).encode("utf-8")
+        "CNPJ;Razao Social\r\n" f"{CNPJ_VALIDO_1};Petrobras\r\n" f"{CNPJ_VALIDO_2};BB\r\n"
+    ).encode()
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
     arquivo = _upload("pj.csv", csv_bytes)
@@ -267,9 +260,8 @@ def test_executar_cria_pj_em_lote_dispensa_sem_pf(cenario):
 @pytest.mark.django_db(transaction=True)
 def test_executar_pj_com_email_pessoal_marca_pendente_aceite(cenario):
     csv_bytes = (
-        "CNPJ;Razao Social;E-mail\r\n"
-        f"{CNPJ_VALIDO_1};Acme;joao.silva@acme.com\r\n"
-    ).encode("utf-8")
+        "CNPJ;Razao Social;E-mail\r\n" f"{CNPJ_VALIDO_1};Acme;joao.silva@acme.com\r\n"
+    ).encode()
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
     arquivo = _upload("pj.csv", csv_bytes)
@@ -296,10 +288,7 @@ def test_executar_pj_com_email_pessoal_marca_pendente_aceite(cenario):
 
 @pytest.mark.django_db(transaction=True)
 def test_executar_pf_sem_flag_rejeita_linha(cenario):
-    csv_bytes = (
-        "CPF;Nome\r\n"
-        f"{CPF_VALIDO_1};Joao Silva\r\n"
-    ).encode("utf-8")
+    csv_bytes = ("CPF;Nome\r\n" f"{CPF_VALIDO_1};Joao Silva\r\n").encode()
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
     arquivo = _upload("pf.csv", csv_bytes)
@@ -326,10 +315,7 @@ def test_executar_pf_sem_flag_rejeita_linha(cenario):
 
 @pytest.mark.django_db(transaction=True)
 def test_executar_pf_com_flag_contrato_preexistente_cria_com_base_art_7_v(cenario):
-    csv_bytes = (
-        "CPF;Nome\r\n"
-        f"{CPF_VALIDO_1};Joao Silva\r\n"
-    ).encode("utf-8")
+    csv_bytes = ("CPF;Nome\r\n" f"{CPF_VALIDO_1};Joao Silva\r\n").encode()
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
     arquivo = _upload("pf.csv", csv_bytes)
@@ -397,10 +383,7 @@ def test_upload_excede_limite_bytes_retorna_413(cenario):
 
 @pytest.mark.django_db(transaction=True)
 def test_executar_neutraliza_formula_injection_em_nome(cenario):
-    csv_bytes = (
-        "CNPJ;Razao Social\r\n"
-        f"{CNPJ_VALIDO_1};=cmd|'/c calc'!A1\r\n"
-    ).encode("utf-8")
+    csv_bytes = ("CNPJ;Razao Social\r\n" f"{CNPJ_VALIDO_1};=cmd|'/c calc'!A1\r\n").encode()
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
     arquivo = _upload("evil.csv", csv_bytes)
@@ -430,10 +413,8 @@ def test_executar_neutraliza_formula_injection_em_nome(cenario):
 @pytest.mark.django_db(transaction=True)
 def test_executar_skip_invalid_false_com_linha_invalida_nao_persiste_nada(cenario):
     csv_bytes = (
-        "CNPJ;Razao Social\r\n"
-        f"{CNPJ_VALIDO_1};Boa LTDA\r\n"
-        "12345678901234;Ruim LTDA\r\n"
-    ).encode("utf-8")
+        "CNPJ;Razao Social\r\n" f"{CNPJ_VALIDO_1};Boa LTDA\r\n" "12345678901234;Ruim LTDA\r\n"
+    ).encode()
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
     arquivo = _upload("misto.csv", csv_bytes)
@@ -461,10 +442,8 @@ def test_executar_skip_invalid_false_com_linha_invalida_nao_persiste_nada(cenari
 def test_executar_documento_ausente_rejeita_linha(cenario):
     """Linha sem coluna documento — rejeita motivo `documento_ausente`."""
     csv_bytes = (
-        "CNPJ;Razao Social\r\n"
-        f"{CNPJ_VALIDO_1};Boa LTDA\r\n"
-        ";Sem documento\r\n"
-    ).encode("utf-8")
+        "CNPJ;Razao Social\r\n" f"{CNPJ_VALIDO_1};Boa LTDA\r\n" ";Sem documento\r\n"
+    ).encode()
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
     arquivo = _upload("ausente.csv", csv_bytes)
@@ -490,9 +469,8 @@ def test_executar_documento_ausente_rejeita_linha(cenario):
 def test_executar_documento_tamanho_invalido_rejeita_linha(cenario):
     """Documento com 13 chars (nem PF nem PJ) — rejeita motivo `documento_tamanho_invalido`."""
     csv_bytes = (
-        "CNPJ;Razao Social\r\n"
-        "1122233344455;Tamanho errado\r\n"  # 13 chars
-    ).encode("utf-8")
+        b"CNPJ;Razao Social\r\n" b"1122233344455;Tamanho errado\r\n"  # 13 chars
+    )
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
     arquivo = _upload("tamanho.csv", csv_bytes)
@@ -517,10 +495,7 @@ def test_executar_documento_tamanho_invalido_rejeita_linha(cenario):
 @pytest.mark.django_db(transaction=True)
 def test_executar_nome_ausente_rejeita_linha(cenario):
     """Documento valido + nome vazio — rejeita motivo `nome_ausente`."""
-    csv_bytes = (
-        "CNPJ;Razao Social\r\n"
-        f"{CNPJ_VALIDO_1};\r\n"
-    ).encode("utf-8")
+    csv_bytes = ("CNPJ;Razao Social\r\n" f"{CNPJ_VALIDO_1};\r\n").encode()
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
     arquivo = _upload("nome.csv", csv_bytes)
@@ -547,7 +522,6 @@ def test_audit_documento_hash_eh_salgado_por_tenant(cenario):
     """FAIL critico Auditor Seguranca 2026-05-18: hash de PII em audit
     precisa ser salgado por tenant (rainbow-table-proof)."""
     import hashlib
-    import json
 
     with run_in_tenant_context(cenario["tenant"].id, usuario_id=cenario["admin"].id):
         Cliente.objects.create(
@@ -578,15 +552,17 @@ def test_audit_documento_hash_eh_salgado_por_tenant(cenario):
     assert aud is not None
     doc_hash = aud.payload_jsonb["documento_hash"]
     # Hash SEM sal (vulneravel) — NAO deve bater. Contra-exemplo intencional.
-    hash_sem_sal = hashlib.sha256(CNPJ_VALIDO_2.encode("utf-8")).hexdigest()  # audit-pii-salt: skip -- contra-exemplo prova que hash inseguro nao e usado
-    assert doc_hash != hash_sem_sal, (
-        "Hash em audit precisa ser salgado por tenant (Auditor Seguranca FAIL critico)"
-    )
+    hash_sem_sal = hashlib.sha256(
+        CNPJ_VALIDO_2.encode("utf-8")
+    ).hexdigest()  # audit-pii-salt: skip -- contra-exemplo prova que hash inseguro nao e usado
+    assert (
+        doc_hash != hash_sem_sal
+    ), "Hash em audit precisa ser salgado por tenant (Auditor Seguranca FAIL critico)"
     # SANEA-02: o salt PREVISIVEL antigo (sha256 de string derivavel do
     # tenant_id, que e publico) NAO pode mais reproduzir o hash. Se este
     # assert falhar, alguem so com o tenant_id reconstruiu o hash de CPF.
     hash_salt_previsivel = hashlib.sha256(  # audit-pii-salt: skip -- contra-exemplo prova que salt previsivel nao reproduz
-        f"afere-pii-salt:{cenario['tenant'].id}:{CNPJ_VALIDO_2}".encode("utf-8")
+        f"afere-pii-salt:{cenario['tenant'].id}:{CNPJ_VALIDO_2}".encode()
     ).hexdigest()
     assert doc_hash != hash_salt_previsivel, (
         "SANEA-02: hash nao pode ser reproduzivel so com tenant_id (HMAC "
@@ -596,9 +572,7 @@ def test_audit_documento_hash_eh_salgado_por_tenant(cenario):
     # via a funcao canonica — prova determinismo sem expor a chave no teste.
     from src.infrastructure.audit.services import hashear_pii_com_salt_tenant
 
-    assert doc_hash == hashear_pii_com_salt_tenant(
-        CNPJ_VALIDO_2, cenario["tenant"].id
-    )
+    assert doc_hash == hashear_pii_com_salt_tenant(CNPJ_VALIDO_2, cenario["tenant"].id)
     # Separacao por tenant: mesmo documento, tenant diferente => hash diferente.
     import uuid as _uuid
 
@@ -608,10 +582,8 @@ def test_audit_documento_hash_eh_salgado_por_tenant(cenario):
 @pytest.mark.django_db(transaction=True)
 def test_executar_skip_invalid_true_persiste_validas_e_relata_invalidas(cenario):
     csv_bytes = (
-        "CNPJ;Razao Social\r\n"
-        f"{CNPJ_VALIDO_1};Boa LTDA\r\n"
-        "12345678901234;Ruim LTDA\r\n"
-    ).encode("utf-8")
+        "CNPJ;Razao Social\r\n" f"{CNPJ_VALIDO_1};Boa LTDA\r\n" "12345678901234;Ruim LTDA\r\n"
+    ).encode()
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
     arquivo = _upload("misto.csv", csv_bytes)
@@ -636,10 +608,7 @@ def test_executar_skip_invalid_true_persiste_validas_e_relata_invalidas(cenario)
 
 @pytest.mark.django_db(transaction=True)
 def test_executar_rerun_mesmo_arquivo_eh_idempotente_marca_sem_mudanca(cenario):
-    csv_bytes = (
-        "CNPJ;Razao Social\r\n"
-        f"{CNPJ_VALIDO_1};Acme LTDA\r\n"
-    ).encode("utf-8")
+    csv_bytes = ("CNPJ;Razao Social\r\n" f"{CNPJ_VALIDO_1};Acme LTDA\r\n").encode()
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
     arquivo1 = _upload("a.csv", csv_bytes)
@@ -686,7 +655,7 @@ def test_audit_importacao_nao_contem_pii_cru(cenario):
     csv_bytes = (
         "CNPJ;Razao Social;E-mail;Telefone\r\n"
         f"{CNPJ_VALIDO_1};Petrobras LTDA;contato@petrobras.com.br;11999999999\r\n"
-    ).encode("utf-8")
+    ).encode()
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
     arquivo = _upload("pj.csv", csv_bytes)
@@ -723,11 +692,7 @@ def test_audit_importacao_nao_contem_pii_cru(cenario):
 
 @pytest.mark.django_db(transaction=True)
 def test_audit_importacao_eh_evento_unico_por_lote(cenario):
-    csv_bytes = (
-        "CNPJ;Razao Social\r\n"
-        f"{CNPJ_VALIDO_1};A\r\n"
-        f"{CNPJ_VALIDO_2};B\r\n"
-    ).encode("utf-8")
+    csv_bytes = ("CNPJ;Razao Social\r\n" f"{CNPJ_VALIDO_1};A\r\n" f"{CNPJ_VALIDO_2};B\r\n").encode()
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
     arquivo = _upload("dois.csv", csv_bytes)
@@ -774,9 +739,7 @@ def test_declaracao_de_procedencia_persistida(cenario):
     )
     assert response.status_code == 200, response.content
     with run_in_tenant_context(cenario["tenant"].id, usuario_id=cenario["admin"].id):
-        d = ClienteImportacaoDeclaracao.objects.filter(
-            tenant_id=cenario["tenant"].id
-        ).first()
+        d = ClienteImportacaoDeclaracao.objects.filter(tenant_id=cenario["tenant"].id).first()
     assert d is not None
     assert d.tem_base_legal is True
     assert d.compromisso_comunicar_titulares is True
@@ -873,8 +836,8 @@ def test_importar_com_tenant_suspenso_nega_403(cenario):
     CONCERN Seguranca 4 (Auditor Familia 5 2026-05-18) — predicate
     deixou de ser stub. Consulta `Tenant.status_lifecycle` de verdade.
     """
-    from src.infrastructure.tenant.models import StatusLifecycle
     from src.infrastructure.clientes.predicates_authz import tenant_nao_suspenso
+    from src.infrastructure.tenant.models import StatusLifecycle
 
     tenant = cenario["tenant"]
     tenant.status_lifecycle = StatusLifecycle.SUSPENSO
@@ -888,8 +851,8 @@ def test_importar_com_tenant_suspenso_nega_403(cenario):
 @pytest.mark.django_db(transaction=True)
 def test_importar_com_tenant_cancelado_nega(cenario):
     """Tenant CANCELADO -> predicate nega com reason `tenant_cancelado`."""
-    from src.infrastructure.tenant.models import StatusLifecycle
     from src.infrastructure.clientes.predicates_authz import tenant_nao_suspenso
+    from src.infrastructure.tenant.models import StatusLifecycle
 
     tenant = cenario["tenant"]
     tenant.status_lifecycle = StatusLifecycle.CANCELADO
@@ -916,10 +879,7 @@ def test_executar_update_existing_false_rejeita_duplicata(cenario):
             nome="Existente",
             aceite_lgpd_dispensa_motivo="pj_sem_pf_associada",
         )
-    csv_bytes = (
-        "CNPJ;Razao Social\r\n"
-        f"{CNPJ_VALIDO_1};Tentando criar de novo\r\n"
-    ).encode("utf-8")
+    csv_bytes = ("CNPJ;Razao Social\r\n" f"{CNPJ_VALIDO_1};Tentando criar de novo\r\n").encode()
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
     arquivo = _upload("dup.csv", csv_bytes)
@@ -975,9 +935,9 @@ def test_importacao_e_atomica_falha_no_meio_reverte_update(cenario, monkeypatch)
 
     csv_bytes = (
         "CNPJ;Razao Social\r\n"
-        f"{CNPJ_VALIDO_1};Novo LTDA\r\n"          # vai pro ramo UPDATE
-        f"{CNPJ_VALIDO_2};Cliente Novo\r\n"      # vai pro ramo bulk_create -> boom
-    ).encode("utf-8")
+        f"{CNPJ_VALIDO_1};Novo LTDA\r\n"  # vai pro ramo UPDATE
+        f"{CNPJ_VALIDO_2};Cliente Novo\r\n"  # vai pro ramo bulk_create -> boom
+    ).encode()
     # raise_request_exception=False: o DRF, por padrao, re-levanta excecao
     # nao-tratada no test client. Queremos a resposta 500 real + observar o
     # estado do banco apos o rollback.
@@ -1001,9 +961,7 @@ def test_importacao_e_atomica_falha_no_meio_reverte_update(cenario, monkeypatch)
 
     assert response.status_code == 500, response.content
     with run_in_tenant_context(cenario["tenant"].id, usuario_id=cenario["admin"].id):
-        existente = Cliente.objects.get(
-            tenant_id=cenario["tenant"].id, documento=CNPJ_VALIDO_1
-        )
+        existente = Cliente.objects.get(tenant_id=cenario["tenant"].id, documento=CNPJ_VALIDO_1)
         # Atomicidade: o UPDATE foi revertido junto com o bulk_create que falhou.
         assert existente.nome == "Antigo LTDA", (
             "SANEA-01: update do cliente existente NAO foi revertido — "

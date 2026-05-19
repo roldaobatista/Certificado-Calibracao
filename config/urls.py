@@ -7,7 +7,6 @@ from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-
 from src.infrastructure.authz.decorators import public
 
 

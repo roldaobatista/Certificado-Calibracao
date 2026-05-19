@@ -12,10 +12,9 @@ Regras F-B:
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from django.http import HttpRequest, HttpResponse, JsonResponse
-
 
 PERFIS_SENSIVEIS = frozenset({"admin_tenant", "rt_signatario", "financeiro"})
 

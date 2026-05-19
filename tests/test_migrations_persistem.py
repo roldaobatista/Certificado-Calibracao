@@ -13,7 +13,6 @@ esperado. Se uma migration de segurança mentir, ESTE teste falha na suite.
 from __future__ import annotations
 
 import pytest
-
 from src.infrastructure.multitenant.verificacao_objetos import (
     FUNCOES_SEGURANCA,
     TABELAS_RLS,
@@ -29,8 +28,7 @@ def test_objetos_de_seguranca_existem_fisicamente_no_banco() -> None:
     """RLS+policies+triggers+funções das migrations existem de verdade."""
     problemas = verificar_objetos_seguranca()
     assert problemas == [], (
-        "Migration reportou OK mas objeto de seguranca NAO existe no banco "
-        f"(FA-A4): {problemas}"
+        "Migration reportou OK mas objeto de seguranca NAO existe no banco " f"(FA-A4): {problemas}"
     )
 
 

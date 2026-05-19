@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from django.db import migrations
 
-
 TRIGGER_SQL = """
 CREATE OR REPLACE FUNCTION auditoria_bloqueia_mutation()
 RETURNS trigger
@@ -43,7 +42,6 @@ DROP FUNCTION IF EXISTS auditoria_bloqueia_mutation();
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("audit", "0002_initial"),
     ]

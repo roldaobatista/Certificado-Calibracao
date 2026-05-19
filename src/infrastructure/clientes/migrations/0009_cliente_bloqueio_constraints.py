@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from django.db import migrations
 
-
 CREATE_SQL = """
 -- TL1: 1 bloqueio ativo por cliente
 CREATE UNIQUE INDEX uq_cliente_bloqueio_ativo

@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from django.db import migrations
 
-
 REFINA_UPT = """
 DROP POLICY IF EXISTS upt_block_mutation ON usuario_perfil_tenant;
 
@@ -44,7 +43,6 @@ CREATE POLICY upt_block_mutation ON usuario_perfil_tenant
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("multitenant", "0002_fail_loud_e_flag_global"),
     ]

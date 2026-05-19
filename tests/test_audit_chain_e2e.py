@@ -8,7 +8,6 @@ comprovado em teste de fuzzing".
 from __future__ import annotations
 
 import pytest
-
 from src.infrastructure.audit.canonicalizar import canonicalizar
 from src.infrastructure.audit.hash_chain import calcular_hash
 from src.infrastructure.audit.models import Auditoria
@@ -20,6 +19,7 @@ from src.infrastructure.multitenant.connection import (
     run_as_system,
     run_in_tenant_context,
 )
+
 from tests.factories import TenantFactory, UsuarioFactory
 
 pytestmark = pytest.mark.tenant_isolation  # exige PG vivo
@@ -55,16 +55,25 @@ class TestHashChainE2E:
 
         with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
             l1 = registrar_auditoria(
-                tenant_id=t.id, usuario_id=u.id,
-                action="a1", resource_summary="r1", payload={"i": 1},
+                tenant_id=t.id,
+                usuario_id=u.id,
+                action="a1",
+                resource_summary="r1",
+                payload={"i": 1},
             )
             l2 = registrar_auditoria(
-                tenant_id=t.id, usuario_id=u.id,
-                action="a2", resource_summary="r2", payload={"i": 2},
+                tenant_id=t.id,
+                usuario_id=u.id,
+                action="a2",
+                resource_summary="r2",
+                payload={"i": 2},
             )
             l3 = registrar_auditoria(
-                tenant_id=t.id, usuario_id=u.id,
-                action="a3", resource_summary="r3", payload={"i": 3},
+                tenant_id=t.id,
+                usuario_id=u.id,
+                action="a3",
+                resource_summary="r3",
+                payload={"i": 3},
             )
 
         assert l2.hash_anterior == l1.hash_atual
@@ -79,7 +88,8 @@ class TestHashChainE2E:
         with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
             for i in range(10):
                 registrar_auditoria(
-                    tenant_id=t.id, usuario_id=u.id,
+                    tenant_id=t.id,
+                    usuario_id=u.id,
                     action=f"evento.{i}",
                     resource_summary=f"r-{i}",
                     payload={"i": i, "msg": f"acao numero {i}"},
@@ -103,12 +113,18 @@ class TestServiceConcorrencia:
 
         with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
             l1 = registrar_auditoria(
-                tenant_id=t.id, usuario_id=u.id,
-                action="seq1", resource_summary="seq", payload={"i": 1},
+                tenant_id=t.id,
+                usuario_id=u.id,
+                action="seq1",
+                resource_summary="seq",
+                payload={"i": 1},
             )
             l2 = registrar_auditoria(
-                tenant_id=t.id, usuario_id=u.id,
-                action="seq2", resource_summary="seq", payload={"i": 2},
+                tenant_id=t.id,
+                usuario_id=u.id,
+                action="seq2",
+                resource_summary="seq",
+                payload={"i": 2},
             )
             # Asserts DENTRO do contexto — RLS exige
             assert l2.hash_anterior == l1.hash_atual

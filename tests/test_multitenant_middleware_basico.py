@@ -10,7 +10,6 @@ import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.http import HttpResponse
 from django.test import RequestFactory
-
 from src.infrastructure.multitenant.middleware import (
     PUBLIC_PATHS_PREFIX,
     TenantMiddleware,

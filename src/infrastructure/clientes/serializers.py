@@ -75,7 +75,7 @@ class ClienteSerializer(serializers.ModelSerializer):
                 else:
                     raise serializers.ValidationError({"tipo_pessoa": "Tipo invalido"})
             except ValueError as e:
-                raise serializers.ValidationError({"documento": str(e)})
+                raise serializers.ValidationError({"documento": str(e)}) from e
 
         aceite_em = attrs.get("aceite_lgpd_em")
         dispensa = attrs.get("aceite_lgpd_dispensa_motivo", "")

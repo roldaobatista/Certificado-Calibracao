@@ -63,17 +63,13 @@ class Command(BaseCommand):
         resultados.append(("1. Hooks _test-runner.sh", *self._checar_hooks()))
 
         self.stdout.write(self.style.NOTICE("[2/7] Trigger anti-mutation..."))
-        resultados.append(
-            ("2. Trigger anti-mutation authz_decisions", *self._checar_trigger())
-        )
+        resultados.append(("2. Trigger anti-mutation authz_decisions", *self._checar_trigger()))
 
         self.stdout.write(self.style.NOTICE("[3/7] Hash chain authz (robusto)..."))
         resultados.append(("3. Hash chain authz robusto", *self._checar_hash_chain()))
 
         self.stdout.write(self.style.NOTICE("[4/7] E2E 16 cenarios..."))
-        resultados.append(
-            ("4. E2E 16 cenarios", *self._pytest("tests/test_authz_e2e.py"))
-        )
+        resultados.append(("4. E2E 16 cenarios", *self._pytest("tests/test_authz_e2e.py")))
 
         self.stdout.write(self.style.NOTICE("[5/7] RequireAuthz na borda DRF..."))
         resultados.append(
@@ -170,9 +166,7 @@ class Command(BaseCommand):
                     )
         for t in tenants:
             with run_in_tenant_context(tenant_id=t.id, usuario_id=ua.id):
-                ok, total, quebrados = verificar_integridade_cadeia_authz(
-                    {"tenant_id": t.id}
-                )
+                ok, total, quebrados = verificar_integridade_cadeia_authz({"tenant_id": t.id})
             if total == 0:  # (e) guarda anti-falso-verde
                 return False, f"tenant {t.slug}: 0 linhas — drill vazio mente (FB-C4)"
             if not ok:

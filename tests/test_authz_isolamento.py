@@ -11,7 +11,6 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
-
 from src.infrastructure.authz.django_provider import (
     DjangoAuthorizationProvider,
     invalidate_user_cache,

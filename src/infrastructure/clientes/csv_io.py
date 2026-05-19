@@ -19,7 +19,6 @@ from typing import Any
 
 from src.infrastructure.clientes.csv_safety import sanitizar_celula_csv
 
-
 LIMITE_LINHAS = 1000
 LIMITE_BYTES = 2 * 1024 * 1024  # espelha config/settings/base.py
 
@@ -199,9 +198,7 @@ def detectar_colunas_sensiveis(headers: tuple[str, ...]) -> tuple[str, ...]:
 
 def detectar_colunas_cpf_responsavel(headers: tuple[str, ...]) -> tuple[str, ...]:
     """Retorna headers que parecem trazer CPF de socio/responsavel (R8 advogado)."""
-    return tuple(
-        h for h in headers if h and h.lower().strip() in HEADERS_CPF_RESPONSAVEL
-    )
+    return tuple(h for h in headers if h and h.lower().strip() in HEADERS_CPF_RESPONSAVEL)
 
 
 # Re-export pra simetria (view importa apenas csv_io).

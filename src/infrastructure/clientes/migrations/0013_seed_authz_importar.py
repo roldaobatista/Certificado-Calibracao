@@ -21,15 +21,13 @@ from django.db import migrations
 def seed(apps, schema_editor):
     with schema_editor.connection.cursor() as cur:
         cur.execute("ALTER TABLE authz_perfil_acao DISABLE ROW LEVEL SECURITY;")
-        cur.execute(
-            "DROP POLICY IF EXISTS authz_perfil_acao_block_mutation ON authz_perfil_acao;"
-        )
+        cur.execute("DROP POLICY IF EXISTS authz_perfil_acao_block_mutation ON authz_perfil_acao;")
         # Soh admin_tenant — TL7 least privilege.
         cur.execute(
             "SELECT codigo, id FROM authz_perfil WHERE codigo = %s;",
             ["admin_tenant"],
         )
-        for codigo, pid in cur.fetchall():
+        for _codigo, pid in cur.fetchall():
             cur.execute(
                 "INSERT INTO authz_perfil_acao (id, perfil_id, acao, pode_executar, criado_em) "
                 "VALUES (%s, %s, 'clientes.importar', TRUE, now()) "
@@ -47,9 +45,7 @@ def seed(apps, schema_editor):
 def unseed(apps, schema_editor):
     with schema_editor.connection.cursor() as cur:
         cur.execute("ALTER TABLE authz_perfil_acao DISABLE ROW LEVEL SECURITY;")
-        cur.execute(
-            "DROP POLICY IF EXISTS authz_perfil_acao_block_mutation ON authz_perfil_acao;"
-        )
+        cur.execute("DROP POLICY IF EXISTS authz_perfil_acao_block_mutation ON authz_perfil_acao;")
         cur.execute("DELETE FROM authz_perfil_acao WHERE acao = 'clientes.importar';")
         cur.execute(
             "CREATE POLICY authz_perfil_acao_block_mutation ON authz_perfil_acao "

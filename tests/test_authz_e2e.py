@@ -21,12 +21,10 @@ cliente_externo_leitura   X        P             X                X
 from __future__ import annotations
 
 import pytest
-
 from src.infrastructure.authz.django_provider import (
     DjangoAuthorizationProvider,
     invalidate_user_cache,
 )
-from src.infrastructure.authz.models import AuthzDecision
 from src.infrastructure.multitenant.connection import run_in_tenant_context
 
 from tests.factories import (
@@ -34,7 +32,6 @@ from tests.factories import (
     UsuarioFactory,
     UsuarioPerfilTenantFactory,
 )
-
 
 # Matriz pos/neg explicita — 16 celulas exatas (4 perfis × 4 acoes).
 MATRIZ_ESPERADA = [
@@ -85,9 +82,7 @@ def provider():
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("perfil,acao,esperado", MATRIZ_ESPERADA)
-def test_inv_authz_001_matriz_4perfis_x_4acoes(
-    cenario_basico, provider, perfil, acao, esperado
-):
+def test_inv_authz_001_matriz_4perfis_x_4acoes(cenario_basico, provider, perfil, acao, esperado):
     """INV-AUTHZ-001: cada decisao passa pelo provider e devolve o que a matriz diz."""
     tenant = cenario_basico["tenant"]
     usuario = cenario_basico["usuarios"][perfil]

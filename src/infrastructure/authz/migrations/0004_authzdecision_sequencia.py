@@ -92,8 +92,7 @@ class Migration(migrations.Migration):
                     field=models.CharField(
                         blank=True,
                         help_text=(
-                            "SHA-256 da linha anterior na cadeia. "
-                            "NULL = primeira linha."
+                            "SHA-256 da linha anterior na cadeia. " "NULL = primeira linha."
                         ),
                         max_length=64,
                         null=True,

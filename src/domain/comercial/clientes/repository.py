@@ -145,4 +145,3 @@ class ResultadoImportacao:
     rejeitados: tuple[LinhaRejeitada, ...] = field(default_factory=tuple)
     ids_criados: tuple[UUID, ...] = field(default_factory=tuple)
     ids_atualizados: tuple[UUID, ...] = field(default_factory=tuple)
-

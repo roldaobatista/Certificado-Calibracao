@@ -69,12 +69,18 @@ class TestReconciliacaoP4:
             ua = UsuarioFactory()
         with run_in_tenant_context(tenant_id=ta.id, usuario_id=ua.id):
             registrar_auditoria(
-                tenant_id=ta.id, usuario_id=ua.id, action="a1",
-                resource_summary="r", payload={"i": 1},
+                tenant_id=ta.id,
+                usuario_id=ua.id,
+                action="a1",
+                resource_summary="r",
+                payload={"i": 1},
             )
             e2 = registrar_auditoria(
-                tenant_id=ta.id, usuario_id=ua.id, action="a2",
-                resource_summary="r", payload={"i": 2},
+                tenant_id=ta.id,
+                usuario_id=ua.id,
+                action="a2",
+                resource_summary="r",
+                payload={"i": 2},
             )
         assert e2.hash_anterior is not None  # encadeou normal
 
@@ -144,9 +150,7 @@ class TestReconciliacaoP4:
                     usuario_id=usuario.id,
                 )
             eventos = list(
-                Auditoria.objects.filter(
-                    tenant_id=tenant.id, action="pii.verificacao_inconclusiva"
-                )
+                Auditoria.objects.filter(tenant_id=tenant.id, action="pii.verificacao_inconclusiva")
             )
         assert len(eventos) == antes + 1
         ev = eventos[-1]
@@ -176,8 +180,12 @@ class TestReconciliacaoP4:
             )
             roles = cur.fetchall()
 
-        assert is_super is False, f"conexão de teste é SUPERUSER ({user_atual}) — fuzzing falso-verde"
-        assert is_bypass is False, f"conexão de teste é BYPASSRLS ({user_atual}) — fuzzing falso-verde"
+        assert (
+            is_super is False
+        ), f"conexão de teste é SUPERUSER ({user_atual}) — fuzzing falso-verde"
+        assert (
+            is_bypass is False
+        ), f"conexão de teste é BYPASSRLS ({user_atual}) — fuzzing falso-verde"
         assert len(roles) == 2, f"app_user/app_migrator ausentes em test_afere: {roles}"
         for nome, rsuper, rbypass in roles:
             assert rsuper is False, f"{nome} é SUPERUSER em test_afere"

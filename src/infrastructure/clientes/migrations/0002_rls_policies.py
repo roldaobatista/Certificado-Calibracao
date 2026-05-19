@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from django.db import migrations
 
-
 RLS_POLICY = """
 ALTER TABLE clientes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clientes FORCE ROW LEVEL SECURITY;
@@ -43,7 +42,6 @@ ALTER TABLE clientes DISABLE ROW LEVEL SECURITY;
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("clientes", "0001_initial"),
     ]

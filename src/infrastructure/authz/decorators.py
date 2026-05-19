@@ -19,13 +19,13 @@ decorator e sem `RequireAuthz` é rejeitada pelo hook em pre-commit.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable
+from typing import Any
 
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
 from .django_provider import get_provider
-
 
 # authz-check: skip -- definição da válvula pública (não é endpoint)
 # FB-C2: nome canônico ÚNICO do marcador público. `@public` (função),

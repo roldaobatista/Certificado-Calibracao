@@ -9,8 +9,8 @@ from __future__ import annotations
 import pytest
 from django.test import Client
 from django.urls import reverse
-
 from src.infrastructure.multitenant.connection import run_as_system
+
 from tests.factories import (
     TenantFactory,
     UsuarioFactory,

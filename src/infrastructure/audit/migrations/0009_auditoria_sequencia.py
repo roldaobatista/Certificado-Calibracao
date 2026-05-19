@@ -17,7 +17,6 @@ from __future__ import annotations
 
 from django.db import migrations, models
 
-
 FORWARD = """
 CREATE SEQUENCE IF NOT EXISTS auditoria_seq;
 
@@ -50,7 +49,6 @@ DROP SEQUENCE IF EXISTS auditoria_seq;
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("audit", "0008_acesso_cliente_id_nullable"),
     ]
@@ -65,9 +63,7 @@ class Migration(migrations.Migration):
                     name="sequencia",
                     field=models.BigIntegerField(
                         editable=False,
-                        db_default=models.Func(
-                            models.Value("auditoria_seq"), function="nextval"
-                        ),
+                        db_default=models.Func(models.Value("auditoria_seq"), function="nextval"),
                     ),
                 ),
             ],

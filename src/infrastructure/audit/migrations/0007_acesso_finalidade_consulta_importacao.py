@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from django.db import migrations
 
-
 ALTER_SQL = """
 ALTER TABLE acessos_dados_cliente
     DROP CONSTRAINT IF EXISTS chk_acesso_finalidade_enum;

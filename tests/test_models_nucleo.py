@@ -15,7 +15,6 @@ from uuid import uuid4
 
 import pytest
 from django.db import IntegrityError
-
 from src.infrastructure.audit.models import Auditoria
 from src.infrastructure.feature_flag.models import FeatureFlag, FonteFlag
 from src.infrastructure.multitenant.connection import (
@@ -74,7 +73,9 @@ class TestUsuarioPerfilTenant:
         uid = uuid4().hex[:8]
         with run_as_system():
             t = Tenant.objects.create(slug=f"upt-u-{uid}", nome_fantasia="UPT")
-            u = Usuario.objects.create_user(email=f"upt-u-{uid}@x.com", password="senha-teste-12-chars")
+            u = Usuario.objects.create_user(
+                email=f"upt-u-{uid}@x.com", password="senha-teste-12-chars"
+            )
             UsuarioPerfilTenant.objects.create(usuario=u, tenant=t, perfil="admin_tenant")
             with pytest.raises(IntegrityError):
                 UsuarioPerfilTenant.objects.create(usuario=u, tenant=t, perfil="admin_tenant")
@@ -83,7 +84,9 @@ class TestUsuarioPerfilTenant:
         uid = uuid4().hex[:8]
         with run_as_system():
             t = Tenant.objects.create(slug=f"upt-m-{uid}", nome_fantasia="UPT")
-            u = Usuario.objects.create_user(email=f"upt-m-{uid}@x.com", password="senha-teste-12-chars")
+            u = Usuario.objects.create_user(
+                email=f"upt-m-{uid}@x.com", password="senha-teste-12-chars"
+            )
             UsuarioPerfilTenant.objects.create(usuario=u, tenant=t, perfil="admin_tenant")
             UsuarioPerfilTenant.objects.create(usuario=u, tenant=t, perfil="rt_signatario")
         # Leitura requer contexto onde app.usuario_id casa upt_self_select
@@ -114,7 +117,9 @@ class TestAuditoriaImutabilidadeCodigo:
         uid = uuid4().hex[:8]
         with run_as_system():
             t = Tenant.objects.create(slug=f"aud-i-{uid}", nome_fantasia="Aud")
-            u = Usuario.objects.create_user(email=f"aud-i-{uid}@x.com", password="senha-teste-12-chars")
+            u = Usuario.objects.create_user(
+                email=f"aud-i-{uid}@x.com", password="senha-teste-12-chars"
+            )
         with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
             linha = self._criar_linha_em_contexto(t.id, u.id)
             assert linha.pk is not None
@@ -123,7 +128,9 @@ class TestAuditoriaImutabilidadeCodigo:
         uid = uuid4().hex[:8]
         with run_as_system():
             t = Tenant.objects.create(slug=f"aud-u-{uid}", nome_fantasia="Aud")
-            u = Usuario.objects.create_user(email=f"aud-u-{uid}@x.com", password="senha-teste-12-chars")
+            u = Usuario.objects.create_user(
+                email=f"aud-u-{uid}@x.com", password="senha-teste-12-chars"
+            )
         with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
             linha = self._criar_linha_em_contexto(t.id, u.id)
             linha.action = "usuario.atualizado"
@@ -134,7 +141,9 @@ class TestAuditoriaImutabilidadeCodigo:
         uid = uuid4().hex[:8]
         with run_as_system():
             t = Tenant.objects.create(slug=f"aud-d-{uid}", nome_fantasia="Aud")
-            u = Usuario.objects.create_user(email=f"aud-d-{uid}@x.com", password="senha-teste-12-chars")
+            u = Usuario.objects.create_user(
+                email=f"aud-d-{uid}@x.com", password="senha-teste-12-chars"
+            )
         with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
             linha = self._criar_linha_em_contexto(t.id, u.id)
             with pytest.raises(RuntimeError, match="INSERT-only"):
@@ -153,7 +162,9 @@ class TestFeatureFlag:
         with run_in_tenant_context(tenant_id=t.id, usuario_id=None):
             FeatureFlag.objects.create(tenant=t, modulo="m", feature_key=f"k-{uid}", ativo=True)
             with pytest.raises(IntegrityError):
-                FeatureFlag.objects.create(tenant=t, modulo="m", feature_key=f"k-{uid}", ativo=False)
+                FeatureFlag.objects.create(
+                    tenant=t, modulo="m", feature_key=f"k-{uid}", ativo=False
+                )
 
     def test_flag_global_tenant_null(self) -> None:
         with run_as_system():

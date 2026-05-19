@@ -42,15 +42,12 @@ class Command(BaseCommand):
             if ja_existe:
                 self.stdout.write(
                     self.style.WARNING(
-                        "Marco de corte já existe na cadeia sistema — "
-                        "idempotente, nada a fazer."
+                        "Marco de corte já existe na cadeia sistema — " "idempotente, nada a fazer."
                     )
                 )
                 return
 
-            corte = (
-                Auditoria.objects.aggregate(m=Max("sequencia"))["m"] or 0
-            )
+            corte = Auditoria.objects.aggregate(m=Max("sequencia"))["m"] or 0
             elo = registrar_auditoria(
                 tenant_id=None,
                 usuario_id=None,

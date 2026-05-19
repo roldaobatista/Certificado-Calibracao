@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import time
 from uuid import uuid4
 
 import pytest
 from django.db import IntegrityError, transaction
 from django.db.utils import InternalError, ProgrammingError
 from rest_framework.test import APIClient
-
-from src.infrastructure.audit.models import AcessoDadosCliente, Auditoria
+from src.infrastructure.audit.models import AcessoDadosCliente
 from src.infrastructure.audit.services import registrar_auditoria
 from src.infrastructure.authz.django_provider import invalidate_user_cache
 from src.infrastructure.clientes.models import Cliente, TipoPessoa
@@ -67,9 +65,7 @@ def test_inv_013_visao_360_grava_acesso_antes_de_responder(cenario):
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
 
-    response = client.get(
-        f"/api/v1/clientes/{cliente.id}/visao-360/?finalidade=executar_os"
-    )
+    response = client.get(f"/api/v1/clientes/{cliente.id}/visao-360/?finalidade=executar_os")
     assert response.status_code == 200, response.content
 
     with run_in_tenant_context(cenario["tenant"].id):
@@ -189,9 +185,7 @@ def test_visao_360_finalidade_obrigatoria(cenario):
     assert body["detail"] == "finalidade_obrigatoria_e_enum"
 
     # com finalidade fora do enum
-    response = client.get(
-        f"/api/v1/clientes/{cliente.id}/visao-360/?finalidade=motivo_inventado"
-    )
+    response = client.get(f"/api/v1/clientes/{cliente.id}/visao-360/?finalidade=motivo_inventado")
     assert response.status_code == 400
 
 
@@ -225,9 +219,7 @@ def test_acessos_recurso_payload_sem_pii_cru(cenario):
     cliente = _criar_cliente(cenario["tenant"], cenario["admin"])
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
-    client.get(
-        f"/api/v1/clientes/{cliente.id}/visao-360/?finalidade=emitir_documento_fiscal"
-    )
+    client.get(f"/api/v1/clientes/{cliente.id}/visao-360/?finalidade=emitir_documento_fiscal")
 
     with run_in_tenant_context(cenario["tenant"].id):
         a = AcessoDadosCliente.objects.filter(cliente_id=cliente.id).first()

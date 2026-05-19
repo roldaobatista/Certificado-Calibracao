@@ -8,7 +8,6 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
-
 from src.infrastructure.clientes.models import Cliente, TipoPessoa
 from src.infrastructure.multitenant.connection import run_in_tenant_context
 
@@ -32,9 +31,9 @@ def test_inv_tenant_001_cliente_de_a_nao_eh_visivel_em_b():
     with run_in_tenant_context(tenant_b.id):
         # Filtro do ORM ja restrige por tenant; mas a RLS no banco eh quem
         # garante de verdade — testamos os 2 jeitos abaixo.
-        assert Cliente.objects.filter(id=c_a.id).count() == 0, (
-            "VAZAMENTO: cliente do tenant A apareceu na sessao do tenant B"
-        )
+        assert (
+            Cliente.objects.filter(id=c_a.id).count() == 0
+        ), "VAZAMENTO: cliente do tenant A apareceu na sessao do tenant B"
         assert Cliente.objects.count() == 0
 
 
@@ -45,7 +44,7 @@ def test_inv_tenant_001_count_em_b_ignora_clientes_de_a():
     tenant_b = TenantFactory(slug=f"b-{uuid4().hex[:8]}")
 
     with run_in_tenant_context(tenant_a.id):
-        for i in range(3):
+        for _ in range(3):
             # CNPJs validos diferentes — usamos so um conjunto
             pass
         Cliente.objects.create(
@@ -103,10 +102,10 @@ def test_inv_tenant_001_usuario_multi_tenant_ve_a_e_b_mas_nao_c():
         )
 
     # Simular middleware setando lista [A, B]
+    from django.db import transaction as django_tx
     from src.infrastructure.multitenant.connection import (
         setar_contexto_pg_na_conexao,
     )
-    from django.db import transaction as django_tx
 
     with django_tx.atomic():
         setar_contexto_pg_na_conexao(
@@ -115,6 +114,4 @@ def test_inv_tenant_001_usuario_multi_tenant_ve_a_e_b_mas_nao_c():
             usuario_id=None,
         )
         nomes = set(Cliente.objects.values_list("nome", flat=True))
-        assert nomes == {"A", "B"}, (
-            f"Usuario multi-tenant deveria ver so A e B; viu {nomes}"
-        )
+        assert nomes == {"A", "B"}, f"Usuario multi-tenant deveria ver so A e B; viu {nomes}"

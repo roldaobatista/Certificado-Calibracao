@@ -6,30 +6,36 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('audit', '0001_initial'),
+        ("audit", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='auditoria',
-            name='usuario',
-            field=models.ForeignKey(blank=True, help_text='NULL = evento do sistema (cron, integracao externa).', null=True, on_delete=django.db.models.deletion.PROTECT, related_name='auditoria', to=settings.AUTH_USER_MODEL),
+            model_name="auditoria",
+            name="usuario",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="NULL = evento do sistema (cron, integracao externa).",
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="auditoria",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddIndex(
-            model_name='auditoria',
-            index=models.Index(fields=['tenant', '-timestamp'], name='ix_audit_tenant_ts'),
+            model_name="auditoria",
+            index=models.Index(fields=["tenant", "-timestamp"], name="ix_audit_tenant_ts"),
         ),
         migrations.AddIndex(
-            model_name='auditoria',
-            index=models.Index(fields=['action', '-timestamp'], name='ix_audit_action_ts'),
+            model_name="auditoria",
+            index=models.Index(fields=["action", "-timestamp"], name="ix_audit_action_ts"),
         ),
         migrations.AddIndex(
-            model_name='auditoria',
-            index=models.Index(fields=['usuario', '-timestamp'], name='ix_audit_user_ts'),
+            model_name="auditoria",
+            index=models.Index(fields=["usuario", "-timestamp"], name="ix_audit_user_ts"),
         ),
     ]

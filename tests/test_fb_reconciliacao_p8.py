@@ -51,33 +51,23 @@ class TestPredicateBindingT_FB_01:
 
     def test_predicate_so_roda_no_escopo(self) -> None:
         """Predicate de `cliente.*` NÃO é aplicável a `os.criar`."""
-        register_predicate(
-            "nega_cliente", lambda r: (False, "x"), actions={"cliente."}
-        )
-        assert [p.nome for p in predicates_aplicaveis("cliente.bloquear")] == [
-            "nega_cliente"
-        ]
+        register_predicate("nega_cliente", lambda r: (False, "x"), actions={"cliente."})
+        assert [p.nome for p in predicates_aplicaveis("cliente.bloquear")] == ["nega_cliente"]
         assert predicates_aplicaveis("os.criar") == []  # fora do escopo
 
     @pytest.mark.django_db(transaction=True)
     def test_action_sem_predicate_e_abac_neutro_nao_deny(self) -> None:
         """Predicate que SEMPRE nega, escopado a `cliente.*`; `can(os.criar)`
         → não roda o predicate → decisão segue RBAC (allowed), NÃO deny."""
-        register_predicate(
-            "sempre_nega", lambda r: (False, "nunca"), actions={"cliente."}
-        )
+        register_predicate("sempre_nega", lambda r: (False, "nunca"), actions={"cliente."})
         with run_as_system():
             tenant = TenantFactory()
             usuario = UsuarioFactory()
-            UsuarioPerfilTenantFactory(
-                usuario=usuario, tenant=tenant, perfil="admin_tenant"
-            )
+            UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="admin_tenant")
         invalidate_user_cache(usuario.id, tenant.id)
         provider = DjangoAuthorizationProvider()
         with run_in_tenant_context(tenant.id, usuario_id=usuario.id):
-            d = provider.can(
-                usuario_id=usuario.id, action="os.criar", tenant_id=tenant.id
-            )
+            d = provider.can(usuario_id=usuario.id, action="os.criar", tenant_id=tenant.id)
         assert d.allowed is True  # ABAC neutro — predicate fora do escopo não rodou
         assert d.reason == "ok"
 
@@ -150,9 +140,7 @@ class TestIpHashT_FB_04:
         with run_as_system():
             tenant = TenantFactory()
             usuario = UsuarioFactory()
-            UsuarioPerfilTenantFactory(
-                usuario=usuario, tenant=tenant, perfil="admin_tenant"
-            )
+            UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="admin_tenant")
         invalidate_user_cache(usuario.id, tenant.id)
         provider = DjangoAuthorizationProvider()
         ip_cru = "203.0.113.7"
@@ -162,14 +150,10 @@ class TestIpHashT_FB_04:
         tok = ip_hash_context.set(esperado)
         try:
             with run_in_tenant_context(tenant.id, usuario_id=usuario.id):
-                d = provider.can(
-                    usuario_id=usuario.id, action="os.criar", tenant_id=tenant.id
-                )
+                d = provider.can(usuario_id=usuario.id, action="os.criar", tenant_id=tenant.id)
                 linha = AuthzDecision.objects.get(id=d.audit_id)
                 assert linha.ip_hash == esperado
-                ok, _, quebrados = verificar_integridade_cadeia_authz(
-                    {"tenant_id": tenant.id}
-                )
+                ok, _, quebrados = verificar_integridade_cadeia_authz({"tenant_id": tenant.id})
         finally:
             ip_hash_context.reset(tok)
         assert ok is True, f"ip_hash não coberto pelo hash: {quebrados}"
@@ -182,15 +166,11 @@ class TestIpHashT_FB_04:
         with run_as_system():
             tenant = TenantFactory()
             usuario = UsuarioFactory()
-            UsuarioPerfilTenantFactory(
-                usuario=usuario, tenant=tenant, perfil="admin_tenant"
-            )
+            UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="admin_tenant")
         invalidate_user_cache(usuario.id, tenant.id)
         provider = DjangoAuthorizationProvider()
         with run_in_tenant_context(tenant.id, usuario_id=usuario.id):
-            d = provider.can(
-                usuario_id=usuario.id, action="os.criar", tenant_id=tenant.id
-            )
+            d = provider.can(usuario_id=usuario.id, action="os.criar", tenant_id=tenant.id)
             assert AuthzDecision.objects.get(id=d.audit_id).ip_hash == ""
 
 
@@ -204,9 +184,7 @@ class TestResourceAllowlistT_FB_05:
         with run_as_system():
             tenant = TenantFactory()
             usuario = UsuarioFactory()
-            UsuarioPerfilTenantFactory(
-                usuario=usuario, tenant=tenant, perfil="admin_tenant"
-            )
+            UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="admin_tenant")
         invalidate_user_cache(usuario.id, tenant.id)
         provider = DjangoAuthorizationProvider()
         with run_in_tenant_context(tenant.id, usuario_id=usuario.id):
@@ -218,18 +196,14 @@ class TestResourceAllowlistT_FB_05:
                     resource={"cpf": "12345678900", "nome": "Fulano"},
                     tenant_id=tenant.id,
                 )
-            assert (
-                AuthzDecision.objects.filter(tenant_id=tenant.id).count() == antes
-            )
+            assert AuthzDecision.objects.filter(tenant_id=tenant.id).count() == antes
 
     def test_referencias_e_flags_passam(self) -> None:
         """`*_id`, `recurso_tipo`, `escopo`, flag bool → aceitos."""
         with run_as_system():
             tenant = TenantFactory()
             usuario = UsuarioFactory()
-            UsuarioPerfilTenantFactory(
-                usuario=usuario, tenant=tenant, perfil="admin_tenant"
-            )
+            UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="admin_tenant")
         invalidate_user_cache(usuario.id, tenant.id)
         provider = DjangoAuthorizationProvider()
         with run_in_tenant_context(tenant.id, usuario_id=usuario.id):
@@ -258,9 +232,7 @@ class TestRollbackOrfaoT_FB_06:
         with run_as_system():
             tenant = TenantFactory()
             usuario = UsuarioFactory()
-            UsuarioPerfilTenantFactory(
-                usuario=usuario, tenant=tenant, perfil="admin_tenant"
-            )
+            UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="admin_tenant")
         invalidate_user_cache(usuario.id, tenant.id)
         provider = DjangoAuthorizationProvider()
 
@@ -292,15 +264,11 @@ class TestRollbackOrfaoT_FB_06:
         with run_as_system():
             tenant = TenantFactory()
             usuario = UsuarioFactory()
-            UsuarioPerfilTenantFactory(
-                usuario=usuario, tenant=tenant, perfil="admin_tenant"
-            )
+            UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="admin_tenant")
         invalidate_user_cache(usuario.id, tenant.id)
         provider = DjangoAuthorizationProvider()
         with run_in_tenant_context(tenant.id, usuario_id=usuario.id):
-            d = provider.can(
-                usuario_id=usuario.id, action="os.criar", tenant_id=tenant.id
-            )
+            d = provider.can(usuario_id=usuario.id, action="os.criar", tenant_id=tenant.id)
         with run_as_system():
             assert AuthzDecision.objects.filter(id=d.audit_id).exists()
 
@@ -321,9 +289,7 @@ class TestMfaDjangoOtpRealT_FB_03:
         req = rf.get("/api/os/")
         SessionMiddleware(lambda r: None)(req)
         req.user = usuario
-        device = TOTPDevice.objects.create(
-            user=usuario, name="t", confirmed=True
-        )
+        device = TOTPDevice.objects.create(user=usuario, name="t", confirmed=True)
         if verificar:
             otp_login(req, device)  # marca verificado na sessão (real)
         OTPMiddleware(lambda r: None)(req)  # embrulha user → is_verified() real
@@ -335,9 +301,7 @@ class TestMfaDjangoOtpRealT_FB_03:
         with run_as_system():
             tenant = TenantFactory()
             usuario = UsuarioFactory()
-            UsuarioPerfilTenantFactory(
-                usuario=usuario, tenant=tenant, perfil="admin_tenant"
-            )
+            UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="admin_tenant")
         req = self._request_otp(usuario, verificar=True)
         assert req.user.is_verified() is True  # django-otp REAL
         passou = {"v": False}
@@ -357,9 +321,7 @@ class TestMfaDjangoOtpRealT_FB_03:
         with run_as_system():
             tenant = TenantFactory()
             usuario = UsuarioFactory()
-            UsuarioPerfilTenantFactory(
-                usuario=usuario, tenant=tenant, perfil="admin_tenant"
-            )
+            UsuarioPerfilTenantFactory(usuario=usuario, tenant=tenant, perfil="admin_tenant")
         req = self._request_otp(usuario, verificar=False)
         assert req.user.is_verified() is False  # django-otp REAL, sem stub
         mw = MfaRequiredMiddleware(lambda r: None)  # type: ignore[arg-type,return-value]  # test double: get_response callable

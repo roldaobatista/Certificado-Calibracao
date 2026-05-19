@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from django.db import migrations
 
-
 CREATE_SQL = """
 -- RLS pattern v2
 ALTER TABLE acessos_dados_cliente ENABLE ROW LEVEL SECURITY;

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from django.db import migrations
 
-
 CREATE_SQL = """
 CREATE POLICY acessos_no_update ON acessos_dados_cliente
     FOR UPDATE

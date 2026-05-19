@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-
+from typing import ClassVar
 
 _EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 _CNPJ_FORMATO_RE = re.compile(r"^[A-Z0-9]{12}[0-9]{2}$")
@@ -80,8 +80,8 @@ class CNPJ:
 
     value: str
 
-    _PESOS_DV1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
-    _PESOS_DV2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    _PESOS_DV1: ClassVar[list[int]] = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    _PESOS_DV2: ClassVar[list[int]] = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
 
     def __post_init__(self) -> None:
         limpo = _so_alfanum(self.value)

@@ -30,9 +30,9 @@ Ação sem predicate aplicável ⇒ ABAC neutro (segue RBAC), nunca deny.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
-
+from typing import Any
 
 PredicateFn = Callable[[dict[str, Any]], tuple[bool, str]]
 
@@ -52,10 +52,7 @@ class _Predicate:
     actions: frozenset[str]
 
     def aplica(self, action: str) -> bool:
-        return any(
-            action == a or (a.endswith(".") and action.startswith(a))
-            for a in self.actions
-        )
+        return any(action == a or (a.endswith(".") and action.startswith(a)) for a in self.actions)
 
 
 _REGISTRY: dict[str, _Predicate] = {}

@@ -81,5 +81,4 @@ class AuthorizationProvider(Protocol):
         tenant_id: UUID | None = None,
         purpose: str = "execucao_contrato",
         at_time: datetime | None = None,
-    ) -> AuthDecision:
-        ...
+    ) -> AuthDecision: ...

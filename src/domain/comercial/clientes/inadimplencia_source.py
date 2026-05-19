@@ -7,8 +7,9 @@ o contrato.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterator, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 from uuid import UUID
 
 
@@ -29,5 +30,4 @@ class InadimplenciaItem:
 class InadimplenciaSource(Protocol):
     """Iterador de clientes inadimplentes >= 90 dias."""
 
-    def iter_inadimplentes_90d(self) -> Iterator[InadimplenciaItem]:
-        ...
+    def iter_inadimplentes_90d(self) -> Iterator[InadimplenciaItem]: ...

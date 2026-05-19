@@ -11,10 +11,12 @@ no banco, mas filtramos no ORM tambem — defesa em profundidade).
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import hmac
-from datetime import datetime, timezone
-from uuid import UUID, uuid4 as uuid_module_uuid4
+from datetime import UTC, datetime
+from uuid import UUID
+from uuid import uuid4 as uuid_module_uuid4
 
 from django.conf import settings
 from django.db import transaction
@@ -44,9 +46,8 @@ def _hashear_ip(request, tenant_id: UUID | str) -> str:
     """
     from src.infrastructure.audit.services import hashear_pii_com_salt_tenant
 
-    ip = (
-        request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-        or request.META.get("REMOTE_ADDR", "")
+    ip = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip() or request.META.get(
+        "REMOTE_ADDR", ""
     )
     return hashear_pii_com_salt_tenant(ip, tenant_id)
 
@@ -149,9 +150,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_create(self, serializer) -> None:
         """Cria cliente + grava audit `cliente.criado` sem PII cru (TL3).
@@ -223,13 +222,11 @@ class ClienteViewSet(viewsets.ModelViewSet):
             vencedor_uuid = UUID(str(pk))
             perdedor_uuid = UUID(str(perdedor_id))
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST)
 
         repo = DjangoClienteRepository()
         usuario_id = usuario_id_context.get()
-        agora = datetime.now(timezone.utc)
+        agora = datetime.now(UTC)
         active = _active_tenant_obrigatorio()
 
         try:
@@ -254,18 +251,14 @@ class ClienteViewSet(viewsets.ModelViewSet):
                         "perdedor_id": str(resultado.perdedor.id),
                         "tenant_id": str(active) if active else None,
                         "mesclado_em": resultado.mesclado_em.isoformat(),
-                        "campos_sobrescritos_keys": list(
-                            resultado.campos_sobrescritos_keys
-                        ),
+                        "campos_sobrescritos_keys": list(resultado.campos_sobrescritos_keys),
                         "motivo_categoria": resultado.motivo_categoria,
                         "motivo_observacao_hash": obs_hash,
                         "usuario_id": str(usuario_id) if usuario_id else None,
                         "perdedor_documento_hash": _hashear_doc(
                             resultado.perdedor.documento, active
                         ),
-                        "perdedor_nome_hash": _hashear_pii(
-                            resultado.perdedor.nome, active
-                        ),
+                        "perdedor_nome_hash": _hashear_pii(resultado.perdedor.nome, active),
                     },
                 )
         except ErroMesclagem as e:
@@ -286,9 +279,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 "vencedor_id": str(resultado.vencedor.id),
                 "perdedor_id": str(resultado.perdedor.id),
                 "mesclado_em": resultado.mesclado_em.isoformat(),
-                "campos_sobrescritos_keys": list(
-                    resultado.campos_sobrescritos_keys
-                ),
+                "campos_sobrescritos_keys": list(resultado.campos_sobrescritos_keys),
             },
             status=status.HTTP_200_OK,
         )
@@ -379,9 +370,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         try:
             cliente_uuid = UUID(str(pk))
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST)
 
         usuario_id = usuario_id_context.get()
         active = _active_tenant_obrigatorio()
@@ -396,9 +385,11 @@ class ClienteViewSet(viewsets.ModelViewSet):
             )
 
         with transaction.atomic():
-            ativo = ClienteBloqueio.objects.filter(
-                cliente=cliente, desbloqueado_em__isnull=True
-            ).select_for_update().first()
+            ativo = (
+                ClienteBloqueio.objects.filter(cliente=cliente, desbloqueado_em__isnull=True)
+                .select_for_update()
+                .first()
+            )
             if ativo is not None:
                 # TL3: idempotente — no-op
                 return Response(
@@ -436,9 +427,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                     "motivo_categoria": motivo_categoria,
                     "justificativa_hash": justif_hash,
                     "causation_type": causation_type or None,
-                    "causation_id": str(causation_id_uuid)
-                    if causation_id_uuid
-                    else None,
+                    "causation_id": str(causation_id_uuid) if causation_id_uuid else None,
                     "usuario_id": str(usuario_id) if usuario_id else None,
                 },
             )
@@ -474,9 +463,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         try:
             cliente_uuid = UUID(str(pk))
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             cliente = Cliente.objects.get(id=cliente_uuid)
@@ -488,20 +475,16 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
         usuario_id = usuario_id_context.get()
         active = _active_tenant_obrigatorio()
-        agora = datetime.now(timezone.utc)
+        agora = datetime.now(UTC)
 
         with transaction.atomic():
             ativo = (
-                ClienteBloqueio.objects.filter(
-                    cliente=cliente, desbloqueado_em__isnull=True
-                )
+                ClienteBloqueio.objects.filter(cliente=cliente, desbloqueado_em__isnull=True)
                 .select_for_update()
                 .first()
             )
             if ativo is None:
-                return Response(
-                    {"ja_estava_desbloqueado": True}, status=status.HTTP_200_OK
-                )
+                return Response({"ja_estava_desbloqueado": True}, status=status.HTTP_200_OK)
             ativo.desbloqueado_em = agora
             ativo.desbloqueado_por_usuario_id = usuario_id
             ativo.desbloqueado_motivo = motivo
@@ -567,9 +550,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         try:
             cliente_uuid = UUID(str(pk))
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             cliente = Cliente.objects.get(id=cliente_uuid)
@@ -600,8 +581,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 payload_jsonb__cliente_id=str(cliente.id),
             )
             .order_by("-timestamp")
-            .values("id", "action", "timestamp", "payload_jsonb")
-            [:200]  # LIMIT 200 (TL5)
+            .values("id", "action", "timestamp", "payload_jsonb")[:200]  # LIMIT 200 (TL5)
         )
         from src.infrastructure.audit.services import sanitizar_payload_audit
 
@@ -641,8 +621,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
     def importar_preview(self, request):
         """POST /clientes/importar-preview/ — devolve mapeamento sugerido + amostra."""
         from src.infrastructure.clientes.csv_io import (
-            ErroCsvIo,
             LIMITE_BYTES,
+            ErroCsvIo,
             detectar_colunas_cpf_responsavel,
             detectar_colunas_sensiveis,
             ler_csv_normalizado,
@@ -718,10 +698,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
             )
         finally:
             # Forca o Django a apagar tempfile (se houver) — defesa R3 advogado.
-            try:
+            with contextlib.suppress(Exception):
                 upload.close()
-            except Exception:
-                pass
 
     # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP["importar_executar"]="clientes.importar"
     # `@transaction.non_atomic_requests` desativa ATOMIC_REQUESTS pra esta
@@ -743,8 +721,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
         )
         from src.infrastructure.audit.services import registrar_auditoria
         from src.infrastructure.clientes.csv_io import (
-            ErroCsvIo,
             LIMITE_BYTES,
+            ErroCsvIo,
             detectar_colunas_cpf_responsavel,
             detectar_colunas_sensiveis,
             ler_csv_normalizado,
@@ -754,7 +732,6 @@ class ClienteViewSet(viewsets.ModelViewSet):
             VERSAO_VIGENTE,
         )
         from src.infrastructure.clientes.models import (
-            Cliente,
             ClienteImportacaoDeclaracao,
         )
         from src.infrastructure.clientes.serializers import (
@@ -802,7 +779,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
         usuario_id = usuario_id_context.get()
-        agora = datetime.now(timezone.utc)
+        agora = datetime.now(UTC)
         tenant = Tenant.objects.filter(id=active).get()
 
         arquivo_bytes = b""
@@ -825,16 +802,14 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 )
 
             arquivo_hash = hashlib.sha256(arquivo_bytes).hexdigest()
-            arquivo_nome_hash = hashlib.sha256(
-                (upload.name or "").encode("utf-8")
-            ).hexdigest()
+            arquivo_nome_hash = hashlib.sha256((upload.name or "").encode("utf-8")).hexdigest()
             ip_hash = _hashear_ip(request, tenant.id)
             # SANEA-02: chave de hash da linha derivada da PII_HASH_KEY
             # (segredo de servidor) por tenant — NAO mais sha256 de string
             # com tenant.id (que e publico e reconstruivel).
             linha_hash_key = hmac.new(
                 settings.PII_HASH_KEY_REGISTRO.chave_ativa(),
-                f"import-linha:{tenant.id}".encode("utf-8"),
+                f"import-linha:{tenant.id}".encode(),
                 hashlib.sha256,
             ).hexdigest()
 
@@ -851,9 +826,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 declaracao_compromisso_comunicar=bool(
                     declaracao["compromisso_comunicar_titulares"]
                 ),
-                declaracao_sem_sensiveis=bool(
-                    declaracao["declara_sem_dados_sensiveis"]
-                ),
+                declaracao_sem_sensiveis=bool(declaracao["declara_sem_dados_sensiveis"]),
                 procedencia_declarada=declaracao["procedencia_declarada"],
                 pf_aceite_origem=pf_aceite_origem,
                 cpf_responsavel_destino=cpf_responsavel_destino,
@@ -875,9 +848,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             repo = DjangoClienteRepository()
             try:
                 with transaction.atomic():
-                    resultado = importar_clientes(
-                        repository=repo, contexto=contexto
-                    )
+                    resultado = importar_clientes(repository=repo, contexto=contexto)
                     # R6 advogado — grava declaracao (RLS) + audit.
                     declaracao_obj = ClienteImportacaoDeclaracao.objects.create(
                         tenant=tenant,
@@ -903,7 +874,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
                     totais["dados_sensiveis_filtrados"] = resultado.dados_sensiveis_filtrados
                     totais["pj_dispensa_aceite"] = resultado.pj_dispensa_aceite
                     totais["pj_com_pf_pendente_aceite"] = resultado.pj_com_pf_pendente_aceite
-                    totais["pf_rejeitadas_por_falta_aceite"] = resultado.pf_rejeitadas_por_falta_aceite
+                    totais["pf_rejeitadas_por_falta_aceite"] = (
+                        resultado.pf_rejeitadas_por_falta_aceite
+                    )
 
                     registrar_auditoria(
                         tenant_id=tenant.id,
@@ -931,9 +904,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                             ),
                             "rejeitados_linhas_hashes": rejeitados_hashes,
                             "ip_hash": ip_hash,
-                            "usuario_id": (
-                                str(usuario_id) if usuario_id else None
-                            ),
+                            "usuario_id": (str(usuario_id) if usuario_id else None),
                         },
                     )
             except ErroImportacao as e:
@@ -946,9 +917,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 {
                     "importacao_id": str(resultado.importacao_id),
                     "totais": totais,
-                    "rejeitados_motivos_agregados": (
-                        resultado.rejeitados_motivos_agregados
-                    ),
+                    "rejeitados_motivos_agregados": (resultado.rejeitados_motivos_agregados),
                     "rejeitados_amostra": [
                         {
                             "linha_numero": r.linha_numero,
@@ -961,10 +930,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_200_OK,
             )
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 upload.close()
-            except Exception:
-                pass
 
     @action(detail=False, methods=["get"], url_path="importacoes")
     def importacoes(self, request):
@@ -1000,9 +967,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
             ip_hash=ip_hash,
         )
 
-        qs = ClienteImportacaoDeclaracao.objects.filter(tenant_id=active).order_by(
-            "-criado_em"
-        )[:200]
+        qs = ClienteImportacaoDeclaracao.objects.filter(tenant_id=active).order_by("-criado_em")[
+            :200
+        ]
         items = [
             {
                 "id": str(d.id),
@@ -1011,9 +978,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 "arquivo_tamanho_bytes": d.arquivo_tamanho_bytes,
                 "procedencia_declarada": d.procedencia_declarada,
                 "pf_aceite_origem": d.pf_aceite_origem or None,
-                "usuario_id": (
-                    str(d.usuario_id) if d.usuario_id else None
-                ),
+                "usuario_id": (str(d.usuario_id) if d.usuario_id else None),
             }
             for d in qs
         ]

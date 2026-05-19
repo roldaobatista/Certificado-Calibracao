@@ -37,9 +37,7 @@ def cliente_nao_bloqueado(resource: dict[str, Any]) -> tuple[bool, str]:
     from src.infrastructure.clientes.models import ClienteBloqueio
 
     ativo = (
-        ClienteBloqueio.objects.filter(
-            cliente_id=cliente_uuid, desbloqueado_em__isnull=True
-        )
+        ClienteBloqueio.objects.filter(cliente_id=cliente_uuid, desbloqueado_em__isnull=True)
         .only("motivo_categoria")
         .first()
     )
@@ -83,11 +81,7 @@ def tenant_nao_suspenso(
     # Import tardio — apps loading
     from src.infrastructure.tenant.models import StatusLifecycle, Tenant
 
-    tenant = (
-        Tenant.objects.filter(id=tenant_id)
-        .only("status_lifecycle")
-        .first()
-    )
+    tenant = Tenant.objects.filter(id=tenant_id).only("status_lifecycle").first()
     if tenant is None:
         return False, "tenant_nao_existe"
     if tenant.status_lifecycle == StatusLifecycle.SUSPENSO:

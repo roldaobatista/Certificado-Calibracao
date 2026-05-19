@@ -190,18 +190,14 @@ def _chave_lock_de_filtro(cadeia_filtro: dict[str, Any]) -> str:
     return json.dumps(cadeia_filtro, sort_keys=True, default=str)
 
 
-def _ultimo_hash_da_cadeia(
-    model: type[models.Model], cadeia_filtro: dict[str, Any]
-) -> str | None:
+def _ultimo_hash_da_cadeia(model: type[models.Model], cadeia_filtro: dict[str, Any]) -> str | None:
     """Hash do último elo da cadeia identificada por `cadeia_filtro`.
 
     Genérico (paramétrico no model — NÃO importa Auditoria/AuthzDecision).
     Ordena por `sequencia` (monotônica; timestamp colide em µs sob o lock).
     Deve rodar DENTRO do advisory lock + transação do helper.
     """
-    anterior = (
-        model._default_manager.filter(**cadeia_filtro).order_by("-sequencia").first()
-    )
+    anterior = model._default_manager.filter(**cadeia_filtro).order_by("-sequencia").first()
     # `model` é genérico (qualquer tabela INSERT-only com cadeia hash); o
     # campo hash_atual existe por contrato — getattr c/ default mantém o
     # helper paramétrico sem `type: ignore`.
@@ -298,6 +294,7 @@ def registrar_em_cadeia(
             hash_atual=hash_atual,
         )
         return criado
+
 
 # Sentinela: "verificar TODAS as cadeias" (distinto de tenant_id=None, que
 # significa a cadeia "sistema").

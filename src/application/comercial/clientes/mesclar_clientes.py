@@ -67,9 +67,7 @@ def mesclar_clientes(
     Levanta ErroMesclagem em caso de regra violada.
     """
     if vencedor_id == perdedor_id:
-        raise ErroMesclagem(
-            "mesma_entidade", "Vencedor e perdedor sao o mesmo cliente."
-        )
+        raise ErroMesclagem("mesma_entidade", "Vencedor e perdedor sao o mesmo cliente.")
 
     vencedor = repository.get_by_id(vencedor_id)
     if vencedor is None:
@@ -87,15 +85,11 @@ def mesclar_clientes(
         )
 
     if perdedor.deletado_em is not None:
-        raise ErroMesclagem(
-            "perdedor_ja_deletado", "Perdedor ja esta soft-deleted."
-        )
+        raise ErroMesclagem("perdedor_ja_deletado", "Perdedor ja esta soft-deleted.")
 
     campos_sobrescritos_keys: tuple[str, ...] = tuple(sorted(sobrescritas.keys()))
     vencedor_pos = (
-        repository.aplicar_sobrescritas(vencedor_id, sobrescritas)
-        if sobrescritas
-        else vencedor
+        repository.aplicar_sobrescritas(vencedor_id, sobrescritas) if sobrescritas else vencedor
     )
     perdedor_pos = repository.soft_delete(
         perdedor_id,

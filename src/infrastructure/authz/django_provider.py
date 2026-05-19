@@ -78,9 +78,7 @@ def _validar_resource_sem_pii(resource: dict[str, Any]) -> None:
     não há módulo de produto alimentando isso (NG-FB-7)."""
     for k, v in resource.items():
         if not isinstance(k, str):
-            raise ValueError(
-                f"resource authz: chave não-str ({k!r}) — inválida (T-FB-05)."
-            )
+            raise ValueError(f"resource authz: chave não-str ({k!r}) — inválida (T-FB-05).")
         if k in _RESOURCE_KEYS_OK or k.endswith("_id") or isinstance(v, bool):
             continue
         raise ValueError(
@@ -261,9 +259,7 @@ class DjangoAuthorizationProvider:
         from src.infrastructure.usuario.models import UsuarioPerfilTenant
         from src.infrastructure.usuario.vigencia import janela_vigente
 
-        qs = UsuarioPerfilTenant.objects.filter(usuario_id=usuario_id).filter(
-            janela_vigente(agora)
-        )
+        qs = UsuarioPerfilTenant.objects.filter(usuario_id=usuario_id).filter(janela_vigente(agora))
         if tenant_id is not None:
             qs = qs.filter(tenant_id=tenant_id)
         perfis = tuple(qs.values_list("perfil", flat=True).distinct())
@@ -422,9 +418,7 @@ def verificar_integridade_cadeia_authz(
     hash_anterior_esperado: str | None = None
 
     qs = (
-        AuthzDecision.objects.filter(**cadeia_filtro)
-        .order_by("sequencia")
-        .iterator(chunk_size=500)
+        AuthzDecision.objects.filter(**cadeia_filtro).order_by("sequencia").iterator(chunk_size=500)
     )
     for linha in qs:
         total += 1

@@ -17,7 +17,7 @@ insercao) vaza pra dentro do hash.
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -32,7 +32,7 @@ def _serializar(obj: Any) -> Any:
                 f"datetime naive proibido em audit payload (campo sem timezone): {obj!r}. "
                 "Use timezone.now() do Django ou datetime.now(timezone.utc)."
             )
-        return obj.astimezone(timezone.utc).isoformat()
+        return obj.astimezone(UTC).isoformat()
     if isinstance(obj, date):
         return obj.isoformat()
     if isinstance(obj, Decimal):

@@ -33,7 +33,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -42,9 +42,7 @@ from src.domain.comercial.clientes.repository import (
     ClienteImportacaoInput,
     ClienteRepository,
     LinhaRejeitada,
-    ResultadoImportacao,
 )
-
 
 # Heuristica em runtime; reproduz csv_io mas evita import cruzado app->infra.
 _REGEX_EMAIL_CORPORATIVO = re.compile(
@@ -255,7 +253,9 @@ def importar_clientes(
                     motivo_descricao_curta="Coluna de documento vazia.",
                 )
             )
-            motivos_agregados["documento_ausente"] = motivos_agregados.get("documento_ausente", 0) + 1
+            motivos_agregados["documento_ausente"] = (
+                motivos_agregados.get("documento_ausente", 0) + 1
+            )
             continue
 
         doc_normalizado = _normalizar_documento(doc_bruto)
@@ -266,9 +266,7 @@ def importar_clientes(
                     linha_numero=numero,
                     linha_hash=linha_hash,
                     motivo="documento_tamanho_invalido",
-                    motivo_descricao_curta=(
-                        "Documento nao tem 11 (CPF) nem 14 (CNPJ) caracteres."
-                    ),
+                    motivo_descricao_curta=("Documento nao tem 11 (CPF) nem 14 (CNPJ) caracteres."),
                 )
             )
             motivos_agregados["documento_tamanho_invalido"] = (
@@ -336,8 +334,8 @@ def importar_clientes(
         aceite_lgpd_pendente = False
 
         if tipo == "PJ":
-            tem_pf_associada = (
-                _email_e_pessoal(email, nome) or bool(contato_pf_associado_via_cpf_resp)
+            tem_pf_associada = _email_e_pessoal(email, nome) or bool(
+                contato_pf_associado_via_cpf_resp
             )
             if not tem_pf_associada:
                 aceite_lgpd_dispensa_motivo = "pj_sem_pf_associada"
@@ -369,9 +367,7 @@ def importar_clientes(
                         ),
                     )
                 )
-                motivos_agregados["pf_sem_aceite"] = (
-                    motivos_agregados.get("pf_sem_aceite", 0) + 1
-                )
+                motivos_agregados["pf_sem_aceite"] = motivos_agregados.get("pf_sem_aceite", 0) + 1
                 contadores["pf_rejeitadas_por_falta_aceite"] += 1
                 continue
             aceite_lgpd_em = contexto.agora

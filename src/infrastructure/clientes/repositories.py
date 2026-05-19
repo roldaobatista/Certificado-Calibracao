@@ -159,9 +159,7 @@ class DjangoClienteRepository:
         lost-update e phantom read.
         """
         if not linhas:
-            return ResultadoImportacao(
-                criados=0, atualizados=0, sem_mudanca=0, rejeitados=()
-            )
+            return ResultadoImportacao(criados=0, atualizados=0, sem_mudanca=0, rejeitados=())
 
         import time
 
@@ -180,7 +178,7 @@ class DjangoClienteRepository:
                 if tentativa == MAX_TENTATIVAS - 1:
                     raise
                 # Backoff exponencial: 50ms, 200ms, 800ms
-                time.sleep(0.05 * (4 ** tentativa))
+                time.sleep(0.05 * (4**tentativa))
         # Inalcancavel — loop sempre retorna ou levanta.
         raise RuntimeError("bulk_upsert: estado inalcancavel apos retry")
 
@@ -205,8 +203,7 @@ class DjangoClienteRepository:
         # em autocommit antes desta linha.
         with connection.cursor() as cur:
             cur.execute(
-                "SET SESSION CHARACTERISTICS AS TRANSACTION "
-                "ISOLATION LEVEL SERIALIZABLE;"
+                "SET SESSION CHARACTERISTICS AS TRANSACTION " "ISOLATION LEVEL SERIALIZABLE;"
             )
 
         try:
@@ -271,8 +268,13 @@ class DjangoClienteRepository:
                         tipo_pessoa__in=tipos,
                         documento__in=docs,
                     ).only(
-                        "id", "tipo_pessoa", "documento", "nome", "nome_fantasia",
-                        "email", "telefone",
+                        "id",
+                        "tipo_pessoa",
+                        "documento",
+                        "nome",
+                        "nome_fantasia",
+                        "email",
+                        "telefone",
                     )
                     for c in qs:
                         existentes_map[(c.tipo_pessoa, c.documento)] = c
@@ -287,9 +289,7 @@ class DjangoClienteRepository:
                                     linha_numero=entrada.linha_numero,
                                     linha_hash=entrada.linha_hash,
                                     motivo="ja_existe_no_tenant",
-                                    motivo_descricao_curta=(
-                                        "Documento ja cadastrado no tenant."
-                                    ),
+                                    motivo_descricao_curta=("Documento ja cadastrado no tenant."),
                                 )
                             )
                         else:
@@ -374,6 +374,5 @@ class DjangoClienteRepository:
             # nesta conexao nao precisam de SERIALIZABLE.
             with connection.cursor() as cur:
                 cur.execute(
-                    "SET SESSION CHARACTERISTICS AS TRANSACTION "
-                    "ISOLATION LEVEL READ COMMITTED;"
+                    "SET SESSION CHARACTERISTICS AS TRANSACTION " "ISOLATION LEVEL READ COMMITTED;"
                 )

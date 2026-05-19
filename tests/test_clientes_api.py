@@ -19,7 +19,6 @@ from uuid import uuid4
 
 import pytest
 from rest_framework.test import APIClient
-
 from src.infrastructure.authz.django_provider import invalidate_user_cache
 from src.infrastructure.clientes.models import Cliente, TipoPessoa
 
@@ -50,6 +49,7 @@ def _autenticar(client: APIClient, usuario, tenant, com_mfa: bool = True) -> Non
             device.save()
         # OTPMiddleware verifica DEVICE_ID_SESSION_KEY pra is_verified() retornar True
         from django_otp import DEVICE_ID_SESSION_KEY
+
         client.force_login(usuario)
         session = client.session
         session[DEVICE_ID_SESSION_KEY] = device.persistent_id

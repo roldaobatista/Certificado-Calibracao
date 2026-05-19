@@ -16,16 +16,14 @@ Bonus:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 from rest_framework.test import APIClient
-
 from src.infrastructure.audit.models import Auditoria
 from src.infrastructure.authz.django_provider import invalidate_user_cache
 from src.infrastructure.clientes.lgpd import VERSAO_VIGENTE
-from src.infrastructure.clientes.models import Cliente
 
 from tests.factories import (
     TenantFactory,
@@ -239,9 +237,9 @@ def test_post_cliente_grava_audit_cliente_criado_sem_pii(cenario):
     assert payload["tipo_pessoa"] == "PJ"
     # PII NAO pode estar no payload cru
     assert "documento" not in payload, "PII vazada: campo 'documento' no payload"
-    assert documento_cru not in str(payload), (
-        f"PII vazada: CNPJ '{documento_cru}' aparece em algum campo do payload"
-    )
+    assert documento_cru not in str(
+        payload
+    ), f"PII vazada: CNPJ '{documento_cru}' aparece em algum campo do payload"
     # Hash deve estar — FA-A1: versionado "vN:"+64hex (nao mais 64 cru).
     assert payload["documento_hash"], "Hash do documento ausente do payload"
     import re as _re
@@ -257,7 +255,7 @@ def test_aceite_lgpd_versao_eh_snapshot_da_constante(cenario):
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
 
-    agora_iso = datetime.now(timezone.utc).isoformat()
+    agora_iso = datetime.now(UTC).isoformat()
     response = client.post(
         "/api/v1/clientes/",
         data={
@@ -280,7 +278,7 @@ def test_aceite_lgpd_ip_hash_nao_aceito_do_payload(cenario):
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
 
-    agora_iso = datetime.now(timezone.utc).isoformat()
+    agora_iso = datetime.now(UTC).isoformat()
     response = client.post(
         "/api/v1/clientes/",
         data={

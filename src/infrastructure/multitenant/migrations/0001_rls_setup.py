@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from django.db import migrations
 
-
 # =============================================================
 # Policy padrao v2 (ADR-0002 §6) — lista de tenants, sem fallback permissivo.
 # SET sem o `true` no current_setting() => falha duro se nao setado, em vez
