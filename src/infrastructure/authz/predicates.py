@@ -17,29 +17,78 @@ Como registrar (em runtime, no AppConfig.ready ou modulo carregado):
             return True, ""
         ...
 
-    register_predicate("cliente_nao_bloqueado", cliente_nao_bloqueado)
+    register_predicate(
+        "cliente_nao_bloqueado", cliente_nao_bloqueado,
+        actions={"os.", "orcamento.", "orcamentos.", "agenda.",
+                 "chamado.", "chamados.", "certificado."},
+    )
 
-Como o provider consulta — extensao em DjangoAuthorizationProvider._decidir():
-    pra cada predicate registrado, chama. Primeiro denied curto-circuita.
+Como o provider consulta — `_decidir` chama `predicates_aplicaveis(action)`
+(só os do escopo da ação corrente). Primeiro denied curto-circuita.
+Ação sem predicate aplicável ⇒ ABAC neutro (segue RBAC), nunca deny.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Callable
 
 
 PredicateFn = Callable[[dict[str, Any]], tuple[bool, str]]
 
-_REGISTRY: dict[str, PredicateFn] = {}
+
+@dataclass(frozen=True)
+class _Predicate:
+    """Predicate + ESCOPO declarado (T-FB-01 / AC-FB-006-2).
+
+    O escopo é propriedade do predicate (quem o escreve sabe a que
+    ações se aplica) — não índice externo. `actions` aceita ação exata
+    (`"os.criar"`) ou prefixo de módulo terminando em `.`
+    (`"os."` casa `os.criar`, `os.ler`, ...).
+    """
+
+    nome: str
+    fn: PredicateFn
+    actions: frozenset[str]
+
+    def aplica(self, action: str) -> bool:
+        return any(
+            action == a or (a.endswith(".") and action.startswith(a))
+            for a in self.actions
+        )
 
 
-def register_predicate(nome: str, fn: PredicateFn) -> None:
-    """Registra um predicate. Reregistrar com mesmo nome substitui."""
-    _REGISTRY[nome] = fn
+_REGISTRY: dict[str, _Predicate] = {}
 
 
-def get_predicates() -> dict[str, PredicateFn]:
-    """Retorna copia do registry (read-only)."""
+def register_predicate(
+    nome: str, fn: PredicateFn, *, actions: frozenset[str] | set[str] | None = None
+) -> None:
+    """Registra um predicate COM escopo. Reregistrar mesmo nome substitui.
+
+    FB-A1/BLOQ-1: predicate sem escopo declarado é proibido — erro em
+    **import-time** (registro roda em `AppConfig.ready`), nunca global
+    cego em runtime (era o bug: predicate de `cliente.*` rodava em
+    `os.criar`).
+    """
+    if not actions:
+        raise ValueError(
+            f"predicate {nome!r} registrado sem escopo (actions) — proibido "
+            "predicate global cego (FB-A1/T-FB-01). Declare as ações/prefixos."
+        )
+    _REGISTRY[nome] = _Predicate(nome, fn, frozenset(actions))
+
+
+def predicates_aplicaveis(action: str) -> list[_Predicate]:
+    """Predicates cujo escopo casa `action` (binding — T-FB-01).
+
+    Lista vazia ⇒ ABAC neutro para essa ação (segue RBAC); NÃO deny.
+    """
+    return [p for p in _REGISTRY.values() if p.aplica(action)]
+
+
+def get_predicates() -> dict[str, _Predicate]:
+    """Cópia read-only do registry (nome → _Predicate)."""
     return dict(_REGISTRY)
 
 

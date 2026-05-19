@@ -16,11 +16,8 @@ bypass o middleware via lista hardcoded.
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Callable
 from uuid import UUID
-
-from django.db.models import Q
 
 from django.conf import settings
 from django.db import transaction
@@ -120,15 +117,13 @@ class TenantMiddleware:
         única em `connection.run_in_user_context`.
         """
         from src.infrastructure.usuario.models import UsuarioPerfilTenant
+        from src.infrastructure.usuario.vigencia import janela_vigente
 
         agora = timezone.now()
         with run_in_user_context(usuario_id):
             return list(
-                UsuarioPerfilTenant.objects.filter(
-                    usuario_id=usuario_id,
-                    valido_de__lte=agora,
-                )
-                .filter(models_q_valido_ate_ok(agora))
+                UsuarioPerfilTenant.objects.filter(usuario_id=usuario_id)
+                .filter(janela_vigente(agora))
                 .values_list("tenant_id", flat=True)
                 .distinct()
             )
@@ -150,9 +145,8 @@ class TenantMiddleware:
         return None
 
 
-def models_q_valido_ate_ok(agora: datetime) -> Q:
-    """Helper isolado pra `valido_ate IS NULL OR valido_ate >= agora`."""
-    return Q(valido_ate__isnull=True) | Q(valido_ate__gte=agora)
+# T-FB-02: regra de vigência movida p/ FONTE ÚNICA
+# `src.infrastructure.usuario.vigencia.janela_vigente` (janela completa).
 
 
 # Suprime warning de import nao usado de settings (futuro: feature flag de modo strict)

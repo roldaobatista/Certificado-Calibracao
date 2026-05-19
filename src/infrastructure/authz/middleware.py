@@ -86,17 +86,20 @@ class MfaRequiredMiddleware:
         if usuario_id is None or tenant_id is None:
             return False
 
-        from src.infrastructure.usuario.models import UsuarioPerfilTenant
-
         from django.utils import timezone
 
+        from src.infrastructure.usuario.models import UsuarioPerfilTenant
+        from src.infrastructure.usuario.vigencia import janela_vigente
+
+        # T-FB-02 / FB-A4: janela COMPLETA (fonte única) — antes filtrava
+        # só `valido_de`, então perfil sensível EXPIRADO ainda barrava.
         agora = timezone.now()
         perfis = (
             UsuarioPerfilTenant.objects.filter(
                 usuario_id=usuario_id,
                 tenant_id=tenant_id,
-                valido_de__lte=agora,
             )
+            .filter(janela_vigente(agora))
             .values_list("perfil", flat=True)
         )
         return any(p in PERFIS_SENSIVEIS for p in perfis)

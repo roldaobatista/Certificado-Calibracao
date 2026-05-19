@@ -27,7 +27,6 @@ from typing import Any
 from uuid import UUID
 
 from django.core.cache import cache
-from django.db.models import Q
 from django.utils import timezone
 
 from src.domain.authz import AuthDecision, AuthorizationProvider
@@ -222,12 +221,10 @@ class DjangoAuthorizationProvider:
 
         # Import tardio — quebra ciclo com apps Django loading.
         from src.infrastructure.usuario.models import UsuarioPerfilTenant
+        from src.infrastructure.usuario.vigencia import janela_vigente
 
-        qs = UsuarioPerfilTenant.objects.filter(
-            usuario_id=usuario_id,
-            valido_de__lte=agora,
-        ).filter(
-            models_q_valido_ate_ok(agora)
+        qs = UsuarioPerfilTenant.objects.filter(usuario_id=usuario_id).filter(
+            janela_vigente(agora)
         )
         if tenant_id is not None:
             qs = qs.filter(tenant_id=tenant_id)
@@ -247,10 +244,11 @@ class DjangoAuthorizationProvider:
         1. Sem perfis → denied "sem_perfil_no_tenant".
         2. RBAC: algum perfil tem PerfilAcao(acao, pode_executar=True)?
            Não → "rbac_denied".
-        3. ABAC: todos os predicates registrados que se aplicam ao resource
-           passam? Primeiro denied curto-circuita.
+        3. ABAC: predicates cujo ESCOPO casa `action` (binding —
+           T-FB-01) passam? Primeiro denied curto-circuita. Ação sem
+           predicate aplicável ⇒ ABAC neutro (segue RBAC), NÃO deny.
         """
-        from .predicates import get_predicates
+        from .predicates import predicates_aplicaveis
 
         if not perfis:
             return AuthDecision(
@@ -273,15 +271,16 @@ class DjangoAuthorizationProvider:
                 perfis_aplicados=tuple(sorted(perfis)),
             )
 
-        # ABAC: consulta predicates registrados — primeiro denied curto-circuita
-        for nome, fn in get_predicates().items():
-            ok, motivo = fn(resource)
+        # ABAC: só predicates VINCULADOS à action (binding — T-FB-01).
+        # Lista vazia ⇒ ABAC neutro (não roda nada, segue RBAC).
+        for pred in predicates_aplicaveis(action):
+            ok, motivo = pred.fn(resource)
             if not ok:
                 return AuthDecision(
                     allowed=False,
-                    reason=motivo or f"abac_denied:{nome}",
+                    reason=motivo or f"abac_denied:{pred.nome}",
                     perfis_aplicados=tuple(sorted(permitidos)),
-                    escopo_avaliado={"predicate_negado": nome},
+                    escopo_avaliado={"predicate_negado": pred.nome},
                 )
 
         return AuthDecision(
@@ -403,11 +402,10 @@ def verificar_integridade_cadeia_authz(
     return (len(quebrados) == 0, total, quebrados)
 
 
-def models_q_valido_ate_ok(agora: "datetime") -> "Q":
-    """Helper duplicado de multitenant/middleware.py — evita import circular."""
-    from django.db.models import Q
-
-    return Q(valido_ate__isnull=True) | Q(valido_ate__gte=agora)
+# T-FB-02: a regra de vigência vive em FONTE ÚNICA
+# `src.infrastructure.usuario.vigencia.janela_vigente` — a cópia
+# `models_q_valido_ate_ok` ("evita import circular") foi REMOVIDA
+# (era débito que recriava FB-A4 a cada edição).
 
 
 # Instância única (poderia virar service em DI container futuro)

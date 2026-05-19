@@ -19,4 +19,22 @@ class ClientesConfig(AppConfig):
 
         from .predicates_authz import cliente_nao_bloqueado
 
-        register_predicate("cliente_nao_bloqueado", cliente_nao_bloqueado)
+        # T-FB-01: escopo declarado — bloqueio comercial barra trabalho
+        # OPERACIONAL sobre o cliente (OS/orçamento/agenda/chamado/
+        # certificado). Gestão do próprio cadastro (`clientes.*`) e
+        # financeiro (`fatura.*`) NÃO são barrados por bloqueio comercial
+        # (decisão de produto registrada, revisável). O predicate ainda
+        # se auto-guarda (resource sem `cliente_id` → não aplica).
+        register_predicate(
+            "cliente_nao_bloqueado",
+            cliente_nao_bloqueado,
+            actions={
+                "os.",
+                "orcamento.",
+                "orcamentos.",
+                "agenda.",
+                "chamado.",
+                "chamados.",
+                "certificado.",
+            },
+        )
