@@ -155,6 +155,19 @@ def sanitizar_payload_audit(payload: Any) -> Any:
     if isinstance(payload, list):
         return [sanitizar_payload_audit(item) for item in payload]
     if isinstance(payload, str):
+        # Identificador surrogate (UUID) NUNCA e PII — e chave tecnica, nao
+        # dado pessoal. ~8.4% dos uuid4 tem corrida de digitos que casa a
+        # regex de CPF/telefone por coincidencia; sem este guard o
+        # `cliente_id`/`usuario_id`/`causation_id` da timeline da visao 360
+        # virava `[REDACTED]` e quebrava a correlacao evento<->cliente
+        # (causa-raiz do flake test_visao_360_filtra_eventos_de_outros_clientes;
+        # bug de producao, nao artefato de teste). Um CPF/CNPJ/telefone/email
+        # real jamais parseia como UUID — guard seguro.
+        try:
+            UUID(payload)
+            return payload
+        except (ValueError, AttributeError, TypeError):
+            pass
         if (
             _RE_CPF_AUDIT.search(payload)
             or _RE_CNPJ_AUDIT.search(payload)
