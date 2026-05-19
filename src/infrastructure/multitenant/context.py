@@ -27,6 +27,13 @@ active_tenant_context: ContextVar[UUID | None] = ContextVar("active_tenant_conte
 # - audit trail (Marco 4)
 usuario_id_context: ContextVar[UUID | None] = ContextVar("usuario_id_context", default=None)
 
+# T-FB-04 / AC-FB-008-1: HMAC do IP do request (NUNCA IP cru). Setado
+# por RequireAuthz/@requires_authz na borda; lido por _gravar_audit pra
+# preencher authz_decisions.ip_hash. Vazio fora de request HTTP (task).
+# Por contexto (não parâmetro de can()) — preserva o domínio puro
+# (NG-FB-1 / BLOQ-3 tech-lead).
+ip_hash_context: ContextVar[str] = ContextVar("ip_hash_context", default="")
+
 # FA-M3: `limpar_contexto()` foi REMOVIDA (armadilha plantada). Fazia
 # `.set([])` num `finally` — padrão ERRADO pra ContextVar em fronteira de
 # request: cria um valor "limpo" no contexto atual em vez de restaurar o

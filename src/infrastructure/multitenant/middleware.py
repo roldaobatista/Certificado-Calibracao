@@ -28,9 +28,19 @@ from django.utils import timezone
 from .connection import run_in_user_context, setar_contexto_pg_na_conexao
 from .context import (
     active_tenant_context,
+    ip_hash_context,
     tenant_ids_context,
     usuario_id_context,
 )
+
+
+def _extrair_ip(request: HttpRequest) -> str:
+    """IP do cliente: 1º hop de X-Forwarded-For, senão REMOTE_ADDR."""
+    meta = getattr(request, "META", {}) or {}
+    xff = str(meta.get("HTTP_X_FORWARDED_FOR", "") or "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return str(meta.get("REMOTE_ADDR", "") or "")
 
 
 # Paths que NAO exigem tenant context. Mantido pequeno e explicito.
@@ -91,9 +101,15 @@ class TenantMiddleware:
                 status=400,
             )
 
+        # T-FB-04: HMAC do IP no contexto (NUNCA IP cru), token+reset
+        # igual aos demais — leak-safe em pool de threads (mesmo padrão
+        # do usuario_id; via contexto, não parâmetro de can() — NG-FB-1).
+        from src.infrastructure.audit.services import hashear_ip
+
         token_list = tenant_ids_context.set(tenant_ids)
         token_active = active_tenant_context.set(active_tenant)
         token_user = usuario_id_context.set(usuario_id)
+        token_ip = ip_hash_context.set(hashear_ip(_extrair_ip(request)))
         try:
             with transaction.atomic():
                 setar_contexto_pg_na_conexao(
@@ -106,6 +122,7 @@ class TenantMiddleware:
             tenant_ids_context.reset(token_list)
             active_tenant_context.reset(token_active)
             usuario_id_context.reset(token_user)
+            ip_hash_context.reset(token_ip)
 
     def _resolver_tenants_permitidos(self, usuario_id: UUID) -> list[UUID]:
         """Consulta UsuarioPerfilTenant filtrando por janela de validade.

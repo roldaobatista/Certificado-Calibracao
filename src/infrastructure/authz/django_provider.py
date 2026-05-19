@@ -58,6 +58,38 @@ def invalidate_user_cache(usuario_id: UUID, tenant_id: UUID | None = None) -> No
 
 _PRIMITIVOS = (str, int, float)  # bool tratado à parte (subclasse de int)
 
+# T-FB-05 / advogado C-A2.1: `resource` aceita só REFERÊNCIAS, nunca PII
+# por valor. Imposto por CÓDIGO (não docstring — `_normalizar_para_hash`
+# serializa, não redige). Chave permitida sse: termina em `_id` (ref),
+# está na allowlist fixa, ou o valor é bool (flag). `cpf`/`nome`/`email`/
+# `documento`/... → fail-loud ANTES da transação.
+_RESOURCE_KEYS_OK = frozenset({"recurso_tipo", "recurso_id", "escopo"})
+
+
+def _validar_resource_sem_pii(resource: dict[str, Any]) -> None:
+    """Allowlist das chaves de TOPO do `resource` (minimização LGPD art.
+    6 III). Chave de topo válida sse: termina em `_id` (referência),
+    está na allowlist fixa, ou valor é bool (flag). `cpf`/`nome`/`email`
+    /`documento`/... → fail-loud ANTES da transação.
+
+    Não recursa: `escopo` é o container designado de atributos de
+    scope (não-PII por contrato); a governança do CONTEÚDO de `escopo`
+    em Wave A (redator/allowlist fina) é o GATE-FB-3 rastreado — em F-B
+    não há módulo de produto alimentando isso (NG-FB-7)."""
+    for k, v in resource.items():
+        if not isinstance(k, str):
+            raise ValueError(
+                f"resource authz: chave não-str ({k!r}) — inválida (T-FB-05)."
+            )
+        if k in _RESOURCE_KEYS_OK or k.endswith("_id") or isinstance(v, bool):
+            continue
+        raise ValueError(
+            f"resource authz: chave {k!r} não permitida — `resource` aceita "
+            "só referências (`*_id`, `recurso_tipo`, `escopo`) e flags "
+            "booleanas. PII por REFERÊNCIA, nunca por valor (minimização "
+            "LGPD art. 6 III / T-FB-05 / advogado C-A2.1)."
+        )
+
 
 def _normalizar_para_hash(obj: Any, _caminho: str = "resource") -> Any:
     """Normaliza `resource` p/ forma canônica JSON-safe ANTES de transação.
@@ -130,6 +162,7 @@ def _payload_para_hash(
     reason: str,
     perfis_aplicados: Any,
     escopo_avaliado: Any,
+    ip_hash: str = "",
 ) -> dict[str, Any]:
     """Monta o dict que entra no hash da cadeia authz.
 
@@ -137,6 +170,8 @@ def _payload_para_hash(
     integridade (recomputo) — divergir aqui = mesma classe de bug do BLOQ #1
     (cadeia acusa adulteração falsa). `decision` aceita bool (gravação) ou
     str já normalizada "allowed"/"denied" (recomputo a partir da linha).
+    T-FB-04: `ip_hash` entra NO HASH (não só na coluna) — senão a
+    verificação de integridade não o cobriria e ele seria adulterável.
     """
     dec = decision if isinstance(decision, str) else ("allowed" if decision else "denied")
     return {
@@ -149,6 +184,7 @@ def _payload_para_hash(
         "reason": reason,
         "perfis_aplicados": list(perfis_aplicados),
         "escopo_avaliado": escopo_avaliado,
+        "ip_hash": ip_hash,
     }
 
 
@@ -169,10 +205,12 @@ class DjangoAuthorizationProvider:
         purpose: str = "execucao_contrato",
         at_time: datetime | None = None,
     ) -> AuthDecision:
-        # Normaliza CEDO, fora de qualquer transação (BLOQ #2/#4): tipo
-        # inválido vira erro claro AQUI, não TypeError opaco dentro do helper.
-        # `resource_norm` é fonte ÚNICA — entra no hash E é persistido.
-        resource_norm = _normalizar_para_hash(resource or {})
+        # T-FB-05: allowlist anti-PII ANTES de tudo (minimização). Depois
+        # normaliza CEDO, fora de transação (BLOQ #2/#4): tipo inválido →
+        # erro claro AQUI. `resource_norm` é fonte ÚNICA (hash E persist).
+        resource = resource or {}
+        _validar_resource_sem_pii(resource)
+        resource_norm = _normalizar_para_hash(resource)
         agora = at_time or timezone.now()
 
         perfis = self._resolver_perfis_vigentes(usuario_id, tenant_id, agora)
@@ -323,6 +361,11 @@ class DjangoAuthorizationProvider:
             else {"tenant_id__isnull": True, "usuario_id": usuario_id}
         )
         decision_str = "allowed" if decision else "denied"
+        # T-FB-04: ip_hash vem do CONTEXTO (não da assinatura de can() —
+        # domínio puro NG-FB-1). Vazio fora de request HTTP (task).
+        from src.infrastructure.multitenant.context import ip_hash_context
+
+        ip_hash = ip_hash_context.get()
         payload = _payload_para_hash(
             usuario_id=usuario_id,
             tenant_id=tenant_id,
@@ -333,6 +376,7 @@ class DjangoAuthorizationProvider:
             reason=reason,
             perfis_aplicados=perfis_aplicados,
             escopo_avaliado=escopo_avaliado,
+            ip_hash=ip_hash,
         )
         return registrar_em_cadeia(  # type: ignore[return-value]
             AuthzDecision,
@@ -349,6 +393,7 @@ class DjangoAuthorizationProvider:
                 "reason": reason,
                 "perfis_aplicados": list(perfis_aplicados),
                 "escopo_avaliado": escopo_avaliado,
+                "ip_hash": ip_hash,
             },
         )
 
@@ -393,6 +438,7 @@ def verificar_integridade_cadeia_authz(
             reason=linha.reason,
             perfis_aplicados=linha.perfis_aplicados,
             escopo_avaliado=linha.escopo_avaliado,
+            ip_hash=linha.ip_hash,
         )
         recalc = calcular_hash(hash_anterior_esperado, canonicalizar(payload))
         if recalc != linha.hash_atual:

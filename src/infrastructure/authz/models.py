@@ -157,10 +157,14 @@ class AuthzDecision(models.Model):
         default=dict,
         help_text="JSON com atributos ABAC consultados.",
     )
-    ip_hash = models.CharField(
-        max_length=64,
+    ip_hash = models.TextField(
         blank=True,
-        help_text="SHA-256 do IP do request (sem armazenar IP cru — LGPD).",
+        default="",
+        help_text=(
+            "HMAC-SHA256 VERSIONADO do IP (`{key_id}:{digest}` — nunca IP "
+            "cru; LGPD art. 13 §4). TextField: o prefixo de versão estoura "
+            "varchar(64) — mesma decisão FA-A1 p/ ip_hash (T-FB-04)."
+        ),
     )
     hash_anterior = models.CharField(
         max_length=64,

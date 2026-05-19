@@ -70,6 +70,22 @@ relacionados:
 FB-A7 (AC-FB-005-5) já fechado em FB-C2 — confirmado OK na matriz.
 6 T-FB causa-raiz; GATE-FB-* rastreados. Nenhum reabre arquitetura.
 
-> **Próximo:** executar T-FB-01..06 (commits atômicos), suíte verde +
-> hooks + `validar_f_b` + makemigrations limpo; então P9 (3 auditores
-> Família 5, loop até zero crítico/alto) → **fechar Foundation**.
+## Desfecho P8 (2026-05-19) — 6/6 T-FB FECHADOS causa-raiz
+
+| T-FB | Desfecho | Prova |
+|------|----------|-------|
+| T-FB-01 | ✅ | `register_predicate` exige escopo (erro import-time); `_decidir`→`predicates_aplicaveis(action)`; ação sem predicate=ABAC neutro. Testes binding |
+| T-FB-02 | ✅ | `usuario/vigencia.py` fonte ÚNICA (janela completa); 3 cópias removidas; perfil sensível expirado não barra MFA. Testes |
+| T-FB-03 | ✅ | testes `django-otp` REAL (`TOTPDevice`+`OTPMiddleware`+`otp_login`) — mata o stub `_FakeUserMFAOff` (FB-A6) |
+| T-FB-04 | ✅ | `ip_hash` HMAC versionado via `ip_hash_context` (token+reset no middleware, não param de can()); no payload E coluna (round-trip íntegro); coluna→TextField (migration 0006). Testes |
+| T-FB-05 | ✅ | `_validar_resource_sem_pii` allowlist de topo (imposta por código); `cpf`/`nome`→fail-loud antes da transação. Testes |
+| T-FB-06 | ✅ | teste rollback-órfão (atomicidade real — não "commit antes do retorno"); + caso commit persiste |
+| FB-A7 | ✅ | já fechado FB-C2 (`test_authz_require_authz.py`) — confirmado |
+
+**Suite 293 passed; hooks 118/118; makemigrations limpo; drill
+`validar_f_b` 7/7 VERDE** (cadeia robusta por-tenant + pré-tenant
+por-usuário, adulteração detectada, 40 inserts concorrentes íntegros).
+GATE-FB-2/3/4 + GATE-1..7 rastreados (não bloqueiam F-B dogfooding).
+
+> **Próximo:** P9 (3 auditores Família 5, loop até zero crítico/alto)
+> → **fechar Foundation** (F-A + F-B).

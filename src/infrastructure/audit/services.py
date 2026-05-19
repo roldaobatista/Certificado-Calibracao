@@ -63,6 +63,22 @@ def hashear_pii_com_salt_tenant(valor: str, tenant_id: UUID | str) -> str:
     return f"{registro.ativa_id}:{digest}"
 
 
+def hashear_ip(ip: str) -> str:
+    """HMAC-SHA256 VERSIONADO do IP (T-FB-04 / AC-FB-008-1 / advogado C-A1.1).
+
+    NÃO SHA-256 cru: IPv4 quebra por força bruta — cru não sustenta
+    pseudonimização (LGPD art. 13 §4). Reusa a MESMA família de chave do
+    PII hash de F-A (`settings.PII_HASH_KEY_REGISTRO`), retorno prefixado
+    `{key_id}:{digest}` (sobrevive a rotação). IP vazio → "" (chamada
+    sem request — task; não é violação).
+    """
+    if not ip:
+        return ""
+    registro = settings.PII_HASH_KEY_REGISTRO
+    digest = hmac.new(registro.chave_ativa(), ip.encode(), hashlib.sha256).hexdigest()
+    return f"{registro.ativa_id}:{digest}"
+
+
 def verificar_pii_hash(valor: str, tenant_id: UUID | str, hash_armazenado: str) -> bool:
     """Confere se `valor` gera `hash_armazenado` (qualquer versao de chave).
 

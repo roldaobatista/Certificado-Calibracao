@@ -164,11 +164,13 @@ class TestCadeiaPreTenantPorUsuario:
 
         with run_in_user_context(usuario.id):
             antes = AuthzDecision.objects.filter(tenant_id__isnull=True).count()
+            # chave `recurso_id` passa a allowlist (T-FB-05) → exercita o
+            # caminho de TIPO inválido (BLOQ #2), não o da allowlist.
             with pytest.raises(ValueError, match="não serializável"):
                 provider.can(
                     usuario_id=usuario.id,
                     action="tenant.listar",
-                    resource={"obj": Opaco()},
+                    resource={"recurso_id": Opaco()},
                     tenant_id=None,
                 )
             depois = AuthzDecision.objects.filter(tenant_id__isnull=True).count()
@@ -187,12 +189,18 @@ class TestCadeiaPreTenantPorUsuario:
         invalidate_user_cache(usuario.id, tenant.id)
         provider = DjangoAuthorizationProvider()
 
+        # T-FB-05: chaves na allowlist (`*_id`/`recurso_tipo`/`escopo`),
+        # ainda com VALORES de tipos ricos (Decimal/UUID/datetime/set) —
+        # prova o round-trip de normalização SOB o contrato anti-PII.
         resource = {
-            "valor": Decimal("12.34"),
-            "ref": uuid4(),
-            "quando": timezone.now().astimezone(UTC),
-            "tags": {"b", "a", "c"},
-            "nested": {"lista": [1, "x", Decimal("0.1")]},
+            "recurso_id": uuid4(),
+            "recurso_tipo": "os",
+            "escopo": {
+                "valor": Decimal("12.34"),
+                "quando": timezone.now().astimezone(UTC),
+                "tags": {"b", "a", "c"},
+                "lista": [1, "x", Decimal("0.1")],
+            },
         }
         with run_in_tenant_context(tenant.id, usuario_id=usuario.id):
             for _ in range(3):
