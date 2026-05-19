@@ -112,7 +112,10 @@ multi-tenant e preparar F-B/ADR-0006.
   com `valido_de`/`valido_ate`) — fonte de verdade da lista de tenants
   (`INV-AUTHZ-003`).
 - **AC-FA-002-3**: `Auditoria` INSERT-only com `hash_anterior`,
-  `hash_atual`, `sequencia` (ordem monotônica), `payload_jsonb`,
+  `hash_atual`, `sequencia` (ordem monotônica **para os elos criados a
+  partir da migration que adiciona a coluna**; elos pré-migration têm
+  ordem física de heap — **não-autoritativos cronologicamente**,
+  integridade criptográfica preservada — C2-b/P-A2), `payload_jsonb`,
   `tenant_id` nullable (cadeia "sistema").
 - **AC-FA-002-4**: `FeatureFlag`(tenant_id, modulo, feature_key, ativo,
   fonte enum).
@@ -139,8 +142,16 @@ impossível mesmo com bug de aplicação.
   `tenant_id::text = ANY(string_to_array(<ctx>, ','))` com `<ctx>`
   **fail-loud** (`require_tenant_ctx()` RAISE 42501 em contexto vazio)
   — `INV-AUTHZ-003` + `INV-TENANT-003`. SQL gerado por **fonte única**
-  (`rls_templates.py`); proibido SQL de policy cru espalhado em migration
-  (exceções conscientes documentadas no próprio template).
+  (`rls_templates.py`). **`auditoria` e `authz_decisions` têm
+  `tenant_id` nullable por design** (cadeia sistema / decisão
+  pré-tenant): usam **builders dedicados na MESMA fonte única**
+  (`rls_templates.py` + migration de policy) com pattern estendido
+  (`current_setting('app.modo_sistema')='1'` para sistema; pré-tenant
+  POR-USUÁRIO no authz). Isto **não é exceção ao princípio de fonte
+  única** — é a fonte única acomodando `tenant_id` nullable; proibido
+  "consertar" essas policies pro template genérico (reintroduz a
+  regressão FB-C1⇄FB-C3). SQL cru de policy espalhado em migration =
+  bloqueado (BLOQ-1).
 - **AC-FA-003-4**: Toda tabela com `tenant_id` tem `ENABLE` + `FORCE ROW
   LEVEL SECURITY` e coluna `tenant_id NOT NULL` quando o domínio exige
   (`INV-TENANT-002`); tabelas com `tenant_id` nullable por design
@@ -183,9 +194,30 @@ advisory lock, recomputável, **para** atender `INV-001` + ANPD/CGCRE.
   `canonicalizar`), não reimplementado por tabela.
 - **AC-FA-005-2**: Encadeamento **por partição** (filtro da cadeia:
   tenant, ou sistema): elo anterior lido sob `pg_advisory_xact_lock` de
-  **classe por-tabela**, ordenado por `sequencia` monotônica (timestamp
-  colide em µs sob lock); chave do lock derivada do filtro (não pode
-  divergir).
+  **classe por-tabela**, ordenado por `sequencia` monotônica **(para
+  elos pós-migration; pré-migration = ordem heap não-autoritativa,
+  ver AC-FA-002-3)**; chave do lock **derivada do filtro** (não pode
+  divergir → não bifurca).
+- **AC-FA-005-2b** (P-A1, invariante de concorrência): uma
+  transação/request registra elos em **no máximo 1 cadeia por classe de
+  lock**. Chamada multi-cadeia na mesma transação é proibida OU adquire
+  os locks em **ordem total determinística** (ordenada pela chave da
+  cadeia) — sem isso, dois requests multi-cadeia em ordem inversa
+  deadlock. Prova empírica (probe de deadlock + concorrência real) é
+  drill (AC-FA-008-3) + escalada externa (pentest ASVS L2) antes do 1º
+  tenant pago — limite honesto de revisão de código.
+- **AC-FA-005-6** (C2-a): a fronteira entre cadeia pré-migration
+  (não-autoritativa) e autoritativa é um **marco de corte gravado
+  dentro da própria trilha** — um elo encadeado/imutável "início de
+  cadeia autoritativa" registrando o maior `sequencia` no instante da
+  migration. Frase em doc não basta como evidência CGCRE.
+- **AC-FA-005-7** (BLOQ-2): `AcessoDadosCliente`
+  (`registrar_acesso_dados_cliente`, INV-013 — log de visualização de
+  PII de cliente) é INSERT-only protegida por **trigger PG
+  anti-mutation**, **SEM hash chain em F-A** — decisão consciente
+  (imutabilidade vem do trigger; encadeamento dessa trilha específica é
+  gate rastreado de Wave A se ANPD/CGCRE exigir). Teste prova o trigger
+  rejeitando UPDATE/DELETE (a barreira real, já que não há cadeia).
 - **AC-FA-005-3**: Trigger PG `auditoria_anti_update` +
   `auditoria_anti_delete` rejeitam mutação (`RAISE` errcode 23514);
   `DROP TRIGGER`/`DISABLE RLS`/`TRUNCATE`/`UPDATE`/`DELETE` em
@@ -214,9 +246,28 @@ em data Y" sem armazenar o dado cru e sobreviver à rotação de chave.
 - **AC-FA-006-3**: `verificar_pii_hash` resolve a chave pelo prefixo
   (funciona após rotação); versão ausente do registry → **inconclusiva**
   (exceção), **não** "não casou" (dever de exatidão LGPD art. 6 V).
-- **AC-FA-006-4**: Gate de produção por entropia da chave; payloads de
-  auditoria devolvidos em API passam por redator de PII (defesa em
-  profundidade).
+- **AC-FA-006-3b** (B-1): toda ocorrência de `ChavePIIIndisponivel` em
+  contexto de resposta a titular/ANPD **gera evento próprio** na cadeia
+  sistema (timestamp, `key_id` ausente, id do hash consultado — nunca o
+  valor cru, finalidade). Accountability LGPD art. 6 X — exceção em
+  runtime sozinha não basta.
+- **AC-FA-006-4** (BLOQ-3 — rebaixado de garantia p/ capacidade): F-A
+  **fornece** `sanitizar_payload_audit` (redator de PII por
+  denylist + regex) e gate de produção por entropia da chave. A
+  **obrigatoriedade** de aplicá-lo em endpoint que exponha
+  `payload_jsonb` é invariante de **Wave A** (travado por hook/review na
+  entrega do 1º endpoint que devolva auditoria) — em F-A não há tal
+  endpoint (NG-FA-3/5).
+- **AC-FA-006-5** (B-4 — eliminação × imutabilidade): PII na trilha
+  **nunca é dado cru** (sempre HMAC pseudonimizado). O direito de
+  eliminação (LGPD art. 18 VI) sobre a trilha imutável se realiza por
+  **crypto-shredding por tenant** (destruição da chave/salt do tenant
+  torna o hash irreversível/não-verificável), **não** por DELETE — o
+  registro de *que houve o acesso* permanece sob base do art. 16
+  (guarda p/ exercício de direitos / obrigação legal: Receita 5a × ISO
+  8.4). Ciclo de vida de chave aposentada (`PII_HASH_KEYS_RETIRED`) é
+  **amarrado por ID à matriz de retenção**: chave não é aposentada antes
+  do prazo legal de retenção da trilha que ela verifica.
 
 ## US-FA-007 — Invariantes forçados por hook (não só doc)
 
@@ -255,6 +306,17 @@ que **não mente** (anti-falso-verde), **para** ter critério binário.
   `(tenant_id, …)` validados) — critério de mortalidade §2.
 - **AC-FA-008-5**: Drill cronometrado de restore PG < 30min para 1
   tenant (operacional; evidência registrada).
+- **AC-FA-008-6** (P-A4): ambiente de teste (`test_afere`) **replica a
+  matriz de roles/grants de produção** — `app_user`/`app_migrator`
+  NOBYPASSRLS+NOSUPERUSER + default privileges — **verificável por
+  comando** (`verificar_objetos_seguranca` ou equivalente contra
+  test_afere). Sem isso o fuzzing AC-FA-008-2 é **falso-verde** (pode
+  rodar com privilégio ≠ produção e "passar" mascarando vazamento).
+- **AC-FA-008-7** (C1-b): `verificar_integridade_cadeia` tem
+  **periodicidade definida** em operação e o resultado (data, escopo,
+  ok/quebrados) é **persistido como registro próprio** (cl. ISO 8.4.2 —
+  evidência periódica). Em F-A pode ser **stub agendado** (como o export
+  B2), mas a obrigação é rastreada (gate Wave A).
 
 ## US-FA-009 — Convenções + conformidade de isolamento
 
@@ -284,10 +346,41 @@ F-A só **fecha** quando, sobre o código reconciliado a esta spec:
 4. `tenant-id-validator` 100% no `_test-runner` (AC-FA-007-1/3).
 5. Hash chain validada + trigger anti-mutation provado (AC-FA-005-*).
 6. Drill `validar_f_a` robusto verde, sem falso-verde (AC-FA-008-3).
-7. 3 auditores Família 5 sem CRÍTICO/ALTO (P5).
+7. Ambiente de teste replica matriz de roles/grants de produção,
+   verificável por comando (AC-FA-008-6 — senão #1 é falso-verde).
+8. 3 auditores Família 5 sem CRÍTICO/ALTO (P5).
 
 Reprovar → muda estratégia (ADR-0001/0002), **mantém** modelos e
 migrations.
+
+### 3.1 Aceitação consciente de risco (período F-A local-only)
+
+Em F-A a imutabilidade da trilha repousa em **trigger PG + RLS +
+verificação por recomputo, num único PostgreSQL local**. A
+**salvaguarda-contra-perda** (ISO 17025 cl. 7.11.3 / LGPD art. 6 VII /
+art. 46) — cópia independente WORM — é **deliberadamente diferida**
+(NG-FA-4) e **aqui declarada como risco aceito conscientemente**, válido
+**apenas** porque F-A é dogfooding-only, sem dado de titular externo e
+sem registro técnico ISO real (memória `project_sem_cliente_externo_
+agora`). O `docker compose down -v` destrói a trilha local — aceitável
+só neste período.
+
+### 3.2 Gates rastreados ANTES de qualquer dado real (não bloqueiam F-A)
+
+Convergência dos 3 revisores: F-A **fecha** sem estes; mas são
+**pré-condição bloqueante** antes do 1º tenant externo / 1º registro
+ISO real (rastrear em `foundation-waves` + `retencao-matriz`):
+
+- **GATE-1** (C1-a/B-3): export B2/WORM **operacional** — cópia imutável
+  independente do PostgreSQL local.
+- **GATE-2** (C1-b): verificação de integridade **periódica com
+  evidência persistida** (não stub).
+- **GATE-3** (BLOQ-ISO-2): carimbo de tempo da auditoria de **fonte
+  confiável** (NTP/servidor, não relógio de cliente).
+- **GATE-4** (B-4/advogado): política formal de ciclo de vida de chave
+  PII amarrada à matriz de retenção (não aposentar antes do prazo legal).
+- **GATE-5** (BLOQ-2): se ANPD/CGCRE exigir, encadeamento hash de
+  `AcessoDadosCliente` (em F-A só trigger PG).
 
 ---
 
@@ -299,7 +392,14 @@ na matriz, mas **nada é assumido**: P3 (`tasks.md`) verifica cada AC
 contra o código real e abre `T-FA-NNN` para cada `GAP`. `stories-f-a.md`
 vira histórico (não-autoritativo).
 
-> **Próximo (P2):** `plan.md` (como) revisado por `tech-lead-saas-
-> regulado` (arquitetura/concorrência cadeia/RLS), `advogado-saas-
-> regulado` (retenção, trilha imutável, LGPD art. 6 V),
-> `consultor-rbc-iso17025` (trilha ISO 17025/CGCRE). Só então P3.
+**P2 concluído (2026-05-19):** `plan.md` revisado pelos 3 subagentes —
+APROVA COM CORREÇÕES; bloqueantes absorvidos (esta spec corrigida +
+`plan.md` §"Correções absorvidas"). Disposição: `[SPEC]` aplicado aqui;
+`[T-FA/P4]` (B-1 evento inconclusivo, C2-a marco de corte, P-A1 caso
+drill multi-cadeia, P-A4 smoke grants test_afere) vira tarefa em P3→P4;
+`[GATE-WaveA]` (GATE-1..5) rastreado; `[P3-verify]` (existência de
+`retencao-matriz.md` em `stable` — B-2) checado em P3.
+
+> **Próximo (P3):** `tasks.md` — matriz que mede cada AC desta spec
+> corrigida contra o código real; cada divergência vira `T-FA-NNN`
+> (causa-raiz, sem mascaramento).
