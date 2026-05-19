@@ -21,6 +21,8 @@ Cada categoria de dado tem:
 4. **Ação ao fim do prazo** (eliminação total, anonimização ou crypto-shredding)
 5. **Local de armazenamento** (banco quente, B2 frio, WORM)
 
+> **Nota terminológica (FA-A1 R3 — parecer advogado 2026-05-18):** onde a matriz diz "anonimização (CPF → hash)", trata-se tecnicamente de **pseudonimização com chave de servidor** (HMAC-SHA256 é irreversível, mas CPF tem espaço enumerável — quem tiver a chave de hash + lista de CPFs confirma presença por força bruta). Só vira **anonimização efetiva** quando combinada com (a) crypto-shredding da chave KMS do tenant (dado cru ilegível) **e** (b) indisponibilidade da chave de hash de PII para aquele dado. A redação "anonimização por hash" nas linhas da §2/§3 deve ser lida sob essa ressalva — não qualificar como anonimização pura perante a ANPD.
+
 ---
 
 ## 2. Matriz completa
@@ -44,6 +46,7 @@ Cada categoria de dado tem:
 | **Backup completo (todos dados)** | 30 dias rotativo | 1 ano | Continuidade | B2 (chave KMS por tenant) | Crypto-shredding (chave destruída → backup ilegível) |
 | **Sessão de usuário (login token)** | 24h-30 dias | 30 dias | Execução + segurança | Redis | Eliminação automática (TTL) |
 | **Senha de usuário (hash)** | Vigência conta | Vigência | Execução | PG | Eliminação imediata na exclusão da conta |
+| **Chave de hash de PII aposentada (`PII_HASH_KEYS_RETIRED` — FA-A1)** | ≥ maior prazo de qualquer audit trail que a usou | 10 anos (alinhado a "audit trail paths sensíveis") | Prestação de contas LGPD art. 37 + art. 18/19 (titular saber acessos) | Cofre de segredo do app (env/secret manager — NÃO no banco do tenant) | **Eliminação só após crypto-shredding de 100% dos hashes gerados sob ela.** Descartar antes torna a trilha permanentemente INCONCLUSIVA (perda irreversível de prova exigível) |
 | **Comunicação com ANPD / órgão regulador** | 5 anos | 10 anos | Obrigação regulatória | B2 WORM | Manter (referência futura) |
 | **Contrato assinado entre Aferê e tenant (DPA, ToS, addendum)** | 5 anos após término + 5 anos | 10 anos | Direito civil + boas práticas | B2 WORM | Manter |
 | **ASO (Atestado de Saúde Ocupacional)** | **20 anos pós-vínculo** | 20 anos | **NR-7 item 7.4.5.1 (vence LGPD direito esquecimento)** + CLT art. 168 | PG (vínculo ativo) → B2 WORM cifrado por chave KMS do tenant | Anonimização (CPF → hash; nome → "Colaborador anonimizado #N") preservando aptidão+validade+médico para auditoria MTE histórica |

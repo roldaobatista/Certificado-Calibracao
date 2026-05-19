@@ -242,9 +242,13 @@ def test_post_cliente_grava_audit_cliente_criado_sem_pii(cenario):
     assert documento_cru not in str(payload), (
         f"PII vazada: CNPJ '{documento_cru}' aparece em algum campo do payload"
     )
-    # Hash deve estar
+    # Hash deve estar — FA-A1: versionado "vN:"+64hex (nao mais 64 cru).
     assert payload["documento_hash"], "Hash do documento ausente do payload"
-    assert len(payload["documento_hash"]) == 64
+    import re as _re
+
+    assert _re.fullmatch(
+        r"v[\w-]+:[0-9a-f]{64}", payload["documento_hash"]
+    ), f"hash sem prefixo de versao FA-A1: {payload['documento_hash']!r}"
 
 
 @pytest.mark.django_db(transaction=True)

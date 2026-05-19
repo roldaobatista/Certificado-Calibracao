@@ -152,7 +152,12 @@ def test_bloqueio_audit_sem_pii_cru(cenario):
     payload = audit.payload_jsonb
     assert justif not in str(payload), "Justificativa vazou cru no audit"
     assert payload["justificativa_hash"]
-    assert len(payload["justificativa_hash"]) == 64
+    # FA-A1: hash de PII versionado "vN:"+64hex (nao mais 64 cru).
+    import re as _re
+
+    assert _re.fullmatch(
+        r"v[\w-]+:[0-9a-f]{64}", payload["justificativa_hash"]
+    ), f"hash sem prefixo de versao FA-A1: {payload['justificativa_hash']!r}"
     assert payload["motivo_categoria"] == MOTIVO_MANUAL_INADIMPLENCIA
     assert payload["event_id"]
 

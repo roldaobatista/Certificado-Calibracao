@@ -181,7 +181,9 @@ class AcessoDadosCliente(models.Model):
         default=dict,
         help_text="UUIDs + metadados (sem PII cru) — R1 advogado.",
     )
-    ip_hash = models.CharField(max_length=64, blank=True)
+    # FA-A1: hash de PII agora prefixado com versao da chave ("v1:"+64hex).
+    # TextField (sem limite) — imune a crescimento futuro do key_id.
+    ip_hash = models.TextField(blank=True)
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:

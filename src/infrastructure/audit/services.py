@@ -26,27 +26,66 @@ from .models import (
 )
 
 
+class ChavePIIIndisponivel(Exception):
+    """Versao de chave de um hash de PII nao esta no registry.
+
+    R1 advogado FA-A1: distingue "nao casou" (False) de "NAO POSSO AFIRMAR"
+    (esta excecao). Responder False aqui seria afirmar falsamente ao titular/
+    ANPD que o dado nao foi acessado (viola dever de exatidao, art. 6 V).
+    """
+
+
 def hashear_pii_com_salt_tenant(valor: str, tenant_id: UUID | str) -> str:
-    """HMAC-SHA256 de PII pra referenciar em audit sem expor o dado cru.
+    """HMAC-SHA256 VERSIONADO de PII pra referenciar em audit sem o dado cru.
 
-    SANEA-02 (auditoria 10 lentes — Lente 05 D1 / 07 R-CLI-05). A versao
-    anterior fazia sha256("afere-pii-salt:{tenant_id}:{valor}"). O tenant_id
-    e publico (aparece em URLs/payloads), entao o "sal" era reconstruivel por
-    qualquer um => rainbow-table de CPF/CNPJ de volta. Agora usa HMAC com
-    `settings.PII_HASH_KEY` (chave de servidor, nao derivavel do tenant_id):
-    irreversivel sem a chave mesmo conhecendo tenant_id + algoritmo. O
-    tenant_id continua na mensagem pra manter o hash distinto por tenant
-    (mesmo CPF em tenants diferentes => hashes diferentes).
+    SANEA-02 + FA-A1. Pseudonimizacao com chave de servidor (NAO anonimizacao):
+    irreversivel sem a chave mesmo conhecendo tenant_id + algoritmo. tenant_id
+    na mensagem mantem o hash distinto por tenant (mesmo CPF, tenants
+    diferentes => hashes diferentes).
 
-    `tenant_id` e obrigatorio: sem ele o hash perde a separacao por tenant e
-    fica cross-tenant correlacionavel. Falha alto (nao silencia com "").
+    FA-A1: retorno PREFIXADO `{key_id}:{hexdigest}` (ex.: `v1:ab3f...`). O
+    prefixo permite verificar o hash com a chave certa apos rotacao
+    (`verificar_pii_hash`) — responde ANPD "quem viu CPF X em data Y" sem
+    depender da SECRET_KEY (que pode ser rotacionada). Usa a chave ATIVA do
+    `settings.PII_HASH_KEY_REGISTRO`.
+
+    `tenant_id` obrigatorio: sem ele o hash perde separacao por tenant e fica
+    cross-tenant correlacionavel. Falha alto (nao silencia com "").
     """
     if not valor:
         return ""
     if tenant_id is None:
         raise ValueError("hashear_pii_com_salt_tenant exige tenant_id (SANEA-02)")
-    msg = f"{tenant_id}:{valor}".encode("utf-8")
-    return hmac.new(settings.PII_HASH_KEY, msg, hashlib.sha256).hexdigest()
+    registro = settings.PII_HASH_KEY_REGISTRO
+    msg = f"{tenant_id}:{valor}".encode()
+    digest = hmac.new(registro.chave_ativa(), msg, hashlib.sha256).hexdigest()
+    return f"{registro.ativa_id}:{digest}"
+
+
+def verificar_pii_hash(valor: str, tenant_id: UUID | str, hash_armazenado: str) -> bool:
+    """Confere se `valor` gera `hash_armazenado` (qualquer versao de chave).
+
+    Resolve a chave pelo prefixo `{key_id}:` no hash armazenado — funciona
+    apos rotacao desde que a chave aposentada esteja em PII_HASH_KEYS_RETIRED.
+    Comparacao em tempo constante (`hmac.compare_digest`).
+
+    Raises:
+        ChavePIIIndisponivel: versao do hash ausente do registry — resposta
+            INCONCLUSIVA, NAO negativa (R1 advogado). Hash sem prefixo `vN:`
+            tambem cai aqui (entrada invalida, nao "legado silencioso").
+    """
+    if tenant_id is None:
+        raise ValueError("verificar_pii_hash exige tenant_id (SANEA-02)")
+    key_id, sep, digest_armazenado = hash_armazenado.partition(":")
+    registro = settings.PII_HASH_KEY_REGISTRO
+    if not sep or not digest_armazenado or not registro.tem(key_id):
+        raise ChavePIIIndisponivel(
+            f"versao de chave {key_id!r} ausente do registry — verificacao "
+            f"INCONCLUSIVA, nao negativa (FA-A1 R1)"
+        )
+    msg = f"{tenant_id}:{valor}".encode()
+    recalculado = hmac.new(registro.chave(key_id), msg, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(recalculado, digest_armazenado)
 
 
 # CONCERN Auditor Seguranca 2026-05-18 (US-002 retroativa): sanitizar payload de
@@ -153,11 +192,12 @@ def registrar_auditoria(
 
         # Ultimo elo DA CADEIA DESTE tenant (RLS deixa ver as proprias
         # linhas no contexto do request; cadeia sistema sob run_as_system).
+        _qs_anterior = Auditoria.objects.order_by("-sequencia")
         anterior = (
-            Auditoria.objects.filter(tenant_id=tenant_id)
-            .order_by("-sequencia")
-            .first()
-        )
+            _qs_anterior.filter(tenant_id__isnull=True)
+            if tenant_id is None
+            else _qs_anterior.filter(tenant_id=tenant_id)
+        ).first()
         hash_anterior = anterior.hash_atual if anterior else None
         hash_atual = calcular_hash(hash_anterior, payload_canon)
 
@@ -184,11 +224,12 @@ def _verificar_uma_cadeia(tenant_id: UUID | None) -> tuple[bool, int, list[str]]
     total = 0
     hash_anterior_esperado: str | None = None
 
+    _qs_cadeia = Auditoria.objects.order_by("sequencia")
     qs = (
-        Auditoria.objects.filter(tenant_id=tenant_id)
-        .order_by("sequencia")
-        .iterator(chunk_size=500)
-    )
+        _qs_cadeia.filter(tenant_id__isnull=True)
+        if tenant_id is None
+        else _qs_cadeia.filter(tenant_id=tenant_id)
+    ).iterator(chunk_size=500)
     for linha in qs:
         total += 1
         payload_canon = canonicalizar(linha.payload_jsonb)
@@ -223,9 +264,7 @@ def verificar_integridade_cadeia(
     from src.infrastructure.tenant.models import Tenant
 
     if tenant_id is _TODAS_AS_CADEIAS:
-        alvos: list[UUID | None] = list(
-            Tenant.objects.values_list("id", flat=True)
-        )
+        alvos: list[UUID | None] = list(Tenant.objects.values_list("id", flat=True))
         alvos.append(None)  # cadeia sistema
     else:
         alvos = [tenant_id]  # type: ignore[list-item]
@@ -258,13 +297,9 @@ def registrar_acesso_dados_cliente(
     response na view (visao 360). R1 advogado: `recurso` JSONB sem PII cru.
     """
     if finalidade not in FinalidadeAcessoCliente.values:
-        raise ValueError(
-            f"Finalidade invalida: {finalidade}. Use FinalidadeAcessoCliente."
-        )
+        raise ValueError(f"Finalidade invalida: {finalidade}. Use FinalidadeAcessoCliente.")
     if categoria_dado_acessado not in CategoriaDadoAcessado.values:
-        raise ValueError(
-            f"Categoria invalida: {categoria_dado_acessado}."
-        )
+        raise ValueError(f"Categoria invalida: {categoria_dado_acessado}.")
 
     return AcessoDadosCliente.objects.create(
         tenant_id=tenant_id,

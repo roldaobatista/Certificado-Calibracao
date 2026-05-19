@@ -30,22 +30,92 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
 
-# Chave server-side pra HMAC de PII em audit (SANEA-02 — auditoria 10 lentes,
-# Lente 05 D1 / 07 R-CLI-05). O hash de CPF/CNPJ/IP NAO pode ser derivavel do
-# tenant_id: o tenant_id e publico (aparece em URLs/payloads). Salt =
-# sha256("afere-pii-salt:{tenant_id}:{valor}") era reconstruivel por qualquer
-# um que soubesse o tenant_id => rainbow-table de CPF de novo. HMAC com chave
-# secreta de servidor torna o hash irreversivel sem a chave, mesmo conhecendo
-# tenant_id + algoritmo. Override dedicado via env PII_HASH_KEY (rotacao);
-# default deriva de SECRET_KEY (obrigatoria, sem default em prod).
+# Chave server-side pra HMAC de PII em audit (SANEA-02 + FA-A1). O hash de
+# CPF/CNPJ/IP NAO pode ser derivavel do tenant_id (publico) — HMAC com chave
+# secreta de servidor torna irreversivel sem a chave (pseudonimizacao, NAO
+# anonimizacao — R3 advogado FA-A1).
+#
+# FA-A1: chave VERSIONADA. Antes a chave derivava de SECRET_KEY se env vazia;
+# rotacionar SECRET_KEY (boa pratica) invalidava TODOS os hashes retroativos
+# => impossivel responder ANPD "quem viu CPF X em data Y". Agora:
+#   - PII_HASH_KEY_ID: id da chave ATIVA (default "v1").
+#   - PII_HASH_KEY: segredo cru da chave ativa.
+#   - PII_HASH_KEYS_RETIRED: "v0:seg0,v-1:segX" — chaves aposentadas, so pra
+#     VERIFICAR hashes antigos apos rotacao (prestacao de contas art. 37).
+#   - Fallback derivado de SECRET_KEY so FORA de prod (dev/test). prod.py
+#     proibe (FA-M2: ImproperlyConfigured).
+# Registry encapsulado: __repr__/__str__ redatados pra NAO vazar segredo via
+# `manage.py diffsettings` / error report 500 (T1 BLOQUEANTE tech-lead).
 import hashlib as _hashlib
 
+
+class _RegistroChavesPII:
+    """Cofre de chaves de HMAC de PII. Nunca expoe bytes em repr/str/log."""
+
+    def __init__(self, ativa_id: str, chaves: dict[str, bytes]) -> None:
+        if ativa_id not in chaves:
+            raise ValueError(f"PII_HASH_KEY_ID={ativa_id!r} ausente do registry de chaves")
+        self._ativa_id = ativa_id
+        self._chaves = chaves
+
+    @property
+    def ativa_id(self) -> str:
+        return self._ativa_id
+
+    def chave_ativa(self) -> bytes:
+        return self._chaves[self._ativa_id]
+
+    def chave(self, key_id: str) -> bytes:
+        """Bytes da chave `key_id` (ativa ou aposentada). KeyError se ausente."""
+        return self._chaves[key_id]
+
+    def tem(self, key_id: str) -> bool:
+        return key_id in self._chaves
+
+    def __repr__(self) -> str:
+        return (
+            f"<RegistroChavesPII: ids={sorted(self._chaves)} "
+            f"ativa={self._ativa_id!r} (redacted)>"
+        )
+
+    __str__ = __repr__
+
+
+def _parse_chaves_aposentadas(bruto: str) -> dict[str, bytes]:
+    """Parseia "v0:seg0,v-1:segX". Malformado => ValueError (nunca silencio).
+
+    String inteira vazia => {} (sem chaves aposentadas — caso normal). Mas
+    token vazio entre vírgulas ("v0:s,,v1:t" / vírgula final) é malformado e
+    levanta (T2 tech-lead: nunca silenciar config torta).
+    """
+    chaves: dict[str, bytes] = {}
+    if not bruto.strip():
+        return chaves
+    for par in (p.strip() for p in bruto.split(",")):
+        if not par:
+            raise ValueError(
+                "PII_HASH_KEYS_RETIRED malformado: token vazio " "(virgula dupla/final)"
+            )
+        kid, sep, seg = par.partition(":")
+        kid, seg = kid.strip(), seg.strip()
+        if not sep or not kid or not seg:
+            raise ValueError(f"PII_HASH_KEYS_RETIRED malformado: {par!r} (esperado 'id:segredo')")
+        chaves[kid] = seg.encode("utf-8")
+    return chaves
+
+
+PII_HASH_KEY_ID: str = env("PII_HASH_KEY_ID", default="v1")
 _pii_hash_key_env = env("PII_HASH_KEY", default="")
-PII_HASH_KEY: bytes = (
+_pii_chave_ativa: bytes = (
     _pii_hash_key_env.encode("utf-8")
     if _pii_hash_key_env
-    else _hashlib.sha256(f"afere-pii-hmac-v1:{SECRET_KEY}".encode("utf-8")).digest()
+    else _hashlib.sha256(f"afere-pii-hmac-v1:{SECRET_KEY}".encode()).digest()
 )
+_pii_chaves: dict[str, bytes] = {
+    **_parse_chaves_aposentadas(env("PII_HASH_KEYS_RETIRED", default="")),
+    PII_HASH_KEY_ID: _pii_chave_ativa,
+}
+PII_HASH_KEY_REGISTRO = _RegistroChavesPII(PII_HASH_KEY_ID, _pii_chaves)
 
 # =============================================================
 # Apps
@@ -171,8 +241,10 @@ DATABASE_ROUTERS = ["src.infrastructure.multitenant.router.TenantMultiRoleRouter
 # =============================================================
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-     "OPTIONS": {"min_length": 12}},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 12},
+    },
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
@@ -231,6 +303,7 @@ REST_FRAMEWORK = {
 # - Fallback LocMem: settings/test.py override pra testes sem dependencia externa.
 # Override seguro via env var REDIS_URL.
 import os as _os
+
 _REDIS_URL = _os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 CACHES = {
     "default": {

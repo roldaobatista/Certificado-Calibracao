@@ -100,12 +100,12 @@ class Cliente(models.Model):
             "o texto exato que o titular aceitou. Imutavel apos gravacao."
         ),
     )
-    aceite_lgpd_ip_hash = models.CharField(
-        max_length=64,
+    aceite_lgpd_ip_hash = models.TextField(
         blank=True,
         help_text=(
-            "SHA-256 do IP do request (LGPD art. 6 V — qualidade + INV-013 "
-            "rastreabilidade). Vazio se origem=balcao (titular nao presente)."
+            "HMAC-SHA256 do IP do request, PREFIXADO com versao da chave "
+            "(FA-A1: 'v1:'+64hex). LGPD art. 6 V + INV-013. TextField sem "
+            "limite — imune a crescimento do key_id. Vazio se origem=balcao."
         ),
     )
     aceite_lgpd_origem = models.CharField(

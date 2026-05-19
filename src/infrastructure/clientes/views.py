@@ -833,7 +833,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             # (segredo de servidor) por tenant — NAO mais sha256 de string
             # com tenant.id (que e publico e reconstruivel).
             linha_hash_key = hmac.new(
-                settings.PII_HASH_KEY,
+                settings.PII_HASH_KEY_REGISTRO.chave_ativa(),
                 f"import-linha:{tenant.id}".encode("utf-8"),
                 hashlib.sha256,
             ).hexdigest()
