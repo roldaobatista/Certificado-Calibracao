@@ -29,14 +29,32 @@ ALTO.** Segurança (`auditor-seguranca`) PASS, arquitetura
 Consolidado: `docs/faseamento/auditorias/F-A-CONSOLIDADO-rodada-2.md`.
 Suite 259 passed (0 skip), cobertura 84.84%, hooks 113/113.
 
+## SANEAMENTO F-B — em andamento (rodada 1 feita)
+
+Rodada 1 (3 lentes) consolidada em `auditorias/F-B-CONSOLIDADO-rodada-1.md`
++ commit `d02e9aa`: 5 CRÍTICO + 7 ALTO. Tema: F-B escrita contra
+contrato PRÉ-FA-C1; saneamento F-A divergiu/quebrou ela.
+
+**Descoberta crítica no review FB-C1 (tech-lead):** FB-C1 e FB-C3 estão
+ACOPLADOS. A policy `authz_decisions_select` libera a cadeia pré-tenant
+só com `app.usuario_id=''`, mas decisão pré-tenant autenticada tem
+usuario_id setado → o helper de cadeia não leria o elo anterior → cadeia
+authz pré-tenant bifurca. Viraram UMA frente (#11). Recomendação
+preliminar: cadeia pré-tenant authz POR-USUÁRIO (não global). Análise +
+3 bloqueantes em `auditorias/FB-C1-design-cadeia-compartilhada.md`
+§Correções.
+
 ## Próximo passo (retomar)
-1. **Saneamento F-B** (TaskList #9): auditar F-B 10 lentes → corrigir
-   CRÍTICO/ALTO via ritual → reauditar rodada 2 → zero CRÍTICO/ALTO.
-2. Backlog Wave-A rodada 2 (TaskList #8): R2-M1/M2 + BAIXOs — NÃO
-   reabrem F-A; endereçar em Wave A.
-3. #7 lint sweep Wave-A (clientes/models.py RUF012/DJ012, test files).
-4. Após F-B saneada → Marco 1 `clientes` definitivo → Marco 2.
+1. **FB-C1+C3 conjunto** (#11): reabrir design contemplando cadeia
+   pré-tenant authz por-usuário → review tech-lead → implementar helper
+   compartilhado `registrar_em_cadeia` (algoritmo único) + sequencia +
+   normalização resource JSON-safe + 5 testes + não-regressão T1-T8.
+2. FB-C2 (#13 authz_public), FB-C4+C5 (#12 drill+cripto), ALTOs (#10).
+3. Reauditar F-B rodada 2 (#14). Loop até zero CRÍTICO/ALTO.
+4. Backlog Wave-A (#8), lint sweep (#7) — NÃO reabrem F-A/F-B.
+5. F-B saneada → Marco 1 `clientes` definitivo → Marco 2.
 
 ## Fila de tarefas
-TaskList: #9 F-B saneamento (próximo), #8 backlog Wave-A r2, #7 lint
-sweep. Consolidados em `docs/faseamento/auditorias/`.
+TaskList: #11 FB-C1+C3 conjunto (PRÓXIMO — design reaberto), #12/#13
+demais CRÍTICOs F-B, #10 ALTOs F-B, #14 reauditoria F-B r2, #8/#7
+Wave-A. Consolidados em `docs/faseamento/auditorias/`.
