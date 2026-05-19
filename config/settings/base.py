@@ -8,6 +8,8 @@ Decisoes:
 - SECRET_KEY obrigatoria via env (sem default em prod; dev tem fallback no .env)
 """
 
+import hashlib
+import os
 from pathlib import Path
 
 import environ
@@ -46,7 +48,6 @@ ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
 #     proibe (FA-M2: ImproperlyConfigured).
 # Registry encapsulado: __repr__/__str__ redatados pra NAO vazar segredo via
 # `manage.py diffsettings` / error report 500 (T1 BLOQUEANTE tech-lead).
-import hashlib as _hashlib
 
 
 class _RegistroChavesPII:
@@ -109,7 +110,7 @@ _pii_hash_key_env = env("PII_HASH_KEY", default="")
 _pii_chave_ativa: bytes = (
     _pii_hash_key_env.encode("utf-8")
     if _pii_hash_key_env
-    else _hashlib.sha256(f"afere-pii-hmac-v1:{SECRET_KEY}".encode()).digest()
+    else hashlib.sha256(f"afere-pii-hmac-v1:{SECRET_KEY}".encode()).digest()
 )
 _pii_chaves: dict[str, bytes] = {
     **_parse_chaves_aposentadas(env("PII_HASH_KEYS_RETIRED", default="")),
@@ -302,9 +303,7 @@ REST_FRAMEWORK = {
 #   da ficha 360 quando p95 estourar (RBC C5).
 # - Fallback LocMem: settings/test.py override pra testes sem dependencia externa.
 # Override seguro via env var REDIS_URL.
-import os as _os
-
-_REDIS_URL = _os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+_REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",

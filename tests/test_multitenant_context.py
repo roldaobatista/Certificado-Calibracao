@@ -6,7 +6,6 @@ from uuid import uuid4
 
 from src.infrastructure.multitenant.context import (
     active_tenant_context,
-    limpar_contexto,
     tenant_ids_context,
     usuario_id_context,
 )
@@ -33,12 +32,16 @@ class TestContextVarsIsolamento:
             tenant_ids_context.reset(token)
         assert tenant_ids_context.get() == []
 
-    def test_limpar_contexto_zera_tudo(self) -> None:
-        tenant_ids_context.set([uuid4()])
-        active_tenant_context.set(uuid4())
-        usuario_id_context.set(uuid4())
+    def test_reset_restaura_default_das_tres_vars(self) -> None:
+        # FA-M3: limpar_contexto() removida (armadilha). O padrão correto
+        # é token+reset — provado aqui pras 3 vars.
+        t1 = tenant_ids_context.set([uuid4()])
+        t2 = active_tenant_context.set(uuid4())
+        t3 = usuario_id_context.set(uuid4())
 
-        limpar_contexto()
+        tenant_ids_context.reset(t1)
+        active_tenant_context.reset(t2)
+        usuario_id_context.reset(t3)
 
         assert tenant_ids_context.get() == []
         assert active_tenant_context.get() is None

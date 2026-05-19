@@ -16,26 +16,22 @@ from uuid import UUID
 
 # Lista de tenants permitidos pra este request (resolvida no middleware
 # consultando UsuarioPerfilTenant).
-tenant_ids_context: ContextVar[list[UUID]] = ContextVar(
-    "tenant_ids_context", default=[]
-)
+tenant_ids_context: ContextVar[list[UUID]] = ContextVar("tenant_ids_context", default=[])
 
 # Tenant onde a acao ATUAL acontece. Sempre subset de tenant_ids_context.
 # INSERT/UPDATE gravam tenant_id = active_tenant_id (manager forca isso).
-active_tenant_context: ContextVar[UUID | None] = ContextVar(
-    "active_tenant_context", default=None
-)
+active_tenant_context: ContextVar[UUID | None] = ContextVar("active_tenant_context", default=None)
 
 # Identidade do usuario logado neste request. Usada por:
 # - policy RLS de UsuarioPerfilTenant (usuario_id = current_setting('app.usuario_id'))
 # - audit trail (Marco 4)
-usuario_id_context: ContextVar[UUID | None] = ContextVar(
-    "usuario_id_context", default=None
-)
+usuario_id_context: ContextVar[UUID | None] = ContextVar("usuario_id_context", default=None)
 
-
-def limpar_contexto() -> None:
-    """Reseta as 3 ContextVars. Chamado no `finally` do middleware."""
-    tenant_ids_context.set([])
-    active_tenant_context.set(None)
-    usuario_id_context.set(None)
+# FA-M3: `limpar_contexto()` foi REMOVIDA (armadilha plantada). Fazia
+# `.set([])` num `finally` — padrão ERRADO pra ContextVar em fronteira de
+# request: cria um valor "limpo" no contexto atual em vez de restaurar o
+# anterior, e em pool de threads/async o próximo request herdaria esse
+# valor como se tivesse sido setado (não o default da var). O padrão
+# correto — capturar o token de `.set()` e `reset(token)` no `finally` —
+# já é usado pelo middleware (middleware.py:97-111) e por
+# connection.py (run_in_tenant_context/run_as_system). Não recriar.

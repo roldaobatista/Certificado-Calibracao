@@ -160,6 +160,22 @@ _ADVISORY_LOCK_CLASSE_AUDIT = 0x_AFE_AED  # 'afe aed' — classe de locks de aud
 _TODAS_AS_CADEIAS = object()
 
 
+def _obter_hash_anterior(tenant_id: UUID | None) -> str | None:
+    """Hash do último elo da cadeia DESTE tenant (None = cadeia sistema).
+
+    FA-M3: extraído de `registrar_auditoria` (era god-function:
+    lock+leitura+cálculo+persistência num corpo só). Deve rodar DENTRO do
+    advisory lock por-tenant + transação do chamador — senão 2 inserts
+    concorrentes leem o mesmo elo e bifurcam a cadeia. Ordena por
+    `sequencia` (monotônica; timestamp colide em µs sob o lock — FA-C1).
+    """
+    qs = Auditoria.objects.order_by("-sequencia")
+    anterior = (
+        qs.filter(tenant_id__isnull=True) if tenant_id is None else qs.filter(tenant_id=tenant_id)
+    ).first()
+    return anterior.hash_atual if anterior else None
+
+
 def registrar_auditoria(
     *,
     action: str,
@@ -190,15 +206,9 @@ def registrar_auditoria(
                 [_ADVISORY_LOCK_CLASSE_AUDIT, chave_cadeia],
             )
 
-        # Ultimo elo DA CADEIA DESTE tenant (RLS deixa ver as proprias
-        # linhas no contexto do request; cadeia sistema sob run_as_system).
-        _qs_anterior = Auditoria.objects.order_by("-sequencia")
-        anterior = (
-            _qs_anterior.filter(tenant_id__isnull=True)
-            if tenant_id is None
-            else _qs_anterior.filter(tenant_id=tenant_id)
-        ).first()
-        hash_anterior = anterior.hash_atual if anterior else None
+        # Ultimo elo DA CADEIA DESTE tenant — dentro do lock + transacao
+        # (RLS deixa ver as proprias linhas; cadeia sistema sob run_as_system).
+        hash_anterior = _obter_hash_anterior(tenant_id)
         hash_atual = calcular_hash(hash_anterior, payload_canon)
 
         return Auditoria.objects.create(
