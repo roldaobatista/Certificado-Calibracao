@@ -170,6 +170,16 @@ Reforçados pelo ADR-0002 (multi-tenancy) — rascunho em `docs/adr/0002-multi-t
 
 ---
 
+## INV-RITUAL-* — Invariantes do gate de fechamento de fase
+
+> **Criada em 2026-05-19 por exigência do Roldão:** "não pode passar para a próxima fase com problemas críticos, altos, médios — coloque isso no harness". Antes, o gate escrito era "ZERO CRÍTICO / ZERO ALTO" e MÉDIO era resolvido por convenção (`feedback_resolver_nao_documentar`), não barrado. Agora MÉDIO é bloqueante de fechamento, igual a CRÍTICO e ALTO.
+
+| ID | Regra | Hook que valida | Consequência de violar |
+|---|---|---|---|
+| INV-RITUAL-001 | **Nenhuma Fase (F-A, F-B, F-C…), Marco ou Story é marcada FECHADA / PASS / "pode avançar" enquanto existir achado CRÍTICO, ALTO **ou MÉDIO** em aberto** em qualquer das 3 lentes Família 5 (Segurança, Qualidade, Produto) ou nos pareceres dos 4 subagentes. MÉDIO **não** é CONCERN tolerável no fechamento — só é tolerável transitoriamente *dentro* do loop de correção. Apenas BAIXO pode ser rastreado (GATE-*) e não bloqueia. Achado "resolvido" exige evidência verificável (não suposição). Override só com `# ritual-gate: skip -- APROVADO POR ROLDAO: <razão ≥10 chars>` no commit — decisão exclusiva do Roldão, nunca do agente. | Hook pre-commit `ritual-gate-check.sh` bloqueia commit que adiciona marca de fechamento/avanço de fase (`FECHADA`, `FASE FECHADA`, veredito `PASS`, "pode avançar") em doc de status (`.agent/CURRENT.md`, `AGENTS.md`, `docs/faseamento/**/auditoria-familia5.md`, `docs/dominios/**/auditorias/CONSOLIDADO.md`) enquanto o mesmo diff/arquivo ainda contém `CRÍTICO`/`ALTO`/`MÉDIO` sem marca de resolução na mesma linha. | Fase avança com débito de segurança/qualidade/produto não resolvido → bug regulatório/vazamento entra em produção mascarado de "médio aceitável". Foi exatamente o anti-padrão do remendo auditoria-a-auditoria que não convergia (virada de método 2026-05-19). |
+
+---
+
 ## SEC-* — Regras de segurança
 
 | ID | Regra | Hook | Consequência de violar |

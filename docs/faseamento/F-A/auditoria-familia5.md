@@ -18,18 +18,23 @@ relacionados:
 > Loop do ritual: spec → plan (review 3 subagentes) → tasks
 > (reconciliação) → reconciliar código (P4) → **3 auditores Família 5
 > sobre o estado reconciliado**. F-A só fecha com ZERO CRÍTICO / ZERO
-> ALTO nas 3 lentes.
+> ALTO / ZERO MÉDIO nas 3 lentes (INV-RITUAL-001 — MÉDIO bloqueia
+> fechamento igual a CRÍTICO/ALTO; só BAIXO é rastreável).
 
 ## Veredito (2026-05-19)
 
-| Lente | Auditor | Veredito | CRÍTICO | ALTO |
-|---|---|---|---|---|
-| Segurança | `auditor-seguranca` | **PASS** | 0 | 0 |
-| Qualidade | `auditor-qualidade` | **PASS** | 0 | 0 |
-| Produto/escopo | `auditor-produto` | **PASS** | 0 | 0 |
+| Lente | Auditor | Veredito | CRÍTICO | ALTO | MÉDIO |
+|---|---|---|---|---|---|
+| Segurança | `auditor-seguranca` | **PASS** | 0 | 0 | 0 |
+| Qualidade | `auditor-qualidade` | **PASS** | 0 | 0 | 0 |
+| Produto/escopo | `auditor-produto` | **PASS** | 0 | 0 | 0 |
 
-**ZERO CRÍTICO / ZERO ALTO nas 3 lentes → F-A FECHADA (reconciliada via
-ritual Spec Kit).**
+> MÉDIO = 0 porque os achados MÉDIO/BAIXO foram resolvidos na
+> causa-raiz (seção "Reparos MÉDIO/BAIXO — RESOLVIDOS"), não
+> tolerados como aceitáveis.
+
+**ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO nas 3 lentes → F-A FECHADA
+(reconciliada via ritual Spec Kit).**
 
 ## Evidência verificada (não suposição)
 

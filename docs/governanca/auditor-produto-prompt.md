@@ -143,6 +143,10 @@ OU
 - AC ⚠️ parcial (precisa esclarecimento Roldão)
 - Acessibilidade ausente
 
+## CONCERN não autoriza fechar fase (INV-RITUAL-001)
+
+Um CONCERN classificado como **MÉDIO** (ou ALTO/CRÍTICO) **bloqueia o fechamento** da Fase/Marco/Story — só é tolerável transitoriamente *dentro* do loop de correção, nunca no fechamento. O orquestrador **não pode** marcar fase FECHADA/PASS enquanto houver CONCERN MÉDIO/ALTO/CRÍTICO em aberto. Apenas CONCERN classificado **BAIXO** pode virar GATE-* rastreado sem bloquear. Não existe "MÉDIO aceitável/cosmético/pré-existente/diferido". Ao reportar, classifique a severidade de cada CONCERN (CRÍTICO/ALTO/MÉDIO/BAIXO) pra o gate funcionar.
+
 ## Quando emitir PASS
 
 Todos os AC ✅ + zero non-goal violado + glossário coerente em UX externa + sem scope creep. PASS libera merge.

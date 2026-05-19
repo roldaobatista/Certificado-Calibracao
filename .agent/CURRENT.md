@@ -24,9 +24,10 @@ Trabalho válido anterior NÃO descartado — foi validado pela spec
   grants test=prod, etc.).
 - P3 matriz: núcleo OK; 8 GAPs → T-FA-01..08.
 - P4: 7 fechados causa-raiz + T-FA-08→ADR-0020. Suite 280, hooks
-  118/118, makemigrations limpo.
-- P5: **3 auditores Família 5 = PASS, ZERO CRÍTICO/ALTO.** Reparos
-  MÉDIO/BAIXO resolvidos. Consolidado:
+  130/130, makemigrations limpo.
+- P5: **3 auditores Família 5 = PASS, ZERO CRÍTICO/ALTO/MÉDIO.**
+  Reparos MÉDIO/BAIXO resolvidos na causa-raiz (INV-RITUAL-001 —
+  MÉDIO bloqueia fechamento). Consolidado:
   `docs/faseamento/F-A/auditoria-familia5.md`.
 
 Gates Wave A rastreados (não bloqueiam F-A dogfooding): GATE-1..7
@@ -39,8 +40,10 @@ P6 spec forward → P7 plan + review tech-lead+advogado (bloqueantes
 absorvidos: binding, vigência única, ip_hash HMAC contexto,
 atomicidade≠commit, allowlist anti-PII, GATE-FB-2/3/4) → P8 matriz +
 6 T-FB causa-raiz (T-FB-01..06) → P9 **3 auditores Família 5 = PASS,
-ZERO CRÍTICO/ALTO**. Suite 293, cobertura 85.60%, hooks 118/118,
+ZERO CRÍTICO/ALTO/MÉDIO**. Suite 293, cobertura 85.60%, hooks 130/130,
 drills verdes. Consolidado: `docs/faseamento/F-B/auditoria-familia5.md`.
+Gate de fechamento de fase = INV-RITUAL-001 (MÉDIO bloqueia igual a
+CRÍTICO/ALTO; hook `ritual-gate-check.sh`).
 
 **FOUNDATION (F-A + F-B) FECHADA pelo ritual completo.** A virada de
 método convergiu — o ritual fechou de forma coerente o que o remendo

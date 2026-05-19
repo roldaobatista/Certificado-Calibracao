@@ -18,14 +18,18 @@ relacionados:
 
 ## Veredito (2026-05-19)
 
-| Lente | Auditor | Veredito | CRÍTICO | ALTO |
-|---|---|---|---|---|
-| Segurança | `auditor-seguranca` | **PASS** | 0 | 0 |
-| Qualidade | `auditor-qualidade` | **PASS** | 0 | 0 |
-| Produto/escopo | `auditor-produto` | **PASS** | 0 | 0 |
+| Lente | Auditor | Veredito | CRÍTICO | ALTO | MÉDIO |
+|---|---|---|---|---|---|
+| Segurança | `auditor-seguranca` | **PASS** | 0 | 0 | 0 |
+| Qualidade | `auditor-qualidade` | **PASS** | 0 | 0 | 0 |
+| Produto/escopo | `auditor-produto` | **PASS** | 0 | 0 | 0 |
 
-**ZERO CRÍTICO / ZERO ALTO nas 3 lentes → F-B FECHADA. Foundation
-(F-A + F-B) FECHADA pelo ritual Spec Kit completo.**
+> MÉDIO = 0: achados MÉDIO/BAIXO resolvidos na causa-raiz, não
+> tolerados como aceitáveis (INV-RITUAL-001 — MÉDIO bloqueia
+> fechamento igual a CRÍTICO/ALTO; só BAIXO é rastreável).
+
+**ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO nas 3 lentes → F-B FECHADA.
+Foundation (F-A + F-B) FECHADA pelo ritual Spec Kit completo.**
 
 ## Evidência verificada
 

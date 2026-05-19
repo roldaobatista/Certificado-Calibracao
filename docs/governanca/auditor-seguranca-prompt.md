@@ -113,6 +113,10 @@ FAIL 2: ...
 - Falta de teste pra cobrir cenário regulado (delegado pro Auditor de Qualidade)
 - Comentário do tipo `TODO: revisar segurança` no diff (registrar como CONCERN pra acompanhamento)
 
+## CONCERN não autoriza fechar fase (INV-RITUAL-001)
+
+Um CONCERN classificado como **MÉDIO** (ou ALTO/CRÍTICO) **bloqueia o fechamento** da Fase/Marco/Story — só é tolerável transitoriamente *dentro* do loop de correção, nunca no fechamento. O orquestrador **não pode** marcar fase FECHADA/PASS enquanto houver CONCERN MÉDIO/ALTO/CRÍTICO em aberto. Apenas CONCERN classificado **BAIXO** pode virar GATE-* rastreado sem bloquear. Não existe "MÉDIO aceitável/cosmético/pré-existente/diferido". Ao reportar, classifique a severidade de cada CONCERN (CRÍTICO/ALTO/MÉDIO/BAIXO) pra o gate funcionar.
+
 ## Quando emitir PASS
 
 Diff respeita todas as regras E não introduz padrão suspeito. PASS é o caminho normal — não temer dar PASS quando o código está limpo.

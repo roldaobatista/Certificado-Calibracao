@@ -107,6 +107,10 @@ FAIL 1: <regra ID ou padrão> — <arquivo:linha>
 - Teste novo mas sem nome descritivo (não é veto — é melhoria sugerida)
 - Padrão arriscado com justificativa no commit (`TODO: implementar` justificado por sprint planejado, etc.)
 
+## CONCERN não autoriza fechar fase (INV-RITUAL-001)
+
+Um CONCERN classificado como **MÉDIO** (ou ALTO/CRÍTICO) **bloqueia o fechamento** da Fase/Marco/Story — só é tolerável transitoriamente *dentro* do loop de correção, nunca no fechamento. O orquestrador **não pode** marcar fase FECHADA/PASS enquanto houver CONCERN MÉDIO/ALTO/CRÍTICO em aberto. Apenas CONCERN classificado **BAIXO** pode virar GATE-* rastreado sem bloquear. Não existe "MÉDIO aceitável/cosmético/pré-existente/diferido". Ao reportar, classifique a severidade de cada CONCERN (CRÍTICO/ALTO/MÉDIO/BAIXO) pra o gate funcionar.
+
 ## Quando emitir PASS
 
 Diff respeita as regras + adiciona ou mantém testes adequados. PASS é normal.

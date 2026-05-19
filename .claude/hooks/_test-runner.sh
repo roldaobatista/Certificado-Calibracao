@@ -204,5 +204,21 @@ run_case "AZ4 PublicEndpoint mixin (FB-C2)"      PASS  authz-check.sh '{"tool_in
 run_case "AZ5 _authz_public=True (FB-C2)"        PASS  authz-check.sh '{"tool_input":{"file_path":"src/infrastructure/health/views.py","content":"class HealthView(APIView):\n    _authz_public = True\n    def get(self, request):\n        return Response({})"}}'
 
 echo ""
+echo "===== ritual-gate-check (INV-RITUAL-001 — MEDIO bloqueia fechamento) ====="
+
+run_case "RG1 CURRENT fecha c/ MEDIO aberto"   BLOCK ritual-gate-check.sh '{"tool_input":{"file_path":".agent/CURRENT.md","content":"FASE FECHADA\nMÉDIO-3: redator de PII em aberto"}}'
+run_case "RG2 CURRENT fecha c/ MEDIO resolvido" PASS ritual-gate-check.sh '{"tool_input":{"file_path":".agent/CURRENT.md","content":"FASE FECHADA\nReparos MÉDIO/BAIXO RESOLVIDOS"}}'
+run_case "RG3 AGENTS fecha c/ VEREDITO FAIL"   BLOCK ritual-gate-check.sh '{"tool_input":{"file_path":"AGENTS.md","content":"FOUNDATION F-A FECHADA\nVEREDITO: FAIL"}}'
+run_case "RG4 AGENTS fecha c/ ZERO MEDIO"      PASS  ritual-gate-check.sh '{"tool_input":{"file_path":"AGENTS.md","content":"FOUNDATION FECHADA\nZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO"}}'
+run_case "RG5 auditoria-familia5 ALTO aberto"  BLOCK ritual-gate-check.sh '{"tool_input":{"file_path":"C:\\PROJETOS\\p\\docs\\faseamento\\F-A\\auditoria-familia5.md","content":"F-A FECHADA\nALTO em aberto: isolamento"}}'
+run_case "RG6 override APROVADO POR ROLDAO"    PASS  ritual-gate-check.sh '{"tool_input":{"file_path":".agent/CURRENT.md","content":"FASE FECHADA\nMÉDIO-1 em aberto\n# ritual-gate: skip -- APROVADO POR ROLDAO: decisao consciente registrada"}}'
+run_case "RG7 doc nao-rastreado ignora"        PASS  ritual-gate-check.sh '{"tool_input":{"file_path":"docs/foo.md","content":"FASE FECHADA\nMÉDIO em aberto"}}'
+run_case "RG8 CONSOLIDADO avanca c/ REPROVADO" BLOCK ritual-gate-check.sh '{"tool_input":{"file_path":"C:\\PROJETOS\\p\\docs\\dominios\\comercial\\modulos\\clientes\\auditorias\\CONSOLIDADO.md","content":"pode avançar para o Marco 2\nParecer tech-lead: REPROVADO"}}'
+run_case "RG9 achado aberto sem fechamento"    PASS  ritual-gate-check.sh '{"tool_input":{"file_path":".agent/CURRENT.md","content":"Em andamento.\nMÉDIO-1 em aberto, corrigindo"}}'
+run_case "RG10 F-A legitima (regressao)"       PASS  ritual-gate-check.sh '{"tool_input":{"file_path":"C:\\PROJETOS\\p\\docs\\faseamento\\F-A\\auditoria-familia5.md","content":"ZERO CRÍTICO / ZERO ALTO nas 3 lentes -> F-A FECHADA\n## Reparos MÉDIO/BAIXO — RESOLVIDOS\n| MÉDIO-2: spec nao espelhava criterio | produto | spec ganhou criterios 9 e 10 |"}}'
+run_case "RG11 CONSOLIDADO MEDIO resolvido"    PASS  ritual-gate-check.sh '{"tool_input":{"file_path":"C:\\PROJETOS\\p\\docs\\dominios\\comercial\\modulos\\clientes\\auditorias\\CONSOLIDADO.md","content":"Marco FECHADA via ritual\nZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO"}}'
+run_case "RG12 Edit new_string tambem vale"    BLOCK ritual-gate-check.sh '{"tool_input":{"file_path":".agent/CURRENT.md","new_string":"STORY FECHADA\nCRÍTICO 1: vazamento cross-tenant em aberto"}}'
+
+echo ""
 echo "===== resumo: $pass ok, $fail falhas ====="
 exit $fail

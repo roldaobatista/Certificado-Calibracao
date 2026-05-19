@@ -29,7 +29,7 @@ relacionados:
 ## 1. Em uma frase
 
 ```
-Pra cada Story: /specify → /plan → review 4 subagentes → /tasks → /implement → review 3 auditores → loop até PASS.
+Pra cada Story: /specify → /plan → review 4 subagentes → /tasks → /implement → review 3 auditores → loop até PASS com ZERO CRÍTICO/ALTO/MÉDIO (INV-RITUAL-001).
 ```
 
 ---
@@ -147,6 +147,8 @@ Cada T-MOD-NNN tem:
 
 **Loop:** se FAIL, corrige e re-revisa. 5 reprovações da mesma Story = escalation.
 
+**Gate de fechamento (INV-RITUAL-001 — inegociável):** a Fase/Marco/Story **só fecha** com os 3 auditores em **PASS** e **ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO** nas 3 lentes + pareceres dos subagentes sem REPROVADO. **MÉDIO bloqueia o fechamento igual a CRÍTICO/ALTO** — só é tolerável transitoriamente *dentro* do loop de correção, nunca no fechamento. Apenas BAIXO pode ser rastreado como GATE-* e não bloqueia. "Resolvido" exige evidência verificável (rodar o ambiente real), não suposição. Não existe "MÉDIO aceitável", "cosmético", "pré-existente" ou "diferido pra Wave A" — ver `feedback_resolver_nao_documentar`. Override exclusivo do Roldão via `# ritual-gate: skip -- APROVADO POR ROLDAO: <razão>` no commit; o agente nunca decide derrubar este gate. O hook `ritual-gate-check.sh` materializa a barreira.
+
 ---
 
 ## 4. Foundation vs Wave — diferença prática
@@ -192,6 +194,7 @@ Agent({
 - Commit não cita `T-MOD-NNN`
 - Não rodei auditor de Qualidade/Segurança/Produto antes do push
 - Implementei "MVP do meu MVP" (subset da Story) sem documentar o restante
+- Marquei fase/Marco/Story como FECHADA/PASS com achado MÉDIO (ou ALTO/CRÍTICO) ainda em aberto — ou rotulei MÉDIO como "aceitável/cosmético/pré-existente/diferido" (viola INV-RITUAL-001)
 
 **Se notar qualquer sinal: PARAR. Voltar pro `/specify`.**
 
