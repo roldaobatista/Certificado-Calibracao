@@ -96,6 +96,10 @@ domínio (ADR-0012).
 - **AC-FB-001-2**: `AuthDecision` `frozen=True` (allowed, reason,
   perfis_aplicados, escopo_avaliado, audit_id).
 - **AC-FB-001-3**: zero import `django.*` em `src/domain/authz/`.
+- **AC-FB-001-4** (BLOQ-3): a assinatura de `can()` da porta **NÃO
+  muda em F-B** (estabilidade do Protocol = NG-FB-1). Dados de
+  transporte (ex.: `ip_hash`) chegam por **contexto** (contextvar),
+  nunca por novo parâmetro da porta.
 
 ## US-FB-002 — Adapter Django + 3 tabelas authz (RLS + imutabilidade)
 
@@ -174,11 +178,20 @@ indevidamente (predicate de `cliente.*` NÃO pode rodar em `os.criar`).
 - **AC-FB-006-1**: pipeline `_decidir`: sem perfil →
   `sem_perfil_no_tenant`; RBAC nega → `rbac_denied`; ABAC nega →
   `abac_denied:<nome>`.
-- **AC-FB-006-2**: predicate ABAC só é avaliado quando **vinculado à
-  action/recurso corrente** (binding) — não varredura global cega
-  (corrige FB-A1).
-- **AC-FB-006-3**: `_resolver_perfis_vigentes` filtra janela
-  `valido_de`/`valido_ate` (helper único de vigência).
+- **AC-FB-006-2** (binding — corrige FB-A1; bordas binárias BLOQ-1):
+  predicate ABAC só é avaliado quando **declara escopo** (`actions`/
+  `resource_prefix`) que casa a chamada corrente. Bordas obrigatórias:
+  (a) predicate registrado **sem escopo declarado** → **erro em
+  import-time** (`AppConfig.ready`), nunca runtime nem global cego;
+  (b) action **sem nenhum predicate aplicável** → **ABAC neutro**
+  (segue a decisão RBAC), **NÃO** deny. O escopo é propriedade do
+  predicate (declarado no registro), não índice externo.
+- **AC-FB-006-3** (BLOQ-2): janela de vigência (`valido_de` **E**
+  `valido_ate`) tem **definição ÚNICA** num módulo sem ciclo de import
+  (ex.: `usuario/vigencia.py`), consumida por
+  `_resolver_perfis_vigentes`, `_tem_perfil_sensivel` e middleware —
+  zero reimplementação (hoje há 3 cópias; a de `django_provider.py`
+  ("evita import circular") é débito a matar, não a manter).
 
 ## US-FB-007 — MFA TOTP obrigatório (SEC-MFA-001)
 
@@ -190,9 +203,11 @@ TOTP verificado, **para** SEC-MFA-001.
 - **AC-FB-007-2**: perfil em `PERFIS_SENSIVEIS`
   ({admin_tenant, rt_signatario, financeiro}) sem TOTP → 401
   `mfa_required_perfil_sensivel`.
-- **AC-FB-007-3**: a checagem de perfil sensível filtra `valido_ate`
-  (mesma regra de vigência do provider — corrige FB-A4: não barrar por
-  perfil expirado nem liberar por divergência).
+- **AC-FB-007-3** (corrige FB-A4): a checagem de perfil sensível
+  **reusa a janela de vigência COMPLETA** (`valido_de` E `valido_ate`)
+  da definição única (AC-FB-006-3) — hoje o middleware ignora
+  `valido_ate` por completo (perfil expirado ainda barra). Não é
+  "filtrar valido_ate"; é reusar a janela inteira.
 - **AC-FB-007-4**: técnico (não-sensível) sem TOTP passa.
 - **AC-FB-007-5**: paths públicos (`/healthz`, `/admin/login`,
   `/api/schema`, `/api/docs`, `/static/`, `/media/`, `/accounts/`)
@@ -205,10 +220,26 @@ TOTP verificado, **para** SEC-MFA-001.
 **Como** DPO, **quero** `authz_decisions.ip_hash` preenchido (não 100%
 vazio), **para** responder ANPD "de qual origem" sem IP cru.
 
-- **AC-FB-008-1**: `ip_hash` = SHA-256 do IP do request, propagado
-  request→permission→`can()`; nunca IP cru persistido.
+- **AC-FB-008-1** (BLOQ-3 + C-A1.1): `ip_hash` = **HMAC-SHA256 do IP
+  com chave fora do banco** (não SHA-256 cru — IPv4 quebra por força
+  bruta; cru não sustenta pseudonimização art. 13 §4; reusa a família
+  de chave do PII hash de F-A). Fluxo: `RequireAuthz`/decorator extrai
+  IP → calcula HMAC → propaga por **contextvar** (irmão de
+  `usuario_id_context`) → `_gravar_audit` lê do contexto. **Entra
+  tanto em `_payload_para_hash` quanto na coluna persistida** (senão
+  `verificar_integridade_cadeia_authz` não o cobre → adulterável).
+  Assinatura de `can()` não muda (AC-FB-001-4).
 - **AC-FB-008-2**: chamadas sem request (tasks) → `ip_hash` vazio
   documentado (não é violação; só request HTTP tem IP).
+- **AC-FB-008-3** (C-A2.1/C-A2.2 — minimização art. 6 III): `resource`
+  e `escopo_avaliado` aceitam **allowlist de chaves** (`recurso_tipo`,
+  `recurso_id`, `escopo`, flags booleanas) — PII por **referência
+  (id)**, nunca por valor. Chave fora da allowlist → **fail-loud**
+  (simétrico ao rigor de tipo não-serializável). `_normalizar_para_
+  hash` serializa, **não redige** — a barreira anti-PII é a allowlist,
+  imposta por código (não docstring). `INV-AUTHZ-002` deve vedar PII
+  por valor (texto da invariante em REGRAS muda via ADR/CODEOWNERS —
+  ver §3.2 GATE-FB-4; spec já governa o comportamento).
 
 ## US-FB-009 — Suite + drill `validar_f_b` robusto
 
@@ -222,8 +253,15 @@ vazio), **para** responder ANPD "de qual origem" sem IP cru.
   **exit code**, critério de cobertura authz.
 - **AC-FB-009-4**: fuzzing concorrente: usuário multi-tenant {A,B}
   tenta tenant C → bloqueado (INV-AUTHZ-003).
-- **AC-FB-009-5**: teste que prova `can()` retorna **só após commit**
-  do audit (linha existe no banco).
+- **AC-FB-009-5** (BLOQ-4 — reformulado; "commit antes do retorno" é
+  FALSO sob ATOMIC_REQUESTS, savepoint): prova de **atomicidade
+  decisão↔audit**: (a) `can()` que decide ⇒ existe exatamente 1
+  `AuthzDecision` correspondente na mesma transação; (b) **rollback da
+  transação ⇒ a linha NÃO persiste** (sem decisão órfã sem registro
+  nem registro sem decisão). Teste = rollback-órfão (transação →
+  `can()` → rollback → nova transação confirma ausência). NÃO afirmar
+  "commit antes do retorno" nem ler a própria transação aberta
+  (falso-verde teatral).
 
 ---
 
@@ -236,8 +274,9 @@ F-B fecha quando, sobre código reconciliado:
    `_test-runner` (AC-FB-005-4).
 3. RLS authz por lista regerada; fuzzing {A,B}→C bloqueado
    (AC-FB-009-4 / INV-AUTHZ-003).
-4. `can()` grava audit **antes** do retorno — provado por teste
-   (AC-FB-009-5 / INV-AUTHZ-002).
+4. **Atomicidade decisão↔audit** provada por teste de rollback-órfão
+   (AC-FB-009-5 / INV-AUTHZ-002 — NÃO "commit antes do retorno", que é
+   falso sob ATOMIC_REQUESTS).
 5. MFA TOTP obrigatório pros perfis sensíveis, com `is_verified()`
    real (AC-FB-007-*).
 6. Drill `validar_f_b` robusto verde sem falso-verde (AC-FB-009-3).
@@ -252,12 +291,37 @@ PG + hash chain + verificação, num PG local. Export WORM externo
 diferido (NG-FB-5) — aceito **só** por dogfooding sem dado de titular
 externo.
 
+- **Risco aceito MÉDIO-1 (cache de perfil):** `_resolver_perfis_
+  vigentes` cacheia perfis por `CACHE_TTL_SECS` (5min); um vínculo que
+  expira dentro da janela continua autorizando até o TTL. Aceito **só**
+  em dogfooding; gate Wave A liga invalidação event-driven
+  (INV-INT-008). Declarado (não silencioso) — espelha rigor F-A §3.1.
+- **Conservação vs. eliminação (BLOQ-jur-3):** `authz_decisions` é
+  registro de operação de tratamento — conservada sob **LGPD art. 16 II
+  / art. 37** (obrigação legal / registro de operações); **não
+  elimináveis** por pedido de titular dentro do prazo de retenção
+  legal. `ip_hash` pode expirar antes do resto da linha (minimização
+  art. 6 III). Mesma decisão de F-A (crypto-shredding / B-4).
+
 ### 3.2 Gates rastreados (não bloqueiam F-B; pré-1º tenant real)
 
 Herda GATE-1..7 de F-A (B2/WORM cobre `authz_decisions` também;
-ADR-0020; NTP; etc.) + **GATE-FB-1**: ao criar 1º perfil
-tenant-specific (Wave A), regenerar policy `authz_perfil_acao_select`
-(`INV-AUTHZ-004`) — hook + teste E2E quando aparecer.
+ADR-0020; NTP; etc.) +
+- **GATE-FB-1**: ao criar 1º perfil tenant-specific (Wave A),
+  regenerar policy `authz_perfil_acao_select` (`INV-AUTHZ-004`) —
+  hook + teste E2E.
+- **GATE-FB-2** (advogado C-A1.3/BLOQ-jur-1): retenção de
+  `authz_decisions` + `ip_hash` na **matriz tríplice**
+  (Receita/ISO/LGPD) — trilha imutável **sem prazo = violação art.
+  15/16**; `ip_hash` com prazo possivelmente menor (minimização).
+  + RAT da trilha authz (finalidade do `ip_hash` — C-A1.2).
+- **GATE-FB-3** (advogado C-A2): se Wave A precisar de `resource`
+  além de id/referência, redator de PII obrigatório (hoje a barreira
+  é a allowlist AC-FB-008-3).
+- **GATE-FB-4**: alinhar texto de `INV-AUTHZ-002` em
+  `REGRAS-INEGOCIAVEIS.md` p/ vedar PII por valor em
+  `resource_summary`/`escopo_avaliado` — mudança de doc canônico
+  exige ADR/CODEOWNERS (junto de ADR-0020).
 
 ---
 
@@ -278,8 +342,14 @@ ALTOs F-B rodada 1 ainda **abertos** → viram `T-FB` em P8:
 - **FB-A7** → AC-FB-005-5 (**já fechado** em FB-C2 —
   `test_authz_require_authz.py`; P8 confirma OK).
 
-> **Próximo (P7):** `plan.md` revisado por `tech-lead-saas-regulado`
-> (concorrência cadeia authz, binding ABAC) + `advogado-saas-regulado`
-> (INV-AUTHZ-002 trilha de decisão LGPD, `ip_hash`/minimização). Só
-> então P8 (matriz + conserto dos T-FB) → P9 (Família 5 + fechar
+**P7 concluído (2026-05-19):** `plan.md` revisado por tech-lead +
+advogado — APROVA COM CORREÇÕES; bloqueantes absorvidos (esta spec
+corrigida: AC-FB-001-4/006-2/006-3/007-3/008-1/008-3/009-5 + §3.1/§3.2).
+`[T-FB/P8]`: predicate binding, vigência fonte-única (+dup
+django_provider), ip_hash HMAC via contextvar, allowlist resource,
+teste rollback-órfão, django-otp real. `[GATE]`: GATE-FB-2/3/4.
+
+> **Próximo (P8):** `tasks.md` — matriz medindo a spec corrigida
+> contra o código; ALTOs FB-A1/A4/A5/A6 + bloqueantes viram `T-FB-NNN`
+> (causa-raiz) → conserto → drill verde → P9 (Família 5 + fechar
 > Foundation).
