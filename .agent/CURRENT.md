@@ -58,25 +58,30 @@ não fechava.
 - **Lint sweep #7** (commit `3aeb3d4`, no servidor): ruff 193→0,
   format 100%, avisos de critério na causa-raiz. Suíte 293 verde em
   ordem fixa. NÃO reabre Foundation.
+- **Flake visão-360 RESOLVIDO na causa-raiz** (commit `6c3e7b8`, no
+  servidor): bug de PRODUÇÃO, não artefato de teste. `sanitizar_payload_audit`
+  redigia `cliente_id` quando o UUID coincidia com regex de CPF/telefone
+  (~8,4% dos uuid4). `registrar_auditoria` grava `payload_jsonb` cru; o
+  endpoint sanitizava só na leitura → filtro do banco acerta evento, mas
+  resposta volta com `cliente_id='[REDACTED]'`, quebrando correlação
+  evento↔cliente na timeline da visão-360. Pista "depende de
+  `pytest-randomly` seed" era ruído amostral (uuid4 vem de `os.urandom`).
+  Fix: guard de UUID no ramo string do sanitizador antes das regexes —
+  UUID é identificador surrogate, nunca PII (CPF/CNPJ/telefone/e-mail real
+  jamais parseia como UUID). Cobre `cliente_id`, `usuario_id`,
+  `causation_id`, qualquer chave UUID-valued. Regressão
+  `tests/test_sanitizar_payload_audit.py` varre 5000 uuid4. Suíte
+  **299 passed** (293→299), cobertura **85.85%** (85.60→85.85), hooks
+  130/130. **MÉDIO sob INV-RITUAL-001 destravado.**
 
 ## Próximo passo (retomar) — tarefa ativa
 
-**Causa-raiz do flake `test_visao_360_filtra_eventos_de_outros_clientes`**
-(MÉDIO sob INV-RITUAL-001, pré-existente, INDEPENDENTE do lint —
-provado). Suíte usa `pytest-randomly` (ordem varia). Passa isolado /
-ordem fixa; quebra em certas sementes. Hipóteses já descartadas: UUID
-casando regex CNPJ (0%), `clear_registry` teardown de
-`test_fb_reconciliacao_p8` antes do visao360 (não reproduziu).
-Caminho: capturar `--randomly-seed` que falha (header sem `-q`),
-reproduzir determinístico, bissecionar poluidor, ver traceback REAL
-(não chutar — já errei 2 hipóteses), corrigir na raiz. Memória
-`project_flake_visao360_pytest_randomly`.
-
-Depois: #8 (médios rodada 2 F-A) → Marco 1 `clientes` definitivo →
+Backlog Wave-A #8 (médios rodada 2 F-A) → Marco 1 `clientes` definitivo →
 Marco 2 `equipamentos` (ritual obrigatório). Gates Wave A
 (GATE-1..7 + GATE-FB-1..4) rastreados pré-1º tenant externo.
 
 ## Fila
 
-TaskList: #6 (flake visao-360, ativa) bloqueia #7-commit (já feito).
-Estado vivo aqui; docs em `docs/faseamento/F-A/` e `.../F-B/`.
+#7 lint sweep ✅ + #6 flake visão-360 ✅ — fila zera com Foundation
+intacta. Próxima: #8. Estado vivo aqui; docs em `docs/faseamento/F-A/` e
+`.../F-B/`.
