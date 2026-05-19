@@ -436,6 +436,14 @@ def verificar_integridade_cadeia(
     `run_in_tenant_context` (RLS deixa ver as linhas do tenant); cadeia
     sistema via `run_as_system` (modo_sistema='1' libera tenant NULL).
 
+    Premissa R2-M2 (documentada em
+    `docs/conformidade/comum/isolamento-multi-tenant.md` §2.3.1): a
+    iteracao `Tenant.objects.values_list("id")` roda FORA de contexto
+    de tenant porque `tenants` e tabela de plano-de-controle sem RLS,
+    globalmente legivel. Decisao consciente — middleware multi-tenant
+    tambem depende dessa legibilidade global pra resolver a lista de
+    tenants do usuario antes de saber qual ativar (galinha-e-ovo).
+
     Returns: {tenant_id_str_ou_None: (ok, total, [ids_quebrados])}
     """
     from src.infrastructure.multitenant.connection import (

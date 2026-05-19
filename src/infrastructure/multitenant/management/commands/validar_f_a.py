@@ -17,6 +17,18 @@ Criterios NAO automaveis (operacao do periodo F-A — 4-6 semanas):
   7. Criterio Roldao (ADR-0001 Portao 3): >= 2 intervencoes/semana, bugs SEV-1
   8. Auditor de seguranca: 14 dias sem veto
 
+R2-M1 (drill destrutivo-acumulativo por design): este drill insere Tenants,
+Usuarios e Auditoria REAIS no banco ativo. Auditoria e INSERT-only (trigger
+anti-mutation) e Tenant tem FK PROTECT a partir de Auditoria — logo NAO
+existe limpeza por DELETE. A unica forma de "limpar" o lixo do drill e
+dropar e recriar o banco (test_afere). Por isso:
+  - drill aborta se o banco NAO parecer descartavel (nome != test*) sem a
+    flag explicita --em-banco-descartavel
+  - drill imprime contagem antes/depois de Tenant/Usuario/Auditoria, deixando
+    o acumulo visivel a quem opera
+  - re-rodar dezenas de vezes contra produca acumula 10k+ linhas por execucao
+    de --escala; rodar contra `test_afere` recriado e o caminho correto
+
 Saida: tabela + exit code 0 (tudo OK) ou 1 (algum falhou).
 """
 
@@ -60,9 +72,37 @@ class Command(BaseCommand):
             action="store_true",
             help="Benchmark pesado: 50 tenants x 200 linhas (~10k, §2 L95).",
         )
+        parser.add_argument(
+            "--em-banco-descartavel",
+            action="store_true",
+            help=(
+                "Confirma que o banco atual e descartavel (test_afere "
+                "recriado, ambiente local, etc). Sem esta flag o drill so "
+                "roda se o NAME do banco comecar com 'test' (R2-M1: drill "
+                "acumula Tenant/Usuario/Auditoria reais; trilha imutavel "
+                "nao tem limpeza por DELETE)."
+            ),
+        )
 
     def handle(self, *args, **options):
         quick = options.get("quick", False)
+
+        guard_ok, guard_msg = self._guard_banco_descartavel(
+            confirmado=options.get("em_banco_descartavel", False)
+        )
+        if not guard_ok:
+            self.stdout.write(self.style.ERROR(guard_msg))
+            sys.exit(2)
+        self.stdout.write(self.style.NOTICE(guard_msg))
+
+        antes = self._contagem_acumulo()
+        self.stdout.write(
+            self.style.NOTICE(
+                f"[acumulo antes] Tenant={antes['tenants']} "
+                f"Usuario={antes['usuarios']} Auditoria={antes['auditoria']}"
+            )
+        )
+
         resultados: list[tuple[str, bool, str]] = []
 
         self.stdout.write(self.style.NOTICE("[1/5] Hooks _test-runner..."))
@@ -98,6 +138,20 @@ class Command(BaseCommand):
             if not ok:
                 falhas += 1
 
+        depois = self._contagem_acumulo()
+        delta = {
+            chave: depois[chave] - antes[chave] for chave in ("tenants", "usuarios", "auditoria")
+        }
+        self.stdout.write("")
+        self.stdout.write(
+            self.style.NOTICE(
+                f"[acumulo depois] Tenant={depois['tenants']} "
+                f"Usuario={depois['usuarios']} Auditoria={depois['auditoria']} "
+                f"(+{delta['tenants']}T +{delta['usuarios']}U "
+                f"+{delta['auditoria']}A nesta execucao)"
+            )
+        )
+
         self.stdout.write("")
         if falhas == 0:
             self.stdout.write(
@@ -109,6 +163,58 @@ class Command(BaseCommand):
             return
         self.stdout.write(self.style.ERROR(f"F-A drill REPROVADO: {falhas} criterio(s) falharam."))
         sys.exit(1)
+
+    def _guard_banco_descartavel(self, *, confirmado: bool) -> tuple[bool, str]:
+        """R2-M1: aborta drill em banco que nao parece descartavel.
+
+        Heuristica: nome comeca com 'test' → descartavel (test_afere). Caso
+        contrario, exige flag explicita --em-banco-descartavel. Sem cleanup
+        possivel (Auditoria INSERT-only + Tenant FK PROTECT), rodar contra
+        produca acumula lixo permanente — guardado por exit 2 ate o operador
+        confirmar que sabe o que esta fazendo.
+        """
+        nome = connection.settings_dict.get("NAME", "")
+        if str(nome).lower().startswith("test"):
+            return True, f"[guard] banco='{nome}' (test*: descartavel)"
+        if confirmado:
+            return True, (
+                f"[guard] banco='{nome}' nao-test, mas operador confirmou "
+                f"via --em-banco-descartavel"
+            )
+        return False, (
+            f"[guard] ABORTADO: banco='{nome}' nao comeca com 'test'. "
+            f"Drill cria Tenant/Usuario/Auditoria REAIS sem caminho de "
+            f"limpeza (trilha imutavel). Para rodar mesmo assim, passe "
+            f"--em-banco-descartavel (decisao consciente do operador)."
+        )
+
+    def _contagem_acumulo(self) -> dict[str, int]:
+        """Conta lixo de drills acumulado no banco.
+
+        - Tenants/Usuarios filtram prefixos conhecidos (`drill-`, `bench-`)
+          em contexto `run_as_system` — tabelas de plano-de-controle sem RLS
+          (R2-M2 §2.3.1).
+        - Auditoria itera os tenants conhecidos + cadeia sistema e soma o
+          COUNT por contexto. RLS continua respeitada (role NOBYPASSRLS —
+          INV-TENANT-004); a soma e a forma honesta de obter o total sem
+          burlar a policy. Custo O(N_tenants), aceitavel no drill.
+        """
+        with run_as_system():
+            tenants = Tenant.objects.filter(slug__startswith="drill-").count()
+            tenants += Tenant.objects.filter(slug__startswith="bench-").count()
+            usuarios = Usuario.objects.filter(email__startswith="drill-").count()
+            usuarios += Usuario.objects.filter(email__startswith="bench-").count()
+            ids_tenants = list(Tenant.objects.values_list("id", flat=True))
+            cur = connection.cursor()
+            cur.execute("SELECT COUNT(*) FROM auditoria;")
+            auditoria_sistema = cur.fetchone()[0]  # cadeia sistema (tenant NULL)
+        auditoria = auditoria_sistema
+        for tid in ids_tenants:
+            with run_in_tenant_context(tenant_id=tid):
+                with connection.cursor() as c:
+                    c.execute("SELECT COUNT(*) FROM auditoria;")
+                    auditoria += c.fetchone()[0]
+        return {"tenants": tenants, "usuarios": usuarios, "auditoria": auditoria}
 
     # =============================================================
     # Helpers

@@ -122,6 +122,21 @@ Listagem fechada e revisada com cuidado — qualquer adição passa por revisão
 
 Toda tabela aqui tem comentário SQL `-- SHARED ACROSS TENANTS` e migração que cria é revisada manualmente.
 
+#### 2.3.1 Premissa: `tenants` é globalmente legível (R2-M2)
+
+A tabela `tenants` (plano-de-controle) **não tem RLS ativada** — qualquer role com `SELECT` lê todas as linhas, independentemente de contexto de tenant. Isso é decisão consciente, não esquecimento, e é premissa de três caminhos do sistema:
+
+1. **Middleware multi-tenant** precisa resolver a lista de tenants do usuário (`UsuarioPerfilTenant` → `Tenant`) **antes** de saber qual tenant ativar — ou seja, antes de existir contexto de tenant. Se `tenants` tivesse RLS por `tenant_id`, o middleware travaria em galinha-e-ovo.
+2. **Verificação periódica da hash chain** (`audit/services.py::verificar_integridade_cadeia` sem argumento) precisa enumerar **todos** os tenants ativos pra varrer cada cadeia independente; a iteração `Tenant.objects.values_list("id")` roda fora de contexto de tenant e depende dessa legibilidade global.
+3. **Drill operacional** (`manage.py validar_f_a`) cria/lista Tenants de teste sob `run_as_system()`.
+
+Por que é seguro:
+- A tabela só guarda metadados de tenant (slug, nome fantasia, estado de provisioning) — nada de PII de cliente final ou de dados de domínio. Vazamento dos slugs entre tenants tem impacto comercial irrisório e nenhum risco LGPD.
+- Roles `app_user` / `app_migrator` são `NOBYPASSRLS` em todas as outras tabelas — a permissividade vale só pra `tenants` por escolha explícita aqui.
+- A política de autorização (ADR-0012) decide *qual* tenant um usuário pode ativar a partir de `UsuarioPerfilTenant` (essa sim com lista controlada); ler a lista global de tenants não autoriza nenhuma ação cross-tenant.
+
+Quem precisar adicionar nova consulta a `Tenant.objects` **fora de** `run_in_tenant_context` ou `run_as_system` deve documentar nesta seção ou na docstring da função o motivo — a regra geral do projeto continua sendo "toda query carrega tenant_id".
+
 ### 2.4 Comportamento por tipo de tabela
 
 | Tipo de tabela | `tenant_id` | RLS ativa? | Acesso |
