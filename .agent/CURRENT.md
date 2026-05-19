@@ -49,15 +49,34 @@ CRÍTICO/ALTO; hook `ritual-gate-check.sh`).
 método convergiu — o ritual fechou de forma coerente o que o remendo
 não fechava.
 
-## Próximo passo (retomar)
+## Feito nesta sessão (2026-05-19)
 
-Backlog Wave-A: #7 (lint sweep pré-existente, baseline 208 ruff —
-I001/UP035/F401) + #8 (médios rodada 2 F-A) — NÃO reabrem Foundation.
-Depois: Marco 1 `clientes` definitivo → Marco 2 `equipamentos` (ritual
-orquestrador obrigatório). Gates Wave A (GATE-1..7 + GATE-FB-1..4)
-rastreados pré-1º tenant externo.
+- **INV-RITUAL-001** (commit `ca8909e`, no servidor): MÉDIO bloqueia
+  avanço de fase, igual a CRÍTICO/ALTO. Regra em REGRAS-INEGOCIAVEIS +
+  hook `ritual-gate-check.sh` (PreToolUse Write|Edit) + 3 prompts de
+  auditor + ritual. _test-runner 130/130. Pedido explícito do Roldão.
+- **Lint sweep #7** (commit `3aeb3d4`, no servidor): ruff 193→0,
+  format 100%, avisos de critério na causa-raiz. Suíte 293 verde em
+  ordem fixa. NÃO reabre Foundation.
+
+## Próximo passo (retomar) — tarefa ativa
+
+**Causa-raiz do flake `test_visao_360_filtra_eventos_de_outros_clientes`**
+(MÉDIO sob INV-RITUAL-001, pré-existente, INDEPENDENTE do lint —
+provado). Suíte usa `pytest-randomly` (ordem varia). Passa isolado /
+ordem fixa; quebra em certas sementes. Hipóteses já descartadas: UUID
+casando regex CNPJ (0%), `clear_registry` teardown de
+`test_fb_reconciliacao_p8` antes do visao360 (não reproduziu).
+Caminho: capturar `--randomly-seed` que falha (header sem `-q`),
+reproduzir determinístico, bissecionar poluidor, ver traceback REAL
+(não chutar — já errei 2 hipóteses), corrigir na raiz. Memória
+`project_flake_visao360_pytest_randomly`.
+
+Depois: #8 (médios rodada 2 F-A) → Marco 1 `clientes` definitivo →
+Marco 2 `equipamentos` (ritual obrigatório). Gates Wave A
+(GATE-1..7 + GATE-FB-1..4) rastreados pré-1º tenant externo.
 
 ## Fila
 
-TaskList P9 do programa Spec Kit. Estado vivo aqui;
-docs em `docs/faseamento/F-A/` e `docs/faseamento/F-B/`.
+TaskList: #6 (flake visao-360, ativa) bloqueia #7-commit (já feito).
+Estado vivo aqui; docs em `docs/faseamento/F-A/` e `.../F-B/`.
