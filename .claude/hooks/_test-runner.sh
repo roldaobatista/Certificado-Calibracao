@@ -177,6 +177,19 @@ run_case "CCa modulo clientes ORM OK"      PASS  cliente-canonico-imutavel.sh '{
 run_case "CCb modulo clientes SQL cru NO"  BLOCK cliente-canonico-imutavel.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/services.py","content":"cursor.execute(\"UPDATE clientes SET cliente_canonico_id = $1\", [x])"}}'
 
 echo ""
+echo "===== event-helper-unico (T-CLI-105 / SANEA-08) ====="
+
+run_case "EH1 fora-allowlist registrar_em_cadeia"  BLOCK event-helper-unico.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/services.py","content":"registrar_em_cadeia(Auditoria, ...)"}}'
+run_case "EH2 fora-allowlist registrar_auditoria"  BLOCK event-helper-unico.sh '{"tool_input":{"file_path":"src/application/comercial/clientes/cadastrar.py","content":"registrar_auditoria(action=\"x\")"}}'
+run_case "EH3 fora-allowlist INSERT bus_outbox"    BLOCK event-helper-unico.sh '{"tool_input":{"file_path":"src/application/x.py","content":"cursor.execute(\"INSERT INTO bus_outbox (id) VALUES (1)\")"}}'
+run_case "EH4 dentro audit/ OK"                    PASS  event-helper-unico.sh '{"tool_input":{"file_path":"src/infrastructure/audit/event_helpers.py","content":"return registrar_em_cadeia(Auditoria, ...)"}}'
+run_case "EH5 dentro multitenant/ OK"              PASS  event-helper-unico.sh '{"tool_input":{"file_path":"src/infrastructure/multitenant/middleware.py","content":"registrar_auditoria(...)"}}'
+run_case "EH6 dentro tests/ OK"                    PASS  event-helper-unico.sh '{"tool_input":{"file_path":"tests/test_hash.py","content":"registrar_em_cadeia(Auditoria, ...)"}}'
+run_case "EH7 dentro migrations/ OK"               PASS  event-helper-unico.sh '{"tool_input":{"file_path":"src/infrastructure/x/migrations/0007.py","content":"registrar_auditoria(...)"}}'
+run_case "EH8 override com motivo"                 PASS  event-helper-unico.sh '{"tool_input":{"file_path":"src/x.py","content":"# event-helper: skip -- caso especial documentado em DR-2026-001\nregistrar_auditoria(...)"}}'
+run_case "EH9 .md ignora"                          PASS  event-helper-unico.sh '{"tool_input":{"file_path":"docs/x.md","content":"chame registrar_em_cadeia(...)"}}'
+
+echo ""
 echo "===== pyproject-validator (descoberto no drill F-A) ====="
 
 run_case "PY1 versao PEP 440 valida"      PASS  pyproject-validator.sh '{"tool_input":{"file_path":"pyproject.toml","content":"[tool.poetry]\nversion = \"0.1.0\""}}'
