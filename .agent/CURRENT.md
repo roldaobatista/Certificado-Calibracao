@@ -164,27 +164,52 @@ não fechava.
   campos; .update()/.delete() zero rows via RLS; trigger anti-mutation
   estrutural via pg_trigger; RLS isolado; criado_por_id do contexto).
 
-**Estado final desta sessão**: suíte **325 passed** (era 299 inicial →
-+26 nos 4 T-CLI), hooks **141/141** verdes (era 130 → +11 de CC1..CCb),
-makemigrations limpo, lint+format+mypy zero issues, drill `validar_f_a`
+- **T-CLI-105 ✅ FECHADO** (commit `3cb5194` WIP da sessão anterior +
+  validação completa nesta sessão 2026-05-20): `event_helpers.py` com
+  `publicar_evento()` aplicando garantias 1-4 (sanitize escrita, validação
+  tenant, atomic do caller, causation_id idempotência) — `outbox=True` e
+  `escopo=authz` levantam `NotImplementedError` até T-CLI-107.
+  `job_contagem_diaria_acesso_pii` (INV-013-A) itera tenants ativos +
+  grava cadeia sistema; default D-1 com `--data-referencia` override.
+  Hook `event-helper-unico.sh` bloqueia `registrar_em_cadeia`/
+  `registrar_auditoria` fora de paths permitidos (9 casos novos).
+  10 cenários testados (sanitize/tenant_mismatch/modo_sistema/outbox/
+  authz/inválido + job por tenant + default D-1).
+- **Validação T-CLI-105 e bootstrapping de `test_afere`** (2026-05-20):
+  suíte completa **335 passed** (era 325 → +10 testes T-CLI-105),
+  cobertura **87%** (era 85.85% → +1.15pp), hooks **150/150** verdes
+  (era 141 → +9 do `event-helper-unico`), lint+format zero issues.
+  Banco `afere` (dogfooding) e `test_afere` foram recriados — estavam
+  em estado inconsistente (migration 0012 marcada como aplicada mas
+  coluna `aceite_lgpd_base_legal` ausente, sequela de ciclo
+  pré-reformatamento Marco 1). Causa-raiz consertada com novo script
+  `docker/postgres/init/03-test-db.sh` (cria `test_afere`
+  `OWNER=app_migrator`, extensões `pgcrypto`/`citext`/`pg_trgm`,
+  `GRANT USAGE,CREATE` pro `app_user` no schema public **apenas no
+  banco de teste** — runtime `afere` mantém `app_user` com só USAGE
+  conforme ADR-0002). Procedimento manual documentado em
+  `docs/faseamento/drill-f-b-saida.md` #3 agora é automatizado pelo
+  init script (rodado uma vez quando volume `afere_db_data` nasce).
+
+**Estado final desta sessão**: suíte **335 passed**, cobertura **87%**,
+hooks **150/150** verdes, makemigrations limpo, drill `validar_f_a`
 não-regredido (F-A intacta).
 
 ## Próximo passo (retomar) — tarefa ativa
 
-**P4 continua — 16 T-CLI restantes**. Sequência sugerida da próxima
+**P4 continua — 15 T-CLI restantes**. Sequência sugerida da próxima
 sessão:
 
-1. T-CLI-105 (event_helpers.py único + job INV-013-A) — desbloqueia
-   helper de evento usado por outros T-CLI
-2. T-CLI-107 (bus_outbox) + T-CLI-110 (worker em F-A) — completam
-   `publicar_evento(outbox=True)` do helper
-3. T-CLI-104 (circuit breaker AcessoDadosCliente)
-4. T-CLI-114..120 (US-CLI-006 inteira — pré-condição dogfooding PII real)
-5. T-CLI-111 + T-CLI-112 (GET dedup compare + tipo_mesclagem +
+1. T-CLI-107 (bus_outbox) + T-CLI-110 (worker em F-A) — completam
+   `publicar_evento(outbox=True)` do helper (T-CLI-105 já levanta
+   `OutboxNaoImplementado` aguardando esses dois)
+2. T-CLI-104 (circuit breaker AcessoDadosCliente)
+3. T-CLI-114..120 (US-CLI-006 inteira — pré-condição dogfooding PII real)
+4. T-CLI-111 + T-CLI-112 (GET dedup compare + tipo_mesclagem +
    evidencia_documental_id)
-6. T-CLI-106 (importação legada — alinhamento de origens completo no
+5. T-CLI-106 (importação legada — alinhamento de origens completo no
    fluxo do use case)
-7. T-CLI-108 + T-CLI-109 (payload Cliente.Bloqueado + predicate
+6. T-CLI-108 + T-CLI-109 (payload Cliente.Bloqueado + predicate
    bloqueado_para_entrega) — gates de módulos futuros
 
 P5 (10 auditores Família 5, loop até PASS zero CRÍTICO/ALTO/MÉDIO) só
@@ -194,5 +219,5 @@ verde.
 ## Fila
 
 #6 flake visão-360 ✅ + #7 lint sweep ✅ + #8 médios rodada 2 F-A ✅ +
-Marco 1 P1+P2+P3 ✅ + T-CLI-103/101/113/102 ✅. Próxima: T-CLI-105..120
-restantes (16 tarefas) → P5.
+Marco 1 P1+P2+P3 ✅ + T-CLI-103/101/113/102/105 ✅. Próxima:
+T-CLI-107/110 (outbox+worker) → restantes (15 tarefas) → P5.
