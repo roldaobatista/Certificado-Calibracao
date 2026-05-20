@@ -163,6 +163,24 @@ class Cliente(models.Model):
     )
 
     # =============================================================
+    # Identidade canonica (INV-CLI-001 / T-CLI-103 — AC-CLI-005-3).
+    # Aponta pro vencedor IMEDIATO da cadeia de mesclagem. Default na criacao:
+    # o proprio id (cliente eh canonico de si). Apos mesclagem, o perdedor
+    # passa a apontar pra vencedor.id; resolver_cliente_canonico segue a
+    # cadeia ate encontrar um cliente vivo (cap 10 hops, fail-loud se ciclo).
+    # Imutabilidade runtime via trigger PG entra em T-CLI-113 (AC-CLI-005-7);
+    # aqui so a coluna + indice.
+    # =============================================================
+    cliente_canonico_id = models.UUIDField(
+        db_index=True,
+        help_text=(
+            "Vencedor imediato da cadeia de mesclagem; igual ao proprio id ate "
+            "que uma mesclagem aponte pra outro cliente vivo do mesmo tenant. "
+            "Resolver canonico via canonico.resolver_cliente_canonico."
+        ),
+    )
+
+    # =============================================================
     # Soft-delete (US-CLI-005). R3 advogado: NAO eh direito ao esquecimento
     # (LGPD art. 18 VI — esse vai pra crypto-shredding em portal Wave B).
     # Soft-delete eh correcao de qualidade (art. 6 V) + retencao (art. 16 II +
@@ -203,6 +221,20 @@ class Cliente(models.Model):
 
     def __str__(self) -> str:
         return f"{self.nome} ({self.tipo_pessoa} {self.documento})"
+
+    def save(self, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]  # super().save aceita varios shapes; manter assinatura idiomatica Django
+        """T-CLI-103: cliente_canonico_id default = self.id na criacao.
+
+        Cliente recem-criado e canonico de si mesmo (nunca mesclado). O trigger
+        PG `cliente_canonico_default_trg` (migration 0017) e a defesa em
+        profundidade pra INSERT via SQL cru; aqui no ORM o valor entra explicito
+        antes do INSERT pra evitar drift Python/banco e permitir que codigo
+        que le `instance.cliente_canonico_id` logo apos `create()` veja o
+        valor correto.
+        """
+        if self.cliente_canonico_id is None:
+            self.cliente_canonico_id = self.id
+        super().save(*args, **kwargs)
 
     @property
     def bloqueado(self) -> bool:
