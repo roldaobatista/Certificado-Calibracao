@@ -99,15 +99,46 @@ não fechava.
   verde com contagem honesta (35T/21U/15093A operacional). Foundation
   intacta — não reabre auditoria.
 
+## Marco 1 `clientes` via ritual Spec Kit — P1+P2+P3 (2026-05-19)
+
+- **P1 spec forward** (commit `065161b`, no servidor): autoritativa
+  em `docs/faseamento/M1-clientes/spec.md`. 5 US originais (cadastro,
+  visão 360°, importação, bloqueio, dedup) + 12 non-goals + 4 INVs
+  novos (INV-CLI-001 identidade canônica, INV-CLI-002 política LGPD
+  única, SEC-CSV-001 anti-injection, INV-013-A contagem diária).
+- **P2 plan + 4 reviews em paralelo** (commit `7c79295`): tech-lead +
+  advogado + RBC + corretora. 10 pontos P-CLI-XN decididos
+  (3 AJUSTADOS, 7 ACEITES). 18 bloqueantes adicionais absorvidos
+  como AC novos. US-CLI-006 NOVA (direitos do titular, revogação,
+  matriz eliminação vs anonimização, incidente ANPD, registro
+  operações). Outbox transacional como padrão único Wave A
+  cravado. Helper único `audit/event_helpers.py` cravado (SANEA-08).
+- **P3 matriz spec↔código** (commit `f0249f0`): 24 OK, 20 GAP →
+  T-CLI-101..120, 6 TRACK → GATE-CLI-1..6 (+2 modulares futuros).
+  Correção do relatório do Explore: AC-CLI-001-4 e 003-7 estavam
+  marcados OK; verificação direta no `lgpd.py:65-68` mostrou enum
+  com 2 valores (spec exige 5) — GAP confirmado.
+
 ## Próximo passo (retomar) — tarefa ativa
 
-Marco 1 `clientes` definitivo → Marco 2 `equipamentos` (ritual
-obrigatório). Gates Wave A (GATE-1..7 + GATE-FB-1..4) rastreados pré-1º
-tenant externo.
+**P4 — executar T-CLI-101..120 causa-raiz**. Cada T-CLI ganha commit
+atômico. Trabalho extenso (migrations + modelos + use cases + endpoints
++ triggers PG + hooks + testes anti-regressão). Estimativa honesta:
+várias sessões. Sequência sugerida:
+
+1. T-CLI-103 (cliente_canonico_id) — desbloqueia T-CLI-102, 111, 112, 113
+2. T-CLI-101 (enum LGPD 5 bases + 3 origens)
+3. T-CLI-102 (ClienteIdentidadeHistorico)
+4. T-CLI-105 (event_helpers.py único + job INV-013-A)
+5. T-CLI-107 (bus_outbox) + T-CLI-110 (worker em F-A)
+6. T-CLI-104 (circuit breaker)
+7. T-CLI-113 (trigger PG canônico imutável)
+8. T-CLI-114..120 (US-CLI-006 inteira — pré-condição dogfooding PII real)
+
+P5 (10 auditores Família 5, loop até PASS zero CRÍTICO/ALTO/MÉDIO) só
+quando P4 concluído e suíte+drill verde.
 
 ## Fila
 
-#6 flake visão-360 ✅ + #7 lint sweep ✅ + #8 médios rodada 2 F-A ✅ —
-fila zera com Foundation intacta. Próxima frente: ritual Spec Kit para
-Marco 1 `clientes`. Estado vivo aqui; docs em `docs/faseamento/F-A/` e
-`.../F-B/`.
+#6 flake visão-360 ✅ + #7 lint sweep ✅ + #8 médios rodada 2 F-A ✅ +
+Marco 1 P1+P2+P3 ✅. Próxima: Marco 1 P4 (20 T-CLI) → P5.
