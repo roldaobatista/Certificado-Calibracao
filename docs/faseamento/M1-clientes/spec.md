@@ -2,7 +2,7 @@
 owner: roldao
 revisado_em: 2026-05-19
 proximo_review: 2026-08-19
-status: draft
+status: stable
 diataxis: reference
 audiencia: agente
 marco: Wave A Marco 1 — clientes
@@ -73,7 +73,16 @@ entrega:
   algorítmica obrigatória aqui; consulta externa não).
 - **NG-CLI-10**: hash chain dedicada de `acessos_dados_cliente` — F-A
   AC-FA-005-7 deixa explícita a decisão: imutabilidade vem do trigger
-  PG; hash chain é gate Wave A se ANPD/CGCRE exigir.
+  PG; hash chain é gate Wave A se 1 de 4 gatilhos disparar (ANPD em
+  incidente, CGCRE supervisão TOP-50, tenant farma RDC 658/2022, ou
+  auditor cyber marcar gap material — RBC §D do P2).
+- **NG-CLI-11**: tratamento de dados pessoais sensíveis (LGPD art. 11)
+  — Aferê **NÃO** recebe em MVP-1. Campo "observação" do cadastro
+  bloqueia entrada de regex de dado sensível (saúde, biometria, dados
+  genéticos, opinião política, religião) com fail-loud no POST.
+- **NG-CLI-12**: dados pessoais de criança e adolescente (LGPD art. 14)
+  — Aferê **NÃO** trata em MVP-1. Validador de cliente PF rejeita
+  cadastro com data de nascimento que aponte para idade < 18 anos.
 
 ### Invariantes governados (Constituição Regra mestre 2 — citar IDs)
 
@@ -88,7 +97,14 @@ Marco 1 **introduz** os IDs novos:
 - `INV-CLI-001` (âncora de identidade canônica — SANEA-05),
 - `INV-CLI-002` (política LGPD única — SANEA-07),
 - `SEC-CSV-001` (anti-injection em geração de CSV — formalização do
-  comportamento já em `csv_safety.py` após SANEA-03).
+  comportamento já em `csv_safety.py` após SANEA-03),
+- `INV-013-A` (âncora de contagem diária imutável de
+  `AcessoDadosCliente` por tenant — detecção barata de supressão de
+  log; corretora-seguros-saas §A P-CLI-S1).
+
+Todos exigem cobertura `tests/regressao/inv_cli_*.py` happy + unhappy
+ANTES do fechamento — pré-condição de segurabilidade (ADR-0019 +
+AUDIT-07 R-CLI-01).
 
 ---
 
@@ -124,11 +140,35 @@ obrigatório, **para** começar atendimento sem perder o cliente na linha.
   parcial `(tenant_id, tipo_pessoa, documento) WHERE soft_deleted_at IS
   NULL`). Cliente soft-deletado com mesmo documento NÃO bloqueia
   recadastro.
-- **AC-CLI-001-4**: aceite LGPD é OBRIGATÓRIO — sem `aceite_lgpd_em` o
-  POST retorna 400. `aceite_lgpd_em`, `aceite_lgpd_base_legal` (enum:
-  `CONSENTIMENTO`, `EXECUCAO_CONTRATO`, `OBRIG_LEGAL`),
-  `aceite_lgpd_declaracao_id` (FK pra declaração ativa do tenant)
-  gravados imutáveis (LGPD art. 8 §6 — prova do consentimento).
+- **AC-CLI-001-4** (advogado-saas-regulado §A P-CLI-A1 + §D): aceite
+  LGPD é OBRIGATÓRIO no POST direto. Sem campos abaixo o POST retorna
+  400 e a mensagem cita o campo faltante. Imutáveis após criar
+  (LGPD art. 8 §6 — prova).
+  - `aceite_lgpd_em` (timestamp UTC)
+  - `aceite_lgpd_base_legal` (enum — 5 valores):
+    `CONSENTIMENTO` (LGPD art. 7º I),
+    `EXECUCAO_CONTRATO` (art. 7º V),
+    `OBRIG_LEGAL` (art. 7º II),
+    `LEGITIMO_INTERESSE` (art. 7º IX — exige `lia_id` apontando teste
+    de balanceamento vigente do tenant),
+    `PROTECAO_CREDITO` (art. 7º X — restrito a operações de
+    bloqueio/cobrança).
+  - `aceite_lgpd_declaracao_id` (FK `DeclaracaoLGPD` vigente do
+    controlador correspondente ao `tipo_titular`: tenant publica
+    declaração para `CLIENTE_FINAL_DO_TENANT`; Aferê publica
+    declaração para `USUARIO_OPERADOR`).
+  - `aceite_lgpd_origem` (enum: `CADASTRO_DIRETO` |
+    `IMPORTACAO_LEGADA` | `MIGRACAO_SISTEMA_ANTERIOR`).
+    `IMPORTACAO_LEGADA` só aceita base `EXECUCAO_CONTRATO` ou
+    `OBRIG_LEGAL` (nunca `CONSENTIMENTO`).
+- **AC-CLI-001-7** (consultor-rbc-iso17025 §B item 1): alteração de
+  `nome` (PF) ou `razao_social`/`nome_fantasia` (PJ) em cliente ativo
+  grava `ClienteIdentidadeHistorico(cliente_id, campo, valor_anterior,
+  valor_novo, data_efetivacao, evidencia_documental_id, criado_por)` —
+  trilha de rastreabilidade ISO/IEC 17025 §7.8.2.1 (b) + §8.4
+  preservada por 25 anos. Campo `evidencia_documental_id` opcional
+  para alteração simples; obrigatório se alteração coincide com `M&A`
+  (ver AC-CLI-005-3).
 - **AC-CLI-001-5**: criar publica `Cliente.Criado` no bus com `tenant_id`,
   `cliente_id`, `documento_hash` (HMAC F-A — nunca documento cru),
   `aceite_lgpd_base_legal`, `causation_id` da request.
@@ -162,7 +202,24 @@ financeiro, contatos, NPS, anexos), **para** atender sem trocar de aba.
 - **AC-CLI-002-5**: `cliente_id` referenciado em qualquer endpoint que
   exiba dados do cliente **deve resolver via `INV-CLI-001` âncora de
   identidade canônica** — se o cliente referenciado foi mesclado, a
-  resolução segue até o vencedor vivo (US-CLI-005).
+  resolução segue até o vencedor vivo (US-CLI-005). Materialização
+  preguiçosa: se hops > 1, a leitura grava
+  `cliente_resolvido_id` na própria transação via UPDATE (tech-lead
+  §A P-CLI-T1) — próxima leitura é O(1).
+- **AC-CLI-002-6** (tech-lead §B item 2 + corretora §B item 1):
+  circuit breaker observado para gravação em `AcessoDadosCliente`.
+  Falha de gravação ≥ 0.1% das tentativas em janela de 5min dispara
+  alerta P1 + métrica `acessos_dados_cliente.gravacao_falhada_total{
+  tenant_id}` em sink imutável. Endpoint NÃO degrada para "permitir
+  sem registro" — fail-loud preservado (LGPD art. 37); o alerta serve
+  pra time operacional intervir antes que a indisponibilidade
+  prolongada vire risco de continuidade.
+- **AC-CLI-002-7** (`INV-013-A`, corretora §A P-CLI-S1): job daily
+  conta `AcessoDadosCliente` por tenant e publica em métrica
+  imutável (WORM B2 quando GATE-1 ativo; até lá, evento na cadeia
+  sistema). Gap na sequência diária (dia X+1 < X) dispara alerta P1
+  — supressão de log de acesso a PII detectável sem hash chain
+  dedicada.
 
 ## US-CLI-003 — Importação 1-clique (CSV/XLSX)
 
@@ -192,6 +249,15 @@ mapeamento automático, **para** não digitar 800 cadastros.
 - **AC-CLI-003-6**: salt usado em qualquer hash de PII durante a
   importação é HMAC com `PII_HASH_KEY` (F-A) — não derivável de
   `tenant_id` (FECHADO SANEA-02).
+- **AC-CLI-003-7** (advogado §D + tech-lead §C item 3): linha CSV sem
+  `aceite_lgpd_em` explícito é processada APENAS se
+  `aceite_lgpd_origem=IMPORTACAO_LEGADA` e
+  `aceite_lgpd_base_legal ∈ {EXECUCAO_CONTRATO, OBRIG_LEGAL}` foram
+  passados no payload de execução (defaults do tenant na chamada do
+  importador). Cadastro entra em estado **restrito**
+  (`pii_regularizacao_em IS NULL` flag = pending): sem campanhas,
+  sem compartilhamento com terceiros até regularização. Dashboard
+  agrega esses cadastros para o tenant regularizar.
 
 ## US-CLI-004 — Bloqueio comercial (manual + automático)
 
@@ -225,9 +291,36 @@ dias, **para** impedir nova OS/orçamento/agenda sem quitar débito.
 - **AC-CLI-004-6**: cada transição grava em F-B `authz_decisions` com
   `causation_id` do título vencido (rastreabilidade).
 - **AC-CLI-004-7** (`INV-INT-010`): emissor (job/endpoint) garante
-  publicação ATÔMICA com gravação do `ClienteBloqueio` — outbox/
-  transactional event ou commit-na-cadeia (F-A). Consumer fora desse
-  contrato é falha.
+  publicação ATÔMICA com gravação do `ClienteBloqueio` — **outbox
+  transacional** (tech-lead §A P-CLI-T2 DECIDIDO): tabela `bus_outbox`
+  local ao schema tenant, INSERT no mesmo `transaction.atomic` que a
+  gravação do bloqueio + `registrar_em_cadeia`; worker dedicado faz
+  publish + delete. Sem caminho secundário "commit-na-cadeia".
+- **AC-CLI-004-8** (consultor-rbc §A P-CLI-R2 + §E): bloqueio
+  comercial **NÃO afeta** validade técnica de certificado já emitido.
+  Recall de certificado segue exclusivamente fluxo NIT-DICLA-030 §5.7
+  + ISO/IEC 17025 §7.10 (trabalho não conforme), governado pelo módulo
+  `operacao/certificados` (Marco futuro) — proibido derivar do estado
+  `bloqueado` em qualquer consumer.
+- **AC-CLI-004-9** (consultor-rbc §E item 1): bloqueio dispara
+  cancelamento automático de **agendamentos futuros não-iniciados** do
+  cliente; consumer `operacao/agenda` recebe `Cliente.Bloqueado` e
+  publica `Agenda.CancelamentoAutomatico(motivo="bloqueio",
+  agenda_id)`. Reagendamento para "quando regularizar" responsabilidade
+  do módulo `operacao/agenda`.
+- **AC-CLI-004-10** (consultor-rbc §E item 2): calibração **em
+  execução** (item já recebido no laboratório) é **concluída** mesmo
+  com cliente bloqueado — ISO/IEC 17025 §7.1.1 + §7.8.1 (dever
+  técnico de finalizar e emitir relatório). Consumer
+  `operacao/certificados` consulta predicate
+  `cliente.bloqueado_para_entrega` e roteia para fluxo de
+  **retenção física** (CC art. 644) sem afetar validade técnica.
+- **AC-CLI-004-11** (tech-lead §B item 3): worker que processa
+  `bus_outbox` opera em contexto multi-tenant via helper único
+  `processar_outbox_em_contexto_tenant(linha)` morando na **F-A**
+  (não em `clientes/`) — assegura `INV-TENANT-001..004` no caminho do
+  worker; consumer nunca recebe mensagem de tenant diferente do
+  contexto ativo.
 
 ## US-CLI-005 — Dedup manual (wizard lado a lado)
 
@@ -242,26 +335,110 @@ consolidar sem perder histórico.
   `atendente_senior` ou `dono`, payload `{vencedor_id, perdedor_id,
   campos_escolhidos: {campo: "vencedor"|"perdedor"}}`. Mesclar é
   ATÔMICO: dentro de `transaction.atomic` + advisory lock por tenant.
-- **AC-CLI-005-3** (`INV-CLI-001`): identidade canônica.
-  `Cliente.cliente_canonico_id` (UUIDField, default=self na criação,
-  imutável após criar) aponta para o cliente vencedor da cadeia. Após
-  mesclar:
+- **AC-CLI-005-3** (`INV-CLI-001`, consultor-rbc §A P-CLI-R1 + §C):
+  identidade canônica. `Cliente.cliente_canonico_id` (UUIDField,
+  default=self na criação, **imutável runtime via trigger PG** — ver
+  AC-CLI-005-7) aponta para o cliente vencedor da cadeia. Após mesclar:
   - perdedor.soft_deleted_at = now()
-  - perdedor.cliente_canonico_id = vencedor.id
+  - perdedor.cliente_canonico_id = vencedor.id (única transição
+    válida — trigger valida)
   - histórico (OS, certificados, faturas, contatos, NPS) **não migra
     FKs** — segue apontando para `perdedor.id`; a resolução acontece na
-    leitura via `resolver_cliente_canonico(id)` (segue cadeia até
-    encontrar vivo; cap 10 hops com fail-loud se circular).
-  - certificados emitidos **antes** da mesclagem continuam citando
-    o `cliente_id` original (auditoria de tradução pra CGCRE — `D-01`).
+    leitura via `resolver_cliente_canonico(id)` (segue cadeia com cap
+    10 hops; fail-loud + alerta P1 + métrica `dedup.profundidade` se
+    ≥ 7 — corretora §A P-CLI-S2).
+  - certificados emitidos **antes** da mesclagem mantêm o snapshot
+    de identidade {`cliente_id`, `nome`, `documento`,
+    `endereco_completo`, `razao_social_se_PJ`} congelado no momento
+    da emissão (no schema do módulo `operacao/certificados`, Marco
+    futuro — aqui só a INTERFACE de leitura `cliente_snapshot_jsonb`
+    fica acordada).
+  - `Cliente.Dedup.Mesclado` no evento carrega payload `{vencedor_id,
+    perdedor_id, documentos_hash_ambos, justificativa, autorizador_id,
+    evidencia_documental_id_opcional, tipo_mesclagem}` —
+    rastreabilidade ISO/IEC 17025 §7.8.2.1 (b) + §8.4.
+- **AC-CLI-005-3b** (consultor-rbc §C): campo
+  `tipo_mesclagem ∈ {DUPLICATA_OPERACIONAL, M&A_SOCIETARIO}` no POST
+  `/clientes/dedup/executar/`. Se `M&A_SOCIETARIO`,
+  `evidencia_documental_id` (FK pra anexo: contrato social
+  consolidado, ata JC, procuração) é **obrigatório** — 400 sem anexo.
+  Defesa cível (CC art. 1.116) + supervisão CGCRE robusta.
 - **AC-CLI-005-4**: publica `Cliente.Dedup.Mesclado(vencedor_id,
   perdedor_id, causation_id)`. Payload **sem PII além do necessário**
   — nome/documento entram só como hash (`SANEA Onda 2` — formalizado).
 - **AC-CLI-005-5**: re-dedup do perdedor (já mesclado) é rejeitado com
   400 — não há "cadeia de mesclagens manuais" a partir do nó morto.
-- **AC-CLI-005-6**: evento `Cliente.Dedup.Mesclado` tem retenção 25
-  anos (ISO 17025 §8.4) com classificação WORM — formalizado em
-  retenção-matriz (GATE Onda 2).
+- **AC-CLI-005-6** (advogado §A P-CLI-A2): evento
+  `Cliente.Dedup.Mesclado` tem retenção 25 anos com classificação
+  WORM — fundamentação composta (a) ISO/IEC 17025:2017 cl. 8.4.2 +
+  NIT-DICLA-026 (registros técnicos), (b) LGPD art. 16 III
+  (conservação por obrigação legal/regulatória), (c) LGPD art. 16 II
+  (exercício regular de direitos em processo). Payload sanitizado:
+  só UUIDs + hashes HMAC; nome/documento crus **proibidos** no
+  evento.
+- **AC-CLI-005-7** (tech-lead §B item 1, `INV-CLI-001`):
+  imutabilidade runtime de `cliente_canonico_id` via **trigger PG
+  BEFORE UPDATE** em `cliente`. Trigger valida:
+  - valor anterior era `id` próprio (criação default) OR já apontava
+    para outro cliente vivo (re-mesclagem proibida — AC-CLI-005-5);
+  - novo valor referencia cliente vivo do **mesmo tenant**
+    (`soft_deleted_at IS NULL` AND `tenant_id` igual);
+  - allow só via `# canonico-imutavel: skip -- <razão ≥10 chars>` em
+    migration de manutenção declarada.
+  Hook `cliente-canonico-imutavel.sh` cobre tempo de migration;
+  trigger cobre tempo de runtime — defesa em profundidade.
+
+## US-CLI-006 — Direitos do titular, revogação e incidentes (LGPD)
+
+**Como** titular dos dados (cliente final do tenant), **quero** rotas
+estáveis para exercer os direitos garantidos por LGPD art. 18 + revogar
+consentimento (art. 8º §5º), e **quero** que incidentes sejam
+comunicados, **para** que dogfooding e o 1º tenant externo não violem
+obrigações imediatas a partir do primeiro cadastro real.
+
+> Justificativa (advogado §B): sem essas rotas, dogfooding com PII real
+> de cliente final já configura violação de art. 18. Não é Marco 2 —
+> é pré-condição mínima de processar PII real.
+
+- **AC-CLI-006-1** (LGPD art. 18 — direitos do titular): endpoints
+  estáveis `POST /clientes/{id}/direitos-titular/{tipo}/` com `tipo` ∈
+  {`confirmacao`, `acesso`, `correcao`, `anonimizacao`, `portabilidade`,
+  `eliminacao`, `informacao_compartilhamento`, `revogacao_consentimento`}.
+  SLA 15 dias úteis (Res. CD/ANPD nº 2/2022 art. 11), prorrogável por
+  + 15 dias mediante justificativa publicada ao titular.
+- **AC-CLI-006-2** (revogação — LGPD art. 8º §5º): endpoint
+  `revogacao_consentimento` é **gratuito e imediato** —
+  efeito ≤ 1 min; cliente migra para estado `consentimento_revogado_em`,
+  bases CONSENTIMENTO viram inaplicáveis; tratamentos subsequentes só se
+  outra base legal aplicar (e o tenant precisa registrar a mudança).
+- **AC-CLI-006-3** (advogado §E, matriz eliminação vs anonimização):
+  `tipo=eliminacao` aplica matriz declarada:
+  | Categoria | Conflito de prazo | Ação |
+  |-----------|-------------------|------|
+  | Cadastro sem NF/cert atrelado | nenhum | **Eliminação efetiva** (DELETE + cascade preservando audit chain) |
+  | Cadastro com NF emitida | Receita 5a (CTN 173) | **Anonimização em lugar** (nome="Cliente anonimizado #N", documento=hash HMAC, e-mail/telefone NULL); NF em B2 WORM preservada por 5a com `cliente_id_hash` |
+  | Cadastro com certificado ISO | ISO §8.4 ~25a | **Anonimização parcial diferida** — signatário humano preservado (ISO cl. 6.2); CPF/CNPJ vira hash; razão social mantida (rastreabilidade) |
+  | Aceite LGPD + audit chain | Audit ~10a | **Anonimização do conteúdo PII no payload** preservando estrutura (timestamps, ações, IDs opacos); cadeia íntegra (trigger F-A intacto) |
+  Resposta sempre `200` com `acao_aplicada ∈ {ELIMINACAO, ANONIMIZACAO}`
+  e base legal citada (LGPD art. 16 I/II/III aplicável).
+- **AC-CLI-006-4** (LGPD art. 11 + NG-CLI-11): rota de cadastro/edição
+  aplica regex anti-PII-sensível em campos livres (`observacao`,
+  `descricao_adicional`); match → 400 com mensagem "dado sensível não
+  é tratado no Aferê MVP-1".
+- **AC-CLI-006-5** (LGPD art. 14 + NG-CLI-12): cadastro PF com
+  `data_nascimento` apontando para < 18 anos → 400 com mensagem
+  "dados de criança/adolescente não são tratados no Aferê MVP-1".
+- **AC-CLI-006-6** (Res. ANPD 15/2024 — incidente): evento
+  `Cliente.PII.IncidenteDetectado(tenant_id, descricao_curta,
+  categoria_pii_afetada, qt_titulares_estimada, causation_id)` no bus
+  alimenta módulo de governança. SLA comunicação ANPD 3 dias úteis
+  (módulo de governança opera o canal externo — aqui só o evento).
+- **AC-CLI-006-7** (registro operações — LGPD art. 37): além de
+  `AcessoDadosCliente` (leitura, AC-CLI-002-3), grava
+  `OperacaoTratamentoCliente(tenant_id, cliente_id, finalidade ∈ {
+  CADASTRO, EDICAO, EXPORT, COMPARTILHAMENTO_INTERMODULAR},
+  usuario_id, timestamp)` — fonte para `art. 37` quando ANPD pedir
+  inventário de tratamentos.
 
 ---
 
@@ -274,16 +451,34 @@ e o **loop dos 10 auditores Família 5 = zero CRÍTICO/ALTO/MÉDIO** nas
 1. Todos os AC-CLI-NNN-N acima OK ou rebaixados para TRACK com gate.
 2. Suite verde no fluxo padrão (`pytest -p no:randomly`), cobertura ≥
    80% global e ≥ 90% nos arquivos `clientes/` (path crítico).
-3. `_test-runner.sh` 130/130 (sem reabrir hooks).
+3. `_test-runner.sh` 130+ casos (sem reabrir hooks).
 4. `makemigrations --check` limpo; `migrate --database=migrator`
    from-scratch verde.
-5. Drill `validar_f_a` 5/5 verde (não regredir F-A).
-6. `INV-CLI-001` e `INV-CLI-002` registrados em `REGRAS-INEGOCIAVEIS.md`
-   com hooks correspondentes (ou justificativa explícita pra ausência).
-7. SANEA-04, 05, 07, 08, 09 — fechados na causa-raiz ou rebaixados
-   com gate rastreado (não silenciado).
-8. Onda 2 — médios resolvidos (PII em payload de mesclagem, retenção
-   25a, performance timeline, refactor god-class).
+5. Drill `validar_f_a` 5/5 verde (não regredir F-A) +
+   `validar_m1_clientes` (a criar em P4) com cenário concorrente
+   de cadastro/importação/dedup multi-tenant.
+6. `INV-CLI-001`, `INV-CLI-002`, `SEC-CSV-001` e `INV-013-A`
+   registrados em `REGRAS-INEGOCIAVEIS.md` com hooks correspondentes
+   (lista em §"Hooks novos / atualizações" do `plan.md`).
+7. SANEA-04 (confirmado FECHADO via F-A FA-C1), SANEA-05 (resolvido
+   em US-CLI-005), SANEA-07 (resolvido em §"Decisão arquitetural"
+   do plan), SANEA-08 (resolvido via `audit/event_helpers.py`),
+   SANEA-09 (resolvido via §9 + suite anti-regressão).
+8. Onda 2 — médios resolvidos: PII em payload de mesclagem
+   (sanitizado em AC-CLI-005-3 — só UUIDs/hashes); retenção 25a
+   (AC-CLI-005-6 + GATE-CLI-1 documento `retencao-matriz.md`
+   promovido a stable); performance timeline (AC-CLI-002-2 SLA +
+   materialização preguiçosa); refactor god-class views.py
+   (decidido P-CLI-T3 — parte do Marco).
+9. **Suite anti-regressão** `tests/regressao/inv_cli_*.py` cobre cada
+   um dos 4 INVs novos com **happy + unhappy** (corretora §D + ADR-0019
+   Pilar 2). Sem isso, AUDIT-07 R-CLI-01 propaga.
+10. Property-based test de `resolver_cliente_canonico` com ≥ 1000
+    cadeias geradas validando idempotência + ausência de ciclo +
+    cap 10 (corretora §D).
+11. Hooks novos cravados e em `_test-runner.sh`:
+    `lgpd-policy-unica.sh`, `cliente-canonico-imutavel.sh`,
+    `csv-safety-import.sh`, `event-helper-unico.sh`.
 
 ---
 
@@ -320,49 +515,76 @@ copiar o envelope 6×.
 
 ---
 
-## 6. Pontos para os 4 revisores (P2 — bloqueante até resposta)
+## 6. Decisões dos 4 revisores (P2 concluído 2026-05-19)
 
-### Para `tech-lead-saas-regulado`
+> Cada P-CLI-XN abaixo recebeu parecer dos 4 subagentes humano-substitutos.
+> Os ajustes deles foram absorvidos nas seções US-CLI-001..006 e nos
+> critérios §3 acima. Esta seção é o registro auditável das decisões.
 
-- **P-CLI-T1**: identidade canônica via `cliente_canonico_id` com
-  resolução encadeada na leitura (cap 10 hops) é aceitável, ou requer
-  materialização (campo `cliente_resolvido_id` updated por job)?
-  Custo/correção do trade-off.
-- **P-CLI-T2**: outbox transacional para eventos do bus vs commit-na-
-  cadeia F-A — ambos atendem `INV-INT-010`; qual é o caminho do Marco 1
-  (formalizar pra Wave A inteira)?
-- **P-CLI-T3**: god-class views.py (988 linhas hoje) — refactor por US
-  é parte do fechamento do marco ou Onda 2 (não bloqueia)?
+### `tech-lead-saas-regulado` — AJUSTADOS / aceitos
 
-### Para `advogado-saas-regulado`
+- **P-CLI-T1 AJUSTADO** → resolução encadeada com cap=10 +
+  **materialização preguiçosa** (UPDATE em leitura se hops > 1).
+  Cravado em AC-CLI-002-5. Job batch só se V2 mostrar p99 > 200ms.
+- **P-CLI-T2 AJUSTADO** → **outbox transacional como padrão único
+  Wave A**; sem caminho "commit-na-cadeia" secundário (cinto-e-
+  suspensório vira ambiguidade). Cravado em AC-CLI-004-7.
+- **P-CLI-T3 ACEITE** → refactor views.py em 5 arquivos por US é
+  parte do Marco 1, não Onda 2. Cravado em §3 item 8.
+- Bloqueantes adicionais absorvidos: AC-CLI-005-7 (trigger PG runtime
+  + hook), AC-CLI-002-6 (circuit breaker), AC-CLI-004-11 (helper
+  outbox em contexto na F-A), e §3 item 5 (drill multi-tenant).
+- Helper único `audit/event_helpers.py` cravado no `plan.md` §"Decisão
+  arquitetural geral" + hook `event-helper-unico.sh` no §3 item 11.
 
-- **P-CLI-A1**: aceite LGPD com 3 bases legais (CONSENTIMENTO,
-  EXECUCAO_CONTRATO, OBRIG_LEGAL) cobre todos os casos de cadastro de
-  cliente PF/PJ? Falta algum (interesse legítimo, proteção do crédito)?
-- **P-CLI-A2**: retenção do `Cliente.Dedup.Mesclado` em 25 anos /
-  WORM — fundamentação ISO 17025 §8.4 + ANPD obrigam? Documento
-  jurídico exato.
-- **P-CLI-A3**: registro de `AcessoDadosCliente` **antes** de
-  renderizar — falha de gravação deve bloquear a resposta da view (sem
-  "sucesso silencioso"). Confirma o veredito legal.
+### `advogado-saas-regulado` — AJUSTADOS / aceitos
 
-### Para `consultor-rbc-iso17025`
+- **P-CLI-A1 AJUSTADO** → enum sobe para 5 bases legais
+  (`CONSENTIMENTO`, `EXECUCAO_CONTRATO`, `OBRIG_LEGAL`,
+  `LEGITIMO_INTERESSE` com `lia_id`, `PROTECAO_CREDITO`).
+  Cravado em AC-CLI-001-4 + AC-CLI-003-7.
+- **P-CLI-A2 ACEITE com fundamentação reforçada** → ISO §8.4.2 +
+  NIT-DICLA-026 + LGPD art. 16 II/III. Cravado em AC-CLI-005-6.
+- **P-CLI-A3 ACEITE** → fail-loud em `AcessoDadosCliente`,
+  fundamentado em LGPD art. 37 + art. 6º X + Res. CD/ANPD nº 2/2022.
+- Lacunas absorvidas (US-CLI-006 nova): direitos do titular (AC-006-1),
+  revogação (AC-006-2), eliminação vs anonimização (AC-006-3),
+  dados sensíveis (AC-006-4 + NG-CLI-11), criança/adolescente
+  (AC-006-5 + NG-CLI-12), incidente ANPD (AC-006-6), registro de
+  operações (AC-006-7).
+- Recomendação operacional: contrato com advogado humano licenciado
+  ANTES do 1º tenant externo pago — não bloqueia Marco 1 técnico.
 
-- **P-CLI-R1**: certificados emitidos **antes** da mesclagem continuarem
-  citando o `cliente_id` original (com resolução canônica na leitura) é
-  conforme NIT-DICLA-005 / 8.4? Há requisito CGCRE que exija reemissão
-  ou ata de mesclagem assinada?
-- **P-CLI-R2**: cliente bloqueado por inadimplência continuar com
-  certificados válidos (não há revogação automática) — aceitável?
+### `consultor-rbc-iso17025` — AJUSTADOS / aceitos
 
-### Para `corretora-seguros-saas`
+- **P-CLI-R1 AJUSTADO** → snapshot de identidade no certificado
+  emitido + `cliente_canonico_id` resolvido na leitura + payload
+  rastreável em `Cliente.Dedup.Mesclado`. Cravado em AC-CLI-005-3 +
+  AC-CLI-005-3b (`tipo_mesclagem`).
+- **P-CLI-R2 ACEITE com ressalva** → bloqueio comercial ≠ recall
+  técnico. Cravado em AC-CLI-004-8.
+- Bloqueantes absorvidos: AC-CLI-001-7 (`ClienteIdentidadeHistorico`
+  em alteração de razão social), AC-CLI-004-9 (cancelar agenda),
+  AC-CLI-004-10 (calibração em execução conclui).
+- Hash chain dedicada de `AcessoDadosCliente` = gate Wave A se 1 de 4
+  gatilhos disparar (NG-CLI-10 detalha).
+- Recomendação: contratar consultor RBC humano credenciado antes da
+  1ª supervisão CGCRE formal — este parecer cobre ~80% do dossiê.
 
-- **P-CLI-S1**: ausência de hash chain dedicada em `AcessoDadosCliente`
-  (só trigger anti-mutation) afeta segurabilidade RC profissional? F-A
-  AC-FA-005-7 aceita; corretora confirma.
-- **P-CLI-S2**: dedup com resolução encadeada (perdedor não é
-  hard-deleted, FK histórica preserva ID original) é segurável em
-  contrato — risco de processo "vocês perderam meu cadastro"?
+### `corretora-seguros-saas` — AJUSTADOS / aceitos
+
+- **P-CLI-S1 AJUSTADO** → adicionar `INV-013-A` (contagem diária
+  imutável de `AcessoDadosCliente`) como âncora barata de detecção
+  de supressão. Cravado em AC-CLI-002-7.
+- **P-CLI-S2 ACEITE com 2 ajustes** → alerta P1 em ciclo +
+  métrica `dedup.profundidade` (alerta se ≥ 7). Cravado em
+  AC-CLI-005-3 bullet 3.
+- ADR-0019 cláusula segurabilidade absorvida: §3 item 9 exige suite
+  anti-regressão dos 4 INVs novos + §3 item 10 property-based test do
+  resolver canônico.
+- Checklist 14 itens pré-1º tenant externo (BIA, DPA, retenção,
+  incident response, controles compensatórios) é gate operacional
+  rastreado fora do Marco 1 técnico — anotado em retenção-matriz.
 
 ---
 
