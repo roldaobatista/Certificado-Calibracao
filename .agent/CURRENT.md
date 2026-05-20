@@ -130,30 +130,49 @@ não fechava.
   com `resolver_cliente_canonico` (cap=10, path compression em UPDATE
   quando hops>1, fail-loud `IdentidadeCanonicaCircular` em ciclo).
   6 testes (default, 1 mesclagem, 2 mesclagens com path compression,
-  ciclo, cap excedido, property-based 100 cadeias). Suíte 305 passed
-  (era 299 → +6), zero regressão US-CLI-005. Lint+mypy+migrations
-  zero issues. Hooks 130/130.
+  ciclo, cap excedido, property-based 100 cadeias).
+- **T-CLI-101 ✅ FECHADO** (commit `234d0dd`): enum LGPD 5 bases + 3
+  origens + `aceite_lgpd_lia_id`. Migration 0018 com `atomic=False` +
+  `SET CONSTRAINTS ALL IMMEDIATE` (resolve "pending trigger events");
+  ALTER COLUMN varchar(20→30) → DISABLE RLS → UPDATE remap → ENABLE+
+  FORCE RLS → 2 CHECK constraints + LIA obrigatório quando
+  LEGITIMO_INTERESSE. `lgpd.py` reescrito (`CONSENTIMENTO`,
+  `EXECUCAO_CONTRATO`, `OBRIG_LEGAL`, `LEGITIMO_INTERESSE`,
+  `PROTECAO_CREDITO` + `CADASTRO_DIRETO`/`IMPORTACAO_LEGADA`/
+  `MIGRACAO_SISTEMA_ANTERIOR`). Mapeamentos PF_ORIGEM_PARA_BASE_LEGAL +
+  PF_ORIGEM_PARA_ORIGEM_CADASTRO ajustados. serializers.py default
+  `CADASTRO_DIRETO`. importar_clientes.py delega ao mapa canônico. 5
+  testes novos cobrindo cada base + LIA + valores antigos rejeitados.
+- **T-CLI-113 ✅ FECHADO** (commit `ae28fb7`): trigger PG runtime
+  `cliente_canonico_imutavel_trg` BEFORE UPDATE valida transição (NULL
+  bloqueado, self só se OLD=self, NEW=outro deve ser vivo do mesmo
+  tenant). Hook `cliente-canonico-imutavel.sh` cobre tempo de CI
+  (DROP TRIGGER/FUNCTION/COLUMN/ALTER + UPDATE SQL cru bloqueados;
+  auto-allow pra migration de criação + override). 7 testes da
+  trigger; ajuste em testes existentes pra separar UPDATE de
+  cliente_canonico_id do UPDATE de deletado_em.
+
+**Estado final desta sessão**: suíte 317 passed (era 299 inicial → +18
+nos 3 T-CLI), hooks **141/141** verdes (era 130 → +11 de CC1..CCb),
+makemigrations limpo, lint+format+mypy zero issues, drill `validar_f_a`
+não-regredido (F-A intacta).
 
 ## Próximo passo (retomar) — tarefa ativa
 
-**P4 continua — 19 T-CLI restantes**. Sequência sugerida da próxima
+**P4 continua — 17 T-CLI restantes**. Sequência sugerida da próxima
 sessão:
 
-1. T-CLI-101 (enum LGPD 5 bases + 3 origens + lia_id)
-2. T-CLI-102 (ClienteIdentidadeHistorico — depende de save() do
-   Cliente já refatorado por T-CLI-103)
-3. T-CLI-113 (trigger PG BEFORE UPDATE validando transição
-   cliente_canonico_id self→vencedor_vivo + hook `cliente-canonico-
-   imutavel.sh`) — defesa em profundidade do T-CLI-103
-4. T-CLI-105 (event_helpers.py único + job INV-013-A)
-5. T-CLI-107 (bus_outbox) + T-CLI-110 (worker em F-A)
-6. T-CLI-104 (circuit breaker AcessoDadosCliente)
-7. T-CLI-114..120 (US-CLI-006 inteira — pré-condição dogfooding PII real)
-8. T-CLI-111 + T-CLI-112 (GET dedup compare + tipo_mesclagem +
+1. T-CLI-102 (ClienteIdentidadeHistorico — alteração razão social)
+2. T-CLI-105 (event_helpers.py único + job INV-013-A)
+3. T-CLI-107 (bus_outbox) + T-CLI-110 (worker em F-A)
+4. T-CLI-104 (circuit breaker AcessoDadosCliente)
+5. T-CLI-114..120 (US-CLI-006 inteira — pré-condição dogfooding PII real)
+6. T-CLI-111 + T-CLI-112 (GET dedup compare + tipo_mesclagem +
    evidencia_documental_id)
-9. T-CLI-106 (importação legada — alinhamento de origens)
-10. T-CLI-108 + T-CLI-109 (payload Cliente.Bloqueado + predicate
-    bloqueado_para_entrega) — gates de módulos futuros
+7. T-CLI-106 (importação legada — alinhamento de origens completo no
+   fluxo do use case)
+8. T-CLI-108 + T-CLI-109 (payload Cliente.Bloqueado + predicate
+   bloqueado_para_entrega) — gates de módulos futuros
 
 P5 (10 auditores Família 5, loop até PASS zero CRÍTICO/ALTO/MÉDIO) só
 quando P4 concluído e drill `validar_m1_clientes` (T-CLI a desenhar)
@@ -162,5 +181,5 @@ verde.
 ## Fila
 
 #6 flake visão-360 ✅ + #7 lint sweep ✅ + #8 médios rodada 2 F-A ✅ +
-Marco 1 P1+P2+P3 ✅ + T-CLI-103 ✅. Próxima: T-CLI-101..120 restantes
-(19 tarefas) → P5.
+Marco 1 P1+P2+P3 ✅ + T-CLI-103/101/113 ✅. Próxima: T-CLI-102..120
+restantes (17 tarefas) → P5.
