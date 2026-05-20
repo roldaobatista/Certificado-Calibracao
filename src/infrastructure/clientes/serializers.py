@@ -23,7 +23,8 @@ class ClienteSerializer(serializers.ModelSerializer):
 
     Campos LGPD esperados na entrada (POST):
     - PF: `aceite_lgpd_em` (datetime ISO) obrigatorio. `aceite_lgpd_origem`
-      default 'balcao'. `aceite_lgpd_versao` injetada automaticamente.
+      default 'CADASTRO_DIRETO' (T-CLI-101). `aceite_lgpd_versao` injetada
+      automaticamente.
     - PJ: ou `aceite_lgpd_em` informado OU `aceite_lgpd_dispensa_motivo`
       informado (ex: 'pj_sem_pf_associada').
 
@@ -103,11 +104,11 @@ class ClienteSerializer(serializers.ModelSerializer):
                 {"aceite_lgpd_dispensa_motivo": f"Use {DISPENSAS_VALIDAS}"}
             )
 
-        # Snapshot da versao + origem default 'balcao'
+        # Snapshot da versao + origem default CADASTRO_DIRETO (T-CLI-101)
         if aceite_em is not None:
             attrs["aceite_lgpd_versao"] = VERSAO_VIGENTE
             if not attrs.get("aceite_lgpd_origem"):
-                attrs["aceite_lgpd_origem"] = "balcao"
+                attrs["aceite_lgpd_origem"] = "CADASTRO_DIRETO"
 
         return attrs
 

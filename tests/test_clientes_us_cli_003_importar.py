@@ -314,7 +314,7 @@ def test_executar_pf_sem_flag_rejeita_linha(cenario):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_executar_pf_com_flag_contrato_preexistente_cria_com_base_art_7_v(cenario):
+def test_executar_pf_com_flag_contrato_preexistente_cria_com_base_execucao_contrato(cenario):
     csv_bytes = ("CPF;Nome\r\n" f"{CPF_VALIDO_1};Joao Silva\r\n").encode()
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])
@@ -335,7 +335,7 @@ def test_executar_pf_com_flag_contrato_preexistente_cria_com_base_art_7_v(cenari
     assert response.status_code == 200, response.content
     with run_in_tenant_context(cenario["tenant"].id, usuario_id=cenario["admin"].id):
         c = Cliente.objects.get(tenant_id=cenario["tenant"].id, documento=CPF_VALIDO_1)
-        assert c.aceite_lgpd_base_legal == "art_7_v"
+        assert c.aceite_lgpd_base_legal == "EXECUCAO_CONTRATO"
         assert c.aceite_lgpd_evidencia_externa
 
 

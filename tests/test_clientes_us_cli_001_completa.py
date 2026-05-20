@@ -263,7 +263,7 @@ def test_aceite_lgpd_versao_eh_snapshot_da_constante(cenario):
             "documento": "52998224725",
             "nome": "PF Versao Snapshot",
             "aceite_lgpd_em": agora_iso,
-            "aceite_lgpd_origem": "balcao",
+            "aceite_lgpd_origem": "CADASTRO_DIRETO",
         },
         format="json",
     )

@@ -109,9 +109,14 @@ class Cliente(models.Model):
         ),
     )
     aceite_lgpd_origem = models.CharField(
-        max_length=20,
+        max_length=30,
         blank=True,
-        help_text=("balcao | portal | importacao | api_terceiro. Ver lgpd.py ORIGENS_VALIDAS."),
+        help_text=(
+            "Enum (lgpd.py ORIGENS_VALIDAS): CADASTRO_DIRETO (operador no balcão "
+            "ou portal próprio), IMPORTACAO_LEGADA (CSV/XLSX sem aceite formal — "
+            "estado restrito), MIGRACAO_SISTEMA_ANTERIOR (importado com aceite "
+            "comprovado pelo sistema anterior)."
+        ),
     )
     aceite_lgpd_dispensa_motivo = models.CharField(
         max_length=60,
@@ -128,12 +133,24 @@ class Cliente(models.Model):
     # PJ traz contato PF.
     # =============================================================
     aceite_lgpd_base_legal = models.CharField(
-        max_length=20,
+        max_length=30,
         blank=True,
         help_text=(
-            "Enum (lgpd.py BASES_LEGAIS_VALIDAS): art_7_v (execucao de contrato), "
-            "art_7_i (consentimento) — usado quando aceite veio de fora (importacao "
-            "com flag pf_aceite_origem). CHECK constraint na migration."
+            "Enum (lgpd.py BASES_LEGAIS_VALIDAS): CONSENTIMENTO (art. 7º I), "
+            "EXECUCAO_CONTRATO (art. 7º V), OBRIG_LEGAL (art. 7º II), "
+            "LEGITIMO_INTERESSE (art. 7º IX — exige aceite_lgpd_lia_id), "
+            "PROTECAO_CREDITO (art. 7º X). CHECK constraint na migration."
+        ),
+    )
+    aceite_lgpd_lia_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "FK opaco para teste de balanceamento de Legítimo Interesse "
+            "(LIA — LGPD art. 10). Obrigatório quando "
+            "aceite_lgpd_base_legal=LEGITIMO_INTERESSE (CHECK constraint). "
+            "Modelo formal LIATesteBalanceamento entra em US-CLI-006 "
+            "(T-CLI-114) com FK PROTECT."
         ),
     )
     aceite_lgpd_evidencia_externa = models.CharField(

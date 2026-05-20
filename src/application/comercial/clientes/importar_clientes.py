@@ -371,7 +371,7 @@ def importar_clientes(
                 contadores["pf_rejeitadas_por_falta_aceite"] += 1
                 continue
             aceite_lgpd_em = contexto.agora
-            aceite_lgpd_origem = "importacao"
+            aceite_lgpd_origem = "IMPORTACAO_LEGADA"
             aceite_lgpd_base_legal = _base_legal_do_origem(contexto.pf_aceite_origem)
             aceite_lgpd_evidencia_externa = hashlib.sha256(
                 contexto.procedencia_declarada.encode("utf-8")
@@ -481,9 +481,9 @@ def importar_clientes(
 
 
 def _base_legal_do_origem(origem: str) -> str:
-    # Local pra nao acoplar use case a infrastructure.
-    if origem == "contrato_preexistente_documentado":
-        return "art_7_v"
-    if origem in ("consentimento_coletado_offline", "migracao_sistema_anterior_com_aceite"):
-        return "art_7_i"
-    return ""
+    # T-CLI-101: enum LGPD alinhado com spec FORWARD (5 bases). Mapeamento
+    # canonico mora em lgpd.PF_ORIGEM_PARA_BASE_LEGAL; aqui apenas delegacao
+    # pra manter funcao pura sem import circular do use case.
+    from src.infrastructure.clientes.lgpd import PF_ORIGEM_PARA_BASE_LEGAL
+
+    return PF_ORIGEM_PARA_BASE_LEGAL.get(origem, "")
