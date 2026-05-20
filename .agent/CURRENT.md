@@ -119,26 +119,48 @@ não fechava.
   marcados OK; verificação direta no `lgpd.py:65-68` mostrou enum
   com 2 valores (spec exige 5) — GAP confirmado.
 
+## Marco 1 P4 — execução T-CLI causa-raiz (em andamento)
+
+- **T-CLI-103 ✅ FECHADO** (commit `4124a81`, no servidor):
+  identidade canônica via `cliente_canonico_id`. Migration 0017 cria
+  coluna NOT NULL com backfill `GENERATED ALWAYS AS (id) STORED` +
+  `DROP EXPRESSION` (PG 12+) — preenche sem precisar UPDATE sob RLS.
+  Trigger BEFORE INSERT defesa em profundidade. Model `save()` atribui
+  `cliente_canonico_id=self.id` se None. Novo módulo `canonico.py`
+  com `resolver_cliente_canonico` (cap=10, path compression em UPDATE
+  quando hops>1, fail-loud `IdentidadeCanonicaCircular` em ciclo).
+  6 testes (default, 1 mesclagem, 2 mesclagens com path compression,
+  ciclo, cap excedido, property-based 100 cadeias). Suíte 305 passed
+  (era 299 → +6), zero regressão US-CLI-005. Lint+mypy+migrations
+  zero issues. Hooks 130/130.
+
 ## Próximo passo (retomar) — tarefa ativa
 
-**P4 — executar T-CLI-101..120 causa-raiz**. Cada T-CLI ganha commit
-atômico. Trabalho extenso (migrations + modelos + use cases + endpoints
-+ triggers PG + hooks + testes anti-regressão). Estimativa honesta:
-várias sessões. Sequência sugerida:
+**P4 continua — 19 T-CLI restantes**. Sequência sugerida da próxima
+sessão:
 
-1. T-CLI-103 (cliente_canonico_id) — desbloqueia T-CLI-102, 111, 112, 113
-2. T-CLI-101 (enum LGPD 5 bases + 3 origens)
-3. T-CLI-102 (ClienteIdentidadeHistorico)
+1. T-CLI-101 (enum LGPD 5 bases + 3 origens + lia_id)
+2. T-CLI-102 (ClienteIdentidadeHistorico — depende de save() do
+   Cliente já refatorado por T-CLI-103)
+3. T-CLI-113 (trigger PG BEFORE UPDATE validando transição
+   cliente_canonico_id self→vencedor_vivo + hook `cliente-canonico-
+   imutavel.sh`) — defesa em profundidade do T-CLI-103
 4. T-CLI-105 (event_helpers.py único + job INV-013-A)
 5. T-CLI-107 (bus_outbox) + T-CLI-110 (worker em F-A)
-6. T-CLI-104 (circuit breaker)
-7. T-CLI-113 (trigger PG canônico imutável)
-8. T-CLI-114..120 (US-CLI-006 inteira — pré-condição dogfooding PII real)
+6. T-CLI-104 (circuit breaker AcessoDadosCliente)
+7. T-CLI-114..120 (US-CLI-006 inteira — pré-condição dogfooding PII real)
+8. T-CLI-111 + T-CLI-112 (GET dedup compare + tipo_mesclagem +
+   evidencia_documental_id)
+9. T-CLI-106 (importação legada — alinhamento de origens)
+10. T-CLI-108 + T-CLI-109 (payload Cliente.Bloqueado + predicate
+    bloqueado_para_entrega) — gates de módulos futuros
 
 P5 (10 auditores Família 5, loop até PASS zero CRÍTICO/ALTO/MÉDIO) só
-quando P4 concluído e suíte+drill verde.
+quando P4 concluído e drill `validar_m1_clientes` (T-CLI a desenhar)
+verde.
 
 ## Fila
 
 #6 flake visão-360 ✅ + #7 lint sweep ✅ + #8 médios rodada 2 F-A ✅ +
-Marco 1 P1+P2+P3 ✅. Próxima: Marco 1 P4 (20 T-CLI) → P5.
+Marco 1 P1+P2+P3 ✅ + T-CLI-103 ✅. Próxima: T-CLI-101..120 restantes
+(19 tarefas) → P5.
