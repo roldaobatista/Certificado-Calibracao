@@ -454,3 +454,106 @@ class ClienteImportacaoDeclaracao(models.Model):
 
     def __str__(self) -> str:
         return f"ImpDecl {self.id} tenant={self.tenant_id} arquivo={self.arquivo_hash[:8]}"
+
+
+class CampoIdentidadeCliente(models.TextChoices):
+    """Campos do Cliente cuja alteracao gera rastreabilidade ISO 17025 §8.4."""
+
+    NOME = "nome", "Nome / Razao Social"
+    NOME_FANTASIA = "nome_fantasia", "Nome Fantasia"
+
+
+class ClienteIdentidadeHistorico(models.Model):
+    """T-CLI-102 / AC-CLI-001-7 — historico imutavel de alteracoes de identidade.
+
+    Rastreabilidade ISO/IEC 17025 §7.8.2.1 (b) + §8.4: certificado emitido em
+    nome de uma empresa que depois alterou razao social na Junta Comercial
+    (mesmo CNPJ) precisa rastrear quem era o cliente no momento da emissao.
+    Esta tabela guarda cada mudanca de `nome`/`nome_fantasia` em Cliente
+    ativo, preservada por 25 anos.
+
+    INSERT-only (trigger PG `cliente_identidade_historico_anti_mutation`
+    bloqueia UPDATE/DELETE). Populado por trigger AFTER UPDATE em `clientes`
+    quando `nome` ou `nome_fantasia` muda (defesa em profundidade — endpoint
+    PATCH tambem grava explicitamente quando passa `evidencia_documental_id`).
+
+    Reseta + crypto-shredding: o tenant pode descartar a chave PII ao
+    encerrar contrato (`tenant.kms_key`), mas a linha aqui sobrevive como
+    cifra ilegivel — atende LGPD direito ao esquecimento sob retencao legal.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="cliente_identidade_historico",
+    )
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.PROTECT,
+        related_name="identidade_historico",
+        db_constraint=False,
+        help_text=(
+            "FK PROTECT pra preservar trilha mesmo apos mesclagem (cliente soft-deletado). "
+            "db_constraint=False pra evitar FK validation passando por RLS na criacao da "
+            "tabela; integridade real garantida pela trigger AFTER UPDATE que so insere com "
+            "NEW.id valido."
+        ),
+    )
+    campo = models.CharField(
+        max_length=20,
+        choices=CampoIdentidadeCliente.choices,
+        help_text="Campo alterado (nome ou nome_fantasia).",
+    )
+    valor_anterior = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Valor antes da alteracao. Vazio se campo era NULL/blank.",
+    )
+    valor_novo = models.CharField(
+        max_length=200,
+        help_text="Valor depois da alteracao (>= 1 char).",
+    )
+    data_efetivacao = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Quando a alteracao foi gravada (DEFAULT now() na trigger PG).",
+    )
+    evidencia_documental_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "FK opaco pra anexo de evidencia (contrato social consolidado, "
+            "ata JC). Obrigatorio em M&A (US-CLI-005 AC-CLI-005-3b); opcional "
+            "em alteracao simples (renomeacao operacional). Modelo formal de "
+            "anexos entra em modulo de governanca futuro."
+        ),
+    )
+    criado_por_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Usuario que disparou a alteracao (vem do contexto request via "
+            "`app.usuario_id`). NULL quando alteracao veio de processo de "
+            "sistema (job/migracao)."
+        ),
+    )
+
+    class Meta:
+        app_label = "clientes"
+        db_table = "cliente_identidade_historico"
+        verbose_name = "Historico de identidade do cliente"
+        verbose_name_plural = "Historico de identidade dos clientes"
+        ordering = ["-data_efetivacao"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "cliente", "-data_efetivacao"],
+                name="ix_cli_id_hist_tenant_cli",
+            ),
+            models.Index(
+                fields=["tenant", "-data_efetivacao"],
+                name="ix_cli_id_hist_tenant_ts",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"CliIdHist {self.id} cliente={self.cliente_id} {self.campo}"
