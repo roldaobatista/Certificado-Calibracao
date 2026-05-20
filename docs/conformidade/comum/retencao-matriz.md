@@ -57,6 +57,7 @@ Cada categoria de dado tem:
 | **Histórico de consentimento Comunicação Omnichannel (opt-in/opt-out)** | Opt-out + 6 meses (prova) | 5 anos | Cumprimento LGPD art. 8º (prova de consentimento) | B2 WORM | Anonimização (telefone/e-mail → hash) preservando registro de revogação |
 | **Sessão de Suporte SaaS (acesso remoto)** | 5 anos | 10 anos | Audit reforçado (INV-001) + defesa em incidente | B2 WORM (chave KMS separada — atendente Aferê não tem chave) | Manter (audit forense) |
 | **Cadastro de equipamento do cliente final (ativo)** | Vigência cliente + 5 anos | 25 anos se tem cert emitido (INV-025/ISO 17025 cl. 8.4) | LGPD art. 7º V + ISO 17025 cl. 8.4 quando há cert | PG (vigência) → B2 (resto) | Anonimização do vínculo `cliente_atual_id` (NULL) se cliente shredded; `cliente_id_original_hash` preservado |
+| **`bus_outbox` (fila intermediária de eventos de domínio — T-CLI-107)** | `processado_em` + 0 dias | `processado_em` + 7 dias | LGPD art. 6º III (minimização) — NÃO é evidência regulatória; cadeia hash F-A é a fonte da verdade imutável | PG (RLS FORCE) | DELETE físico via cleanup job (Wave A) — cascata via `tenant_id` em offboarding tenant. Pedido de eliminação de titular individual (cenário B) NÃO toca outbox: minimização cumprida pelo cleanup natural de 7 dias |
 | **Equipamento sucateado/extraviado** | 5 anos pós-sucateamento | 25 anos se tem cert emitido | ISO 17025 cl. 8.4 + audit fiscal | B2 WORM | Anonimização vínculos PII; hash + dados técnicos preservados |
 | **EquipamentoEvento / audit_trail.eventos do equipamento** | 5 anos | 25 anos | ISO 17025 cl. 8.4 + INV-001 (hash chain) | B2 WORM | Payload já sanitizado (hashes); manter |
 | **QR Code (token + hash + emissão + revogação)** | Enquanto equipamento ativo + 5 anos | 25 anos se referenciado por cert | Execução contrato + ISO 17025 cl. 8.4 | PG (ativo) → B2 (revogado) | Revogação automática 90 dias após re-emissão; hash mantido em audit |
@@ -157,6 +158,7 @@ Cada categoria de dado tem:
 | DRILL-RET-08 | Colaborador demitido em 2026 pede exclusão ASO em 2027 | Recusa fundamentada NR-7 + acesso restrito imediato + anonimização agendada para 2046 |
 | DRILL-RET-09 | ASO de 2026 em 2046 (20 anos pós-vínculo) | CPF anonimizado, validade+aptidão preservados, médico CRM legível |
 | DRILL-RET-10 | Cliente pede exclusão foto facial 2026 que compõe evidência ISO 17025 | Face borrada + EXIF removido in-place, audit registra ✓ |
+| DRILL-RET-11 | `bus_outbox` retenção 7 dias pós-processado (T-CLI-107) | `SELECT COUNT(*) FROM bus_outbox WHERE processado_em < now() - interval '7 days'` retorna 0. **Mensal** (BLOQ-A2 advogado) |
 
 ---
 

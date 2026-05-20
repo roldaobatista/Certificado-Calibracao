@@ -1,6 +1,6 @@
 ---
 owner: roldao
-revisado_em: 2026-05-19
+revisado_em: 2026-05-20
 proximo_review: 2026-08-19
 status: stable
 diataxis: reference
@@ -79,11 +79,11 @@ relacionados:
 | AC-CLI-004-4 | TRACK | régua D+30/60/89 depende de `comunicacao-omnichannel` (Wave A) — **GATE-CLI-5**. |
 | AC-CLI-004-5 | TRACK | reativação depende de `financeiro/contas-receber` (módulo futuro) emitir `ContasReceber.Pago` — **GATE-CLI-6**. |
 | AC-CLI-004-6 | OK | cada transição grava `authz_decisions` (F-B integration); `causation_id` rastreado. |
-| **AC-CLI-004-7** | **GAP** | **T-CLI-107**: outbox transacional `bus_outbox` ausente. Hoje `registrar_auditoria` grava cadeia, mas publish do bus é direto (sem outbox); cravar tabela `bus_outbox` + worker dedicado em F-A. |
+| AC-CLI-004-7 | ✅ FECHADO | **T-CLI-107** (2026-05-20): migration `audit/0011_bus_outbox.py` cria tabela com UNIQUE `(causation_id, acao)` + CHECK anti-PII em `acao` + CHECK envelope ≤64KiB + RLS FORCE com divergência justificada (modo_sistema cross-tenant pra worker). `event_helpers.publicar_evento(outbox=True)` faz INSERT idempotente no `transaction.atomic` do caller. |
 | AC-CLI-004-8 | OK | spec cravada (não há código pra escrever — é regra de NÃO derivar do estado bloqueado). |
 | **AC-CLI-004-9** | **GAP / módulo futuro** | **T-CLI-108**: consumer `operacao/agenda` ainda não existe — registrar como gate de habilitação Wave A; aqui só garantir que `Cliente.Bloqueado` carrega payload suficiente. |
 | **AC-CLI-004-10** | **GAP / módulo futuro** | **T-CLI-109**: predicate `cliente.bloqueado_para_entrega` ausente; criar predicate isolado pra ser consumido pelo `operacao/certificados` (Marco futuro). |
-| **AC-CLI-004-11** | **GAP** | **T-CLI-110**: helper `processar_outbox_em_contexto_tenant` ausente; criar em `src/infrastructure/audit/` (não em clientes/) garantindo `INV-TENANT-001..004` no worker. |
+| AC-CLI-004-11 | ✅ FECHADO | **T-CLI-110** (2026-05-20): `outbox_worker.processar_outbox_em_contexto_tenant` em 3 transações (Tx-1 tentativas + Tx-2 dispatch+processado_em + Tx-3 ultimo_erro sanitizado inline), garante `INV-TENANT-001..004` via `run_as_system`/`run_in_tenant_context`. Drill 3 tenants intercalados verde. |
 
 ### US-CLI-005 — Dedup manual
 
@@ -112,10 +112,11 @@ relacionados:
 
 ---
 
-## Resumo P3
+## Resumo P3 (atualizado 2026-05-20)
 
 - **OK:** 24 (cadastro core, audit access, importação core, bloqueio core, dedup atomic).
-- **GAP:** 20 (T-CLI-101..120 — causa-raiz em P4).
+- **GAP / FECHADO em P4:** 7 ✅ → T-CLI-101 + T-CLI-102 + T-CLI-103 + T-CLI-105 + T-CLI-107 + T-CLI-110 + T-CLI-113.
+- **GAP / pendente:** 13 (T-CLI-104 + T-CLI-106 + T-CLI-108 + T-CLI-109 + T-CLI-111 + T-CLI-112 + T-CLI-114..120).
 - **TRACK:** 6 (GATE-CLI-1..6 — Wave A; não bloqueia fechamento).
 
 ---

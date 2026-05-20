@@ -173,51 +173,59 @@ não fechava.
   grava cadeia sistema; default D-1 com `--data-referencia` override.
   Hook `event-helper-unico.sh` bloqueia `registrar_em_cadeia`/
   `registrar_auditoria` fora de paths permitidos (9 casos novos).
-  10 cenários testados (sanitize/tenant_mismatch/modo_sistema/outbox/
-  authz/inválido + job por tenant + default D-1).
-- **Validação T-CLI-105 e bootstrapping de `test_afere`** (2026-05-20):
-  suíte completa **335 passed** (era 325 → +10 testes T-CLI-105),
-  cobertura **87%** (era 85.85% → +1.15pp), hooks **150/150** verdes
-  (era 141 → +9 do `event-helper-unico`), lint+format zero issues.
-  Banco `afere` (dogfooding) e `test_afere` foram recriados — estavam
-  em estado inconsistente (migration 0012 marcada como aplicada mas
-  coluna `aceite_lgpd_base_legal` ausente, sequela de ciclo
-  pré-reformatamento Marco 1). Causa-raiz consertada com novo script
-  `docker/postgres/init/03-test-db.sh` (cria `test_afere`
-  `OWNER=app_migrator`, extensões `pgcrypto`/`citext`/`pg_trgm`,
-  `GRANT USAGE,CREATE` pro `app_user` no schema public **apenas no
-  banco de teste** — runtime `afere` mantém `app_user` com só USAGE
-  conforme ADR-0002). Procedimento manual documentado em
-  `docs/faseamento/drill-f-b-saida.md` #3 agora é automatizado pelo
-  init script (rodado uma vez quando volume `afere_db_data` nasce).
+  10 cenários testados.
+- **Validação T-CLI-105 + bootstrapping `test_afere`** (commit `ab142a3`,
+  no servidor): suíte 335 passed, cobertura 87%, hooks 150/150. Novo
+  script `docker/postgres/init/03-test-db.sh` automatiza criação de
+  `test_afere` (OWNER=app_migrator, extensões, grants).
 
-**Estado final desta sessão**: suíte **335 passed**, cobertura **87%**,
+- **T-CLI-107 + T-CLI-110 ✅ FECHADOS via ritual completo** (2026-05-20):
+  outbox transacional + worker em F-A. **Ritual:** design endurecido
+  (`docs/faseamento/M1-clientes/T-CLI-107-110/design.md`) → review
+  paralelo `tech-lead-saas-regulado` + `advogado-saas-regulado` (11
+  bloqueantes absorvidos: T4 2-tx, BLOQ-A divergência RLS justificada,
+  BLOQ-B poison limit, BLOQ-C contrato at-least-once, BLOQ-D non-goal
+  ordering, BLOQ-A1..A7 advogado) → implementação causa-raiz → 10
+  auditores Família 5 = **PASS, ZERO CRÍTICO/ALTO/MÉDIO** (segurança,
+  qualidade, llm-correctness, performance, idempotência, observabilidade,
+  conformidade-lgpd, supplychain, drift-docs; auditor-produto fica
+  pra US completa). Entrega: tabela `bus_outbox` (UNIQUE
+  causation_id+acao, CHECK anti-PII em acao, CHECK envelope ≤64KiB,
+  RLS FORCE com divergência justificada cross-tenant em modo_sistema),
+  `event_helpers.publicar_evento(outbox=True)` (INSERT idempotente),
+  `outbox_worker.processar_outbox_em_contexto_tenant` em 3 transações
+  (Tx-1 tentativas, Tx-2 dispatch+processado_em, Tx-3 ultimo_erro
+  sanitizado inline), `drenar_outbox(limit)`, registry de consumers,
+  2 management commands (`drenar_outbox_uma_vez`,
+  `listar_outbox_envenenado`), `acoes_canonicas.py` (enum fechado),
+  `politicas_lgpd.POLITICA_BUS_OUTBOX`. Matriz de retenção §2 ganhou
+  linha `bus_outbox` + DRILL-RET-11 mensal.
+  Suíte **353 passed** (era 335 → +18), cobertura **85.26%**, hooks
+  **150/150**, ruff+format+mypy zero issues.
+
+**Estado final desta sessão**: suíte **353 passed**, cobertura **85.26%**,
 hooks **150/150** verdes, makemigrations limpo, drill `validar_f_a`
 não-regredido (F-A intacta).
 
 ## Próximo passo (retomar) — tarefa ativa
 
-**P4 continua — 15 T-CLI restantes**. Sequência sugerida da próxima
-sessão:
+**P4 continua — 13 T-CLI restantes**. Sequência:
 
-1. T-CLI-107 (bus_outbox) + T-CLI-110 (worker em F-A) — completam
-   `publicar_evento(outbox=True)` do helper (T-CLI-105 já levanta
-   `OutboxNaoImplementado` aguardando esses dois)
-2. T-CLI-104 (circuit breaker AcessoDadosCliente)
-3. T-CLI-114..120 (US-CLI-006 inteira — pré-condição dogfooding PII real)
-4. T-CLI-111 + T-CLI-112 (GET dedup compare + tipo_mesclagem +
-   evidencia_documental_id)
-5. T-CLI-106 (importação legada — alinhamento de origens completo no
-   fluxo do use case)
-6. T-CLI-108 + T-CLI-109 (payload Cliente.Bloqueado + predicate
-   bloqueado_para_entrega) — gates de módulos futuros
+1. T-CLI-104 (circuit breaker AcessoDadosCliente) — GATE-5 Wave A
+2. T-CLI-114..120 (US-CLI-006 inteira — direitos do titular LGPD;
+   pré-condição dogfooding PII real)
+3. T-CLI-111 + T-CLI-112 (GET dedup compare + tipo_mesclagem +
+   evidencia_documental_id) — fecha US-CLI-005
+4. T-CLI-106 (importação legada — alinhamento origens com mapa canônico)
+5. T-CLI-108 + T-CLI-109 (payload Cliente.Bloqueado + predicate
+   bloqueado_para_entrega) — gates módulos futuros
 
-P5 (10 auditores Família 5, loop até PASS zero CRÍTICO/ALTO/MÉDIO) só
-quando P4 concluído e drill `validar_m1_clientes` (T-CLI a desenhar)
-verde.
+P5 (10 auditores Família 5 sobre o Marco 1 inteiro, loop até PASS
+zero CRÍTICO/ALTO/MÉDIO) só quando P4 concluído e drill
+`validar_m1_clientes` (T-CLI a desenhar) verde.
 
 ## Fila
 
 #6 flake visão-360 ✅ + #7 lint sweep ✅ + #8 médios rodada 2 F-A ✅ +
-Marco 1 P1+P2+P3 ✅ + T-CLI-103/101/113/102/105 ✅. Próxima:
-T-CLI-107/110 (outbox+worker) → restantes (15 tarefas) → P5.
+Marco 1 P1+P2+P3 ✅ + T-CLI-103/101/113/102/105/107/110 ✅. Próxima:
+T-CLI-104 → restantes (13 tarefas) → P5.

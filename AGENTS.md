@@ -5,7 +5,7 @@
 > **Status (2026-05-19 — FOUNDATION F-A + F-B FECHADA via ritual Spec Kit):** decisão Roldão: o remendo auditoria-a-auditoria não convergia (ritual pulado era a causa de fundo); recriadas as **specs FORWARD** de F-A e F-B do zero (governam o código), ritual completo (spec → plan + review 3 subagentes → matriz reconciliação spec↔código → conserto causa-raiz → 3 auditores Família 5), código existente reconciliado (não descartado). **F-A e F-B: 3 auditores Família 5 = PASS, ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO** (`docs/faseamento/F-A/auditoria-familia5.md`, `docs/faseamento/F-B/auditoria-familia5.md`). Gate de fechamento de fase = INV-RITUAL-001 (MÉDIO bloqueia igual a CRÍTICO/ALTO; só BAIXO rastreável; hook `ritual-gate-check.sh`).
 > - Docs canônicas da Foundation: `docs/faseamento/{F-A,F-B}/{spec,plan,tasks,auditoria-familia5}.md`. `stories-f-a.md`/`stories-f-b.md` → `deprecated` (retrofit retroativo).
 > - F-A: 8 GAPs (T-FA-01..08) — 7 causa-raiz + ADR-0020 (REGRAS>orçamento, decisão CODEOWNERS). F-B: 6 GAPs (T-FB-01..06) — predicate binding, vigência fonte-única, MFA django-otp real, ip_hash HMAC, allowlist anti-PII, rollback-órfão.
-> - **Suite total (Foundation reconciliada, verificado 2026-05-19): 293 passed, cobertura 85.60%, hooks 130/130 casos, makemigrations limpo, drill validar_f_a/validar_f_b verdes.** (Números anteriores "259/113" eram pré-reconciliação; 118→130 após hook `ritual-gate-check` INV-RITUAL-001.)
+> - **Suite total (verificado 2026-05-20 pós T-CLI-107+110): 353 passed, cobertura 85.26%, hooks 150/150 casos, makemigrations limpo, drill validar_f_a/validar_f_b verdes.** (Histórico: 293/130 em 2026-05-19 pré-T-CLI-105; +20 hooks de `event-helper-unico` + ritual-gate-check; +60 testes T-CLI-101..107/110/113.)
 > - **Gates Wave A rastreados (não bloqueiam Foundation dogfooding; pré-1º tenant externo):** GATE-1..7 (B2/WORM, verificação periódica, NTP, ciclo chave PII, hash AcessoDadosCliente, ADR-0020, higiene `::uuid`) + GATE-FB-1..4 (perfil tenant-specific/INV-AUTHZ-004, retenção authz_decisions+ip_hash, redator escopo PII, texto INV-AUTHZ-002 via ADR).
 > - Marco 2 `equipamentos`: PRD STABLE v2 + 7 planos US revisados. ADRs **0018/0019/0020**. Próximo: backlog Wave-A (#7 lint sweep, #8 médios) → Marco 1 `clientes` definitivo → Marco 2. Estado vivo em `.agent/CURRENT.md`.
 
@@ -56,7 +56,7 @@ Ver `.specify/memory/constitution.md` (6 princípios) + `REGRAS-INEGOCIAVEIS.md`
 5. **IDs rastreáveis** — `US-<MOD>-NNN` → `AC-<MOD>-NNN-N` → `T<MOD>NNN` → commit.
 6. **Negócio vence conveniência do agente** — não otimizar pelo que o agente IA erra menos; otimizar pelo Roldão/produto. Critério "agentes dominam X" é tiebreaker, nunca principal.
 
-**Regra mestre:** regra crítica vira **hook**, não só doc. Hoje em `.claude/hooks/` (16 hooks ativos, 130/130 casos verdes no `_test-runner`): `block-destructive`, `secrets-scanner`, `_test-runner`, `INV-checker`, `tenant-id-validator`, `anti-mascaramento`, `context-budget`, `paths-frontmatter-validator`, `bus-envelope-validator`, `authz-check`, `provisioning-checkpoint-check`, `mock-in-production`, `migration-rls-check`, `audit-immutability-check`, `pyproject-validator` (drill F-A 2026-05-18 — valida PEP 440 + sintaxe extras Poetry), `policy-test-coverage` (drill F-A 2026-05-18 — exige `# tests-coverage:` apontando teste happy+unhappy quando migration cria policy RLS), `ritual-gate-check` (2026-05-19 — INV-RITUAL-001: bloqueia marca de fase FECHADA/PASS com CRÍTICO/ALTO/MÉDIO em aberto).
+**Regra mestre:** regra crítica vira **hook**, não só doc. Hoje em `.claude/hooks/` (17 hooks ativos, 150/150 casos verdes no `_test-runner`): `block-destructive`, `secrets-scanner`, `_test-runner`, `INV-checker`, `tenant-id-validator`, `anti-mascaramento`, `context-budget`, `paths-frontmatter-validator`, `bus-envelope-validator`, `authz-check`, `provisioning-checkpoint-check`, `mock-in-production`, `migration-rls-check`, `audit-immutability-check`, `pyproject-validator` (drill F-A 2026-05-18 — valida PEP 440 + sintaxe extras Poetry), `policy-test-coverage` (drill F-A 2026-05-18 — exige `# tests-coverage:` apontando teste happy+unhappy quando migration cria policy RLS), `ritual-gate-check` (2026-05-19 — INV-RITUAL-001: bloqueia marca de fase FECHADA/PASS com CRÍTICO/ALTO/MÉDIO em aberto).
 
 ---
 
@@ -123,7 +123,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 | Aplicar migrations | `docker compose exec app poetry run python manage.py migrate --database=migrator` |
 | Verificar objetos de segurança no banco (FA-A4) | `docker compose exec app poetry run python manage.py verificar_objetos_seguranca` |
 | Shell Django | `docker compose exec app poetry run python manage.py shell_plus` |
-| Testar hooks | `bash .claude/hooks/_test-runner.sh` (130 casos) |
+| Testar hooks | `bash .claude/hooks/_test-runner.sh` (150 casos) |
 
 ---
 
@@ -219,7 +219,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 - **F-A** — atingiu 5/5 critérios automáveis em 2026-05-18, **mas reaberta EM SANEAMENTO** pela auditoria 10 lentes (drill era fraco). FA-A5 endureceu o drill (3 tenants intercalados + detecção de adulteração + concorrência + fuzzing 50×1000 + benchmark multi-tenant). Só fecha definitivo na reauditoria rodada 2 sem CRÍTICO/ALTO. Detalhes em `docs/faseamento/drill-f-a-saida.md` + `auditorias/F-A-CONSOLIDADO-rodada-1.md`.
 - **F-B** — 7/7 critérios automáveis verde no fechamento original. Suite F-B: +30 testes (16 E2E + 5 audit + 3 isolamento + 5 MFA + 1 fuzzing). **Suite total pós-saneamento F-A: 259 passed; hooks 113/113** (números "88/103" eram pré-saneamento/driftados — FA-M1). F-B só retoma após F-A rodada 2 verde. Detalhes em `docs/faseamento/drill-f-b-saida.md`.
 
-### Hooks (16 ativos — 130/130 casos verdes; +12 casos ritual-gate-check INV-RITUAL-001)
+### Hooks (17 ativos — 150/150 casos verdes; +9 event-helper-unico T-CLI-105; +12 ritual-gate-check INV-RITUAL-001)
 
 Veja §3 pra lista completa. Marco 5 da F-A (2026-05-17) acrescentou:
 - `migration-rls-check.sh` — INV-TENANT-003: bloqueia migration que cria tabela com `tenant_id` sem `CREATE POLICY`/`ENABLE ROW LEVEL SECURITY` na mesma migration (allow via `# rls-policy: external NNNN`).

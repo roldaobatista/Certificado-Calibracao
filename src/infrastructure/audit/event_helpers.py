@@ -19,20 +19,22 @@ Quando NÃO usar o helper (3 exceções legítimas — hook
 - Management commands de migração one-off (com comentário
   `# audit-immutability: skip -- <razão>`).
 
-Outbox transacional (`outbox=True`) ainda não está implementado — depende
-de T-CLI-107 (tabela `bus_outbox`). Chamadas com `outbox=True` levantam
-`OutboxNaoImplementado` até T-CLI-107; chamadas com `outbox=False`
-publicam apenas na cadeia F-A (caminho viável já em Marco 1).
+T-CLI-107: outbox transacional implementado. `publicar_evento(outbox=True)`
+faz INSERT em `bus_outbox` no MESMO `transaction.atomic` do caller. UNIQUE
+`(causation_id, acao)` + `ON CONFLICT DO NOTHING` garante idempotência. O
+worker `processar_outbox_em_contexto_tenant` (outbox_worker.py) drena.
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any, Literal
 from uuid import UUID
 
 from django.db import connection
 
+from src.infrastructure.audit.acoes_canonicas import assert_acao_canonica
 from src.infrastructure.audit.services import sanitizar_payload_audit
 
 Escopo = Literal["auditoria", "authz"]
@@ -43,7 +45,9 @@ class TenantMismatch(RuntimeError):
 
 
 class OutboxNaoImplementado(NotImplementedError):
-    """`outbox=True` depende de T-CLI-107 (tabela bus_outbox)."""
+    """Mantido por compat de import (T-CLI-105 levantava). T-CLI-107 implementou —
+    NUNCA é levantado em runtime; manter classe pra detecção em testes legados.
+    """
 
 
 @dataclass(frozen=True)
@@ -95,6 +99,10 @@ def publicar_evento(
             f"escopo='{escopo}' depende de T-CLI-107 (bus_outbox + worker em F-A)"
         )
 
+    # BLOQ-A1 advogado: valida acao contra enum canonico (defesa em
+    # profundidade — banco tambem valida via CHECK constraint).
+    assert_acao_canonica(acao)
+
     # Garantia 2: tenant_id == contexto ativo (modo_sistema OU active_tenant_id)
     _validar_tenant_no_contexto(tenant_id)
 
@@ -115,24 +123,68 @@ def publicar_evento(
         )
         cadeia_linha_id = elo.id
 
+    outbox_enfileirado = False
     if outbox:
-        # T-CLI-107 — tabela bus_outbox + INSERT idempotente em (causation_id, acao)
-        raise OutboxNaoImplementado(
-            "outbox=True depende de T-CLI-107 (bus_outbox). "
-            "Use outbox=False enquanto a tabela não existir."
+        outbox_enfileirado = _inserir_no_outbox(
+            causation_id=causation_id,
+            acao=acao,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            payload_sanitizado=payload_sanitizado,
+            resource_summary=resource_summary or acao,
         )
 
-    if cadeia_linha_id is None:
-        # Defesa: chamador pediu `cadeia=False, outbox=False` — não publicou nada.
-        raise ValueError(
-            "publicar_evento(cadeia=False, outbox=False) não faz sentido — "
-            "passe cadeia=True OU outbox=True."
-        )
+    if cadeia_linha_id is None and not outbox_enfileirado:
+        # Defesa: chamador pediu `cadeia=False, outbox=False` (ou outbox=True
+        # com idempotencia atingida sem cadeia) — não publicou nada novo.
+        if not cadeia and not outbox:
+            raise ValueError(
+                "publicar_evento(cadeia=False, outbox=False) não faz sentido — "
+                "passe cadeia=True OU outbox=True."
+            )
 
+    # Pra contrato estavel (chamador conta com cadeia_linha_id != None
+    # quando cadeia=True), retornamos UUID vazio quando cadeia=False —
+    # o caller sabe pelo fim do retorno.
     return EventoPublicado(
-        cadeia_linha_id=cadeia_linha_id,
-        outbox_enfileirado=False,
+        cadeia_linha_id=cadeia_linha_id or UUID(int=0),
+        outbox_enfileirado=outbox_enfileirado,
     )
+
+
+def _inserir_no_outbox(
+    *,
+    causation_id: UUID,
+    acao: str,
+    tenant_id: UUID | None,
+    usuario_id: UUID | None,
+    payload_sanitizado: dict[str, Any],
+    resource_summary: str,
+) -> bool:
+    """T-CLI-107 — INSERT em bus_outbox no `transaction.atomic` do CALLER.
+
+    Idempotente em `(causation_id, acao)` via ON CONFLICT DO NOTHING.
+    Retorna True se inseriu, False se idempotência atingiu linha pre-existente.
+    """
+    envelope = {
+        "acao": acao,
+        "payload": payload_sanitizado,
+        "causation_id": str(causation_id),
+        "tenant_id": str(tenant_id) if tenant_id else None,
+        "usuario_id": str(usuario_id) if usuario_id else None,
+        "resource_summary": resource_summary,
+    }
+    with connection.cursor() as cur:
+        cur.execute(
+            "INSERT INTO bus_outbox "
+            "(id, causation_id, acao, envelope_jsonb, tenant_id, criado_em, tentativas) "
+            "VALUES (gen_random_uuid(), %s, %s, %s::jsonb, %s, now(), 0) "
+            "ON CONFLICT (causation_id, acao) DO NOTHING "
+            "RETURNING id",
+            [str(causation_id), acao, json.dumps(envelope), tenant_id],
+        )
+        row = cur.fetchone()
+    return row is not None
 
 
 def _validar_tenant_no_contexto(tenant_id: UUID | None) -> None:

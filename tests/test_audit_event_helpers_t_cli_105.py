@@ -1,6 +1,6 @@
 """T-CLI-105 / SANEA-08 — testes do helper único `publicar_evento`.
 
-Cobertura:
+Cobertura (atualizado T-CLI-107):
 
 1. test_publicar_evento_grava_na_cadeia_e_sanitiza — happy path:
    payload contém UUID e regex de CPF; sanitizado em ESCRITA antes de gravar.
@@ -9,9 +9,11 @@ Cobertura:
 3. test_publicar_evento_sem_contexto_tenant — sem app.active_tenant_id e
    sem modo_sistema → TenantMismatch.
 4. test_publicar_evento_modo_sistema — tenant_id=None + run_as_system → ok.
-5. test_publicar_evento_outbox_true_ainda_nao_implementado — OutboxNaoImplementado.
-6. test_publicar_evento_escopo_authz_nao_implementado.
-7. test_publicar_evento_cadeia_false_outbox_false_invalido — ValueError.
+5. test_publicar_evento_escopo_authz_nao_implementado.
+6. test_publicar_evento_cadeia_false_outbox_false_invalido — ValueError.
+
+(T-CLI-107 implementou outbox=True; testes do INSERT em bus_outbox
+estão em tests/test_bus_outbox_t_cli_107.py.)
 """
 
 from __future__ import annotations
@@ -20,7 +22,6 @@ from uuid import uuid4
 
 import pytest
 from src.infrastructure.audit.event_helpers import (
-    OutboxNaoImplementado,
     TenantMismatch,
     publicar_evento,
 )
@@ -80,7 +81,7 @@ def test_publicar_evento_sem_contexto_tenant():
     # Sem run_in_tenant_context — contexto vazio
     with pytest.raises(TenantMismatch, match="sem app.active_tenant_id"):
         publicar_evento(
-            acao="x",
+            acao="cliente.criado",
             payload={},
             causation_id=uuid4(),
             tenant_id=tenant.id,
@@ -92,7 +93,7 @@ def test_publicar_evento_sem_contexto_tenant():
 def test_publicar_evento_modo_sistema():
     with run_as_system():
         ev = publicar_evento(
-            acao="job.contagem",
+            acao="sistema.tenant_provisionado",
             payload={"qtd": 0},
             causation_id=uuid4(),
             tenant_id=None,
@@ -102,26 +103,12 @@ def test_publicar_evento_modo_sistema():
 
 
 @pytest.mark.django_db(transaction=True)
-def test_publicar_evento_outbox_true_ainda_nao_implementado():
-    tenant = TenantFactory()
-    with run_in_tenant_context(tenant.id):
-        with pytest.raises(OutboxNaoImplementado):
-            publicar_evento(
-                acao="cliente.criado",
-                payload={},
-                causation_id=uuid4(),
-                tenant_id=tenant.id,
-                outbox=True,
-            )
-
-
-@pytest.mark.django_db(transaction=True)
 def test_publicar_evento_escopo_authz_nao_implementado():
     tenant = TenantFactory()
     with run_in_tenant_context(tenant.id):
         with pytest.raises(NotImplementedError, match="authz"):
             publicar_evento(
-                acao="authz.denied",
+                acao="cliente.criado",
                 payload={},
                 causation_id=uuid4(),
                 tenant_id=tenant.id,
@@ -136,7 +123,7 @@ def test_publicar_evento_cadeia_false_outbox_false_invalido():
     with run_in_tenant_context(tenant.id):
         with pytest.raises(ValueError, match="não faz sentido"):
             publicar_evento(
-                acao="x",
+                acao="cliente.criado",
                 payload={},
                 causation_id=uuid4(),
                 tenant_id=tenant.id,

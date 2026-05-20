@@ -148,6 +148,103 @@ class CategoriaDadoAcessado(models.TextChoices):
     METADADO = "metadado", "Metadado (sem PII — UUIDs, timestamps)"
 
 
+class BusOutbox(models.Model):
+    """Fila intermediaria de eventos de dominio (T-CLI-107 / INV-INT-010).
+
+    Padrao outbox transacional: `publicar_evento(outbox=True)` faz INSERT
+    aqui no MESMO `transaction.atomic` do caller, junto com o INSERT na
+    cadeia hash F-A (`registrar_em_cadeia`). Worker
+    `processar_outbox_em_contexto_tenant` drena (FOR UPDATE SKIP LOCKED)
+    e entrega `envelope_jsonb` ao consumer registrado pra `acao`.
+
+    Garantias:
+    1. Atomicidade: INSERT no `atomic` do caller — nao abre tx propria.
+    2. Idempotencia: UNIQUE (causation_id, acao) com ON CONFLICT DO
+       NOTHING no helper.
+    3. Sanitizacao em escrita: `envelope_jsonb` ja vem sanitizado por
+       `sanitizar_payload_audit` no helper unico (SEC-SANITIZE-001).
+    4. Multi-tenant: RLS FORCE + predicate identico ao de Auditoria
+       (BLOQ-A do review tech-lead).
+    5. Anti-PII na `acao`: CHECK constraint enum semantico
+       (BLOQ-A1 advogado — slug `dominio.entidade.operacao`).
+    6. `ultimo_erro` ja vem sanitizado por `sanitizar_erro_para_outbox`
+       (BLOQ-A4 advogado — truncado 500c).
+    7. Poison message: `tentativas >= 5` para de drenar; `listar_outbox
+       _envenenado` mostra pro DPO/SRE sem expor envelope.
+
+    Retencao: ≤ 7 dias apos `processado_em` (matriz §2). NAO eh
+    evidencia regulatoria — fonte da verdade eh a cadeia F-A.
+    Fora do escopo art. 18 II/V LGPD (POLITICA_BUS_OUTBOX em
+    audit/politicas_lgpd.py).
+
+    `causation_id` eh dado pessoal indireto (LGPD art. 12) — Wave A
+    restringe SELECT a perfis dpo + sre via AuthorizationProvider.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    causation_id = models.UUIDField(
+        help_text="UUID que liga o evento a request/comando original. Chave de idempotencia.",
+    )
+    acao = models.CharField(
+        max_length=100,
+        help_text="Enum semantico (slug). CHECK constraint anti-PII no banco.",
+    )
+    envelope_jsonb = models.JSONField(
+        help_text="Envelope completo sanitizado em escrita. CHECK pg_column_size < 64 KiB.",
+    )
+    tenant_id = models.UUIDField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="NULL = evento sistema (provisioning, manutencao).",
+    )
+    criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+    processado_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="NULL = pendente; preenchido pelo worker apos dispatch OK.",
+    )
+    tentativas = models.SmallIntegerField(
+        default=0,
+        help_text="Incrementado em Tx-1 antes do dispatch (sobrevive a crash). "
+        "tentativas >= 5 vira poison message — listar_outbox_envenenado mostra.",
+    )
+    ultimo_erro = models.TextField(  # noqa: DJ001 -- NULL eh "sem erro"; "" seria ambiguidade.
+        null=True,
+        blank=True,
+        help_text="Sanitizado + truncado 500c por sanitizar_erro_para_outbox (BLOQ-A4).",
+    )
+
+    class Meta:
+        app_label = "audit"
+        db_table = "bus_outbox"
+        verbose_name = "Linha do outbox (T-CLI-107)"
+        verbose_name_plural = "Bus outbox (fila intermediaria)"
+        ordering = ["criado_em"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["causation_id", "acao"],
+                name="bus_outbox_idempotencia",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["processado_em", "tentativas", "criado_em"],
+                name="ix_bus_outbox_drenar",
+                # Worker drena WHERE processado_em IS NULL AND tentativas < 5
+                # ORDER BY criado_em.
+            ),
+        ]
+
+    def __str__(self) -> str:
+        marca = (
+            f"processada {self.processado_em:%Y-%m-%d %H:%M}"
+            if self.processado_em
+            else f"pendente (tent={self.tentativas})"
+        )
+        return f"{self.acao} tenant={self.tenant_id} [{marca}]"
+
+
 class AcessoDadosCliente(models.Model):
     """Log de visualizacao de dados de cliente (US-CLI-002 — INV-013).
 
