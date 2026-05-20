@@ -162,6 +162,21 @@ run_case "AIa migration de criacao OK"  PASS  audit-immutability-check.sh '{"too
 run_case "AIb tests ignoram"            PASS  audit-immutability-check.sh '{"tool_input":{"file_path":"tests/test_audit.py","content":"DROP TRIGGER auditoria_anti_update"}}'
 
 echo ""
+echo "===== cliente-canonico-imutavel (T-CLI-113) ====="
+
+run_case "CC1 DROP TRIGGER canonico"       BLOCK cliente-canonico-imutavel.sh '{"tool_input":{"file_path":"x.sql","content":"DROP TRIGGER cliente_canonico_imutavel_trg ON clientes;"}}'
+run_case "CC2 DROP FUNCTION canonico"      BLOCK cliente-canonico-imutavel.sh '{"tool_input":{"file_path":"x.py","content":"sql = \"DROP FUNCTION cliente_canonico_imutavel_check\""}}'
+run_case "CC3 ALTER DROP COLUMN canonico"  BLOCK cliente-canonico-imutavel.sh '{"tool_input":{"file_path":"x.sql","content":"ALTER TABLE clientes DROP COLUMN cliente_canonico_id;"}}'
+run_case "CC4 ALTER ALTER COLUMN canonico" BLOCK cliente-canonico-imutavel.sh '{"tool_input":{"file_path":"x.sql","content":"ALTER TABLE clientes ALTER COLUMN cliente_canonico_id TYPE text;"}}'
+run_case "CC5 UPDATE clientes canonico"    BLOCK cliente-canonico-imutavel.sh '{"tool_input":{"file_path":"app/services.py","content":"cursor.execute(\"UPDATE clientes SET cliente_canonico_id = $1\", [x])"}}'
+run_case "CC6 migration de criacao OK"     PASS  cliente-canonico-imutavel.sh '{"tool_input":{"file_path":"clientes/migrations/0017.py","content":"sql = \"CREATE TRIGGER cliente_canonico_default_trg BEFORE INSERT ON clientes ...\""}}'
+run_case "CC7 override com motivo"         PASS  cliente-canonico-imutavel.sh '{"tool_input":{"file_path":"x.sql","content":"# canonico-imutavel: skip -- manutencao planejada DR-2026-CLI-001 aprovada\nUPDATE clientes SET cliente_canonico_id = $1"}}'
+run_case "CC8 tests ignora"                PASS  cliente-canonico-imutavel.sh '{"tool_input":{"file_path":"tests/test_x.py","content":"UPDATE clientes SET cliente_canonico_id = uuid4()"}}'
+run_case "CC9 .md ignora"                  PASS  cliente-canonico-imutavel.sh '{"tool_input":{"file_path":"docs/x.md","content":"DROP TRIGGER cliente_canonico_imutavel_trg"}}'
+run_case "CCa modulo clientes ORM OK"      PASS  cliente-canonico-imutavel.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/canonico.py","content":"Cliente.all_objects.filter(id=x).update(cliente_canonico_id=y)"}}'
+run_case "CCb modulo clientes SQL cru NO"  BLOCK cliente-canonico-imutavel.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/services.py","content":"cursor.execute(\"UPDATE clientes SET cliente_canonico_id = $1\", [x])"}}'
+
+echo ""
 echo "===== pyproject-validator (descoberto no drill F-A) ====="
 
 run_case "PY1 versao PEP 440 valida"      PASS  pyproject-validator.sh '{"tool_input":{"file_path":"pyproject.toml","content":"[tool.poetry]\nversion = \"0.1.0\""}}'

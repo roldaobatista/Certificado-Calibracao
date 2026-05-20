@@ -67,15 +67,13 @@ def test_resolver_cadeia_de_duas_mesclagens_com_path_compression():
         b_meio = _criar_cliente_pj(tenant, documento="22333444000172", nome="B-Meio")
         a_inicio = _criar_cliente_pj(tenant, documento="33000167000101", nome="A-Inicio")
 
-        # cadeia bug-livre: A → B (vivo, depois mesclado) → C (vivo final)
-        Cliente.all_objects.filter(id=b_meio.id).update(
-            cliente_canonico_id=c_final.id,
-            deletado_em="2026-05-19T00:00:00Z",
-        )
-        Cliente.all_objects.filter(id=a_inicio.id).update(
-            cliente_canonico_id=b_meio.id,
-            deletado_em="2026-05-19T00:00:00Z",
-        )
+        # cadeia bug-livre: A → B (vivo, depois mesclado) → C (vivo final).
+        # Trigger T-CLI-113 exige target vivo no momento do UPDATE de
+        # cliente_canonico_id — separar do UPDATE de deletado_em.
+        Cliente.all_objects.filter(id=a_inicio.id).update(cliente_canonico_id=b_meio.id)
+        Cliente.all_objects.filter(id=a_inicio.id).update(deletado_em="2026-05-19T00:00:00Z")
+        Cliente.all_objects.filter(id=b_meio.id).update(cliente_canonico_id=c_final.id)
+        Cliente.all_objects.filter(id=b_meio.id).update(deletado_em="2026-05-19T00:00:00Z")
 
         # primeira resolução percorre 2 hops e dispara path compression
         resultado = resolver_cliente_canonico(a_inicio.id)
@@ -88,17 +86,22 @@ def test_resolver_cadeia_de_duas_mesclagens_com_path_compression():
 
 @pytest.mark.django_db(transaction=True)
 def test_ciclo_dispara_identidade_circular():
+    """Resolver Python detecta ciclo mesmo que o banco tenha um (defesa em
+    profundidade). Estratégia: construir A→B→A ENQUANTO ambos vivos (trigger
+    PG T-CLI-113 valida target vivo a cada UPDATE — passa). Soft-delete depois
+    (sem alterar cliente_canonico_id, trigger não dispara). Resolver percorre
+    A→B→A e levanta IdentidadeCanonicaCircular."""
     tenant = TenantFactory()
     with run_in_tenant_context(tenant.id):
         a = _criar_cliente_pj(tenant, documento="11222333000181", nome="A")
         b = _criar_cliente_pj(tenant, documento="22333444000172", nome="B")
-        # bug introduzido: A→B, B→A
-        Cliente.all_objects.filter(id=a.id).update(
-            cliente_canonico_id=b.id, deletado_em="2026-05-19T00:00:00Z"
-        )
-        Cliente.all_objects.filter(id=b.id).update(
-            cliente_canonico_id=a.id, deletado_em="2026-05-19T00:00:00Z"
-        )
+        # A → B (B vivo): passa pela trigger
+        Cliente.all_objects.filter(id=a.id).update(cliente_canonico_id=b.id)
+        # B → A (A vivo): passa pela trigger — ciclo formado em runtime
+        Cliente.all_objects.filter(id=b.id).update(cliente_canonico_id=a.id)
+        # Soft-delete ambos sem mudar cliente_canonico_id
+        Cliente.all_objects.filter(id=a.id).update(deletado_em="2026-05-19T00:00:00Z")
+        Cliente.all_objects.filter(id=b.id).update(deletado_em="2026-05-19T00:00:00Z")
         with pytest.raises(IdentidadeCanonicaCircular):
             resolver_cliente_canonico(a.id)
 
@@ -114,12 +117,11 @@ def test_cap_excedido_dispara_identidade_circular():
             doc = f"{i:014d}"
             n = _criar_cliente_pj(tenant, documento=doc, nome=f"N{i}")
             nos.append(n)
-        # encadeia: N0 → N1 → N2 → ... → N{CAP}
+        # encadeia: N0 → N1 → N2 → ... → N{CAP}. Trigger T-CLI-113 valida
+        # target vivo — separar UPDATE de cliente_canonico_id do soft-delete.
         for i in range(CAP_HOPS):
-            Cliente.all_objects.filter(id=nos[i].id).update(
-                cliente_canonico_id=nos[i + 1].id,
-                deletado_em="2026-05-19T00:00:00Z",
-            )
+            Cliente.all_objects.filter(id=nos[i].id).update(cliente_canonico_id=nos[i + 1].id)
+            Cliente.all_objects.filter(id=nos[i].id).update(deletado_em="2026-05-19T00:00:00Z")
         with pytest.raises(IdentidadeCanonicaCircular):
             resolver_cliente_canonico(nos[0].id)
 
@@ -145,12 +147,11 @@ def test_property_resolver_termina_ou_levanta():
                 n = _criar_cliente_pj(tenant, documento=doc, nome=f"c{caso}n{i}")
                 nos.append(n)
             # encadeia: n0 → n1 → ... → n{tamanho-1} → n{tamanho} (vivo, canonico
-            # de si). Soft-delete dos intermediários.
+            # de si). Trigger T-CLI-113 exige target vivo no momento do UPDATE de
+            # cliente_canonico_id; soft-delete depois (passos separados).
             for i in range(tamanho):
-                Cliente.all_objects.filter(id=nos[i].id).update(
-                    cliente_canonico_id=nos[i + 1].id,
-                    deletado_em="2026-05-19T00:00:00Z",
-                )
+                Cliente.all_objects.filter(id=nos[i].id).update(cliente_canonico_id=nos[i + 1].id)
+                Cliente.all_objects.filter(id=nos[i].id).update(deletado_em="2026-05-19T00:00:00Z")
             try:
                 resultado = resolver_cliente_canonico(nos[0].id)
             except IdentidadeCanonicaCircular:
