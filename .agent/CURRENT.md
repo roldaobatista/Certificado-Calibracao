@@ -151,27 +151,40 @@ não fechava.
   auto-allow pra migration de criação + override). 7 testes da
   trigger; ajuste em testes existentes pra separar UPDATE de
   cliente_canonico_id do UPDATE de deletado_em.
+- **T-CLI-102 ✅ FECHADO** (commit `763efc8`): ClienteIdentidadeHistorico
+  INSERT-only — rastreabilidade ISO 17025 §7.8.2.1 (b) + §8.4 pra
+  alteração de razão social PJ (mesmo CNPJ) ou nome PF. Modelo + migration
+  0020 com policies RLS SELECT/INSERT (sem UPDATE/DELETE policy por
+  design); trigger AFTER UPDATE em `clientes` grava linha quando
+  `nome`/`nome_fantasia` muda (lê `app.usuario_id` do contexto pra
+  criado_por_id); trigger anti-mutation BEFORE UPDATE/DELETE como defesa
+  em profundidade. FK `cliente` com `db_constraint=False` — Django
+  validação da FK passaria por RLS na criação; integridade real garantida
+  pela trigger AFTER UPDATE. 8 testes (UPDATE nome/nome_fantasia/outros
+  campos; .update()/.delete() zero rows via RLS; trigger anti-mutation
+  estrutural via pg_trigger; RLS isolado; criado_por_id do contexto).
 
-**Estado final desta sessão**: suíte 317 passed (era 299 inicial → +18
-nos 3 T-CLI), hooks **141/141** verdes (era 130 → +11 de CC1..CCb),
+**Estado final desta sessão**: suíte **325 passed** (era 299 inicial →
++26 nos 4 T-CLI), hooks **141/141** verdes (era 130 → +11 de CC1..CCb),
 makemigrations limpo, lint+format+mypy zero issues, drill `validar_f_a`
 não-regredido (F-A intacta).
 
 ## Próximo passo (retomar) — tarefa ativa
 
-**P4 continua — 17 T-CLI restantes**. Sequência sugerida da próxima
+**P4 continua — 16 T-CLI restantes**. Sequência sugerida da próxima
 sessão:
 
-1. T-CLI-102 (ClienteIdentidadeHistorico — alteração razão social)
-2. T-CLI-105 (event_helpers.py único + job INV-013-A)
-3. T-CLI-107 (bus_outbox) + T-CLI-110 (worker em F-A)
-4. T-CLI-104 (circuit breaker AcessoDadosCliente)
-5. T-CLI-114..120 (US-CLI-006 inteira — pré-condição dogfooding PII real)
-6. T-CLI-111 + T-CLI-112 (GET dedup compare + tipo_mesclagem +
+1. T-CLI-105 (event_helpers.py único + job INV-013-A) — desbloqueia
+   helper de evento usado por outros T-CLI
+2. T-CLI-107 (bus_outbox) + T-CLI-110 (worker em F-A) — completam
+   `publicar_evento(outbox=True)` do helper
+3. T-CLI-104 (circuit breaker AcessoDadosCliente)
+4. T-CLI-114..120 (US-CLI-006 inteira — pré-condição dogfooding PII real)
+5. T-CLI-111 + T-CLI-112 (GET dedup compare + tipo_mesclagem +
    evidencia_documental_id)
-7. T-CLI-106 (importação legada — alinhamento de origens completo no
+6. T-CLI-106 (importação legada — alinhamento de origens completo no
    fluxo do use case)
-8. T-CLI-108 + T-CLI-109 (payload Cliente.Bloqueado + predicate
+7. T-CLI-108 + T-CLI-109 (payload Cliente.Bloqueado + predicate
    bloqueado_para_entrega) — gates de módulos futuros
 
 P5 (10 auditores Família 5, loop até PASS zero CRÍTICO/ALTO/MÉDIO) só
@@ -181,5 +194,5 @@ verde.
 ## Fila
 
 #6 flake visão-360 ✅ + #7 lint sweep ✅ + #8 médios rodada 2 F-A ✅ +
-Marco 1 P1+P2+P3 ✅ + T-CLI-103/101/113 ✅. Próxima: T-CLI-102..120
-restantes (17 tarefas) → P5.
+Marco 1 P1+P2+P3 ✅ + T-CLI-103/101/113/102 ✅. Próxima: T-CLI-105..120
+restantes (16 tarefas) → P5.
