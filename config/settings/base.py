@@ -233,6 +233,21 @@ DATABASES = {
         # database. Sem isso, migrate corre contra o DB de prod.
         "TEST": {"NAME": "test_afere", "MIGRATE": True, "DEPENDENCIES": []},
     },
+    # T-CLI-104: conexão paralela autocommit pra circuit breaker
+    # `AcessoDadosCliente`. Precisa SOBREVIVER ao rollback do request HTTP
+    # quando a gravação principal falha (fail-loud preservado).
+    # `ATOMIC_REQUESTS=False` → autocommit; mesmo banco físico do `default`.
+    # Router (TenantMultiRoleRouter.allow_migrate) já restringe DDL apenas
+    # ao alias `migrator` — `breaker_writer` só escreve eventos pré-criados.
+    "breaker_writer": {
+        **env.db("DATABASE_URL"),
+        "ATOMIC_REQUESTS": False,
+        "CONN_MAX_AGE": 60,
+        "OPTIONS": {
+            "application_name": "afere-breaker-writer",
+        },
+        "TEST": {"NAME": "test_afere", "MIGRATE": False, "DEPENDENCIES": []},
+    },
 }
 
 DATABASE_ROUTERS = ["src.infrastructure.multitenant.router.TenantMultiRoleRouter"]

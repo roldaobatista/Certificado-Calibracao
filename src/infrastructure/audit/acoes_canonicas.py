@@ -39,6 +39,9 @@ ACOES_SISTEMA: Final[frozenset[str]] = frozenset(
         "sistema.tenant_provisionado",
         "sistema.tenant_offboarded",
         "sistema.outbox_envenenado",
+        # T-CLI-104 — circuit breaker observado AcessoDadosCliente
+        "sistema.breaker_acesso_pii.disparado",
+        "sistema.breaker_acesso_pii.normalizado",
     }
 )
 

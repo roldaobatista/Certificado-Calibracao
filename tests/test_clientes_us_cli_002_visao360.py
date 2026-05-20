@@ -59,7 +59,7 @@ def _criar_cliente(tenant, usuario) -> Cliente:
         )
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
 def test_inv_013_visao_360_grava_acesso_antes_de_responder(cenario):
     cliente = _criar_cliente(cenario["tenant"], cenario["admin"])
     client = APIClient()
@@ -79,7 +79,7 @@ def test_inv_013_visao_360_grava_acesso_antes_de_responder(cenario):
         assert str(cliente.id) in str(a.recurso)
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
 def test_visao_360_retorna_eventos_em_ordem_reversa(cenario):
     cliente = _criar_cliente(cenario["tenant"], cenario["admin"])
     # Cria 3 eventos no auditoria do cliente
@@ -105,7 +105,7 @@ def test_visao_360_retorna_eventos_em_ordem_reversa(cenario):
     assert timestamps == sorted(timestamps, reverse=True)
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
 def test_visao_360_filtra_eventos_de_outros_clientes(cenario):
     cliente_a = _criar_cliente(cenario["tenant"], cenario["admin"])
     # Cria outro cliente + evento NO MESMO TENANT
@@ -142,7 +142,7 @@ def test_visao_360_filtra_eventos_de_outros_clientes(cenario):
         assert it["payload"]["cliente_id"] == str(cliente_a.id)
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
 def test_visao_360_isolamento_cross_tenant(cenario):
     """RLS bloqueia leitura de auditoria de outro tenant."""
     # Cria cliente em A + evento
@@ -172,7 +172,7 @@ def test_visao_360_isolamento_cross_tenant(cenario):
     assert response.status_code == 404
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
 def test_visao_360_finalidade_obrigatoria(cenario):
     cliente = _criar_cliente(cenario["tenant"], cenario["admin"])
     client = APIClient()
@@ -189,7 +189,7 @@ def test_visao_360_finalidade_obrigatoria(cenario):
     assert response.status_code == 400
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
 def test_acessos_dados_cliente_imutavel_via_trigger_pg(cenario):
     """Trigger PG bloqueia UPDATE/DELETE em acessos_dados_cliente."""
     cliente = _criar_cliente(cenario["tenant"], cenario["admin"])
@@ -213,7 +213,7 @@ def test_acessos_dados_cliente_imutavel_via_trigger_pg(cenario):
                 a.delete()
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
 def test_acessos_recurso_payload_sem_pii_cru(cenario):
     """R1 advogado — `recurso` jamais contem CPF/CNPJ/email/telefone."""
     cliente = _criar_cliente(cenario["tenant"], cenario["admin"])

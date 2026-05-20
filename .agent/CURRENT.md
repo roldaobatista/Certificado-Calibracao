@@ -203,21 +203,51 @@ não fechava.
   Suíte **353 passed** (era 335 → +18), cobertura **85.26%**, hooks
   **150/150**, ruff+format+mypy zero issues.
 
-**Estado final desta sessão**: suíte **353 passed**, cobertura **85.26%**,
+- **T-CLI-104 ✅ FECHADO via ritual completo** (2026-05-20): circuit
+  breaker observado pra `AcessoDadosCliente`. **Ritual:** design
+  (`docs/faseamento/M1-clientes/T-CLI-104/design.md`) → review
+  paralelo `tech-lead-saas-regulado` + `corretora-seguros-saas` (5
+  bloqueantes absorvidos: CRÍTICO T2 contagem sobrevive a rollback +
+  ALTO T3 sliding window vs bucket fixo + ALTO C2 threshold absoluto
+  OR + MÉDIO T4 idempotência on-chain + MÉDIO T5 nomes slug-compat) →
+  implementação → 9 auditores Família 5 = **PASS, ZERO CRÍTICO/ALTO/
+  MÉDIO** (1ª rodada segurança disparou 2 CRÍTICOS — forja
+  cross-tenant + vazamento session-level — corrigidos via migration
+  0013 + transação explícita BEGIN/SET LOCAL; 1ª rodada qualidade
+  disparou MÉDIO `pytest.raises(Exception)` muito permissivo —
+  apertado pra `ProgrammingError` + match RLS). Entrega: tabela
+  `breaker_acesso_pii_evento` + alias DB `breaker_writer` autocommit
+  (ATOMIC_REQUESTS=False, CONN_MAX_AGE=60), wrapper
+  `registrar_acesso_dados_cliente_com_breaker` (fail-loud preservado;
+  `BEGIN; SET LOCAL app.active_tenant_id; INSERT; COMMIT` em conexão
+  paralela — SET LOCAL morre na transação, mata vetor pool-reuse),
+  command `avaliar_circuit_breaker_acesso_pii` (threshold OR `(pct≥0.1%
+  AND total≥1000) OR (falhas≥3 em 5min)`; idempotência on-chain via
+  `causation_id=uuid5(NS, breaker:tenant:janela)` + SELECT prévio na
+  auditoria), 2 ações canônicas (`sistema.breaker_acesso_pii.disparado/
+  .normalizado`), migration 0012 (tabela + RLS) + 0013 (endurecimento
+  policy INSERT WITH CHECK estrito tenant_id=active_tenant_id),
+  visão 360 atualizada pra usar wrapper. 8 testes (golden CRÍTICO T2
+  sobrevive a rollback + golden anti-forja cross-tenant + happy ok +
+  fail-loud + ramo absoluto 3 falhas + ramo percentual + idempotência
+  janela + threshold abaixo + isolamento por tenant).
+  Suíte **361 passed** (era 353 → +8), cobertura **85.32%**, hooks
+  **150/150**, ruff+format+mypy zero issues.
+
+**Estado final desta sessão**: suíte **361 passed**, cobertura **85.32%**,
 hooks **150/150** verdes, makemigrations limpo, drill `validar_f_a`
 não-regredido (F-A intacta).
 
 ## Próximo passo (retomar) — tarefa ativa
 
-**P4 continua — 13 T-CLI restantes**. Sequência:
+**P4 continua — 12 T-CLI restantes**. Sequência:
 
-1. T-CLI-104 (circuit breaker AcessoDadosCliente) — GATE-5 Wave A
-2. T-CLI-114..120 (US-CLI-006 inteira — direitos do titular LGPD;
+1. T-CLI-114..120 (US-CLI-006 inteira — direitos do titular LGPD;
    pré-condição dogfooding PII real)
-3. T-CLI-111 + T-CLI-112 (GET dedup compare + tipo_mesclagem +
+2. T-CLI-111 + T-CLI-112 (GET dedup compare + tipo_mesclagem +
    evidencia_documental_id) — fecha US-CLI-005
-4. T-CLI-106 (importação legada — alinhamento origens com mapa canônico)
-5. T-CLI-108 + T-CLI-109 (payload Cliente.Bloqueado + predicate
+3. T-CLI-106 (importação legada — alinhamento origens com mapa canônico)
+4. T-CLI-108 + T-CLI-109 (payload Cliente.Bloqueado + predicate
    bloqueado_para_entrega) — gates módulos futuros
 
 P5 (10 auditores Família 5 sobre o Marco 1 inteiro, loop até PASS
@@ -227,5 +257,5 @@ zero CRÍTICO/ALTO/MÉDIO) só quando P4 concluído e drill
 ## Fila
 
 #6 flake visão-360 ✅ + #7 lint sweep ✅ + #8 médios rodada 2 F-A ✅ +
-Marco 1 P1+P2+P3 ✅ + T-CLI-103/101/113/102/105/107/110 ✅. Próxima:
-T-CLI-104 → restantes (13 tarefas) → P5.
+Marco 1 P1+P2+P3 ✅ + T-CLI-103/101/113/102/105/107/110/104 ✅.
+Próxima: T-CLI-114..120 (US-CLI-006) → restantes (12 tarefas) → P5.

@@ -529,11 +529,13 @@ class ClienteViewSet(viewsets.ModelViewSet):
         Registra acesso em `acessos_dados_cliente` ANTES de ler timeline (INV-013).
         Timeline le de `auditoria` filtrada por payload_jsonb->>'cliente_id'.
         """
+        from src.infrastructure.audit.breaker import (
+            registrar_acesso_dados_cliente_com_breaker,
+        )
         from src.infrastructure.audit.models import (
             Auditoria,
             FinalidadeAcessoCliente,
         )
-        from src.infrastructure.audit.services import registrar_acesso_dados_cliente
         from src.infrastructure.clientes.models import Cliente
         from src.infrastructure.multitenant.context import usuario_id_context
 
@@ -565,7 +567,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
         ip_hash = _hashear_ip(request, active)
 
         # INV-013 — grava acesso ANTES de ler timeline.
-        registrar_acesso_dados_cliente(
+        # T-CLI-104: wrapper com circuit breaker observado — grava evento
+        # em conexão paralela autocommit (sobrevive rollback do request).
+        registrar_acesso_dados_cliente_com_breaker(
             tenant_id=active,
             usuario_id=usuario_id,
             cliente_id=cliente.id,

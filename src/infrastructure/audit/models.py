@@ -300,3 +300,47 @@ class AcessoDadosCliente(models.Model):
 
     def __str__(self) -> str:
         return f"{self.timestamp:%Y-%m-%d %H:%M} cli={self.cliente_id} ({self.finalidade})"
+
+
+class BreakerAcessoPIIEvento(models.Model):
+    """T-CLI-104 — evento do circuit breaker observado pra `AcessoDadosCliente`.
+
+    Cada chamada de `registrar_acesso_dados_cliente_com_breaker` grava UM
+    evento aqui via conexao paralela autocommit (`breaker_writer`):
+    - ok=True quando gravacao foi bem-sucedida
+    - ok=False quando levantou (e o caller propagou — fail-loud)
+
+    Conexao autocommit garante que o evento de falha SOBREVIVE ao rollback
+    do request HTTP do caller (sem isso o breaker fica cego nas falhas que
+    existe pra contar — CRÍTICO T2 do review tech-lead).
+
+    Sliding window 5min + threshold OR `(pct >= 0.1% AND total >= 1000)
+    OR (falhas_absolutas >= 3)` é avaliada por
+    `avaliar_circuit_breaker_acesso_pii`. Tenants violando o limiar
+    geram evento P1 imutavel `sistema.breaker_acesso_pii.disparado` na
+    cadeia hash F-A (25 anos — evidencia de longo prazo, BLOQ-C3
+    corretora).
+
+    Retencao: 7 dias (matriz §2). Cleanup Wave A.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant_id = models.UUIDField(db_index=True)
+    ts = models.DateTimeField(auto_now_add=True, db_index=True)
+    ok = models.BooleanField(
+        help_text="True = gravação OK; False = registrar_acesso_dados_cliente levantou."
+    )
+
+    class Meta:
+        app_label = "audit"
+        db_table = "breaker_acesso_pii_evento"
+        verbose_name = "Evento do breaker AcessoDadosCliente (T-CLI-104)"
+        verbose_name_plural = "Eventos do breaker AcessoDadosCliente"
+        ordering = ["-ts"]
+        indexes = [
+            models.Index(fields=["tenant_id", "-ts"], name="ix_breaker_acesso_pii_t_ts"),
+        ]
+
+    def __str__(self) -> str:
+        marca = "ok" if self.ok else "falhou"
+        return f"{self.ts:%Y-%m-%d %H:%M:%S} tenant={self.tenant_id} [{marca}]"

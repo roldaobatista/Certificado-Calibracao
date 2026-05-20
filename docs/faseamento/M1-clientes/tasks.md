@@ -54,7 +54,7 @@ relacionados:
 | AC-CLI-002-3 | OK | `views.py:568-575` `registrar_acesso_dados_cliente` chamado ANTES de retornar timeline; fail-loud em falha de gravação (LGPD art. 37). |
 | AC-CLI-002-4 | OK | enum `finalidade` validado (`views.py:540-548`); cada acesso com finalidade nova grava linha separada. |
 | **AC-CLI-002-5** | **GAP** | **T-CLI-103**: `cliente_canonico_id` coluna inexistente; `resolver_cliente_canonico` ausente; materialização preguiçosa não implementada. Criar coluna NOT NULL DEFAULT id + função recursiva cap=10 + UPDATE em leitura quando hops>1. |
-| **AC-CLI-002-6** | **GAP** | **T-CLI-104**: circuit breaker observado ausente — sem métrica `acessos_dados_cliente.gravacao_falhada_total{tenant_id}` nem alerta P1 em janela 5min ≥0.1%. |
+| AC-CLI-002-6 | ✅ FECHADO | **T-CLI-104** (2026-05-20): tabela `breaker_acesso_pii_evento` + alias DB `breaker_writer` autocommit (sobrevive rollback do request) + wrapper `registrar_acesso_dados_cliente_com_breaker` (fail-loud preservado, BEGIN/SET LOCAL/INSERT/COMMIT em tx explícita) + command `avaliar_circuit_breaker_acesso_pii` (threshold OR + idempotência on-chain) + migration 0013 endurecendo policy INSERT WITH CHECK estrito. |
 | **AC-CLI-002-7** | **GAP** | **T-CLI-105**: `INV-013-A` (contagem diária imutável) ausente — sem job daily; criar management command + métrica em sink imutável (cadeia sistema até GATE-1; depois B2 WORM). |
 
 ### US-CLI-003 — Importação CSV/XLSX
@@ -115,8 +115,8 @@ relacionados:
 ## Resumo P3 (atualizado 2026-05-20)
 
 - **OK:** 24 (cadastro core, audit access, importação core, bloqueio core, dedup atomic).
-- **GAP / FECHADO em P4:** 7 ✅ → T-CLI-101 + T-CLI-102 + T-CLI-103 + T-CLI-105 + T-CLI-107 + T-CLI-110 + T-CLI-113.
-- **GAP / pendente:** 13 (T-CLI-104 + T-CLI-106 + T-CLI-108 + T-CLI-109 + T-CLI-111 + T-CLI-112 + T-CLI-114..120).
+- **GAP / FECHADO em P4:** 8 ✅ → T-CLI-101 + T-CLI-102 + T-CLI-103 + T-CLI-104 + T-CLI-105 + T-CLI-107 + T-CLI-110 + T-CLI-113.
+- **GAP / pendente:** 12 (T-CLI-106 + T-CLI-108 + T-CLI-109 + T-CLI-111 + T-CLI-112 + T-CLI-114..120).
 - **TRACK:** 6 (GATE-CLI-1..6 — Wave A; não bloqueia fechamento).
 
 ---
