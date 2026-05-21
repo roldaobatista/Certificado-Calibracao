@@ -61,6 +61,9 @@ ACOES_RT: Final[frozenset[str]] = frozenset(
 ACOES_EQUIPAMENTOS: Final[frozenset[str]] = frozenset(
     {
         "equipamento.criado",
+        # T-EQP-009 (AC-EQP-001-7b / P-EQP-T4) - promocao D<C<B<A do
+        # perfil_tenant_snapshot via SECURITY DEFINER. 25a WORM (RBC).
+        "equipamento.perfil_promovido",
     }
 )
 

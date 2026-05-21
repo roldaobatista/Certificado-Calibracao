@@ -3,20 +3,21 @@
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
 **Fase:** Marco 1 **FECHADO** + Marco 2 `equipamentos` em P4 (T-EQP-001
-+ 006 + 002 + 003 + US-EQP-007 + T-EQP-005 + T-EQP-007 entregues).
-**Sessão encerrada 2026-05-22** (4 commits novos: 8be6d95, 5b80670,
-11e792c, 25d7405).
++ 006 + 002 + 003 + US-EQP-007 + T-EQP-005 + T-EQP-007 + **T-EQP-009**
+entregues).
+**Sessão em curso 2026-05-23** (T-EQP-009 promoção D→A SECURITY DEFINER).
 **Modo:** AUTÔNOMO.
 
-## Estado da suíte (verificado 2026-05-22 fim de sessão)
+## Estado da suíte (verificado 2026-05-23 início de sessão)
 
-- Suite: **543 passed** (+25 nessa sessão: 8 T-EQP-003 + 13 US-EQP-007
-  + 12 T-EQP-005+007) em 22min30s
-- Hooks: **179/179** verdes (22 ativos — sem hook novo)
-- Cobertura: ≥85% global; ≥90% agregado clientes/ (Marco 1)
-- Drills: `validar_f_a` 5/5 + `validar_f_b` + `validar_m1_clientes` verdes
-- `makemigrations --check`: limpo; ruff + mypy zero issues (133 source files)
-- Working tree: limpo, tudo empurrado pra `origin/main`
+- Arquivo novo T-EQP-009: **15/15 passed** em 4.8s (isolado validado)
+- Hooks: **179/179** verdes (22 ativos — sem hook novo nesta T)
+- `makemigrations --check`: limpo
+- ⚠️ **Suite completa não pôde rodar** nesta sessão por OOM do WSL2/Docker
+  Desktop (exit 137 em runs >50 testes); Roldão precisa reiniciar Docker
+  Desktop pra rodar suíte completa. Validação isolada confirma T-EQP-009
+  + regressão `inv_eqp_rt_001` 3/3 verdes.
+- Working tree: 5 arquivos novos/alterados (T-EQP-009)
 
 ## Marco 1 `clientes` — FECHADO
 
@@ -65,6 +66,25 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-009 ✅** (2026-05-23): função PG SECURITY DEFINER
+  `promover_perfil_equipamento_snapshot(uuid, text, uuid, text, uuid,
+  uuid)` em migration `0006_promover_perfil_funcao.py` — direção
+  D<C<B<A monotônica crescente (downgrade e mesmo perfil bloqueados;
+  D não é destino), evidência+RT+decisor obrigatórios, justificativa
+  ≥100 chars no PG + anti-PII regex no Python (defesa em profundidade),
+  re-aplica isolamento `tenant_id == app.active_tenant_id` (SECURITY
+  DEFINER não pode virar bypass), libera trigger imutabilidade via
+  `SET LOCAL app.perfil_promocao_permitida='1'` apenas durante UPDATE,
+  zera de volta no fim. GRANT EXECUTE TO app_user. Service
+  `services_perfil.promover_perfil_equipamento` publica
+  `equipamento.perfil_promovido` (ação canônica nova; 25a WORM RBC)
+  com payload sanitizado (`justificativa_hash` HMAC tenant — texto cru
+  NUNCA vaza). NÃO cria `EquipamentoVersao` ainda (T-EQP-012 estende).
+  15 testes (3 happy: D→A salto, D→C minímo, D→C→B; 5 direção inválida:
+  downgrade A→B, mesmo perfil C→C, destino D, destino X; 2 args
+  obrigatórios: evidência, rt_id; 2 justificativa PII: <100 chars, CPF,
+  email; cross-tenant; regressão INV-EQP-001 UPDATE direto pós-promoção;
+  evento publicado em cadeia). 15/15 PASS em 4.8s.
 - **P4 T-EQP-005+007 ✅** (2026-05-22): CRUD POST do Equipamento.
   `validators.py` com `conter_pii_direta()` (regex CPF/CNPJ/email/
   telefone/≥2 nomes próprios) + `EquipamentoCriarSerializer` aplica
@@ -79,11 +99,14 @@ rastreados Wave A.
 
 ## Próximo passo
 
-1. **T-EQP-009** (função PG `promover_perfil_equipamento_snapshot` D→A):
-   `SECURITY DEFINER` com direção obrigatória (downgrade proibido), cria
-   `EquipamentoVersao` + A3 RT, publica `Equipamento.PerfilPromovido`.
-2. **US-EQP-002 versionamento** (T-EQP-012..017): depende do RT
-   (US-EQP-007 ✅) — motivo `mudanca_classe_metrologica` exige A3 RT.
+1. **US-EQP-002 versionamento** (T-EQP-012..017): `EquipamentoVersao`
+   + enum 9 motivos + `INV-025` imutabilidade pós-cert + textos 422 +
+   `INV-EQP-VERSAO-002` payload sanitizado. Quando T-EQP-012 fechar,
+   estender `services_perfil.promover_perfil_equipamento` pra criar
+   `EquipamentoVersao` com `motivo_mudanca=mudanca_classe_metrologica`
+   na mesma transação (TODO já documentado no service).
+2. **US-EQP-002b aprovação gestor_qualidade** (T-EQP-018..023): SLA
+   D+3/D+7 + competência declarada (US-EQP-007 ✅ já tem predicate).
 3. Sequência em `docs/faseamento/M2-equipamentos/tasks.md` §"Próximo passo".
 
 ## Pendências rastreadas (não bloqueiam)
