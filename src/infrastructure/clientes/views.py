@@ -37,6 +37,12 @@ from src.infrastructure.clientes.repositories import DjangoClienteRepository
 from src.infrastructure.clientes.serializers import ClienteSerializer
 from src.infrastructure.multitenant.context import active_tenant_context
 
+# T-CLI-112 (AC-CLI-005-3b — consultor-rbc §C): enum tipo_mesclagem
+# obrigatório no POST mesclar. M&A_SOCIETARIO exige
+# `evidencia_documental_id` (contrato social consolidado, ata JC,
+# procuração) — defesa cível CC art. 1.116 + supervisão CGCRE.
+TIPOS_MESCLAGEM_VALIDOS = frozenset({"DUPLICATA_OPERACIONAL", "M&A_SOCIETARIO"})
+
 
 def _hashear_ip(request, tenant_id: UUID | str) -> str:
     """HMAC do IP do request por tenant (LGPD — nao armazena IP cru).
@@ -108,6 +114,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         "importar_executar": "clientes.importar",  # US-CLI-003
         "importacoes": "clientes.importar",  # US-CLI-003 — listagem historico
         "revogar_consentimento": "clientes.atualizar",  # T-CLI-115 US-CLI-006
+        "dedup_compare": "clientes.ler",  # T-CLI-111 — GET dedup comparison
     }
 
     def get_authz_action(self, request) -> str | None:
@@ -195,12 +202,15 @@ class ClienteViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path=r"mesclar/(?P<perdedor_id>[^/.]+)")
     def mesclar(self, request, pk=None, perdedor_id=None):
         """Mescla `perdedor_id` em `pk` (vencedor). Soft-delete do perdedor."""
-        from src.infrastructure.audit.services import registrar_auditoria
+        from src.infrastructure.audit.event_helpers import publicar_evento
         from src.infrastructure.multitenant.context import usuario_id_context
 
         sobrescritas = request.data.get("sobrescrever") or {}
         motivo_categoria = request.data.get("motivo_categoria") or ""
         motivo_observacao = request.data.get("motivo_observacao") or ""
+        # T-CLI-112 (AC-CLI-005-3b — consultor-rbc §C)
+        tipo_mesclagem = request.data.get("tipo_mesclagem") or ""
+        evidencia_documental_id = request.data.get("evidencia_documental_id") or ""
 
         if motivo_categoria not in MOTIVOS_VALIDOS:
             return Response(
@@ -218,6 +228,25 @@ class ClienteViewSet(viewsets.ModelViewSet):
                     {"detail": "motivo_observacao_com_pii", "erro": str(e)},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+
+        # T-CLI-112: tipo_mesclagem obrigatório + evidencia se M&A
+        if tipo_mesclagem not in TIPOS_MESCLAGEM_VALIDOS:
+            return Response(
+                {
+                    "detail": "tipo_mesclagem_invalido",
+                    "validos": list(TIPOS_MESCLAGEM_VALIDOS),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if tipo_mesclagem == "M&A_SOCIETARIO" and not evidencia_documental_id:
+            return Response(
+                {
+                    "detail": "evidencia_documental_obrigatoria_em_ma",
+                    "erro": "M&A_SOCIETARIO exige evidencia_documental_id "
+                    "(contrato social/ata JC/procuração — CC art. 1.116 + CGCRE)",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             vencedor_uuid = UUID(str(pk))
@@ -242,11 +271,10 @@ class ClienteViewSet(viewsets.ModelViewSet):
                     agora=agora,
                 )
                 obs_hash = _hashear_pii(motivo_observacao, active) if motivo_observacao else ""
-                registrar_auditoria(
-                    tenant_id=active,
-                    usuario_id=usuario_id,
-                    action="cliente.mesclado",
-                    resource_summary=str(resultado.vencedor.id),
+                # T-CLI-112 + débito técnico: migra de registrar_auditoria
+                # pra publicar_evento (helper único — SANEA-08).
+                publicar_evento(
+                    acao="cliente.mesclado",
                     payload={
                         "vencedor_id": str(resultado.vencedor.id),
                         "perdedor_id": str(resultado.perdedor.id),
@@ -255,12 +283,19 @@ class ClienteViewSet(viewsets.ModelViewSet):
                         "campos_sobrescritos_keys": list(resultado.campos_sobrescritos_keys),
                         "motivo_categoria": resultado.motivo_categoria,
                         "motivo_observacao_hash": obs_hash,
+                        # T-CLI-112: rastreabilidade ISO/IEC 17025 §7.8.2.1 (b)
+                        "tipo_mesclagem": tipo_mesclagem,
+                        "evidencia_documental_id": evidencia_documental_id or None,
                         "usuario_id": str(usuario_id) if usuario_id else None,
                         "perdedor_documento_hash": _hashear_doc(
                             resultado.perdedor.documento, active
                         ),
                         "perdedor_nome_hash": _hashear_pii(resultado.perdedor.nome, active),
                     },
+                    causation_id=uuid_module_uuid4(),
+                    tenant_id=active,
+                    usuario_id=usuario_id,
+                    resource_summary=str(resultado.vencedor.id),
                 )
         except ErroMesclagem as e:
             mapping = {
@@ -281,6 +316,87 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 "perdedor_id": str(resultado.perdedor.id),
                 "mesclado_em": resultado.mesclado_em.isoformat(),
                 "campos_sobrescritos_keys": list(resultado.campos_sobrescritos_keys),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    # =============================================================
+    # T-CLI-111 (AC-CLI-005-1) — GET dedup compare
+    # GET /api/v1/clientes/{vencedor_id}/dedup/{perdedor_id}/
+    # authz: AuthorizationProvider.can('clientes.ler') via
+    # ACTION_MAP['dedup_compare'] — RequireAuthz aplica.
+    # =============================================================
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path=r"dedup/(?P<perdedor_id>[^/.]+)",
+    )
+    def dedup_compare(self, request, pk=None, perdedor_id=None):
+        """Retorna comparação campo-a-campo de vencedor vs perdedor
+        + contagens de entidades atreladas (OS, certificados, faturas,
+        contatos — todas 0 em Marco 1; módulos Wave A).
+        """
+        try:
+            vencedor_uuid = UUID(str(pk))
+            perdedor_uuid = UUID(str(perdedor_id))
+        except (ValueError, TypeError):
+            return Response({"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST)
+
+        active = _active_tenant_obrigatorio()
+        try:
+            vencedor = Cliente.objects.get(id=vencedor_uuid)
+        except Cliente.DoesNotExist:
+            return Response(
+                {"detail": "vencedor_nao_encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            perdedor = Cliente.objects.get(id=perdedor_uuid)
+        except Cliente.DoesNotExist:
+            return Response(
+                {"detail": "perdedor_nao_encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Defesa em profundidade: confirma mesmo tenant via objeto
+        # (RLS já filtra, mas tornamos explícito).
+        if vencedor.tenant_id != perdedor.tenant_id:
+            return Response({"detail": "tenants_diferentes"}, status=status.HTTP_403_FORBIDDEN)
+
+        def _ladob_a_lado(campo: str) -> dict:
+            return {
+                "campo": campo,
+                "vencedor": getattr(vencedor, campo) or None,
+                "perdedor": getattr(perdedor, campo) or None,
+            }
+
+        campos = [
+            "tipo_pessoa",
+            "documento",
+            "nome",
+            "nome_fantasia",
+            "email",
+            "telefone",
+            "data_nascimento",
+            "observacao",
+        ]
+        # GATE-CLI-DEDUP-COUNTS Wave A: contagens reais quando módulos
+        # OS/certificados/faturas/contatos existirem.
+        contagens = {
+            "os_atreladas": {"vencedor": 0, "perdedor": 0},
+            "certificados_atrelados": {"vencedor": 0, "perdedor": 0},
+            "faturas_atreladas": {"vencedor": 0, "perdedor": 0},
+            "contatos_atrelados": {"vencedor": 0, "perdedor": 0},
+        }
+        _ = active  # silencia ruff (active validado pra trigger RLS)
+        return Response(
+            {
+                "vencedor_id": str(vencedor.id),
+                "perdedor_id": str(perdedor.id),
+                "campos": [_ladob_a_lado(c) for c in campos],
+                "contagens": contagens,
+                "gate_wave_a": "contagens reais quando módulos OS/cert/"
+                "fatura/contatos existirem",
             },
             status=status.HTTP_200_OK,
         )
