@@ -211,6 +211,13 @@ class Cliente(models.Model):
         help_text="Campo livre — passa por validador anti-PII sensivel "
         "(LGPD art. 11 + NG-CLI-11) no serializer.",
     )
+    consentimento_revogado_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="T-CLI-115 (LGPD art. 8º §5º): timestamp da revogação. "
+        "Quando setado, base CONSENTIMENTO deixa de aplicar; outras bases "
+        "(EXECUCAO_CONTRATO/OBRIG_LEGAL/LEGITIMO_INTERESSE) subsistem.",
+    )
 
     # =============================================================
     # Soft-delete (US-CLI-005). R3 advogado: NAO eh direito ao esquecimento

@@ -30,6 +30,8 @@ ACOES_CLIENTES: Final[frozenset[str]] = frozenset(
         "cliente.dados_eliminados",
         "cliente.dados_anonimizados",
         "cliente.dados_exportados",
+        # T-CLI-119 (US-CLI-006 AC-006-6) — incidente PII (Res. ANPD 15/2024)
+        "cliente.pii.incidente_detectado",
     }
 )
 

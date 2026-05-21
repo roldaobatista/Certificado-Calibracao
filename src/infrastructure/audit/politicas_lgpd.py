@@ -51,3 +51,52 @@ POLITICA_BUS_OUTBOX: Final[PoliticaBusOutboxDict] = {
         "causation_id (acesso restrito a dpo+sre Wave A)",
     ],
 }
+
+
+# =============================================================
+# Mapa finalidade × bases legais aceitas (BLOQ-A2 advogado).
+#
+# Quando o titular revoga consentimento (T-CLI-115 / LGPD art. 8º §5º),
+# operacoes baseadas SOMENTE em CONSENTIMENTO param. Operacoes com
+# outras bases legais subsistem se a base estiver disponivel.
+#
+# A spec INV-CLI-002 (politica LGPD canonica) cita as 5 bases em
+# `lgpd.py::BASES_LEGAIS`:
+#   - CONSENTIMENTO       (art. 7 I)
+#   - EXECUCAO_CONTRATO   (art. 7 V)
+#   - OBRIG_LEGAL         (art. 7 II)
+#   - LEGITIMO_INTERESSE  (art. 7 IX)
+#   - PROTECAO_CREDITO    (art. 7 X)
+# =============================================================
+MAPA_FINALIDADE_BASE_LEGAL_ACEITA: Final[dict[str, frozenset[str]]] = {
+    # Cadastro basico do cliente: contratual ou consentimento
+    "cadastro_basico": frozenset({"EXECUCAO_CONTRATO", "CONSENTIMENTO"}),
+    # NF/fiscal: obrigacao legal (CTN 173 + Receita)
+    "emissao_nf": frozenset({"OBRIG_LEGAL", "EXECUCAO_CONTRATO"}),
+    # Certificado ISO 17025: obrigacao regulatoria (Lei 9.933/99 INMETRO)
+    "emissao_certificado_iso": frozenset({"OBRIG_LEGAL"}),
+    # Comunicacao marketing/promocional: SO consentimento explicito
+    "comunicacao_marketing": frozenset({"CONSENTIMENTO"}),
+    # Audit trail: obrigacao legal de prestacao de contas + leg. interesse
+    "audit_trail": frozenset({"OBRIG_LEGAL", "LEGITIMO_INTERESSE"}),
+    # Cobranca de inadimplencia: contrato + protecao de credito
+    "cobranca_inadimplencia": frozenset({"EXECUCAO_CONTRATO", "PROTECAO_CREDITO"}),
+    # Operacao interna (cadastro/edicao/export por staff)
+    "operacao_interna": frozenset({"EXECUCAO_CONTRATO", "LEGITIMO_INTERESSE"}),
+}
+
+
+def base_legal_aplicavel_pos_revogacao(finalidade: str, bases_disponiveis: set[str]) -> bool:
+    """T-CLI-115 (BLOQ-A2 / A4 advogado) — base legal aplicavel pos revogacao.
+
+    True se ha ao menos uma base legal aceita pra `finalidade` quando o
+    titular revogou consentimento (CONSENTIMENTO removido das disponiveis).
+
+    Exemplo:
+    - `emissao_nf` com `bases_disponiveis={OBRIG_LEGAL}` → True (NF continua
+      por obrigacao legal mesmo apos revogacao).
+    - `comunicacao_marketing` com `bases_disponiveis={CONSENTIMENTO}` →
+      False apos revogacao (so consentimento aceita).
+    """
+    aceitas = MAPA_FINALIDADE_BASE_LEGAL_ACEITA.get(finalidade, frozenset())
+    return bool(aceitas & (bases_disponiveis - {"CONSENTIMENTO"}))

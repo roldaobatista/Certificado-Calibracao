@@ -107,6 +107,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         "importar_preview": "clientes.importar",  # US-CLI-003
         "importar_executar": "clientes.importar",  # US-CLI-003
         "importacoes": "clientes.importar",  # US-CLI-003 — listagem historico
+        "revogar_consentimento": "clientes.atualizar",  # T-CLI-115 US-CLI-006
     }
 
     def get_authz_action(self, request) -> str | None:
@@ -988,5 +989,78 @@ class ClienteViewSet(viewsets.ModelViewSet):
         ]
         return Response(
             {"importacoes": items, "total_exibido": len(items), "limite": 200},
+            status=status.HTTP_200_OK,
+        )
+
+    # =============================================================
+    # T-CLI-115 (AC-CLI-006-2 — LGPD art. 8º §5º) — revogação consentimento
+    # POST /api/v1/clientes/{id}/direitos-titular/revogacao_consentimento/
+    # authz: AuthorizationProvider.can('clientes.atualizar', ...) via
+    # ACTION_MAP['revogar_consentimento'] — RequireAuthz aplica.
+    # =============================================================
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="direitos-titular/revogacao_consentimento",
+    )
+    def revogar_consentimento(self, request, pk=None):
+        """T-CLI-115 — endpoint gratuito e imediato (efeito ≤ 1 min).
+
+        AuthorizationProvider.can("clientes.atualizar") via ACTION_MAP +
+        RequireAuthz (defesa em profundidade — ADR-0012).
+
+        Spec AC-CLI-006-2: cliente migra para estado
+        `consentimento_revogado_em`; bases CONSENTIMENTO viram
+        inaplicáveis; tratamentos subsequentes só se outra base legal
+        aplicar (T-CLI-115 grava timestamp; aplicação real do mapa é
+        em `politicas_lgpd.base_legal_aplicavel_pos_revogacao`).
+        """
+        from src.infrastructure.clientes.direitos_titular import (
+            ClienteJaRevogou,
+        )
+        from src.infrastructure.clientes.direitos_titular import (
+            revogar_consentimento as use_case_revogar,
+        )
+        from src.infrastructure.clientes.models import Cliente
+        from src.infrastructure.multitenant.context import usuario_id_context
+
+        try:
+            cliente_uuid = UUID(str(pk))
+        except (ValueError, TypeError):
+            return Response({"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST)
+
+        active = _active_tenant_obrigatorio()
+        try:
+            cliente = Cliente.objects.get(id=cliente_uuid)
+        except Cliente.DoesNotExist:
+            return Response(
+                {"detail": "cliente_nao_encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        usuario_id = usuario_id_context.get()
+        try:
+            use_case_revogar(
+                cliente=cliente,
+                tenant_id=active,
+                usuario_id=usuario_id,
+            )
+        except ClienteJaRevogou:
+            # Cliente já tinha consentimento_revogado_em setado (não-None) —
+            # caso contrário ClienteJaRevogou não teria sido levantada.
+            revogado_em = cliente.consentimento_revogado_em
+            assert revogado_em is not None
+            return Response(
+                {"ja_revogado": True, "revogado_em": revogado_em.isoformat()},
+                status=status.HTTP_200_OK,
+            )
+        # Use case acabou de setar consentimento_revogado_em
+        revogado_em = cliente.consentimento_revogado_em
+        assert revogado_em is not None
+        return Response(
+            {
+                "revogado_em": revogado_em.isoformat(),
+                "cliente_id": str(cliente.id),
+            },
             status=status.HTTP_200_OK,
         )
