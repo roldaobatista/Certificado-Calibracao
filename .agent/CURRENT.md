@@ -6,13 +6,14 @@
 + T-EQP-006 + T-EQP-002 + T-EQP-003 + US-EQP-007 entregues). Sessão 2026-05-22.
 **Modo:** AUTÔNOMO.
 
-## Estado da suíte (verificado 2026-05-22 após US-EQP-007)
+## Estado da suíte (verificado 2026-05-22 após T-EQP-005+007)
 
-- Suite: **518 + 13 novos** (10 US-EQP-007 + 3 anti-regressão INV-EQP-RT-001) — alvo 531
+- Suite: **531 + 12 novos** (cadastro happy + 409 tag duplicada + 5 INV-EQP-LOC-001
+  + idempotência + 400 sem header + authz) — alvo **543**
 - Hooks: **179/179** verdes (22 ativos — sem hook novo)
 - Cobertura: ≥85% global; ≥90% agregado clientes/ (Marco 1)
 - Drills: `validar_f_a` 5/5 + `validar_f_b` + `validar_m1_clientes` verdes
-- `makemigrations --check`: limpo; ruff + mypy zero issues (131 source files)
+- `makemigrations --check`: limpo; ruff + mypy zero issues (133 source files)
 
 ## Marco 1 `clientes` — FECHADO
 
@@ -61,13 +62,25 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-005+007 ✅** (2026-05-22): CRUD POST do Equipamento.
+  `validators.py` com `conter_pii_direta()` (regex CPF/CNPJ/email/
+  telefone/≥2 nomes próprios) + `EquipamentoCriarSerializer` aplica
+  INV-EQP-LOC-001 → 400. `services_equipamento.criar_equipamento`
+  publica `equipamento.criado` no bus_outbox com payload sanitizado
+  (tag_hash + numero_serie_hash + cliente_atual_id_hash — TAG cru
+  NUNCA vaza). `EquipamentoViewSet.create` exige `Idempotency-Key`
+  (P-EQP-T6) + authz `equipamentos.criar` (admin_tenant + tecnico via
+  migration `0005_seed_authz_criar`). TAG duplicada → 409 com link
+  pro existente. 12 testes (happy + 409 + 5 cenários INV-EQP-LOC-001 +
+  idempotência + 400 sem header + authz).
 
 ## Próximo passo
 
-1. **Fundação restante** T-EQP-004/005/007/008/009/010/011 (UNIQUE parcial
-   já existe via `Equipamento`; INV-EQP-LOC-001 validator; evento Criado).
-2. **US-EQP-002 versionamento** (T-EQP-012..017): depende do RT (US-EQP-007
-   ✅ desbloqueia) — motivo `mudanca_classe_metrologica` exige A3 RT.
+1. **T-EQP-009** (função PG `promover_perfil_equipamento_snapshot` D→A):
+   `SECURITY DEFINER` com direção obrigatória (downgrade proibido), cria
+   `EquipamentoVersao` + A3 RT, publica `Equipamento.PerfilPromovido`.
+2. **US-EQP-002 versionamento** (T-EQP-012..017): depende do RT
+   (US-EQP-007 ✅) — motivo `mudanca_classe_metrologica` exige A3 RT.
 3. Sequência em `docs/faseamento/M2-equipamentos/tasks.md` §"Próximo passo".
 
 ## Pendências rastreadas (não bloqueiam)

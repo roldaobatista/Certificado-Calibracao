@@ -36,7 +36,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from django.http import HttpResponse
-from rest_framework import status, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.request import Request
@@ -53,10 +53,16 @@ from src.infrastructure.idempotencia.services_idempotencia import (
 from src.infrastructure.multitenant.context import active_tenant_context
 
 from .models import Equipamento
-from .serializers import EquipamentoLeituraSerializer
+from .serializers import EquipamentoCriarSerializer, EquipamentoLeituraSerializer
+from .services_equipamento import (
+    DadosCriacaoEquipamento,
+    TagDuplicada,
+    criar_equipamento,
+)
 from .services_etiqueta import gerar_etiqueta_pdf
 
 ENDPOINT_ETIQUETA = "equipamentos.etiqueta"
+ENDPOINT_CRIAR = "equipamentos.criar"
 
 
 def _active_tenant_obrigatorio() -> UUID:
@@ -78,8 +84,16 @@ def _resposta_pdf_etiqueta(equipamento: Equipamento, pdf_bytes: bytes) -> HttpRe
     return response
 
 
-class EquipamentoViewSet(viewsets.ReadOnlyModelViewSet):
-    """ReadOnly + action `etiqueta` — CRUD pleno em T-EQP futuras."""
+class EquipamentoViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """list/retrieve/create + action `etiqueta` — restante CRUD em T-EQP futuras.
+
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP.
+    """
 
     serializer_class = EquipamentoLeituraSerializer
     queryset = Equipamento.objects.none()
@@ -90,6 +104,7 @@ class EquipamentoViewSet(viewsets.ReadOnlyModelViewSet):
     ACTION_MAP = {
         "list": "equipamentos.ler",
         "retrieve": "equipamentos.ler",
+        "create": "equipamentos.criar",
         "etiqueta": "equipamentos.imprimir_etiqueta",
     }
 
@@ -104,6 +119,102 @@ class EquipamentoViewSet(viewsets.ReadOnlyModelViewSet):
         active = _active_tenant_obrigatorio()
         return Equipamento.objects.filter(tenant_id=active)
 
+    # authz-check: skip -- RequireAuthz global + ACTION_MAP['create'] = 'equipamentos.criar'
+    def create(self, request: Request, *args, **kwargs) -> Response:
+        """POST /api/v1/equipamentos/ — cadastra equipamento (T-EQP-005+007).
+
+        Exige header `Idempotency-Key` UUID (P-EQP-T6 horizontal F-A).
+        TAG duplicada no tenant -> 409 com link pro existente.
+        localizacao_fisica com PII -> 400 INV-EQP-LOC-001.
+        Publica `equipamento.criado` no bus_outbox (AC-EQP-001-6).
+        """
+        tenant_id = _active_tenant_obrigatorio()
+        user_id = request.user.id
+        assert user_id is not None
+
+        ser = EquipamentoCriarSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+
+        chave_header = request.META.get("HTTP_IDEMPOTENCY_KEY")
+        avaliacao = avaliar_chave_idempotencia(
+            tenant_id=tenant_id,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_CRIAR,
+            chave_header=chave_header,
+            payload={
+                "tag": ser.validated_data["tag"],
+                "numero_serie": ser.validated_data["numero_serie"],
+            },
+        )
+        if isinstance(avaliacao, ErroValidacao):
+            return _resposta_erro_idempotencia(avaliacao)
+        if isinstance(avaliacao, Replay):
+            resumo = avaliacao.response_body_resumo or {}
+            eq_id_str = resumo.get("equipamento_id") or ""
+            existente = (
+                Equipamento.objects.filter(id=eq_id_str, tenant_id=tenant_id).first()
+                if eq_id_str
+                else None
+            )
+            if existente is not None:
+                return Response(
+                    EquipamentoLeituraSerializer(existente).data,
+                    status=status.HTTP_200_OK,
+                )
+            return Response(resumo, status=status.HTTP_200_OK)
+
+        assert isinstance(avaliacao, NovoProcessamento)
+        dados = DadosCriacaoEquipamento(
+            tag=ser.validated_data["tag"],
+            numero_serie=ser.validated_data["numero_serie"],
+            fabricante=ser.validated_data["fabricante"],
+            modelo=ser.validated_data["modelo"],
+            localizacao_fisica=ser.validated_data.get("localizacao_fisica", ""),
+            cliente_atual_id=ser.validated_data.get("cliente_atual_id"),
+            perfil_tenant_snapshot=ser.validated_data.get("perfil_tenant_snapshot"),
+            snapshot_schema_version=ser.validated_data.get(
+                "snapshot_schema_version", "1.0.0"
+            ),
+        )
+        try:
+            equipamento = criar_equipamento(
+                tenant_id=tenant_id,
+                criado_por_id=user_id,
+                dados=dados,
+            )
+        except TagDuplicada as exc:
+            falhar_chave(
+                chave_id=avaliacao.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id,
+                response_status=409,
+            )
+            return Response(
+                {
+                    "codigo": "tag_duplicada",
+                    "detalhe": str(exc),
+                    "equipamento_existente_id": str(exc.equipamento_id_existente),
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        except Exception:
+            falhar_chave(
+                chave_id=avaliacao.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id,
+                response_status=500,
+            )
+            raise
+        concluir_chave(
+            chave_id=avaliacao.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id,
+            response_status=201,
+            response_body_resumo={"equipamento_id": str(equipamento.id)},
+        )
+        return Response(
+            EquipamentoLeituraSerializer(equipamento).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    # authz-check: skip -- RequireAuthz global + ACTION_MAP['etiqueta'] = 'equipamentos.imprimir_etiqueta'
     @action(detail=True, methods=["post"], url_path="etiqueta.pdf")
     def etiqueta(self, request: Request, id: str | None = None) -> Response | HttpResponse:
         """POST `/equipamentos/{id}/etiqueta.pdf` — gera/retorna PDF.

@@ -57,7 +57,16 @@ ACOES_RT: Final[frozenset[str]] = frozenset(
     }
 )
 
-ACOES_CANONICAS: Final[frozenset[str]] = ACOES_CLIENTES | ACOES_SISTEMA | ACOES_RT
+# Marco 2 `equipamentos` (US-EQP-001..006).
+ACOES_EQUIPAMENTOS: Final[frozenset[str]] = frozenset(
+    {
+        "equipamento.criado",
+    }
+)
+
+ACOES_CANONICAS: Final[frozenset[str]] = (
+    ACOES_CLIENTES | ACOES_SISTEMA | ACOES_RT | ACOES_EQUIPAMENTOS
+)
 
 
 def assert_acao_canonica(acao: str) -> None:
