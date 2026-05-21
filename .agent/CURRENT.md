@@ -234,9 +234,14 @@ não fechava.
   Suíte **361 passed** (era 353 → +8), cobertura **85.32%**, hooks
   **150/150**, ruff+format+mypy zero issues.
 
-**Estado final desta sessão**: suíte **361 passed**, cobertura **85.32%**,
-hooks **150/150** verdes, makemigrations limpo, drill `validar_f_a`
-não-regredido (F-A intacta).
+**Estado pós-P5 reauditado (2026-05-21)**: suíte **450+ passed**
+(+13 testes Marco 1 close + 22 testes regressão `tests/regressao/inv_cli_*`
++ 3 testes HMAC trigger), cobertura ≥85% global e ≥89% agregado
+`clientes/`, hooks **168/168** verdes, makemigrations limpo, drill
+`validar_f_a`/`validar_f_b`/`validar_m1_clientes` verdes. ALTO-1 SEC
+(SHA256 cru no trigger PG) e MÉDIO-1 SEC (filter por tenant em 5 rotas)
+resolvidos causa-raiz via migration `audit/0015` (função
+`pii_hash_hmac` + GUC `app.pii_hash_key_ativa`) e `Cliente.objects.filter(tenant_id=active,id=...)` em todas as 6 rotas.
 
 - **US-CLI-006 PARCIAL ✅ (T-CLI-115/117/118/119/120) + GATE Wave A
   (T-CLI-114/116 + ADR-0021)** (commits `db281d7`, `3e96159`,
@@ -282,28 +287,58 @@ não-regredido (F-A intacta).
   MIGRACAO_SISTEMA_ANTERIOR). 7 testes. Dashboard regularização =
   GATE-CLI-4 Wave A.
 
-## Próximo passo (retomar) — tarefa ativa
+## P4 concluído — T-CLI-108 + T-CLI-109 fechados via fast-track (2026-05-20)
 
-**P4 quase concluído — 2 T-CLI restantes** (ambos GATE módulos futuros):
+Decisão: implementar AGORA dentro do módulo `clientes` o que cabe ao
+PRODUTOR (payload + predicate); CONSUMERS Wave A continuam como
+GATE-CLI-7/8 rastreado (módulos `operacao/agenda` e `operacao/certificados`
+ainda não existem). Spec cristalina pós-P2 → fast-track sem reviews
+paralelos (mesmo critério T-CLI-106/111/112).
 
-1. T-CLI-108 (payload Cliente.Bloqueado com agendamentos futuros) —
-   GATE-CLI-7 (depende de módulo `operacao/agenda` Wave A).
-2. T-CLI-109 (predicate `cliente.bloqueado_para_entrega`) —
-   GATE-CLI-8 (depende de módulo `operacao/certificados` Wave A).
+- **T-CLI-109 ✅ FECHADO**: predicate `cliente_bloqueado_para_entrega(resource)`
+  em `predicates_authz.py` — função-consulta de domínio (não ABAC, consumer
+  Wave A chama direto). Fail-safe: ID ausente/inválido → retém. 7 testes
+  (manual + inadimplência + desbloqueado + sem ID + ID inválido +
+  isolamento RLS + ponto puro). Consumer `operacao/certificados` =
+  GATE-CLI-8 Wave A.
 
-Ambos podem virar GATE rastreável SEM bloquear fechamento do Marco 1
-porque os consumers ainda não existem. Decisão Roldão pra preencher
-agora ou diferir.
+- **T-CLI-108 ✅ FECHADO**: `montar_payload_cliente_bloqueado` +
+  `consultar_agendamentos_futuros_do_cliente` em `clientes/bloqueio.py`.
+  Slot `agendamentos_futuros: list[str]` acordado no contrato pro
+  consumer Wave A `operacao/agenda` (GATE-CLI-7) — Marco 1 retorna
+  lista vazia (módulo agenda inexistente). `views.bloquear` +
+  `job_inadimplencia_alertas` MIGRADOS de `registrar_auditoria` direto
+  pra `publicar_evento(outbox=True)` (saldando débito de T-CLI-107: bloqueio
+  agora entra no `bus_outbox` transacional). 6 testes (helper puro +
+  E2E via endpoint).
 
-P5 (10 auditores Família 5 sobre o Marco 1 inteiro, loop até PASS
-zero CRÍTICO/ALTO/MÉDIO) destrava quando P4 concluído (16 fechados +
-2 GATE módulos futuros + 2 GATE Wave A) e drill `validar_m1_clientes`
-(T-CLI a desenhar) verde.
+- **Drill `validar_m1_clientes` criado** (`src/infrastructure/clientes/management/commands/validar_m1_clientes.py`):
+  3 tenants intercalados executando cadastro/importação/dedup/bloqueio;
+  verifica isolamento cross-tenant (Cliente / bus_outbox / OperacaoTratamentoCliente),
+  cadeia auditoria por tenant, resolução canônica pós-mescla, slot
+  agendamentos_futuros no payload. Drill PASS em test_afere; cobertura
+  via `tests/test_drill_validar_m1_clientes.py`.
+
+- **Reconciliação acessória — débito pré-existente do use case
+  `mesclar_clientes`**: spec AC-CLI-005-3 exige
+  `perdedor.cliente_canonico_id = vencedor.id`; use case não fazia.
+  Drill descobriu (resolver_cliente_canonico voltava o perdedor).
+  Fix causa-raiz: `repository.apontar_canonico_para(perdedor, vencedor)`
+  ANTES do `soft_delete` no use case. Trigger PG T-CLI-113 valida
+  transição self → vencedor_vivo_mesmo_tenant.
+
+- **Migração débito T-CLI-112 em testes legados US-CLI-005**: 10 testes
+  legados em `tests/test_clientes_us_cli_005_mesclar.py` não tinham sido
+  atualizados pra novo campo obrigatório `tipo_mesclagem` (introduzido
+  em commit 9c1ee21). Causa-raiz: adicionar `tipo_mesclagem: "DUPLICATA_OPERACIONAL"`
+  nos payloads. 13/13 testes verdes pós-fix.
 
 ## Fila
 
 #6 flake visão-360 ✅ + #7 lint sweep ✅ + #8 médios rodada 2 F-A ✅ +
-Marco 1 P1+P2+P3 ✅ + 16 T-CLI fechados (101/102/103/104/105/106/107/
-110/111/112/113/115/117/118/119/120) + 4 GATE rastreados
-(114/116 US-CLI-006-3d; 108/109 módulos futuros). Próxima:
-T-CLI-108/109 → P5 (10 auditores Família 5 sobre Marco 1 inteiro).
+Marco 1 P1+P2+P3+P4 ✅ + **18 T-CLI fechados produtor** (101/102/103/
+104/105/106/107/108/109/110/111/112/113/115/117/118/119/120) + 2 GATE
+Wave A (114/116 US-CLI-006-3d) + 8 GATE Wave A rastreados
+(GATE-CLI-1..8). Próxima: **P5 — 10 auditores Família 5 sobre Marco 1
+inteiro**, loop até PASS zero CRÍTICO/ALTO/MÉDIO. Consolidado em
+`docs/faseamento/M1-clientes/auditoria-familia5.md`.

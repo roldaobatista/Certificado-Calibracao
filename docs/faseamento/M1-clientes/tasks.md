@@ -81,8 +81,8 @@ relacionados:
 | AC-CLI-004-6 | OK | cada transição grava `authz_decisions` (F-B integration); `causation_id` rastreado. |
 | AC-CLI-004-7 | ✅ FECHADO | **T-CLI-107** (2026-05-20): migration `audit/0011_bus_outbox.py` cria tabela com UNIQUE `(causation_id, acao)` + CHECK anti-PII em `acao` + CHECK envelope ≤64KiB + RLS FORCE com divergência justificada (modo_sistema cross-tenant pra worker). `event_helpers.publicar_evento(outbox=True)` faz INSERT idempotente no `transaction.atomic` do caller. |
 | AC-CLI-004-8 | OK | spec cravada (não há código pra escrever — é regra de NÃO derivar do estado bloqueado). |
-| **AC-CLI-004-9** | **GAP / módulo futuro** | **T-CLI-108**: consumer `operacao/agenda` ainda não existe — registrar como gate de habilitação Wave A; aqui só garantir que `Cliente.Bloqueado` carrega payload suficiente. |
-| **AC-CLI-004-10** | **GAP / módulo futuro** | **T-CLI-109**: predicate `cliente.bloqueado_para_entrega` ausente; criar predicate isolado pra ser consumido pelo `operacao/certificados` (Marco futuro). |
+| AC-CLI-004-9 | ✅ FECHADO (produtor) | **T-CLI-108** (2026-05-20): helper `montar_payload_cliente_bloqueado` + `consultar_agendamentos_futuros_do_cliente` em `clientes/bloqueio.py`. Slot `agendamentos_futuros: list[str]` acordado no contrato (lista vazia em Marco 1 — módulo `operacao/agenda` Wave A pluga consulta real). `views.bloquear` e `job_inadimplencia_alertas` migrados pra `publicar_evento(outbox=True)`. Consumer `operacao/agenda` permanece como **GATE-CLI-7** Wave A. |
+| AC-CLI-004-10 | ✅ FECHADO (predicate) | **T-CLI-109** (2026-05-20): predicate `cliente_bloqueado_para_entrega(resource)` em `predicates_authz.py` — função-consulta de domínio (não ABAC, consumer chama direto). Fail-safe: ID ausente/inválido → retém. 7 testes (bloqueado manual + inadimplência + desbloqueado + sem ID + ID inválido + isolamento RLS). Consumer `operacao/certificados` permanece como **GATE-CLI-8** Wave A. |
 | AC-CLI-004-11 | ✅ FECHADO | **T-CLI-110** (2026-05-20): `outbox_worker.processar_outbox_em_contexto_tenant` em 3 transações (Tx-1 tentativas + Tx-2 dispatch+processado_em + Tx-3 ultimo_erro sanitizado inline), garante `INV-TENANT-001..004` via `run_as_system`/`run_in_tenant_context`. Drill 3 tenants intercalados verde. |
 
 ### US-CLI-005 — Dedup manual
@@ -112,13 +112,13 @@ relacionados:
 
 ---
 
-## Resumo P3 (atualizado 2026-05-20)
+## Resumo P3 (atualizado 2026-05-20 — P4 concluído)
 
 - **OK:** 24 (cadastro core, audit access, importação core, bloqueio core, dedup atomic).
-- **GAP / FECHADO em P4:** 16 ✅ → T-CLI-101 + T-CLI-102 + T-CLI-103 + T-CLI-104 + T-CLI-105 + T-CLI-106 + T-CLI-107 + T-CLI-110 + T-CLI-111 + T-CLI-112 + T-CLI-113 + T-CLI-115 + T-CLI-117 + T-CLI-118 + T-CLI-119 + T-CLI-120.
-- **GAP / pendente:** 2 (T-CLI-108 + T-CLI-109 — payload Cliente.Bloqueado + predicate bloqueado_para_entrega; ambos GATE módulos futuros).
+- **GAP / FECHADO em P4:** 18 ✅ → T-CLI-101 + T-CLI-102 + T-CLI-103 + T-CLI-104 + T-CLI-105 + T-CLI-106 + T-CLI-107 + T-CLI-108 + T-CLI-109 + T-CLI-110 + T-CLI-111 + T-CLI-112 + T-CLI-113 + T-CLI-115 + T-CLI-117 + T-CLI-118 + T-CLI-119 + T-CLI-120.
+- **GAP / pendente:** 0. (T-CLI-108 produtor fechado — slot `agendamentos_futuros` no payload; T-CLI-109 predicate `cliente.bloqueado_para_entrega` em `predicates_authz.py`. Consumers Wave A continuam como GATE-CLI-7/8.)
 - **TRACK / GATE Wave A:** 2 (T-CLI-114 + T-CLI-116 → GATE-CLI-US006-3d; ADR-0021 abre o caminho).
-- **TRACK:** 6 (GATE-CLI-1..6 — Wave A; não bloqueia fechamento).
+- **TRACK:** 8 (GATE-CLI-1..8 — Wave A; não bloqueia fechamento; inclui consumer agenda e certificados).
 
 ---
 
@@ -137,8 +137,8 @@ relacionados:
 | T-CLI-105 | AC-CLI-002-7 + AC-CLI-001-5 (helper) | management command `job_contagem_diaria_acesso_pii` + `src/infrastructure/audit/event_helpers.py` (helper único, garantias 1-4 do plan §"Decisão arquitetural") + hook `event-helper-unico.sh`. | Sim — INV-013-A + SANEA-08. |
 | T-CLI-106 | AC-CLI-003-7 | migration alinhando `aceite_lgpd_origem` enum + flag `pii_regularizacao_em` + use case de importação aceita base legal vinda da chamada. | Sim — advogado §D. |
 | T-CLI-107 | AC-CLI-004-7 | tabela `bus_outbox` (migration nova) + worker dedicado + adoção pelo use case `bloquear()`. | Sim — INV-INT-010. |
-| T-CLI-108 | AC-CLI-004-9 | payload `Cliente.Bloqueado` carrega `agendamentos_futuros: List[UUID]` (resolvido por query no momento da emissão; consumer `operacao/agenda` futuro). | Não (módulo futuro) — vira **GATE-CLI-7** rastreado. |
-| T-CLI-109 | AC-CLI-004-10 | predicate `cliente.bloqueado_para_entrega` em `predicates_authz.py`; consumível pelo módulo futuro `operacao/certificados`. | Não — gate **GATE-CLI-8** rastreado. |
+| T-CLI-108 ✅ | AC-CLI-004-9 | payload `Cliente.Bloqueado` carrega `agendamentos_futuros: list[str]` (slot acordado). `montar_payload_cliente_bloqueado` + `consultar_agendamentos_futuros_do_cliente` em `clientes/bloqueio.py`. `views.bloquear` + job migrados pra `publicar_evento(outbox=True)`. Consumer = **GATE-CLI-7** Wave A. | Sim (produtor) — implementado. |
+| T-CLI-109 ✅ | AC-CLI-004-10 | predicate `cliente_bloqueado_para_entrega` em `predicates_authz.py` (consulta de domínio, não ABAC; fail-safe ID ausente/inválido). Consumer = **GATE-CLI-8** Wave A. | Sim (predicate) — implementado. |
 | T-CLI-110 | AC-CLI-004-11 | helper `processar_outbox_em_contexto_tenant` em `src/infrastructure/audit/outbox_worker.py` + teste multi-tenant (3 tenants intercalados, ZERO vazamento). | Sim. |
 | T-CLI-111 | AC-CLI-005-1 | GET endpoint comparação lado a lado + use case + serializer. | Sim. |
 | T-CLI-112 | AC-CLI-005-3b | migration `tipo_mesclagem` + `evidencia_documental_id` + validação no use case (M&A obrigatório anexo). | Sim — consultor-rbc §C. |
@@ -172,11 +172,19 @@ relacionados:
 
 ## Próximo passo
 
-P4 executa T-CLI-101..120 (causa-raiz), commits atômicos por tarefa,
-suíte verde + hooks + `validar_f_a` + `validar_m1_clientes` (novo) +
-`makemigrations --check` limpo + drill multi-tenant. Então P5 (10
-auditores Família 5, loop até zero CRÍTICO/ALTO/MÉDIO).
+**P4 CONCLUÍDO (2026-05-20).** Todos os 20 T-CLI fechados (18 no produtor
+do módulo `clientes`; 2 marcados como TRACK Wave A — T-CLI-114 + T-CLI-116
+dependem de NF/certificados ainda inexistentes; coberto por ADR-0021).
+Drill `validar_m1_clientes` criado em
+`src/infrastructure/clientes/management/commands/validar_m1_clientes.py`
++ teste `tests/test_drill_validar_m1_clientes.py` (15 checks PASS).
+Suite + ruff + mypy + makemigrations limpo.
 
-P4 é trabalho extenso (20 T-CLI tocando migrations, modelos, use cases,
-endpoints novos, triggers PG, hooks). Estimativa honesta: várias sessões
-de implementação. Cada T-CLI ganha commit próprio.
+Reconciliação acessória: use case `mesclar_clientes` ganhou
+`repository.apontar_canonico_para(perdedor, vencedor)` ANTES do
+`soft_delete` — débito pré-existente vs spec AC-CLI-005-3 descoberto
+pelo drill (resolver_cliente_canonico não convergia pra vencedor).
+
+**P5 destrava agora**: 10 auditores Família 5 sobre Marco 1 inteiro,
+loop até PASS zero CRÍTICO/ALTO/MÉDIO. Consolidado em
+`docs/faseamento/M1-clientes/auditoria-familia5.md`.
