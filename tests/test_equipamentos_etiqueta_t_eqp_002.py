@@ -102,12 +102,15 @@ def cenario(db):
     }
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
 class TestEtiquetaPDFHappy:
     def test_admin_gera_etiqueta_pdf_200(self, cenario):
         client = APIClient()
         _autenticar(client, cenario["admin_a"], cenario["tenant_a"])
-        resp = client.post(f"/api/v1/equipamentos/{cenario['eq_a'].id}/etiqueta.pdf/")
+        resp = client.post(
+            f"/api/v1/equipamentos/{cenario['eq_a'].id}/etiqueta.pdf/",
+            HTTP_IDEMPOTENCY_KEY=str(uuid4()),
+        )
         assert resp.status_code == 200, resp.content
         assert resp["Content-Type"] == "application/pdf"
         assert resp.content.startswith(b"%PDF-")
@@ -119,8 +122,13 @@ class TestEtiquetaPDFHappy:
     def test_multiplas_chamadas_reusam_qrcode(self, cenario):
         client = APIClient()
         _autenticar(client, cenario["admin_a"], cenario["tenant_a"])
+        # Cada chamada usa chave nova (testa idempotencia OPERACIONAL do QR,
+        # nao do Idempotency-Key). Replay com mesma chave e coberto em T-EQP-003.
         for _ in range(3):
-            resp = client.post(f"/api/v1/equipamentos/{cenario['eq_a'].id}/etiqueta.pdf/")
+            resp = client.post(
+                f"/api/v1/equipamentos/{cenario['eq_a'].id}/etiqueta.pdf/",
+                HTTP_IDEMPOTENCY_KEY=str(uuid4()),
+            )
             assert resp.status_code == 200
         # Apenas UM QRCode vigente para o equipamento (idempotencia).
         with run_in_tenant_context(cenario["tenant_a"].id):
@@ -130,7 +138,7 @@ class TestEtiquetaPDFHappy:
         assert qtd == 1
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
 class TestEtiquetaIsolamentoCrossTenant:
     def test_admin_de_b_nao_acessa_equipamento_de_a_retorna_404(self, cenario):
         client = APIClient()
@@ -144,7 +152,7 @@ class TestEtiquetaIsolamentoCrossTenant:
         assert qtd == 0
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
 class TestEtiquetaAuthz:
     def test_perfil_so_leitura_sem_imprimir_etiqueta_toma_403(self, cenario):
         """cliente_externo_leitura tem `equipamentos.ler` mas NAO tem
@@ -155,7 +163,7 @@ class TestEtiquetaAuthz:
         assert resp.status_code == 403, resp.content
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
 class TestEtiquetaConteudo:
     def test_pdf_nao_vaza_pii_do_cliente(self, cenario):
         """Etiqueta fisica nao pode conter CPF/CNPJ/nome do cliente.
@@ -164,7 +172,10 @@ class TestEtiquetaConteudo:
         """
         client = APIClient()
         _autenticar(client, cenario["admin_a"], cenario["tenant_a"])
-        resp = client.post(f"/api/v1/equipamentos/{cenario['eq_a'].id}/etiqueta.pdf/")
+        resp = client.post(
+            f"/api/v1/equipamentos/{cenario['eq_a'].id}/etiqueta.pdf/",
+            HTTP_IDEMPOTENCY_KEY=str(uuid4()),
+        )
         assert resp.status_code == 200
         # bytes do PDF: documento_marker do cliente NAO pode aparecer.
         assert b"11222333000181" not in resp.content
@@ -178,7 +189,10 @@ class TestEtiquetaConteudo:
         """TAG, NS, fabricante visiveis na etiqueta (nao PII)."""
         client = APIClient()
         _autenticar(client, cenario["admin_a"], cenario["tenant_a"])
-        resp = client.post(f"/api/v1/equipamentos/{cenario['eq_a'].id}/etiqueta.pdf/")
+        resp = client.post(
+            f"/api/v1/equipamentos/{cenario['eq_a'].id}/etiqueta.pdf/",
+            HTTP_IDEMPOTENCY_KEY=str(uuid4()),
+        )
         assert resp.status_code == 200
         # WeasyPrint inclui o texto no stream do PDF.
         # NB: PDF embute glyphs CIDs; busca por string crua pode falhar quando
@@ -198,7 +212,10 @@ class TestEtiquetaConteudo:
         """
         client = APIClient()
         _autenticar(client, cenario["admin_a"], cenario["tenant_a"])
-        resp = client.post(f"/api/v1/equipamentos/{cenario['eq_a'].id}/etiqueta.pdf/")
+        resp = client.post(
+            f"/api/v1/equipamentos/{cenario['eq_a'].id}/etiqueta.pdf/",
+            HTTP_IDEMPOTENCY_KEY=str(uuid4()),
+        )
         assert resp.status_code == 200
         # Usa all_objects pra ler mesmo se filtrar; valida via .hash diretamente
         # (idempotencia ja foi exercida em test_multiplas_chamadas_reusam_qrcode).

@@ -196,6 +196,9 @@ LOCAL_APPS = [
     "src.infrastructure.multitenant.apps.MultitenantConfig",
     # Autorizacao (Foundation F-B — 2026-05-18): porta + RBAC + audit synchronous
     "src.infrastructure.authz.apps.AuthzConfig",
+    # F-A horizontal — chave de idempotencia (T-EQP-003 / P-EQP-T6 — 2026-05-21).
+    # Compartilhada por US-EQP-001 etiqueta + US-EQP-004 transferir + outros.
+    "src.infrastructure.idempotencia.apps.IdempotenciaConfig",
     # Wave A Marco 1 — Clientes (comercial). PF/PJ + dedup INV-024 + CNPJ alfanumerico.
     "src.infrastructure.clientes.apps.ClientesConfig",
     # Wave A Marco 2 — Equipamentos (suporte-plataforma). TAG unica + QR HMAC + ISO 17025 cl. 7.4.

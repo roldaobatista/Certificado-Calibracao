@@ -3,16 +3,16 @@
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
 **Fase:** Marco 1 **FECHADO** + Marco 2 `equipamentos` em P4 (T-EQP-001
-+ T-EQP-006 + T-EQP-002 entregues). Sessão encerrada 2026-05-21 noite.
++ T-EQP-006 + T-EQP-002 + T-EQP-003 entregues). Sessão 2026-05-22.
 **Modo:** AUTÔNOMO.
 
-## Estado da suíte (verificado 2026-05-21 após T-EQP-002)
+## Estado da suíte (verificado 2026-05-22 após T-EQP-003)
 
-- Suite: **510 passed** (+27 desde encerramento: 18 SEC-QR-001 + 2 gate prod + 7 etiqueta)
-- Hooks: **179/179** verdes (22 ativos — +1 `qr-hmac-check`)
+- Suite: **518 passed** (+8: 2 header / 1 chave nova / 1 replay / 1 422 / 1 409 / 1 425 / 1 cross-tenant)
+- Hooks: **179/179** verdes (22 ativos — sem hook novo neste T-EQP)
 - Cobertura: ≥85% global; ≥90% agregado clientes/ (Marco 1)
 - Drills: `validar_f_a` 5/5 + `validar_f_b` + `validar_m1_clientes` verdes
-- `makemigrations --check`: limpo; ruff + mypy zero issues
+- `makemigrations --check`: limpo; ruff + mypy zero issues (123 source files)
 
 ## Marco 1 `clientes` — FECHADO
 
@@ -39,16 +39,23 @@ rastreados Wave A.
   Cache-Control private 60s + matriz authz (`equipamentos.ler` +
   `equipamentos.imprimir_etiqueta`) + 7 testes (happy + idempotência +
   cross-tenant 404 + authz 403 + anti-PII).
+- **P4 T-EQP-003 ✅** (2026-05-22): `Idempotency-Key` em POST `/etiqueta.pdf/`
+  (P-EQP-T6) — app horizontal F-A `src/infrastructure/idempotencia/`
+  (modelo `ChaveIdempotencia` + UNIQUE (tenant,endpoint,chave) + RLS v2 +
+  trigger imutabilidade pós-terminal) + `services_idempotencia.py` (sealed
+  types + `breaker_writer` autocommit pra visibilidade imediata) +
+  integração no `EquipamentoViewSet.etiqueta`: política 400 (ausente/
+  inválido) / 425 (em_processo, `Retry-After: 1`) / 422 (payload divergente)
+  / 409 (expirada >24h) / 200 (replay determinístico) + 8 testes
+  `tests/test_equipamentos_etiqueta_idempotency_t_eqp_003.py`. Tabela
+  reusável por US-EQP-002b/004/005/006.
 
 ## Próximo passo
 
-1. **T-EQP-003**: POST `/etiqueta.pdf/` exige `Idempotency-Key` (P-EQP-T6
-   tabela PG 24h) — atualmente reusa o QR vigente mas não rejeita replay
-   distinto com mesma chave.
-2. **US-EQP-007** (T-EQP-061..065): RT tenant (P-EQP-R10 BLOQUEANTE RBC).
-3. **Fundação restante** T-EQP-004/005/007/008/009/010/011 (UNIQUE parcial
+1. **US-EQP-007** (T-EQP-061..065): RT tenant (P-EQP-R10 BLOQUEANTE RBC).
+2. **Fundação restante** T-EQP-004/005/007/008/009/010/011 (UNIQUE parcial
    já existe via `Equipamento`; INV-EQP-LOC-001 validator; evento Criado).
-4. Sequência em `docs/faseamento/M2-equipamentos/tasks.md` §"Próximo passo".
+3. Sequência em `docs/faseamento/M2-equipamentos/tasks.md` §"Próximo passo".
 
 ## Pendências rastreadas (não bloqueiam)
 
