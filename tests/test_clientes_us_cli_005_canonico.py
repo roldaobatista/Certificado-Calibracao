@@ -137,8 +137,10 @@ def test_property_resolver_termina_ou_levanta():
     tenant = TenantFactory()
     sucessos = 0
     excecoes = 0
+    # Spec §3 item 10: ≥ 1000 cadeias geradas validando idempotência +
+    # ausência de ciclo + cap 10 (corretora §D). 100 era valor reduzido.
     with run_in_tenant_context(tenant.id):
-        for caso in range(100):
+        for caso in range(1000):
             tamanho = secrets.randbelow(CAP_HOPS + 3)  # 0..12
             nos: list[Cliente] = []
             for i in range(tamanho + 1):
@@ -166,4 +168,4 @@ def test_property_resolver_termina_ou_levanta():
     # garante diversidade — nem todas exceção, nem todas sucesso (com 100 cadeias
     # de tamanho 0..12 e CAP=10, distribuição esperada ~85% sucesso / ~15% exceção)
     assert sucessos > 0, "property-test degenerou: nenhuma cadeia resolveu"
-    assert sucessos + excecoes == 100
+    assert sucessos + excecoes == 1000
