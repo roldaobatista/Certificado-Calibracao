@@ -47,6 +47,12 @@ def _resetar_app_settings_na_conexao(sender: object, connection: Any, **kwargs: 
         # "sistema" (tenant_id IS NULL) APENAS sob run_as_system. Resetar no
         # checkout impede vazar '1' pra um request normal que pegue a conexao.
         cur.execute("RESET app.modo_sistema;")
+        # Conserto ALTO-1 P5 (2026-05-21): chave HMAC propagada ao PG pra
+        # funcao `pii_hash_hmac` do trigger de OperacaoTratamentoCliente
+        # usar HMAC versionado por-tenant (SANEA-02 + FA-A1). Reset
+        # garante que pool nunca vaza chave entre contextos.
+        cur.execute("RESET app.pii_hash_key_ativa;")
+        cur.execute("RESET app.pii_hash_key_ativa_id;")
 
 
 def setar_contexto_pg_na_conexao(
@@ -56,7 +62,7 @@ def setar_contexto_pg_na_conexao(
     using: str = "default",
     modo_sistema: bool = False,
 ) -> None:
-    """SET LOCAL nas 4 GUCs PG. Exige transacao aberta — chamador garante.
+    """SET LOCAL nas GUCs PG. Exige transacao aberta — chamador garante.
 
     Lista vira string CSV (PG `string_to_array(current_setting('app.tenant_ids'), ',')`
     nas policies — ADR-0002 v2 §6).
@@ -64,10 +70,28 @@ def setar_contexto_pg_na_conexao(
     `modo_sistema` (FA-C1): '1' libera a cadeia de auditoria sistema
     (tenant_id IS NULL); só `run_as_system` passa True. Qualquer contexto
     vazio SEM modo_sistema continua RAISE (fail-loud — ADR-0002 §6).
+
+    Conserto ALTO-1 P5 (2026-05-21): também propaga chave HMAC ativa
+    (hex + key_id) pra `app.pii_hash_key_ativa`/`app.pii_hash_key_ativa_id`,
+    usada pela funcao SQL `pii_hash_hmac` no trigger AFTER INSERT/UPDATE
+    de `clientes` (T-CLI-120). HMAC com salt por-tenant — SANEA-02 + FA-A1.
     """
     conn = connections[using]
     if conn.vendor != "postgresql":
         return
+
+    # Carrega chave HMAC ativa (FA-A1 registro versionado).
+    from django.conf import settings
+
+    registro = getattr(settings, "PII_HASH_KEY_REGISTRO", None)
+    if registro is not None:
+        pii_hash_key_hex = registro.chave_ativa().hex()
+        pii_hash_key_id = registro.ativa_id
+    else:
+        # Settings sem registro (testes muito antigos) — vazio dispara
+        # fail-loud no trigger SQL, que é o comportamento desejado.
+        pii_hash_key_hex = ""
+        pii_hash_key_id = ""
 
     tenant_ids_csv = ",".join(str(tid) for tid in tenant_ids) if tenant_ids else ""
     active_str = str(active_tenant) if active_tenant else ""
@@ -80,8 +104,17 @@ def setar_contexto_pg_na_conexao(
             "SELECT set_config('app.tenant_ids', %s, true), "
             "set_config('app.active_tenant_id', %s, true), "
             "set_config('app.usuario_id', %s, true), "
-            "set_config('app.modo_sistema', %s, true);",
-            [tenant_ids_csv, active_str, usuario_str, modo_sistema_str],
+            "set_config('app.modo_sistema', %s, true), "
+            "set_config('app.pii_hash_key_ativa', %s, true), "
+            "set_config('app.pii_hash_key_ativa_id', %s, true);",
+            [
+                tenant_ids_csv,
+                active_str,
+                usuario_str,
+                modo_sistema_str,
+                pii_hash_key_hex,
+                pii_hash_key_id,
+            ],
         )
 
 

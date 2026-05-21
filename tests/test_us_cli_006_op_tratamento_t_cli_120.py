@@ -118,15 +118,26 @@ def test_trigger_payload_inclui_base_legal_e_finalidade_negocial():
 
 @pytest.mark.django_db(transaction=True)
 def test_payload_inclui_documento_hash_sem_pii_cru():
-    """Documento (CPF/CNPJ) entra como hash SHA-256, não cru."""
+    """Documento (CPF/CNPJ) entra como hash HMAC-SHA256 versionado (FA-A1),
+    não cru. Após conserto ALTO-1 P5 (2026-05-21), o hash usa HMAC com
+    chave por-tenant e prefixo `<key_id>:` — compatível com
+    `hashear_pii_com_salt_tenant` em Python.
+    """
+    import re
+
     tenant = TenantFactory()
     with run_in_tenant_context(tenant.id):
         _criar_cliente(tenant, documento="11144477735")
     with run_as_system():
         linha = OperacaoTratamentoCliente.objects.get(tenant_id=tenant.id)
-    # Hash é hex sha256 (64 chars), não o CPF cru
-    assert "11144477735" not in linha.payload["documento_hash"]
-    assert len(linha.payload["documento_hash"]) == 64
+    documento_hash = linha.payload["documento_hash"]
+    # Não vaza CPF cru
+    assert "11144477735" not in documento_hash
+    # Formato canônico HMAC versionado: `<key_id>:<64hex>` (mesmo de
+    # `hashear_pii_com_salt_tenant`).
+    assert re.fullmatch(
+        r"[\w-]+:[0-9a-f]{64}", documento_hash
+    ), f"hash sem prefixo de versão FA-A1: {documento_hash!r}"
 
 
 @pytest.mark.django_db(transaction=True)
