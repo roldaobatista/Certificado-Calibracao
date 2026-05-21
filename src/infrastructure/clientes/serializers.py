@@ -7,6 +7,8 @@ Versao do texto e capturada automaticamente da constante VERSAO_VIGENTE
 
 from __future__ import annotations
 
+from datetime import date
+
 from rest_framework import serializers
 
 from src.domain.shared.value_objects import CNPJ, CPF
@@ -16,6 +18,10 @@ from src.infrastructure.clientes.lgpd import (
     VERSAO_VIGENTE,
 )
 from src.infrastructure.clientes.models import Cliente, TipoPessoa
+from src.infrastructure.clientes.validators_pii_sensivel import (
+    MENSAGEM_REJEICAO,
+    conter_pii_sensivel,
+)
 
 
 class ClienteSerializer(serializers.ModelSerializer):
@@ -47,6 +53,8 @@ class ClienteSerializer(serializers.ModelSerializer):
             "nome_fantasia",
             "email",
             "telefone",
+            "data_nascimento",
+            "observacao",
             "aceite_lgpd_em",
             "aceite_lgpd_versao",
             "aceite_lgpd_ip_hash",
@@ -109,6 +117,37 @@ class ClienteSerializer(serializers.ModelSerializer):
             attrs["aceite_lgpd_versao"] = VERSAO_VIGENTE
             if not attrs.get("aceite_lgpd_origem"):
                 attrs["aceite_lgpd_origem"] = "CADASTRO_DIRETO"
+
+        # =====================================================
+        # T-CLI-118 (AC-CLI-006-5) — idade >= 18 em CREATE+UPDATE
+        # BLOQ-A6 advogado + BLOQ-TL-1 tech-lead.
+        # CHECK constraint cobre defesa em profundidade no banco.
+        # =====================================================
+        data_nasc = attrs.get("data_nascimento")
+        if data_nasc is not None:
+            hoje = date.today()
+            # Cálculo idade sem dateutil: diferença em anos com ajuste
+            # se ainda não fez aniversário no ano corrente.
+            idade = hoje.year - data_nasc.year
+            if (hoje.month, hoje.day) < (data_nasc.month, data_nasc.day):
+                idade -= 1
+            if idade < 18:
+                raise serializers.ValidationError(
+                    {
+                        "data_nascimento": (
+                            "dados de criança/adolescente não são tratados "
+                            "no Aferê MVP-1 (LGPD art. 14 + NG-CLI-12)"
+                        )
+                    }
+                )
+
+        # =====================================================
+        # T-CLI-117 (AC-CLI-006-4) — anti-PII sensível em `observacao`
+        # BLOQ-A1/A3 advogado + BLOQ-TL-2 tech-lead.
+        # =====================================================
+        obs = attrs.get("observacao", "")
+        if obs and conter_pii_sensivel(obs):
+            raise serializers.ValidationError({"observacao": MENSAGEM_REJEICAO})
 
         return attrs
 

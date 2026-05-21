@@ -83,7 +83,12 @@ class Migration(migrations.Migration):
                 ),
                 ("tenant_id", models.UUIDField(db_index=True)),
                 ("ts", models.DateTimeField(auto_now_add=True, db_index=True)),
-                ("ok", models.BooleanField()),
+                (
+                    "ok",
+                    models.BooleanField(
+                        help_text="True = gravação OK; False = registrar_acesso_dados_cliente levantou."
+                    ),
+                ),
             ],
             options={
                 "db_table": "breaker_acesso_pii_evento",

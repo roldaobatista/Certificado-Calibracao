@@ -198,6 +198,21 @@ class Cliente(models.Model):
     )
 
     # =============================================================
+    # US-CLI-006 — campos para direitos do titular (T-CLI-117/118)
+    # =============================================================
+    data_nascimento = models.DateField(
+        null=True,
+        blank=True,
+        help_text="LGPD art. 14 + NG-CLI-12: cadastro PF < 18 anos rejeitado "
+        "(CHECK constraint no banco). PJ deixa em branco.",
+    )
+    observacao = models.TextField(
+        blank=True,
+        help_text="Campo livre — passa por validador anti-PII sensivel "
+        "(LGPD art. 11 + NG-CLI-11) no serializer.",
+    )
+
+    # =============================================================
     # Soft-delete (US-CLI-005). R3 advogado: NAO eh direito ao esquecimento
     # (LGPD art. 18 VI — esse vai pra crypto-shredding em portal Wave B).
     # Soft-delete eh correcao de qualidade (art. 6 V) + retencao (art. 16 II +
