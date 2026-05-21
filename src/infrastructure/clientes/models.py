@@ -218,6 +218,14 @@ class Cliente(models.Model):
         "Quando setado, base CONSENTIMENTO deixa de aplicar; outras bases "
         "(EXECUCAO_CONTRATO/OBRIG_LEGAL/LEGITIMO_INTERESSE) subsistem.",
     )
+    pii_regularizacao_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="T-CLI-106 (AC-CLI-003-7): cliente importado com origem "
+        "IMPORTACAO_LEGADA fica em ESTADO RESTRITO (NULL aqui) — sem campanhas "
+        "marketing, sem compartilhamento intermodular — até regularização. "
+        "Tenant regulariza via fluxo de aceite formal → seta este timestamp.",
+    )
 
     # =============================================================
     # Soft-delete (US-CLI-005). R3 advogado: NAO eh direito ao esquecimento

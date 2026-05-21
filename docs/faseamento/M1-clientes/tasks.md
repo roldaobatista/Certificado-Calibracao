@@ -67,7 +67,7 @@ relacionados:
 | AC-CLI-003-4 | OK | dedup lote `(tenant_id, tipo_pessoa, documento)` (INV-024); idempotência por `Idempotency-Key`. |
 | AC-CLI-003-5 | OK | `csv_safety.py:21` `sanitizar_celula_csv` chamada em export (`repositories.py:308-311`); SANEA-03 fechado em `e123c4a`. |
 | AC-CLI-003-6 | OK | `PII_HASH_KEY` server-side (F-A); SANEA-02 fechado em `a98b3d5`. |
-| **AC-CLI-003-7** | **GAP** | **T-CLI-106**: origens atuais (`lgpd.py:42-47`) não batem com spec (`CADASTRO_DIRETO`/`IMPORTACAO_LEGADA`/`MIGRACAO_SISTEMA_ANTERIOR`); flag `pii_regularizacao_em` ausente; estado restrito não modelado. Migration alinhando enum + flag + dashboard regularização (este último = GATE-CLI-4). |
+| AC-CLI-003-7 | ✅ FECHADO | **T-CLI-106** (2026-05-20): enum origens alinhado em T-CLI-101 (CADASTRO_DIRETO/IMPORTACAO_LEGADA/MIGRACAO_SISTEMA_ANTERIOR). Campo `pii_regularizacao_em` adicionado (migration 0023). Helper `cliente_em_estado_restrito` + `regularizar_aceite_legado` em `estado_restrito.py`. Dashboard regularização = GATE-CLI-4 Wave A. |
 
 ### US-CLI-004 — Bloqueio comercial
 
@@ -115,8 +115,8 @@ relacionados:
 ## Resumo P3 (atualizado 2026-05-20)
 
 - **OK:** 24 (cadastro core, audit access, importação core, bloqueio core, dedup atomic).
-- **GAP / FECHADO em P4:** 13 ✅ → T-CLI-101 + T-CLI-102 + T-CLI-103 + T-CLI-104 + T-CLI-105 + T-CLI-107 + T-CLI-110 + T-CLI-113 + T-CLI-115 + T-CLI-117 + T-CLI-118 + T-CLI-119 + T-CLI-120.
-- **GAP / pendente:** 5 (T-CLI-106 + T-CLI-108 + T-CLI-109 + T-CLI-111 + T-CLI-112).
+- **GAP / FECHADO em P4:** 16 ✅ → T-CLI-101 + T-CLI-102 + T-CLI-103 + T-CLI-104 + T-CLI-105 + T-CLI-106 + T-CLI-107 + T-CLI-110 + T-CLI-111 + T-CLI-112 + T-CLI-113 + T-CLI-115 + T-CLI-117 + T-CLI-118 + T-CLI-119 + T-CLI-120.
+- **GAP / pendente:** 2 (T-CLI-108 + T-CLI-109 — payload Cliente.Bloqueado + predicate bloqueado_para_entrega; ambos GATE módulos futuros).
 - **TRACK / GATE Wave A:** 2 (T-CLI-114 + T-CLI-116 → GATE-CLI-US006-3d; ADR-0021 abre o caminho).
 - **TRACK:** 6 (GATE-CLI-1..6 — Wave A; não bloqueia fechamento).
 

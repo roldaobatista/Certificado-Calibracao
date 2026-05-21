@@ -269,23 +269,41 @@ não-regredido (F-A intacta).
     ADR-0021 (Anonimização vs retenção regulatória — 3 zonas A/B/C)
     fecha a decisão arquitetural; implementação real Wave A.
 
+- **T-CLI-111 + T-CLI-112 ✅ FECHADO via fast-track** (commit
+  `9c1ee21`, 2026-05-20): dedup compare GET + tipo_mesclagem + evidencia
+  obrigatória M&A. Migração débito técnico: `mesclar()` agora usa
+  `publicar_evento` (helper único — SANEA-08). 9 testes. Spec clara
+  → fast-track sem reviews paralelos.
+
+- **T-CLI-106 ✅ FECHADO via fast-track** (commit pendente, 2026-05-20):
+  importação legada — campo `pii_regularizacao_em` + helpers
+  `cliente_em_estado_restrito` + `regularizar_aceite_legado`. Enum
+  origens já alinhado em T-CLI-101 (CADASTRO_DIRETO/IMPORTACAO_LEGADA/
+  MIGRACAO_SISTEMA_ANTERIOR). 7 testes. Dashboard regularização =
+  GATE-CLI-4 Wave A.
+
 ## Próximo passo (retomar) — tarefa ativa
 
-**P4 continua — 5 T-CLI restantes**. Sequência:
+**P4 quase concluído — 2 T-CLI restantes** (ambos GATE módulos futuros):
 
-1. T-CLI-111 + T-CLI-112 (GET dedup compare + tipo_mesclagem +
-   evidencia_documental_id) — fecha US-CLI-005
-2. T-CLI-106 (importação legada — alinhamento origens com mapa canônico)
-3. T-CLI-108 + T-CLI-109 (payload Cliente.Bloqueado + predicate
-   bloqueado_para_entrega) — gates módulos futuros
+1. T-CLI-108 (payload Cliente.Bloqueado com agendamentos futuros) —
+   GATE-CLI-7 (depende de módulo `operacao/agenda` Wave A).
+2. T-CLI-109 (predicate `cliente.bloqueado_para_entrega`) —
+   GATE-CLI-8 (depende de módulo `operacao/certificados` Wave A).
+
+Ambos podem virar GATE rastreável SEM bloquear fechamento do Marco 1
+porque os consumers ainda não existem. Decisão Roldão pra preencher
+agora ou diferir.
 
 P5 (10 auditores Família 5 sobre o Marco 1 inteiro, loop até PASS
-zero CRÍTICO/ALTO/MÉDIO) só quando P4 concluído e drill
-`validar_m1_clientes` (T-CLI a desenhar) verde.
+zero CRÍTICO/ALTO/MÉDIO) destrava quando P4 concluído (16 fechados +
+2 GATE módulos futuros + 2 GATE Wave A) e drill `validar_m1_clientes`
+(T-CLI a desenhar) verde.
 
 ## Fila
 
 #6 flake visão-360 ✅ + #7 lint sweep ✅ + #8 médios rodada 2 F-A ✅ +
-Marco 1 P1+P2+P3 ✅ + 13 T-CLI fechados (101/102/103/104/105/107/110/
-113/115/117/118/119/120) + 2 GATE Wave A (114/116). Próxima:
-T-CLI-111/112 (dedup compare) → restantes (5 tarefas) → P5.
+Marco 1 P1+P2+P3 ✅ + 16 T-CLI fechados (101/102/103/104/105/106/107/
+110/111/112/113/115/117/118/119/120) + 4 GATE rastreados
+(114/116 US-CLI-006-3d; 108/109 módulos futuros). Próxima:
+T-CLI-108/109 → P5 (10 auditores Família 5 sobre Marco 1 inteiro).
