@@ -344,3 +344,80 @@ class BreakerAcessoPIIEvento(models.Model):
     def __str__(self) -> str:
         marca = "ok" if self.ok else "falhou"
         return f"{self.ts:%Y-%m-%d %H:%M:%S} tenant={self.tenant_id} [{marca}]"
+
+
+class FinalidadeTratamentoCliente(models.TextChoices):
+    """T-CLI-120 / AC-CLI-006-7 — finalidades de tratamento (LGPD art. 37).
+
+    Distinto de `FinalidadeAcessoCliente` (que e LEITURA — INV-013).
+    Aqui sao operacoes de MUTACAO/EXPORTACAO/COMPARTILHAMENTO sobre
+    o cliente — inventario que ANPD pede em fiscalizacao.
+    """
+
+    CADASTRO = "cadastro", "Cadastro inicial"
+    EDICAO = "edicao", "Edicao de cadastro"
+    EXPORT = "export", "Exportacao de dados do cliente"
+    COMPARTILHAMENTO_INTERMODULAR = (
+        "compartilhamento_intermodular",
+        "Compartilhamento entre modulos do Afere (OS, NF, etc)",
+    )
+
+
+class OperacaoTratamentoCliente(models.Model):
+    """T-CLI-120 (AC-CLI-006-7) — registro de operacoes art. 37 LGPD.
+
+    Inventario de tratamentos pedido pela ANPD em fiscalizacao. Distinto
+    do AcessoDadosCliente (que e log de LEITURA — INV-013).
+
+    INSERT-only — trigger PG anti-mutation. RLS FORCE igual padroes
+    do projeto.
+
+    BLOQ-A7 advogado: payload guarda `base_legal` + `finalidade_negocial`
+    (nao so `finalidade` operacional) — registro completo art. 37
+    inclui essas duas dimensoes.
+
+    BLOQ-TL-T4 tech-lead: gravacao via trigger PG `AFTER INSERT/UPDATE
+    ON clientes` (signal Django nao pega `.update()`/`bulk_update`/raw
+    SQL — frágil). Trigger usa `app.usuario_id` + `app.modo_sistema`
+    pra detectar contexto.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant_id = models.UUIDField(db_index=True)
+    cliente_id = models.UUIDField(db_index=True)
+    usuario_id = models.UUIDField(null=True, blank=True, db_index=True)
+    finalidade = models.CharField(
+        max_length=40,
+        choices=FinalidadeTratamentoCliente.choices,
+        help_text="Enum FinalidadeTratamentoCliente. CHECK no banco.",
+    )
+    payload = models.JSONField(
+        default=dict,
+        help_text="`base_legal` + `finalidade_negocial` (BLOQ-A7 advogado) "
+        "+ metadados sanitizados.",
+    )
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        app_label = "audit"
+        db_table = "operacao_tratamento_cliente"
+        verbose_name = "Operacao de tratamento de cliente (LGPD art. 37)"
+        verbose_name_plural = "Operacoes de tratamento de clientes"
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(
+                fields=["tenant_id", "cliente_id", "-timestamp"],
+                name="ix_op_trat_tenant_cli_ts",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.timestamp:%Y-%m-%d %H:%M} cli={self.cliente_id} ({self.finalidade})"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if self.pk is not None and OperacaoTratamentoCliente.objects.filter(pk=self.pk).exists():
+            raise RuntimeError("OperacaoTratamentoCliente e INSERT-only (LGPD art. 37).")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        raise RuntimeError("OperacaoTratamentoCliente e INSERT-only (LGPD art. 37).")
