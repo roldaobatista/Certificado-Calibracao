@@ -11,11 +11,22 @@ ENV PYTHONUNBUFFERED=1 \
     POETRY_NO_INTERACTION=1 \
     POETRY_VERSION=1.8.3
 
-# Pacotes do sistema necessarios pro psycopg + build de extensoes nativas
+# Pacotes do sistema necessarios pro psycopg + build de extensoes nativas +
+# WeasyPrint (Marco 2 T-EQP-002 — TL1 tech-lead):
+#   libpango/libcairo/libgdk-pixbuf — renderizacao HTML->PDF
+#   fonts-dejavu-core — fonte padrao garantida em container slim
+#   shared-mime-info — deteccao de tipos pelas libs Pango/Cairo
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         libpq-dev \
         curl \
+        libpango-1.0-0 \
+        libpangoft2-1.0-0 \
+        libcairo2 \
+        libgdk-pixbuf-2.0-0 \
+        libffi-dev \
+        shared-mime-info \
+        fonts-dejavu-core \
         && rm -rf /var/lib/apt/lists/*
 
 RUN pip install "poetry==${POETRY_VERSION}"

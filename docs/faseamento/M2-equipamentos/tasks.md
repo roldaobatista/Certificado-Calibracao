@@ -34,7 +34,7 @@ Convenção:
 | AC | Estado | T-EQP / nota |
 |----|--------|--------------|
 | AC-EQP-001-1 | GAP | T-EQP-001 (modelo `Equipamento` + migration RLS + viewset POST) |
-| AC-EQP-001-2 | GAP | T-EQP-002 (PDF etiqueta WeasyPrint + libpango) |
+| AC-EQP-001-2 | **OK** | T-EQP-002 ✅ FECHADO 2026-05-21: WeasyPrint 62.3 + libpango/libcairo no `Dockerfile` (TL1 tech-lead) + `services_etiqueta.py` (`garantir_qrcode_vigente` idempotente + `gerar_etiqueta_pdf` 60×40mm) + template `templates/equipamentos/etiqueta_qr.html` (TAG+NS+fabricante+modelo+nome_fantasia, sem PII cliente) + `EquipamentoViewSet` action `etiqueta` (POST `/api/v1/equipamentos/{id}/etiqueta.pdf/`) + seed authz `equipamentos.ler`/`equipamentos.imprimir_etiqueta` (migration 0004) + 7 testes T-EQP-002 (happy + idempotência + cross-tenant 404 + authz 403 + anti-PII). Cache `private, max-age=60`. Suite 510 passed. |
 | AC-EQP-001-2b | GAP | T-EQP-003 (POST /etiqueta.pdf exige `Idempotency-Key` — P-EQP-T6) |
 | AC-EQP-001-3 | GAP | T-EQP-004 (UNIQUE parcial `(tenant_id, tag) WHERE deletado_em IS NULL`) |
 | AC-EQP-001-4 | GAP | T-EQP-005 (`INV-EQP-LOC-001` validator + serializer) |

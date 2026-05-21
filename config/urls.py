@@ -24,4 +24,5 @@ urlpatterns = [
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
     # Wave A modulos
     path("api/v1/", include("src.infrastructure.clientes.urls")),
+    path("api/v1/", include("src.infrastructure.equipamentos.urls")),
 ]

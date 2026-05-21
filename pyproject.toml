@@ -20,6 +20,17 @@ whitenoise = "^6.6.0"
 structlog = "^24.1.0"
 argon2-cffi = "^23.1.0"
 django-otp = "^1.4.0"
+# Marco 2 — etiqueta PDF de equipamento (T-EQP-002 / AC-EQP-001-2 / TL1
+# tech-lead). WeasyPrint renderiza HTML+CSS->PDF via libpango/libcairo
+# (instalados no Dockerfile); qrcode gera SVG/PNG do hash QR (consumido
+# de QRCode.hash da fundacao T-EQP-006). Sem alternativa puramente Python
+# para fidelidade tipografica de etiqueta fisica.
+weasyprint = "^62.3"
+# pydyf < 0.11 obrigatorio com WeasyPrint 62.x (incompatibilidade com
+# 0.11+ — AttributeError em pydyf.Stream.transform). Pin via
+# constraint direta (poetry escolheria 0.12+ que quebra import).
+pydyf = "<0.11"
+qrcode = {version = "^7.4.2", extras = ["pil"]}
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.4.10"
@@ -107,7 +118,10 @@ exclude = [
 django_settings_module = "config.settings.dev"
 
 [[tool.mypy.overrides]]
-module = ["procrastinate.*", "factory.*", "semgrep.*", "environ.*", "django_otp.*"]
+module = [
+    "procrastinate.*", "factory.*", "semgrep.*", "environ.*", "django_otp.*",
+    "qrcode", "qrcode.*", "weasyprint", "weasyprint.*",
+]
 ignore_missing_imports = true
 
 # Views DRF, serializers e admin herdam metodos `request`/`save` com
@@ -121,6 +135,8 @@ module = [
     "src.infrastructure.clientes.admin",
     "src.infrastructure.clientes.management.commands.job_inadimplencia_alertas",
     "src.infrastructure.equipamentos.admin",
+    "src.infrastructure.equipamentos.views",
+    "src.infrastructure.equipamentos.serializers",
     "src.infrastructure.authz.views",
     "src.infrastructure.authz.serializers",
     "src.infrastructure.authz.admin",
