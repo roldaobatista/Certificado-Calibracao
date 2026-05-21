@@ -38,7 +38,7 @@ Convenção:
 | AC-EQP-001-2b | GAP | T-EQP-003 (POST /etiqueta.pdf exige `Idempotency-Key` — P-EQP-T6) |
 | AC-EQP-001-3 | GAP | T-EQP-004 (UNIQUE parcial `(tenant_id, tag) WHERE deletado_em IS NULL`) |
 | AC-EQP-001-4 | GAP | T-EQP-005 (`INV-EQP-LOC-001` validator + serializer) |
-| AC-EQP-001-5 | GAP | T-EQP-006 (`SEC-QR-001` — QR HMAC versionado + `QR_HMAC_KEY_REGISTRO` + hook `qr-hmac-check.sh`) |
+| AC-EQP-001-5 | **OK** | T-EQP-006 ✅ FECHADO 2026-05-21: `QR_HMAC_KEY_REGISTRO` em `config/settings/base.py` (reuso `_RegistroChavesPII` com prefixo `qrN:`) + helper único `src/infrastructure/equipamentos/services_qr.py` + modelo `QRCode` com UNIQUE+RLS+trigger imutabilidade em migration `0003_qrcode.py` + hook `qr-hmac-check.sh` (11 casos no `_test-runner`) + 18 testes em `tests/regressao/test_sec_qr_001_hmac_versionado.py` + entrada `SEC-QR-001` registrada em `REGRAS-INEGOCIAVEIS.md`. Suite 503 passed. |
 | AC-EQP-001-6 | GAP | T-EQP-007 (evento `Equipamento.Criado` via `publicar_evento(outbox=True)`) |
 | AC-EQP-001-7 | GAP | T-EQP-008 (`INV-EQP-001` — `perfil_tenant_snapshot` JSONB imutável via trigger PG) |
 | AC-EQP-001-7b | GAP | T-EQP-009 (função `promover_perfil_equipamento_snapshot` D→A — P-EQP-T4) |

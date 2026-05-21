@@ -274,5 +274,20 @@ run_case "RG11 CONSOLIDADO MEDIO resolvido"    PASS  ritual-gate-check.sh '{"too
 run_case "RG12 Edit new_string tambem vale"    BLOCK ritual-gate-check.sh '{"tool_input":{"file_path":".agent/CURRENT.md","new_string":"STORY FECHADA\nCRÍTICO 1: vazamento cross-tenant em aberto"}}'
 
 echo ""
+echo "===== qr-hmac-check (SEC-QR-001 / INV-EQP-QR-NUNCA-RECOMPUTA / P-EQP-T1) ====="
+
+run_case "QR1 hardcode QR_HMAC_KEY literal"          BLOCK qr-hmac-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"QR_HMAC_KEY = \"segredo123\""}}'
+run_case "QR2 hmac.new fora services_qr"             BLOCK qr-hmac-check.sh '{"tool_input":{"file_path":"src/infrastructure/x.py","content":"hmac.new(QR_HMAC_KEY_REGISTRO.chave_ativa(), msg, hashlib.sha256)"}}'
+run_case "QR3 acesso .chave_ativa fora services_qr"  BLOCK qr-hmac-check.sh '{"tool_input":{"file_path":"src/x.py","content":"chave = settings.QR_HMAC_KEY_REGISTRO.chave_ativa()"}}'
+run_case "QR4 prod.py derivada SECRET_KEY"           BLOCK qr-hmac-check.sh '{"tool_input":{"file_path":"config/settings/prod.py","content":"QR_HMAC_KEY_REGISTRO = derivar_de(SECRET_KEY)"}}'
+run_case "QR5 services_qr.py auto-allow hmac.new"    PASS  qr-hmac-check.sh '{"tool_input":{"file_path":"src/infrastructure/equipamentos/services_qr.py","content":"hmac.new(QR_HMAC_KEY_REGISTRO.chave_ativa(), msg, hashlib.sha256)"}}'
+run_case "QR6 tests/ ignora"                         PASS  qr-hmac-check.sh '{"tool_input":{"file_path":"tests/test_qr.py","content":"hmac.new(QR_HMAC_KEY_REGISTRO.chave_ativa(), msg, hashlib.sha256)"}}'
+run_case "QR7 migrations/ ignora"                    PASS  qr-hmac-check.sh '{"tool_input":{"file_path":"src/x/migrations/0003.py","content":"hmac.new(QR_HMAC_KEY_REGISTRO.chave_ativa(), msg, hashlib.sha256)"}}'
+run_case "QR8 override com motivo"                   PASS  qr-hmac-check.sh '{"tool_input":{"file_path":"src/x.py","content":"# qr-hmac: skip -- audit forense puntual de etiqueta antiga ADR-XXX\nhmac.new(QR_HMAC_KEY_REGISTRO.chave_ativa(), msg, hashlib.sha256)"}}'
+run_case "QR9 .md ignora"                            PASS  qr-hmac-check.sh '{"tool_input":{"file_path":"docs/x.md","content":"QR_HMAC_KEY = \"abc12345\""}}'
+run_case "QRa base.py settings tem registry OK"      PASS  qr-hmac-check.sh '{"tool_input":{"file_path":"config/settings/base.py","content":"QR_HMAC_KEY_REGISTRO = _RegistroChavesPII(QR_HMAC_KEY_ID, _qr_chaves)"}}'
+run_case "QRb codigo sem QR_HMAC sem-op"             PASS  qr-hmac-check.sh '{"tool_input":{"file_path":"src/x.py","content":"def foo(): return 1"}}'
+
+echo ""
 echo "===== resumo: $pass ok, $fail falhas ====="
 exit $fail

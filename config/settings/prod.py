@@ -23,6 +23,8 @@ DEBUG = False
 _secret_key = env("DJANGO_SECRET_KEY", default="")
 _pii_key = env("PII_HASH_KEY", default="")
 _pii_key_id = env("PII_HASH_KEY_ID", default="")
+_qr_key = env("QR_HMAC_KEY", default="")
+_qr_key_id = env("QR_HMAC_KEY_ID", default="")
 _allowed = env("DJANGO_ALLOWED_HOSTS", default=[])
 
 if len(_secret_key) < 50:
@@ -37,6 +39,23 @@ if len(_pii_key) < 32:
     )
 if not _pii_key_id:
     raise ImproperlyConfigured("prod: PII_HASH_KEY_ID obrigatorio (FA-A1).")
+# SEC-QR-001 (Marco 2): mesma exigencia de PII — chave dedicada, sem
+# derivacao de SECRET_KEY em prod. Hashes QR sobrevivem ate 25 anos
+# (RBC cl. 4.2); acoplar a SECRET_KEY = nunca rotacionar SECRET_KEY.
+if len(_qr_key) < 32:
+    raise ImproperlyConfigured(
+        "prod: QR_HMAC_KEY dedicada ausente ou < 32 chars. NAO ha derivacao "
+        "de SECRET_KEY em prod (SEC-QR-001: hash de QR fisico sobrevive 25 "
+        "anos; rotacao de SECRET_KEY nao pode invalidar etiqueta impressa). "
+        "Chave SEPARADA do PII_HASH_KEY — rotacoes desacopladas."
+    )
+if not _qr_key_id:
+    raise ImproperlyConfigured("prod: QR_HMAC_KEY_ID obrigatorio (SEC-QR-001).")
+if _qr_key == _pii_key:
+    raise ImproperlyConfigured(
+        "prod: QR_HMAC_KEY identica a PII_HASH_KEY. Chaves DEVEM ser "
+        "distintas — uso e politica de rotacao diferentes (SEC-QR-001)."
+    )
 if not _allowed:
     raise ImproperlyConfigured("prod: DJANGO_ALLOWED_HOSTS obrigatorio.")
 

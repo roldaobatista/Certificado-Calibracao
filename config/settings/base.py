@@ -51,13 +51,24 @@ ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
 
 
 class _RegistroChavesPII:
-    """Cofre de chaves de HMAC de PII. Nunca expoe bytes em repr/str/log."""
+    """Cofre versionado de chaves HMAC. Nunca expoe bytes em repr/str/log.
 
-    def __init__(self, ativa_id: str, chaves: dict[str, bytes]) -> None:
+    Originalmente criado pra PII (FA-A1); reutilizado pelo QR HMAC do Marco 2
+    (SEC-QR-001) — comportamento e identico: id ativa + dict de chaves +
+    redacao em repr. Nome herdado por compatibilidade do test_fa_a1.
+    """
+
+    def __init__(
+        self,
+        ativa_id: str,
+        chaves: dict[str, bytes],
+        env_var_nome: str = "PII_HASH_KEY_ID",
+    ) -> None:
         if ativa_id not in chaves:
-            raise ValueError(f"PII_HASH_KEY_ID={ativa_id!r} ausente do registry de chaves")
+            raise ValueError(f"{env_var_nome}={ativa_id!r} ausente do registry de chaves")
         self._ativa_id = ativa_id
         self._chaves = chaves
+        self._env_var_nome = env_var_nome
 
     @property
     def ativa_id(self) -> str:
@@ -75,32 +86,33 @@ class _RegistroChavesPII:
 
     def __repr__(self) -> str:
         return (
-            f"<RegistroChavesPII: ids={sorted(self._chaves)} "
+            f"<RegistroChavesPII({self._env_var_nome}): ids={sorted(self._chaves)} "
             f"ativa={self._ativa_id!r} (redacted)>"
         )
 
     __str__ = __repr__
 
 
-def _parse_chaves_aposentadas(bruto: str) -> dict[str, bytes]:
+def _parse_chaves_aposentadas(
+    bruto: str, env_var_nome: str = "PII_HASH_KEYS_RETIRED"
+) -> dict[str, bytes]:
     """Parseia "v0:seg0,v-1:segX". Malformado => ValueError (nunca silencio).
 
     String inteira vazia => {} (sem chaves aposentadas — caso normal). Mas
     token vazio entre vírgulas ("v0:s,,v1:t" / vírgula final) é malformado e
-    levanta (T2 tech-lead: nunca silenciar config torta).
+    levanta (T2 tech-lead: nunca silenciar config torta). `env_var_nome` aparece
+    na mensagem de erro pra distinguir PII vs QR no traceback.
     """
     chaves: dict[str, bytes] = {}
     if not bruto.strip():
         return chaves
     for par in (p.strip() for p in bruto.split(",")):
         if not par:
-            raise ValueError(
-                "PII_HASH_KEYS_RETIRED malformado: token vazio " "(virgula dupla/final)"
-            )
+            raise ValueError(f"{env_var_nome} malformado: token vazio (virgula dupla/final)")
         kid, sep, seg = par.partition(":")
         kid, seg = kid.strip(), seg.strip()
         if not sep or not kid or not seg:
-            raise ValueError(f"PII_HASH_KEYS_RETIRED malformado: {par!r} (esperado 'id:segredo')")
+            raise ValueError(f"{env_var_nome} malformado: {par!r} (esperado 'id:segredo')")
         chaves[kid] = seg.encode("utf-8")
     return chaves
 
@@ -117,6 +129,43 @@ _pii_chaves: dict[str, bytes] = {
     PII_HASH_KEY_ID: _pii_chave_ativa,
 }
 PII_HASH_KEY_REGISTRO = _RegistroChavesPII(PII_HASH_KEY_ID, _pii_chaves)
+
+# =============================================================
+# QR_HMAC_KEY_REGISTRO — Marco 2 SEC-QR-001 (P-EQP-T1 BLOQUEANTE absorvido)
+#
+# Mesmo padrao versionado de PII_HASH_KEY_REGISTRO (FA-A1), aplicado ao
+# HMAC-SHA256 do hash do QR Code de equipamento (INV-051 / SEC-QR-001).
+# Prefixo `qrN:` em vez de `vN:` pra distinguir explicitamente o uso e
+# permitir auditoria visual rapida no log.
+#
+# Por que chave SEPARADA do PII:
+#   - Superficie de ataque distinta: PII hash vive em audit/dados sensiveis;
+#     QR hash circula em etiquetas FISICAS impressas (foto pra phishing,
+#     fotocopia, OCR). Rotacionar QR hash NAO deve impactar audit.
+#   - Domains de rotacao distintos: QR sobrevive 25 anos (RBC cl. 4.2);
+#     PII rotaciona conforme politica LGPD (T-FA-04). Acoplar = nunca rotacionar.
+#   - `INV-EQP-QR-NUNCA-RECOMPUTA`: validacao consulta tabela `QRCode`, nunca
+#     recomputa HMAC. Chave so existe pra GERAR hash, nao pra verificar.
+#
+# Hook `qr-hmac-check.sh` valida:
+#   - `QR_HMAC_KEY` ausente do namespace (so registry exposto)
+#   - hardcode literal `QR_HMAC_KEY_REGISTRO = ...` proibido fora settings
+#   - `hmac.new(QR_HMAC_KEY_REGISTRO.*)` so dentro de
+#     src/infrastructure/equipamentos/services_qr.py (helper unico).
+QR_HMAC_KEY_ID: str = env("QR_HMAC_KEY_ID", default="qr1")
+_qr_hmac_key_env = env("QR_HMAC_KEY", default="")
+_qr_chave_ativa: bytes = (
+    _qr_hmac_key_env.encode("utf-8")
+    if _qr_hmac_key_env
+    else hashlib.sha256(f"afere-qr-hmac-qr1:{SECRET_KEY}".encode()).digest()
+)
+_qr_chaves: dict[str, bytes] = {
+    **_parse_chaves_aposentadas(
+        env("QR_HMAC_KEYS_RETIRED", default=""), env_var_nome="QR_HMAC_KEYS_RETIRED"
+    ),
+    QR_HMAC_KEY_ID: _qr_chave_ativa,
+}
+QR_HMAC_KEY_REGISTRO = _RegistroChavesPII(QR_HMAC_KEY_ID, _qr_chaves, env_var_nome="QR_HMAC_KEY_ID")
 
 # =============================================================
 # Apps

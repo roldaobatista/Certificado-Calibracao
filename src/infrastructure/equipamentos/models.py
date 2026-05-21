@@ -194,3 +194,85 @@ class Equipamento(models.Model):
 
     def __str__(self) -> str:
         return f"{self.tag} ({self.fabricante} {self.modelo})"
+
+
+class QRCodeAtivosManager(models.Manager["QRCode"]):
+    """Default manager — filtra revogados; equivalente a `qrcode_vigente`."""
+
+    def get_queryset(self) -> models.QuerySet[QRCode]:
+        return super().get_queryset().filter(revogado_em__isnull=True)
+
+
+class QRCode(models.Model):
+    """Hash QR HMAC-versionado vinculado a um equipamento (SEC-QR-001 / INV-051).
+
+    Cada cadastro de equipamento gera UM `QRCode` ativo. Re-emissao
+    (mudanca de TAG, perda fisica de etiqueta) cria NOVO registro e
+    revoga o anterior gravando `revogado_em` (soft-revoke; INSERT-only
+    pra historico). Validacao de scan via
+    `verificar_qr_hash_em_tabela` (consulta UNIQUE; nunca recomputa —
+    `INV-EQP-QR-NUNCA-RECOMPUTA`).
+
+    `hash` armazena o digest COMPLETO incluindo prefixo `qrN:` —
+    permite resolver versao da chave em tempo de auditoria sem
+    metadado paralelo.
+
+    Trigger PG `qrcode_imutavel_pos_insert` bloqueia UPDATE em todos os
+    campos exceto `revogado_em` (LGPD art. 6º V exatidao + ISO 17025
+    cl. 7.5 imutabilidade de identificadores).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="qrcodes",
+        help_text="Denormalizado pra RLS (mesmo padrao Marco 1).",
+    )
+    equipamento = models.ForeignKey(
+        Equipamento,
+        on_delete=models.PROTECT,
+        related_name="qrcodes",
+        help_text="Equipamento ao qual este QR pertence.",
+    )
+    hash = models.CharField(
+        max_length=255,
+        unique=True,
+        help_text=(
+            "Digest completo `qrN:base64url(...)`. UNIQUE global — colisao "
+            "entre tenants e cripto-impossivel com HMAC-SHA256 com chave de "
+            "servidor; UNIQUE detecta bug em vez de degradar silenciosamente."
+        ),
+    )
+    emitido_em = models.DateTimeField(
+        help_text=(
+            "Timestamp usado no payload do HMAC. Imutavel pos-INSERT. "
+            "Necessario pra reconstruir a evidencia (nao pra recomputar)."
+        ),
+    )
+    revogado_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Quando o hash foi invalidado (re-emissao por mudanca de TAG, "
+            "perda fisica). UNICO campo mutavel apos INSERT."
+        ),
+    )
+    criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    objects = QRCodeAtivosManager()
+    all_objects = models.Manager()  # noqa: DJ012 -- quirk ruff manager tipado (vide Cliente Marco 1)
+
+    class Meta:
+        app_label = "equipamentos"
+        db_table = "equipamentos_qrcode"
+        verbose_name = "QR Code de equipamento"
+        verbose_name_plural = "QR Codes de equipamentos"
+        ordering = ["-criado_em"]
+        indexes = [
+            models.Index(fields=["tenant", "equipamento"]),
+            models.Index(fields=["equipamento", "revogado_em"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"QR {self.hash[:14]}... (eq {self.equipamento_id})"

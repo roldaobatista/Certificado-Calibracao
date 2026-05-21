@@ -176,12 +176,43 @@ class TestGateProd:
         assert "ImproperlyConfigured" in out
         assert "SECRET_KEY" in out
 
-    def test_envs_minimos_importa_e_hardening_ligado(self) -> None:
+    def test_sem_qr_hmac_key_falha_duro(self) -> None:
+        # SEC-QR-001: prod sem QR_HMAC_KEY dedicada nao pode subir.
         out = _rodar_prod(
             {
                 "DJANGO_SECRET_KEY": self.SECRET_OK,
                 "PII_HASH_KEY": "y" * 40,
                 "PII_HASH_KEY_ID": "v1",
+            }
+        ).stdout
+        assert "ImproperlyConfigured" in out
+        assert "QR_HMAC_KEY" in out
+
+    def test_qr_hmac_key_igual_pii_hash_key_falha_duro(self) -> None:
+        # SEC-QR-001: chaves DEVEM ser distintas (politica de rotacao diferente).
+        out = _rodar_prod(
+            {
+                "DJANGO_SECRET_KEY": self.SECRET_OK,
+                "PII_HASH_KEY": "y" * 40,
+                "PII_HASH_KEY_ID": "v1",
+                "QR_HMAC_KEY": "y" * 40,  # IDENTICA -> deve quebrar
+                "QR_HMAC_KEY_ID": "qr1",
+            }
+        ).stdout
+        assert "ImproperlyConfigured" in out
+        assert "identica" in out.lower() or "distintas" in out.lower()
+
+    def test_envs_minimos_importa_e_hardening_ligado(self) -> None:
+        # SEC-QR-001 (Marco 2): prod.py agora tambem exige QR_HMAC_KEY
+        # dedicada (>=32 chars) distinta de PII_HASH_KEY. Suite de gate
+        # absorve a nova exigencia.
+        out = _rodar_prod(
+            {
+                "DJANGO_SECRET_KEY": self.SECRET_OK,
+                "PII_HASH_KEY": "y" * 40,
+                "PII_HASH_KEY_ID": "v1",
+                "QR_HMAC_KEY": "z" * 40,
+                "QR_HMAC_KEY_ID": "qr1",
             }
         ).stdout
         # `in` (nao startswith): sob pytest-cov o subprocesso pode emitir
