@@ -149,6 +149,8 @@ LOCAL_APPS = [
     "src.infrastructure.authz.apps.AuthzConfig",
     # Wave A Marco 1 — Clientes (comercial). PF/PJ + dedup INV-024 + CNPJ alfanumerico.
     "src.infrastructure.clientes.apps.ClientesConfig",
+    # Wave A Marco 2 — Equipamentos (suporte-plataforma). TAG unica + QR HMAC + ISO 17025 cl. 7.4.
+    "src.infrastructure.equipamentos.apps.EquipamentosConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

@@ -120,6 +120,7 @@ module = [
     "src.infrastructure.clientes.serializers",
     "src.infrastructure.clientes.admin",
     "src.infrastructure.clientes.management.commands.job_inadimplencia_alertas",
+    "src.infrastructure.equipamentos.admin",
     "src.infrastructure.authz.views",
     "src.infrastructure.authz.serializers",
     "src.infrastructure.authz.admin",
