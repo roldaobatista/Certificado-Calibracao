@@ -190,6 +190,32 @@ run_case "EH8 override com motivo"                 PASS  event-helper-unico.sh '
 run_case "EH9 .md ignora"                          PASS  event-helper-unico.sh '{"tool_input":{"file_path":"docs/x.md","content":"chame registrar_em_cadeia(...)"}}'
 
 echo ""
+echo "===== lgpd-policy-unica (INV-CLI-002 / SANEA-07) ====="
+
+run_case "LP1 if base_legal == CONSENTIMENTO" BLOCK lgpd-policy-unica.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","content":"if base_legal == \"CONSENTIMENTO\":\n    return Response({})"}}'
+run_case "LP2 if base_legal in tupla"          BLOCK lgpd-policy-unica.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","content":"if base_legal in (\"CONSENTIMENTO\", \"OBRIG_LEGAL\"):\n    pass"}}'
+run_case "LP3 dentro politicas_lgpd.py OK"     PASS  lgpd-policy-unica.sh '{"tool_input":{"file_path":"src/infrastructure/audit/politicas_lgpd.py","content":"if base_legal == \"CONSENTIMENTO\":\n    return BASE_LEGAL_PRESERVADA"}}'
+run_case "LP4 dentro domain/clientes OK"       PASS  lgpd-policy-unica.sh '{"tool_input":{"file_path":"src/domain/comercial/clientes/lgpd_policy.py","content":"if base_legal == \"CONSENTIMENTO\":\n    return False"}}'
+run_case "LP5 dentro lgpd.py (enum) OK"        PASS  lgpd-policy-unica.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/lgpd.py","content":"CONSENTIMENTO = \"CONSENTIMENTO\""}}'
+run_case "LP6 tests/ ignora"                   PASS  lgpd-policy-unica.sh '{"tool_input":{"file_path":"tests/test_x.py","content":"if base_legal == \"CONSENTIMENTO\":\n    assert True"}}'
+run_case "LP7 migration ignora"                PASS  lgpd-policy-unica.sh '{"tool_input":{"file_path":"x/migrations/0001.py","content":"if base_legal == \"CONSENTIMENTO\":\n    pass"}}'
+run_case "LP8 override com motivo"             PASS  lgpd-policy-unica.sh '{"tool_input":{"file_path":"src/x.py","content":"# lgpd-policy: skip -- caso isolado documentado em DR-LGPD-001\nif base_legal == \"CONSENTIMENTO\":\n    pass"}}'
+run_case "LP9 payload com base_legal sem if"   PASS  lgpd-policy-unica.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","content":"payload = {\"base_legal\": \"CONSENTIMENTO\", \"x\": 1}"}}'
+
+echo ""
+echo "===== csv-safety-import (SEC-CSV-001 / SANEA-03) ====="
+
+run_case "CS1 csv.writer sem sanitizar"        BLOCK csv-safety-import.sh '{"tool_input":{"file_path":"src/relatorios/exporter.py","content":"import csv\nw = csv.writer(f)\nw.writerow([\"a\", \"b\"])"}}'
+run_case "CS2 DataFrame.to_csv sem sanitizar"  BLOCK csv-safety-import.sh '{"tool_input":{"file_path":"src/relatorios/x.py","content":"df.to_csv(\"out.csv\", index=False)"}}'
+run_case "CS3 csv.DictWriter sem sanitizar"    BLOCK csv-safety-import.sh '{"tool_input":{"file_path":"src/relatorios/x.py","content":"w = csv.DictWriter(f, fieldnames=[\"a\"])\nw.writerow({\"a\": 1})"}}'
+run_case "CS4 com sanitizar_celula_csv OK"     PASS  csv-safety-import.sh '{"tool_input":{"file_path":"src/relatorios/x.py","content":"from src.infrastructure.clientes.csv_safety import sanitizar_celula_csv\nimport csv\nw = csv.writer(f)\nw.writerow([sanitizar_celula_csv(c) for c in linha])"}}'
+run_case "CS5 csv_safety.py auto-allow"        PASS  csv-safety-import.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/csv_safety.py","content":"w = csv.writer(f)\nw.writerow([\"=\", \"+\"])"}}'
+run_case "CS6 tests/ ignora"                   PASS  csv-safety-import.sh '{"tool_input":{"file_path":"tests/test_csv.py","content":"csv.writer(f).writerow([\"=cmd\"])"}}'
+run_case "CS7 override com motivo"             PASS  csv-safety-import.sh '{"tool_input":{"file_path":"src/x.py","content":"# csv-safety: skip -- saida pra dump interno apenas\ncsv.writer(f).writerow([\"a\", \"b\"])"}}'
+run_case "CS8 sem export — sem-op"             PASS  csv-safety-import.sh '{"tool_input":{"file_path":"src/x.py","content":"def foo(): return 1"}}'
+run_case "CS9 .md ignora"                      PASS  csv-safety-import.sh '{"tool_input":{"file_path":"docs/x.md","content":"csv.writer(f).writerow([\"a\"])"}}'
+
+echo ""
 echo "===== pyproject-validator (descoberto no drill F-A) ====="
 
 run_case "PY1 versao PEP 440 valida"      PASS  pyproject-validator.sh '{"tool_input":{"file_path":"pyproject.toml","content":"[tool.poetry]\nversion = \"0.1.0\""}}'
