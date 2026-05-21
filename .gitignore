@@ -36,6 +36,9 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+# Artefatos do poetry/pip local (geram-se em runtime; nao versionar)
+.cache/
+.local/
 
 # =============================================================
 # Logs

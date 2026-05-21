@@ -3,7 +3,8 @@
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
 **Fase:** Marco 1 **FECHADO** + Marco 2 `equipamentos` em P4 (T-EQP-001
-+ T-EQP-006 + T-EQP-002 entregues). **Modo:** AUTÔNOMO.
++ T-EQP-006 + T-EQP-002 entregues). Sessão encerrada 2026-05-21 noite.
+**Modo:** AUTÔNOMO.
 
 ## Estado da suíte (verificado 2026-05-21 após T-EQP-002)
 
