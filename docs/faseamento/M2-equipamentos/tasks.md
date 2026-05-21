@@ -129,11 +129,11 @@ Convenção:
 
 | AC | Estado | T-EQP / nota |
 |----|--------|--------------|
-| AC-EQP-007-1 | GAP | T-EQP-061 (tabela `ResponsavelTecnicoTenant` + endpoints CRUD) |
-| AC-EQP-007-2 | GAP | T-EQP-062 (`INV-EQP-RT-001` — `EXCLUDE USING GIST` sem sobreposição temporal) |
-| AC-EQP-007-3 | GAP | T-EQP-063 (`RTCompetencia` + carta competência anexo + predicate competência) |
-| AC-EQP-007-4 | GAP | T-EQP-064 (evento `Tenant.RTTrocado` + notificação ANPD/CGCRE 30 dias) |
-| AC-EQP-007-5 | GAP | T-EQP-065 (tabela INSERT-only + trigger anti-mutation) |
+| AC-EQP-007-1 | **OK** | T-EQP-061 ✅ FECHADO 2026-05-22: app `src/infrastructure/responsavel_tecnico/` + modelo `ResponsavelTecnicoTenant` (12 campos: identidade + vigência + encerramento) + migration `0001_initial` com RLS pattern v2 + endpoints CRUD `/api/v1/responsaveis-tecnicos/` (list/retrieve/create/encerrar/trocar/competencias) + seed authz em `0002_seed_authz_acoes` (admin_tenant gerencia; rt_signatario+tecnico leem; gestor_qualidade fica GATE-EQP-RT-AUTHZ Wave A). |
+| AC-EQP-007-2 | **OK** | T-EQP-062 ✅ FECHADO 2026-05-22: `EXCLUDE USING GIST` em `RTCompetencia` `(tenant_id =, grandeza =, daterange(declarado_em, COALESCE(vigente_ate, infinity), '[)') &&)` na migration `0001_initial` (extensão `btree_gist`). Service `declarar_competencia` captura `IntegrityError` e levanta `CompetenciaSobreposta` → endpoint retorna 409. Anti-regressão `tests/regressao/test_inv_eqp_rt_001.py` (happy + unhappy + cross-tenant). |
+| AC-EQP-007-3 | **OK** | T-EQP-063 ✅ FECHADO 2026-05-22: modelo `RTCompetencia(rt_id, grandeza, carta_competencia_anexo_id, declarado_em, vigente_ate)` + predicate `decisor_tem_competencia_para_atividade(decisor_id, atividade, grandeza, tenant_id)` em `predicates.py`. Atividade reservada pra Wave A (matriz separa por categoria); Marco 2 gate é existência de competência. |
+| AC-EQP-007-4 | **OK** | T-EQP-064 ✅ FECHADO 2026-05-22: services `cadastrar_rt`/`encerrar_rt`/`trocar_rt`/`declarar_competencia` publicam eventos via `publicar_evento(outbox=True)`. Ações canônicas adicionadas em `acoes_canonicas.py`: `tenant.rt.cadastrado`/`encerrado`/`trocado`/`competencia_declarada`. Troca dispara 3 eventos (encerrado+cadastrado+trocado agregador). Notificação ANPD/CGCRE 30d via consumer Wave A → GATE-EQP-RT-NOTIF. |
+| AC-EQP-007-5 | **OK** | T-EQP-065 ✅ FECHADO 2026-05-22: trigger PG `rt_imutavel_pos_insert` bloqueia UPDATE em todos os campos exceto `encerrado_em/encerrado_por/motivo_encerramento/motivo_detalhe` (transição única ativo→encerrado). Após `encerrado_em NOT NULL` a linha vira totalmente imutável. CHECK em-trigger garante `encerrado_por` e `motivo_encerramento` obrigatórios em encerramento (atomicidade). |
 
 ### Tarefas transversais (hooks, docs canônicos, suite anti-regressão)
 

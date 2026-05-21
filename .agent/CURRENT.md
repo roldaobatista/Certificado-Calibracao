@@ -3,16 +3,16 @@
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
 **Fase:** Marco 1 **FECHADO** + Marco 2 `equipamentos` em P4 (T-EQP-001
-+ T-EQP-006 + T-EQP-002 + T-EQP-003 entregues). Sessão 2026-05-22.
++ T-EQP-006 + T-EQP-002 + T-EQP-003 + US-EQP-007 entregues). Sessão 2026-05-22.
 **Modo:** AUTÔNOMO.
 
-## Estado da suíte (verificado 2026-05-22 após T-EQP-003)
+## Estado da suíte (verificado 2026-05-22 após US-EQP-007)
 
-- Suite: **518 passed** (+8: 2 header / 1 chave nova / 1 replay / 1 422 / 1 409 / 1 425 / 1 cross-tenant)
-- Hooks: **179/179** verdes (22 ativos — sem hook novo neste T-EQP)
+- Suite: **518 + 13 novos** (10 US-EQP-007 + 3 anti-regressão INV-EQP-RT-001) — alvo 531
+- Hooks: **179/179** verdes (22 ativos — sem hook novo)
 - Cobertura: ≥85% global; ≥90% agregado clientes/ (Marco 1)
 - Drills: `validar_f_a` 5/5 + `validar_f_b` + `validar_m1_clientes` verdes
-- `makemigrations --check`: limpo; ruff + mypy zero issues (123 source files)
+- `makemigrations --check`: limpo; ruff + mypy zero issues (131 source files)
 
 ## Marco 1 `clientes` — FECHADO
 
@@ -49,12 +49,25 @@ rastreados Wave A.
   / 409 (expirada >24h) / 200 (replay determinístico) + 8 testes
   `tests/test_equipamentos_etiqueta_idempotency_t_eqp_003.py`. Tabela
   reusável por US-EQP-002b/004/005/006.
+- **P4 US-EQP-007 ✅** (2026-05-22): RT do tenant (P-EQP-R10 BLOQUEANTE
+  RBC). App `src/infrastructure/responsavel_tecnico/` com 2 modelos
+  (`ResponsavelTecnicoTenant` + `RTCompetencia`), migration `0001`
+  com RLS v2 + extensão `btree_gist` + `EXCLUDE USING GIST` cravando
+  INV-EQP-RT-001 (sem sobreposição temporal por tenant+grandeza) +
+  trigger `rt_imutavel_pos_insert` (12 campos imutáveis, encerramento
+  atômico em 4 campos). Services `cadastrar_rt`/`encerrar_rt`/`trocar_rt`/
+  `declarar_competencia` publicam 4 ações no bus_outbox (`tenant.rt.{
+  cadastrado,encerrado,trocado,competencia_declarada}`). Predicate
+  `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
+  usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
+  competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
 
 ## Próximo passo
 
-1. **US-EQP-007** (T-EQP-061..065): RT tenant (P-EQP-R10 BLOQUEANTE RBC).
-2. **Fundação restante** T-EQP-004/005/007/008/009/010/011 (UNIQUE parcial
+1. **Fundação restante** T-EQP-004/005/007/008/009/010/011 (UNIQUE parcial
    já existe via `Equipamento`; INV-EQP-LOC-001 validator; evento Criado).
+2. **US-EQP-002 versionamento** (T-EQP-012..017): depende do RT (US-EQP-007
+   ✅ desbloqueia) — motivo `mudanca_classe_metrologica` exige A3 RT.
 3. Sequência em `docs/faseamento/M2-equipamentos/tasks.md` §"Próximo passo".
 
 ## Pendências rastreadas (não bloqueiam)

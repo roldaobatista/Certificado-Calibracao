@@ -47,7 +47,17 @@ ACOES_SISTEMA: Final[frozenset[str]] = frozenset(
     }
 )
 
-ACOES_CANONICAS: Final[frozenset[str]] = ACOES_CLIENTES | ACOES_SISTEMA
+# Marco 2 `responsavel_tecnico` (US-EQP-007 / P-EQP-R10) — gestao do RT do tenant.
+ACOES_RT: Final[frozenset[str]] = frozenset(
+    {
+        "tenant.rt.cadastrado",
+        "tenant.rt.encerrado",
+        "tenant.rt.trocado",
+        "tenant.rt.competencia_declarada",
+    }
+)
+
+ACOES_CANONICAS: Final[frozenset[str]] = ACOES_CLIENTES | ACOES_SISTEMA | ACOES_RT
 
 
 def assert_acao_canonica(acao: str) -> None:

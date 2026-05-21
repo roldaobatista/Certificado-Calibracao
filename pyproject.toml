@@ -137,6 +137,8 @@ module = [
     "src.infrastructure.equipamentos.admin",
     "src.infrastructure.equipamentos.views",
     "src.infrastructure.equipamentos.serializers",
+    "src.infrastructure.responsavel_tecnico.views",
+    "src.infrastructure.responsavel_tecnico.serializers",
     "src.infrastructure.authz.views",
     "src.infrastructure.authz.serializers",
     "src.infrastructure.authz.admin",

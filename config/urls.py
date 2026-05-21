@@ -25,4 +25,5 @@ urlpatterns = [
     # Wave A modulos
     path("api/v1/", include("src.infrastructure.clientes.urls")),
     path("api/v1/", include("src.infrastructure.equipamentos.urls")),
+    path("api/v1/", include("src.infrastructure.responsavel_tecnico.urls")),
 ]
