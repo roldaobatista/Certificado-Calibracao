@@ -343,15 +343,18 @@ class ClienteViewSet(viewsets.ModelViewSet):
             return Response({"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST)
 
         active = _active_tenant_obrigatorio()
+        # Conserto MÉDIO-1 SEC P5 (2026-05-21): defesa em profundidade —
+        # filter por `tenant_id=active` no ORM além do RLS no banco.
+        # Mesmo padrão das outras rotas (bloquear/desbloquear/visao_360/etc).
         try:
-            vencedor = Cliente.objects.get(id=vencedor_uuid)
+            vencedor = Cliente.objects.filter(tenant_id=active, id=vencedor_uuid).get()
         except Cliente.DoesNotExist:
             return Response(
                 {"detail": "vencedor_nao_encontrado"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         try:
-            perdedor = Cliente.objects.get(id=perdedor_uuid)
+            perdedor = Cliente.objects.filter(tenant_id=active, id=perdedor_uuid).get()
         except Cliente.DoesNotExist:
             return Response(
                 {"detail": "perdedor_nao_encontrado"},
@@ -404,17 +407,23 @@ class ClienteViewSet(viewsets.ModelViewSet):
     # =============================================================
     # US-CLI-004 — bloquear/desbloquear cliente
     # authz-check: skip -- RequireAuthz resolve via ACTION_MAP
+    # T-CLI-108: usa publicar_evento(outbox=True) — payload canônico
+    # via montar_payload_cliente_bloqueado com slot agendamentos_futuros.
     # =============================================================
     @action(detail=True, methods=["post"], url_path="bloquear")
     def bloquear(self, request, pk=None):
-        """Bloqueia cliente. Idempotente: no-op se ja bloqueado."""
-        from src.infrastructure.audit.services import registrar_auditoria
+        """Bloqueia cliente. Idempotente: no-op se ja bloqueado.
+
+        # authz-check: skip -- RequireAuthz global aplica via ACTION_MAP["bloquear"]
+        """
+        from src.infrastructure.audit.event_helpers import publicar_evento
         from src.infrastructure.clientes.bloqueio import (
             CAUSATION_MANUAL_DECISAO_ADMIN,
             CAUSATION_TYPES_VALIDOS,
             JUSTIFICATIVA_MIN_CHARS,
             MOTIVOS_MANUAIS,
             MOTIVOS_VALIDOS,
+            montar_payload_cliente_bloqueado,
         )
         from src.infrastructure.clientes.mesclagem import validar_observacao
         from src.infrastructure.clientes.models import (
@@ -493,8 +502,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
         active = _active_tenant_obrigatorio()
         tenant = Tenant.objects.filter(id=active).get()
 
+        # Conserto MÉDIO-1 SEC P5 (2026-05-21): defesa em profundidade — filter por tenant_id.
         try:
-            cliente = Cliente.objects.get(id=cliente_uuid)
+            cliente = Cliente.objects.filter(tenant_id=active, id=cliente_uuid).get()
         except Cliente.DoesNotExist:
             return Response(
                 {"detail": "cliente_nao_encontrado"},
@@ -529,24 +539,27 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 confirmacao_comunicacao_previa=confirmacao,
                 bloqueado_por_usuario_id=usuario_id,
             )
-            # Audit `cliente.bloqueado` — sem PII cru (R1 advogado + TL6)
+            # T-CLI-108 + AC-CLI-004-7: publica via helper único com outbox transacional.
+            # Payload canônico via montar_payload_cliente_bloqueado — inclui
+            # `agendamentos_futuros` (slot pro consumer Wave A operacao/agenda — GATE-CLI-7).
             justif_hash = _hashear_pii(justificativa, tenant.id)
-            registrar_auditoria(
+            payload_bloqueado = montar_payload_cliente_bloqueado(
+                cliente_id=cliente.id,
+                tenant_id=tenant.id,
+                bloqueio_id=bloqueio.id,
+                motivo_categoria=motivo_categoria,
+                justificativa_hash=justif_hash,
+                causation_type=causation_type or None,
+                causation_id=causation_id_uuid,
+                usuario_id=usuario_id,
+            )
+            publicar_evento(
+                acao="cliente.bloqueado",
+                payload=payload_bloqueado,
+                causation_id=causation_id_uuid or UUID(payload_bloqueado["event_id"]),
                 tenant_id=tenant.id,
                 usuario_id=usuario_id,
-                action="cliente.bloqueado",
                 resource_summary=str(cliente.id),
-                payload={
-                    "event_id": str(uuid_module_uuid4()),
-                    "cliente_id": str(cliente.id),
-                    "tenant_id": str(tenant.id),
-                    "bloqueio_id": str(bloqueio.id),
-                    "motivo_categoria": motivo_categoria,
-                    "justificativa_hash": justif_hash,
-                    "causation_type": causation_type or None,
-                    "causation_id": str(causation_id_uuid) if causation_id_uuid else None,
-                    "usuario_id": str(usuario_id) if usuario_id else None,
-                },
             )
 
         return Response(
@@ -582,17 +595,18 @@ class ClienteViewSet(viewsets.ModelViewSet):
         except (ValueError, TypeError):
             return Response({"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST)
 
+        usuario_id = usuario_id_context.get()
+        active = _active_tenant_obrigatorio()
+        agora = datetime.now(UTC)
+
+        # Conserto MÉDIO-1 SEC P5 (2026-05-21): defesa em profundidade — filter por tenant_id.
         try:
-            cliente = Cliente.objects.get(id=cliente_uuid)
+            cliente = Cliente.objects.filter(tenant_id=active, id=cliente_uuid).get()
         except Cliente.DoesNotExist:
             return Response(
                 {"detail": "cliente_nao_encontrado"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
-        usuario_id = usuario_id_context.get()
-        active = _active_tenant_obrigatorio()
-        agora = datetime.now(UTC)
 
         with transaction.atomic():
             ativo = (
@@ -671,17 +685,18 @@ class ClienteViewSet(viewsets.ModelViewSet):
         except (ValueError, TypeError):
             return Response({"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST)
 
+        usuario_id = usuario_id_context.get()
+        active = _active_tenant_obrigatorio()
+        ip_hash = _hashear_ip(request, active)
+
+        # Conserto MÉDIO-1 SEC P5 (2026-05-21): defesa em profundidade — filter por tenant_id.
         try:
-            cliente = Cliente.objects.get(id=cliente_uuid)
+            cliente = Cliente.objects.filter(tenant_id=active, id=cliente_uuid).get()
         except Cliente.DoesNotExist:
             return Response(
                 {"detail": "cliente_nao_encontrado"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
-        usuario_id = usuario_id_context.get()
-        active = _active_tenant_obrigatorio()
-        ip_hash = _hashear_ip(request, active)
 
         # INV-013 — grava acesso ANTES de ler timeline.
         # T-CLI-104: wrapper com circuit breaker observado — grava evento
@@ -1146,8 +1161,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
             return Response({"detail": "id_invalido"}, status=status.HTTP_400_BAD_REQUEST)
 
         active = _active_tenant_obrigatorio()
+        # Conserto MÉDIO-1 SEC P5 (2026-05-21): defesa em profundidade — filter por tenant_id.
         try:
-            cliente = Cliente.objects.get(id=cliente_uuid)
+            cliente = Cliente.objects.filter(tenant_id=active, id=cliente_uuid).get()
         except Cliente.DoesNotExist:
             return Response(
                 {"detail": "cliente_nao_encontrado"},

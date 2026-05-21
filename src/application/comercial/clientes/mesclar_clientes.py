@@ -91,6 +91,9 @@ def mesclar_clientes(
     vencedor_pos = (
         repository.aplicar_sobrescritas(vencedor_id, sobrescritas) if sobrescritas else vencedor
     )
+    # AC-CLI-005-3: perdedor.cliente_canonico_id ← vencedor.id ANTES de
+    # soft_delete. Trigger PG (T-CLI-113) aceita só self → vencedor_vivo.
+    repository.apontar_canonico_para(perdedor_id, vencedor_id)
     perdedor_pos = repository.soft_delete(
         perdedor_id,
         motivo_categoria=motivo_categoria,

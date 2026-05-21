@@ -6,19 +6,25 @@ substitui o source + agenda no Procrastinate (cron 02:00 BRT).
 
 R3 advogado: NAO bloqueia se `Tenant.bloqueio_automatico_inadimplencia_habilitado=False`
 (default no Marco 1). Régua D+30/60/89 (AC-5) entra Wave A via `comunicacao-omnichannel`.
+
+T-CLI-108: publica `cliente.bloqueado` via `publicar_evento(outbox=True)` com
+payload canônico (`montar_payload_cliente_bloqueado`) — slot
+`agendamentos_futuros` pro consumer Wave A `operacao/agenda` (GATE-CLI-7).
 """
 
 from __future__ import annotations
 
-import uuid
 from typing import Any
 
 from django.core.management.base import BaseCommand
+from django.db import transaction
 
+from src.infrastructure.audit.event_helpers import publicar_evento
 from src.infrastructure.audit.services import hashear_pii_com_salt_tenant
 from src.infrastructure.clientes.bloqueio import (
     CAUSATION_TITULO_VENCIDO,
     MOTIVO_AUTOMATICO_INADIMPLENCIA_90D,
+    montar_payload_cliente_bloqueado,
 )
 from src.infrastructure.clientes.inadimplencia import get_source
 from src.infrastructure.clientes.models import Cliente, ClienteBloqueio
@@ -72,41 +78,46 @@ class Command(BaseCommand):
                     self.stdout.write(f"[DRY] bloquearia cliente {cliente.id} tenant {tenant.id}")
                     continue
 
-                from src.infrastructure.audit.services import registrar_auditoria
-
                 justificativa = (
                     f"Bloqueio automatico — inadimplencia >=90 dias "
                     f"(dias_vencido={item.dias_vencido})"
                 )
-                bloqueio = ClienteBloqueio.objects.create(
-                    cliente=cliente,
-                    tenant=tenant,
-                    motivo_categoria=MOTIVO_AUTOMATICO_INADIMPLENCIA_90D,
-                    motivo_observacao="",
-                    justificativa_bruta=justificativa,
-                    causation_type=CAUSATION_TITULO_VENCIDO,
-                    causation_id=item.causation_titulo_id,
-                    confirmacao_comunicacao_previa=True,  # job presume régua já cumprida (Wave A valida)
-                    bloqueado_por_usuario_id=None,
-                )
-                registrar_auditoria(
-                    tenant_id=tenant.id,
-                    usuario_id=None,
-                    action="cliente.bloqueado",
-                    resource_summary=str(cliente.id),
-                    payload={
-                        "event_id": str(uuid.uuid4()),
-                        "cliente_id": str(cliente.id),
-                        "tenant_id": str(tenant.id),
-                        "bloqueio_id": str(bloqueio.id),
-                        "motivo_categoria": MOTIVO_AUTOMATICO_INADIMPLENCIA_90D,
-                        "justificativa_hash": hashear_pii_com_salt_tenant(justificativa, tenant.id),
-                        "causation_type": CAUSATION_TITULO_VENCIDO,
-                        "causation_id": str(item.causation_titulo_id),
-                        "dias_vencido": item.dias_vencido,
-                        "automatico": True,
-                    },
-                )
+                with transaction.atomic():
+                    bloqueio = ClienteBloqueio.objects.create(
+                        cliente=cliente,
+                        tenant=tenant,
+                        motivo_categoria=MOTIVO_AUTOMATICO_INADIMPLENCIA_90D,
+                        motivo_observacao="",
+                        justificativa_bruta=justificativa,
+                        causation_type=CAUSATION_TITULO_VENCIDO,
+                        causation_id=item.causation_titulo_id,
+                        confirmacao_comunicacao_previa=True,  # job presume régua cumprida (Wave A valida)
+                        bloqueado_por_usuario_id=None,
+                    )
+                    # T-CLI-108: payload canônico com `agendamentos_futuros` +
+                    # extras `dias_vencido` / `automatico` (mantidos pra rastreio).
+                    payload_bloqueado = montar_payload_cliente_bloqueado(
+                        cliente_id=cliente.id,
+                        tenant_id=tenant.id,
+                        bloqueio_id=bloqueio.id,
+                        motivo_categoria=MOTIVO_AUTOMATICO_INADIMPLENCIA_90D,
+                        justificativa_hash=hashear_pii_com_salt_tenant(justificativa, tenant.id),
+                        causation_type=CAUSATION_TITULO_VENCIDO,
+                        causation_id=item.causation_titulo_id,
+                        usuario_id=None,
+                        extras={
+                            "dias_vencido": item.dias_vencido,
+                            "automatico": True,
+                        },
+                    )
+                    publicar_evento(
+                        acao="cliente.bloqueado",
+                        payload=payload_bloqueado,
+                        causation_id=item.causation_titulo_id,
+                        tenant_id=tenant.id,
+                        usuario_id=None,
+                        resource_summary=str(cliente.id),
+                    )
                 contadores["bloqueados"] += 1
 
         self.stdout.write(self.style.SUCCESS(f"{contadores}"))

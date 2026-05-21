@@ -70,6 +70,17 @@ class ClienteRepository(Protocol):
         """Marca cliente como soft-deleted; retorna snapshot pos-delete."""
         ...
 
+    def apontar_canonico_para(self, perdedor_id: UUID, vencedor_id: UUID) -> None:
+        """Aponta `perdedor.cliente_canonico_id` para `vencedor_id` (AC-CLI-005-3).
+
+        Trigger PG `cliente_canonico_imutavel_trg` (T-CLI-113) valida a
+        transição: aceita só `self → vencedor_vivo_mesmo_tenant`. Deve ser
+        chamada ANTES de `soft_delete(perdedor)` — depois do soft-delete, o
+        vencedor ainda é vivo, mas se invertido a sequência o perdedor já
+        está deletado_em != None quando a trigger valida o NEW row.
+        """
+        ...
+
     def bulk_upsert(
         self,
         *,

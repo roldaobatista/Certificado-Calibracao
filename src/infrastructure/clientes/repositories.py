@@ -105,6 +105,14 @@ class DjangoClienteRepository:
         obj = Cliente.all_objects.get(id=cliente_id)
         return _to_snapshot(obj)
 
+    def apontar_canonico_para(self, perdedor_id: UUID, vencedor_id: UUID) -> None:
+        """AC-CLI-005-3: perdedor.cliente_canonico_id = vencedor.id.
+
+        Trigger PG `cliente_canonico_imutavel_trg` valida (T-CLI-113):
+        self → vencedor_vivo_mesmo_tenant aceito. Chamar ANTES de soft_delete.
+        """
+        Cliente.all_objects.filter(id=perdedor_id).update(cliente_canonico_id=vencedor_id)
+
     # =============================================================
     # US-CLI-003 — bulk_upsert (R3 + R8 tech-lead)
     # SERIALIZABLE isolation + advisory lock por tenant + sanitizacao CSV.

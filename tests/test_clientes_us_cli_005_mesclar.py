@@ -92,6 +92,7 @@ def test_mesclar_aplica_sobrescritas_no_vencedor(cenario):
         data={
             "sobrescrever": {"nome": "Nome Novo do Vencedor"},
             "motivo_categoria": "duplicacao_atendimento",
+            "tipo_mesclagem": "DUPLICATA_OPERACIONAL",
         },
         format="json",
     )
@@ -113,6 +114,7 @@ def test_mesclar_soft_deleta_perdedor(cenario):
         data={
             "sobrescrever": {},
             "motivo_categoria": "duplicacao_atendimento",
+            "tipo_mesclagem": "DUPLICATA_OPERACIONAL",
         },
         format="json",
     )
@@ -139,6 +141,7 @@ def test_mesclar_publica_evento_sem_pii(cenario):
         data={
             "sobrescrever": {"nome": "X", "email": "abc@def.com"},
             "motivo_categoria": "duplicacao_atendimento",
+            "tipo_mesclagem": "DUPLICATA_OPERACIONAL",
         },
         format="json",
     )
@@ -192,6 +195,7 @@ def test_mesclar_cross_tenant_bloqueado(cenario):
         data={
             "sobrescrever": {},
             "motivo_categoria": "duplicacao_atendimento",
+            "tipo_mesclagem": "DUPLICATA_OPERACIONAL",
         },
         format="json",
     )
@@ -212,6 +216,7 @@ def test_mesclar_exige_perfil_admin_tenant(cenario):
         data={
             "sobrescrever": {},
             "motivo_categoria": "duplicacao_atendimento",
+            "tipo_mesclagem": "DUPLICATA_OPERACIONAL",
         },
         format="json",
     )
@@ -249,6 +254,7 @@ def test_mesclar_observacao_com_cpf_rejeita_400(cenario):
         data={
             "sobrescrever": {},
             "motivo_categoria": "duplicacao_atendimento",
+            "tipo_mesclagem": "DUPLICATA_OPERACIONAL",
             "motivo_observacao": "Cliente CPF 52998224725 mudou de email",
         },
         format="json",
@@ -271,6 +277,7 @@ def test_unique_index_parcial_permite_reativacao_de_documento(cenario):
         data={
             "sobrescrever": {},
             "motivo_categoria": "duplicacao_atendimento",
+            "tipo_mesclagem": "DUPLICATA_OPERACIONAL",
         },
         format="json",
     )
@@ -321,6 +328,7 @@ def test_mesclar_atomico_rollback_em_falha(cenario, monkeypatch):
         data={
             "sobrescrever": {"nome": "NaoDeveriaSalvar"},
             "motivo_categoria": "duplicacao_atendimento",
+            "tipo_mesclagem": "DUPLICATA_OPERACIONAL",
         },
         format="json",
     )
@@ -350,7 +358,10 @@ def test_mesclar_mesma_entidade_retorna_400(cenario):
 
     response = client.post(
         f"/api/v1/clientes/{venc.id}/mesclar/{venc.id}/",
-        data={"motivo_categoria": "duplicacao_atendimento"},
+        data={
+            "motivo_categoria": "duplicacao_atendimento",
+            "tipo_mesclagem": "DUPLICATA_OPERACIONAL",
+        },
         format="json",
     )
     assert response.status_code == 400
@@ -367,7 +378,10 @@ def test_mesclar_vencedor_nao_encontrado_retorna_404(cenario):
     inexistente = uuid4()
     response = client.post(
         f"/api/v1/clientes/{inexistente}/mesclar/{perd.id}/",
-        data={"motivo_categoria": "duplicacao_atendimento"},
+        data={
+            "motivo_categoria": "duplicacao_atendimento",
+            "tipo_mesclagem": "DUPLICATA_OPERACIONAL",
+        },
         format="json",
     )
     assert response.status_code == 404
@@ -384,7 +398,10 @@ def test_mesclar_perdedor_nao_encontrado_retorna_404(cenario):
     inexistente = uuid4()
     response = client.post(
         f"/api/v1/clientes/{venc.id}/mesclar/{inexistente}/",
-        data={"motivo_categoria": "duplicacao_atendimento"},
+        data={
+            "motivo_categoria": "duplicacao_atendimento",
+            "tipo_mesclagem": "DUPLICATA_OPERACIONAL",
+        },
         format="json",
     )
     assert response.status_code == 404
@@ -411,7 +428,10 @@ def test_mesclar_perdedor_ja_deletado_retorna_409(cenario):
 
     response = client.post(
         f"/api/v1/clientes/{venc.id}/mesclar/{perd.id}/",
-        data={"motivo_categoria": "duplicacao_atendimento"},
+        data={
+            "motivo_categoria": "duplicacao_atendimento",
+            "tipo_mesclagem": "DUPLICATA_OPERACIONAL",
+        },
         format="json",
     )
     assert response.status_code == 409

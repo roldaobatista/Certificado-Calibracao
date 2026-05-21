@@ -61,6 +61,63 @@ def cliente_nao_bloqueado(resource: dict[str, Any]) -> tuple[bool, str]:
 # =============================================================
 
 
+# =============================================================
+# T-CLI-109 — predicate `cliente.bloqueado_para_entrega`
+# AC-CLI-004-10: calibração EM EXECUÇÃO (item no laboratório) é
+# CONCLUÍDA mesmo com cliente bloqueado — ISO/IEC 17025 §7.1.1 + §7.8.1
+# (dever técnico de finalizar e emitir relatório). O consumer
+# `operacao/certificados` (Wave A — Marco futuro) consulta este
+# predicate ANTES da entrega física do item/certificado: se True,
+# roteia pra fluxo de RETENÇÃO FÍSICA (CC art. 644) sem afetar
+# validade técnica. Predicate é semântica de DOMÍNIO, não ABAC —
+# consumer chama direto (não via `AuthorizationProvider.can`).
+# Fail-safe: cliente_id inválido / ausente no resource → retém por
+# segurança (True, motivo_de_falha). Reter espúrio é reversível por
+# operação humana; entregar a alguém bloqueado por inadimplência
+# pode caracterizar descumprimento de cautela (CC art. 644).
+# =============================================================
+
+
+def cliente_bloqueado_para_entrega(resource: dict[str, Any]) -> tuple[bool, str]:
+    """Consulta de domínio — está o cliente bloqueado pra fins de entrega física?
+
+    Retorna `(True, motivo)` se consumer Wave A `operacao/certificados`
+    deve aplicar retenção física do item/certificado; `(False, "")` se
+    pode entregar normalmente.
+
+    Motivos estáveis (contratuais com consumer):
+    - `cliente_bloqueado_manual`: bloqueio comercial manual.
+    - `cliente_bloqueado_inadimplencia`: bloqueio automático D+90.
+    - `cliente_id_invalido`: resource trouxe valor não-UUID (fail-safe).
+    - `cliente_id_ausente`: resource sem chave `cliente_id` (fail-safe).
+    """
+    cliente_id_raw = resource.get("cliente_id")
+    if cliente_id_raw is None:
+        # Fail-safe: consumer chamou sem cliente_id — retém.
+        return True, "cliente_id_ausente"
+
+    try:
+        cliente_uuid = UUID(str(cliente_id_raw))
+    except (ValueError, TypeError):
+        return True, "cliente_id_invalido"
+
+    # Import tardio — apps loading
+    from src.infrastructure.clientes.models import ClienteBloqueio
+
+    ativo = (
+        ClienteBloqueio.objects.filter(cliente_id=cliente_uuid, desbloqueado_em__isnull=True)
+        .only("motivo_categoria")
+        .first()
+    )
+    if ativo is None:
+        return False, ""
+
+    motivo = ativo.motivo_categoria
+    if motivo.startswith("automatico_"):
+        return True, "cliente_bloqueado_inadimplencia"
+    return True, "cliente_bloqueado_manual"
+
+
 def tenant_nao_suspenso(
     resource: dict[str, Any] | None = None,
     tenant_id: UUID | None = None,
