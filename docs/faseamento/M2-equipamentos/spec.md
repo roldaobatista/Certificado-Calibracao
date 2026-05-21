@@ -84,6 +84,13 @@ que entrega:
   impressoras é Wave A+.
 - **NG-EQP-12**: OCR anti-CPF/CNPJ em foto de recebimento — V2; Marco 2
   entrega aviso textual.
+- **NG-EQP-13**: AWS KMS MRK real (`GenerateMac`/`VerifyMac`) — Wave A
+  pré-1º tenant pago (**GATE-EQP-KMS**). Marco 2 entrega
+  `QR_HMAC_KEY_REGISTRO` em settings (mesmo padrão FA-A1
+  `PII_HASH_KEY_REGISTRO`).
+- **NG-EQP-14**: promoção de perfil em lote (transação única para >1
+  equipamento) — Wave B. Marco 2 entrega função 1-a-1
+  `promover_perfil_equipamento_snapshot`.
 
 ### Invariantes governados (Constituição Regra mestre 2 — citar IDs)
 
@@ -104,13 +111,17 @@ materializa:
 - `INV-AUTHZ-001..003` (autorização — herdado de F-B).
 
 Marco 2 **introduz** os IDs novos (a registrar em `REGRAS-INEGOCIAVEIS.md`
-durante P2/P4):
+durante P3/P4):
 
-- `INV-EQP-001` (perfil_tenant snapshot imutável — RBC B4 anti-downgrade),
+- `INV-EQP-001` (perfil_tenant snapshot imutável + 7 campos mínimos +
+  `snapshot_schema_version` — RBC B4 anti-downgrade + P-EQP-R1),
 - `INV-EQP-002` (segregação ISO 17025 cl. 6.2 — solicitante ≠ aprovador
-  em `AprovacaoPendenteEquipamentoVersao`),
-- `SEC-QR-001` (QR HMAC com `KMS_qr_secret` em ambiente isolado;
-  formalização de `INV-051` como SEC).
+  + competência declarada do decisor — P-EQP-R4),
+- `SEC-QR-001` (QR HMAC versionado com `QR_HMAC_KEY_REGISTRO` — mesmo
+  padrão FA-A1; **`INV-EQP-QR-NUNCA-RECOMPUTA`** subordinado: validação
+  consulta tabela, nunca recomputa HMAC — P-EQP-T1),
+- `INV-EQP-RT-001` (RT único por tenant + grandeza em janela temporal
+  via `EXCLUDE USING GIST` — P-EQP-R10).
 
 Todos exigem cobertura `tests/regressao/inv_eqp_*.py` happy + unhappy
 ANTES do fechamento — pré-condição de segurabilidade (ADR-0019 + AUDIT-07
@@ -154,12 +165,20 @@ imprimir QR Code, **para** identificar fisicamente o ativo do cliente.
   PII direta (regex CPF/CNPJ/e-mail/telefone/≥2 nomes próprios capitalizados
   consecutivos) retorna 400 com mensagem PT-BR citando "LGPD art. 5º I +
   INV-EQP-LOC-001 — descreva sem nomes/documentos". Limite 200 chars.
-- **AC-EQP-001-5** (`INV-051` / `SEC-QR-001`): QR Code gerado contém
-  `hash = base64url(HMAC-SHA256("<equipamento_id>|<tenant_id>|<emitido_em_iso>",
-  KMS_qr_secret))` com ≥22 chars (≥128 bits entropia). `KMS_qr_secret`
-  vem de variável de ambiente; hook `qr-hmac-check.sh` (a criar) bloqueia
-  hardcode + valida que dev/prod usam segredos diferentes (corretora).
-  Re-emissão revoga hash anterior.
+- **AC-EQP-001-5** (`INV-051` / `SEC-QR-001` — **P-EQP-T1 BLOQUEANTE
+  absorvido**): QR Code gerado contém `hash = qrN:base64url(HMAC-SHA256(
+  "<equipamento_id>|<tenant_id>|<emitido_em_iso>", QR_HMAC_KEY_REGISTRO.chave_ativa()))`
+  com ≥22 chars (≥128 bits entropia) **prefixado por `qrN:` versão da
+  chave** (mesmo padrão FA-A1 de `PII_HASH_KEY_REGISTRO`). Verificação
+  via `verificar_qr_hash()` que resolve versão pelo prefixo —
+  **rotação de chave NÃO invalida hashes impressos em etiquetas
+  físicas**. `QR_HMAC_KEY_REGISTRO` vive em settings com chave ativa +
+  aposentadas; hook `qr-hmac-check.sh` bloqueia hardcode + valida que
+  dev/prod usam segredos diferentes. **`INV-EQP-QR-NUNCA-RECOMPUTA`**:
+  validação SEMPRE consulta tabela `qrcode` (UNIQUE index no hash);
+  proibido recomputar HMAC durante validação (defesa em profundidade
+  contra ataque pré-imagem via debugging/migration). Re-emissão revoga
+  hash anterior (UPDATE em `revogado_em`).
 - **AC-EQP-001-6**: cadastro publica `Equipamento.Criado` no bus via
   `publicar_evento(outbox=True)` com `tenant_id`, `equipamento_id`,
   `tag_hash` (HMAC), `cliente_atual_id_no_momento_hash` (HMAC),
@@ -369,13 +388,30 @@ laboratório de responsabilização por dano pré-existente.
   ≥30 chars (`INV-EQP-ANOM-002` anti-PII). Se
   `contatar_cliente_aguardando`, publica evento que aciona
   `NotificacaoClienteService`.
-- **AC-EQP-006-3** (ADR-0014 — máquina de estados): 8 fases válidas:
-  `aguardando_recebimento` → `recebido_pendente_inspecao` →
-  `em_inspecao_visual` → `aguardando_calibracao` → `em_calibracao` →
-  `aguardando_aprovacao_tecnica` → `aguardando_devolucao` → `devolvido`.
-  Alternativos terminais: `nao_conformidade_recebimento`,
-  `nao_conformidade_calibracao`. Trigger PG valida transições contra
-  matriz declarada.
+- **AC-EQP-006-3a** (**P-EQP-T2 BLOQUEANTE absorvido — máquina
+  `Equipamento.status`**): 7 valores (`ativo`, `inativo_temporario`,
+  `aposentado`, `em_calibracao_lab`, `sucata`, `orfao_pendente_decisao`,
+  `extraviado`). Matriz de transição:
+  - Reversíveis: `ativo↔inativo_temporario` (manutenção), `ativo↔aposentado`
+    (`aposentado→ativo` exige assinatura A3 RT + audit — decisão técnica),
+    `orfao_pendente_decisao→ativo` (quando atribuído a novo cliente,
+    justificativa ≥30 chars anti-PII), `extraviado→ativo` (recuperação,
+    justificativa ≥30 chars).
+  - Terminal-com-exceção-única: `sucata→extraviado` (apenas, AC-EQP-005-3).
+  - Função PG `transicao_status_permitida(de text, para text) returns bool`
+    com matriz declarativa; trigger PG `bloquear_transicao_status_equipamento_invalida`
+    BEFORE UPDATE consulta a função. Hook `policy-test-coverage` cobra
+    `# tests-coverage:` happy + unhappy por par.
+
+- **AC-EQP-006-3b** (**máquina `EquipamentoRecebimento.status_fluxo_lab`**):
+  8 fases válidas: `aguardando_recebimento` → `recebido_pendente_inspecao`
+  → `em_inspecao_visual` → `aguardando_calibracao` →
+  `aguardando_padrao_disponivel` (**P-EQP-R3** novo estado — RBC cl. 6.3)
+  → `em_calibracao` → `aguardando_aprovacao_tecnica` →
+  `aguardando_devolucao` → `devolvido`. Alternativos terminais:
+  `nao_conformidade_recebimento`, `nao_conformidade_calibracao` (cada
+  um linkado com `RegistroCAPA` via porta stub `CAPAQueryService` —
+  P-EQP-R3 NC→CAPA). Trigger PG separado valida transições.
 - **AC-EQP-006-4** (cl. 7.4.5 — devolução): POST
   `/equipamentos/{id}/devolucoes/` exige `condicao_visual_devolucao`
   enum (mesmo escopo) + fotos (perfil A obrigatória) +
@@ -395,7 +431,54 @@ laboratório de responsabilização por dano pré-existente.
   para casos onde o equipamento chegou sem cadastro completo. Trigger
   PG bloqueia INSERT em `certificado` referenciando `RecebimentoProvisorio.id`.
   Promoção a `Equipamento` definitivo é evento único auditável
-  `equipamento.promovido_de_provisorio`.
+  `equipamento.promovido_de_provisorio`. **P-EQP-R9 absorvido:** TTL
+  D+7 + escalação P2 (`job_provisorio_ttl_check`); devolução exige
+  promoção prévia (`AC-EQP-006-8` extra); métrica
+  `taxa_provisorios_mensal` com alerta P2 se > 5%.
+
+## US-EQP-007 — Gestão do Responsável Técnico do tenant (P-EQP-R10 BLOQUEANTE)
+
+**Como** administrador do tenant ou gestor de qualidade, **quero**
+cadastrar e gerenciar o Responsável Técnico (RT) do laboratório com
+vigência + competência declarada por grandeza + histórico imutável de
+RTs, **para** atender NIT-DICLA-021 (signatário autorizado) + ISO/IEC
+17025 cl. 5.6 (responsabilidade técnica) + cl. 6.2 (competência).
+
+> **Por que existe (RBC P-EQP-R10 BLOQUEANTE):** sem registro auditável
+> do RT vigente + histórico, supervisão CGCRE encontra NC ALTA na 1ª
+> visita. A integração A3 cliente-side via Lacuna fica em GATE-EQP-1
+> Wave A; o **modelo de dados precisa nascer aqui**.
+
+- **AC-EQP-007-1**: `ResponsavelTecnicoTenant(id, tenant_id, usuario_id
+  FK, nome_completo_snapshot, cpf_hash, formacao_academica,
+  registro_profissional_tipo_enum, registro_profissional_numero,
+  data_inicio_vigencia, data_fim_vigencia NULL, criado_em, criado_por,
+  encerrado_em NULL, encerrado_por NULL, motivo_encerramento)`.
+  Tenant.ativo precisa de pelo menos 1 RT vigente; tentativa de
+  operação técnica sem RT vigente retorna 409.
+
+- **AC-EQP-007-2** (`INV-EQP-RT-001` — sem sobreposição temporal): por
+  grandeza acreditada do tenant, há **apenas 1 RT vigente em qualquer
+  janela temporal** — `EXCLUDE USING GIST` constraint
+  `(tenant_id WITH =, grandeza WITH =, daterange(data_inicio_vigencia,
+  data_fim_vigencia, '[)') WITH &&)`. Tentativa de cadastrar 2º RT
+  sobreposto retorna 409.
+
+- **AC-EQP-007-3** (`CompetenciaDeclarada` — RBC cl. 6.2 + P-EQP-R4):
+  cada RT declara competências `RTCompetencia(rt_id, grandeza,
+  carta_competencia_anexo_id NULL, declarado_em, vigente_ate NULL)`.
+  Predicate `decisor_tem_competencia_para_atividade(decisor_id,
+  atividade, grandeza)` consulta esta tabela; usado em US-EQP-002b-6.
+
+- **AC-EQP-007-4**: troca de RT (encerramento + cadastro de novo)
+  publica `Tenant.RTTrocado(tenant_id, rt_anterior_id, rt_novo_id,
+  motivo_encerramento, data_efetivacao)` no bus + dispara
+  `NotificacaoClienteService` (consumer real Wave A notifica ANPD +
+  CGCRE em até 30 dias úteis — `NIT-DICLA-021` exige aviso).
+
+- **AC-EQP-007-5**: tabela INSERT-only + trigger anti-mutation (mesmo
+  padrão `ClienteIdentidadeHistorico` do Marco 1) — histórico imutável
+  de RTs por tenant; alteração só via `encerrar_em` + cadastro novo.
 
 ---
 
@@ -428,13 +511,32 @@ e o **loop dos 10 auditores Família 5 = zero CRÍTICO/ALTO/MÉDIO** nas
    stable.
 9. Allowlist anônima do QR público em
    `docs/conformidade/equipamentos/qr-publico-allowlist.md` stable.
-10. **Suite anti-regressão** `tests/regressao/inv_eqp_*.py` cobre cada
-    um dos 3 INVs novos + 8 INVs existentes materializados aqui com
-    **happy + unhappy** (corretora §D + ADR-0019 Pilar 2).
+10. **Suite anti-regressão** `tests/regressao/inv_eqp_*.py` cobre os
+    **14 INVs** materializados aqui (3 novos: `INV-EQP-001`,
+    `INV-EQP-002`, `SEC-QR-001` + 11 herdados/materializados: INV-049,
+    INV-050, INV-051, INV-025, INV-EQP-LOC-001, INV-EQP-VERSAO-001,
+    INV-EQP-VERSAO-002, INV-EQP-ANOM-001, INV-EQP-ANOM-002,
+    INV-EQP-PROV-001, INV-013) com **happy + unhappy + cross-tenant**
+    (mínimo 14 arquivos `inv_eqp_NNN.py` × 3 testes = ≥42 testes
+    anti-regressão; corretora P-EQP-S6 + ADR-0019 Pilar 2).
 11. Hooks novos cravados e em `_test-runner.sh`:
-    `qr-hmac-check.sh` (SEC-QR-001), `equipamento-imutabilidade-check.sh`
-    (INV-025 — pós-cert), `port-binding-validator.sh` (ADR-0007 —
-    portas usadas via DI, não import direto).
+    `qr-hmac-check.sh` (SEC-QR-001 + INV-EQP-QR-NUNCA-RECOMPUTA),
+    `equipamento-imutabilidade-check.sh` (INV-025 — pós-cert),
+    `port-binding-validator.sh` (ADR-0007 — portas usadas via DI),
+    `trigger-stub-sweep.sh` (P-EQP-T7 — bloqueia release prod com
+    trigger/function `_v0_stub`).
+12. **Docs canônicos de conformidade stable** (criados em P3 via T-EQP):
+    `docs/conformidade/equipamentos/textos-rejeicao-422.md` (5 textos
+    T1-T5 do advogado P-EQP-A3); `qr-publico-allowlist.md` (já existe);
+    `aviso-aceite-presencial-atendente.md` (P-EQP-A2);
+    `template-notificacao-sucatamento.md` (P-EQP-A5);
+    `aviso-foto-recebimento.md` (P-EQP-A8).
+13. **`AGENTS.md` §11 ADRs** atualizada com ADR-0018 (aceito antes de
+    US-EQP-003) + ADR-0022 (gestão do RT do tenant — proposta P-EQP-R10).
+14. **§5 retenção-matriz** ganha entradas Marco 2: `equipamento`,
+    `equipamento_versao`, `equipamento_transferencia`, `equipamento_recebimento`,
+    `equipamento_foto` (5 entradas com 3 fundamentos legais cada:
+    ISO 17025 cl. 8.4 + LGPD art. 16 I + RBC cl. 4.2).
 
 ---
 
@@ -454,6 +556,17 @@ e o **loop dos 10 auditores Família 5 = zero CRÍTICO/ALTO/MÉDIO** nas
 | `Equipamento.Recebido` | POST `/equipamentos/{id}/recebimentos/` | operação, faturamento | 25 anos / WORM |
 | `Equipamento.Devolvido` | POST `/equipamentos/{id}/devolucoes/` | operação, faturamento, omnichannel | 25 anos / WORM |
 | `Equipamento.PromovidoDeProvisorio` | promoção de `RecebimentoProvisorio` | operação | 25 anos / WORM |
+| `Equipamento.PerfilPromovido` | função `promover_perfil_equipamento_snapshot` D→A | governança, CGCRE | 25 anos / WORM |
+| `Equipamento.OrfaoDetectadoViaLGPDEliminacao` | trigger `equipamento_anti_orfao_imediato` | crm, operação | 5 anos |
+| `Equipamento.ConsentimentoHistoricoConcedido` | toggle no termo de transferência (cedente) | certificados, governança | 25 anos / WORM |
+| `Equipamento.ConsentimentoHistoricoRevogado` | endpoint revogação cedente | certificados, governança | 25 anos / WORM |
+| `Tenant.RTTrocado` | troca de RT do tenant (US-EQP-007-4) | governança, ANPD, CGCRE | 25 anos / WORM |
+| `sistema.qr_scraping_suspeito` | rate-limit global por tenant excedido (P-EQP-S2) | ops, segurança | 5 anos |
+
+Retenção 25a / WORM fundamentada em: **ISO/IEC 17025 cl. 8.4 (registros
+técnicos imutáveis) + LGPD art. 16 I (obrigação regulatória prevalece
+sobre direito ao esquecimento) + RBC cl. 4.2 (confidencialidade do
+histórico)** — P-EQP-A7.
 
 Helper único de gravação `audit/event_helpers.py` (`SANEA-08`) — não
 copiar o envelope 12×.
