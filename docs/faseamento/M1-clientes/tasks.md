@@ -102,21 +102,22 @@ relacionados:
 
 | AC | Estado | Evidência / ação |
 |----|--------|------------------|
-| **AC-CLI-006-1** | **GAP** | **T-CLI-114**: endpoints `POST /clientes/{id}/direitos-titular/{tipo}/` (8 tipos) ausentes; criar use cases + SLA 15 dias úteis (Res. CD/ANPD 2/2022). |
-| **AC-CLI-006-2** | **GAP** | **T-CLI-115**: campo `consentimento_revogado_em` + endpoint `revogacao_consentimento` com efeito ≤1min ausentes. |
-| **AC-CLI-006-3** | **GAP** | **T-CLI-116**: matriz eliminação vs anonimização ausente; use case `EliminarDadosDoTitular` aplica decisão por categoria (cadastro/NF/cert/audit). |
-| **AC-CLI-006-4** | **GAP** | **T-CLI-117**: validador anti-PII sensível em `observacao` ausente; regex (saúde/biometria/genética/política/religião) fail-loud no serializer (LGPD art. 11). |
-| **AC-CLI-006-5** | **GAP** | **T-CLI-118**: validador `data_nascimento < 18 anos` ausente; rejeitar no serializer (LGPD art. 14 + NG-CLI-12). |
-| **AC-CLI-006-6** | **GAP** | **T-CLI-119**: evento `Cliente.PII.IncidenteDetectado` ausente no bus; criar + interface pra módulo de governança. |
-| **AC-CLI-006-7** | **GAP** | **T-CLI-120**: modelo `OperacaoTratamentoCliente` ausente; criar + registrar em CADASTRO/EDICAO/EXPORT/COMPARTILHAMENTO_INTERMODULAR (LGPD art. 37). |
+| AC-CLI-006-1 | TRACK / GATE Wave A | **T-CLI-114** (GATE-CLI-US006-3d): 8 endpoints `direitos-titular/{tipo}/` + schemas temáticos. Escopo demanda integração com módulos NF/certificados que não existem em Marco 1. T-CLI-115 (revogacao_consentimento) entrega 1 dos 8 endpoints como prova de conceito. |
+| AC-CLI-006-2 | ✅ FECHADO | **T-CLI-115** (2026-05-20): campo `consentimento_revogado_em` + endpoint `direitos-titular/revogacao_consentimento` (efeito ≤1min) + use case `revogar_consentimento` + mapa `MAPA_FINALIDADE_BASE_LEGAL_ACEITA` (BLOQ-A2). |
+| AC-CLI-006-3 | TRACK / GATE Wave A | **T-CLI-116** (GATE-CLI-US006-3d) + **ADR-0021** (2026-05-20): matriz declarada em ADR formal. Implementação real depende dos módulos NF/certificados Wave A. Marco 1 stub: `_tem_nf_emitida=_tem_certificado_iso=False` → eliminação efetiva. |
+| AC-CLI-006-4 | ✅ FECHADO | **T-CLI-117** (2026-05-20): validador `clientes/validators_pii_sensivel.py` — denylist taxativa art. 5º II (38 termos), word-boundary `\b`, normalização unicode, termos ≥5 chars (BLOQ-A3/TL-2). |
+| AC-CLI-006-5 | ✅ FECHADO | **T-CLI-118** (2026-05-20): campo `data_nascimento` + validador serializer CREATE+UPDATE (BLOQ-A6) + CHECK constraint `ck_cliente_idade_minima_18` (BLOQ-TL-1). |
+| AC-CLI-006-6 | ✅ FECHADO | **T-CLI-119** (2026-05-20): helper `emitir_incidente_pii` com 3 modos (cliente_ids precisa, escopo declarado, default conservador) — BLOQ-A5. Evento `cliente.pii.incidente_detectado` no bus. |
+| AC-CLI-006-7 | ✅ FECHADO | **T-CLI-120** (2026-05-20): modelo `OperacaoTratamentoCliente` + trigger PG `AFTER INSERT/UPDATE ON clientes` (BLOQ-TL-T4 — cobre `.update()`/bulk_update/raw SQL) + payload com base_legal + finalidade_negocial + documento_hash (BLOQ-A7). |
 
 ---
 
 ## Resumo P3 (atualizado 2026-05-20)
 
 - **OK:** 24 (cadastro core, audit access, importação core, bloqueio core, dedup atomic).
-- **GAP / FECHADO em P4:** 8 ✅ → T-CLI-101 + T-CLI-102 + T-CLI-103 + T-CLI-104 + T-CLI-105 + T-CLI-107 + T-CLI-110 + T-CLI-113.
-- **GAP / pendente:** 12 (T-CLI-106 + T-CLI-108 + T-CLI-109 + T-CLI-111 + T-CLI-112 + T-CLI-114..120).
+- **GAP / FECHADO em P4:** 13 ✅ → T-CLI-101 + T-CLI-102 + T-CLI-103 + T-CLI-104 + T-CLI-105 + T-CLI-107 + T-CLI-110 + T-CLI-113 + T-CLI-115 + T-CLI-117 + T-CLI-118 + T-CLI-119 + T-CLI-120.
+- **GAP / pendente:** 5 (T-CLI-106 + T-CLI-108 + T-CLI-109 + T-CLI-111 + T-CLI-112).
+- **TRACK / GATE Wave A:** 2 (T-CLI-114 + T-CLI-116 → GATE-CLI-US006-3d; ADR-0021 abre o caminho).
 - **TRACK:** 6 (GATE-CLI-1..6 — Wave A; não bloqueia fechamento).
 
 ---

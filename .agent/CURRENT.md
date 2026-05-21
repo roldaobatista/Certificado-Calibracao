@@ -238,16 +238,45 @@ não fechava.
 hooks **150/150** verdes, makemigrations limpo, drill `validar_f_a`
 não-regredido (F-A intacta).
 
+- **US-CLI-006 PARCIAL ✅ (T-CLI-115/117/118/119/120) + GATE Wave A
+  (T-CLI-114/116 + ADR-0021)** (commits `db281d7`, `3e96159`,
+  `a4df08e`, 2026-05-20): direitos do titular LGPD em 3 commits
+  atômicos pós review paralelo `advogado-saas-regulado` (PRIMÁRIO) +
+  `tech-lead-saas-regulado` + `consultor-rbc-iso17025` (**16
+  bloqueantes absorvidos** — 7 advogado + 6 tech-lead + 3 RBC).
+  Pareceres em `docs/faseamento/M1-clientes/T-CLI-114-120/`.
+
+  - **3a** (commit `db281d7`): T-CLI-117 validador anti-PII sensível
+    (denylist taxativa art. 5º II, word-boundary `\b`, ≥5 chars,
+    normalização unicode, sem falsos positivos `pt/vot/trans/gen`) +
+    T-CLI-118 idade ≥18 CREATE+UPDATE (BLOQ-A6/TL-1) + CHECK
+    constraint `ck_cliente_idade_minima_18`.
+  - **3b** (commit `3e96159`): T-CLI-120 `OperacaoTratamentoCliente`
+    INSERT-only + trigger PG `AFTER INSERT/UPDATE ON clientes`
+    (BLOQ-TL-T4 — cobre `.update()`/bulk_update/raw SQL que signal
+    Django não pega). Payload registra `base_legal +
+    finalidade_negocial + documento_hash` SHA-256 (BLOQ-A7).
+  - **3c** (commit `a4df08e`): T-CLI-115 revogação consentimento
+    imediata (campo `consentimento_revogado_em` + endpoint
+    `direitos-titular/revogacao_consentimento` + use case +
+    `MAPA_FINALIDADE_BASE_LEGAL_ACEITA` BLOQ-A2) + T-CLI-119
+    helper `emitir_incidente_pii` 3 modos (cliente_ids, escopo,
+    default conservador — BLOQ-A5).
+  - **3d** (GATE-CLI-US006-3d Wave A + commit ADR-0021): T-CLI-114
+    (8 endpoints completos) + T-CLI-116 (matriz eliminação×anonimização
+    real) ficam pra Wave A — escopo demanda integração com módulos
+    NF/certificados ISO que ainda não existem em Marco 1.
+    ADR-0021 (Anonimização vs retenção regulatória — 3 zonas A/B/C)
+    fecha a decisão arquitetural; implementação real Wave A.
+
 ## Próximo passo (retomar) — tarefa ativa
 
-**P4 continua — 12 T-CLI restantes**. Sequência:
+**P4 continua — 5 T-CLI restantes**. Sequência:
 
-1. T-CLI-114..120 (US-CLI-006 inteira — direitos do titular LGPD;
-   pré-condição dogfooding PII real)
-2. T-CLI-111 + T-CLI-112 (GET dedup compare + tipo_mesclagem +
+1. T-CLI-111 + T-CLI-112 (GET dedup compare + tipo_mesclagem +
    evidencia_documental_id) — fecha US-CLI-005
-3. T-CLI-106 (importação legada — alinhamento origens com mapa canônico)
-4. T-CLI-108 + T-CLI-109 (payload Cliente.Bloqueado + predicate
+2. T-CLI-106 (importação legada — alinhamento origens com mapa canônico)
+3. T-CLI-108 + T-CLI-109 (payload Cliente.Bloqueado + predicate
    bloqueado_para_entrega) — gates módulos futuros
 
 P5 (10 auditores Família 5 sobre o Marco 1 inteiro, loop até PASS
@@ -257,5 +286,6 @@ zero CRÍTICO/ALTO/MÉDIO) só quando P4 concluído e drill
 ## Fila
 
 #6 flake visão-360 ✅ + #7 lint sweep ✅ + #8 médios rodada 2 F-A ✅ +
-Marco 1 P1+P2+P3 ✅ + T-CLI-103/101/113/102/105/107/110/104 ✅.
-Próxima: T-CLI-114..120 (US-CLI-006) → restantes (12 tarefas) → P5.
+Marco 1 P1+P2+P3 ✅ + 13 T-CLI fechados (101/102/103/104/105/107/110/
+113/115/117/118/119/120) + 2 GATE Wave A (114/116). Próxima:
+T-CLI-111/112 (dedup compare) → restantes (5 tarefas) → P5.
