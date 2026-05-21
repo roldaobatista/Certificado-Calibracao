@@ -3,17 +3,20 @@
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
 **Fase:** Marco 1 **FECHADO** + Marco 2 `equipamentos` em P4 (T-EQP-001
-+ T-EQP-006 + T-EQP-002 + T-EQP-003 + US-EQP-007 entregues). Sessão 2026-05-22.
++ 006 + 002 + 003 + US-EQP-007 + T-EQP-005 + T-EQP-007 entregues).
+**Sessão encerrada 2026-05-22** (4 commits novos: 8be6d95, 5b80670,
+11e792c, 25d7405).
 **Modo:** AUTÔNOMO.
 
-## Estado da suíte (verificado 2026-05-22 após T-EQP-005+007)
+## Estado da suíte (verificado 2026-05-22 fim de sessão)
 
-- Suite: **531 + 12 novos** (cadastro happy + 409 tag duplicada + 5 INV-EQP-LOC-001
-  + idempotência + 400 sem header + authz) — alvo **543**
+- Suite: **543 passed** (+25 nessa sessão: 8 T-EQP-003 + 13 US-EQP-007
+  + 12 T-EQP-005+007) em 22min30s
 - Hooks: **179/179** verdes (22 ativos — sem hook novo)
 - Cobertura: ≥85% global; ≥90% agregado clientes/ (Marco 1)
 - Drills: `validar_f_a` 5/5 + `validar_f_b` + `validar_m1_clientes` verdes
 - `makemigrations --check`: limpo; ruff + mypy zero issues (133 source files)
+- Working tree: limpo, tudo empurrado pra `origin/main`
 
 ## Marco 1 `clientes` — FECHADO
 
