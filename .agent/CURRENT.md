@@ -17,7 +17,8 @@ T-EQP-047+048+049+050+052+058+059 recebimento US-EQP-006 núcleo +
 T-EQP-051 devolução US-EQP-006 fase 2 +
 **T-EQP-053+056+057 provisório US-EQP-006 fase 3** entregues;
 GATE-EQP-INV025-TRIGGER FECHADO).
-**Sessão ativa 2026-05-23.**
+**Sessão encerrada 2026-05-23** (6 commits enviados: 592651f, 9594420,
+2f3920c, 26dd88a, b30fb96, 1ccb3b9).
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (verificado 2026-05-23)
