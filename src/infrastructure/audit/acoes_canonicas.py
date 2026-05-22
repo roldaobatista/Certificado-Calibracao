@@ -99,6 +99,17 @@ ACOES_EQUIPAMENTOS: Final[frozenset[str]] = frozenset(
         # + consentimento_id + cedente_id_hash + justificativa_hash +
         # via_revogacao + revogado_em. 25a WORM.
         "equipamento.consentimento_historico_revogado",
+        # T-EQP-042 (US-EQP-005 AC-EQP-005-1) — sucatamento basico (sem
+        # cert vigente). Payload sanitizado: equipamento_id, sucateado_em,
+        # justificativa_hash. 25a WORM RBC NIT-DICLA-021.
+        "equipamento.sucateado",
+        # T-EQP-043 (US-EQP-005 AC-EQP-005-2 / P-EQP-S9) — sucatamento
+        # COM certificado vigente. Disparado adicionalmente ao
+        # `equipamento.sucateado` quando tem_cert_vigente_no_momento=True.
+        # Payload sanitizado: equipamento_id, sucateado_em,
+        # justificativa_hash, texto_modal_versao_id,
+        # ciencia_validade_tecnica_registrada=True. 25a WORM.
+        "equipamento.sucateado_com_cert_vigente",
     }
 )
 

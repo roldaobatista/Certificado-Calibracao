@@ -11,8 +11,9 @@ T-EQP-024+030+031 ficha 360° + T-EQP-025+026+033 QR público 3 escopos +
 T-EQP-034+035+036+040 transferência fundação +
 T-EQP-037+038 Idempotency + termo v1.1 +
 T-EQP-039+041 consentimento histórico granular +
-**T-EQP-027+029+032 rate-limit QR + filtro histórico** entregues;
-GATE-EQP-INV025-TRIGGER FECHADO).
+T-EQP-027+029+032 rate-limit QR + filtro histórico +
+**T-EQP-042+043+044+045+046 sucatamento US-EQP-005 completo**
+entregues; GATE-EQP-INV025-TRIGGER FECHADO).
 **Sessão ativa 2026-05-23.**
 **Modo:** AUTÔNOMO.
 
@@ -33,7 +34,8 @@ GATE-EQP-INV025-TRIGGER FECHADO).
 - T-EQP-037+038 (Idempotency-Key + termo v1.1): **12/12 passed** em 8.0s
 - T-EQP-039+041 (consentimento histórico granular): **13/13 passed** em 11.3s
 - T-EQP-027+029+032 (rate-limit QR + filtro hist.): **8/8 passed** em 33.4s
-- Regressão suíte QR/ficha/consent/transf: **64/64 passed** em 51.2s
+- T-EQP-042+043+044+045+046 (sucatamento): **16/16 passed** em 8.6s
+- Suíte completa `tests/test_equipamentos*.py`: **180/180 passed** em 72.7s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **192/192** verdes (22+1 ativos — sem hook novo nesta T)
@@ -89,6 +91,45 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-042+043+044+045+046 ✅** (2026-05-23): US-EQP-005
+  sucatamento completo. Modelo `EquipamentoSucatamento` (1:1 com
+  Equipamento, 7 campos + `texto_modal_versao_id` default
+  `v1.0-2026-05-23` + CHECK Django `ck_sucatamento_cert_vigente_exige_dupla_confirmacao`).
+  Migration `0017` RLS pattern v2 + trigger PG
+  `sucatamento_imutavel_trg` (BLOCK em TODO UPDATE — registro
+  terminal e imutavel pos-INSERT). Doc canonico
+  `docs/conformidade/equipamentos/template-notificacao-sucatamento.md`
+  v1.0 (advogado-saas-regulado): modal com 4 paragrafos (ISO 17025
+  §7.1.1 validade tecnica + decisao operacional + LGPD/CDC anti-CTA +
+  estado terminal) + template notificacao cliente STUB Wave A +
+  allowlist semantica anti-CTA. Constantes
+  `TEXTO_MODAL_SUCATAMENTO_VERSAO_CANONICA` +
+  `TEXTO_MODAL_SUCATAMENTO_CERT_VIGENTE` em `validators.py` (lista
+  FECHADA, anti-LLM); teste anti-drift versao↔frontmatter. Service
+  `services_sucatamento.sucatear_equipamento` orquestra: valida
+  justificativa (≥30 + anti-PII via novo
+  `validar_justificativa_sucatamento`), consulta porta
+  `certificados.tem_emitido`, cert vigente sem `confirmacao_dupla=True`
+  E `ciencia_validade_tecnica_registrada=True` → `CertVigenteSemConfirmacaoDupla`
+  (422 com texto canonico do modal), cria registro, atualiza
+  `Equipamento.status` → sucata (trigger PG
+  `transicao_status_permitida` migration 0002 valida — `sucata→extraviado`
+  unica excecao), publica acao canonica nova
+  `equipamento.sucateado` (payload sanitizado: justificativa_hash
+  HMAC tenant + tem_cert_vigente_no_momento), e quando cert vigente
+  publica adicionalmente `equipamento.sucateado_com_cert_vigente`
+  (P-EQP-S9 — payload inclui `texto_modal_versao_id` +
+  `ciencia_validade_tecnica_registrada=True`). Endpoint POST
+  `/api/v1/equipamentos/{id}/sucatear/` (action no
+  `EquipamentoViewSet`): 200/400/403/409/422. Seed authz
+  `equipamentos.sucatear` em migration `0018` (admin_tenant + tecnico).
+  16/16 testes (happy sem cert + payload sanitizado + cert vigente
+  sem confirmacao 422 + cert sem ciencia 422 + cert happy publica
+  evento extra + sucata→ativo trigger bloqueado + sucata→extraviado
+  OK + justificativa curta/PII 400 + 403 sem authz + duplicado 409 +
+  texto modal anti-drift + UPDATE sucatamento bloqueado + RLS
+  cross-tenant + sanity texto). 180/180 testes em
+  `test_equipamentos*.py` — zero regressao.
 - **P4 T-EQP-027+029+032 ✅** (2026-05-23): US-EQP-003 fase 3 —
   rate-limit IP + global por tenant + filtro de histórico para
   cessionário sem consentimento. Service `services_ratelimit` com
@@ -330,15 +371,13 @@ rastreados Wave A.
    nativo (Chrome/Edge mobile) + fallback jsQR (Safari/Firefox).
    Service-worker `network-only` para `/qr/*` (impedir cache de payload
    sensível). Depende de aceite do ADR-0018 pelo Roldão.
-2. **US-EQP-005 sucatamento** (T-EQP-042..046): POST `/sucatear/`
-   simples + cert vigente exige `confirmacao_dupla` + estado terminal
-   (trigger PG bloqueia transição fora `sucata`→`extraviado`) + template
-   anti-CTA notificação cliente + ciência validade técnica (P-EQP-R8).
-3. **US-EQP-006 recebimento** (T-EQP-047..055): POST `/recebimentos/`
-   condição visual chegada + anomalias anti-PII + ≥1 foto perfil A +
-   foto_sha256 + recebimento provisório TTL D+7 (P-EQP-R9) + métrica
-   taxa_provisorios_mensal.
-4. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
+2. **US-EQP-006 recebimento** (T-EQP-047..055): POST `/recebimentos/`
+   condição visual chegada (`integro`/`amassado`/`lacre_violado`/
+   `contaminado`/`sem_acessorios`/`outros`) + anomalias anti-PII +
+   ≥1 foto perfil A (opcional B/C/D) + `foto_sha256` (P-EQP-S3) +
+   recebimento provisório TTL D+7 (P-EQP-R9 — bloqueia devolução sem
+   promoção prévia) + métrica `taxa_provisorios_mensal`.
+3. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)
 

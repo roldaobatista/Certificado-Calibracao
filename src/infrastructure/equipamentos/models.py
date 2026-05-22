@@ -1033,3 +1033,123 @@ class ConsentimentoHistoricoEquipamento(models.Model):
             f"transf={self.transferencia_origem_id} nivel={self.nivel} "
             f"revogado={'sim' if self.revogado_em else 'nao'}"
         )
+
+
+class EquipamentoSucatamento(models.Model):
+    """Registro de sucatamento de equipamento (US-EQP-005 / AC-EQP-005-*).
+
+    Tabela dedicada (1 registro por equipamento). Imutavel pos-insert
+    via trigger PG — sucatamento e estado terminal (excecao unica
+    `sucata→extraviado` ja tratada na maquina de status do migration
+    0002).
+
+    `tem_cert_vigente_no_momento` (P-EQP-S9 / AC-EQP-005-2): captura
+    se o equipamento tinha certificado vigente no momento do
+    sucatamento — determina se evento adicional
+    `equipamento.sucateado_com_cert_vigente` e disparado + se
+    `confirmacao_dupla=True` era obrigatorio.
+
+    `texto_modal_versao_id` (P-EQP-S9): versao do texto canonico
+    exibido no modal de confirmacao_dupla — auditavel via
+    `template-notificacao-sucatamento.md` v1.0. Marco 2: aceita default
+    `v1.0-2026-05-23`; Wave A: tabela `TextoModalSucatamentoVersao`.
+
+    `ciencia_validade_tecnica_registrada` (P-EQP-R8 / AC-EQP-005-5):
+    flag booleana obrigatoria quando `tem_cert_vigente_no_momento=True`.
+    Confirma que o decisor leu o modal sobre validade tecnica ISO 17025
+    §7.1.1 ANTES de sucatear.
+
+    `justificativa_hash` (AC-EQP-005-1): HMAC-SHA256 com salt tenant
+    da justificativa cru (>=30 chars + anti-PII). Texto cru NUNCA
+    persistido (mesma regra `motivo_detalhe` da transferencia).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="sucatamentos_equipamento",
+    )
+    equipamento = models.OneToOneField(
+        Equipamento,
+        on_delete=models.PROTECT,
+        related_name="sucatamento",
+        help_text="OneToOne — sucatamento e terminal e unico por equipamento.",
+    )
+    justificativa_hash = models.CharField(
+        max_length=128,
+        help_text=(
+            "HMAC-SHA256 da justificativa em claro (>=30 chars + anti-PII) "
+            "com salt do tenant. Texto cru NUNCA persistido."
+        ),
+    )
+    tem_cert_vigente_no_momento = models.BooleanField(
+        help_text=(
+            "Captura snapshot do estado de certificado no momento do "
+            "sucatamento (AC-EQP-005-2). Determina se evento extra "
+            "`equipamento.sucateado_com_cert_vigente` foi disparado + se "
+            "`confirmacao_dupla=True` era obrigatorio."
+        ),
+    )
+    confirmacao_dupla = models.BooleanField(
+        help_text=(
+            "AC-EQP-005-2 — True OBRIGATORIO quando "
+            "tem_cert_vigente_no_momento=True. Valida que UI exibiu o modal "
+            "+ usuario confirmou ciencia."
+        ),
+    )
+    texto_modal_versao_id = models.CharField(
+        max_length=30,
+        default="v1.0-2026-05-23",
+        help_text=(
+            "Versao do texto canonico do modal exibido (P-EQP-S9). "
+            "`template-notificacao-sucatamento.md` v1.0; Marco 2 default "
+            "`v1.0-2026-05-23`; Wave A: tabela "
+            "`TextoModalSucatamentoVersao`."
+        ),
+    )
+    ciencia_validade_tecnica_registrada = models.BooleanField(
+        default=False,
+        help_text=(
+            "P-EQP-R8 / AC-EQP-005-5 — True OBRIGATORIO quando "
+            "tem_cert_vigente_no_momento=True. Confirma ciencia da "
+            "validade tecnica do certificado emitido (ISO 17025 §7.1.1)."
+        ),
+    )
+    sucateado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        related_name="sucatamentos_solicitados",
+    )
+    sucateado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        app_label = "equipamentos"
+        db_table = "equipamentos_sucatamento"
+        verbose_name = "Sucatamento de equipamento"
+        verbose_name_plural = "Sucatamentos de equipamentos"
+        ordering = ["-sucateado_em"]
+        indexes = [
+            models.Index(fields=["tenant", "-sucateado_em"]),
+        ]
+        constraints = [
+            # AC-EQP-005-2 + P-EQP-R8: cert vigente exige confirmacao_dupla
+            # E ciencia_validade_tecnica_registrada.
+            models.CheckConstraint(
+                condition=(
+                    models.Q(tem_cert_vigente_no_momento=False)
+                    | (
+                        models.Q(tem_cert_vigente_no_momento=True)
+                        & models.Q(confirmacao_dupla=True)
+                        & models.Q(ciencia_validade_tecnica_registrada=True)
+                    )
+                ),
+                name="ck_sucatamento_cert_vigente_exige_dupla_confirmacao",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"Sucatamento {self.id} eq={self.equipamento_id} "
+            f"cert_vigente={'sim' if self.tem_cert_vigente_no_momento else 'nao'}"
+        )

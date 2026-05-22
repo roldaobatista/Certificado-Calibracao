@@ -65,6 +65,7 @@ ENDPOINT_ETIQUETA = "equipamentos.etiqueta"
 ENDPOINT_CRIAR = "equipamentos.criar"
 ENDPOINT_TRANSFERIR = "equipamentos.transferir"
 ENDPOINT_REVOGAR_CONSENT_HISTORICO = "equipamentos.revogar_consentimento_historico"
+ENDPOINT_SUCATEAR = "equipamentos.sucatear"
 
 
 def _hashear_ip_request(request, tenant_id: UUID) -> str:
@@ -130,6 +131,8 @@ class EquipamentoViewSet(
         "revogar_consentimento_historico": (
             "equipamentos.revogar_consentimento_historico"
         ),
+        # T-EQP-042 / US-EQP-005 AC-EQP-005-1: sucatear.
+        "sucatear": "equipamentos.sucatear",
     }
 
     def get_authz_action(self, request) -> str | None:
@@ -627,6 +630,107 @@ class EquipamentoViewSet(
                 "consentimento_id": str(resultado.consentimento.id),
                 "revogado_em": resultado.consentimento.revogado_em.isoformat(),
                 "nivel": resultado.consentimento.nivel,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+    # authz-check: skip -- RequireAuthz global + ACTION_MAP['sucatear'] = 'equipamentos.sucatear'
+    @action(detail=True, methods=["post"], url_path="sucatear")
+    def sucatear(
+        self, request: Request, id: str | None = None
+    ) -> Response:
+        """POST `/equipamentos/{id}/sucatear/` — US-EQP-005 (T-EQP-042+043+046).
+
+        Body:
+        ```
+        {
+          "justificativa": ">=30 chars + anti-PII",
+          "confirmacao_dupla": bool,
+          "ciencia_validade_tecnica_registrada": bool,
+          "texto_modal_versao_id": "v1.0-2026-05-23"  // opcional
+        }
+        ```
+
+        Codigos:
+        - 200 OK + `{sucatamento_id, tem_cert_vigente_no_momento, status}`.
+        - 400 + `{detail}` — validacao (justificativa curta/PII).
+        - 422 + `{detail, codigo, texto_modal}` — cert vigente sem
+          `confirmacao_dupla=True` E `ciencia_validade_tecnica_registrada=True`.
+        - 409 + `{detail}` — sucatamento duplicado ou transicao status
+          invalida.
+        """
+        from src.infrastructure.equipamentos.services_sucatamento import (
+            CertVigenteSemConfirmacaoDupla,
+            DadosSucatamento,
+            JustificativaInvalida,
+            StatusInvalido,
+            SucatamentoDuplicado,
+            SucatamentoInvalido,
+            sucatear_equipamento,
+        )
+        from src.infrastructure.equipamentos.validators import (
+            TEXTO_MODAL_SUCATAMENTO_CERT_VIGENTE,
+            TEXTO_MODAL_SUCATAMENTO_VERSAO_CANONICA,
+        )
+
+        equipamento = self.get_object()
+        tenant_id = _active_tenant_obrigatorio()
+        user_id = request.user.id
+        assert user_id is not None
+
+        body = request.data or {}
+        dados = DadosSucatamento(
+            justificativa=str(body.get("justificativa", "")),
+            confirmacao_dupla=bool(body.get("confirmacao_dupla", False)),
+            ciencia_validade_tecnica_registrada=bool(
+                body.get("ciencia_validade_tecnica_registrada", False)
+            ),
+            texto_modal_versao_id=str(
+                body.get(
+                    "texto_modal_versao_id",
+                    TEXTO_MODAL_SUCATAMENTO_VERSAO_CANONICA,
+                )
+            ),
+        )
+
+        try:
+            resultado = sucatear_equipamento(
+                tenant_id=tenant_id,
+                equipamento=equipamento,
+                sucateado_por_id=user_id,
+                dados=dados,
+            )
+        except CertVigenteSemConfirmacaoDupla as exc:
+            return Response(
+                {
+                    "detail": str(exc),
+                    "codigo": "cert_vigente_exige_confirmacao_dupla",
+                    "texto_modal": TEXTO_MODAL_SUCATAMENTO_CERT_VIGENTE,
+                    "texto_modal_versao_id": (
+                        TEXTO_MODAL_SUCATAMENTO_VERSAO_CANONICA
+                    ),
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        except (SucatamentoDuplicado, StatusInvalido) as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except (JustificativaInvalida, SucatamentoInvalido) as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "sucatamento_id": str(resultado.sucatamento.id),
+                "tem_cert_vigente_no_momento": (
+                    resultado.tem_cert_vigente_no_momento
+                ),
+                "status": "sucata",
             },
             status=status.HTTP_200_OK,
         )

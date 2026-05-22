@@ -272,6 +272,87 @@ def texto_rejeicao_422_pos_cert(campo: str) -> str:
     return _CHAVE_PARA_TEXTO[chave]
 
 
+# =====================================================================
+# T-EQP-045 (US-EQP-005 AC-EQP-005-2 + 4 + 5 / P-EQP-S9 / P-EQP-R8) —
+# texto canonico do modal de confirmacao_dupla de sucatamento.
+#
+# Fonte unica: docs/conformidade/equipamentos/template-notificacao-sucatamento.md
+# Mudar texto exige PR + bump `versao_canonica` no frontmatter +
+# advogado-saas-regulado. Teste anti-drift valida.
+# =====================================================================
+
+TEXTO_MODAL_SUCATAMENTO_VERSAO_CANONICA: Final[str] = "v1.0-2026-05-23"
+
+TEXTO_MODAL_SUCATAMENTO_CERT_VIGENTE: Final[str] = (
+    "Voce esta prestes a marcar este equipamento como SUCATA, mas existe "
+    "certificado de calibracao vigente associado a ele.\n\n"
+    "IMPORTANTE — antes de confirmar, leia:\n\n"
+    "1. O certificado emitido permanece TECNICAMENTE VALIDO conforme "
+    "ISO/IEC 17025 §7.1.1. O certificado atesta o estado metrologico "
+    "do equipamento no momento da calibracao — NAO atesta a propriedade "
+    "fisica, posse ou continuidade de uso do equipamento.\n\n"
+    "2. Sucatamento e uma decisao OPERACIONAL/COMERCIAL do laboratorio "
+    "ou do cliente — separada e independente da emissao do certificado.\n\n"
+    "3. O cliente proprietario sera notificado deste sucatamento via "
+    "canal oficial. A notificacao NAO contem oferta comercial (recompra, "
+    "desconto em recalibracao ou outro CTA) — LGPD art. 5º IX (boa-fe) "
+    "+ CDC art. 6º III (informacao adequada e clara) vedam manipulacao "
+    "emocional do titular.\n\n"
+    "4. Sucatamento e um estado TERMINAL. Apos confirmar, o equipamento "
+    "so podera transitar para 'extraviado' caso seja reportado como "
+    "sumido fisicamente. Nao ha volta para 'ativo' sem registro de "
+    "nova rastreabilidade (NIT-DICLA-021)."
+)
+
+
+def texto_modal_sucatamento_cert_vigente(
+    versao: str = TEXTO_MODAL_SUCATAMENTO_VERSAO_CANONICA,
+) -> str:
+    """Retorna o texto canonico do modal exibido na UI quando o usuario
+    tenta sucatear equipamento COM certificado vigente.
+
+    Marco 2 entende apenas `v1.0-2026-05-23`. Versoes futuras serao
+    implementadas via tabela `TextoModalSucatamentoVersao` em Wave A.
+    Por ora, ValueError em versao desconhecida — defesa fail-loud em
+    audit CGCRE.
+    """
+    if versao != TEXTO_MODAL_SUCATAMENTO_VERSAO_CANONICA:
+        raise ValueError(
+            f"versao '{versao}' nao implementada em Marco 2. Atual: "
+            f"{TEXTO_MODAL_SUCATAMENTO_VERSAO_CANONICA}. Wave A: tabela "
+            "TextoModalSucatamentoVersao."
+        )
+    return TEXTO_MODAL_SUCATAMENTO_CERT_VIGENTE
+
+
+# T-EQP-042 (US-EQP-005 AC-EQP-005-1) — justificativa de sucatamento.
+# >=30 chars + anti-PII (mesma regex INV-EQP-LOC-001). Texto cru NUNCA
+# persistido — service grava apenas hash HMAC com salt do tenant.
+JUSTIFICATIVA_SUCATAMENTO_MIN_CHARS: Final[int] = 30
+
+
+def validar_justificativa_sucatamento(valor: str | None) -> None:
+    """Valida justificativa de sucatamento (T-EQP-042 / AC-EQP-005-1).
+
+    - Exige >=30 chars (decisao auditavel ISO 17025 §7.1.1 + LGPD art.
+      5º IX boa-fe).
+    - Anti-PII (mesma regex INV-EQP-LOC-001).
+    """
+    texto = (valor or "").strip()
+    if len(texto) < JUSTIFICATIVA_SUCATAMENTO_MIN_CHARS:
+        raise ValueError(
+            f"justificativa exige >={JUSTIFICATIVA_SUCATAMENTO_MIN_CHARS} "
+            f"chars (atual={len(texto)}). ISO 17025 §7.1.1 — decisao "
+            "auditavel."
+        )
+    if conter_pii_direta(texto):
+        raise ValueError(
+            "LGPD art. 5º I + INV-EQP-VERSAO-001 — justificativa contem "
+            "PII direta (CPF/CNPJ/e-mail/telefone/nomes proprios "
+            "consecutivos). Reformule sem dados pessoais."
+        )
+
+
 # T-EQP-041 (US-EQP-004 AC-EQP-004-8 / P-EQP-R6) — justificativa de
 # revogacao de consentimento historico. >=30 chars + anti-PII (mesma
 # regex INV-EQP-LOC-001). Texto cru NUNCA persistido — service grava

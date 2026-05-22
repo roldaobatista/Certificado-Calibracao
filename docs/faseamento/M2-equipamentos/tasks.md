@@ -100,11 +100,11 @@ Convenção:
 
 | AC | Estado | T-EQP / nota |
 |----|--------|--------------|
-| AC-EQP-005-1 | GAP | T-EQP-042 (POST `/sucatear/` simples + evento) |
-| AC-EQP-005-2 | GAP | T-EQP-043 (sucata com cert vigente: modal + duplo consentimento + `texto_modal_versao` — P-EQP-S9) |
-| AC-EQP-005-3 | GAP | T-EQP-044 (trigger PG `sucata→extraviado` exclusivo) |
-| AC-EQP-005-4 | GAP | T-EQP-045 (template notificação + cláusula informativa validade técnica — P-EQP-A5) |
-| AC-EQP-005-5 | GAP | T-EQP-046 (gravação `ciencia_validade_tecnica_registrada` — P-EQP-R8) |
+| AC-EQP-005-1 | **OK** | T-EQP-042 ✅ FECHADO 2026-05-23: POST `/api/v1/equipamentos/{id}/sucatear/` (action no `EquipamentoViewSet`). Service `sucatear_equipamento` valida justificativa (≥30 + anti-PII), grava `EquipamentoSucatamento` (1:1 com Equipamento, migration 0017 RLS v2 + trigger PG imutabilidade pos-INSERT + CHECK `ck_sucatamento_cert_vigente_exige_dupla_confirmacao`), atualiza `Equipamento.status` para `sucata` (trigger PG `transicao_status_permitida` do migration 0002 valida), publica ação canônica nova `equipamento.sucateado` com payload sanitizado (`justificativa_hash` HMAC tenant, NUNCA texto cru). Seed authz `equipamentos.sucatear` em migration `0018` (admin_tenant + tecnico). |
+| AC-EQP-005-2 | **OK** | T-EQP-043 ✅ FECHADO 2026-05-23: porta `certificados.tem_emitido` consulta cert vigente no momento. Cert vigente sem `confirmacao_dupla=True` E `ciencia_validade_tecnica_registrada=True` → 422 com texto canônico do modal (helper `texto_modal_sucatamento_cert_vigente` lista FECHADA, anti-LLM) + `texto_modal_versao_id`. Cert vigente happy publica adicionalmente ação canônica nova `equipamento.sucateado_com_cert_vigente` (P-EQP-S9) com `ciencia_validade_tecnica_registrada=True` no payload. |
+| AC-EQP-005-3 | **OK** | T-EQP-044 ✅ FECHADO (já entregue em 2026-05-21 no migration `0002_rls_policies_e_triggers.py` — função PG `transicao_status_permitida` cobre matriz fechada com `sucata→extraviado` como única exceção válida). Testes anti-regressão em `tests/test_equipamentos_sucatar_t_eqp_042_046.py` (`sucata→ativo` bloqueado + `sucata→extraviado` permitido). |
+| AC-EQP-005-4 | **OK** | T-EQP-045 ✅ FECHADO 2026-05-23: doc canônico `docs/conformidade/equipamentos/template-notificacao-sucatamento.md` v1.0 (advogado-saas-regulado) — 4 cláusulas no modal (validade técnica ISO 17025 §7.1.1 + decisão operacional + LGPD/CDC anti-CTA + estado terminal) + template notificação cliente STUB Wave A + allowlist semântica anti-CTA. Constantes `TEXTO_MODAL_SUCATAMENTO_VERSAO_CANONICA` + `TEXTO_MODAL_SUCATAMENTO_CERT_VIGENTE` em `validators.py`; teste anti-drift versão↔frontmatter. |
+| AC-EQP-005-5 | **OK** | T-EQP-046 ✅ FECHADO 2026-05-23: campo `ciencia_validade_tecnica_registrada` no modelo `EquipamentoSucatamento` + CHECK constraint Django `ck_sucatamento_cert_vigente_exige_dupla_confirmacao` (cert vigente exige `confirmacao_dupla=True` E `ciencia_validade_tecnica_registrada=True`) + defesa A no service (`CertVigenteSemConfirmacaoDupla` → 422). Validator `validar_justificativa_sucatamento` (≥30 chars + anti-PII reuso `conter_pii_direta`). |
 
 ### US-EQP-006 — Receber equipamento (ISO 17025 cl. 7.4)
 
