@@ -272,6 +272,37 @@ def texto_rejeicao_422_pos_cert(campo: str) -> str:
     return _CHAVE_PARA_TEXTO[chave]
 
 
+# T-EQP-041 (US-EQP-004 AC-EQP-004-8 / P-EQP-R6) — justificativa de
+# revogacao de consentimento historico. >=30 chars + anti-PII (mesma
+# regex INV-EQP-LOC-001). Texto cru NUNCA persistido — service grava
+# apenas hash HMAC com salt do tenant.
+JUSTIFICATIVA_REVOGACAO_MIN_CHARS: Final[int] = 30
+
+MENSAGEM_REJEICAO_JUSTIFICATIVA_REVOGACAO_PII: Final[str] = (
+    "LGPD art. 5º I + INV-EQP-VERSAO-001 — justificativa contem PII direta "
+    "(CPF/CNPJ/e-mail/telefone/nomes proprios consecutivos). Reformule sem "
+    "dados pessoais."
+)
+
+
+def validar_justificativa_revogacao_consentimento(valor: str | None) -> None:
+    """Valida justificativa da revogacao de consentimento historico
+    (T-EQP-041 / AC-EQP-004-8).
+
+    - Exige >=30 chars (decisao auditavel LGPD art. 8 §5 — revogacao
+      deve ser registrada com motivacao do titular).
+    - Anti-PII (mesma regex INV-EQP-LOC-001).
+    """
+    texto = (valor or "").strip()
+    if len(texto) < JUSTIFICATIVA_REVOGACAO_MIN_CHARS:
+        raise ValueError(
+            f"justificativa exige >={JUSTIFICATIVA_REVOGACAO_MIN_CHARS} chars "
+            f"(atual={len(texto)}). LGPD art. 8 §5 — revogacao auditavel."
+        )
+    if conter_pii_direta(texto):
+        raise ValueError(MENSAGEM_REJEICAO_JUSTIFICATIVA_REVOGACAO_PII)
+
+
 # T-EQP-021 (INV-EQP-VERSAO-001 reuso) — parecer_gestor_texto em
 # `AprovacaoPendenteEquipamentoVersao` rejeita PII direta + exige
 # >=30 chars (decisao auditavel).

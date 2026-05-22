@@ -9,11 +9,10 @@ T-EQP-018+020+021+022 US-EQP-002b + T-EQP-019 SLA+job +
 T-EQP-013 trigger PG + T-EQP-071 hook + módulo stub `certificados` +
 T-EQP-024+030+031 ficha 360° + T-EQP-025+026+033 QR público 3 escopos +
 T-EQP-034+035+036+040 transferência fundação +
-**T-EQP-037+038 Idempotency + termo v1.1** entregues;
+T-EQP-037+038 Idempotency + termo v1.1 +
+**T-EQP-039+041 consentimento histórico granular** entregues;
 GATE-EQP-INV025-TRIGGER FECHADO).
-**Sessão encerrada 2026-05-22** (11 commits novos: 5b12c22, af7ab3d,
-baf85e3, 6f8c977, 556f8ce, 6e136dc, 19a21b2, a7042a0, f151155, 0fb3a72,
-47dcb58).
+**Sessão ativa 2026-05-23.**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (verificado 2026-05-23)
@@ -31,9 +30,11 @@ baf85e3, 6f8c977, 556f8ce, 6e136dc, 19a21b2, a7042a0, f151155, 0fb3a72,
 - T-EQP-025+026+033 (QR público 3 escopos + timing): **10/10 passed** em 8.8s
 - T-EQP-034+035+036+040 (transferência fundação): **12/12 passed** em 6.4s
 - T-EQP-037+038 (Idempotency-Key + termo v1.1): **12/12 passed** em 8.0s
+- T-EQP-039+041 (consentimento histórico granular): **13/13 passed** em 11.3s
+- Regressão transferência (T-EQP-034+037+038): **24/24 passed** em 11.2s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
-- Hooks: **179/179** verdes (22 ativos — sem hook novo nesta T)
+- Hooks: **192/192** verdes (22+1 ativos — sem hook novo nesta T)
 - `makemigrations --check`: limpo; ruff zero issues
 - ⚠️ **Suite completa não roda** por OOM do WSL2 (exit 137); validação
   isolada cobriu 50 testes relacionados (T-EQP-009/012/016/017 + modelo
@@ -86,6 +87,35 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-039+041 ✅** (2026-05-23): US-EQP-004 fase 3 — consentimento
+  histórico granular do cedente (P-EQP-R6). Enum
+  `NivelConsentimentoHistorico` (3 valores: `nada`/`resumo`/`completo`)
+  + modelo `ConsentimentoHistoricoEquipamento` (12 campos CORE
+  imutáveis + 4 campos one-shot de revogação) + migration `0014`
+  RLS v2 + trigger PG `consent_hist_imutavel_trg` (bloqueia mutação em
+  campo CORE; bloqueia re-revogação one-shot) + `UNIQUE` parcial
+  (`transferencia_origem` WHERE `revogado_em IS NULL`). Service
+  `services_consentimento_historico` com `conceder` + `revogar` +
+  helper `derivar_nivel_do_aceite_dump` (retrocompat com
+  `consentimento_historico_expresso` bool legacy). Integração na
+  efetivação de transferência: `solicitar_transferencia` chama
+  `conceder_consentimento_historico` no MESMO bloco transacional,
+  passando nível derivado de `aceite_cedente.nivel_consentimento_
+  historico` (ou bool legacy). Validator
+  `validar_justificativa_revogacao_consentimento` (≥30 chars + anti-PII
+  reuso `conter_pii_direta`). 2 ações canônicas novas
+  (`equipamento.consentimento_historico_concedido` /
+  `_revogado`) — payload sanitizado com hashes HMAC tenant
+  (justificativa cru e cedente_id cru NUNCA vazam). Endpoint POST
+  `/api/v1/equipamentos/{id}/consentimento-historico/revogar/`
+  (action no `EquipamentoViewSet`): 200 happy / 400 validação /
+  404 inexistente / 412 já-revogado / 403 sem authz. Seed authz
+  migration `0015` (`admin_tenant` + `tecnico`). 13/13 testes
+  (3 níveis + payload sanitizado concedido + revogação happy +
+  one-shot 412 + justificativa curta 400 + justificativa PII 400 +
+  perfil sem authz 403 + 404 inexistente + payload sanitizado
+  revogado + trigger PG mutação CORE + RLS cross-tenant). Sem
+  regressão nos 24 testes T-EQP-034+037+038.
 - **P4 T-EQP-037+038 ✅** (2026-05-22): US-EQP-004 fase 2 — Idempotency-Key
   no POST transferir + texto canônico do termo v1.1 com 4 cláusulas.
   T-EQP-037: integração `avaliar_chave_idempotencia` no endpoint (reusa
@@ -265,16 +295,14 @@ rastreados Wave A.
 
 ## Próximo passo
 
-1. **US-EQP-004 fase 3** (T-EQP-039 + T-EQP-041): consentimento histórico
-   granular do cedente (3 níveis nada/resumo/completo) + tabela
-   `ConsentimentoHistoricoEquipamento` + endpoint POST `/equipamentos/{id}/consentimento-historico/revogar/`
-   + eventos `Equipamento.ConsentimentoHistoricoConcedido/Revogado`.
-3. **US-EQP-003 fase 3** (T-EQP-027+029+032): rate-limit 60req/min IP
-   (Redis) + cessionário pós-transferência sem consentimento (agora
-   destravado pela US-EQP-004) + rate-limit global por tenant.
-4. **US-EQP-003 fase 4** (T-EQP-028): PWA scanner.
-5. **US-EQP-005 sucatamento** + **US-EQP-006 recebimento**.
-6. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
+1. **US-EQP-003 fase 3** (T-EQP-027+029+032): rate-limit 60req/min IP
+   (Redis) + filtro histórico no `construir_ficha_360` baseado em
+   `ConsentimentoHistoricoEquipamento` (cessionário pós-transferência
+   sem consentimento `completo`/`resumo` NÃO vê histórico — agora
+   destravado pelo modelo de T-EQP-039) + rate-limit global por tenant.
+2. **US-EQP-003 fase 4** (T-EQP-028): PWA scanner.
+3. **US-EQP-005 sucatamento** + **US-EQP-006 recebimento**.
+4. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)
 

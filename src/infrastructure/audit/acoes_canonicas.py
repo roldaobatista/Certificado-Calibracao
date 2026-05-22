@@ -79,6 +79,17 @@ ACOES_EQUIPAMENTOS: Final[frozenset[str]] = frozenset(
         # Payload sanitizado: cedente_id_hash + cessionario_id_hash +
         # transferencia_id + motivo_categoria + texto_termo_versao_id.
         "equipamento.transferido",
+        # T-EQP-039 (US-EQP-004 AC-EQP-004-6 / P-EQP-R6) - consentimento
+        # granular do cedente sobre visualizacao do historico pos-
+        # transferencia. Payload sanitizado: equipamento_id +
+        # transferencia_id + consentimento_id + nivel + cedente_id_hash +
+        # via_concessao + concedido_em. 25a WORM (LGPD art. 8).
+        "equipamento.consentimento_historico_concedido",
+        # T-EQP-041 (US-EQP-004 AC-EQP-004-8 / P-EQP-R6) - revogacao
+        # posterior do consentimento. Payload sanitizado: equipamento_id
+        # + consentimento_id + cedente_id_hash + justificativa_hash +
+        # via_revogacao + revogado_em. 25a WORM.
+        "equipamento.consentimento_historico_revogado",
     }
 )
 

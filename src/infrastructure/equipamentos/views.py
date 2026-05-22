@@ -64,6 +64,7 @@ from .services_etiqueta import gerar_etiqueta_pdf
 ENDPOINT_ETIQUETA = "equipamentos.etiqueta"
 ENDPOINT_CRIAR = "equipamentos.criar"
 ENDPOINT_TRANSFERIR = "equipamentos.transferir"
+ENDPOINT_REVOGAR_CONSENT_HISTORICO = "equipamentos.revogar_consentimento_historico"
 
 
 def _hashear_ip_request(request, tenant_id: UUID) -> str:
@@ -125,6 +126,10 @@ class EquipamentoViewSet(
         "ficha360": "equipamentos.ficha360",
         # T-EQP-034 / US-EQP-004 AC-EQP-004-1: transferir.
         "transferir": "equipamentos.transferir",
+        # T-EQP-041 / US-EQP-004 AC-EQP-004-8: revogar consentimento historico.
+        "revogar_consentimento_historico": (
+            "equipamentos.revogar_consentimento_historico"
+        ),
     }
 
     def get_authz_action(self, request) -> str | None:
@@ -444,6 +449,9 @@ class EquipamentoViewSet(
                     consentimento_historico_expresso=bool(
                         payload.get("consentimento_historico_expresso", False)
                     ),
+                    nivel_consentimento_historico=str(
+                        payload.get("nivel_consentimento_historico", "")
+                    ),
                 )
             except (ValueError, TypeError):
                 return None
@@ -520,6 +528,108 @@ class EquipamentoViewSet(
             response_body_resumo=resumo,
         )
         return Response(resumo, status=status_http)
+
+
+    # authz-check: skip -- RequireAuthz global + ACTION_MAP['revogar_consentimento_historico']
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="consentimento-historico/revogar",
+    )
+    def revogar_consentimento_historico(
+        self, request: Request, id: str | None = None
+    ) -> Response:
+        """POST `/equipamentos/{id}/consentimento-historico/revogar/` — T-EQP-041.
+
+        Body:
+        ```
+        {
+          "consentimento_id": "uuid?",           // se omitido pega o ativo
+          "justificativa": "string >=30 + anti-PII",
+          "via_revogacao": "presencial_atendente|contrato_fisico_digitalizado|portal_cliente_otp"
+        }
+        ```
+
+        Codigos:
+        - 200 OK + `{consentimento_id, revogado_em}` — revogado.
+        - 400 + `{detail}` — validacao (justificativa curta/PII, via invalida).
+        - 404 — consentimento nao encontrado neste equipamento/tenant.
+        - 412 + `{detail}` — consentimento ja revogado (one-shot).
+        """
+        from uuid import UUID as _UUID
+
+        from src.infrastructure.equipamentos.models import (
+            ConsentimentoHistoricoEquipamento,
+        )
+        from src.infrastructure.equipamentos.services_consentimento_historico import (
+            ConsentimentoInvalido,
+            ConsentimentoJaRevogado,
+            JustificativaInvalida,
+            revogar_consentimento_historico,
+        )
+
+        equipamento = self.get_object()
+        tenant_id = _active_tenant_obrigatorio()
+        user_id = request.user.id
+        assert user_id is not None
+
+        body = request.data or {}
+        consent_id_raw = body.get("consentimento_id")
+        justificativa = str(body.get("justificativa", ""))
+        via_revogacao = str(body.get("via_revogacao", ""))
+
+        qs = ConsentimentoHistoricoEquipamento.objects.filter(
+            tenant_id=tenant_id,
+            equipamento_id=equipamento.id,
+        )
+        if consent_id_raw:
+            try:
+                consent_id = _UUID(str(consent_id_raw))
+            except (ValueError, TypeError):
+                return Response(
+                    {"detail": "consentimento_id_invalido"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            consentimento = qs.filter(id=consent_id).first()
+        else:
+            # Default: ativo (nao revogado) mais recente.
+            consentimento = qs.filter(revogado_em__isnull=True).order_by(
+                "-concedido_em"
+            ).first()
+
+        if consentimento is None:
+            return Response(
+                {"detail": "consentimento_nao_encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            resultado = revogar_consentimento_historico(
+                tenant_id=tenant_id,
+                consentimento=consentimento,
+                revogado_por_id=user_id,
+                justificativa=justificativa,
+                via_revogacao=via_revogacao,
+            )
+        except ConsentimentoJaRevogado as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+        except (JustificativaInvalida, ConsentimentoInvalido) as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "consentimento_id": str(resultado.consentimento.id),
+                "revogado_em": resultado.consentimento.revogado_em.isoformat(),
+                "nivel": resultado.consentimento.nivel,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 def _resposta_erro_idempotencia(erro: ErroValidacao) -> Response:

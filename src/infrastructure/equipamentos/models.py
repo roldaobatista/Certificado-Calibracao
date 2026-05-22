@@ -832,8 +832,11 @@ class TransferenciaEquipamentoAceite(models.Model):
         blank=True,
         help_text=(
             "Schema: {tipo: ViaAceiteTransferencia, usuario_id_atendente: "
-            "UUID, observacao: str, consentimento_historico_expresso: bool}. "
-            "{} antes do aceite ser registrado."
+            "UUID, observacao: str, consentimento_historico_expresso: bool, "
+            "nivel_consentimento_historico: 'nada'|'resumo'|'completo'?}. "
+            "{} antes do aceite ser registrado. T-EQP-039: nivel granular "
+            "(P-EQP-R6) — quando ausente, deriva via "
+            "`consentimento_historico_expresso` (True=completo / False=nada)."
         ),
     )
     aceite_cessionario = models.JSONField(
@@ -879,4 +882,154 @@ class TransferenciaEquipamentoAceite(models.Model):
         return (
             f"Transf {self.id} eq={self.equipamento_id} "
             f"cessionario={self.cessionario_cliente_id} status={self.status}"
+        )
+
+
+class NivelConsentimentoHistorico(models.TextChoices):
+    """3 niveis granulares de consentimento do cedente (P-EQP-R6 / AC-EQP-004-6).
+
+    - `NADA`: cessionario ve APENAS dados gerados a partir da efetivacao
+      da transferencia. Historico anterior (versoes, certificados,
+      eventos) fica oculto via filtro em `construir_ficha_360` Wave A.
+    - `RESUMO`: cessionario ve `ultima_calibracao` + `ultima_versao` do
+      historico anterior (visao agregada sem detalhes operacionais).
+    - `COMPLETO`: cessionario ve historico inteiro (versoes,
+      certificados, eventos) — equivalente ao `consentimento_historico_
+      expresso=True` da spec original.
+    """
+
+    NADA = "nada", "Nada — apenas dados pos-transferencia"
+    RESUMO = "resumo", "Resumo — ultima calibracao + ultima versao"
+    COMPLETO = "completo", "Completo — historico inteiro"
+
+
+class ConsentimentoHistoricoEquipamento(models.Model):
+    """Log dedicado de consentimento granular do cedente para visualizacao
+    de historico do equipamento pos-transferencia (T-EQP-039 / AC-EQP-004-6).
+
+    Cada transferencia EFETIVADA gera 1 registro neste log (mesmo quando
+    `nivel=NADA` — pra prova de que o cedente DECIDIU expressamente nao
+    compartilhar). Revogacao posterior (T-EQP-041 / AC-EQP-004-8) grava
+    `revogado_em` no MESMO registro — sem criar novo (preserva linha do
+    tempo unica por consentimento).
+
+    Trigger PG `consentimento_historico_imutavel_pos_insert`:
+    - Bloqueia UPDATE em todos os campos EXCETO `revogado_em`,
+      `revogado_por_id`, `revogado_justificativa_hash`, `revogado_via`.
+    - Se `OLD.revogado_em IS NOT NULL`: bloqueia mutacao mesmo nos
+      campos de revogacao (revogacao e one-shot — re-conceder exige
+      novo registro via nova transferencia futura ou endpoint dedicado
+      Wave A `conceder-de-novo`).
+
+    Justificativa de revogacao NUNCA persiste em claro — apenas hash
+    HMAC com salt do tenant (mesmo helper Marco 1). Texto cru NUNCA
+    vaza em payload de evento (mesma regra `motivo_detalhe` da
+    transferencia).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="consentimentos_historico_equipamento",
+    )
+    equipamento = models.ForeignKey(
+        Equipamento,
+        on_delete=models.PROTECT,
+        related_name="consentimentos_historico",
+    )
+    transferencia_origem = models.ForeignKey(
+        TransferenciaEquipamentoAceite,
+        on_delete=models.PROTECT,
+        related_name="consentimentos_historico",
+        db_constraint=False,
+        help_text=(
+            "Transferencia que originou este consentimento (1:1 logico). "
+            "db_constraint=False por consistencia com FKs cliente_atual "
+            "(RLS no banco)."
+        ),
+    )
+    cedente_cliente_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Snapshot do cedente no momento da concessao. NULL quando "
+            "equipamento ja era orfao (cedente eliminado por LGPD antes da "
+            "transferencia — caso raro)."
+        ),
+    )
+    nivel = models.CharField(
+        max_length=20,
+        choices=NivelConsentimentoHistorico.choices,
+        help_text="3 niveis: nada/resumo/completo (P-EQP-R6).",
+    )
+    concedido_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        related_name="consentimentos_historico_concedidos",
+        help_text=(
+            "Atendente/admin que processou o aceite presencialmente (Marco 2 "
+            "dogfooding). Portal-cliente OTP (Wave B+ GATE-EQP-3) gravara o "
+            "proprio usuario do cedente."
+        ),
+    )
+    concedido_em = models.DateTimeField(auto_now_add=True, db_index=True)
+    via_concessao = models.CharField(
+        max_length=40,
+        choices=ViaAceiteTransferencia.choices,
+        help_text=(
+            "Mesma via do aceite_cedente da TransferenciaEquipamentoAceite "
+            "(consistencia auditavel)."
+        ),
+    )
+    revogado_em = models.DateTimeField(null=True, blank=True)
+    revogado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="consentimentos_historico_revogados",
+    )
+    revogado_justificativa_hash = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        help_text=(
+            "HMAC-SHA256 da justificativa em claro com salt do tenant. "
+            "Texto cru NUNCA persistido (mesma regra `motivo_detalhe` da "
+            "transferencia)."
+        ),
+    )
+    revogado_via = models.CharField(
+        max_length=40,
+        choices=ViaAceiteTransferencia.choices,
+        blank=True,
+        default="",
+    )
+
+    class Meta:
+        app_label = "equipamentos"
+        db_table = "equipamentos_consentimento_historico"
+        verbose_name = "Consentimento historico de equipamento"
+        verbose_name_plural = "Consentimentos historicos de equipamentos"
+        ordering = ["-concedido_em"]
+        indexes = [
+            models.Index(fields=["tenant", "equipamento", "-concedido_em"]),
+            models.Index(fields=["transferencia_origem"]),
+        ]
+        constraints = [
+            # 1 consentimento ativo (nao revogado) por transferencia.
+            # Revogar + reconceder exigira nova transferencia (Wave A).
+            models.UniqueConstraint(
+                fields=["transferencia_origem"],
+                condition=models.Q(revogado_em__isnull=True),
+                name="uq_consent_hist_ativo_por_transferencia",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"Consent {self.id} eq={self.equipamento_id} "
+            f"transf={self.transferencia_origem_id} nivel={self.nivel} "
+            f"revogado={'sim' if self.revogado_em else 'nao'}"
         )

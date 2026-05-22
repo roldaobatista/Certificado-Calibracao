@@ -77,12 +77,19 @@ class MotivoDetalheObrigatorio(TransferenciaInvalida):
 
 @dataclass(frozen=True)
 class Aceite:
-    """Schema canonico do JSONB de aceite (cedente ou cessionario)."""
+    """Schema canonico do JSONB de aceite (cedente ou cessionario).
+
+    Campo `nivel_consentimento_historico` (T-EQP-039 / P-EQP-R6): 3
+    niveis granulares ('nada' / 'resumo' / 'completo'). Quando vazio,
+    o service deriva via `consentimento_historico_expresso` (legacy bool
+    do termo v1.0 — True=completo, False=nada).
+    """
 
     tipo: str  # ViaAceiteTransferencia.value
     usuario_id_atendente: UUID
     observacao: str = ""
     consentimento_historico_expresso: bool = False
+    nivel_consentimento_historico: str = ""
 
     def como_jsonb(self) -> dict[str, Any]:
         return {
@@ -90,6 +97,7 @@ class Aceite:
             "usuario_id_atendente": str(self.usuario_id_atendente),
             "observacao": self.observacao,
             "consentimento_historico_expresso": self.consentimento_historico_expresso,
+            "nivel_consentimento_historico": self.nivel_consentimento_historico,
         }
 
 
@@ -241,6 +249,29 @@ def solicitar_transferencia(
                     f"equipamento:{equipamento.id}:transferido:{transferencia.id}"
                 ),
             )
+
+            # T-EQP-039 (P-EQP-R6) — efetivacao automatica grava 1
+            # consentimento granular do cedente no MESMO bloco transacional.
+            # Bem-derivado: nivel vem do aceite_cedente do JSONB (campo
+            # novo) ou retrocompat de `consentimento_historico_expresso`.
+            from src.infrastructure.equipamentos.services_consentimento_historico import (
+                conceder_consentimento_historico,
+                derivar_nivel_do_aceite_dump,
+            )
+
+            nivel = derivar_nivel_do_aceite_dump(aceite_cedente_jsonb)
+            via_concessao = aceite_cedente_jsonb.get("tipo", "")
+            conceder_consentimento_historico(
+                tenant_id=tenant_id,
+                equipamento=equipamento,
+                transferencia=transferencia,
+                cedente_cliente_id=cedente_id,
+                nivel=nivel,
+                concedido_por_id=solicitado_por_id,
+                via_concessao=via_concessao,
+                causation_id=causation_id,
+            )
+
             return ResultadoTransferencia(
                 transferencia=transferencia,
                 foi_efetivada=True,
