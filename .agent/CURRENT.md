@@ -23,7 +23,9 @@ T-EQP-055 ambientais + porta stub CAPA +
 T-EQP-060 cláusula contratual recusa foto +
 T-EQP-015 motivo→aprovação automática (despacho US-EQP-002b) +
 **T-EQP-072 hook port-binding-validator + T-EQP-073 hook trigger-stub-sweep +
-**T-EQP-090+095+096+098 suite regressão (4 INVs críticos: perfil snapshot + TAG única + INV-025 cert vigente + INV-050 transferência cross-tenant)** entregues;
+T-EQP-090+095+096+098 suite regressão Lote 1 (4 INVs estruturais) +
+**T-EQP-091+093+099..104 suite regressão Lote 2+3 (8 INVs: segregação +
+QR-nunca-recomputa + 4 anti-PII + payload sanitizado + provisório isolamento)** entregues;
 GATE-EQP-INV025-TRIGGER FECHADO).
 **Sessão 2026-05-22 (continuação)**: T-EQP-054+055+060 fechados.
 **Modo:** AUTÔNOMO.
@@ -53,8 +55,10 @@ GATE-EQP-INV025-TRIGGER FECHADO).
 - T-EQP-055 (ambientais + CAPA stub): **15/15 passed**
 - T-EQP-060 (cláusula recusa foto): **5/5 passed**
 - T-EQP-015 (despacho motivo→aprovação): **9/9 passed**
-- T-EQP-090+095+096+098 (suite regressão Marco 2): **13/13 passed**
-- Suíte completa `tests/test_equipamentos*.py + tests/regressao/`: **317/317 passed** em 110s
+- T-EQP-090+095+096+098 (suite regressão Lote 1): **13/13 passed**
+- T-EQP-099+100+102+103 (suite regressão Lote 2 anti-PII): **29/29 passed**
+- T-EQP-091+093+101+104 (suite regressão Lote 3 estruturais): **19/19 passed**
+- Suíte completa `tests/test_equipamentos*.py + tests/regressao/`: **365/365 passed** em 141s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **207/207** verdes (24+1 ativos — +trigger-stub-sweep 6 casos +port-binding-validator 9 casos)

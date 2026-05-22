@@ -150,20 +150,20 @@ Convenção:
 | T-EQP-084 | `docs/conformidade/comum/retencao-matriz.md` ganha 5 entradas Marco 2 (P-EQP-A7) |
 | T-EQP-085 | ADR-0022 (gestão do RT do tenant) — proposta |
 | T-EQP-090 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_001_perfil_imutavel.py` — 3 testes (happy INSERT + unhappy UPDATE direto bloqueado + cross-tenant RLS). |
-| T-EQP-091 | `tests/regressao/inv_eqp_002.py` (segregação solicitante≠decisor + competência — 3+ testes) |
+| T-EQP-091 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_002_segregacao.py` — 3 testes (happy decisor distinto + solicitante==decisor levanta `SegregacaoFuncoesViolada` + cross-tenant RLS invisível). |
 | T-EQP-092 | `tests/regressao/sec_qr_001.py` (QR HMAC versionado — 3+ testes) |
-| T-EQP-093 | `tests/regressao/inv_eqp_qr_nunca_recomputa.py` (consulta tabela, nunca recomputa) |
+| T-EQP-093 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_qr_nunca_recomputa.py` — 3 testes (happy hash gravado resolve + sem prefixo versão None + revogado_em preenchido None). |
 | T-EQP-094 | `tests/regressao/inv_eqp_rt_001.py` (RT sem sobreposição temporal — `EXCLUDE USING GIST`) |
 | T-EQP-095 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_049_tag_unica.py` — 3 testes (happy + duplicada mesmo tenant IntegrityError + cross-tenant mesma TAG OK). |
 | T-EQP-096 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_050_transferencia_mesmo_tenant.py` — 3 testes (happy mesmo tenant + cross-tenant CessionarioCrossTenant + cliente inexistente MESMA mensagem anti-oracle). |
 | T-EQP-097 | `tests/regressao/inv_051_qr_hmac.py` (HMAC payload + allowlist anônima — 3+ testes) |
 | T-EQP-098 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_025_imutabilidade_pos_cert.py` — 4 testes (sem cert muta tag OK + com cert bloqueia tag + com cert bloqueia numero_serie+fabricante + cross-tenant cert em B não protege A). |
-| T-EQP-099 | `tests/regressao/inv_eqp_loc_001.py` (`localizacao_fisica` anti-PII) |
-| T-EQP-100 | `tests/regressao/inv_eqp_versao_001.py` (`motivo_detalhe` anti-PII) |
-| T-EQP-101 | `tests/regressao/inv_eqp_versao_002.py` (payload sanitizado evento versão) |
-| T-EQP-102 | `tests/regressao/inv_eqp_anom_001.py` (`anomalias_observadas` anti-PII) |
-| T-EQP-103 | `tests/regressao/inv_eqp_anom_002.py` (`justificativa_decisao` anti-PII) |
-| T-EQP-104 | `tests/regressao/inv_eqp_prov_001.py` (RecebimentoProvisorio FK bloqueia cert) |
+| T-EQP-099 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_loc_001.py` — happy texto limpo + 5 padrões PII (CPF/CNPJ/email/telefone/nomes) + limite tamanho. |
+| T-EQP-100 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_versao_001.py` — happy + 5 padrões PII + motivo curto quando obriga. |
+| T-EQP-101 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_versao_002.py` — happy + 7 chaves proibidas + chave fora whitelist + invariante 7 proibidas. |
+| T-EQP-102 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_anom_001.py` — happy + 4 padrões PII + excede limite. |
+| T-EQP-103 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_anom_002.py` — happy + curto + 4 padrões PII. |
+| T-EQP-104 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_prov_001.py` — FK aponta para Equipamento + provisório sem related_name reverso + UUID provisório não corresponde a equipamento canônico. |
 | T-EQP-105 | Drill `validar_m2_equipamentos` (management command — multi-tenant cadastro+QR+transferência+recebimento) |
 
 ### GATEs Wave A rastreados (não bloqueiam fechamento Marco 2 dogfooding)
