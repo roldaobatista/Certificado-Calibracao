@@ -167,6 +167,15 @@ _qr_chaves: dict[str, bytes] = {
 }
 QR_HMAC_KEY_REGISTRO = _RegistroChavesPII(QR_HMAC_KEY_ID, _qr_chaves, env_var_nome="QR_HMAC_KEY_ID")
 
+# T-EQP-027 — salt do HMAC `_hash_ip_simples` no rate-limit do QR publico
+# (escopo trans-tenant; nao pode ser por tenant). Gate em prod.py exige
+# >=32 chars + distincao de outras chaves. Em dev/test, fallback string
+# fixa OK (rate-limit local nao protege segredo de produto).
+QR_IP_RATELIMIT_SALT: str = env(
+    "QR_IP_RATELIMIT_SALT",
+    default="dev-only-do-NOT-use-in-prod-rotate-monthly",
+)
+
 # =============================================================
 # Apps
 # =============================================================

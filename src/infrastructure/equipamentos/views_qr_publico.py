@@ -22,10 +22,11 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import os
 import time
 from typing import ClassVar
 from uuid import UUID
+
+from django.conf import settings
 
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
@@ -49,11 +50,10 @@ from src.infrastructure.equipamentos.services_ratelimit import (
 # T-EQP-027 — IP hash usa SALT GLOBAL dedicado ao rate-limit (escopo
 # trans-tenant; salt por tenant nao serve pois o rate-limit precisa
 # identificar o mesmo IP cross-tenant). HMAC defende contra rainbow
-# table. Wave A: rotacao mensal do salt + KMS.
-_IP_SALT_QR_RATELIMIT = (
-    os.environ.get("QR_IP_RATELIMIT_SALT")
-    or "dev-only-do-NOT-use-in-prod-rotate-monthly"
-).encode("utf-8")
+# table. Em prod, gate em config/settings/prod.py exige >=32 chars
+# + distincao de QR_HMAC_KEY/PII_HASH_KEY (corretora RAT-EQP-QR).
+# Wave A: rotacao mensal do salt + KMS.
+_IP_SALT_QR_RATELIMIT = settings.QR_IP_RATELIMIT_SALT.encode("utf-8")
 
 
 def _hash_ip_simples(ip: str) -> str:  # audit-pii-salt: skip -- rate-limit cross-tenant exige salt GLOBAL (nao por tenant); HMAC com `_IP_SALT_QR_RATELIMIT` protege contra rainbow table; rotacao mensal Wave A

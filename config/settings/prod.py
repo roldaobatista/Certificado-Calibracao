@@ -56,6 +56,29 @@ if _qr_key == _pii_key:
         "prod: QR_HMAC_KEY identica a PII_HASH_KEY. Chaves DEVEM ser "
         "distintas — uso e politica de rotacao diferentes (SEC-QR-001)."
     )
+
+# T-EQP-027 (corretora RAT-EQP-QR) — salt do HMAC usado em
+# `_hash_ip_simples` (rate-limit QR publico). Salt GLOBAL (nao por
+# tenant) porque o rate-limit identifica o mesmo IP cross-tenant.
+# Sem gate em prod, o fallback hardcoded vira string publica e o
+# espaco IPv4 (~4e9) vira reversivel por brute force em milissegundos
+# — atacante reverte ip_hash -> IP e descobre quais IPs visitam quais
+# hashes de QR (LGPD art. 5 - IP e dado pessoal). Mesmo padrao gate
+# de PII_HASH_KEY + QR_HMAC_KEY.
+_qr_ip_salt = env("QR_IP_RATELIMIT_SALT", default="")
+if len(_qr_ip_salt) < 32:
+    raise ImproperlyConfigured(
+        "prod: QR_IP_RATELIMIT_SALT ausente ou < 32 chars. Salt do "
+        "HMAC de ip_hash do rate-limit do QR publico — sem ele, espaco "
+        "IPv4 vira reversivel por brute force (corretora RAT-EQP-QR). "
+        "Rotacao mensal Wave A; usar string >=32 chars random hex."
+    )
+if _qr_ip_salt == _qr_key or _qr_ip_salt == _pii_key:
+    raise ImproperlyConfigured(
+        "prod: QR_IP_RATELIMIT_SALT identico a outra chave de seguranca. "
+        "Chaves DEVEM ser distintas — uso e politica de rotacao diferentes."
+    )
+
 if not _allowed:
     raise ImproperlyConfigured("prod: DJANGO_ALLOWED_HOSTS obrigatorio.")
 
