@@ -41,10 +41,43 @@ dominio: operacao
 - **Regra: lista de obrigatórios depende de `AtividadeDaOS.tipo`** (calibração exige `padrao_usado` + `assinatura`; manutenção exige `peca_consumida` + `foto`).
 - Bloqueia transição da ATIVIDADE de EM_EXECUCAO → CONCLUIDA se algum obrigatório vazio (não bloqueia a OS toda — outras atividades podem continuar).
 
-### EventoDeOS (audit imutável)
+### EventoDeOS (audit imutável WORM)
 
-- Atributos: `os_id`, `atividade_id` (opcional — NULL quando é evento da OS toda), `evento_tipo`, `payload`, `at`, `ator_id`, `geo` (opt-in).
-- Append-only. Cobre RAT-08.
+- **Atributos:** `id`, `tenant_id`, `os_id`, `atividade_id` (opcional — NULL quando é evento da OS toda), `evento_tipo`, `payload` (jsonb sanitizado por `sanitizar_payload_evento_os()` — INV-OS-AUD-001), `at`, `ator_id_hash` (HMAC-tenant, nunca UUID cru), `ip_hash` (HMAC-tenant), `geo_hash` (precisão limitada por INV-OS-GEO-001 — município/bairro), `correlation_id`, `causation_id`.
+- **Append-only:** trigger PG `os_evento_anti_update_delete_trg` bloqueia UPDATE/DELETE; tabela `# audit-immutability` declarada.
+- **Sanitização na escrita:** payload passa por `sanitizar_payload_evento_os()` ANTES do INSERT — proibido `cliente_id`/`tecnico_id` UUID cru, `razao_*` texto livre cru, `geo` precisão alta. Defesa em profundidade: leitura também sanitiza (bug-classe `sanitizar_payload_audit` 2026-05-19).
+- **Retenção:** 25 anos quando vinculado a atividade `calibracao` ou certificado emitido; 5 anos caso contrário (RAT-08 + matriz retenção).
+- **Invariantes:** RAT-08, INV-001, INV-AUTHZ-002, INV-OS-AUD-001, INV-OS-GEO-001.
+
+### AceiteAtividade (Lei 14.063/2020 + LGPD art. 7º V)
+
+> Nova entidade — TEMA-D.3 da auditoria 10 lentes. Garante aceite versionado + hash de texto + IP + carimbo tempo, necessário pra assinatura eletrônica simples ter valor jurídico (Lei 14.063 art. 4º).
+
+- **Atributos obrigatórios:** `id` (uuid), `tenant_id`, `atividade_id` (FK AtividadeDaOS, 1:1), `versao_termo` (string — ex: `v1.0`), `hash_texto_termo` (SHA-256 do texto canônico no momento), `metodo_assinatura` (enum: `touch` | `A1` | `A3`), `aceito_em` (timestamp UTC), `ip_hash` (HMAC-tenant), `correlation_id`.
+- **Atributos opcionais:** `assinatura_base64` (touch); `certificado_subject_cn_hash` (A1/A3 — HMAC-tenant); `certificado_emissor_hash` (A1/A3 — HMAC-tenant); `geo_hash` (município/bairro — INV-OS-GEO-001).
+- **Imutável após INSERT:** trigger PG bloqueia UPDATE/DELETE.
+- **Texto canônico:** referenciado por `versao_termo` em `docs/conformidade/comum/termos/aceite-atividade-vN.md` (a criar Wave A — uma versão por tipo de atividade ou genérica).
+- **Validação:** se `metodo_assinatura=A3`, exige validação server-side INV-CER-FRAUD-A3-001 (`certificado.subject_cn.cpf == sessao.usuario.cpf`).
+- **Invariantes:** Lei 14.063 art. 4º, INV-CER-FRAUD-A3-001, INV-OS-AUD-001.
+
+---
+
+## RLS e isolamento multi-tenant (INV-TENANT-003 + INV-AUTHZ-003)
+
+> Adicionado em 2026-05-23 — TEMA-C.1 da auditoria 10 lentes. Toda migration que cria essas tabelas obriga policy RLS na mesma migration (hook `migration-rls-check.sh` valida).
+
+| Tabela | Coluna tenant | Policy SELECT | Policy INSERT | Policy UPDATE | Policy DELETE |
+|---|---|---|---|---|---|
+| `os` | `tenant_id` | `USING (tenant_id::text = ANY(string_to_array(current_setting('app.tenant_ids'), ',')))` | mesma | mesma | mesma |
+| `os_atividade` | `tenant_id` (herdado da OS — INV-OS-ATIV-002) | mesma policy | mesma | mesma | mesma |
+| `os_item` | `tenant_id` | mesma policy | mesma | mesma | mesma |
+| `os_checklist_atividade` | `tenant_id` (via atividade) | mesma policy | mesma | mesma | mesma |
+| `os_evento` | `tenant_id` | mesma policy | mesma | trigger BLOCK UPDATE | trigger BLOCK DELETE |
+| `os_aceite_atividade` | `tenant_id` | mesma policy | mesma | trigger BLOCK UPDATE (imutável) | trigger BLOCK DELETE |
+
+**Role `app_user`:** `NOBYPASSRLS` + `NOSUPERUSER` (INV-TENANT-004 preservado).
+**Middleware Django** seta `SET LOCAL app.tenant_ids = '<uuid1>,<uuid2>,...'` em toda request (lista mesmo pra usuário com 1 tenant — INV-AUTHZ-003).
+**Cross-tenant em `link_modulo_tecnico`** (FK polimórfica de `os_atividade` apontando pra `calibracao.id`, `manutencao.id`, etc.) bloqueado por INV-OS-ATIV-005 (a) trigger PG validando `link.tenant_id == atividade.tenant_id` em INSERT/UPDATE; (b) hook `port-binding-validator.sh` valida em código.
 
 ---
 

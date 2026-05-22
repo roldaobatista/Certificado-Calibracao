@@ -1,6 +1,7 @@
 ---
-owner: Roldão
-revisado-em: 2026-05-17
+owner: roldao
+revisado_em: 2026-05-23
+proximo_review: 2026-08-23
 status: draft
 ---
 
@@ -67,6 +68,15 @@ Cada categoria de dado tem:
 | **`EquipamentoDevolucaoFoto` (US-EQP-006-4 / cl. 7.4.5)** | Vigência equipamento + 5 anos pós-devolução | **25 anos** (encerramento do depósito CC art. 624 + cadeia ISO) | **ISO 17025 cl. 8.4 + LGPD art. 16 I + RBC NIT-DICLA-021 cl. 4.2 + LGPD art. 7º V (defesa)** | PG (90 dias) → B2 WORM cifrado | EXIF strip + SHA-256 imutável pós-INSERT. Termo de devolução com `termo_aceite_hash` (HMAC) anexado. |
 | **`RecebimentoProvisorio` + foto (Caminho A Roldão)** | TTL D+7 (descartado) ou vigência Equipamento promovido + 5 anos | **25 anos** quando promovido a Equipamento canônico | **ISO 17025 cl. 8.4 + LGPD art. 16 I + RBC NIT-DICLA-021 cl. 4.2** | B2 WORM (promovido); B2 frio (descartado) | INV-EQP-PROV-001: provisório descartado MANTÉM registro 25a (forense) — só `status` muda para `expirado_descartado`. Promovido vincula UUID equipamento_promovido_id. |
 | **`EquipamentoVersao` (US-EQP-002 / cl. 8.4)** | 5 anos (Receita) | **25 anos** (cada mudança controlada vincula a cert metrológico vigente) | **ISO 17025 cl. 8.4 (registros técnicos imutáveis) + LGPD art. 16 I + RBC NIT-DICLA-021 cl. 4.2** | B2 WORM | Payload sanitizado (whitelist 14 campos / blacklist 7 — INV-EQP-VERSAO-002). `valor_anterior_hash`/`valor_novo_hash` HMAC tenant; texto cru NUNCA persistido. Tabela INSERT-only (T-EQP-012). |
+| **OS — atividade `calibracao` (ADR-0023)** | 5 anos (Receita se faturada) | **25 anos** (vincula a certificado emitido) | ISO 17025 cl. 8.4 + LGPD art. 16 I + RBC NIT-DICLA-021 cl. 4.2 | B2 WORM | Anonimização vínculo `cliente_id` (NULL); registro técnico preservado (cadeia metrológica intocada) |
+| **OS — atividade `manutencao_corretiva` (ADR-0023)** | 5 anos (Receita se faturada) | 5 anos | LGPD art. 7º V (execução contrato) + CTN art. 173 | PG (90 dias quente) → B2 frio | Anonimização vínculo `cliente_id` (NULL) ao fim de 5a; sem cadeia ISO obrigatória |
+| **OS — atividade `manutencao_preventiva` (ADR-0023)** | 5 anos (Receita se faturada) | **25 anos quando faz parte de contrato preventivo de equipamento calibrado** | LGPD art. 7º V + ISO 17025 cl. 8.4 (quando vinculada a equipamento calibrado) | B2 WORM se vinculada a equipamento com cert; B2 frio caso contrário | Anonimização parcial; manter registro técnico se vinculado a cert |
+| **OS — atividade `instalacao` (ADR-0023)** | 5 anos (Receita + garantia legal CDC art. 26) | **25 anos quando precede calibração inicial registrada** | LGPD art. 7º V + CDC art. 26 + ISO 17025 cl. 8.4 (se calibração inicial) | B2 WORM se precede cert; B2 frio caso contrário | Anonimização parcial; manter registro técnico se vinculado a cert |
+| **OS — atividade `verificacao_inmetro` (ADR-0023)** | 5 anos | **20 anos** (laudo INMETRO tem efeito regulatório) | INMETRO Portaria 590 + LGPD art. 7º II (obrigação legal) | B2 WORM | Manter laudo + assinatura RT (anonimização CPF preservando nome+CREA) |
+| **OS — atividade `vistoria` (ADR-0023)** | 5 anos (CC art. 205 prescrição civil ordinária) | 10 anos | LGPD art. 7º V + CC art. 205 (prazo prescricional ordinário) | B2 WORM | Manter laudo de vistoria assinado por RT (passivo civil em compra de equipamento usado — GAP-SEG-02 corretora) |
+| **OS sem atividade `calibracao`/`verificacao_inmetro` (cancelada/só-manutenção)** | 5 anos (Receita) | 5 anos | LGPD art. 7º V + CTN art. 173 | PG → B2 | Anonimização + crypto-shredding (sem obrigação ISO/INMETRO) |
+| **`AceiteAtividade` (TEMA-D.3 — Lei 14.063/2020)** | retenção da atividade pai + 1 ano | igual atividade pai | Lei 14.063 art. 4º (prova de manifestação) + LGPD art. 7º V | mesma da atividade | Versão termo + hash texto + `ip_hash` + timestamp preservados; assinatura touch original anonimizada após 5a se atividade não-calibração; certificate A1/A3 issuer hash preservado |
+| **`EventoDeOS` + `EventoDeCalibracao` (audit imutável WORM — RAT-08)** | 5 anos | **25 anos quando vinculado a atividade calibração ou certificado** | ISO 17025 cl. 8.4 + Marco Civil art. 15 + INV-OS-AUD-001/INV-CAL-AUD-001 | B2 WORM | Payload já sanitizado (hash HMAC tenant); manter integralmente |
 
 ---
 
