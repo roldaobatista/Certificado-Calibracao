@@ -144,11 +144,11 @@ Convenção:
 | T-EQP-072 | ✅ FECHADO 2026-05-22: hook `.claude/hooks/port-binding-validator.sh` + 9 casos (PB1..PB9) no `_test-runner.sh`. Bloqueia `from src.infrastructure.{certificados,qualidade}.{models,admin,serializers,views} import` fora do próprio módulo. Allow auto: tests/migrations/config/SI-mesmo. Override com `# port-binding: skip -- <razão>`. Registrado em `.claude/settings.json` PreToolUse. |
 | T-EQP-073 | ✅ FECHADO 2026-05-22: hook `.claude/hooks/trigger-stub-sweep.sh` + 6 casos (TS1..TS6) no `_test-runner.sh`. Bloqueia `_v0_stub` em migrations/SQL (P-EQP-T7 — placeholder não pode cair em release). Allow auto: tests/hooks. Override com `# trigger-stub-sweep: skip -- <razão>`. Registrado em `.claude/settings.json` PreToolUse. |
 | T-EQP-080 | `docs/conformidade/equipamentos/textos-rejeicao-422.md` (T1-T5 P-EQP-A3) |
-| T-EQP-081 | `docs/conformidade/equipamentos/aviso-aceite-presencial-atendente.md` (P-EQP-A2) |
-| T-EQP-082 | `docs/conformidade/equipamentos/template-notificacao-sucatamento.md` (P-EQP-A5) |
-| T-EQP-083 | `docs/conformidade/equipamentos/aviso-foto-recebimento.md` (P-EQP-A8) |
-| T-EQP-084 | `docs/conformidade/comum/retencao-matriz.md` ganha 5 entradas Marco 2 (P-EQP-A7) |
-| T-EQP-085 | ADR-0022 (gestão do RT do tenant) — proposta |
+| T-EQP-081 | ✅ FECHADO 2026-05-22: `docs/conformidade/equipamentos/aviso-aceite-presencial-atendente.md` v1.0 — aviso UX 5 declarações + allowlist anti-CTA + 3 camadas (UX/auditoria/contrato). Lei 14.063 + CP 299/171 + CLT 482 + CC 462. |
+| T-EQP-082 | ✅ FECHADO em sessão anterior — `template-notificacao-sucatamento.md` v1.0 (entregue com T-EQP-045). |
+| T-EQP-083 | ✅ FECHADO em sessão anterior — `aviso-foto-recebimento.md` v1.0 (entregue com T-EQP-047 / P-EQP-A6+A8+S4). |
+| T-EQP-084 | ✅ FECHADO 2026-05-22: `docs/conformidade/comum/retencao-matriz.md` ganha 5 entradas Marco 2 (TransferenciaEquipamentoAceite + ConsentimentoHistoricoEquipamento + EquipamentoDevolucaoFoto + RecebimentoProvisorio + EquipamentoVersao) com tríade canônica ISO 17025 cl. 8.4 + LGPD art. 16 I + RBC NIT-DICLA-021 cl. 4.2. |
+| T-EQP-085 | ✅ FECHADO 2026-05-22: ADR-0022 (gestão do RT do tenant) proposta. Tabela ADRs em AGENTS.md atualizada. Cobre 2 modelos (`ResponsavelTecnicoTenant` + `RTCompetencia`) + INV-EQP-RT-001 (EXCLUDE GIST) + 4 ações canônicas + 4 endpoints + predicate competência. Marco 2 entregue (T-EQP-061..065); Wave A rastreado em 4 GATEs. |
 | T-EQP-090 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_001_perfil_imutavel.py` — 3 testes (happy INSERT + unhappy UPDATE direto bloqueado + cross-tenant RLS). |
 | T-EQP-091 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_002_segregacao.py` — 3 testes (happy decisor distinto + solicitante==decisor levanta `SegregacaoFuncoesViolada` + cross-tenant RLS invisível). |
 | T-EQP-092 | `tests/regressao/sec_qr_001.py` (QR HMAC versionado — 3+ testes) |

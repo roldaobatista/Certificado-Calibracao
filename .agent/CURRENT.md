@@ -24,8 +24,10 @@ T-EQP-060 cláusula contratual recusa foto +
 T-EQP-015 motivo→aprovação automática (despacho US-EQP-002b) +
 **T-EQP-072 hook port-binding-validator + T-EQP-073 hook trigger-stub-sweep +
 T-EQP-090+095+096+098 suite regressão Lote 1 (4 INVs estruturais) +
-**T-EQP-091+093+099..104 suite regressão Lote 2+3 (8 INVs: segregação +
-QR-nunca-recomputa + 4 anti-PII + payload sanitizado + provisório isolamento)** entregues;
+**T-EQP-091+093+099..104 suite regressão Lote 2+3 (8 INVs) +
+**T-EQP-105 drill `validar_m2_equipamentos` PASS + T-EQP-081 doc
+aviso-aceite-presencial + T-EQP-084 retenção-matriz +5 entradas Marco 2 +
+T-EQP-085 ADR-0022 RT do tenant** entregues;
 GATE-EQP-INV025-TRIGGER FECHADO).
 **Sessão 2026-05-22 (continuação)**: T-EQP-054+055+060 fechados.
 **Modo:** AUTÔNOMO.
@@ -58,6 +60,7 @@ GATE-EQP-INV025-TRIGGER FECHADO).
 - T-EQP-090+095+096+098 (suite regressão Lote 1): **13/13 passed**
 - T-EQP-099+100+102+103 (suite regressão Lote 2 anti-PII): **29/29 passed**
 - T-EQP-091+093+101+104 (suite regressão Lote 3 estruturais): **19/19 passed**
+- T-EQP-105 drill `validar_m2_equipamentos`: **PASS** (18/18 verificações — 3 tenants intercalados; cadastro+QR+recebimento+provisório + isolamento cross-tenant + cadeia auditoria + evento canônico)
 - Suíte completa `tests/test_equipamentos*.py + tests/regressao/`: **365/365 passed** em 141s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
@@ -498,15 +501,16 @@ rastreados Wave A.
 
 1. **US-EQP-003 fase 4** (T-EQP-028): PWA scanner com BarcodeDetector
    nativo (Chrome/Edge mobile) + fallback jsQR (Safari/Firefox).
-   Service-worker `network-only` para `/qr/*` (impedir cache de payload
-   sensível). Depende de aceite do ADR-0018 pelo Roldão.
-2. **Hooks + docs transversais**: T-EQP-072 (port-binding-validator),
-   T-EQP-073 (trigger-stub-sweep), T-EQP-081 (aviso-aceite-presencial-
-   atendente.md), T-EQP-084 (retencao-matriz +5 entradas Marco 2),
-   T-EQP-085 (ADR-0022 RT do tenant).
-4. **Suite anti-regressão**: T-EQP-090..104 (≥42 testes happy + unhappy
-   + cross-tenant) + T-EQP-105 drill `validar_m2_equipamentos`.
-5. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
+   Service-worker `network-only` para `/qr/*`. **Depende de aceite
+   do ADR-0018 pelo Roldão.**
+2. **Marco 2 — P5 10 auditores Família 5** (ritual Spec Kit): suite
+   completa do módulo equipamentos passou pelo P4 com 365 testes
+   verdes + drill PASS + hooks 207/207 + ruff clean + makemigrations
+   limpo. Próxima etapa: rodar os 10 prompts auditores em
+   `docs/governanca/auditor-*-prompt.md` e consolidar em
+   `docs/faseamento/M2-equipamentos/auditoria-familia5.md`.
+3. **Aceite das ADRs propostas** (ADR-0018, 0019, 0022) pelo Roldão.
+4. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)
 

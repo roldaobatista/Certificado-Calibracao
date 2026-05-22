@@ -202,6 +202,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 | ADR-0019 | Responsabilidade civil + segurabilidade de código gerado por agentes IA | 🟡 proposta — pós-auditoria PRD `equipamentos` Wave A Marco 2 (2026-05-18) | Contratação de apólice antes do 1º tenant externo pago | ADR-0000 |
 | ADR-0020 | REGRAS-INEGOCIÁVEIS &gt; orçamento; decisão CODEOWNERS expandida (D5) | ✅ aceito (2026-05-19) | Foundation F-A — fechada | — |
 | ADR-0021 | Anonimização vs retenção regulatória (3 zonas A/B/C — LGPD art. 16/18 vs Receita/ISO) | 🟡 proposta — pós review advogado-saas-regulado 2026-05-20 Marco 1 US-CLI-006 | Wave A (matriz `eliminacao_efetiva` vs `anonimizacao_em_lugar` em NF/cert) | ADR-0000, ADR-0007 |
+| ADR-0022 | Gestão do RT do tenant (US-EQP-007 / NIT-DICLA-021 — vigência + competências por grandeza + EXCLUDE GIST + imutabilidade pós-INSERT) | 🟡 proposta — Marco 2 entregue 2026-05-22 (T-EQP-061..065 + tests/regressao/test_inv_eqp_rt_001.py) | Wave A (GATE-EQP-1 A3 Lacuna + GATE-EQP-RT carta competência + GATE-EQP-RT-NOTIF consumer ANPD/CGCRE) | ADR-0002, ADR-0009, ADR-0012 |
 
 **Como ler a tabela:** "Bloqueia fase" = essa ADR precisa estar aprovada+implementada antes que a fase comece. "Depende de" = essa ADR usa decisões de outras (`soft` = referência conceitual, não bloqueante). Detalhe das fases em `docs/faseamento-foundation-waves.md`.
 
