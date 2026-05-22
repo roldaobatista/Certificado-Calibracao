@@ -216,7 +216,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 
 ## 12. O que está pendente (gates)
 
-> **Atualizado em 2026-05-23:** Foundation F-A+F-B FECHADAS (2026-05-19); Marco 1 `clientes` FECHADO (PASS ZERO C/A/M); Marco 2 `equipamentos` em P5 com 11 achados em conserto causa-raiz (1ª passada 2026-05-22) — reauditoria de 3 auditores FAIL pendente pra fechar sob INV-RITUAL-001.
+> **Atualizado em 2026-05-23 (pós Onda 7 — auditoria rodada 2 OS+Cal+Cert):** Foundation F-A+F-B FECHADAS (2026-05-19); Marco 1 `clientes` FECHADO (PASS ZERO C/A/M); Marco 2 `equipamentos` FECHADO (2ª passada 2026-05-23 — 10/10 PASS ZERO C/A/M). **Marco 3 OS pre-spec FORWARD:** 2 rodadas de auditoria 10 lentes aplicadas (R1: 179 achados; R2: 80 achados pós-retrofit). 6 ondas R1 + Onda 7 R2 → 28+6 CRÍTICOS = 100% fechados; ~210 outros achados resolvidos ou rastreados como GATE Wave A. Pronto pra arrancar P1 (spec FORWARD do `os`).
 
 ### Pendências reais
 

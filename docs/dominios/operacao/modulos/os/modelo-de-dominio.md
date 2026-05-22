@@ -18,14 +18,14 @@ dominio: operacao
 
 ### OS (Ordem de Serviço) — agregado raiz
 
-- **Atributos obrigatórios:** `id` (uuid), `tenant_id`, `estado` (enum INV-027 — derivado das atividades), `cliente_id`, `equipamento_id`, `criada_at`, `criada_por`.
+- **Atributos obrigatórios:** `id` (uuid), `tenant_id`, `estado` (enum INV-027 — derivado das atividades), `cliente_id`, `equipamento_id`, `correlation_id` (uuid NOT NULL — raiz da cadeia forense; herdado do evento Orcamento.Aprovado quando aplicável, senão `= id`), `criada_at`, `criada_por`.
 - **Atributos opcionais:** `tipo_predominante` (estatística cache; calculada das atividades), `tecnico_atribuido_id` (responsável geral), `agendada_para`, `iniciada_at`, `concluida_at`, `cancelada_at`, `razao_cancelamento`, `os_origem_id` (reabertura), `nao_conformidade_global` (bool — TRUE se qualquer atividade marcou NC), `prazo_prometido`.
 - **Invariantes:** `INV-027` (máquina de estados), `INV-020` (jornada UMC ao atribuir), `INV-012` (NC em atividade de calibração bloqueia certificado), `INV-026` (preço congelado na criação), `INV-OS-ATIV-001/002/003/004` (ADR-0023), RAT-08 (audit log).
 - **Ciclo de vida:** criada como RASCUNHO; imutável após FATURADA exceto cancelamento.
 
 ### AtividadeDaOS — nova entidade (ADR-0023)
 
-- **Atributos obrigatórios:** `id` (uuid), `tenant_id`, `os_id`, `tipo` (enum: `calibracao | manutencao_corretiva | manutencao_preventiva | instalacao | verificacao_inmetro | vistoria`), `estado_atividade` (enum: PENDENTE | EM_EXECUCAO | CONCLUIDA | NAO_CONFORME | CANCELADA), `sequencia` (int — ordem dentro da OS, ex: manutenção corretiva 1, calibração 2), `criada_at`.
+- **Atributos obrigatórios:** `id` (uuid), `tenant_id`, `os_id`, `tipo` (enum: `calibracao | manutencao_corretiva | manutencao_preventiva | instalacao | verificacao_inmetro | vistoria`), `estado_atividade` (enum: PENDENTE | EM_EXECUCAO | CONCLUIDA | NAO_CONFORME | CANCELADA), `sequencia` (int — ordem dentro da OS, ex: manutenção corretiva 1, calibração 2), `correlation_id` (uuid NOT NULL — herdado de `OS.correlation_id`), `criada_at`.
 - **Atributos opcionais:** `tecnico_executor_id` (pode diferir entre atividades — metrologista calibra, mecânico conserta), `iniciada_at`, `concluida_at`, `razao_nao_conformidade`.
 - **Relação reversa com módulo técnico (cravada em 2026-05-23 — NOVO-CRIT-1 rodada 2):** a FK fica no módulo técnico, não na AtividadeDaOS. Exemplo: `Calibracao.atividade_os_id` aponta pra `AtividadeDaOS.id`. Query reversa via `AtividadeDaOS.calibracao_set` (Django) ou JOIN explícito. **PROIBIDO** carregar `link_modulo_tecnico` na AtividadeDaOS — quebra INV-TENANT-001 (FK polimórfica sem validador de tenant) e duplica fonte de verdade.
 - **Invariantes:** `INV-OS-ATIV-001..005`, `INV-TENANT-001` (herda da OS pai).
@@ -49,6 +49,34 @@ dominio: operacao
 - **Sanitização na escrita:** payload passa por `sanitizar_payload_evento_os()` ANTES do INSERT — proibido `cliente_id`/`tecnico_id` UUID cru, `razao_*` texto livre cru, `geo` precisão alta. Defesa em profundidade: leitura também sanitiza (bug-classe `sanitizar_payload_audit` 2026-05-19).
 - **Retenção:** 25 anos quando vinculado a atividade `calibracao` ou certificado emitido; 5 anos caso contrário (RAT-08 + matriz retenção).
 - **Invariantes:** RAT-08, INV-001, INV-AUTHZ-002, INV-OS-AUD-001, INV-OS-GEO-001.
+
+### DelegacaoExecucao (INV-OS-ATIV-005(a) — NOVO-ALTO-3 R2)
+
+> Adicionada em 2026-05-23 (Onda 7B). INV-OS-ATIV-005(a) exige "delegação só explícita com audit"; sem entidade, hook trava ou libera tudo. Cobre: atendente preenche checklist por técnico ausente (caso BCT comum em laboratórios pequenos) com rastro completo.
+
+- **Atributos obrigatórios:** `id` (uuid), `tenant_id`, `atividade_id` (FK AtividadeDaOS), `tecnico_executor_original_id` (FK Usuario — quem deveria executar), `delegado_para_usuario_id` (FK Usuario — quem efetivamente executa), `delegado_por_usuario_id` (FK Usuario — gerente ou admin que autoriza), `motivo` (≥30 chars, anti-PII via INV-OS-TXT-001), `delegada_em` (timestamp UTC), `correlation_id`.
+- **Imutável após INSERT** — trigger PG BLOCK UPDATE/DELETE.
+- **Restrição:** quando atividade `tipo IN (calibracao, verificacao_inmetro)`, delegação só permitida se `delegado_para_usuario_id` tem competência ativa para a grandeza (INV-CAL-RT-001 + ADR-0022). Outras delegações livres.
+- **Bypass de INV-OS-ATIV-005(a):** servidor permite `concluirAtividade` quando existe `DelegacaoExecucao` ativa onde `delegado_para = sessao.usuario.id`. Audit `EventoDeOS.tipo=atividade_concluida_via_delegacao`.
+
+### TipoAtividadeConfig (tabela tipo → exige_aceite — NOVO-ALTO-2 R2)
+
+> Adicionada em 2026-05-23 (Onda 7B). US-OS-004 AC-1 fala "aceite quando exigido pelo tipo" sem tabela. Sem isso, tipo novo entra em produção sem aceite Lei 14.063.
+
+- Tabela **estática versionada** (não-tenant — comum a todos os tenants): `{ tipo, exige_aceite_cliente, requer_competencia_rt, requer_foto, requer_padrao_usado, exige_certificado_emitido, descricao }`.
+- Valores Marco 3 cravados:
+
+| tipo | exige_aceite_cliente | requer_competencia_rt | requer_foto | requer_padrao_usado | exige_certificado_emitido |
+|---|---|---|---|---|---|
+| calibracao | true | true | false (cliente pode dispensar — TEMA-D.9) | true | true |
+| manutencao_corretiva | true | false | true | false | false |
+| manutencao_preventiva | true | false | true | false | false |
+| instalacao | true | false | true | false | false |
+| verificacao_inmetro | true | true (RT INMETRO credenciado) | true | true | false (laudo, não cert) |
+| vistoria | true | false (mas RT credenciado em vistoria recomendado) | true | false | false (laudo) |
+
+- Mudar valor exige ADR + migration.
+- Aplicação: `concluirAtividade` consulta `TipoAtividadeConfig.exige_aceite_cliente` → se true, `AceiteAtividade` obrigatório no checklist; senão opcional.
 
 ### AceiteAtividade (Lei 14.063/2020 + LGPD art. 7º V + art. 11 II "g")
 

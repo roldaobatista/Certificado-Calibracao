@@ -1,10 +1,12 @@
 ---
 adr: 0021
-titulo: Anonimização vs retenção regulatória — 3 zonas de dado
-status: proposta
+titulo: Anonimização vs retenção regulatória — 3 zonas + Zona D (PF com OS em andamento)
+status: aceito
 data: 2026-05-20
+aceito-em: 2026-05-23 (necessário pra fechar NOVO-ALTO-6 R2 — DPA cl. 4.7 referenciava ADR em proposta)
 proposto-por: roldao + agente
 revisado-por: advogado-saas-regulado, tech-lead-saas-regulado, consultor-rbc-iso17025
+ratificacao-oab: pendente (advogado humano OAB pré-1º tenant externo pago)
 bloqueia-fase: Wave A (módulo certificados ISO 17025 + módulo fiscal)
 depende-de: ADR-0002 (multi-tenancy), ADR-0008 (fiscal pluggable), ADR-0017 (CNPJ alfanumérico)
 ---

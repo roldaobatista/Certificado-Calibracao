@@ -2,7 +2,7 @@
 owner: roldao
 revisado_em: 2026-05-23
 proximo_review: 2026-08-23
-status: draft
+status: stable
 ---
 
 # Responsabilidade técnica — signatário do certificado

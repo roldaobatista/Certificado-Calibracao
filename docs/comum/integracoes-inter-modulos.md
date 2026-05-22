@@ -1,10 +1,13 @@
 ---
-owner: Roldão
-revisado-em: 2026-05-17
-status: draft
+owner: roldao
+revisado_em: 2026-05-23
+proximo_review: 2026-08-23
+status: stable
 ---
 
 # Integrações entre módulos — eventos + contratos
+
+> **v10 (2026-05-23 — auditoria rodada 2 OS+Cal):** adicionados 9 eventos novos (`Atividade.*` 6, `OS.Faturada`/`OS.Paga`, `Calibracao.LeituraCorrigida`); consumer `metrologia/calibracao` migrou de `OS.Concluida` (legado) para `Atividade.Iniciada`; payloads cross-context obrigatoriamente carregam `correlation_id` + `causation_id` + IDs PII em `*_hash` HMAC-tenant. Total atualizado: ~276 eventos.
 
 > **Pra quê:** módulos do Aferê (`os`, `calibracao`, `fiscal`, `financeiro`, etc.) se comunicam via eventos. Sem contrato versionado, mudança em `os` quebra `calibracao` silenciosamente.
 
@@ -106,10 +109,12 @@ Vantagem: sem broker externo (Kafka, RabbitMQ) no MVP-1; PostgreSQL basta. Pode 
 | `OS.Reaberta` | `os.usecase.reabrir_os` | `{tenant_id, os_id: nova, os_origem_id: original, chamado_origem_id?, motivo_hash, garantia_procedente, correlation_id, causation_id: original.correlation_id}` | `caixa-tecnico`, `chamados`, `portal-cliente`, `custeio-real` |
 | **`AtividadeAdicionada`** (US-OS-010 — ADR-0023) | `os.usecase.adicionar_atividade` | `{tenant_id, os_id, atividade_id, tipo, sequencia, correlation_id, adicionada_at}` | `mobile.sync` |
 | **`AtividadeIniciada`** (ADR-0023) | `os.usecase.iniciar_atividade` | `{tenant_id, os_id, atividade_id, tipo, tecnico_executor_id_hash, iniciada_at, client_event_id, correlation_id, causation_id}` | **`metrologia/calibracao`** (filter `tipo=calibracao` — cria registro técnico), `mobile.sync`, `crm` |
-| **`AtividadeConcluida`** (ADR-0023) | `os.usecase.concluir_atividade` | `{tenant_id, os_id, atividade_id, tipo, conclusao_at, tem_nc, link_modulo_tecnico, correlation_id, causation_id}` | `metrologia/certificados` (filter `tipo=calibracao AND tem_nc=False` — libera emissão), `financeiro` (preço por atividade quando Wave B) |
-| **`AtividadeNaoConforme`** (ADR-0023 + TEMA-E.6) | `os.usecase.marcar_nc_atividade` | `{tenant_id, os_id, atividade_id, tipo, razao_nao_conformidade_hash, marcada_at, correlation_id, causation_id}` | `qualidade` (CAPA), `crm` (notifica cliente), `metrologia/certificados` (bloqueia emissão) |
-| **`AtividadeNCResolvida`** (ADR-0023 + TEMA-E.6) | `os.usecase.resolver_nc_atividade` | `{tenant_id, os_id, atividade_id, tipo, resolvido_at, causa_raiz_id, acao_corretiva_id, eficacia_verificada_por_hash, correlation_id, causation_id}` | `metrologia/certificados` (libera emissão), `qualidade` (fecha CAPA) |
-| **`AtividadeCancelada`** (ADR-0023 + MED-6 tech-lead) | `os.usecase.cancelar_atividade` | `{tenant_id, os_id, atividade_id, tipo, razao_hash, cancelamento_at, correlation_id}` | `mobile.sync`, `financeiro` |
+| **`AtividadeConcluida`** (ADR-0023) | `os.usecase.concluir_atividade` | `{tenant_id, os_id, atividade_id, tipo, conclusao_at, tem_nc, correlation_id, causation_id}` (sem `link_modulo_tecnico` — Onda 7A removeu) | `metrologia/certificados` (filter `tipo=calibracao AND tem_nc=False` — libera emissão), `financeiro` (preço por atividade quando Wave B) |
+| **`AtividadeNaoConforme`** (ADR-0023 + TEMA-E.6) | `os.usecase.marcar_nc_atividade` | `{tenant_id, os_id, atividade_id, tipo, razao_nao_conformidade_hash, marcada_at, correlation_id, causation_id}` | `qualidade` (encadeia CAPA via `metrologia/calibracao` quando `tipo=calibracao` — quem abre `NaoConformidade.Aberta` é o módulo de calibração, NÃO o auditor de qualidade direto — NOVO-ALTO-12 R2), `crm`, `metrologia/certificados` (bloqueia emissão) |
+| **`AtividadeNCResolvida`** (ADR-0023 + TEMA-E.6) | `os.usecase.resolver_nc_atividade` | `{tenant_id, os_id, atividade_id, tipo, resolvido_at, nc_id_hash (FK pra NaoConformidade fechada), eficacia_verificada_por_hash, correlation_id, causation_id}` | `metrologia/certificados` (libera emissão), `qualidade` (consumer informativo) |
+| **`AtividadeCancelada`** (ADR-0023 + MED-6 tech-lead) | `os.usecase.cancelar_atividade` | `{tenant_id, os_id, atividade_id, tipo, razao_hash, cancelamento_at, correlation_id}` | `mobile.sync`, `financeiro`, **`metrologia/calibracao`** (filter `tipo=calibracao` — cancela `Calibracao` em andamento; NOVO-MÉD-3 R2) |
+| **`OS.Faturada`** (NOVO-ALTO-11 R2) | `financeiro.usecase.emitir_nf_por_os` | `{tenant_id, os_id, nf_id, valor_total, faturado_em, correlation_id, causation_id}` | `crm` (timeline), `bi`, `comissoes` |
+| **`OS.Paga`** (NOVO-ALTO-11 R2) | `financeiro.usecase.confirmar_pagamento_os` | `{tenant_id, os_id, valor_pago, pago_em, correlation_id, causation_id}` | `crm`, `bi`, `comissoes` |
 
 ### Domínio: Calibração
 
@@ -406,7 +411,8 @@ Auditor Segurança em pre-commit:
 | `Calibracao.RevisadaPrimeira` | calibracao | conferência 2 | — |
 | `Calibracao.SegundaConferenciaAprovada` | calibracao | certificados | — |
 | `Calibracao.Aprovada` | calibracao | certificados, cliente, auditoria, comunicacao-omnichannel | `Calibracao.CertificadoEmitido` |
-| `Calibracao.Rejeitada` | calibracao | os, qualidade (NC) | — |
+| `Calibracao.Rejeitada` | calibracao | qualidade (abre NaoConformidade interna), certificados (bloqueia emissão); **NÃO consumido por OS** — encadeamento OS↔Cal é via `Atividade.NaoConforme` (NOVO-ALTO-13 R2: inversão lógica corrigida) | — |
+| `Calibracao.LeituraCorrigida` (NOVO-ALTO-16 R2 — cl. 7.5 rasura digital) | calibracao | auditoria (audit WORM via EventoDeCalibracao + INV-CAL-AUD-001), qualidade (monitora taxa de correção como indicador de competência do executor) | — |
 | `Calibracao.VencendoEm30d` | calibracao | crm (OP1), comunicacao, portal-cliente | `Metrologia.CalibracaoVencendo` |
 | `Padroes.CertificadoVencendo` | calibracao (subdomínio padrões) | **rh/qualidade** (NC preventiva), RT signatário, **certificados** (bloqueia emissão dependente) | — |
 | `Padroes.VerificacaoIntermediariaReprovada` | calibracao | rh/qualidade (NC automática), RT | — |
