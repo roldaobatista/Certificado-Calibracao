@@ -4,8 +4,9 @@
 
 **Fase:** Marco 1 **FECHADO** + Marco 2 `equipamentos` em P4 (T-EQP-001
 + 006 + 002 + 003 + US-EQP-007 + T-EQP-005 + T-EQP-007 + T-EQP-009 +
-T-EQP-012 + T-EQP-016 + **T-EQP-017** entregues).
-**Sessão em curso 2026-05-23** (T-EQP-017 evento sanitizado).
+T-EQP-012 + T-EQP-016 + T-EQP-017 + **T-EQP-013 doc+helper**
+entregues; trigger PG dependente certificados Wave A).
+**Sessão em curso 2026-05-23** (T-EQP-013 textos canônicos 422 T1-T5).
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (verificado 2026-05-23)
@@ -13,6 +14,7 @@ T-EQP-012 + T-EQP-016 + **T-EQP-017** entregues).
 - T-EQP-009: **15/15 passed** em 4.8s
 - T-EQP-012+016: **13/13 passed** em 4.0s
 - T-EQP-017: **11/11 passed** em 8.0s
+- T-EQP-013: **7/7 passed** em 0.7s (textos canônicos T1-T5 + anti-drift)
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **179/179** verdes (22 ativos — sem hook novo nesta T)
@@ -68,6 +70,15 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-013 ✅ doc + helper** (2026-05-23): doc
+  `docs/conformidade/equipamentos/textos-rejeicao-422.md` v1.0.0 com 5
+  textos canônicos pré-aprovados pelo `advogado-saas-regulado` (T1 TAG,
+  T2 NS, T3 fabricante, T4 fallback genérico, T5 delete de versão);
+  helper `validators.texto_rejeicao_422_pos_cert(campo)` retorna texto
+  canônico (lista FECHADA — não compõe inline, não passa por LLM). Teste
+  anti-drift garante constante `TEXTOS_REJEICAO_422_VERSAO_CANONICA`
+  sincronizada com frontmatter do doc. 7/7 testes. **GATE-EQP-INV025-TRIGGER
+  Wave A**: trigger PG depende de módulo `certificados` existir.
 - **P4 T-EQP-017 ✅** (2026-05-23): service `services_versao.criar_versao_equipamento`
   orquestra INSERT + publica `equipamento.versao_criada` (ação canônica
   nova) com payload sanitizado. Whitelist FECHADA `CAMPOS_PAYLOAD_PERMITIDOS`

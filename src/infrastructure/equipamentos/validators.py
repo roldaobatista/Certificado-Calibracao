@@ -87,6 +87,101 @@ MENSAGEM_REJEICAO_MOTIVO_DETALHE_PII: Final[str] = (
 )
 
 
+# =====================================================================
+# T-EQP-013 (INV-025 / AC-EQP-002-2 / P-EQP-A3) — textos canonicos 422
+# de rejeicao em mutacao pos-certificado emitido.
+#
+# Fonte unica: docs/conformidade/equipamentos/textos-rejeicao-422.md
+# (revisado pelo advogado-saas-regulado; mudar texto exige PR + bump
+# `versao_canonica` no frontmatter do doc + revisao pelo advogado).
+#
+# `versao_canonica` PRECISA bater com o frontmatter do doc — drift
+# auditavel via auditor-drift-docs.
+# =====================================================================
+
+TEXTOS_REJEICAO_422_VERSAO_CANONICA: Final[str] = "1.0.0"
+
+TEXTO_T1_TAG: Final[str] = (
+    "A TAG operacional nao pode ser alterada porque ja existe certificado "
+    "emitido para este equipamento. A TAG aparece no documento tecnico "
+    "assinado, e ISO/IEC 17025 cl. 8.4 exige imutabilidade do registro "
+    "tecnico pos-emissao. Crie uma nova versao do equipamento (mudanca "
+    "controlada documentada) ou registre o caso como anomalia de "
+    "identificacao no recebimento."
+)
+
+TEXTO_T2_NUMERO_SERIE: Final[str] = (
+    "O numero de serie nao pode ser alterado porque ja existe certificado "
+    "emitido referenciando este numero. ISO/IEC 17025 cl. 8.4 exige que "
+    "a identificacao inequivoca do equipamento no certificado seja "
+    "imutavel apos emissao. Se o numero gravado fisicamente esta incorreto "
+    "e foi descoberto agora, registre o caso como nao conformidade (NC) "
+    "no fluxo do laboratorio — o certificado existente seguira "
+    "referenciando o numero ANTERIOR, e o novo numero entrara a partir "
+    "da proxima calibracao."
+)
+
+TEXTO_T3_FABRICANTE: Final[str] = (
+    "O fabricante nao pode ser alterado porque ja existe certificado "
+    "emitido referenciando este equipamento. O fabricante aparece no "
+    "documento tecnico assinado e altera a rastreabilidade metrologica "
+    "(NIT-DICLA-030). Correcao de fabricante apos emissao de certificado "
+    "e tratada como nao conformidade (NC) — registre no fluxo do "
+    "laboratorio; o certificado existente seguira referenciando o "
+    "fabricante ANTERIOR."
+)
+
+TEXTO_T4_FALLBACK_GENERICO: Final[str] = (
+    "Este campo do equipamento nao pode ser alterado porque ja existe "
+    "certificado emitido referenciando-o. ISO/IEC 17025 cl. 8.4 exige "
+    "imutabilidade do registro tecnico pos-emissao. Crie uma nova versao "
+    "do equipamento (mudanca controlada documentada) ou registre o caso "
+    "como nao conformidade no fluxo do laboratorio."
+)
+
+TEXTO_T5_DELETE_VERSAO: Final[str] = (
+    "Versoes de equipamento nao podem ser excluidas. Cada versao "
+    "registrada em `EquipamentoVersao` representa uma mudanca controlada "
+    "e auditavel exigida por ISO/IEC 17025 cl. 8.4 (registros tecnicos "
+    "retidos). Se a versao foi criada por engano, registre uma nova "
+    "versao de correcao citando a versao errada — o historico continua "
+    "integro."
+)
+
+# Mapeamento campo -> chave T*. Lista FECHADA — mudar exige PR +
+# advogado.
+_CAMPO_PARA_CHAVE_REJEICAO: Final[dict[str, str]] = {
+    "tag": "T1",
+    "numero_serie": "T2",
+    "fabricante": "T3",
+}
+
+_CHAVE_PARA_TEXTO: Final[dict[str, str]] = {
+    "T1": TEXTO_T1_TAG,
+    "T2": TEXTO_T2_NUMERO_SERIE,
+    "T3": TEXTO_T3_FABRICANTE,
+    "T4": TEXTO_T4_FALLBACK_GENERICO,
+    "T5": TEXTO_T5_DELETE_VERSAO,
+}
+
+
+def texto_rejeicao_422_pos_cert(campo: str) -> str:
+    """Retorna o texto canonico T1-T5 pra um campo afetado.
+
+    `campo` = nome do atributo do `Equipamento` (`tag`, `numero_serie`,
+    `fabricante`) OU a chave especial `"_delete_versao"` para T5.
+    Campos criticos nao listados caem em T4 (fallback generico —
+    defesa em profundidade pra futuros campos promovidos a criticos).
+
+    Nunca compor texto inline; nunca passar por LLM. Lista FECHADA —
+    AC-EQP-002-2 + P-EQP-A3.
+    """
+    if campo == "_delete_versao":
+        return _CHAVE_PARA_TEXTO["T5"]
+    chave = _CAMPO_PARA_CHAVE_REJEICAO.get(campo, "T4")
+    return _CHAVE_PARA_TEXTO[chave]
+
+
 def validar_motivo_detalhe(
     valor: str | None,
     *,
