@@ -8,9 +8,12 @@ T-EQP-012 + T-EQP-016 + T-EQP-017 + T-EQP-013 doc+helper +
 T-EQP-018+020+021+022 US-EQP-002b + T-EQP-019 SLA+job +
 T-EQP-013 trigger PG + T-EQP-071 hook + módulo stub `certificados` +
 T-EQP-024+030+031 ficha 360° + T-EQP-025+026+033 QR público 3 escopos +
-**T-EQP-034+035+036+040 transferência fundação** entregues;
+T-EQP-034+035+036+040 transferência fundação +
+**T-EQP-037+038 Idempotency + termo v1.1** entregues;
 GATE-EQP-INV025-TRIGGER FECHADO).
-**Sessão em curso 2026-05-22** (US-EQP-004 fase 1).
+**Sessão encerrada 2026-05-22** (11 commits novos: 5b12c22, af7ab3d,
+baf85e3, 6f8c977, 556f8ce, 6e136dc, 19a21b2, a7042a0, f151155, 0fb3a72,
+47dcb58).
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (verificado 2026-05-23)
