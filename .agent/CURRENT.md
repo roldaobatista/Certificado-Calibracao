@@ -22,7 +22,8 @@ alertar_aprovacoes_d1_equipamento) +
 T-EQP-055 ambientais + porta stub CAPA +
 T-EQP-060 cláusula contratual recusa foto +
 T-EQP-015 motivo→aprovação automática (despacho US-EQP-002b) +
-**T-EQP-072 hook port-binding-validator + T-EQP-073 hook trigger-stub-sweep** entregues;
+**T-EQP-072 hook port-binding-validator + T-EQP-073 hook trigger-stub-sweep +
+**T-EQP-090+095+096+098 suite regressão (4 INVs críticos: perfil snapshot + TAG única + INV-025 cert vigente + INV-050 transferência cross-tenant)** entregues;
 GATE-EQP-INV025-TRIGGER FECHADO).
 **Sessão 2026-05-22 (continuação)**: T-EQP-054+055+060 fechados.
 **Modo:** AUTÔNOMO.
@@ -52,7 +53,8 @@ GATE-EQP-INV025-TRIGGER FECHADO).
 - T-EQP-055 (ambientais + CAPA stub): **15/15 passed**
 - T-EQP-060 (cláusula recusa foto): **5/5 passed**
 - T-EQP-015 (despacho motivo→aprovação): **9/9 passed**
-- Suíte completa `tests/test_equipamentos*.py`: **261/261 passed** em 106s
+- T-EQP-090+095+096+098 (suite regressão Marco 2): **13/13 passed**
+- Suíte completa `tests/test_equipamentos*.py + tests/regressao/`: **317/317 passed** em 110s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **207/207** verdes (24+1 ativos — +trigger-stub-sweep 6 casos +port-binding-validator 9 casos)

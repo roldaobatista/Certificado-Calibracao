@@ -149,15 +149,15 @@ Convenção:
 | T-EQP-083 | `docs/conformidade/equipamentos/aviso-foto-recebimento.md` (P-EQP-A8) |
 | T-EQP-084 | `docs/conformidade/comum/retencao-matriz.md` ganha 5 entradas Marco 2 (P-EQP-A7) |
 | T-EQP-085 | ADR-0022 (gestão do RT do tenant) — proposta |
-| T-EQP-090 | `tests/regressao/inv_eqp_001.py` (perfil_tenant snapshot — 3+ testes) |
+| T-EQP-090 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_001_perfil_imutavel.py` — 3 testes (happy INSERT + unhappy UPDATE direto bloqueado + cross-tenant RLS). |
 | T-EQP-091 | `tests/regressao/inv_eqp_002.py` (segregação solicitante≠decisor + competência — 3+ testes) |
 | T-EQP-092 | `tests/regressao/sec_qr_001.py` (QR HMAC versionado — 3+ testes) |
 | T-EQP-093 | `tests/regressao/inv_eqp_qr_nunca_recomputa.py` (consulta tabela, nunca recomputa) |
 | T-EQP-094 | `tests/regressao/inv_eqp_rt_001.py` (RT sem sobreposição temporal — `EXCLUDE USING GIST`) |
-| T-EQP-095 | `tests/regressao/inv_049_tag_unica.py` (TAG única por tenant — 3+ testes) |
-| T-EQP-096 | `tests/regressao/inv_050_transferencia_mesmo_tenant.py` (cross-tenant 422 — 3+ testes) |
+| T-EQP-095 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_049_tag_unica.py` — 3 testes (happy + duplicada mesmo tenant IntegrityError + cross-tenant mesma TAG OK). |
+| T-EQP-096 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_050_transferencia_mesmo_tenant.py` — 3 testes (happy mesmo tenant + cross-tenant CessionarioCrossTenant + cliente inexistente MESMA mensagem anti-oracle). |
 | T-EQP-097 | `tests/regressao/inv_051_qr_hmac.py` (HMAC payload + allowlist anônima — 3+ testes) |
-| T-EQP-098 | `tests/regressao/inv_025_imutabilidade_pos_cert.py` (5 textos 422 + trigger PG) |
+| T-EQP-098 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_025_imutabilidade_pos_cert.py` — 4 testes (sem cert muta tag OK + com cert bloqueia tag + com cert bloqueia numero_serie+fabricante + cross-tenant cert em B não protege A). |
 | T-EQP-099 | `tests/regressao/inv_eqp_loc_001.py` (`localizacao_fisica` anti-PII) |
 | T-EQP-100 | `tests/regressao/inv_eqp_versao_001.py` (`motivo_detalhe` anti-PII) |
 | T-EQP-101 | `tests/regressao/inv_eqp_versao_002.py` (payload sanitizado evento versão) |
