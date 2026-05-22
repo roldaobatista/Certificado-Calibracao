@@ -72,14 +72,14 @@ Convenção:
 
 | AC | Estado | T-EQP / nota |
 |----|--------|--------------|
-| AC-EQP-003-1 | GAP | T-EQP-024 (GET `/equipamentos/{id}/` + ficha 360° + `INV-013` `AcessoDadosCliente`) |
+| AC-EQP-003-1 | **OK** | T-EQP-024 ✅ FECHADO 2026-05-23: GET `/api/v1/equipamentos/{id}/ficha360/?finalidade=<enum>` retorna dict com equipamento + perfil_no_momento_do_cadastro (P-EQP-R1) + versoes + aprovacoes_pendentes + certificados.tem_vigente (porta stub) + eventos (Auditoria filtrada por payload_jsonb.equipamento_id, ultimos 50, payload sanitizado). INV-013 grava `AcessoDadosCliente` ANTES via `registrar_acesso_dados_cliente_com_breaker` (sobrevive a rollback). Service `services_ficha360.construir_ficha_360` agnostico de HTTP. Seed authz `equipamentos.ficha360` em `migrations/0009` (admin_tenant + tecnico + rt_signatario). 9/9 testes (happy + bloco perfil + INV-013 + finalidade enum 2 casos + cross-tenant 404 + authz 403 + unauth + anti-PII). |
 | AC-EQP-003-2 | GAP | T-EQP-025 (GET `/v1/qr/{hash}` 3 escopos A/B/C + allowlist `qr-publico-allowlist.md`) |
 | AC-EQP-003-3 | GAP | T-EQP-026 (timing constant + Mann-Whitney + target p99 medido — P-EQP-T3) |
 | AC-EQP-003-4 | GAP | T-EQP-027 (rate-limit 60 req/min + lockout 24h via Redis) |
 | AC-EQP-003-5 | GAP | T-EQP-028 (PWA `BarcodeDetector` + jsQR fallback + SW `/scan/sw.js` + filtro QR-only — P-EQP-T8) |
 | AC-EQP-003-6 | GAP | T-EQP-029 (banner histórico oculto cessionário sem consentimento + toggle) |
-| AC-EQP-003-7 | GAP | T-EQP-030 (ficha 360° exibe bloco "Perfil no momento do cadastro" — P-EQP-R1) |
-| AC-EQP-003-8 | GAP | T-EQP-031 (`finalidade_declarada` enum + alerta acesso massivo >500 fichas/h — P-EQP-R7) |
+| AC-EQP-003-7 | **OK** | T-EQP-030 ✅ FECHADO 2026-05-23 junto com T-EQP-024: bloco `perfil_no_momento_do_cadastro` cravado em `services_ficha360.construir_ficha_360` retornando `{snapshot: equipamento.perfil_tenant_snapshot, snapshot_schema_version: equipamento.snapshot_schema_version}`. Mesmo após `promover_perfil_equipamento_snapshot` (T-EQP-009), a ficha refletirá o snapshot ATUAL — Wave A introduzirá histórico explícito de promoções quando necessário. |
+| AC-EQP-003-8 | **PARCIAL** | T-EQP-031 ✅ enum FECHADO 2026-05-23: `?finalidade=<enum>` reusa `FinalidadeAcessoCliente` (9 valores; equipamento mantém alinhamento com cliente — gravado em `AcessoDadosCliente.finalidade`). Helper `services_ficha360.descrever_finalidade` para UI. Validação no viewset (400 se ausente/inválido). **Pendente Wave A**: alerta P2 acesso massivo >500 fichas/h por usuário (depende job + métrica observabilidade — fica `GATE-EQP-ACESSO-MASSIVO`). |
 | AC-EQP-003-9 | GAP | T-EQP-032 (rate-limit GLOBAL por tenant + `sistema.qr_scraping_suspeito` — P-EQP-S2) |
 | AC-EQP-003-10 | GAP | T-EQP-033 (Escopo B 404 indistinguível de 200 vazio — P-EQP-S2) |
 

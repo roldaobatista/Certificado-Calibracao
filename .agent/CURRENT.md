@@ -6,9 +6,10 @@
 + 006 + 002 + 003 + US-EQP-007 + T-EQP-005 + T-EQP-007 + T-EQP-009 +
 T-EQP-012 + T-EQP-016 + T-EQP-017 + T-EQP-013 doc+helper +
 T-EQP-018+020+021+022 US-EQP-002b + T-EQP-019 SLA+job +
-**T-EQP-013 trigger PG + T-EQP-071 hook + módulo stub `certificados`**
-entregues; **GATE-EQP-INV025-TRIGGER FECHADO**).
-**Sessão em curso 2026-05-23** (3 pendências resolvidas).
+T-EQP-013 trigger PG + T-EQP-071 hook + módulo stub `certificados` +
+**T-EQP-024+030+031 ficha 360°** entregues; GATE-EQP-INV025-TRIGGER
+FECHADO).
+**Sessão em curso 2026-05-23** (US-EQP-003 ficha 360° fase 1).
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (verificado 2026-05-23)
@@ -21,7 +22,8 @@ entregues; **GATE-EQP-INV025-TRIGGER FECHADO**).
 - T-EQP-019 (SLA workalendar + job): **8/8 passed** em 4.9s
 - T-EQP-013 trigger PG + módulo `certificados`: **14/14 passed** em 4.2s
 - Hooks: **192/192** verdes (22+1 ativos — novo `equipamento-imutabilidade-check.sh` com 13 casos EI1..EId)
-- ⚠️→✅ **OOM resolvido**: docker-compose ganhou `mem_limit: 12g` (app) / 4g (db); `shm_size: 1g` (app) / 512m (db). Suite completa rodando em background.
+- ⚠️→✅ **OOM resolvido**: docker-compose ganhou `mem_limit: 12g` (app) / 4g (db); `shm_size: 1g` (app) / 512m (db). **Suite completa: 621 passed em 37min sem OOM.**
+- T-EQP-024+030+031 (ficha 360°): **9/9 passed** em 7.6s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **179/179** verdes (22 ativos — sem hook novo nesta T)
@@ -77,6 +79,21 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-024+030+031 ✅** (2026-05-23): ficha 360° US-EQP-003 fase 1.
+  GET `/api/v1/equipamentos/{id}/ficha360/?finalidade=<enum>` retorna
+  dict com (a) equipamento base, (b) bloco
+  `perfil_no_momento_do_cadastro` (P-EQP-R1 — snapshot + schema_version),
+  (c) últimas 50 versões, (d) aprovações pendentes, (e)
+  `certificados.tem_vigente` (porta stub), (f) últimos 50 eventos
+  `Auditoria` filtrados por `payload_jsonb.equipamento_id` e sanitizados.
+  INV-013 grava `AcessoDadosCliente` ANTES via `breaker_writer` (sobrevive
+  rollback). Seed authz `equipamentos.ficha360` em
+  `migrations/0009_seed_authz_ficha360.py` (admin_tenant + tecnico +
+  rt_signatario). Service `services_ficha360.construir_ficha_360`
+  agnóstico de HTTP. 9/9 testes (happy + bloco perfil + INV-013 +
+  finalidade enum 2 + cross-tenant 404 + 403 + 401 + anti-PII).
+  T-EQP-031 PARCIAL — alerta acesso massivo >500 fichas/h é
+  `GATE-EQP-ACESSO-MASSIVO` (depende job + métrica Wave A).
 - **P4 T-EQP-013 trigger PG + T-EQP-071 hook + módulo stub `certificados` ✅**
   (2026-05-23): GATE-EQP-INV025-TRIGGER fechado. App stub
   `src/infrastructure/certificados/` registrado no INSTALLED_APPS,
@@ -191,18 +208,19 @@ rastreados Wave A.
 
 ## Próximo passo
 
-1. **US-EQP-003 ficha 360°** (T-EQP-024..033): GET `/equipamentos/{id}/`
-   + 3 escopos QR (A/B/C — autenticado-mesmo-tenant / autenticado-outro-tenant
-   / anônimo) + timing constant + rate-limit + PWA scanner.
-2. **US-EQP-004 transferir** (T-EQP-034..041): POST `/transferir/` +
-   3 vias aceite + Idempotency-Key + consentimento histórico granular
-   do cedente + INV-050 cross-tenant 422 sem oracle.
-3. **US-EQP-005 sucatamento** (T-EQP-042..046): POST `/sucatear/` +
-   modal duplo consentimento + template notificação.
-4. **T-EQP-014** (endpoint POST `/equipamentos/{id}/versao/assinar/`):
-   contrato A3 cliente-side via Lacuna (GATE-EQP-1 Wave A) — pode
-   ficar pra Wave A junto com a integração Lacuna real.
-5. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
+1. **US-EQP-003 fase 2** (T-EQP-025+026+033): GET `/v1/qr/{hash}` 3
+   escopos A/B/C (autenticado-mesmo-tenant / autenticado-outro-tenant /
+   anônimo) + timing constant `time.perf_counter` ±5ms + Escopo B 404
+   indistinguível.
+2. **US-EQP-003 fase 3** (T-EQP-027+029+032): rate-limit 60req/min IP
+   + cessionário pós-transferência sem consentimento + rate-limit
+   global por tenant.
+3. **US-EQP-003 fase 4** (T-EQP-028): PWA scanner `/scan/`
+   (BarcodeDetector + jsQR fallback + SW).
+4. **US-EQP-004 transferir** (T-EQP-034..041): POST `/transferir/` +
+   3 vias aceite + Idempotency-Key + consentimento histórico granular.
+5. **US-EQP-005 sucatamento** + **US-EQP-006 recebimento**.
+6. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)
 

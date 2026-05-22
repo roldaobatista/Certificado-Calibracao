@@ -65,6 +65,20 @@ ENDPOINT_ETIQUETA = "equipamentos.etiqueta"
 ENDPOINT_CRIAR = "equipamentos.criar"
 
 
+def _hashear_ip_request(request, tenant_id: UUID) -> str:
+    """HMAC do IP da request com salt do tenant — mesmo padrao
+    `clientes/views._hashear_ip`."""
+    from src.infrastructure.audit.services import hashear_pii_com_salt_tenant
+
+    ip = (
+        request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
+        or request.META.get("REMOTE_ADDR", "")
+    )
+    if not ip:
+        return ""
+    return hashear_pii_com_salt_tenant(ip, tenant_id)
+
+
 def _active_tenant_obrigatorio() -> UUID:
     """Falsafe pro middleware — `PermissionDenied` se nao houver tenant ativo."""
     active = active_tenant_context.get()
@@ -106,6 +120,8 @@ class EquipamentoViewSet(
         "retrieve": "equipamentos.ler",
         "create": "equipamentos.criar",
         "etiqueta": "equipamentos.imprimir_etiqueta",
+        # T-EQP-024 / US-EQP-003 AC-EQP-003-1: ficha 360°.
+        "ficha360": "equipamentos.ficha360",
     }
 
     def get_authz_action(self, request) -> str | None:
@@ -270,6 +286,65 @@ class EquipamentoViewSet(
             response_body_resumo=resumo,
         )
         return _resposta_pdf_etiqueta(equipamento, pdf_bytes)
+
+
+    # authz-check: skip -- RequireAuthz global + ACTION_MAP['ficha360'] = 'equipamentos.ficha360'
+    @action(detail=True, methods=["get"], url_path="ficha360")
+    def ficha360(self, request: Request, id: str | None = None) -> Response:
+        """GET `/equipamentos/{id}/ficha360/?finalidade=executar_os`
+
+        Retorna ficha 360 (T-EQP-024 / AC-EQP-003-1):
+        - Dados base + perfil_no_momento_do_cadastro (P-EQP-R1).
+        - Versoes (`EquipamentoVersao`).
+        - Aprovacoes pendentes (`AprovacaoPendenteEquipamentoVersao`).
+        - Certificados (porta stub Marco 2 / Wave A expande).
+        - Eventos (`Auditoria` filtrado por equipamento_id).
+
+        INV-013: grava `AcessoDadosCliente` ANTES de renderizar quando
+        equipamento tem cliente atual. `finalidade` obrigatoria (enum
+        `FinalidadeAcessoCliente` — P-EQP-R7 alinhamento).
+        """
+        from src.infrastructure.audit.breaker import (
+            registrar_acesso_dados_cliente_com_breaker,
+        )
+        from src.infrastructure.audit.models import FinalidadeAcessoCliente
+        from src.infrastructure.equipamentos.services_ficha360 import (
+            construir_ficha_360,
+        )
+
+        finalidade = request.query_params.get("finalidade", "")
+        if finalidade not in FinalidadeAcessoCliente.values:
+            return Response(
+                {
+                    "detail": "finalidade_obrigatoria_e_enum",
+                    "validas": list(FinalidadeAcessoCliente.values),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        equipamento = self.get_object()
+        tenant_id = _active_tenant_obrigatorio()
+        user_id = request.user.id
+        assert user_id is not None
+        ip_hash = _hashear_ip_request(request, tenant_id)
+
+        # INV-013: log de acesso ANTES de renderizar. cliente_id pode
+        # ser None (equipamento sem cliente atual ou orfao_pendente).
+        # T-CLI-104 breaker: sobrevive a rollback do request.
+        registrar_acesso_dados_cliente_com_breaker(
+            tenant_id=tenant_id,
+            usuario_id=user_id,
+            cliente_id=equipamento.cliente_atual_id,
+            finalidade=finalidade,
+            recurso={
+                "equipamento_id": str(equipamento.id),
+                "tipo": "equipamento_ficha360",
+            },
+            ip_hash=ip_hash,
+        )
+
+        ficha = construir_ficha_360(equipamento)
+        return Response(ficha, status=status.HTTP_200_OK)
 
 
 def _resposta_erro_idempotencia(erro: ErroValidacao) -> Response:
