@@ -289,5 +289,22 @@ run_case "QRa base.py settings tem registry OK"      PASS  qr-hmac-check.sh '{"t
 run_case "QRb codigo sem QR_HMAC sem-op"             PASS  qr-hmac-check.sh '{"tool_input":{"file_path":"src/x.py","content":"def foo(): return 1"}}'
 
 echo ""
+echo "===== equipamento-imutabilidade-check (T-EQP-071 / INV-025) ====="
+
+run_case "EI1 muda tag sem checar cert"               BLOCK equipamento-imutabilidade-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"eq.tag = \"NOVA\"\neq.save()"}}'
+run_case "EI2 update tag sem checar cert"             BLOCK equipamento-imutabilidade-check.sh '{"tool_input":{"file_path":"src/bar.py","content":"Equipamento.objects.filter(id=x).update(tag=\"NOVA\")"}}'
+run_case "EI3 update numero_serie sem checar cert"    BLOCK equipamento-imutabilidade-check.sh '{"tool_input":{"file_path":"src/bar.py","content":"Equipamento.objects.update(numero_serie=\"NS-X\")"}}'
+run_case "EI4 update fabricante sem checar cert"      BLOCK equipamento-imutabilidade-check.sh '{"tool_input":{"file_path":"src/bar.py","content":"qs.update(fabricante=\"Toledo\")"}}'
+run_case "EI5 muda tag CHECANDO tem_emitido OK"       PASS  equipamento-imutabilidade-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"if tem_emitido(eq.id):\n    raise ImutabilidadePosCertificado(texto=texto_rejeicao_422_pos_cert(\"tag\"))\neq.tag = \"NOVA\"\neq.save()"}}'
+run_case "EI6 perfil_tenant_snapshot via update bloqueia" BLOCK equipamento-imutabilidade-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"Equipamento.objects.update(perfil_tenant_snapshot={\"perfil\":\"A\"})"}}'
+run_case "EI7 services_perfil.py allow"               PASS  equipamento-imutabilidade-check.sh '{"tool_input":{"file_path":"src/infrastructure/equipamentos/services_perfil.py","content":"Equipamento.objects.update(perfil_tenant_snapshot={\"perfil\":\"A\"})"}}'
+run_case "EI8 tests/ ignora"                          PASS  equipamento-imutabilidade-check.sh '{"tool_input":{"file_path":"tests/test_x.py","content":"eq.tag = \"NOVA\"\neq.save()"}}'
+run_case "EI9 migrations/ ignora"                     PASS  equipamento-imutabilidade-check.sh '{"tool_input":{"file_path":"src/x/migrations/0010.py","content":"qs.update(tag=\"X\")"}}'
+run_case "EIa override com motivo"                    PASS  equipamento-imutabilidade-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"# equipamento-imutabilidade: skip -- backfill historico ADR-XXX\neq.tag = \"X\"\neq.save()"}}'
+run_case "EIb .md ignora"                             PASS  equipamento-imutabilidade-check.sh '{"tool_input":{"file_path":"docs/x.md","content":"eq.tag = \"NOVA\""}}'
+run_case "EIc codigo sem mutacao critica"             PASS  equipamento-imutabilidade-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"def bar(): return 1"}}'
+run_case "EId muda modelo (nao critico) OK"           PASS  equipamento-imutabilidade-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"Equipamento.objects.filter(id=x).update(modelo=\"Prix 4 Plus\")"}}'
+
+echo ""
 echo "===== resumo: $pass ok, $fail falhas ====="
 exit $fail

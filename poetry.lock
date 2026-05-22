@@ -567,6 +567,25 @@ files = [
 ]
 
 [[package]]
+name = "convertdate"
+version = "2.4.1"
+description = "Converts between Gregorian dates and other calendar systems"
+optional = false
+python-versions = "<4,>=3.7"
+files = [
+    {file = "convertdate-2.4.1-py3-none-any.whl", hash = "sha256:0622acf8bc600956b937e8dd7cee36ba035669b62d2db224bf130af1fc84f754"},
+    {file = "convertdate-2.4.1.tar.gz", hash = "sha256:ace904a9d0230742732471748160b99d6ae881c2d0dc9a2463c7a37340c56c91"},
+]
+
+[package.dependencies]
+pymeeus = ">=0.3.13,<=1"
+
+[package.extras]
+dev = ["black", "build", "isort"]
+docs = ["myst_parser", "sphinx", "sphinx_rtd_theme"]
+tests = ["coverage[toml]", "pylint"]
+
+[[package]]
 name = "coverage"
 version = "7.14.0"
 description = "Code coverage measurement for Python"
@@ -1458,6 +1477,17 @@ files = [
 ]
 
 [[package]]
+name = "lunardate"
+version = "0.2.2"
+description = "A Chinese Calendar Library in Pure Python"
+optional = false
+python-versions = "*"
+files = [
+    {file = "lunardate-0.2.2-py3-none-any.whl", hash = "sha256:cf1916337e50470a82df12d885ff47a456e89c91a3ad4e5fdf1575e063a7ed55"},
+    {file = "lunardate-0.2.2.tar.gz", hash = "sha256:8ff8c01721bef7710f0712a302b1cb7d0b8b3ffc72a63a9a056cd01e58e5485a"},
+]
+
+[[package]]
 name = "markdown-it-py"
 version = "4.2.0"
 description = "Python port of markdown-it. Markdown parsing, done right!"
@@ -2305,6 +2335,31 @@ crypto = ["cryptography (>=3.4.0)"]
 dev = ["coverage[toml] (==7.10.7)", "cryptography (>=3.4.0)", "pre-commit", "pytest (>=8.4.2,<9.0.0)", "sphinx", "sphinx-rtd-theme", "zope.interface"]
 docs = ["sphinx", "sphinx-rtd-theme", "zope.interface"]
 tests = ["coverage[toml] (==7.10.7)", "pytest (>=8.4.2,<9.0.0)"]
+
+[[package]]
+name = "pyluach"
+version = "2.3.0"
+description = "A Python package for dealing with Hebrew (Jewish) calendar dates."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "pyluach-2.3.0-py3-none-any.whl", hash = "sha256:4497b731aef59508b079dbf5f00bc5bf4329ac45090a6cd37b5a83756f0e69ab"},
+    {file = "pyluach-2.3.0.tar.gz", hash = "sha256:ec6e30669d1df50c9ca160486da44a8195bb4c7a5d3d533990d0c5b03accd281"},
+]
+
+[package.extras]
+doc = ["sphinx (>=6.1.3,<6.2.0)", "sphinx_rtd_theme (>=1.2.0,<1.3.0)"]
+test = ["beautifulsoup4", "flake8", "pytest", "pytest-cov"]
+
+[[package]]
+name = "pymeeus"
+version = "0.5.12"
+description = "Python implementation of Jean Meeus astronomical routines"
+optional = false
+python-versions = "*"
+files = [
+    {file = "PyMeeus-0.5.12.tar.gz", hash = "sha256:548f7186bd8b96cbc069cf649a8e8e377dce49ac74486709849fe63a99cad684"},
+]
 
 [[package]]
 name = "pyphen"
@@ -3247,6 +3302,27 @@ files = [
 brotli = ["brotli"]
 
 [[package]]
+name = "workalendar"
+version = "17.0.0"
+description = "Worldwide holidays and working days helper and toolkit."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "workalendar-17.0.0-py3-none-any.whl", hash = "sha256:8fe1d6758f9a1af05d59cb81480afb912246ec7fa46e246b909897127cdbb1b0"},
+    {file = "workalendar-17.0.0.tar.gz", hash = "sha256:b82d6024aed452505b01baf06dbe8d6309a3135ff1d39dee07c31b21ece853b4"},
+]
+
+[package.dependencies]
+convertdate = "*"
+lunardate = "*"
+pyluach = "*"
+python-dateutil = "*"
+tzdata = {version = "*", markers = "platform_system == \"Windows\""}
+
+[package.extras]
+astronomy = ["skyfield", "skyfield-data"]
+
+[[package]]
 name = "wrapt"
 version = "1.17.3"
 description = "Module for decorators, wrappers and monkey patching."
@@ -3382,4 +3458,4 @@ test = ["pytest"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "c321bef2b33ae06c952dd12ca244f6f42a3bac40bcf4159aff2a5a7f33314bb9"
+content-hash = "4bbb4955bc48cba97afe07cdac47daa93fbd5982ec1628424311fb84564e167e"

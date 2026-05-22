@@ -5,9 +5,10 @@
 **Fase:** Marco 1 **FECHADO** + Marco 2 `equipamentos` em P4 (T-EQP-001
 + 006 + 002 + 003 + US-EQP-007 + T-EQP-005 + T-EQP-007 + T-EQP-009 +
 T-EQP-012 + T-EQP-016 + T-EQP-017 + T-EQP-013 doc+helper +
-T-EQP-018+020+021+022 US-EQP-002b + **T-EQP-019 SLA+job**
-entregues; trigger PG INV-025 dependente certificados Wave A).
-**Sessão em curso 2026-05-23** (US-EQP-002b completa).
+T-EQP-018+020+021+022 US-EQP-002b + T-EQP-019 SLA+job +
+**T-EQP-013 trigger PG + T-EQP-071 hook + módulo stub `certificados`**
+entregues; **GATE-EQP-INV025-TRIGGER FECHADO**).
+**Sessão em curso 2026-05-23** (3 pendências resolvidas).
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (verificado 2026-05-23)
@@ -18,6 +19,9 @@ entregues; trigger PG INV-025 dependente certificados Wave A).
 - T-EQP-013: **7/7 passed** em 0.7s (textos canônicos T1-T5 + anti-drift)
 - T-EQP-018+020+021+022 (US-EQP-002b): **11/11 passed** em 3.5s
 - T-EQP-019 (SLA workalendar + job): **8/8 passed** em 4.9s
+- T-EQP-013 trigger PG + módulo `certificados`: **14/14 passed** em 4.2s
+- Hooks: **192/192** verdes (22+1 ativos — novo `equipamento-imutabilidade-check.sh` com 13 casos EI1..EId)
+- ⚠️→✅ **OOM resolvido**: docker-compose ganhou `mem_limit: 12g` (app) / 4g (db); `shm_size: 1g` (app) / 512m (db). Suite completa rodando em background.
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **179/179** verdes (22 ativos — sem hook novo nesta T)
@@ -73,6 +77,25 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-013 trigger PG + T-EQP-071 hook + módulo stub `certificados` ✅**
+  (2026-05-23): GATE-EQP-INV025-TRIGGER fechado. App stub
+  `src/infrastructure/certificados/` registrado no INSTALLED_APPS,
+  modelo `Certificado` (id, tenant, equipamento, status, emitido_em,
+  revogado_em, criado_em) com enum `StatusCertificado` (rascunho/
+  emitido/revogado) + default manager `vigentes` (filtra status=emitido
+  + revogado_em IS NULL). Migration `0001_initial` cria tabela + RLS
+  v2 + **trigger PG `equipamento_imutabilidade_pos_cert_trg`** (BEFORE
+  UPDATE em `equipamentos` consulta `certificados`; se cert vigente,
+  bloqueia mutação em tag/numero_serie/fabricante com mensagem T1/T2/T3
+  citando ISO/IEC 17025 cl. 8.4). Porta `query_service`:
+  `tem_emitido(eq_id)` + `equipamentos_com_cert_vigente(ids)`. Hook
+  `equipamento-imutabilidade-check.sh` (T-EQP-071) crava regra como
+  código: bloqueia assignment `eq.tag = X` ou `.update(tag=)` sem
+  consultar `tem_emitido`/`ImutabilidadePosCertificado`/`texto_rejeicao_422_pos_cert`;
+  bloqueia mutação direta de `perfil_tenant_snapshot` via update; allow
+  `services_perfil.py` (única via legítima D→A) + tests + migrations +
+  override consciente. 14/14 testes do trigger + 13 casos no
+  `_test-runner` (192/192 verdes).
 - **P4 T-EQP-019 ✅** (2026-05-23): SLA workalendar + job de expiração.
   Dep nova `workalendar ^17.0.0` (MIT, sem CVE recente) em `pyproject.toml`.
   `services_aprovacao.calcular_sla_vencimento(tem_cert_vigente, base)`
@@ -168,14 +191,17 @@ rastreados Wave A.
 
 ## Próximo passo
 
-1. **T-EQP-014** (endpoint POST `/equipamentos/{id}/versao/assinar/`):
-   contrato pra A3 cliente-side via Lacuna (GATE-EQP-1 Wave A).
-2. **US-EQP-003 ficha 360°** (T-EQP-024..033): GET `/equipamentos/{id}/`
-   + 3 escopos QR (A/B/C) + timing constant + rate-limit + PWA.
-3. **US-EQP-004 transferir** (T-EQP-034..041): POST `/transferir/` +
-   3 vias aceite + Idempotency-Key + consentimento histórico granular.
-4. **US-EQP-005 sucatamento** (T-EQP-042..046): POST `/sucatear/` +
+1. **US-EQP-003 ficha 360°** (T-EQP-024..033): GET `/equipamentos/{id}/`
+   + 3 escopos QR (A/B/C — autenticado-mesmo-tenant / autenticado-outro-tenant
+   / anônimo) + timing constant + rate-limit + PWA scanner.
+2. **US-EQP-004 transferir** (T-EQP-034..041): POST `/transferir/` +
+   3 vias aceite + Idempotency-Key + consentimento histórico granular
+   do cedente + INV-050 cross-tenant 422 sem oracle.
+3. **US-EQP-005 sucatamento** (T-EQP-042..046): POST `/sucatear/` +
    modal duplo consentimento + template notificação.
+4. **T-EQP-014** (endpoint POST `/equipamentos/{id}/versao/assinar/`):
+   contrato A3 cliente-side via Lacuna (GATE-EQP-1 Wave A) — pode
+   ficar pra Wave A junto com a integração Lacuna real.
 5. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)

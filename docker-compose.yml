@@ -8,6 +8,11 @@ services:
     image: postgres:16-alpine
     container_name: afere-db
     restart: unless-stopped
+    # Postgres ganha 4GB (default tipico 25%-50% da RAM ja eh boa
+    # margem para shared_buffers + work_mem em test load).
+    mem_limit: 4g
+    mem_reservation: 1g
+    shm_size: 512m
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-afere}
       POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
@@ -34,6 +39,16 @@ services:
       dockerfile: Dockerfile
     container_name: afere-app
     restart: unless-stopped
+    # Limites de recursos (2026-05-23) — WSL2 tem 24GB declarados em
+    # .wslconfig mas o Docker Desktop estava matando processos do
+    # container com exit 137 (SIGKILL) em runs medios de pytest +
+    # poetry lock. Sem mem_limit explicito o cgroup default fica muito
+    # baixo. 12GB cobre pytest full-suite (~543 testes) + poetry lock +
+    # build de dep com sobra. shm_size pra Postgres prepared statements
+    # e WeasyPrint render.
+    mem_limit: 12g
+    mem_reservation: 4g
+    shm_size: 1g
     command: >
       sh -c "
         poetry run python manage.py makemigrations --no-input &&
@@ -71,7 +86,11 @@ services:
     volumes:
       - redis_data:/data
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      # Porta externa 6380 default (porta 6379 conflita com Redis de
+      # outro projeto local — `sistema` MySQL/PHP-MyAdmin). O app
+      # acessa via nome `redis:6379` dentro da network afere-net; a
+      # porta externa so serve para inspecao via redis-cli local.
+      - "${REDIS_PORT:-6380}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

@@ -206,6 +206,11 @@ LOCAL_APPS = [
     "src.infrastructure.clientes.apps.ClientesConfig",
     # Wave A Marco 2 — Equipamentos (suporte-plataforma). TAG unica + QR HMAC + ISO 17025 cl. 7.4.
     "src.infrastructure.equipamentos.apps.EquipamentosConfig",
+    # Stub Marco 2 — Certificados (2026-05-23). Modelo minimo + porta
+    # query_service. Destrava INV-025 (trigger PG bloqueia mutacao de
+    # campos criticos do Equipamento quando ha cert vigente). Wave A
+    # expandira com emissao A3, PDF, RBC, NIT-DICLA, ciclo de revisao.
+    "src.infrastructure.certificados.apps.CertificadosConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
