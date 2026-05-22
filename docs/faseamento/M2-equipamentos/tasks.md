@@ -55,7 +55,7 @@ Convenção:
 | AC-EQP-002-3 | TRACK | GATE-EQP-1 (A3 RT cliente-side via Lacuna — Wave A); endpoint contrato em T-EQP-014 |
 | AC-EQP-002-4 | GAP | T-EQP-015 (motivo=`outros`/`substituicao_componente`/`atualizacao_firmware` exige aprovação — P-EQP-R2) |
 | AC-EQP-002-5 | **OK** | T-EQP-016 ✅ FECHADO 2026-05-23 junto com T-EQP-012: `validators.validar_motivo_detalhe` (anti-PII via reuso `conter_pii_direta` + ≥100 chars quando motivo ∈ MOTIVOS_QUE_OBRIGAM_APROVACAO). Aplicado no `clean()` do modelo → `ValidationError`. 4 testes anti-PII (CPF, email, nome próprio consecutivo, justificativa curta). |
-| AC-EQP-002-6 | GAP | T-EQP-017 (`INV-EQP-VERSAO-002` — payload com `assinatura_a3_referencia` UUID; lista positiva/negativa — P-EQP-T5) |
+| AC-EQP-002-6 | **OK** | T-EQP-017 ✅ FECHADO 2026-05-23: service `services_versao.criar_versao_equipamento` orquestra INSERT + publica `equipamento.versao_criada` (ação canônica nova em `acoes_canonicas.py`) com payload sanitizado. `CAMPOS_PAYLOAD_PERMITIDOS` (whitelist FECHADA, 14 campos: 5 básicos + 9 derivados/hashes incluindo `assinatura_a3_referencia` UUID + `assinatura_a3_certificado_emissor_hash`) + `CAMPOS_PAYLOAD_PROIBIDOS` (lista negativa explícita, 7 campos). Helper `_validar_payload_anti_vaza` bloqueia `motivo_detalhe` cru, `valor_anterior`/`valor_novo` cru, `cliente_atual_id` cru, `assinatura_a3_hash` truncado (P-EQP-T5), `numero_serie` cru, ou campo fora da whitelist. `valor_anterior`/`valor_novo` passam por HMAC do tenant ANTES de serem gravados — modelo nunca enxerga valor cru. 11/11 testes (happy + payload conforma whitelist + 3 não-vaza-cru + 4 assert anti-vaza + cross-tenant defesa em profundidade). |
 
 ### US-EQP-002b — Aprovação gestor_qualidade
 

@@ -64,6 +64,10 @@ ACOES_EQUIPAMENTOS: Final[frozenset[str]] = frozenset(
         # T-EQP-009 (AC-EQP-001-7b / P-EQP-T4) - promocao D<C<B<A do
         # perfil_tenant_snapshot via SECURITY DEFINER. 25a WORM (RBC).
         "equipamento.perfil_promovido",
+        # T-EQP-017 (AC-EQP-002-6 / INV-EQP-VERSAO-002) - versao criada
+        # de campo descritivo. Payload sanitizado (5 campos positivos,
+        # 7 proibidos). 25a WORM (RBC + ISO 17025 cl. 8.4).
+        "equipamento.versao_criada",
     }
 )
 

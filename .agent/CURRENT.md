@@ -4,22 +4,22 @@
 
 **Fase:** Marco 1 **FECHADO** + Marco 2 `equipamentos` em P4 (T-EQP-001
 + 006 + 002 + 003 + US-EQP-007 + T-EQP-005 + T-EQP-007 + T-EQP-009 +
-**T-EQP-012 + T-EQP-016** entregues).
-**Sessão em curso 2026-05-23** (T-EQP-012+016 EquipamentoVersao + anti-PII).
+T-EQP-012 + T-EQP-016 + **T-EQP-017** entregues).
+**Sessão em curso 2026-05-23** (T-EQP-017 evento sanitizado).
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (verificado 2026-05-23)
 
 - T-EQP-009: **15/15 passed** em 4.8s
 - T-EQP-012+016: **13/13 passed** em 4.0s
+- T-EQP-017: **11/11 passed** em 8.0s
+- modelo_001 (regressão): **8/8 passed**
+- inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **179/179** verdes (22 ativos — sem hook novo nesta T)
 - `makemigrations --check`: limpo; ruff zero issues
-- ⚠️ **Suite completa não pôde rodar** nesta sessão por OOM do WSL2/Docker
-  Desktop (exit 137 em runs >50 testes); reiniciar Docker não resolveu.
-  Pode ser quota WSL2 — `.wslconfig` com `memory=8GB` talvez. Validação
-  isolada confirma os 28 novos testes (T-EQP-009 + T-EQP-012/016) + 3
-  regressão inv_eqp_rt_001 verdes.
-- Working tree: T-EQP-012+016 novos arquivos / alterações
+- ⚠️ **Suite completa não roda** por OOM do WSL2 (exit 137); validação
+  isolada cobriu 50 testes relacionados (T-EQP-009/012/016/017 + modelo
+  + regressão RT) e zero regressão.
 
 ## Marco 1 `clientes` — FECHADO
 
@@ -68,6 +68,16 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-017 ✅** (2026-05-23): service `services_versao.criar_versao_equipamento`
+  orquestra INSERT + publica `equipamento.versao_criada` (ação canônica
+  nova) com payload sanitizado. Whitelist FECHADA `CAMPOS_PAYLOAD_PERMITIDOS`
+  (14 campos: 5 básicos + 9 derivados/hashes) + blacklist explícita
+  `CAMPOS_PAYLOAD_PROIBIDOS` (7 campos). Helper `_validar_payload_anti_vaza`
+  levanta `PayloadVazandoPII` se aparecer `motivo_detalhe` cru,
+  `valor_anterior`/`valor_novo` cru, `cliente_atual_id` cru,
+  `assinatura_a3_hash` truncado (P-EQP-T5), `numero_serie` cru, ou campo
+  fora da whitelist. `valor_anterior`/`valor_novo` passam por HMAC
+  ANTES de entrar no modelo. 11/11 testes em 8.0s.
 - **P4 T-EQP-012 + T-EQP-016 ✅** (2026-05-23): modelo `EquipamentoVersao`
   (US-EQP-002 fundação) — 14 campos, enum `MotivoMudancaEquipamentoVersao`
   9 valores (P-EQP-R2), constante `MOTIVOS_QUE_OBRIGAM_APROVACAO` (3 que
@@ -116,23 +126,18 @@ rastreados Wave A.
 
 ## Próximo passo
 
-1. **T-EQP-017** (`INV-EQP-VERSAO-002` payload sanitizado): service
-   `services_versao.py` com `criar_versao_equipamento` publicando
-   `equipamento.versao_criada` no bus_outbox. Payload com APENAS
-   hashes + UUIDs + nome do campo + enum motivo. Lista positiva (5)
-   + negativa (7: motivo_detalhe cru, valor_anterior/novo crus,
-   cliente_atual_id cru, assinatura_a3_hash truncado, numero_serie).
-   Ação canônica nova: `equipamento.versao_criada`.
-2. **T-EQP-013** (`INV-025` trigger PG imutabilidade pós-cert): depende
-   de módulo certificados existir (Wave A). Por ora, INV-025 documentar
-   em REGRAS-INEGOCIAVEIS.md + textos canônicos 422 T1-T5 em
-   `docs/conformidade/equipamentos/textos-rejeicao-422.md`.
-3. **US-EQP-002b** (T-EQP-018..023): aprovação gestor_qualidade. SLA
+1. **T-EQP-013** (`INV-025` imutabilidade pós-cert + textos 422 T1-T5):
+   doc `docs/conformidade/equipamentos/textos-rejeicao-422.md` com 5
+   variantes; entrada `INV-025` em `REGRAS-INEGOCIAVEIS.md`; trigger PG
+   fica dependente do módulo `certificados` (Wave A) — gate explícito.
+2. **US-EQP-002b** (T-EQP-018..023): aprovação gestor_qualidade. SLA
    D+3/D+7 + competência declarada (US-EQP-007 ✅ já tem predicate).
+3. **T-EQP-014** (endpoint POST `/equipamentos/{id}/versao/assinar/`):
+   contrato pra A3 cliente-side via Lacuna (GATE-EQP-1 Wave A).
 4. Quando T-EQP-013 fechar, estender `services_perfil.promover_perfil_equipamento`
-   pra criar `EquipamentoVersao` com `motivo_mudanca=mudanca_classe_metrologica`
-   na mesma transação (TODO já documentado no service).
-5. Sequência em `docs/faseamento/M2-equipamentos/tasks.md` §"Próximo passo".
+   pra criar `EquipamentoVersao` (via `services_versao.criar_versao_equipamento`)
+   com `motivo_mudanca=mudanca_classe_metrologica` na mesma transação.
+5. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)
 
