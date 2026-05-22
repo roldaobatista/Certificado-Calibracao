@@ -203,6 +203,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 | ADR-0020 | REGRAS-INEGOCIÁVEIS &gt; orçamento; decisão CODEOWNERS expandida (D5) | ✅ aceito (2026-05-19) | Foundation F-A — fechada | — |
 | ADR-0021 | Anonimização vs retenção regulatória (3 zonas A/B/C — LGPD art. 16/18 vs Receita/ISO) | 🟡 proposta — pós review advogado-saas-regulado 2026-05-20 Marco 1 US-CLI-006 | Wave A (matriz `eliminacao_efetiva` vs `anonimizacao_em_lugar` em NF/cert) | ADR-0000, ADR-0007 |
 | ADR-0022 | Gestão do RT do tenant (US-EQP-007 / NIT-DICLA-021 — vigência + competências por grandeza + EXCLUDE GIST + imutabilidade pós-INSERT) | ✅ aceito (2026-05-22) — Marco 2 entregue (T-EQP-061..065 + tests/regressao/test_inv_eqp_rt_001.py) | Wave A (GATE-EQP-1 A3 Lacuna + GATE-EQP-RT carta competência + GATE-EQP-RT-NOTIF consumer ANPD/CGCRE) | ADR-0002, ADR-0009, ADR-0012 |
+| ADR-0023 | OS com Atividades (1 OS contém N AtividadeDaOS — cada uma com tipo + checklist + estado próprios; suporta caso combinado manutenção + calibração) | ✅ aceito (2026-05-23) — decisão Roldão pré-Marco 3 OS | Wave A Marco 3 (`os`) + Marco 4 (`calibracao`) | ADR-0002, ADR-0007 |
 
 **Como ler a tabela:** "Bloqueia fase" = essa ADR precisa estar aprovada+implementada antes que a fase comece. "Depende de" = essa ADR usa decisões de outras (`soft` = referência conceitual, não bloqueante). Detalhe das fases em `docs/faseamento-foundation-waves.md`.
 

@@ -27,9 +27,10 @@ P5 10 auditores PASS ZERO C/A/M. `docs/faseamento/M1-clientes/auditoria-familia5
 
 ## Próximo passo
 
-1. **Marco 3 `ordens-de-servico`** ou **Marco 3 `calibracao`** — definir próximo módulo Wave A com Roldão (faseamento em `docs/faseamento-modulos.md` v8).
-2. **Aceite ADRs propostas** (0018 PWA QR scanner, 0019 responsabilidade IA) pelo Roldão antes de US-EQP-003 fase 4.
-3. **GATE-EQP-DEP-WEASYPRINT-UPGRADE** Wave A — upgrade weasyprint 62→68 + pydyf<0.11→^0.11.
+1. **Marco 3 `os`** — arrancar ritual Spec Kit (spec FORWARD → plan + reviews → tasks → P4 implementação → P5 10 auditores). Modelo já cravado: 1 OS contém N AtividadeDaOS (ADR-0023 aceita 2026-05-23 — suporta caso combinado manutenção + calibração).
+2. **Marco 4 `calibracao`** — sequencial ao Marco 3 (calibração técnica é disparada por AtividadeDaOS tipo=calibracao).
+3. **Aceite ADRs propostas** (0018 PWA QR scanner, 0019 responsabilidade IA) pelo Roldão antes de US-EQP-003 fase 4.
+4. **GATE-EQP-DEP-WEASYPRINT-UPGRADE** Wave A — upgrade weasyprint 62→68 + pydyf<0.11→^0.11.
 
 ## Pendências rastreadas (não bloqueiam)
 

@@ -81,7 +81,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 **Como** recepcionista do lab, **quero** registrar entrada do instrumento com cliente, descrição, série, fabricante e gerar etiqueta interna com QR Code, **para** iniciar o fluxo de calibração rastreável.
 
 **Critérios de aceite:**
-- **AC-CAL-001-1**: GIVEN ordem de serviço existente OU recepção avulsa, WHEN registra entrada (cliente, instrumento, condições recebidas), THEN sistema gera etiqueta interna PDF com QR Code apontando ao registro.
+- **AC-CAL-001-1**: GIVEN **atividade de OS tipo=calibracao** (ADR-0023) OU recepção avulsa, WHEN registra entrada (cliente, instrumento, condições recebidas), THEN sistema gera etiqueta interna PDF com QR Code apontando ao registro de calibração. Quando origem = atividade de OS, o registro de calibração é vinculado via `link_modulo_tecnico` da atividade — permite OS combinada (manutenção + calibração) com a calibração só iniciando após manutenção concluída.
 - **AC-CAL-001-2**: GIVEN escopo de acreditação NÃO cobre o instrumento, WHEN tenta cadastrar como calibração RBC, THEN sistema avisa e permite seguir como NÃO-RBC.
 
 **Invariantes:** `INV-TENANT-001`, `INV-022`.
