@@ -74,10 +74,10 @@ relacionados:
 
 > Revisado em 2026-05-23 — `componentes_json` blob substituído por relação 1:N. NIT-DICLA-030 rev. 15 item 7 exige orçamento por ponto quando incerteza varia ao longo da faixa.
 
-- **Atributos obrigatórios:** `id`, `tenant_id`, `calibracao_id`, `u_combinada` (consolidada — para retrocompatibilidade quando incerteza é constante na faixa), `grau_liberdade_efetivo`, `k`, `U_expandida`, `nivel_confianca`, `versao_motor_calculo`, `calculado_em`, `correlation_id`.
+- **Atributos obrigatórios:** `id`, `tenant_id`, `calibracao_id`, `u_combinada` (consolidada — pior caso da faixa quando OrcamentoPorPonto existe; constante quando aplicável), `grau_liberdade_efetivo`, `k`, `U_expandida`, `nivel_confianca`, `versao_motor_calculo`, `calculado_em`, `correlation_id`.
 - **Relação 1:N com `ComponenteIncerteza`** (substitui `componentes_json` JSONB).
 - **Relação 1:N com `OrcamentoPorPonto`** (incerteza por ponto de calibração).
-- **Invariantes:** `INV-004` (GUM), `INV-CAL-VERSAO-001` (versão motor registrada).
+- **Invariantes:** `INV-004` (GUM), `INV-CAL-VERSAO-001` (versão motor registrada), **`INV-CAL-INC-001`** (NOVO-3 RBC R2 — quando existe `OrcamentoPorPonto[]`, `u_combinada` agregado representa pior caso da faixa documentado em `documentacao_agregacao`; coexistência ambígua sem documentação proíbida).
 
 ### ComponenteIncerteza (NOVO — TEMA-B.5)
 
@@ -105,6 +105,8 @@ relacionados:
 - **Atributos obrigatórios:** `id`, `tenant_id`, `calibracao_id`, `atividade_os_id` (FK — pode ser disparada por `Atividade.NaoConforme`), `status` (CONTIDA, ACAO_CORRETIVA_DEFINIDA, ACAO_EXECUTADA, EFICACIA_VERIFICADA, FECHADA, REABERTA), `descricao` (≥30 chars, anti-PII), `causa_raiz` (≥30 chars, anti-PII — preenchida no estado ACAO_CORRETIVA_DEFINIDA), `acao_corretiva` (≥30 chars, anti-PII), `prazo_acao`, `responsavel_acao_id_hash`, `eficacia_verificada_por_id_hash`, `eficacia_verificada_em`, `eficacia_resultado` (EFICAZ, INEFICAZ — se INEFICAZ vira REABERTA), `correlation_id`, `criada_em`.
 - **Invariantes:** ciclo de estados FECHADO (não pode pular etapas); só FECHADA libera certificado (INV-012 estendido); REABERTA permite nova ação corretiva.
 - **Eventos:** `NaoConformidade.Aberta`, `NaoConformidade.CausaRaizDefinida`, `NaoConformidade.AcaoExecutada`, `NaoConformidade.Fechada`, `NaoConformidade.Reaberta`.
+- **Transição REABERTA (revisada Onda 7D — NOVO-1 RBC R2):** quando `eficacia_resultado=INEFICAZ`, `status` vira REABERTA E **obrigatoriamente** volta para CONTIDA (re-análise causa-raiz exigida — ISO 17025 cl. 8.7.2). Não permite pular direto pra ACAO_CORRETIVA_DEFINIDA — campos `causa_raiz`, `acao_corretiva`, `responsavel_acao_id_hash`, `eficacia_verificada_*` são limpos (versão anterior preservada em `EventoDeCalibracao` WORM).
+- **Retorno da Calibracao pós-NaoConformidade fechada (NOVO-2 RBC R2):** quando NC vira FECHADA com `acao_corretiva.tipo IN (re_executar)`, sistema **cria nova Calibracao** com `causation_id` apontando pra original; original mantém status NAO_CONFORME (imutável). Quando `acao_corretiva.tipo IN (ajuste_administrativo)`, original retorna ao status anterior preservando `snapshot_lock` (INV-CAL-RT-COMP-001). Padrão decidido em `NaoConformidade.acao_corretiva_tipo` enum.
 
 ### RecepcaoItemCalibracao (cl. 7.4 — NOVO TEMA-B.4)
 
@@ -175,6 +177,8 @@ USING (tenant_id::text = ANY(string_to_array(current_setting('app.tenant_ids'), 
 - `evento_de_calibracao` e `leitura` ganham trigger PG BLOCK UPDATE/DELETE (append-only).
 - `nao_conformidade` permite UPDATE apenas pra transição de estado válida (`status` → próximo no ciclo CAPA); demais campos imutáveis pós-INSERT.
 - `padrao_usado.snapshot_padrao_json` imutável após `calibracao.status >= EM_REVISAO_1` (INV-CAL-RT-COMP-001 — trigger PG `padrao_usado_snapshot_lock_trg`).
+- `leitura_correcao` ganha trigger PG `leitura_correcao_anti_update_delete_trg` BLOCK (NOVO-CONCERN-5 segurança R2 — rasura digital imutável).
+- `medicao_controle` ganha trigger PG BLOCK UPDATE/DELETE (cl. 7.5 registro técnico).
 
 ---
 

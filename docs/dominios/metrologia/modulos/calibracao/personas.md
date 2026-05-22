@@ -99,7 +99,45 @@ relacionados:
 
 ---
 
+## P-METR-AUDITOR-CGCRE (Auditor externo CGCRE) — papel em Calibração
+
+> Adicionado em 2026-05-23 (Onda 7D — ALTO-PEND-2 R2 produto). Persona externa não-usuária do produto, mas referenciada em US-CER-003 e em todo o fluxo de supervisão regulatória.
+
+**Função:** profissional credenciado pelo CGCRE (Coordenação Geral de Acreditação do INMETRO) que conduz auditoria de manutenção/supervisão (a cada 12-24 meses) ou avaliação de acreditação inicial em laboratórios RBC. Trabalha como consultor terceirizado contratado pelo CGCRE.
+
+**Goals em Calibração (consultivo, não tem login no Aferê):**
+- Verificar evidência objetiva da conformidade com ISO/IEC 17025:2017 + NIT-DICLA-021.
+- Auditar registros técnicos (cl. 7.5) e validar rasura digital (LeituraCorrecao).
+- Confirmar 2ª conferência independente (cl. 6.2.5 + INV-CAL-CONF-001) e exceções dentro do limite 5%/mês.
+- Validar cadeia de rastreabilidade metrológica (`PadraoUsado.snapshot_padrao` + cert do padrão vigente).
+- Verificar fluxo CAPA completo (cl. 7.10 + 8.7 — `NaoConformidade` com causa-raiz + eficácia).
+- Validar versionamento do motor de cálculo (cl. 7.11 — INV-CAL-VERSAO-001) e replay determinístico.
+
+**O que o tenant apresenta ao auditor:**
+- Lista de calibrações em período auditado.
+- Para cada uma: registros técnicos imutáveis (Leitura, LeituraCorrecao, CondicoesAmbientais, OrcamentoIncerteza + filhas, RevisaoTecnica, EventoDeCalibracao WORM).
+- Dossiês de validação de software (URS/IQ/OQ/PQ por release — ADR-0025).
+- Política de exceção 6.2.5 + auditoria trimestral do gestor de qualidade.
+- Cadeia metrológica de cada padrão usado.
+
+**Devices:** notebook próprio do auditor; tenant exporta evidência em PDF + provas hash de imutabilidade WORM. Aferê **não** fornece acesso direto ao banco — auditor recebe via tenant.
+
+**Próximo review:** quando 1º tenant Aferê for acreditado RBC (V2).
+
+---
+
+## P-METR-AUDITOR-INMETRO (Auditor INMETRO/IPEM) — papel em Calibração
+
+> Adicionada em 2026-05-23. Aplica-se a verificações INMETRO (atividade `verificacao_inmetro` na ADR-0023) — fiscalização da Lei 9.933/99.
+
+**Função:** profissional INMETRO ou IPEM estadual que verifica conformidade de instrumentos de medição de uso público obrigatório (balanças comerciais, bombas de combustível, etc.).
+
+**Goals em Calibração:** consulta laudo de verificação INMETRO + cadeia de rastreabilidade do padrão usado. Não interage com calibração RBC tradicional, mas pode requisitar evidência se tenant atende ambos os escopos.
+
+---
+
 ## Convenções
 
 - RT é persona transversal Calibração + Certificados — quando consolidar, promover pra `../../personas.md` (domínio metrologia).
 - Recepcionista pode ser transversal com Ordens de Serviço — verificar antes de promover.
+- Auditores externos (CGCRE, INMETRO) são personas não-usuárias mas citadas em US/AC — devem ser declaradas pra rastreabilidade.

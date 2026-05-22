@@ -19,7 +19,7 @@ dominio: operacao
 ### OS (Ordem de Serviço) — agregado raiz
 
 - **Atributos obrigatórios:** `id` (uuid), `tenant_id`, `estado` (enum INV-027 — derivado das atividades), `cliente_id`, `equipamento_id`, `correlation_id` (uuid NOT NULL — raiz da cadeia forense; herdado do evento Orcamento.Aprovado quando aplicável, senão `= id`), `criada_at`, `criada_por`.
-- **Atributos opcionais:** `tipo_predominante` (estatística cache; calculada das atividades), `tecnico_atribuido_id` (responsável geral), `agendada_para`, `iniciada_at`, `concluida_at`, `cancelada_at`, `razao_cancelamento`, `os_origem_id` (reabertura), `nao_conformidade_global` (bool — TRUE se qualquer atividade marcou NC), `prazo_prometido`.
+- **Atributos opcionais:** `tipo_predominante` (estatística cache; recalculada via trigger PG `os_tipo_predominante_recalc_trg` após INSERT/UPDATE/DELETE em `os_atividade` — algoritmo: tipo com maior contagem de atividades não-canceladas; empate vai pra ordem alfabética; um único `tipo` → vira `tipo_predominante`), `tecnico_atribuido_id` (responsável geral), `agendada_para`, `iniciada_at`, `concluida_at`, `cancelada_at`, `razao_cancelamento`, `os_origem_id` (reabertura), `nao_conformidade_global` (bool — TRUE se qualquer atividade marcou NC), `prazo_prometido`.
 - **Invariantes:** `INV-027` (máquina de estados), `INV-020` (jornada UMC ao atribuir), `INV-012` (NC em atividade de calibração bloqueia certificado), `INV-026` (preço congelado na criação), `INV-OS-ATIV-001/002/003/004` (ADR-0023), RAT-08 (audit log).
 - **Ciclo de vida:** criada como RASCUNHO; imutável após FATURADA exceto cancelamento.
 

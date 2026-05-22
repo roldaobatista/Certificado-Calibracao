@@ -153,9 +153,14 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
   - **(c) gera hash SHA-256 de cada foto + grava em audit**;
   - **(d) detecta rosto identificável** (vision API ou hash perceptual) e força blur ou eliminação se aplicável.
 - **AC-CER-007-2 (revisado):** GIVEN relatório fotográfico gerado, WHEN cliente baixa via portal, THEN cada foto tem rodapé "data/hora/local **resumido**" (município/bairro) + nº cert + watermark anti-cópia.
-- **AC-CER-007-3 (novo — TEMA-D.9):** GIVEN cliente pede dispensa de foto (privacidade industrial), WHEN atendente cadastra OS, THEN sistema permite `ChecklistDaAtividade.dispensa_foto: true` com `motivo_dispensa` + assinatura cliente em `AceiteAtividade` específico. ISO 17025 §7.7 não exige foto — exige rastreabilidade; texto narrativo substitui.
+- **AC-CER-007-3 (revisado Onda 7D — NOVO-ALTO-1 produto R2):** GIVEN cliente solicita dispensa de foto (privacidade industrial — direito CC art. 195 LPI + LGPD art. 7º), WHEN atendente cadastra OS, THEN sistema:
+  - (a) marca `ChecklistDaAtividade.dispensa_foto: true` no checklist;
+  - (b) persiste `motivo_dispensa_hash` (HMAC tenant — INV-OS-TXT-001 sobre texto pré-hash com mín 30 chars anti-PII);
+  - (c) cria `AceiteAtividade` específico referenciando texto canônico `docs/conformidade/comum/termos/aceite-atividade-dispensa-foto-v1.0.md` (variante a criar Wave A — GATE-LGPD-DISP-FOTO);
+  - (d) bloqueia campo `foto_obrigatoria` no checklist;
+  - (e) publica evento `DispensaFotoRegistrada(tenant_id, atividade_id, motivo_hash, aceite_atividade_id, correlation_id)`.
 
-**Invariantes:** `INV-001` (WORM), `INV-OS-GEO-001` (precisão limitada em payload publicado), `INV-EQP-ANOM-001` (anti-PII em texto livre da foto).
+**Invariantes:** `INV-001` (WORM), `INV-OS-GEO-001` (precisão limitada em payload publicado), `INV-EQP-ANOM-001` (anti-PII em texto livre da foto), `INV-CAL-FOTO-001` (EXIF strip + geo limit + detecção de rosto).
 
 ---
 

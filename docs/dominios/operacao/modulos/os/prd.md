@@ -151,6 +151,7 @@ Cobre BIG-01 (não perder informação entre WhatsApp/planilha/sistema), BIG-05 
 - **AC-OS-010-1:** GIVEN OS em RASCUNHO/AGENDADA/EM_EXECUCAO + `tipo` válido + tenant ativo, WHEN `adicionarAtividade(os_id, tipo, sequencia)` executa, THEN nova atividade em PENDENTE + publica `AtividadeAdicionada`.
 - **AC-OS-010-2:** GIVEN OS em CONCLUIDA/FATURADA/PAGA, WHEN tenta adicionar, THEN 412 `OSEmEstadoTerminal — abra reabertura`.
 - **AC-OS-010-3:** GIVEN adicionar atividade tipo=calibracao a OS já em andamento, WHEN executor não é metrologista, THEN 403 `PerfilSemCompetencia` (INV-AUTHZ-001).
+- **AC-OS-010-4 (novo Onda 7D — NOVO-MÉD-2 produto R2):** GIVEN tentativa de adicionar atividade com `sequencia` ≤ menor `sequencia` em estado terminal CONCLUIDA, WHEN servidor recebe, THEN 412 `SequenciaInvalidaPosTerminal` — não permite voltar atrás criando atividade entre 2 terminais.
 - **Invariantes:** INV-OS-ATIV-001, INV-OS-ATIV-003.
 
 Detalhes em `specs/` quando especificar feature a feature.

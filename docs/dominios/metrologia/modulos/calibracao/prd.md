@@ -159,7 +159,8 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 **Critérios de aceite:**
 - **AC-CAL-007-1**: GIVEN calibração com cálculo concluído, WHEN RT abre revisão, THEN sistema mostra tudo (config, padrões, leituras, orçamento incerteza, avaliação) com botões aprovar/rejeitar/solicitar correção.
 - **AC-CAL-007-2**: GIVEN rejeição ou correção solicitada, WHEN RT marca, THEN sistema volta calibração ao metrologista com nota.
-- **AC-CAL-007-3**: GIVEN revisor = executor da calibração, WHEN tenta revisar, THEN sistema avisa (independência ideal — mas não bloqueia se único RT habilitado disponível, registra exceção).
+- **AC-CAL-007-3 (revisado Onda 7D — ALTO-PEND-1 R2):** GIVEN revisor = executor da calibração, WHEN tenta revisar, THEN sistema valida conforme **ADR-0026 + INV-CAL-CONF-001** — exceção só aceita se as 4 condições cumulativas (único RT habilitado ATIVO na grandeza + prazo regulatório ≤7d úteis + tentativa de subcontratar documentada + justificativa ≥100 chars anti-PII) + dentro do limite 5%/mês; senão 412 `Excecao62_5InaceitavelSemCondicoes`.
+- **AC-CAL-007-4 (novo Onda 7D — NOVO-MÉD-1 produto R2):** GIVEN consumer subscriber `Atividade.Iniciada(tipo=calibracao)`, WHEN evento entregue, THEN sistema cria `Calibracao` em status RECEPCIONADA + `RecepcaoItemCalibracao` automaticamente + dispara `Calibracao.Recepcionada`.
 
 **Invariantes:** `INV-CAL-RT-001` (RT habilitado por grandeza), `INV-CAL-WORM-001`.
 
