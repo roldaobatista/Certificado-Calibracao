@@ -49,6 +49,10 @@ PUBLIC_PATHS_PREFIX = (
     "/api/docs",
     "/static/",
     "/media/",
+    # T-EQP-025 (US-EQP-003 AC-EQP-003-2 / INV-051): QR publico Escopo C
+    # (anonimo) resolve em `/api/v1/qr/{hash}/` sem tenant context. View
+    # PublicEndpoint + funcao SECURITY DEFINER `resolver_qr_publico`.
+    "/api/v1/qr/",
 )
 
 # /admin/ tem casos especiais: login/logout sao publicos, resto exige usuario logado

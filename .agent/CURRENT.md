@@ -7,9 +7,9 @@
 T-EQP-012 + T-EQP-016 + T-EQP-017 + T-EQP-013 doc+helper +
 T-EQP-018+020+021+022 US-EQP-002b + T-EQP-019 SLA+job +
 T-EQP-013 trigger PG + T-EQP-071 hook + módulo stub `certificados` +
-**T-EQP-024+030+031 ficha 360°** entregues; GATE-EQP-INV025-TRIGGER
-FECHADO).
-**Sessão em curso 2026-05-23** (US-EQP-003 ficha 360° fase 1).
+T-EQP-024+030+031 ficha 360° + **T-EQP-025+026+033 QR público 3 escopos +
+timing constant** entregues; GATE-EQP-INV025-TRIGGER FECHADO).
+**Sessão em curso 2026-05-23** (US-EQP-003 fases 1 + 2).
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (verificado 2026-05-23)
@@ -24,6 +24,7 @@ FECHADO).
 - Hooks: **192/192** verdes (22+1 ativos — novo `equipamento-imutabilidade-check.sh` com 13 casos EI1..EId)
 - ⚠️→✅ **OOM resolvido**: docker-compose ganhou `mem_limit: 12g` (app) / 4g (db); `shm_size: 1g` (app) / 512m (db). **Suite completa: 621 passed em 37min sem OOM.**
 - T-EQP-024+030+031 (ficha 360°): **9/9 passed** em 7.6s
+- T-EQP-025+026+033 (QR público 3 escopos + timing): **10/10 passed** em 8.8s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **179/179** verdes (22 ativos — sem hook novo nesta T)
@@ -79,6 +80,21 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-025+026+033 ✅** (2026-05-23): QR público 3 escopos +
+  timing constant + 404 indistinguível. GET `/api/v1/qr/{hash}/` via
+  `QRPublicoView(PublicEndpoint, APIView)` em `views_qr_publico.py`.
+  Escopo A (autenticado + header `X-Afere-Active-Tenant` mesmo tenant) →
+  200 ficha completa (reusa `construir_ficha_360`). Escopo B (outro
+  tenant) → 404 body idêntico ao 404 de hash inválido (P-EQP-S2 — sem
+  oracle cross-tenant). Escopo C (anônimo) → 200 allowlist mínima via
+  função PG `resolver_qr_publico` SECURITY DEFINER (migration 0010 +
+  patch 0011 com policy bypass `app.scope='qr_publico_check'` GUC
+  local). Timing constant `aplicar_timing_constant_se_necessario`
+  normaliza latência total para 200ms (`time.perf_counter` +
+  `time.sleep`). URL registrada antes do router; middleware tenant
+  ganhou `/api/v1/qr/` na PUBLIC_PATHS_PREFIX. 10/10 testes (3 escopos
+  + 4 cenários 404 indistinguível + 2 timing sanity + anti-vaza
+  tenant/cliente/tag/NS no payload anônimo).
 - **P4 T-EQP-024+030+031 ✅** (2026-05-23): ficha 360° US-EQP-003 fase 1.
   GET `/api/v1/equipamentos/{id}/ficha360/?finalidade=<enum>` retorna
   dict com (a) equipamento base, (b) bloco
@@ -208,19 +224,16 @@ rastreados Wave A.
 
 ## Próximo passo
 
-1. **US-EQP-003 fase 2** (T-EQP-025+026+033): GET `/v1/qr/{hash}` 3
-   escopos A/B/C (autenticado-mesmo-tenant / autenticado-outro-tenant /
-   anônimo) + timing constant `time.perf_counter` ±5ms + Escopo B 404
-   indistinguível.
-2. **US-EQP-003 fase 3** (T-EQP-027+029+032): rate-limit 60req/min IP
-   + cessionário pós-transferência sem consentimento + rate-limit
-   global por tenant.
-3. **US-EQP-003 fase 4** (T-EQP-028): PWA scanner `/scan/`
-   (BarcodeDetector + jsQR fallback + SW).
-4. **US-EQP-004 transferir** (T-EQP-034..041): POST `/transferir/` +
+1. **US-EQP-003 fase 3** (T-EQP-027+029+032): rate-limit 60req/min IP
+   (Redis) + lockout 24h após 100+ 4xx em 1h + cessionário
+   pós-transferência sem consentimento (depende US-EQP-004) +
+   rate-limit global por tenant + evento `sistema.qr_scraping_suspeito`.
+2. **US-EQP-003 fase 4** (T-EQP-028): PWA scanner `/scan/`
+   (BarcodeDetector nativo + jsQR fallback + SW network-only).
+3. **US-EQP-004 transferir** (T-EQP-034..041): POST `/transferir/` +
    3 vias aceite + Idempotency-Key + consentimento histórico granular.
-5. **US-EQP-005 sucatamento** + **US-EQP-006 recebimento**.
-6. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
+4. **US-EQP-005 sucatamento** + **US-EQP-006 recebimento**.
+5. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)
 
