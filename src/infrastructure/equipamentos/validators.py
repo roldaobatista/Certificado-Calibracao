@@ -631,6 +631,140 @@ def validar_motivo_detalhe(
         raise ValueError(MENSAGEM_REJEICAO_MOTIVO_DETALHE_PII)
 
 
+# =====================================================================
+# T-EQP-055 (US-EQP-006 AC-EQP-006-7b / P-EQP-R3) — condicoes ambientais
+# do EquipamentoRecebimento. Faixas razoaveis defendidas em camadas:
+# A) CHECK PG (migration 0026) bloqueia valores absurdos.
+# B) Validator Python valida formato + range + justificativa.
+# C) Trigger PG bloqueia mutacao pos-INSERT (WORM).
+# =====================================================================
+
+FAIXA_TEMP_AMBIENTE_C_MIN: Final[float] = -50.0
+FAIXA_TEMP_AMBIENTE_C_MAX: Final[float] = 80.0
+FAIXA_UR_PERCENTUAL_MIN: Final[float] = 0.0
+FAIXA_UR_PERCENTUAL_MAX: Final[float] = 100.0
+FAIXA_PRESSAO_KPA_MIN: Final[float] = 50.0
+FAIXA_PRESSAO_KPA_MAX: Final[float] = 120.0
+JUSTIFICATIVA_AMBIENTAL_AUSENTE_MIN_CHARS: Final[int] = 20
+
+MENSAGEM_REJEICAO_JUSTIFICATIVA_AMBIENTAL_PII: Final[str] = (
+    "LGPD art. 5º I + INV-EQP-LOC-001 — justificativa_condicoes_ambientais_"
+    "ausentes contem PII direta (CPF/CNPJ/e-mail/telefone/nomes proprios "
+    "consecutivos). Reformule sem dados pessoais."
+)
+
+
+def validar_condicoes_ambientais(
+    *,
+    temp_ambiente_c: float | int | str | None,
+    ur_percentual: float | int | str | None,
+    pressao_kpa: float | int | str | None,
+    justificativa_ausentes: str | None,
+) -> None:
+    """Valida o bloco ambiental do `EquipamentoRecebimento` (P-EQP-R3).
+
+    Regras Marco 2 dogfooding (HARD):
+    - Cada um dos 3 pode ser NULL (None).
+    - Quando preenchido, valor deve estar na faixa razoavel
+      (defesa em profundidade do CHECK PG).
+    - Justificativa quando preenchida: >=20 chars + anti-PII.
+
+    Regra Wave A (SOFT em Marco 2 — vira HARD quando matriz de
+    exigencia ambiental por-grandeza existir):
+    - Se TODOS os 3 NULL E justificativa vazia: emite alerta P3 stub
+      via service (telemetria). Service decide se bloqueia ou nao.
+
+    Levanta `ValueError` com mensagem PT-BR canonica nas regras HARD.
+    """
+
+    def _converter(valor: float | int | str | None) -> float | None:
+        if valor is None:
+            return None
+        if isinstance(valor, str):
+            valor = valor.strip()
+            if valor == "":
+                return None
+        try:
+            return float(valor)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"valor ambiental nao-numerico: {valor!r}."
+            ) from exc
+
+    temp = _converter(temp_ambiente_c)
+    if temp is not None and not (
+        FAIXA_TEMP_AMBIENTE_C_MIN <= temp <= FAIXA_TEMP_AMBIENTE_C_MAX
+    ):
+        raise ValueError(
+            f"temp_ambiente_c fora da faixa razoavel "
+            f"[{FAIXA_TEMP_AMBIENTE_C_MIN}, {FAIXA_TEMP_AMBIENTE_C_MAX}] °C "
+            f"(valor={temp})."
+        )
+
+    ur = _converter(ur_percentual)
+    if ur is not None and not (
+        FAIXA_UR_PERCENTUAL_MIN <= ur <= FAIXA_UR_PERCENTUAL_MAX
+    ):
+        raise ValueError(
+            f"ur_percentual fora da faixa razoavel "
+            f"[{FAIXA_UR_PERCENTUAL_MIN}, {FAIXA_UR_PERCENTUAL_MAX}] % "
+            f"(valor={ur})."
+        )
+
+    pressao = _converter(pressao_kpa)
+    if pressao is not None and not (
+        FAIXA_PRESSAO_KPA_MIN <= pressao <= FAIXA_PRESSAO_KPA_MAX
+    ):
+        raise ValueError(
+            f"pressao_kpa fora da faixa razoavel "
+            f"[{FAIXA_PRESSAO_KPA_MIN}, {FAIXA_PRESSAO_KPA_MAX}] kPa "
+            f"(valor={pressao})."
+        )
+
+    texto = (justificativa_ausentes or "").strip()
+    if texto:
+        if len(texto) < JUSTIFICATIVA_AMBIENTAL_AUSENTE_MIN_CHARS:
+            raise ValueError(
+                "P-EQP-R3 — justificativa_condicoes_ambientais_ausentes "
+                f"quando preenchida exige >="
+                f"{JUSTIFICATIVA_AMBIENTAL_AUSENTE_MIN_CHARS} chars "
+                f"(atual={len(texto)}). Ex.: 'grandeza nao exige medicao "
+                "ambiental — RBC cl. 6.3'."
+            )
+        if conter_pii_direta(texto):
+            raise ValueError(MENSAGEM_REJEICAO_JUSTIFICATIVA_AMBIENTAL_PII)
+
+
+def deve_emitir_alerta_ambiental_ausente(
+    *,
+    temp_ambiente_c: float | int | str | None,
+    ur_percentual: float | int | str | None,
+    pressao_kpa: float | int | str | None,
+    justificativa_ausentes: str | None,
+) -> bool:
+    """True quando o recebimento foi gravado sem nenhuma medicao
+    ambiental E sem justificativa textual.
+
+    Em Marco 2 o service usa esse predicado pra publicar
+    `equipamento.recebimento_sem_ambiente` (alerta P3 stub). Wave A
+    poderia transformar em hard block conforme matriz por-grandeza.
+    """
+    def _vazio(valor: float | int | str | None) -> bool:
+        if valor is None:
+            return True
+        if isinstance(valor, str) and valor.strip() == "":
+            return True
+        return False
+
+    todos_ausentes = (
+        _vazio(temp_ambiente_c)
+        and _vazio(ur_percentual)
+        and _vazio(pressao_kpa)
+    )
+    texto = (justificativa_ausentes or "").strip()
+    return todos_ausentes and not texto
+
+
 def conter_pii_direta(texto: str) -> bool:
     """True se o texto contiver CPF, CNPJ, e-mail, telefone ou >=2 nomes
     proprios consecutivos.

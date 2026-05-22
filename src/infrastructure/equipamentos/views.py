@@ -775,6 +775,7 @@ class EquipamentoViewSet(
             AnomaliaSemDecisao,
             AnomaliasObservadasInvalidas,
             CondicaoInvalida,
+            CondicoesAmbientaisInvalidas,
             DadosRecebimento,
             DecisaoInvalida,
             RecebimentoInvalido,
@@ -803,6 +804,12 @@ class EquipamentoViewSet(
             justificativa_decisao=str(body.get("justificativa_decisao", "")),
             foto_bytes=foto_bytes,
             foto_mime_type=foto_mime,
+            temp_ambiente_c=body.get("temp_ambiente_c"),
+            ur_percentual=body.get("ur_percentual"),
+            pressao_kpa=body.get("pressao_kpa"),
+            justificativa_ambiental_ausentes=str(
+                body.get("justificativa_ambiental_ausentes", "")
+            ),
         )
 
         try:
@@ -817,6 +824,7 @@ class EquipamentoViewSet(
             DecisaoInvalida,
             AnomaliaSemDecisao,
             AnomaliasObservadasInvalidas,
+            CondicoesAmbientaisInvalidas,
             JustifInv,
         ) as exc:
             return Response(

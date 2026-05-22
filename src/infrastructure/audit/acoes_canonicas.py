@@ -149,6 +149,13 @@ ACOES_EQUIPAMENTOS: Final[frozenset[str]] = frozenset(
         # recebimento_id (1o canonico), tag_canonica, promovido_em.
         # 25a WORM (cadeia de evidencia).
         "equipamento.promovido_de_provisorio",
+        # T-EQP-055 (US-EQP-006 AC-EQP-006-7b / P-EQP-R3) — alerta P3
+        # stub disparado quando recebimento e gravado sem nenhuma
+        # medicao ambiental E sem justificativa textual. Marco 2:
+        # consumer real Wave A; alerta correlato P3 telemetria.
+        # Payload sanitizado: equipamento_id, recebimento_id,
+        # data_recebimento. Sem PII.
+        "equipamento.recebimento_sem_ambiente",
     }
 )
 

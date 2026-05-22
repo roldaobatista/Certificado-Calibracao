@@ -26,6 +26,7 @@ fase do `EquipamentoRecebimento.status_fluxo_lab`; trigger PG valida.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from django.db import IntegrityError, ProgrammingError, transaction
@@ -45,7 +46,9 @@ from src.infrastructure.equipamentos.services_foto_storage import (
     preparar_foto,
 )
 from src.infrastructure.equipamentos.validators import (
+    deve_emitir_alerta_ambiental_ausente,
     validar_anomalias_observadas,
+    validar_condicoes_ambientais,
     validar_justificativa_decisao,
 )
 
@@ -78,6 +81,10 @@ class TransicaoStatusFluxoLabInvalida(RecebimentoInvalido):
     """Transicao no `status_fluxo_lab` bloqueada pelo trigger PG."""
 
 
+class CondicoesAmbientaisInvalidas(RecebimentoInvalido):
+    """Faixa fora do razoavel ou justificativa ausente/PII (P-EQP-R3)."""
+
+
 @dataclass(frozen=True)
 class DadosRecebimento:
     condicao_visual_chegada: str
@@ -86,6 +93,12 @@ class DadosRecebimento:
     justificativa_decisao: str = ""
     foto_bytes: bytes | None = None
     foto_mime_type: str = ""
+    # T-EQP-055 (P-EQP-R3 / AC-EQP-006-7b) — condicoes ambientais.
+    # None = ausente; quando todos None exige `justificativa_ambiental_ausentes`.
+    temp_ambiente_c: float | int | str | None = None
+    ur_percentual: float | int | str | None = None
+    pressao_kpa: float | int | str | None = None
+    justificativa_ambiental_ausentes: str = ""
 
 
 @dataclass(frozen=True)
@@ -124,6 +137,17 @@ def criar_recebimento(
     except ValueError as exc:
         raise AnomaliasObservadasInvalidas(str(exc)) from exc
 
+    # T-EQP-055 (P-EQP-R3) — condicoes ambientais.
+    try:
+        validar_condicoes_ambientais(
+            temp_ambiente_c=dados.temp_ambiente_c,
+            ur_percentual=dados.ur_percentual,
+            pressao_kpa=dados.pressao_kpa,
+            justificativa_ausentes=dados.justificativa_ambiental_ausentes,
+        )
+    except ValueError as exc:
+        raise CondicoesAmbientaisInvalidas(str(exc)) from exc
+
     eh_integro = (
         dados.condicao_visual_chegada == CondicaoVisualChegada.INTEGRO.value
     )
@@ -161,6 +185,24 @@ def criar_recebimento(
         foto_storage_key = preparada.storage_key
         foto_sha256 = preparada.foto_sha256
 
+    def _normalizar(valor: float | int | str | None) -> Decimal | None:
+        if valor is None:
+            return None
+        if isinstance(valor, str):
+            valor = valor.strip()
+            if valor == "":
+                return None
+        # Conversao via str pra evitar imprecisao binaria do float
+        # (Decimal(0.1) != Decimal('0.1')).
+        return Decimal(str(valor))
+
+    temp_normalizado = _normalizar(dados.temp_ambiente_c)
+    ur_normalizado = _normalizar(dados.ur_percentual)
+    pressao_normalizado = _normalizar(dados.pressao_kpa)
+    justificativa_ambiental = (
+        dados.justificativa_ambiental_ausentes or ""
+    ).strip()
+
     with transaction.atomic():
         recebimento = EquipamentoRecebimento.objects.create(
             tenant_id=tenant_id,
@@ -172,6 +214,10 @@ def criar_recebimento(
             foto_storage_key=foto_storage_key,
             foto_sha256=foto_sha256,
             recebido_por_id=recebido_por_id,
+            temp_ambiente_c=temp_normalizado,
+            ur_percentual=ur_normalizado,
+            pressao_kpa=pressao_normalizado,
+            justificativa_condicoes_ambientais_ausentes=justificativa_ambiental,
         )
 
         # Persiste BLOB da foto na tabela 1:1 (apos INSERT do
@@ -197,6 +243,9 @@ def criar_recebimento(
             pass
 
         # P-EQP-S3 / AC-EQP-006-11 — payload sanitizado inclui foto_sha256.
+        # T-EQP-055 (P-EQP-R3) — bloco ambiental: valores numericos OK no
+        # payload (sao medidas, nao PII). Justificativa NUNCA vaza (pode
+        # ter rastros de texto livre).
         payload: dict[str, object] = {
             "tenant_id": str(tenant_id),
             "equipamento_id": str(equipamento.id),
@@ -206,6 +255,18 @@ def criar_recebimento(
             "tem_foto": bool(foto_storage_key),
             "foto_sha256": foto_sha256,
             "data_recebimento": recebimento.data_recebimento.isoformat(),
+            "ambiente": {
+                "temp_ambiente_c": (
+                    float(temp_normalizado) if temp_normalizado is not None else None
+                ),
+                "ur_percentual": (
+                    float(ur_normalizado) if ur_normalizado is not None else None
+                ),
+                "pressao_kpa": (
+                    float(pressao_normalizado) if pressao_normalizado is not None else None
+                ),
+                "tem_justificativa_ausentes": bool(justificativa_ambiental),
+            },
         }
         if not eh_integro:
             payload["decisao_apos_anomalia"] = recebimento.decisao_apos_anomalia
@@ -220,6 +281,33 @@ def criar_recebimento(
                 f"equipamento:{equipamento.id}:recebido:{recebimento.id}"
             ),
         )
+
+        # T-EQP-055 (P-EQP-R3 / AC-EQP-006-7b) — alerta P3 stub quando
+        # recebimento gravado sem nenhuma medicao ambiental E sem
+        # justificativa. Wave A: hard block conforme matriz
+        # exigencia-por-grandeza.
+        if deve_emitir_alerta_ambiental_ausente(
+            temp_ambiente_c=temp_normalizado,
+            ur_percentual=ur_normalizado,
+            pressao_kpa=pressao_normalizado,
+            justificativa_ausentes=justificativa_ambiental,
+        ):
+            publicar_evento(
+                acao="equipamento.recebimento_sem_ambiente",
+                tenant_id=tenant_id,
+                usuario_id=recebido_por_id,
+                causation_id=causation_id,
+                payload={
+                    "tenant_id": str(tenant_id),
+                    "equipamento_id": str(equipamento.id),
+                    "recebimento_id": str(recebimento.id),
+                    "data_recebimento": recebimento.data_recebimento.isoformat(),
+                },
+                resource_summary=(
+                    f"equipamento:{equipamento.id}:"
+                    f"recebimento_sem_ambiente:{recebimento.id}"
+                ),
+            )
 
         # AC-EQP-006-2 — decisao=contatar_cliente_aguardando dispara
         # evento adicional para consumer NotificacaoClienteService

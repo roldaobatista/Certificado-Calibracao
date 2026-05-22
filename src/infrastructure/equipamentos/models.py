@@ -1340,6 +1340,49 @@ class EquipamentoRecebimento(models.Model):
         related_name="recebimentos_registrados",
     )
     data_recebimento = models.DateTimeField(auto_now_add=True, db_index=True)
+    # T-EQP-055 (P-EQP-R3 / AC-EQP-006-7b) — condicoes ambientais na
+    # recepcao. NULL permitido com justificativa quando grandeza nao
+    # exige medicao (RBC cl. 6.3 + ISO 17025 cl. 6.4.10). Imutaveis
+    # pos-INSERT via trigger PG `recebimento_ambiente_imutavel_check`
+    # (migration 0026 — ISO 17025 cl. 7.4 + RBC NIT-DICLA-021 WORM 25a).
+    temp_ambiente_c = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=(
+            "Temperatura ambiente em °C no momento da recepcao "
+            "(P-EQP-R3). NULL permitido com justificativa."
+        ),
+    )
+    ur_percentual = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=(
+            "Umidade relativa em % no momento da recepcao (P-EQP-R3). "
+            "NULL permitido com justificativa."
+        ),
+    )
+    pressao_kpa = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=(
+            "Pressao atmosferica em kPa no momento da recepcao "
+            "(P-EQP-R3). NULL permitido com justificativa."
+        ),
+    )
+    justificativa_condicoes_ambientais_ausentes = models.TextField(
+        blank=True,
+        default="",
+        help_text=(
+            "Obrigatoria quando temp/ur/pressao sao todos NULL (P-EQP-R3). "
+            ">=20 chars + anti-PII. Texto cru (auditoria ISO 17025)."
+        ),
+    )
 
     class Meta:
         app_label = "equipamentos"
