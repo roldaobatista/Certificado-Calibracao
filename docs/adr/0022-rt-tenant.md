@@ -1,8 +1,9 @@
 ---
 adr: 0022
 titulo: Gestão do Responsável Técnico do tenant (RT — NIT-DICLA-021)
-status: proposta
+status: aceito
 data: 2026-05-22
+aceito-em: 2026-05-22 (Marco 2 entregue T-EQP-061..065 + tests/regressao/test_inv_eqp_rt_001.py)
 proposto-por: agente
 revisado-por: consultor-rbc-iso17025, tech-lead-saas-regulado, advogado-saas-regulado
 bloqueia-fase: Wave A (1ª supervisão CGCRE — laboratório acreditado precisa de RT credenciado)

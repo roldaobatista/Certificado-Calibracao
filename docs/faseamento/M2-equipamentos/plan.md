@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado_em: 2026-05-21
-proximo_review: 2026-08-21
+revisado_em: 2026-05-23
+proximo_review: 2026-08-23
 status: stable
 diataxis: explanation
 audiencia: agente

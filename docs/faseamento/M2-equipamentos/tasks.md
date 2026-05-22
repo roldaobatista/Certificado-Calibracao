@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado_em: 2026-05-21
-proximo_review: 2026-08-21
+revisado_em: 2026-05-23
+proximo_review: 2026-08-23
 status: stable
 diataxis: explanation
 audiencia: agente
@@ -139,11 +139,11 @@ Convenção:
 
 | T-EQP | Conserto |
 |-------|----------|
-| T-EQP-070 | Hook `qr-hmac-check.sh` + 9 casos `_test-runner.sh` (`INV-EQP-QR-NUNCA-RECOMPUTA`) |
+| T-EQP-070 | ✅ FECHADO 2026-05-21: Hook `.claude/hooks/qr-hmac-check.sh` + 9 casos `_test-runner.sh` (`INV-EQP-QR-NUNCA-RECOMPUTA`) — entregue junto com T-EQP-006 SEC-QR-001. |
 | T-EQP-071 | ✅ FECHADO 2026-05-23: Hook `equipamento-imutabilidade-check.sh` (192/192 verde) + 13 casos no `_test-runner.sh` (EI1..EId — assignment + ORM update em tag/numero_serie/fabricante; perfil_tenant_snapshot direto; allowlist services_perfil/tests/migrations; override consciente). |
 | T-EQP-072 | ✅ FECHADO 2026-05-22: hook `.claude/hooks/port-binding-validator.sh` + 9 casos (PB1..PB9) no `_test-runner.sh`. Bloqueia `from src.infrastructure.{certificados,qualidade}.{models,admin,serializers,views} import` fora do próprio módulo. Allow auto: tests/migrations/config/SI-mesmo. Override com `# port-binding: skip -- <razão>`. Registrado em `.claude/settings.json` PreToolUse. |
 | T-EQP-073 | ✅ FECHADO 2026-05-22: hook `.claude/hooks/trigger-stub-sweep.sh` + 6 casos (TS1..TS6) no `_test-runner.sh`. Bloqueia `_v0_stub` em migrations/SQL (P-EQP-T7 — placeholder não pode cair em release). Allow auto: tests/hooks. Override com `# trigger-stub-sweep: skip -- <razão>`. Registrado em `.claude/settings.json` PreToolUse. |
-| T-EQP-080 | `docs/conformidade/equipamentos/textos-rejeicao-422.md` (T1-T5 P-EQP-A3) |
+| T-EQP-080 | ✅ FECHADO 2026-05-23: `docs/conformidade/equipamentos/textos-rejeicao-422.md` v1.0.0 (T1-T5 P-EQP-A3 pré-aprovados advogado) + helper `validators.texto_rejeicao_422_pos_cert(campo)` + teste anti-drift constante↔frontmatter. |
 | T-EQP-081 | ✅ FECHADO 2026-05-22: `docs/conformidade/equipamentos/aviso-aceite-presencial-atendente.md` v1.0 — aviso UX 5 declarações + allowlist anti-CTA + 3 camadas (UX/auditoria/contrato). Lei 14.063 + CP 299/171 + CLT 482 + CC 462. |
 | T-EQP-082 | ✅ FECHADO em sessão anterior — `template-notificacao-sucatamento.md` v1.0 (entregue com T-EQP-045). |
 | T-EQP-083 | ✅ FECHADO em sessão anterior — `aviso-foto-recebimento.md` v1.0 (entregue com T-EQP-047 / P-EQP-A6+A8+S4). |
@@ -151,12 +151,12 @@ Convenção:
 | T-EQP-085 | ✅ FECHADO 2026-05-22: ADR-0022 (gestão do RT do tenant) proposta. Tabela ADRs em AGENTS.md atualizada. Cobre 2 modelos (`ResponsavelTecnicoTenant` + `RTCompetencia`) + INV-EQP-RT-001 (EXCLUDE GIST) + 4 ações canônicas + 4 endpoints + predicate competência. Marco 2 entregue (T-EQP-061..065); Wave A rastreado em 4 GATEs. |
 | T-EQP-090 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_001_perfil_imutavel.py` — 3 testes (happy INSERT + unhappy UPDATE direto bloqueado + cross-tenant RLS). |
 | T-EQP-091 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_002_segregacao.py` — 3 testes (happy decisor distinto + solicitante==decisor levanta `SegregacaoFuncoesViolada` + cross-tenant RLS invisível). |
-| T-EQP-092 | `tests/regressao/sec_qr_001.py` (QR HMAC versionado — 3+ testes) |
+| T-EQP-092 | ✅ FECHADO 2026-05-22: `tests/regressao/test_sec_qr_001_hmac_versionado.py` (18 testes — happy + rotação chave + INV-EQP-QR-NUNCA-RECOMPUTA + anti-vazamento + RLS cross-tenant; cobre também INV-051 referenciado). |
 | T-EQP-093 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_qr_nunca_recomputa.py` — 3 testes (happy hash gravado resolve + sem prefixo versão None + revogado_em preenchido None). |
-| T-EQP-094 | `tests/regressao/inv_eqp_rt_001.py` (RT sem sobreposição temporal — `EXCLUDE USING GIST`) |
+| T-EQP-094 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_rt_001.py` — 3 testes (happy declaração + sobreposição temporal levanta `CompetenciaSobreposta` via `EXCLUDE USING GIST` + cross-tenant invisível). |
 | T-EQP-095 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_049_tag_unica.py` — 3 testes (happy + duplicada mesmo tenant IntegrityError + cross-tenant mesma TAG OK). |
 | T-EQP-096 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_050_transferencia_mesmo_tenant.py` — 3 testes (happy mesmo tenant + cross-tenant CessionarioCrossTenant + cliente inexistente MESMA mensagem anti-oracle). |
-| T-EQP-097 | `tests/regressao/inv_051_qr_hmac.py` (HMAC payload + allowlist anônima — 3+ testes) |
+| T-EQP-097 | ✅ FECHADO 2026-05-22: INV-051 (QR HMAC payload + allowlist anônima) coberto em `tests/regressao/test_sec_qr_001_hmac_versionado.py` (referencia INV-051 explicitamente; 18 testes) + cenários allowlist anônima nos testes T-EQP-025+026+033 em `tests/test_equipamentos_qr_publico.py`. |
 | T-EQP-098 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_025_imutabilidade_pos_cert.py` — 4 testes (sem cert muta tag OK + com cert bloqueia tag + com cert bloqueia numero_serie+fabricante + cross-tenant cert em B não protege A). |
 | T-EQP-099 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_loc_001.py` — happy texto limpo + 5 padrões PII (CPF/CNPJ/email/telefone/nomes) + limite tamanho. |
 | T-EQP-100 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_versao_001.py` — happy + 5 padrões PII + motivo curto quando obriga. |
@@ -164,7 +164,7 @@ Convenção:
 | T-EQP-102 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_anom_001.py` — happy + 4 padrões PII + excede limite. |
 | T-EQP-103 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_anom_002.py` — happy + curto + 4 padrões PII. |
 | T-EQP-104 | ✅ FECHADO 2026-05-22: `tests/regressao/test_inv_eqp_prov_001.py` — FK aponta para Equipamento + provisório sem related_name reverso + UUID provisório não corresponde a equipamento canônico. |
-| T-EQP-105 | Drill `validar_m2_equipamentos` (management command — multi-tenant cadastro+QR+transferência+recebimento) |
+| T-EQP-105 | ✅ FECHADO 2026-05-22: drill `python manage.py validar_m2_equipamentos` — **18/18 verificações PASS** (3 tenants intercalados; cadastro+QR+recebimento+provisório + isolamento cross-tenant + cadeia auditoria + evento canônico). |
 
 ### GATEs Wave A rastreados (não bloqueiam fechamento Marco 2 dogfooding)
 

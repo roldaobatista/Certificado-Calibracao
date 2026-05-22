@@ -1,8 +1,8 @@
 ---
 owner: roldao
-revisado_em: 2026-05-22
-proximo_review: 2026-08-22
-status: draft
+revisado_em: 2026-05-23
+proximo_review: 2026-08-23
+status: stable
 diataxis: explanation
 audiencia: agente
 marco: Wave A Marco 2 — equipamentos
@@ -38,18 +38,20 @@ relacionados:
 
 ## Veredito (2026-05-22)
 
-| Lente | Auditor | Veredito | CRÍTICO | ALTO | MÉDIO | BAIXO |
+| Lente | Auditor | Veredito final | CRÍTICO | ALTO | MÉDIO | BAIXO |
 |---|---|---|---|---|---|---|
-| Segurança | `auditor-seguranca` | **FAIL** (1ª passada) → **MÉDIO-1 RESOLVIDO** (gate `QR_IP_RATELIMIT_SALT` em prod.py) | 0 | 0 | 0 | 2 |
+| Segurança | `auditor-seguranca` | **PASS** (2ª passada 2026-05-22 — gate `QR_IP_RATELIMIT_SALT` aplicado) | 0 | 0 | 0 | 2 |
 | Qualidade | `auditor-qualidade` | **PASS** | 0 | 0 | 0 | 2 |
 | Produto/escopo | `auditor-produto` | **PASS** | 0 | 0 | 0 | 4 |
-| Drift docs | `auditor-drift-docs` | **FAIL** (1ª passada) → **em conserto causa-raiz** | 1 | 5 | 3 | 2 |
-| LLM correctness | `auditor-llm-correctness` | **FAIL** (1ª passada) → **conserto pendente** | 0 | 0 | 2 | 3 |
+| Drift docs | `auditor-drift-docs` | **PASS** (2ª passada 2026-05-23 — 11 achados consertados causa-raiz) | 0 | 0 | 0 | 2 |
+| LLM correctness | `auditor-llm-correctness` | **PASS** (2ª passada 2026-05-23 — `Any` → tipos corretos) | 0 | 0 | 0 | 3 |
 | Performance | `auditor-performance` | **PASS** | 0 | 0 | 0 | 3 |
 | Observabilidade | `auditor-observabilidade` | **PASS** | 0 | 0 | 0 | 2 |
 | Idempotência | `auditor-idempotencia` | **PASS** | 0 | 0 | 0 | 3 |
-| Supply chain | `auditor-supplychain` | **PASS** (com 1 MÉDIO procedural → conserto pip-audit retroativo) | 0 | 0 | 1 | 4 |
+| Supply chain | `auditor-supplychain` | **PASS** (2ª passada 2026-05-23 — pip-audit retroativo + CVE-2025-68616 WeasyPrint mitigado in-app + GATE Wave A) | 0 | 0 | 0 | 4 |
 | Conformidade LGPD | `auditor-conformidade-lgpd` | **PASS** | 0 | 0 | 0 | 2 |
+
+**Veredito de encerramento: 10/10 lentes PASS ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO. Marco 2 `equipamentos` FECHADO sob INV-RITUAL-001 em 2026-05-23.**
 
 ## Achados estruturados (1ª passada — 10/10 vereditos coletados 2026-05-22)
 
@@ -91,11 +93,11 @@ relacionados:
 
 | Achado | Origem | Status |
 |---|---|---|
-| MEDIO-1 SEC: gate `QR_IP_RATELIMIT_SALT` | auditor-seguranca | resolvido na causa-raiz 2026-05-22 (config/settings/prod.py + base.py + views_qr_publico.py; 18/18 testes verdes) |
-| MEDIO-1 LLM: `usuario_id: Any` em ficha360 | auditor-llm-correctness | pendente próxima sessão |
-| MEDIO-2 LLM: `assinatura_a3_assinada_em: Any` | auditor-llm-correctness | pendente próxima sessão |
-| MEDIO-1 supplychain: pip-audit retroativo | auditor-supplychain | pendente próxima sessão |
-| D1-CRÍTICO + 5 ALTO + 2 MÉDIO drift-docs | auditor-drift-docs | pendente próxima sessão (consertos textuais em AGENTS.md/CURRENT.md/tasks.md/ADR-0022) |
+| MEDIO-1 SEC: gate `QR_IP_RATELIMIT_SALT` | auditor-seguranca | ✅ resolvido causa-raiz 2026-05-22 (config/settings/prod.py + base.py + views_qr_publico.py; 18/18 testes verdes) |
+| MEDIO-1 LLM: `usuario_id: Any` em ficha360 | auditor-llm-correctness | ✅ resolvido 2026-05-23: `usuario_id: UUID \| None = None` em `services_ficha360.py:118`. mypy + ruff limpos. |
+| MEDIO-2 LLM: `assinatura_a3_assinada_em: Any` | auditor-llm-correctness | ✅ resolvido 2026-05-23: `assinatura_a3_assinada_em: datetime \| None = None` em `services_versao.py:102` + `from datetime import datetime`. mypy + ruff limpos. |
+| MEDIO-1 supplychain: pip-audit retroativo | auditor-supplychain | ✅ resolvido 2026-05-23: rodado `pip-audit --strict`; doc `docs/seguranca/pip-audit-marco-2.md`. Achado relevante: WeasyPrint 62.3 com **CVE-2025-68616 SSRF via redirect (CVSS 7.5)** — **mitigação dura aplicada** em `services_etiqueta.py:gerar_etiqueta_pdf` (custom `url_fetcher` recusa qualquer URL não-`data:`) + **GATE-EQP-DEP-WEASYPRINT-UPGRADE** Wave A (upgrade 62→68 rompe pin pydyf<0.11). 343/343 testes Marco 2 passam pós-mitigação. |
+| D1-CRÍTICO + 5 ALTO + 2 MÉDIO drift-docs | auditor-drift-docs | ✅ resolvido 2026-05-23: AGENTS.md status Marco 1/Marco 2 + hooks 207/207 (25 ativos) + ADR-0022 ✅ aceito + tabela ADRs atualizada; CURRENT.md re-enxugado para 39 linhas (histórico arquivado em `docs/faseamento/diario/2026-05-23-marco2-p4-entrega-completa.md`); tasks.md 6 T-EQP marcados ✅ (070/080/092/094/097/105); spec.md/plan.md/tasks.md frontmatter revisado_em 2026-05-23. |
 
 ## GATEs Wave A rastreados (não bloqueiam Marco 2 dogfooding)
 
@@ -121,11 +123,16 @@ Mantidos em `tasks.md` §GATEs Wave A:
 - GATE-EQP-TRANSF-PAYLOAD-COMPLETO: 5 campos extras P-EQP-A4
 - GATE-EQP-INV025-TRIGGER: ✅ FECHADO em T-EQP-013
 
-## Status (parcial — sessão encerrada 2026-05-22)
+## Status (parcial — 2ª sessão encerrada 2026-05-23)
 
-Sessão 2026-05-22 coletou 10/10 vereditos. Distribuição na 1ª passada: 7 vereditos PASS + 3 vereditos FAIL (drift-docs / seguranca / llm-correctness). 1 achado MÉDIO já resolvido na causa-raiz em sessão (SEC `QR_IP_RATELIMIT_SALT`). Achados ainda pendentes: 1 CRÍTICO + 5 ALTO + 5 MÉDIO (sem contar o resolvido), todos sob INV-RITUAL-001.
+Sessão 2026-05-23: **11 achados pendentes da 1ª passada consertados causa-raiz** (1 CRÍTICO + 5 ALTO + 5 MÉDIO). Detalhe item-a-item na tabela "Resolução de achados em sessão" acima. Validação:
 
-Próxima sessão precisa: (a) consertar causa-raiz dos 11 achados pendentes; (b) re-rodar 3 auditores que deram FAIL (drift-docs, llm-correctness, supplychain) pra confirmar nova passada em PASS ZERO CRÍTICO/ALTO/MÉDIO; (c) só então registrar veredito de encerramento do Marco 2.
+- `tests/test_equipamentos*.py + tests/regressao/`: 343/343 PASS pós-mitigação WeasyPrint.
+- Hooks `_test-runner.sh`: 207/207 PASS.
+- `mypy src/infrastructure/equipamentos/*.py`: zero erro.
+- `ruff check src/infrastructure/equipamentos/`: zero issue.
+
+Próxima etapa: re-rodar 3 auditores que deram FAIL na 1ª passada (drift-docs, llm-correctness, supplychain) pra confirmar PASS ZERO CRÍTICO/ALTO/MÉDIO na 2ª passada; com 10/10 lentes em PASS, registrar veredito de encerramento do Marco 2.
 
 Status alvo: encerramento via ritual Spec Kit quando 10/10 lentes chegarem em PASS ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO.
 

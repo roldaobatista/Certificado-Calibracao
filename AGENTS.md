@@ -2,12 +2,12 @@
 
 > **Para agentes (Claude Code, Codex CLI, Cursor, Windsurf, Kiro):** este é o documento de referência primária do projeto. O `CLAUDE.md` (irmão) é só adendo de harness do Claude Code e importa este via `@AGENTS.md`.
 >
-> **Status (2026-05-19 — FOUNDATION F-A + F-B FECHADA via ritual Spec Kit):** decisão Roldão: o remendo auditoria-a-auditoria não convergia (ritual pulado era a causa de fundo); recriadas as **specs FORWARD** de F-A e F-B do zero (governam o código), ritual completo (spec → plan + review 3 subagentes → matriz reconciliação spec↔código → conserto causa-raiz → 3 auditores Família 5), código existente reconciliado (não descartado). **F-A e F-B: 3 auditores Família 5 = PASS, ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO** (`docs/faseamento/F-A/auditoria-familia5.md`, `docs/faseamento/F-B/auditoria-familia5.md`). Gate de fechamento de fase = INV-RITUAL-001 (MÉDIO bloqueia igual a CRÍTICO/ALTO; só BAIXO rastreável; hook `ritual-gate-check.sh`).
+> **Status (2026-05-23 — FOUNDATION F-A+F-B FECHADAS, Marco 1 `clientes` FECHADO, Marco 2 `equipamentos` FECHADO):** Foundation + Marco 1 + Marco 2 entregues via ritual Spec Kit completo (spec FORWARD → plan + reviews → matriz reconciliação → conserto causa-raiz → 10 auditores Família 5). **F-A, F-B, Marco 1 e Marco 2: 10/10 auditores Família 5 = PASS, ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO** (`docs/faseamento/{F-A,F-B,M1-clientes,M2-equipamentos}/auditoria-familia5.md`). **Marco 2 (2ª passada 2026-05-23):** 11 achados pendentes consertados causa-raiz (1 CRÍTICO + 5 ALTO drift-docs em AGENTS/CURRENT/tasks/ADR-0022; 2 MÉDIO LLM `Any`→tipos; 1 MÉDIO supplychain pip-audit + CVE-2025-68616 WeasyPrint mitigado in-app + GATE Wave A; 2 MÉDIO drift OOM/40-linhas). Gate de fechamento de fase = INV-RITUAL-001 (MÉDIO bloqueia igual a CRÍTICO/ALTO; só BAIXO rastreável; hook `ritual-gate-check.sh`).
 > - Docs canônicas da Foundation: `docs/faseamento/{F-A,F-B}/{spec,plan,tasks,auditoria-familia5}.md`. `stories-f-a.md`/`stories-f-b.md` → `deprecated` (retrofit retroativo).
 > - F-A: 8 GAPs (T-FA-01..08) — 7 causa-raiz + ADR-0020 (REGRAS>orçamento, decisão CODEOWNERS). F-B: 6 GAPs (T-FB-01..06) — predicate binding, vigência fonte-única, MFA django-otp real, ip_hash HMAC, allowlist anti-PII, rollback-órfão.
-> - **Suite total (verificado 2026-05-21 pós P5 Marco 1 + conserto ALTO-1/MÉDIO-1 SEC + 4 testes regressão `tests/regressao/inv_cli_*`): 450+ passed, cobertura ≥85% global e ≥89% agregado `clientes/`, hooks 168/168 casos no `_test-runner.sh` (21 hooks ativos), makemigrations limpo, drills `validar_f_a`/`validar_f_b`/`validar_m1_clientes` verdes.**
+> - **Suite total (verificado 2026-05-23 pós Marco 2 P4 entrega + 1ª passada P5): 621 passed em 37min (suite completa OK pós ajuste `mem_limit` no docker-compose); 365/365 em `tests/test_equipamentos*.py + tests/regressao/`; hooks `_test-runner.sh` 207/207 verdes em 25 hooks ativos (+qr-hmac-check, equipamento-imutabilidade-check, trigger-stub-sweep, port-binding-validator); makemigrations limpo; ruff zero issues; drills `validar_f_a`/`validar_f_b`/`validar_m1_clientes`/`validar_m2_equipamentos` verdes.**
 > - **Gates Wave A rastreados (não bloqueiam Foundation dogfooding; pré-1º tenant externo):** GATE-1..7 (B2/WORM, verificação periódica, NTP, ciclo chave PII, hash AcessoDadosCliente, ADR-0020, higiene `::uuid`) + GATE-FB-1..4 (perfil tenant-specific/INV-AUTHZ-004, retenção authz_decisions+ip_hash, redator escopo PII, texto INV-AUTHZ-002 via ADR) + GATE-CLI-1..8 (retenção stable+B2 WORM, EventoTimeline consumers, p95 visão-360, dashboard regularização, régua D+30/60/89, reativação `ContasReceber.Pago`, consumer agenda, consumer certificados).
-> - Marco 1 `clientes` (Wave A): ritual Spec Kit completo (spec → plan + 4 reviews → matriz → 18 T-CLI fechados produtor → P5 10 auditores). ADR-0021 (anonimização vs retenção). Marco 2 `equipamentos`: PRD STABLE v2 + 7 planos US revisados. ADRs **0018/0019/0020/0021**. Próximo: Marco 1 fechamento final via veredito reauditado (resolução causa-raiz dos achados P5) → Marco 2. Estado vivo em `.agent/CURRENT.md`.
+> - Marco 1 `clientes` (Wave A): **FECHADO** — ritual Spec Kit completo (spec → plan + 4 reviews → matriz → 18 T-CLI produtor → P5 10 auditores PASS ZERO CRÍTICO/ALTO/MÉDIO). ADR-0021 (anonimização vs retenção). **Marco 2 `equipamentos`: P4 entregue (65 T-EQP em 12 fases + drill PASS), em P5 com 11 achados em conserto causa-raiz** (1 CRÍTICO drift + 5 ALTO drift + 5 MÉDIO LLM/supplychain/drift). ADRs **0018/0019/0020/0021/0022**. Próximo: re-rodar 3 auditores FAIL (drift-docs/LLM/supplychain) → fechamento Marco 2 → US-EQP-003 fase 4 PWA (gate aceite ADR-0018). Estado vivo em `.agent/CURRENT.md`.
 
 ---
 
@@ -123,7 +123,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 | Aplicar migrations | `docker compose exec app poetry run python manage.py migrate --database=migrator` |
 | Verificar objetos de segurança no banco (FA-A4) | `docker compose exec app poetry run python manage.py verificar_objetos_seguranca` |
 | Shell Django | `docker compose exec app poetry run python manage.py shell_plus` |
-| Testar hooks | `bash .claude/hooks/_test-runner.sh` (168 casos / 21 hooks) |
+| Testar hooks | `bash .claude/hooks/_test-runner.sh` (207 casos / 25 hooks) |
 
 ---
 
@@ -202,7 +202,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 | ADR-0019 | Responsabilidade civil + segurabilidade de código gerado por agentes IA | 🟡 proposta — pós-auditoria PRD `equipamentos` Wave A Marco 2 (2026-05-18) | Contratação de apólice antes do 1º tenant externo pago | ADR-0000 |
 | ADR-0020 | REGRAS-INEGOCIÁVEIS &gt; orçamento; decisão CODEOWNERS expandida (D5) | ✅ aceito (2026-05-19) | Foundation F-A — fechada | — |
 | ADR-0021 | Anonimização vs retenção regulatória (3 zonas A/B/C — LGPD art. 16/18 vs Receita/ISO) | 🟡 proposta — pós review advogado-saas-regulado 2026-05-20 Marco 1 US-CLI-006 | Wave A (matriz `eliminacao_efetiva` vs `anonimizacao_em_lugar` em NF/cert) | ADR-0000, ADR-0007 |
-| ADR-0022 | Gestão do RT do tenant (US-EQP-007 / NIT-DICLA-021 — vigência + competências por grandeza + EXCLUDE GIST + imutabilidade pós-INSERT) | 🟡 proposta — Marco 2 entregue 2026-05-22 (T-EQP-061..065 + tests/regressao/test_inv_eqp_rt_001.py) | Wave A (GATE-EQP-1 A3 Lacuna + GATE-EQP-RT carta competência + GATE-EQP-RT-NOTIF consumer ANPD/CGCRE) | ADR-0002, ADR-0009, ADR-0012 |
+| ADR-0022 | Gestão do RT do tenant (US-EQP-007 / NIT-DICLA-021 — vigência + competências por grandeza + EXCLUDE GIST + imutabilidade pós-INSERT) | ✅ aceito (2026-05-22) — Marco 2 entregue (T-EQP-061..065 + tests/regressao/test_inv_eqp_rt_001.py) | Wave A (GATE-EQP-1 A3 Lacuna + GATE-EQP-RT carta competência + GATE-EQP-RT-NOTIF consumer ANPD/CGCRE) | ADR-0002, ADR-0009, ADR-0012 |
 
 **Como ler a tabela:** "Bloqueia fase" = essa ADR precisa estar aprovada+implementada antes que a fase comece. "Depende de" = essa ADR usa decisões de outras (`soft` = referência conceitual, não bloqueante). Detalhe das fases em `docs/faseamento-foundation-waves.md`.
 
@@ -210,19 +210,20 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 
 ## 12. O que está pendente (gates)
 
-> **Atualizado em 2026-05-21:** revisado após drift-docs auditor P5 do Marco 1 identificar contradições. Foundation F-A + F-B FECHADAS via ritual Spec Kit em 2026-05-19; Marco 1 `clientes` em P5 com loop até zero CRÍTICO/ALTO/MÉDIO sob INV-RITUAL-001.
+> **Atualizado em 2026-05-23:** Foundation F-A+F-B FECHADAS (2026-05-19); Marco 1 `clientes` FECHADO (PASS ZERO C/A/M); Marco 2 `equipamentos` em P5 com 11 achados em conserto causa-raiz (1ª passada 2026-05-22) — reauditoria de 3 auditores FAIL pendente pra fechar sob INV-RITUAL-001.
 
 ### Pendências reais
 
-- **Marco 1 `clientes` em fechamento P5** — 18 T-CLI fechados produtor + drill + 4 testes regressão. 10 auditores Família 5 rodaram; achados causa-raiz resolvidos (ALTO-1 trigger HMAC, MÉDIO-1 defesa ORM, MÉDIO-1/2/3 qualidade, drift docs). Reauditoria pendente. Consolidado em `docs/faseamento/M1-clientes/auditoria-familia5.md`.
-- **Wave A** — pendente autorização Roldão pra arrancar. Pré-requisitos: PRDs em `stable`, ADRs em proposta precisam ser aceitas (0003, 0004, 0008, 0009, 0010, 0014, 0015, 0016, 0021). Marco 1 abre caminho.
+- **Marco 1 `clientes` FECHADO** — 18 T-CLI produtor + drill `validar_m1_clientes` PASS + 4 testes regressão. 10 auditores Família 5 PASS ZERO CRÍTICO/ALTO/MÉDIO. GATE-CLI-1..8 rastreados Wave A. Consolidado em `docs/faseamento/M1-clientes/auditoria-familia5.md`.
+- **Marco 2 `equipamentos` FECHADO** — 65 T-EQP em 12 fases + drill `validar_m2_equipamentos` 18/18 PASS. P5 ritual Spec Kit: 1ª passada 2026-05-22 (7 PASS / 3 FAIL) → conserto causa-raiz dos 11 achados 2026-05-23 → 2ª passada 2026-05-23 = **10/10 PASS ZERO CRÍTICO/ALTO/MÉDIO**. CVE-2025-68616 WeasyPrint mitigado in-app (custom `url_fetcher`); GATE-EQP-DEP-WEASYPRINT-UPGRADE Wave A. Detalhes em `docs/faseamento/M2-equipamentos/auditoria-familia5.md`.
+- **Wave A** — pendente autorização Roldão pra arrancar. Pré-requisitos: PRDs em `stable`, ADRs em proposta precisam ser aceitas (0003, 0004, 0008, 0009, 0010, 0014, 0015, 0016, 0018, 0019, 0021). Marco 1 e Marco 2 abrem caminho.
 - **Wave A do VO `CNPJ`** — ADR-0017 aceita pelo Roldão em 2026-05-18. Implementação do VO + suite Serpro acontece em Wave A sob revisão do `tech-lead-saas-regulado`.
 
 ### Foundation F-A + F-B FECHADAS via ritual (2026-05-19)
 
 - **F-A** + **F-B** — ritual Spec Kit completo (spec forward → plan + reviews → matriz reconciliação → conserto causa-raiz → 3 auditores Família 5 = PASS ZERO CRÍTICO/ALTO/MÉDIO). Foundation FECHADA. Detalhes: `docs/faseamento/F-A/auditoria-familia5.md` + `docs/faseamento/F-B/auditoria-familia5.md`.
 
-### Hooks (21 ativos — 168/168 casos verdes; +9 event-helper-unico T-CLI-105; +12 ritual-gate-check INV-RITUAL-001; +9 lgpd-policy-unica + 9 csv-safety-import Marco 1 P5)
+### Hooks (25 ativos — 207/207 casos verdes; +9 qr-hmac-check + 13 equipamento-imutabilidade-check + 9 port-binding-validator + 6 trigger-stub-sweep Marco 2)
 
 Veja §3 pra lista completa. Marco 5 da F-A (2026-05-17) acrescentou:
 - `migration-rls-check.sh` — INV-TENANT-003: bloqueia migration que cria tabela com `tenant_id` sem `CREATE POLICY`/`ENABLE ROW LEVEL SECURITY` na mesma migration (allow via `# rls-policy: external NNNN`).
