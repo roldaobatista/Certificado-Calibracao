@@ -25,15 +25,21 @@
 
 P5 10 auditores PASS ZERO C/A/M. `docs/faseamento/M1-clientes/auditoria-familia5.md`.
 
+## Auditoria 10 lentes OS+Cal+Cert — RESOLVIDA 2026-05-23
+
+- 179 achados → **128 resolvidos (71%)** em 6 ondas de retrofit; 51 viram GATE-* Wave A.
+- **28 CRÍTICOS = 100% fechados.** Marco 3 destravado sob INV-RITUAL-001.
+- 5 ADRs novas (0024..0028) + 13 INVs em REGRAS + RIPD geo OS + 4-party DPA + ADR-0021 Zona D.
+- Consolidado: `docs/faseamento/auditorias/OS-CAL-RESOLUCAO-rodada-1.md`.
+
 ## Próximo passo
 
-1. **Marco 3 `os`** — arrancar ritual Spec Kit (spec FORWARD → plan + reviews → tasks → P4 implementação → P5 10 auditores). Modelo já cravado: 1 OS contém N AtividadeDaOS (ADR-0023 aceita 2026-05-23 — suporta caso combinado manutenção + calibração).
-2. **Marco 4 `calibracao`** — sequencial ao Marco 3 (calibração técnica é disparada por AtividadeDaOS tipo=calibracao).
-3. **Aceite ADRs propostas** (0018 PWA QR scanner, 0019 responsabilidade IA) pelo Roldão antes de US-EQP-003 fase 4.
-4. **GATE-EQP-DEP-WEASYPRINT-UPGRADE** Wave A — upgrade weasyprint 62→68 + pydyf<0.11→^0.11.
+1. **GATE-SEG-BPT-1 EMERGENCIAL** — acionar corretora SUSEP humana (Marsh/AON/Howden) com briefing ADR-0028. Apólice BPT antes da próxima recepção em Balanças Solution.
+2. **Aceite formal** das 5 ADRs propostas (0024..0028) pelo Roldão.
+3. **Marco 3 `os`** — arrancar ritual Spec Kit (spec FORWARD → plan + reviews → tasks → P4 → P5 10 auditores).
+4. **Marco 4 `calibracao`** — sequencial ao Marco 3.
 
-## Pendências rastreadas (não bloqueiam)
+## Pendências rastreadas (não bloqueiam Marco 3)
 
-- ADR-0018 (PWA scanner QR) — aguardando aceite Roldão antes de US-EQP-003.
-- ADR-0019 Pilar 2 — apólice cyber+E&O pré-1º tenant externo pago.
-- GATE-EQP-1..PENTEST (14 itens Wave A — `docs/faseamento/M2-equipamentos/plan.md`).
+- 51 GATEs Wave A em `OS-CAL-RESOLUCAO-rodada-1.md` (segurança apólices, ISO 17025 validação, observabilidade, drift cosmético).
+- ADR-0018 (PWA QR scanner) + ADR-0019 Pilar 2 (apólice) pendentes (Marco 2 GATEs).

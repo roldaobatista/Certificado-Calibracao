@@ -145,11 +145,17 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 
 **Como** técnico de campo, **quero** anexar fotos antes/depois do serviço com timestamp + geolocalização, **para** comprovar execução.
 
-**Critérios de aceite:**
-- **AC-CER-007-1**: GIVEN OS em campo, WHEN técnico anexa fotos via app, THEN sistema preserva EXIF (timestamp + geo), gera hash de cada foto e gera relatório PDF compilado.
-- **AC-CER-007-2**: GIVEN relatório fotográfico gerado, WHEN cliente baixa, THEN cada foto tem rodapé "data/hora/local capturado".
+**Critérios de aceite (revisados em 2026-05-23 — TEMA-D.7 + TEMA-A.4 + INV-OS-GEO-001):**
 
-**Invariantes:** `INV-001` (WORM em fotos com hash + EXIF).
+- **AC-CER-007-1 (revisado):** GIVEN OS em campo, WHEN técnico anexa fotos via app, THEN sistema:
+  - **(a) preserva EXIF em metadata interna assinada** (hash imutável SHA-256 + EXIF original → JSONB cifrado por tenant-key — disponível ao RT em supervisão CGCRE);
+  - **(b) NO PDF entregue ao cliente / no portal público, EXIF é removido + watermark imprime "data/hora/local resumido"** (município/bairro — INV-OS-GEO-001) — não vaza endereço residencial completo;
+  - **(c) gera hash SHA-256 de cada foto + grava em audit**;
+  - **(d) detecta rosto identificável** (vision API ou hash perceptual) e força blur ou eliminação se aplicável.
+- **AC-CER-007-2 (revisado):** GIVEN relatório fotográfico gerado, WHEN cliente baixa via portal, THEN cada foto tem rodapé "data/hora/local **resumido**" (município/bairro) + nº cert + watermark anti-cópia.
+- **AC-CER-007-3 (novo — TEMA-D.9):** GIVEN cliente pede dispensa de foto (privacidade industrial), WHEN atendente cadastra OS, THEN sistema permite `ChecklistDaAtividade.dispensa_foto: true` com `motivo_dispensa` + assinatura cliente em `AceiteAtividade` específico. ISO 17025 §7.7 não exige foto — exige rastreabilidade; texto narrativo substitui.
+
+**Invariantes:** `INV-001` (WORM), `INV-OS-GEO-001` (precisão limitada em payload publicado), `INV-EQP-ANOM-001` (anti-PII em texto livre da foto).
 
 ---
 
@@ -169,11 +175,13 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 
 **Como** RT, **quero** imprimir etiqueta adesiva do certificado com QR Code, **para** colar no instrumento e permitir verificação rápida.
 
-**Critérios de aceite:**
-- **AC-CER-009-1**: GIVEN certificado ASSINADO, WHEN RT solicita etiqueta, THEN sistema gera PDF/PNG no tamanho configurado (padrões: 50x30mm, 80x40mm) com nº cert, validade, QR Code apontando pra URL pública do certificado (sem expor dado sensível na URL — token opaco).
-- **AC-CER-009-2**: GIVEN QR Code escaneado, WHEN navegador abre URL, THEN exibe página pública verificadora (sem login) com nº, validade, instrumento, status (vigente/expirado/cancelado/substituído).
+**Critérios de aceite (revisados em 2026-05-23 — TEMA-C.6 + TEMA-C.9 + TEMA-M.4 LGPD):**
 
-**Invariantes:** `INV-001` (WORM), `INV-035` (página pública verificadora sem PII além do mínimo).
+- **AC-CER-009-1 (revisado):** GIVEN certificado ASSINADO, WHEN RT solicita etiqueta, THEN sistema gera PDF/PNG no tamanho configurado (padrões: 50x30mm, 80x40mm) com nº cert, validade, QR Code **gerado pelo helper único `gerar_qr_hash_versionado()` com chave dedicada `QR_CERT_HMAC_KEY_REGISTRO`** (SEC-QR-001 pattern Marco 2 — distinta de `QR_HMAC_KEY` equipamentos e `PII_HASH_KEY`) apontando pra URL pública (token opaco HMAC-SHA256 com `tenant_id` no hash, ≥22 chars).
+- **AC-CER-009-2 (revisado):** GIVEN QR Code escaneado, WHEN navegador abre URL pública (sem login), THEN exibe página pública verificadora **com rate-limit 60 req/min por IP + lockout após 100 4xx em 1h** (pattern SEC-QR-001 — TEMA-C.9) + **allowlist anti-PII** conforme `docs/conformidade/calibracao/qr-publico-allowlist.md` (a criar Wave A — TEMA-C.6): nº cert, validade, fabricante+modelo do instrumento (sem NS completo), status (vigente/expirado/cancelado/substituído). **Não** mostra nome do cliente, localização, RT signatário em texto. Re-emissão revoga QR anterior automaticamente.
+- **AC-CER-009-3 (novo — TEMA-C.9):** GIVEN tentativa de scan de hash inexistente OU de outro tenant, WHEN página resolve, THEN retorna 404 body idêntico ao 404 de hash inválido (P-EQP-S2 anti-oracle cross-tenant Marco 2).
+
+**Invariantes:** `INV-001` (WORM), `INV-035` (página pública verificadora sem PII além do mínimo), `INV-051` (QR Code token opaco HMAC + rate-limit + allowlist), `SEC-QR-001` (helper único + chave dedicada).
 
 ---
 

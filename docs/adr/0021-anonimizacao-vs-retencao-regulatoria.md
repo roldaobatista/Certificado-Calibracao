@@ -119,6 +119,30 @@ max(25a, prazo LGPD do tenant).
 - Implementação real (não-stub) depende dos módulos fiscal +
   certificados Wave A.
 
+## Zona D — Cliente PF com OS em andamento (estendida em 2026-05-23 — TEMA-D.8)
+
+> Adicionada após auditoria 10 lentes — ADR-0021 cobria PF sem vínculo + PF com vínculo regulatório, mas não cobria **PF com OS em estado não-terminal** quando pedido de eliminação chega. CC art. 422 boa-fé contratual sugere completar; LGPD art. 18 §3º dá 15 dias úteis.
+
+**Fluxo:**
+
+1. Pedido de eliminação chega de cliente PF com OS em estado não-terminal (RASCUNHO/AGENDADA/EM_EXECUCAO).
+2. Sistema **suspende a OS** por 15 dias úteis + notifica cliente:
+
+   > "Identificamos que você tem uma Ordem de Serviço em andamento (OS-####). Esta OS gera obrigação contratual (CC art. 422). Podemos: (a) concluir a OS e iniciar a eliminação após emissão de eventuais documentos legais; (b) cancelar a OS sem cobrança e eliminar imediatamente. Aguardamos sua decisão em até 15 dias úteis (LGPD art. 18 §3º)."
+
+3. Cliente responde:
+   - **Opção A — concluir OS:** OS prossegue normalmente; quando concluir, sistema aplica matriz ADR-0021 zona A/B/C conforme cert/NF emitido.
+   - **Opção B — cancelar:** sistema cancela OS sem cobrança + aplica zona A (eliminação efetiva, pois sem cert/NF).
+   - **Sem resposta em 15d:** sistema cancela automaticamente OS + zona A. Audit logado.
+
+**Implicações:**
+
+- Use case `EliminarDadosDoTitular` consulta `OSGateway.tem_os_em_andamento(cliente_id)` antes de aplicar matriz.
+- Tenant pode definir política default (Opção A ou B) no `Tenant.politica_eliminacao_os_em_andamento`.
+- Hook `dpa-zona-d-required.sh` valida que tenant tem política configurada antes de habilitar pedido de eliminação no portal.
+
+---
+
 ## Rastreabilidade
 
 - US-CLI-006 / AC-CLI-006-3 (`spec.md` L414-423).
@@ -126,3 +150,4 @@ max(25a, prazo LGPD do tenant).
 - ISO/IEC 17025 §7.8.2.1, §8.4.2; LGPD art. 7º II, art. 11 II "a",
   art. 16 II/IV; CTN art. 173; Lei 9.933/99.
 - T-CLI-116 (matriz eliminação×anonimização) — implementação Wave A.
+- TEMA-D.8 + TEMA-D.10 auditoria 10 lentes 2026-05-23 (Zona D + 4-party).
