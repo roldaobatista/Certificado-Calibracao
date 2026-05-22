@@ -93,14 +93,23 @@ Vantagem: sem broker externo (Kafka, RabbitMQ) no MVP-1; PostgreSQL basta. Pode 
 
 ## Catálogo de eventos (incremental — ampliar quando módulo existir)
 
-### Domínio: OS
+### Domínio: OS (revisado pós-ADR-0023 — TEMA-E.1+E.2 auditoria 2026-05-23)
 
-| Evento | Origem | Schema | Quem consome |
+> **Eventos `Atividade*` adicionados pela ADR-0023.** Consumer `metrologia/calibracao` migrou de `OS.Concluida` (modelo antigo) para `AtividadeIniciada filter tipo=calibracao` — calibração técnica é disparada por atividade, não por conclusão da OS toda. Inversão corrige TEMA-E.2 da auditoria.
+
+| Evento | Origem | Schema (campos críticos) | Quem consome |
 |--------|--------|--------|--------------|
-| `OSAberta` | `os.usecase.abrir_os` | `{tenant_id, os_id, cliente_id, tipo, abertura_at}` | `crm` (atualiza timeline), `mobile.sync` |
-| `OSAtribuida` | `os.usecase.atribuir_tecnico` | `{tenant_id, os_id, tecnico_id, atribuicao_at}` | `mobile.sync` (push) |
-| `OSConcluida` | `os.usecase.concluir_os` | `{tenant_id, os_id, conclusao_at, tipo}` | `calibracao` (cria certificado rascunho se tipo=calibração), `crm`, `mobile.sync` |
-| `OSCancelada` | `os.usecase.cancelar_os` | `{tenant_id, os_id, razao, cancelamento_at}` | `financeiro` (cancela cobrança se aplicável), `crm` |
+| `OSAberta` | `os.usecase.abrir_os` | `{tenant_id, os_id, cliente_id_hash, atividades_planejadas: [{atividade_id, tipo, sequencia}], correlation_id, abertura_at}` | `crm`, `mobile.sync` |
+| `OSAtribuida` | `os.usecase.atribuir_tecnico` | `{tenant_id, os_id, tecnico_id_hash, atribuicao_at, correlation_id, causation_id}` | `mobile.sync`, `agenda` |
+| `OSConcluida` | `os.usecase.concluir_os` (computed when all atividades terminais) | `{tenant_id, os_id, conclusao_at, tipo_predominante, tem_nc, atividades: [{id, tipo, estado_final}], correlation_id}` | `crm`, `financeiro` (faturamento), `mobile.sync`. **NÃO consumido por `metrologia/calibracao`** — calibração consome `AtividadeIniciada` em vez. |
+| `OSCancelada` | `os.usecase.cancelar_os` | `{tenant_id, os_id, razao_hash, cancelamento_at, correlation_id}` | `financeiro`, `crm`, `agenda` |
+| `OS.Reaberta` | `os.usecase.reabrir_os` | `{tenant_id, os_id: nova, os_origem_id: original, chamado_origem_id?, motivo_hash, garantia_procedente, correlation_id, causation_id: original.correlation_id}` | `caixa-tecnico`, `chamados`, `portal-cliente`, `custeio-real` |
+| **`AtividadeAdicionada`** (US-OS-010 — ADR-0023) | `os.usecase.adicionar_atividade` | `{tenant_id, os_id, atividade_id, tipo, sequencia, correlation_id, adicionada_at}` | `mobile.sync` |
+| **`AtividadeIniciada`** (ADR-0023) | `os.usecase.iniciar_atividade` | `{tenant_id, os_id, atividade_id, tipo, tecnico_executor_id_hash, iniciada_at, client_event_id, correlation_id, causation_id}` | **`metrologia/calibracao`** (filter `tipo=calibracao` — cria registro técnico), `mobile.sync`, `crm` |
+| **`AtividadeConcluida`** (ADR-0023) | `os.usecase.concluir_atividade` | `{tenant_id, os_id, atividade_id, tipo, conclusao_at, tem_nc, link_modulo_tecnico, correlation_id, causation_id}` | `metrologia/certificados` (filter `tipo=calibracao AND tem_nc=False` — libera emissão), `financeiro` (preço por atividade quando Wave B) |
+| **`AtividadeNaoConforme`** (ADR-0023 + TEMA-E.6) | `os.usecase.marcar_nc_atividade` | `{tenant_id, os_id, atividade_id, tipo, razao_nao_conformidade_hash, marcada_at, correlation_id, causation_id}` | `qualidade` (CAPA), `crm` (notifica cliente), `metrologia/certificados` (bloqueia emissão) |
+| **`AtividadeNCResolvida`** (ADR-0023 + TEMA-E.6) | `os.usecase.resolver_nc_atividade` | `{tenant_id, os_id, atividade_id, tipo, resolvido_at, causa_raiz_id, acao_corretiva_id, eficacia_verificada_por_hash, correlation_id, causation_id}` | `metrologia/certificados` (libera emissão), `qualidade` (fecha CAPA) |
+| **`AtividadeCancelada`** (ADR-0023 + MED-6 tech-lead) | `os.usecase.cancelar_atividade` | `{tenant_id, os_id, atividade_id, tipo, razao_hash, cancelamento_at, correlation_id}` | `mobile.sync`, `financeiro` |
 
 ### Domínio: Calibração
 
@@ -303,14 +312,20 @@ Auditor Segurança em pre-commit:
 
 ### Domínio: OPERAÇÃO
 
-#### Módulo `os`
+#### Módulo `os` (revisado pós-ADR-0023 — TEMA-E.1+E.2 auditoria 2026-05-23)
 | Evento | Origem | Consumers principais | Aliases |
 |---|---|---|---|
 | `OS.Aberta` | os | crm, mobile.sync, comunicacao-omnichannel | `OSAberta` (legado) |
 | `OS.Atribuida` | os | mobile.sync, agenda | `OSAtribuida` |
-| `OS.Concluida` | os | metrologia/calibracao, crm, financeiro/contas-receber, bi, comissoes, custeio-real, caixa-tecnico, fiscal | `OSConcluida`, `Operacao.OSEncerrada` |
+| `OS.Concluida` | os | crm, financeiro/contas-receber, bi, comissoes, custeio-real, caixa-tecnico, fiscal | `OSConcluida`, `Operacao.OSEncerrada`. **REMOVIDO consumer `metrologia/calibracao`** — calibração consome `Atividade.Iniciada` agora. |
 | `OS.Cancelada` | os | financeiro, crm, agenda | `OSCancelada` |
-| `OS.Reaberta` | os | custeio-real | `Operacao.OSReaberta` |
+| `OS.Reaberta` | os | custeio-real, chamados, portal-cliente, caixa-tecnico | `Operacao.OSReaberta` |
+| **`Atividade.Adicionada`** (ADR-0023) | os | mobile.sync | — |
+| **`Atividade.Iniciada`** (ADR-0023) | os | **metrologia/calibracao** (filter tipo=calibracao), mobile.sync, crm | — |
+| **`Atividade.Concluida`** (ADR-0023) | os | metrologia/certificados (filter tipo=calibracao AND tem_nc=False), financeiro | — |
+| **`Atividade.NaoConforme`** (ADR-0023) | os | qualidade (CAPA), crm, metrologia/certificados (bloqueia emissão) | — |
+| **`Atividade.NCResolvida`** (ADR-0023 + TEMA-E.6) | os | metrologia/certificados (libera emissão), qualidade | — |
+| **`Atividade.Cancelada`** (ADR-0023 + MED-6) | os | mobile.sync, financeiro | — |
 
 #### Módulo `chamados`
 | Evento | Origem | Consumers principais | Aliases |
@@ -819,4 +834,45 @@ Achados de auditoria 2026-05-17 — eventos sem publisher ou consumer correspond
 - **6 domínios:** comercial (8 módulos), operação (8), metrologia (3), financeiro (8), rh-frota-qualidade (6), suporte-plataforma (13), dados (1) + 1 cross-cutting (acesso-seguranca).
 - **0 eventos órfãos** após resolução v8 + cobertura v9.
 - Aliases legados marcados — auditor bloqueia novos handlers em aliases.
+
+---
+
+## v10 — Eventos novos pós-ADR-0023 + auditoria 10 lentes (2026-05-23)
+
+### Eventos novos (Domínio OS — ADR-0023 OS com Atividades)
+
+- `Atividade.Adicionada` — US-OS-010 / atividade adicionada a OS em andamento
+- `Atividade.Iniciada` — substitui `OS.Concluida` como gatilho de `metrologia/calibracao` (filter `tipo=calibracao`)
+- `Atividade.Concluida` — consumer `metrologia/certificados` libera emissão (filter `tipo=calibracao AND tem_nc=False`)
+- `Atividade.NaoConforme` — bloqueia emissão certificado + abre CAPA
+- `Atividade.NCResolvida` — libera certificado após ciclo CAPA fechado (TEMA-E.6)
+- `Atividade.Cancelada` — cancelar atividade individual sem cancelar OS toda
+
+### Alterações em eventos existentes (v9 → v10)
+
+- **`OS.Aberta`**: payload ganha `atividades_planejadas: [{atividade_id, tipo, sequencia}]` (ADR-0023). `tipo` da OS-toda removido — vai em cada atividade.
+- **`OS.Concluida`**: payload ganha `atividades: [{id, tipo, estado_final}]` + `tipo_predominante`. **Consumer `metrologia/calibracao` REMOVIDO** (inversão TEMA-E.2).
+- **TODOS eventos OS/Calibração/Certificados**: ganham `correlation_id` + `causation_id` obrigatórios (TEMA-E.5 — cadeia forense).
+- **TODOS payloads cross-context**: `cliente_id`/`tecnico_id`/`revisor_id`/`conferente_id`/`ator_id` UUID cru proibidos — só `*_hash` HMAC-tenant (TEMA-C.12 + INV-OS-AUD-001 + INV-CAL-AUD-001).
+- **`Calibracao.Aprovada`**: payload ganha `atividade_os_id` + `os_id` (TEMA-E.7) — permite certificado consumer voltar pra OS sem extra query.
+- **`Certificados.Cancelado`**: consumer `fiscal` adicionado pra disparar CC-e quando cert virou base de NFS-e (TEMA-E.8).
+
+### Cadeia forense correlation_id (TEMA-E.5)
+
+Toda entidade nova (`OS`, `AtividadeDaOS`, `Calibracao`, `Certificado`, `NotaFiscal`) ganha coluna `correlation_id uuid NOT NULL`. Propagação:
+
+- `OSAberta.event_id` → `OS.correlation_id` (raiz da cadeia)
+- Atividade herda `correlation_id` da OS pai
+- Calibração herda da AtividadeDaOS pai
+- Certificado herda da Calibração
+- NotaFiscal herda do Certificado / AtividadeConcluida
+- `causation_id` aponta sempre pro evento imediatamente anterior
+
+Hook valida que entidade derivada nunca tem `correlation_id` NULL ou diferente do pai (TEMA-E.5).
+
+## Total v10
+
+- **48 módulos** com eventos catalogados.
+- **~273 eventos** publicados (267 da v9 + 6 novos `Atividade.*`).
+- Todos eventos publicados pós-2026-05-23 carregam `correlation_id` + `causation_id` obrigatórios + IDs PII em hash HMAC-tenant.
 - **Invariantes de integração:** INV-INT-001..010 (criadas nas ADRs 0014, 0015, 0016 pós-auditoria).
