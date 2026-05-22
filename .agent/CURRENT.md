@@ -27,7 +27,8 @@ T-EQP-090+095+096+098 suite regressão Lote 1 (4 INVs estruturais) +
 **T-EQP-091+093+099..104 suite regressão Lote 2+3 (8 INVs) +
 **T-EQP-105 drill `validar_m2_equipamentos` PASS + T-EQP-081 doc
 aviso-aceite-presencial + T-EQP-084 retenção-matriz +5 entradas Marco 2 +
-T-EQP-085 ADR-0022 RT do tenant** entregues;
+T-EQP-085 ADR-0022 RT do tenant +
+**P5 ritual Spec Kit 10/10 vereditos coletados (7 PASS + 3 FAIL: drift-docs / seguranca / llm-correctness; MÉDIO-1 SEC resolvido em sessão; 11 achados pendentes próxima sessão)** entregues;
 GATE-EQP-INV025-TRIGGER FECHADO).
 **Sessão 2026-05-22 (continuação)**: T-EQP-054+055+060 fechados.
 **Modo:** AUTÔNOMO.
@@ -499,18 +500,21 @@ rastreados Wave A.
 
 ## Próximo passo
 
-1. **US-EQP-003 fase 4** (T-EQP-028): PWA scanner com BarcodeDetector
-   nativo (Chrome/Edge mobile) + fallback jsQR (Safari/Firefox).
-   Service-worker `network-only` para `/qr/*`. **Depende de aceite
+1. **Conserto causa-raiz dos 11 achados P5 pendentes** (registrado em
+   `docs/faseamento/M2-equipamentos/auditoria-familia5.md`):
+   - 1 CRÍTICO drift-docs (AGENTS.md status Marco 1/2 desatualizado)
+   - 5 ALTO drift-docs (AGENTS.md hooks count + CURRENT.md interno
+     + tasks.md GAP fantasma 6 itens + ADR-0022 status)
+   - 2 MÉDIO LLM (`Any` → tipos corretos em ficha360 + services_versao)
+   - 1 MÉDIO supplychain (`pip-audit` retroativo das 4 deps)
+   - 2 MÉDIO drift-docs (CURRENT.md OOM warning + ≤40 linhas + spec
+     frontmatter revisado_em)
+2. **Re-rodar 3 auditores que deram FAIL** (drift-docs, llm-correctness,
+   supplychain) pra confirmar PASS pós-conserto.
+3. **US-EQP-003 fase 4** (T-EQP-028): PWA scanner. **Depende de aceite
    do ADR-0018 pelo Roldão.**
-2. **Marco 2 — P5 10 auditores Família 5** (ritual Spec Kit): suite
-   completa do módulo equipamentos passou pelo P4 com 365 testes
-   verdes + drill PASS + hooks 207/207 + ruff clean + makemigrations
-   limpo. Próxima etapa: rodar os 10 prompts auditores em
-   `docs/governanca/auditor-*-prompt.md` e consolidar em
-   `docs/faseamento/M2-equipamentos/auditoria-familia5.md`.
-3. **Aceite das ADRs propostas** (ADR-0018, 0019, 0022) pelo Roldão.
-4. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
+4. **Aceite das ADRs propostas** (ADR-0018, 0019, 0022) pelo Roldão.
+5. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)
 
