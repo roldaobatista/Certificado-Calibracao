@@ -13,17 +13,10 @@
 - `makemigrations --check`: limpo · `ruff check`: zero issues.
 - Drill `validar_m2_equipamentos`: **PASS** (18/18 verificações multi-tenant).
 
-## Marco 2 `equipamentos` — FECHADO 2026-05-23
+## Marcos fechados
 
-- **65 T-EQP** em 12 fases (US-EQP-001..006 + US-EQP-007 RT).
-- 1ª passada (2026-05-22): 7 PASS / 3 FAIL (drift-docs/seguranca/llm).
-- **2ª passada (2026-05-23): 10/10 PASS ZERO C/A/M** após conserto causa-raiz dos 11 achados.
-- **CVE-2025-68616 WeasyPrint** mitigado in-app (`url_fetcher` custom); GATE-EQP-DEP-WEASYPRINT-UPGRADE Wave A.
-- Detalhes em `docs/faseamento/M2-equipamentos/auditoria-familia5.md`.
-
-## Marco 1 — FECHADO
-
-P5 10 auditores PASS ZERO C/A/M. `docs/faseamento/M1-clientes/auditoria-familia5.md`.
+- **Marco 1 `clientes`** — P5 10 auditores ZERO C/A/M. `docs/faseamento/M1-clientes/auditoria-familia5.md`.
+- **Marco 2 `equipamentos`** — 65 T-EQP, 2ª passada P5 ZERO C/A/M (CVE-2025-68616 WeasyPrint mitigado). `docs/faseamento/M2-equipamentos/auditoria-familia5.md`.
 
 ## Auditoria 10 lentes OS+Cal+Cert — RESOLVIDA 2026-05-23
 
