@@ -141,8 +141,8 @@ Convenção:
 |-------|----------|
 | T-EQP-070 | Hook `qr-hmac-check.sh` + 9 casos `_test-runner.sh` (`INV-EQP-QR-NUNCA-RECOMPUTA`) |
 | T-EQP-071 | ✅ FECHADO 2026-05-23: Hook `equipamento-imutabilidade-check.sh` (192/192 verde) + 13 casos no `_test-runner.sh` (EI1..EId — assignment + ORM update em tag/numero_serie/fabricante; perfil_tenant_snapshot direto; allowlist services_perfil/tests/migrations; override consciente). |
-| T-EQP-072 | Hook `port-binding-validator.sh` + 9 casos (ADR-0007 — proibir import direto de adapter) |
-| T-EQP-073 | Hook `trigger-stub-sweep.sh` + 4 casos (bloqueia release prod com `_v0_stub`) |
+| T-EQP-072 | ✅ FECHADO 2026-05-22: hook `.claude/hooks/port-binding-validator.sh` + 9 casos (PB1..PB9) no `_test-runner.sh`. Bloqueia `from src.infrastructure.{certificados,qualidade}.{models,admin,serializers,views} import` fora do próprio módulo. Allow auto: tests/migrations/config/SI-mesmo. Override com `# port-binding: skip -- <razão>`. Registrado em `.claude/settings.json` PreToolUse. |
+| T-EQP-073 | ✅ FECHADO 2026-05-22: hook `.claude/hooks/trigger-stub-sweep.sh` + 6 casos (TS1..TS6) no `_test-runner.sh`. Bloqueia `_v0_stub` em migrations/SQL (P-EQP-T7 — placeholder não pode cair em release). Allow auto: tests/hooks. Override com `# trigger-stub-sweep: skip -- <razão>`. Registrado em `.claude/settings.json` PreToolUse. |
 | T-EQP-080 | `docs/conformidade/equipamentos/textos-rejeicao-422.md` (T1-T5 P-EQP-A3) |
 | T-EQP-081 | `docs/conformidade/equipamentos/aviso-aceite-presencial-atendente.md` (P-EQP-A2) |
 | T-EQP-082 | `docs/conformidade/equipamentos/template-notificacao-sucatamento.md` (P-EQP-A5) |

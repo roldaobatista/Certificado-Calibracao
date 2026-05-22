@@ -21,7 +21,8 @@ T-EQP-054 jobs Marco 2 (helper `processar_em_contexto_tenant` +
 alertar_aprovacoes_d1_equipamento) +
 T-EQP-055 ambientais + porta stub CAPA +
 T-EQP-060 cláusula contratual recusa foto +
-**T-EQP-015 motivo→aprovação automática (despacho US-EQP-002b)** entregues;
+T-EQP-015 motivo→aprovação automática (despacho US-EQP-002b) +
+**T-EQP-072 hook port-binding-validator + T-EQP-073 hook trigger-stub-sweep** entregues;
 GATE-EQP-INV025-TRIGGER FECHADO).
 **Sessão 2026-05-22 (continuação)**: T-EQP-054+055+060 fechados.
 **Modo:** AUTÔNOMO.
@@ -54,7 +55,7 @@ GATE-EQP-INV025-TRIGGER FECHADO).
 - Suíte completa `tests/test_equipamentos*.py`: **261/261 passed** em 106s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
-- Hooks: **192/192** verdes (22+1 ativos — sem hook novo nesta T)
+- Hooks: **207/207** verdes (24+1 ativos — +trigger-stub-sweep 6 casos +port-binding-validator 9 casos)
 - `makemigrations --check`: limpo; ruff zero issues
 - ⚠️ **Suite completa não roda** por OOM do WSL2 (exit 137); validação
   isolada cobriu 50 testes relacionados (T-EQP-009/012/016/017 + modelo

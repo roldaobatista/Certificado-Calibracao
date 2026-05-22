@@ -306,5 +306,28 @@ run_case "EIc codigo sem mutacao critica"             PASS  equipamento-imutabil
 run_case "EId muda modelo (nao critico) OK"           PASS  equipamento-imutabilidade-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"Equipamento.objects.filter(id=x).update(modelo=\"Prix 4 Plus\")"}}'
 
 echo ""
+echo "===== trigger-stub-sweep (T-EQP-073 / P-EQP-T7) ====="
+
+run_case "TS1 trigger _v0_stub em migration"          BLOCK trigger-stub-sweep.sh '{"tool_input":{"file_path":"src/x/migrations/0010.py","content":"CREATE TRIGGER foo_v0_stub BEFORE INSERT ON x ..."}}'
+run_case "TS2 funcao _v0_stub em .sql"                BLOCK trigger-stub-sweep.sh '{"tool_input":{"file_path":"sql/seed.sql","content":"CREATE FUNCTION bar_v0_stub_check() RETURNS trigger ..."}}'
+run_case "TS3 override com motivo"                    PASS  trigger-stub-sweep.sh '{"tool_input":{"file_path":"src/x/migrations/0011.py","content":"# trigger-stub-sweep: skip -- placeholder ate Wave A modulo qualidade nascer\nCREATE TRIGGER nc_v0_stub..."}}'
+run_case "TS4 migration sem stub OK"                  PASS  trigger-stub-sweep.sh '{"tool_input":{"file_path":"src/x/migrations/0012.py","content":"CREATE TRIGGER orfao_check BEFORE INSERT ..."}}'
+run_case "TS5 tests/ ignora"                          PASS  trigger-stub-sweep.sh '{"tool_input":{"file_path":"tests/test_x.py","content":"sql = \"CREATE TRIGGER foo_v0_stub ...\""}}'
+run_case "TS6 .py fora migration ignora"              PASS  trigger-stub-sweep.sh '{"tool_input":{"file_path":"src/foo.py","content":"foo_v0_stub = lambda: 1"}}'
+
+echo ""
+echo "===== port-binding-validator (T-EQP-072 / ADR-0007) ====="
+
+run_case "PB1 importa certificados.models fora cert"  BLOCK port-binding-validator.sh '{"tool_input":{"file_path":"src/infrastructure/equipamentos/services_x.py","content":"from src.infrastructure.certificados.models import Certificado"}}'
+run_case "PB2 importa qualidade.models fora qualid"   BLOCK port-binding-validator.sh '{"tool_input":{"file_path":"src/infrastructure/equipamentos/services_y.py","content":"from src.infrastructure.qualidade.models import RegistroCAPA"}}'
+run_case "PB3 certificados/* importa SI mesmo OK"     PASS  port-binding-validator.sh '{"tool_input":{"file_path":"src/infrastructure/certificados/query_service.py","content":"from src.infrastructure.certificados.models import Certificado"}}'
+run_case "PB4 query_service import OK"                PASS  port-binding-validator.sh '{"tool_input":{"file_path":"src/infrastructure/equipamentos/services_x.py","content":"from src.infrastructure.certificados.query_service import tem_emitido"}}'
+run_case "PB5 capa_query_service import OK"           PASS  port-binding-validator.sh '{"tool_input":{"file_path":"src/infrastructure/equipamentos/services_y.py","content":"from src.infrastructure.qualidade import capa_query_service"}}'
+run_case "PB6 tests/ ignora"                          PASS  port-binding-validator.sh '{"tool_input":{"file_path":"tests/test_x.py","content":"from src.infrastructure.certificados.models import Certificado"}}'
+run_case "PB7 migrations/ ignora"                     PASS  port-binding-validator.sh '{"tool_input":{"file_path":"src/x/migrations/0001.py","content":"from src.infrastructure.qualidade.models import RegistroCAPA"}}'
+run_case "PB8 override com motivo"                    PASS  port-binding-validator.sh '{"tool_input":{"file_path":"src/infrastructure/equipamentos/foo.py","content":"# port-binding: skip -- migration retroativa unica feita por hand-off Wave A\nfrom src.infrastructure.certificados.models import Certificado"}}'
+run_case "PB9 outros modulos sem porta nao bloqueia"  PASS  port-binding-validator.sh '{"tool_input":{"file_path":"src/infrastructure/equipamentos/foo.py","content":"from src.infrastructure.clientes.models import Cliente"}}'
+
+echo ""
 echo "===== resumo: $pass ok, $fail falhas ====="
 exit $fail
