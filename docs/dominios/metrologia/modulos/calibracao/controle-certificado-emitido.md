@@ -1,12 +1,15 @@
 ---
-owner: Roldão
-revisado-em: 2026-05-17
+owner: roldao
+revisado_em: 2026-05-23
+proximo_review: 2026-08-23
 status: draft
 ---
 
 # Controle de certificado emitido — WORM + revisão como nova versão
 
-> **Pra quê:** ISO 17025 cláusula 8.4 + INV-009 exigem que certificado emitido **não pode ser modificado**. Toda "correção" vira nova versão visível, original preservado. Sem isso, vendor é cúmplice de fraude.
+> **Pra quê:** ISO 17025 cláusula 8.4 + INV-001 exigem que certificado emitido **não pode ser modificado**. Toda "correção" vira nova versão visível, original preservado. Sem isso, vendor é cúmplice de fraude.
+>
+> **Revisado em 2026-05-23 (auditoria 10 lentes — TEMA-A.4 + TEMA-B.7 + TEMA-D.6):** doc movido conceitualmente pra subordinar-se a `metrologia/certificados/` (referência cruzada explícita); adicionada §7 com 2 declarações ISO 17025 cl. 7.8.3.1.b obrigatórias no template do certificado; §8 distingue correção administrativa vs recálculo técnico (cl. 7.8.8) com matriz de aprovação.
 
 ---
 
@@ -93,7 +96,48 @@ Numeração reservada **por tenant** (cada tenant tem seu contador). RLS garante
 
 ---
 
-## 7. Conservação
+## 7. Declarações obrigatórias no template (cl. 7.8.3.1.b — TEMA-B.7)
+
+> Adicionado em 2026-05-23. ISO 17025 §7.8.3.1.b exige declarações específicas no certificado emitido — CGCRE marca como NC documental se ausentes.
+
+Todo template de certificado emitido carrega no corpo (não pode ser omitido):
+
+**Declaração 1 — escopo dos resultados:**
+> "Os resultados deste certificado se aplicam exclusivamente ao item calibrado, tal como recebido. Recalibrações periódicas são de responsabilidade do cliente."
+
+**Declaração 2 — reprodução:**
+> "Este certificado não pode ser reproduzido, parcial ou totalmente, sem aprovação escrita do laboratório emissor. Cópias digitais autênticas devem ser verificadas no portal público em `{URL_PORTAL_VERIFICADOR}` usando o código `{TOKEN_QR}`."
+
+**Declaração 3 (quando aplicável):** se calibração foi emitida sob exceção `executor == revisor` (cl. 6.2.5 — ver `responsabilidade-tecnica.md §3.1`):
+> "Conformidade ISO/IEC 17025 §6.2.5 — exceção registrada em audit ref. NC-####"
+
+**Validação:**
+
+- AC-CER-001-4 (a criar no `certificados/prd.md`) garante que as 3 declarações são campos obrigatórios do template.
+- Hook `cert-template-declaracoes-check.sh` (Wave A) valida que template renderiza as 3 declarações.
+
+---
+
+## 8. Correção administrativa vs Recálculo técnico (cl. 7.8.8 — TEMA-D.6)
+
+> Adicionado em 2026-05-23. ISO 17025 §7.8.8 distingue 2 naturezas de retificação — hoje sistema permitia RT sozinho fazer qualquer retificação. Matriz de aprovação cravada:
+
+| Natureza | Exemplo | Quem aprova | Exige re-executar |
+|---|---|---|---|
+| **Correção administrativa** | erro de digitação no nome do cliente, CEP errado, e-mail do cliente errado | RT sozinho | Não (não toca conteúdo técnico) |
+| **Recálculo técnico** | erro de cálculo, padrão errado escolhido, leitura errada inserida | RT + Conferente (2ª conferência completa) | **Sim** — re-executar US-CAL-007 + US-CAL-008 |
+| **Alteração de decisão de conformidade** | mudou CONFORME → NÃO CONFORME ou inverso | RT + Gestor de Qualidade + cliente notificado por escrito | **Sim** — re-executar US-CAL-006 + US-CAL-007 + US-CAL-008 |
+
+Enum `motivo_reemissao` no modelo Certificado (`certificados/modelo-de-dominio.md`): `CORRECAO_ADMINISTRATIVA | RECALCULO_TECNICO | ALTERACAO_DECISAO_CONFORMIDADE`.
+
+Validação:
+
+- Pre-condição em `reemissaoCertificado(certificado_id, motivo)`: a matriz acima é aplicada — se motivo=`RECALCULO_TECNICO`, sistema obriga reexecução US-CAL-007 + US-CAL-008 antes de emitir.
+- Cliente é notificado por e-mail + portal quando há `ALTERACAO_DECISAO_CONFORMIDADE` (LGPD art. 6º VI transparência + CDC).
+
+---
+
+## 9. Conservação
 
 Ver `retencao-matriz.md`:
 - **Certificado emitido:** ~25 anos (ISO 17025 8.4) — efetivamente permanente
