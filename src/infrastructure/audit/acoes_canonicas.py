@@ -44,6 +44,15 @@ ACOES_SISTEMA: Final[frozenset[str]] = frozenset(
         # T-CLI-104 — circuit breaker observado AcessoDadosCliente
         "sistema.breaker_acesso_pii.disparado",
         "sistema.breaker_acesso_pii.normalizado",
+        # T-EQP-027 (AC-EQP-003-4) — lockout 24h disparado por excesso de
+        # 4xx no QR publico (>=100 4xx em 1h por IP). Payload sanitizado:
+        # ip_hash, janela_temporal, contagem_4xx, lockout_ate.
+        "sistema.qr_lockout_disparado",
+        # T-EQP-032 (AC-EQP-003-9 / P-EQP-S2) — rate-limit global por
+        # tenant excedido em /v1/qr/* (cross-tenant ou anonimo).
+        # Payload sanitizado: tenant_id, janela_dia, contagem_requests,
+        # limite_calculado, n_equipamentos_ativos.
+        "sistema.qr_scraping_suspeito",
     }
 )
 

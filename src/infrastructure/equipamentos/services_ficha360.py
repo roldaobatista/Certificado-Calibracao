@@ -33,15 +33,90 @@ from src.infrastructure.audit.services import sanitizar_payload_audit
 from src.infrastructure.certificados.query_service import tem_emitido
 from src.infrastructure.equipamentos.models import (
     AprovacaoPendenteEquipamentoVersao,
+    ConsentimentoHistoricoEquipamento,
     Equipamento,
     EquipamentoVersao,
+    NivelConsentimentoHistorico,
     StatusAprovacaoVersao,
+    TransferenciaEquipamentoAceite,
 )
 
 LIMITE_EVENTOS_FICHA = 50
 
+# T-EQP-029 / AC-EQP-003-6 — texto canonico do banner (lista FECHADA,
+# nao compõe inline; mudar texto exige revisao do advogado-saas-regulado).
+BANNER_HISTORICO_OCULTO_CESSIONARIO = (
+    "Historico preservado e confidencial conforme RBC ISO/IEC 17025 "
+    "cl. 4.2. Para acessar versoes/eventos anteriores a esta "
+    "transferencia, solicite consentimento expresso ao cedente."
+)
 
-def construir_ficha_360(equipamento: Equipamento) -> dict[str, Any]:
+
+def _avaliar_filtro_historico_cessionario(
+    equipamento: Equipamento,
+) -> tuple[str, str, str | None]:
+    """T-EQP-029 — determina filtro de historico para cessionario sem
+    consentimento.
+
+    Regra:
+    - Procura a TransferenciaEquipamentoAceite EFETIVADA mais recente
+      do equipamento; se o `cliente_atual_id` bate com a do cessionario
+      e existe um `ConsentimentoHistoricoEquipamento` (nao revogado),
+      o nivel manda. Senao: trata como `nada` (cessionario sem prova).
+    - Equipamento sem historico de transferencia OU cliente_atual ==
+      cedente: sem filtro (proprietario original ve tudo).
+
+    Retorna `(nivel_efetivo, banner, transferencia_em_iso)`:
+    - `nivel_efetivo`: 'nada' / 'resumo' / 'completo' / 'sem_filtro'.
+    - `banner`: texto a exibir ou '' quando sem_filtro.
+    - `transferencia_em_iso`: corte temporal (criado_em da
+      transferencia efetivada) para filtrar versoes/eventos; None
+      quando sem_filtro.
+    """
+    transferencia = (
+        TransferenciaEquipamentoAceite.objects.filter(
+            equipamento_id=equipamento.id,
+            status="efetivada",
+        )
+        .order_by("-efetivada_em")
+        .first()
+    )
+    if transferencia is None:
+        return ("sem_filtro", "", None)
+    if equipamento.cliente_atual_id != transferencia.cessionario_cliente_id:
+        # Equipamento ja saiu daquele cessionario (nova transferencia?)
+        # ou cliente_atual_id desincronizou. Defesa: tratar sem_filtro.
+        return ("sem_filtro", "", None)
+
+    consentimento = (
+        ConsentimentoHistoricoEquipamento.objects.filter(
+            transferencia_origem_id=transferencia.id,
+            revogado_em__isnull=True,
+        )
+        .order_by("-concedido_em")
+        .first()
+    )
+    if consentimento is None:
+        nivel = NivelConsentimentoHistorico.NADA.value
+    else:
+        nivel = consentimento.nivel
+
+    if nivel == NivelConsentimentoHistorico.COMPLETO.value:
+        return ("completo", "", None)
+
+    corte = (
+        transferencia.efetivada_em.isoformat()
+        if transferencia.efetivada_em
+        else transferencia.solicitado_em.isoformat()
+    )
+    return (nivel, BANNER_HISTORICO_OCULTO_CESSIONARIO, corte)
+
+
+def construir_ficha_360(
+    equipamento: Equipamento,
+    *,
+    usuario_id: Any = None,  # unused em Marco 2; reservado pra ABAC Wave A
+) -> dict[str, Any]:
     """Monta ficha 360 do equipamento.
 
     Caller responsavel por:
@@ -49,10 +124,26 @@ def construir_ficha_360(equipamento: Equipamento) -> dict[str, Any]:
        filtra versoes/aprovacoes/certificados/eventos.
     2. Gravar `AcessoDadosCliente` ANTES (INV-013).
     3. Authz `equipamentos.ficha360` (RequireAuthz no viewset).
+
+    T-EQP-029: filtra historico (versoes + eventos) quando cliente_atual
+    e cessionario pos-transferencia sem consentimento (`nada`) ou com
+    consentimento parcial (`resumo`). Cessionario com consentimento
+    `completo` ve tudo. Equipamento sem historico de transferencia ou
+    com cliente_atual igual ao cedente original ve tudo.
     """
+    _ = usuario_id  # reservado para ABAC por usuario Wave A
+    nivel_filtro, banner_historico, corte_iso = (
+        _avaliar_filtro_historico_cessionario(equipamento)
+    )
+
+    versoes_qs = EquipamentoVersao.objects.filter(
+        equipamento_id=equipamento.id
+    )
+    # T-EQP-029: nivel `nada` -> versoes anteriores ao corte ocultas.
+    if nivel_filtro == NivelConsentimentoHistorico.NADA.value and corte_iso:
+        versoes_qs = versoes_qs.filter(criado_em__gte=corte_iso)
     versoes = (
-        EquipamentoVersao.objects.filter(equipamento_id=equipamento.id)
-        .order_by("-criado_em")
+        versoes_qs.order_by("-criado_em")
         .values(
             "id",
             "campo",
@@ -92,11 +183,14 @@ def construir_ficha_360(equipamento: Equipamento) -> dict[str, Any]:
         for a in aprovacoes_ativas
     ]
 
+    eventos_qs = Auditoria.objects.filter(
+        payload_jsonb__equipamento_id=str(equipamento.id),
+    )
+    # T-EQP-029: nivel `nada` -> eventos anteriores ao corte ocultos.
+    if nivel_filtro == NivelConsentimentoHistorico.NADA.value and corte_iso:
+        eventos_qs = eventos_qs.filter(timestamp__gte=corte_iso)
     eventos = (
-        Auditoria.objects.filter(
-            payload_jsonb__equipamento_id=str(equipamento.id),
-        )
-        .order_by("-timestamp")
+        eventos_qs.order_by("-timestamp")
         .values("id", "action", "timestamp", "payload_jsonb")[:LIMITE_EVENTOS_FICHA]
     )
     eventos_dump = [
@@ -148,6 +242,15 @@ def construir_ficha_360(equipamento: Equipamento) -> dict[str, Any]:
         },
         "ordens_servico": [],  # Stub Wave A (porta OSQueryService).
         "eventos": eventos_dump,
+        # T-EQP-029 / AC-EQP-003-6 — flag de historico filtrado pra UI.
+        # `nivel_consentimento_historico` em 'nada'/'resumo'/'completo'/
+        # 'sem_filtro' (cedente original ou sem transferencia).
+        "aviso_historico_filtrado": {
+            "ativo": bool(banner_historico),
+            "nivel_consentimento_historico": nivel_filtro,
+            "banner": banner_historico,
+            "corte_em_iso": corte_iso,
+        },
     }
 
 

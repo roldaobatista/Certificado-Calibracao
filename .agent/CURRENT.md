@@ -10,7 +10,8 @@ T-EQP-013 trigger PG + T-EQP-071 hook + módulo stub `certificados` +
 T-EQP-024+030+031 ficha 360° + T-EQP-025+026+033 QR público 3 escopos +
 T-EQP-034+035+036+040 transferência fundação +
 T-EQP-037+038 Idempotency + termo v1.1 +
-**T-EQP-039+041 consentimento histórico granular** entregues;
+T-EQP-039+041 consentimento histórico granular +
+**T-EQP-027+029+032 rate-limit QR + filtro histórico** entregues;
 GATE-EQP-INV025-TRIGGER FECHADO).
 **Sessão ativa 2026-05-23.**
 **Modo:** AUTÔNOMO.
@@ -31,7 +32,8 @@ GATE-EQP-INV025-TRIGGER FECHADO).
 - T-EQP-034+035+036+040 (transferência fundação): **12/12 passed** em 6.4s
 - T-EQP-037+038 (Idempotency-Key + termo v1.1): **12/12 passed** em 8.0s
 - T-EQP-039+041 (consentimento histórico granular): **13/13 passed** em 11.3s
-- Regressão transferência (T-EQP-034+037+038): **24/24 passed** em 11.2s
+- T-EQP-027+029+032 (rate-limit QR + filtro hist.): **8/8 passed** em 33.4s
+- Regressão suíte QR/ficha/consent/transf: **64/64 passed** em 51.2s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **192/192** verdes (22+1 ativos — sem hook novo nesta T)
@@ -87,6 +89,35 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-027+029+032 ✅** (2026-05-23): US-EQP-003 fase 3 —
+  rate-limit IP + global por tenant + filtro de histórico para
+  cessionário sem consentimento. Service `services_ratelimit` com
+  `avaliar_limite_ip` (60 req/min + lockout 24h após 100 4xx/h) +
+  `avaliar_limite_tenant_qr` (100 × `n_equipamentos_ativos`/dia em
+  `/v1/qr/*` cross-tenant ou anônimo). Backing store `caches['ratelimit']`
+  (Redis DB 2 em dev/prod, LocMem em test — settings/base.py). Funções
+  `_publicar_lockout_disparado` e `_publicar_qr_scraping_suspeito` em
+  `run_as_system` publicam `sistema.qr_lockout_disparado` (T-EQP-027)
+  + `sistema.qr_scraping_suspeito` (T-EQP-032 — 1 evento por dia
+  por tenant). 2 ações canônicas novas em
+  `acoes_canonicas.ACOES_SISTEMA`. Helper `_hash_ip_simples` HMAC com
+  salt global (NÃO por tenant — escopo trans-tenant; override do
+  `audit-pii-salt-check` justificado). Integração no `QRPublicoView`:
+  rate-limit IP ANTES da resolução de hash (anti-oráculo); rate-limit
+  tenant após resolver tenant alvo via nova função SECURITY DEFINER
+  `resolver_qr_publico_tenant_id` (migration `0016` — mesma policy
+  `app.scope='qr_publico_check'` do migration 0011). 429 com
+  `Retry-After`. T-EQP-029: `construir_ficha_360` recebe consentimento
+  histórico via `_avaliar_filtro_historico_cessionario` (consulta
+  `TransferenciaEquipamentoAceite` EFETIVADA + `ConsentimentoHistoricoEquipamento`
+  vigente) — `nada` oculta versões/eventos anteriores ao corte
+  `transferencia.efetivada_em`; `resumo`/`completo` mostram tudo
+  (Marco 2 STUB: nível resumo igual nada Wave A); flag
+  `aviso_historico_filtrado` no payload com banner RBC ISO/IEC 17025
+  cl. 4.2. 8/8 testes (rate-limit IP min + IPs isolados + lockout +
+  rate-limit tenant + evento 1x/dia + filtro nada oculta versão pré +
+  completo mostra + sem transferência sem filtro). Sem regressão nos
+  64 testes da suíte QR/ficha/consent/transf.
 - **P4 T-EQP-039+041 ✅** (2026-05-23): US-EQP-004 fase 3 — consentimento
   histórico granular do cedente (P-EQP-R6). Enum
   `NivelConsentimentoHistorico` (3 valores: `nada`/`resumo`/`completo`)
@@ -295,13 +326,18 @@ rastreados Wave A.
 
 ## Próximo passo
 
-1. **US-EQP-003 fase 3** (T-EQP-027+029+032): rate-limit 60req/min IP
-   (Redis) + filtro histórico no `construir_ficha_360` baseado em
-   `ConsentimentoHistoricoEquipamento` (cessionário pós-transferência
-   sem consentimento `completo`/`resumo` NÃO vê histórico — agora
-   destravado pelo modelo de T-EQP-039) + rate-limit global por tenant.
-2. **US-EQP-003 fase 4** (T-EQP-028): PWA scanner.
-3. **US-EQP-005 sucatamento** + **US-EQP-006 recebimento**.
+1. **US-EQP-003 fase 4** (T-EQP-028): PWA scanner com BarcodeDetector
+   nativo (Chrome/Edge mobile) + fallback jsQR (Safari/Firefox).
+   Service-worker `network-only` para `/qr/*` (impedir cache de payload
+   sensível). Depende de aceite do ADR-0018 pelo Roldão.
+2. **US-EQP-005 sucatamento** (T-EQP-042..046): POST `/sucatear/`
+   simples + cert vigente exige `confirmacao_dupla` + estado terminal
+   (trigger PG bloqueia transição fora `sucata`→`extraviado`) + template
+   anti-CTA notificação cliente + ciência validade técnica (P-EQP-R8).
+3. **US-EQP-006 recebimento** (T-EQP-047..055): POST `/recebimentos/`
+   condição visual chegada + anomalias anti-PII + ≥1 foto perfil A +
+   foto_sha256 + recebimento provisório TTL D+7 (P-EQP-R9) + métrica
+   taxa_provisorios_mensal.
 4. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)

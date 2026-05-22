@@ -30,6 +30,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from typing import Any
+from uuid import UUID
 
 from django.db import connection
 
@@ -55,9 +56,11 @@ class EscopoAResolvido:
 @dataclass(frozen=True)
 class EscopoCResolvido:
     """Resolvido como Escopo C — anonimo + hash valido. Payload
-    minimo allowlist."""
+    minimo allowlist + tenant_id INTERNO (uso somente em rate-limit
+    T-EQP-032; NAO retorna no payload publico)."""
 
     payload: dict[str, Any]
+    tenant_id: UUID
 
 
 def resolver_escopo_a_se_mesmo_tenant(hash_apresentado: str) -> QRCode | None:
@@ -85,7 +88,21 @@ def resolver_escopo_c_anonimo(hash_apresentado: str) -> EscopoCResolvido | None:
         row = cur.fetchone()
     if row is None:
         return None
-    _equipamento_id, fabricante, modelo, status = row
+    equipamento_id, fabricante, modelo, status = row
+    # T-EQP-032: lookup do tenant_id via SECURITY DEFINER dedicada
+    # (`resolver_qr_publico_tenant_id`). Mesmo padrao do
+    # `resolver_qr_publico`: bypass controlado de RLS com retorno
+    # MINIMO. tenant_id NAO vaza no payload publico — uso somente em
+    # contabilizacao de rate-limit por tenant.
+    with connection.cursor() as cur:
+        cur.execute(
+            "SELECT resolver_qr_publico_tenant_id(%s::text)",
+            [hash_apresentado],
+        )
+        row_tnt = cur.fetchone()
+    if row_tnt is None or row_tnt[0] is None:
+        return None
+    tenant_id_uuid = UUID(str(row_tnt[0]))
     # Allowlist Escopo C — espelha `qr-publico-allowlist.md` §2.
     payload: dict[str, Any] = {
         "tipo": "ativo_afere",
@@ -98,7 +115,7 @@ def resolver_escopo_c_anonimo(hash_apresentado: str) -> EscopoCResolvido | None:
         ),
         "afere_url_institucional": "https://afere.com.br",
     }
-    return EscopoCResolvido(payload=payload)
+    return EscopoCResolvido(payload=payload, tenant_id=tenant_id_uuid)
 
 
 def aplicar_timing_constant_se_necessario(
