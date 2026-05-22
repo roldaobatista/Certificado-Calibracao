@@ -99,7 +99,53 @@
 - **INV-047:** snapshot por componente (auditoria consistência v8 — Auditor E 2026-05-17 noite); ativa quando Wave B entregar billing-saas full
 - **INV-049..051 + INV-EQP-LOC-001:** promovidos em 2026-05-18 a partir de auditoria de PRD `equipamentos` Wave A Marco 2 (4 subagentes: tech-lead, advogado, corretora, RBC). Hooks `equipamento-imutabilidade-check.sh`, `qr-hmac-check.sh`, `port-binding-validator.sh` a criar quando Wave A Marco 2 começar a codar
 - **INV-EQP-VERSAO-001/002 + INV-EQP-ANOM-001/002 + INV-EQP-PROV-001:** promovidos em 2026-05-18 noite a partir de auditoria de planos US-EQP-001..006 (12 reviews tech-lead + advogado). Hooks reusam `audit-pii-salt-check` (estende para payload de eventos) e novo `recebimento-provisorio-fk-check.sh` (a criar com US-EQP-006)
+- **INV-OS-ATIV-001..005 + INV-OS-TXT-001 + INV-OS-GEO-001 + INV-OS-AUD-001 + INV-CAL-TXT-001 + INV-CAL-AUD-001 + INV-CER-COMP-001 + RAT-07 + RAT-08:** promovidos em 2026-05-23 a partir da auditoria 10 lentes pré-Marco 3 (OS+Calibração+Certificados). Hooks a criar quando Marco 3/4/5 entrarem na P4 (codificação)
 - TST-004 valida automaticamente: todo INV-NNN crítico deve ter ≥1 teste cujo nome cita o ID
+
+---
+
+## INV-OS-ATIV-* — Invariantes de OS com Atividades (ADR-0023)
+
+| ID | Regra | Base normativa | Hook que valida | Escopo por perfil | Consequência de violar |
+|---|---|---|---|---|---|
+| INV-OS-ATIV-001 | **OS só transiciona pra CONCLUIDA quando TODAS as atividades estão em estado terminal** (CONCLUIDA / NAO_CONFORME / CANCELADA). Estado da OS é COMPUTADO a partir das atividades — não setado diretamente. Atividade NAO_CONFORME bloqueia certificado mas não invalida outras CONCLUIDA da mesma OS. | ADR-0023 + ISO 17025 cl. 7.4 (rastreabilidade do trabalho técnico) | Trigger PG `os_status_computado_trg` recalcula `os.estado` quando atividade muda; hook `os-conclusao-todas-terminais-check.sh` | Absoluta (todos perfis) | OS marcada CONCLUIDA com atividade pendente = certificado emitido sobre trabalho inacabado |
+| INV-OS-ATIV-002 | **AtividadeDaOS herda `tenant_id`, `cliente_id` e `equipamento_id` da OS pai** — cross-tenant proibido em qualquer operação que toque atividade. Aplica também a `link_modulo_tecnico` (FK pra registro técnico no módulo correspondente). | INV-TENANT-001 + LGPD art. 6º III | Trigger PG `atividade_tenant_check_trg` valida em INSERT/UPDATE; teste E2E cross-tenant | Absoluta (todos perfis) | Vazamento cross-tenant via atividade ou via FK polimórfica `link_modulo_tecnico` |
+| INV-OS-ATIV-003 | **Toda AtividadeDaOS tem `tipo` no enum FECHADO de 6 valores** (`calibracao`, `manutencao_corretiva`, `manutencao_preventiva`, `instalacao`, `verificacao_inmetro`, `vistoria`). Tipo novo exige ADR + migration + atualização de hook. | ADR-0023 + ANTI-11 (proibida customização do fluxo por tenant) | CHECK constraint Postgres + enum Python; hook `enum-tipo-atividade-fechado.sh` | Absoluta (todos perfis) | Tenant inventa "tipo": resultado vira fluxo customizado por tenant proibido (ANTI-11) |
+| INV-OS-ATIV-004 | **ChecklistDaAtividade NÃO migra entre atividades de tipos diferentes** — cada tipo tem seu próprio modelo de checklist. Cancelar atividade de tipo A e criar de tipo B na mesma OS = checklist começa do zero. | ISO 17025 cl. 7.4 (registro completo por tipo de trabalho técnico) | Hook valida que migration de checklist tipa-se por `tipo_atividade`; teste de regressão por tipo | Absoluta (todos perfis) | Checklist de manutenção sendo aplicado a calibração = NC documental CGCRE |
+| INV-OS-ATIV-005 | **Anti-fraude execução + cross-tenant em `reabrirOS` e `link_modulo_tecnico`:** (a) `concluirAtividade` exige `atividade.tecnico_executor_id == sessao.usuario.id` (delegação só explícita com audit); (b) `reabrirOS` exige `OS-filha.tenant_id == OS-mae.tenant_id`; (c) `link_modulo_tecnico` exige `link.tenant_id == atividade.tenant_id`. | ISO 17025 cl. 6.2 (pessoa qualificada executa) + INV-TENANT-001 | Hook pre-commit + trigger PG + teste E2E delegação | Absoluta (todos perfis) | Atendente preenche checklist por técnico ausente = fraude regulatória + cross-tenant via FK polimórfica |
+| INV-OS-TXT-001 | **Texto livre em `razao_cancelamento`, `razao_nao_conformidade`, `observacoes`, `descricao_problema` rejeita PII direta** (mesma regex INV-EQP-LOC-001 — CPF, CNPJ, e-mail, telefone, ≥2 nomes capitalizados consecutivos). Limite 500 chars. Mínimo 30 chars quando justificativa exigida. | LGPD art. 5º I (PII por associação) + análoga INV-EQP-VERSAO-001 | Regex anti-PII no save em camada application + model.clean(); teste de fuzzing; INV-checker | Absoluta (todos perfis) | Texto livre vira vetor clássico de vazamento de PII em audit imutável |
+| INV-OS-GEO-001 | **`geo` em `AtividadeDaOS` e `EventoDeOS.payload`:** (a) opt-in obrigatório (RAT-07 + RIPD); (b) precisão arredondada (município ou bairro, NUNCA coordenada decimal completa) em payload de evento publicado fora do bounded-context; (c) `geo` proibida em audit WORM em precisão alta (apenas hash de município); (d) coordenada exata persistida só em `os_evento` interno com retenção limitada. | LGPD art. 5º I + análoga INV-EQP-LOC-001 + Marco Civil art. 7º | Hook `os-geo-precision-check.sh` valida que payload publicado não tem `lat`/`long` decimal direto; teste de fuzzing | Absoluta (todos perfis) | Audit WORM com lat/long bruta 5a = vetor stalking de técnico (RAT trabalhista) e cliente |
+| INV-OS-AUD-001 | **Payload em `EventoDeOS` sanitizado NA ESCRITA (SEC-SANITIZE-001 pattern):** proíbe (a) `cliente_id`, `tecnico_id`, `ator_id` UUID cru — só `*_hash` HMAC-tenant; (b) `razao_*` cru — só hash; (c) `geo` precisão alta (INV-OS-GEO-001); (d) qualquer texto livre fora do `descricao` validado anti-PII. Helper `sanitizar_payload_evento_os()` único; sanitização na leitura é defesa em profundidade. | INV-AUTHZ-002 + análoga INV-EQP-VERSAO-002 + bug-classe `sanitizar_payload_audit` 2026-05-19 | Hook `audit-pii-salt-check.sh` (estende-se a `os_evento`); teste de snapshot byte-a-byte | Absoluta (todos perfis) | EventoDeOS imutável vira vetor de vazamento permanente (25a) |
+
+---
+
+## INV-CAL-* — Invariantes de Calibração
+
+| ID | Regra | Base normativa | Hook que valida | Escopo por perfil | Consequência de violar |
+|---|---|---|---|---|---|
+| INV-CAL-TXT-001 | **Texto livre em `RevisaoTecnica.nota`, `Calibracao.observacoes_gerais`, `AvaliacaoConformidade.decisao_manual_se_zona`, `VerificacaoIntermediaria.resultado` rejeita PII direta** (mesma regex INV-EQP-LOC-001). Limite 500 chars. | LGPD art. 5º I + análoga INV-EQP-VERSAO-001 | Regex anti-PII no save; INV-checker | Absoluta (todos perfis) | Audit imutável de calibração vira vetor de PII |
+| INV-CAL-AUD-001 | **Payload em `EventoDeCalibracao` (entidade WORM nova — TEMA-C.5) sanitizado na escrita:** proíbe `cliente_id`/`executor_id`/`revisor_id`/`conferente_id` UUID cru (só `*_hash` HMAC-tenant); `instrumento` cru (só `numero_serie_hash` + `fabricante` + `modelo`); textos livres validados anti-PII. | INV-AUTHZ-002 + ISO 17025 cl. 7.5 (registros técnicos imutáveis) | Hook `audit-pii-salt-check.sh` estendido + teste de snapshot | Absoluta (todos perfis) | Audit WORM de calibração 25a vira vetor de PII permanente |
+| INV-CAL-RT-COMP-001 | **Snapshot retroativo de padrão bloqueado** (TEMA-B.1) — `PadraoUsado.snapshot_capturado_at` obrigatório + lock: snapshot só pode ser feito enquanto `Calibracao.status IN (RECEPCIONADA, CONFIGURADA)`. Após `EM_REVISAO_1` snapshot é imutável. Query `Padrao.certificado_atual` bloqueada se calibração já em revisão. | ISO 17025 cl. 6.5 + 7.7.1.f | Hook valida `snapshot_capturado_at IS NOT NULL` em `PadraoUsado`; trigger PG bloqueia INSERT em snapshot pós-revisão | Absoluta em A; configurável em B/C/D | Snapshot reconstruído ex-post de fonte mutável = rastreabilidade falsa em supervisão CGCRE |
+
+---
+
+## INV-CER-* — Invariantes de Certificados
+
+| ID | Regra | Base normativa | Hook que valida | Escopo por perfil | Consequência de violar |
+|---|---|---|---|---|---|
+| INV-CER-COMP-001 | **Emissão bloqueia se `signatario.competencias` não cobre `calibracao.grandeza` NA DATA `calibracao.executada_em`** (não na data de emissão). Sob ADR-0022 vigência por intervalo `tstzrange` da `RTCompetencia`. | ISO 17025 cl. 6.2 + NIT-DICLA-021 + ADR-0022 | Hook bloqueia emissão se predicate `decisor_tem_competencia_para_atividade(rt_id, atividade='calibracao_grandeza_X', em_data=executada_em)` retornar false | Absoluta em A; configurável em B/C/D | Certificado nulo retroativo (R-060) — RT assinou fora do escopo vigente na execução |
+| INV-CER-FRAUD-A3-001 | **Anti-fraude A3:** servidor valida `certificado_a3.subject_cn.cpf == sessao.usuario.cpf` antes de aceitar assinatura. Sem match: rejeita + grava `Certificados.AssinaturaMismatchTentativa` + alerta P0. | MP 2.200-2/2001 + ADR-0009 + INV-017 | Hook validador no endpoint de assinatura; teste E2E com A3 de outro usuário | Absoluta (todos perfis) | RT autenticado usa A3 esquecido de outro RT = fraude regulatória ICP-Brasil quebrada |
+
+---
+
+## RAT-* — Registros de tratamento LGPD
+
+> Promovidos em 2026-05-23 — eram citados nos PRDs mas não existiam em catálogo canônico (achado da auditoria 10 lentes).
+
+| ID | Registro | Base legal LGPD | RIPD | Retenção | Hook que valida |
+|---|---|---|---|---|---|
+| RAT-07 | **Geolocalização em OS de campo** — lat/long capturada no início/fim de atividade. Opt-in obrigatório do técnico (LGPD art. 7º I) + opt-in do cliente (RAT-08). | art. 7º I (consentimento livre) + art. 7º IX (legítimo interesse — auditoria operacional) | `docs/conformidade/comum/ripd-os-geolocalizacao.md` (a criar antes de Marco 3 — TEMA-D.1) | 5 anos (alinhada com retenção OS); precisão limitada por INV-OS-GEO-001 | Hook `ripd-required-for-pii.sh` bloqueia merge de módulo coletando geo sem RIPD |
+| RAT-08 | **Audit log universal de OS / Calibração / Certificados** — toda mutação grava `EventoDeOS`/`EventoDeCalibracao`/`EventoDeCertificado` com `ator_id`, `timestamp`, `ip_hash`, `payload sanitizado`. | art. 7º II (obrigação legal — ISO 17025 cl. 7.5 + cl. 8.4) | Não exige RIPD (cumprimento de obrigação legal — art. 8º §5º) | 25 anos para audit vinculado a certificado; 5 anos para audit OS sem certificado | Hook `audit-immutability-check.sh` (já existe Marco 2) — estende-se a OS/Calibração |
 
 ---
 

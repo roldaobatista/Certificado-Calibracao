@@ -1,6 +1,7 @@
 ---
-owner: Roldão
-revisado-em: 2026-05-17
+owner: roldao
+revisado_em: 2026-05-23
+proximo_review: 2026-08-23
 status: draft
 modulo: os
 dominio: operacao
@@ -8,7 +9,9 @@ dominio: operacao
 
 # Contratos de Export — Módulo OS
 
-> Relatórios e arquivos gerados pelo módulo. Certificados são export da **Metrologia** (gerado a partir do evento `OSConcluida`), não desta pasta.
+> Relatórios e arquivos gerados pelo módulo. Certificados são export da **Metrologia** (gerado a partir de `AtividadeConcluida` filter tipo=calibracao — ADR-0023 + TEMA-E.2), não desta pasta.
+>
+> **Revisado em 2026-05-23 (ADR-0023):** comprovante PDF agora lista N atividades da OS (uma seção por atividade — fotos, checklist, aceite assinatura).
 
 ---
 
@@ -18,7 +21,7 @@ dominio: operacao
 **Formato:** PDF/UA (acessível — INV-016).
 **Regulado?:** não (entrega comercial). Para calibração, certificado oficial é exportado em Metrologia.
 **Template:** `templates/os-comprovante.html` [a definir].
-**Campos obrigatórios:** número da OS, cliente, equipamento, tipo, datas (início/fim), técnico, itens executados, fotos, assinatura do cliente, geo se OS de campo.
+**Campos obrigatórios:** número da OS, cliente, equipamento, datas globais (início/fim), N seções (uma por atividade) cada com: `tipo_atividade`, técnico executor, datas atividade, itens executados, fotos (EXIF strip — INV-OS-GEO-001), aceite cliente (versão termo + hash + IP + assinatura), geo se atividade de campo (precisão limitada por INV-OS-GEO-001). Para atividade tipo=calibracao mostra ref ao certificado (não embute conteúdo técnico — separado).
 **Assinatura digital:** opcional (ICP-Brasil A1) — obriga apenas se tenant exigir.
 **Imutabilidade:** sim a partir de OS CONCLUIDA.
 **Retenção:** ver `../../../conformidade/comum/retencao-matriz.md`.

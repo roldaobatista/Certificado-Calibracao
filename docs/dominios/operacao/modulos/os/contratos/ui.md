@@ -1,6 +1,7 @@
 ---
-owner: Roldão
-revisado-em: 2026-05-17
+owner: roldao
+revisado_em: 2026-05-23
+proximo_review: 2026-08-23
 status: draft
 modulo: os
 dominio: operacao
@@ -9,21 +10,24 @@ dominio: operacao
 # Contratos de UI — Módulo OS
 
 > Telas principais. Wireframe textual enquanto stack não fechada (ADR-0001).
+>
+> **Revisado em 2026-05-23 (ADR-0023):** kanban opera POR ATIVIDADE (não por OS); detalhe da OS mostra lista de atividades + checklist por atividade + aceite por atividade. Tela nova "Cadastro de OS no balcão" (US-OS-009) com seletor de N atividades + gate de sequência.
 
 ---
 
-## Tela 1: Fila de OS (gerente)
+## Tela 1: Fila de Atividades (gerente)
 
-**Propósito:** ver e redistribuir todas as OS ativas em uma tela.
+**Propósito:** ver e redistribuir atividades ativas (não OS — ADR-0023). Granularidade fina permite que mecânico pegue manutenção e metrologista pegue calibração da mesma OS.
 **Persona principal:** P-OP-04 (gerente operacional).
 **US:** US-OS-002, US-OS-008.
-**Acessível por:** menu Operação → "Fila de OS".
+**Acessível por:** menu Operação → "Fila de Atividades".
 
 **Elementos:**
-- Filtro: estado, técnico, tipo, cliente, prazo.
-- Kanban por estado (RASCUNHO | AGENDADA | EM_EXECUCAO | CONCLUIDA | FATURADA) com drag & drop entre estados **válidos** (hook valida INV-027 — drop em estado inválido cancela).
-- Card de OS mostra: cliente, equipamento, técnico, prazo, badge NC.
-- Ação "redistribuir": muda `tecnico_atribuido_id` + valida INV-020 (UMC).
+- Filtro: estado_atividade, tecnico_executor, tipo_atividade, cliente, prazo, OS_id (agrupador).
+- Kanban por `EstadoAtividade` (PENDENTE | EM_EXECUCAO | CONCLUIDA | NAO_CONFORME | CANCELADA) com drag & drop entre estados válidos (hook valida máquina de estados — drop inválido cancela).
+- Card de atividade mostra: OS pai, cliente, equipamento, tipo_atividade, executor, sequencia, prazo OS, badge NC.
+- Agrupamento opcional "por OS" mostra todas as atividades juntas com gate de sequência visível.
+- Ação "redistribuir executor": muda `atividade.tecnico_executor_id` + valida INV-020 (UMC se atividade requer veículo).
 
 **Estados:**
 - Vazio: "Nenhuma OS ativa. Crie a partir de um orçamento aprovado."
