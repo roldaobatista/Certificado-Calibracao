@@ -27,7 +27,6 @@ from typing import ClassVar
 from uuid import UUID
 
 from django.conf import settings
-
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.request import Request

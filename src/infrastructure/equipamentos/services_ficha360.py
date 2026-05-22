@@ -115,7 +115,7 @@ def _avaliar_filtro_historico_cessionario(
 def construir_ficha_360(
     equipamento: Equipamento,
     *,
-    usuario_id: Any = None,  # unused em Marco 2; reservado pra ABAC Wave A
+    usuario_id: UUID | None = None,  # unused em Marco 2; reservado pra ABAC Wave A
 ) -> dict[str, Any]:
     """Monta ficha 360 do equipamento.
 

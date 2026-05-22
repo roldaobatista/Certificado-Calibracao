@@ -25,6 +25,7 @@ hash truncado. Aqui o evento traz `assinatura_a3_referencia` (UUID) +
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -99,7 +100,7 @@ class DadosCriacaoVersao:
     snapshot: dict[str, Any] | None = None
     snapshot_schema_version: str = "1.0.0"
     assinatura_a3_referencia: UUID | None = None
-    assinatura_a3_assinada_em: Any = None  # datetime
+    assinatura_a3_assinada_em: datetime | None = None
     assinatura_a3_certificado_emissor_hash: str = ""
 
 

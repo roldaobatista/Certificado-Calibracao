@@ -89,6 +89,24 @@ def garantir_qrcode_vigente(equipamento: Equipamento) -> QRCode:
     return novo
 
 
+def _url_fetcher_recusa_tudo(url: str) -> dict[str, object]:
+    """Bloqueia QUALQUER URL fetcher do WeasyPrint na etiqueta.
+
+    Mitigacao CVE-2025-68616 (SSRF via redirect em WeasyPrint <68.0):
+    template da etiqueta nao usa URL externa (QR vai como data: URI
+    base64 e CSS e inline). Aplicar fetcher que recusa data: tambem
+    seria quebrar; libera SOMENTE `data:`. URLs http/https/file/ftp
+    geram RuntimeError -> garante que html inline malicioso nao
+    consegue iniciar fetch externo nem redirect.
+    """
+    if url.startswith("data:"):
+        from weasyprint import default_url_fetcher
+        return dict(default_url_fetcher(url))
+    raise RuntimeError(
+        f"etiqueta_pdf: url_fetcher recusou URL nao-data (CVE-2025-68616): {url[:80]}"
+    )
+
+
 def gerar_etiqueta_pdf(equipamento: Equipamento) -> bytes:
     """Renderiza a etiqueta do equipamento em PDF (60mm x 40mm, 2 colunas).
 
@@ -109,5 +127,7 @@ def gerar_etiqueta_pdf(equipamento: Equipamento) -> bytes:
             "qr_png_base64": qr_png_base64,
         },
     )
-    pdf_bytes: bytes = HTML(string=html).write_pdf()
+    pdf_bytes: bytes = HTML(
+        string=html, url_fetcher=_url_fetcher_recusa_tudo
+    ).write_pdf()
     return pdf_bytes
