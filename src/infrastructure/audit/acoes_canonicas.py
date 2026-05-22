@@ -156,6 +156,19 @@ ACOES_EQUIPAMENTOS: Final[frozenset[str]] = frozenset(
         # Payload sanitizado: equipamento_id, recebimento_id,
         # data_recebimento. Sem PII.
         "equipamento.recebimento_sem_ambiente",
+        # T-EQP-054 (US-EQP-006 AC-EQP-006-7 / P-EQP-T9) — sweep job
+        # detectou equipamento orfao (cliente_atual_id NULL +
+        # status nao terminal) e marcou orfao_pendente_decisao.
+        # Defesa em profundidade do trigger PG
+        # `equipamento_anti_orfao_imediato_trg`. Payload sanitizado:
+        # equipamento_id, status_anterior, motivo. Sem PII.
+        "equipamento.orfao_marcado_pelo_job",
+        # T-EQP-054 (US-EQP-002b AC-EQP-002b-2 / P-EQP-R5) — alerta
+        # D-1 antes do SLA vencer disparado pelo job diario. Marco 2:
+        # alerta operacional P3 stub; consumer real Wave A enviara
+        # email/push ao decisor. Payload sanitizado: aprovacao_id,
+        # equipamento_id, sla_vencimento, horas_restantes.
+        "equipamento.versao_aprovacao_alerta_d1",
     }
 )
 

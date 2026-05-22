@@ -29,7 +29,7 @@ Eventos publicados via `publicar_evento`:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -235,6 +235,60 @@ def _decidir(
         cadeia_linha_id=evento.cadeia_linha_id,
         outbox_enfileirado=evento.outbox_enfileirado,
     )
+
+
+def alertar_aprovacoes_d1(
+    *,
+    tenant_id: UUID,
+    horas_minimas_para_alerta: int = 0,
+    horas_maximas_para_alerta: int = 24,
+) -> list[UUID]:
+    """T-EQP-054 (P-EQP-R5) — localiza aprovacoes PENDENTES vencendo
+    em ate `horas_maximas_para_alerta` (default D-1) e publica
+    `equipamento.versao_aprovacao_alerta_d1` (alerta P3 stub Marco 2;
+    consumer real Wave A envia email/push ao decisor).
+
+    Pre-condicao: caller deve setar `app.active_tenant_id` via
+    `run_in_tenant_context`.
+
+    Idempotente em granularidade diaria: o consumer real Wave A
+    decide se desduplica via cache `(aprovacao_id, dia)`. Marco 2
+    publica sempre (alerta P3 dogfooding; cardinalidade baixa).
+
+    Retorna lista de `aprovacao_id` alertadas.
+    """
+    agora = timezone.now()
+    inicio = agora + timedelta(hours=horas_minimas_para_alerta)
+    limite = agora + timedelta(hours=horas_maximas_para_alerta)
+
+    candidatas = AprovacaoPendenteEquipamentoVersao.objects.filter(
+        status=StatusAprovacaoVersao.PENDENTE,
+        sla_vencimento__gt=inicio,
+        sla_vencimento__lte=limite,
+    )
+
+    alertadas: list[UUID] = []
+    for aprovacao in candidatas:
+        horas_restantes = max(
+            0,
+            int((aprovacao.sla_vencimento - agora).total_seconds() // 3600),
+        )
+        publicar_evento(
+            acao="equipamento.versao_aprovacao_alerta_d1",
+            tenant_id=tenant_id,
+            usuario_id=None,
+            causation_id=uuid4(),
+            payload={
+                "tenant_id": str(tenant_id),
+                "aprovacao_id": str(aprovacao.id),
+                "equipamento_id": str(aprovacao.equipamento_id),
+                "sla_vencimento": aprovacao.sla_vencimento.isoformat(),
+                "horas_restantes": horas_restantes,
+            },
+            resource_summary=f"aprovacao:{aprovacao.id}:alerta_d1",
+        )
+        alertadas.append(aprovacao.id)
+    return alertadas
 
 
 def expirar_aprovacoes_vencidas(
