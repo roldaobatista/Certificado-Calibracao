@@ -4,9 +4,10 @@
 
 **Fase:** Marco 1 **FECHADO** + Marco 2 `equipamentos` em P4 (T-EQP-001
 + 006 + 002 + 003 + US-EQP-007 + T-EQP-005 + T-EQP-007 + T-EQP-009 +
-T-EQP-012 + T-EQP-016 + T-EQP-017 + **T-EQP-013 doc+helper**
-entregues; trigger PG dependente certificados Wave A).
-**Sessão em curso 2026-05-23** (T-EQP-013 textos canônicos 422 T1-T5).
+T-EQP-012 + T-EQP-016 + T-EQP-017 + T-EQP-013 doc+helper +
+**T-EQP-018+020+021+022 US-EQP-002b** entregues; T-EQP-019 SLA
+workalendar pendente; trigger PG INV-025 dependente certificados Wave A).
+**Sessão em curso 2026-05-23** (US-EQP-002b aprovação gestor_qualidade).
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (verificado 2026-05-23)
@@ -15,6 +16,7 @@ entregues; trigger PG dependente certificados Wave A).
 - T-EQP-012+016: **13/13 passed** em 4.0s
 - T-EQP-017: **11/11 passed** em 8.0s
 - T-EQP-013: **7/7 passed** em 0.7s (textos canônicos T1-T5 + anti-drift)
+- T-EQP-018+020+021+022 (US-EQP-002b): **11/11 passed** em 3.5s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **179/179** verdes (22 ativos — sem hook novo nesta T)
@@ -70,6 +72,24 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-018+020+021+022 ✅** (2026-05-23): fundação **US-EQP-002b**
+  (aprovação gestor_qualidade) — modelo `AprovacaoPendenteEquipamentoVersao`
+  (16 campos), enum `StatusAprovacaoVersao` 4 valores, constante
+  `STATUS_TERMINAIS_APROVACAO`. Migration `0008_aprovacaopendenteequipamentoversao`
+  com RLS v2 + CHECK `ck_aprovacao_solicitante_neq_decisor` (INV-EQP-002
+  ISO 17025 cl. 6.2 segregação) + trigger PG
+  `aprovacao_versao_anti_mutacao_terminal_trg` (bloqueia mutação em 12
+  campos quando status terminal). Service `services_aprovacao.py` com
+  `solicitar_aprovacao`/`aprovar`/`rejeitar`/`expirar`; 3 camadas defesa
+  INV-EQP-002 (CHECK PG + clean() modelo + assert service). Validator
+  `validar_parecer_gestor_texto` (>=30 chars + anti-PII reuso de
+  `conter_pii_direta`). 3 ações canônicas novas registradas
+  (`equipamento.versao_aprovada/rejeitada/expirada`) com payload
+  sanitizado (HMAC de parecer/IDs). Predicate
+  `decisor_tem_competencia_para_atividade` já existia (US-EQP-007).
+  T-EQP-019 (workalendar SLA D+3/D+7 + job Procrastinate) pendente —
+  placeholder dias-corridos no service. T-EQP-021 admin Django (UI)
+  fica Wave A. 11/11 testes em 3.5s.
 - **P4 T-EQP-013 ✅ doc + helper** (2026-05-23): doc
   `docs/conformidade/equipamentos/textos-rejeicao-422.md` v1.0.0 com 5
   textos canônicos pré-aprovados pelo `advogado-saas-regulado` (T1 TAG,
@@ -137,17 +157,18 @@ rastreados Wave A.
 
 ## Próximo passo
 
-1. **T-EQP-013** (`INV-025` imutabilidade pós-cert + textos 422 T1-T5):
-   doc `docs/conformidade/equipamentos/textos-rejeicao-422.md` com 5
-   variantes; entrada `INV-025` em `REGRAS-INEGOCIAVEIS.md`; trigger PG
-   fica dependente do módulo `certificados` (Wave A) — gate explícito.
-2. **US-EQP-002b** (T-EQP-018..023): aprovação gestor_qualidade. SLA
-   D+3/D+7 + competência declarada (US-EQP-007 ✅ já tem predicate).
-3. **T-EQP-014** (endpoint POST `/equipamentos/{id}/versao/assinar/`):
+1. **T-EQP-019** (SLA workalendar + job Procrastinate
+   `job_aprovacao_versionamento_escalacao`): adicionar dep `workalendar`,
+   substituir `_sla_vencimento_provisorio` em `services_aprovacao.py`
+   por cálculo de dias úteis BR + extensão estadual; job diário 03:00
+   BRT marca `status=expirada` via `services_aprovacao.expirar`; alerta
+   P2 + métrica `aprovacao_versionamento_expiradas_dia`.
+2. **T-EQP-014** (endpoint POST `/equipamentos/{id}/versao/assinar/`):
    contrato pra A3 cliente-side via Lacuna (GATE-EQP-1 Wave A).
-4. Quando T-EQP-013 fechar, estender `services_perfil.promover_perfil_equipamento`
-   pra criar `EquipamentoVersao` (via `services_versao.criar_versao_equipamento`)
-   com `motivo_mudanca=mudanca_classe_metrologica` na mesma transação.
+3. **US-EQP-003 ficha 360°** (T-EQP-024..033): GET `/equipamentos/{id}/`
+   + 3 escopos QR (A/B/C) + timing constant + rate-limit + PWA.
+4. **US-EQP-004 transferir** (T-EQP-034..041): POST `/transferir/` +
+   3 vias aceite + Idempotency-Key + consentimento histórico granular.
 5. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)

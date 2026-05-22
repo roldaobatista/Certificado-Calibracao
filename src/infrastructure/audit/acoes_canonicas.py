@@ -68,6 +68,12 @@ ACOES_EQUIPAMENTOS: Final[frozenset[str]] = frozenset(
         # de campo descritivo. Payload sanitizado (5 campos positivos,
         # 7 proibidos). 25a WORM (RBC + ISO 17025 cl. 8.4).
         "equipamento.versao_criada",
+        # T-EQP-022 (US-EQP-002b AC-EQP-002b-5) - 3 transicoes terminais
+        # da Aprovacao gestor_qualidade. Cadeia auditavel ISO 17025
+        # cl. 6.2 (segregacao de funcoes) + RBC. 25a WORM.
+        "equipamento.versao_aprovada",
+        "equipamento.versao_rejeitada",
+        "equipamento.versao_expirada",
     }
 )
 

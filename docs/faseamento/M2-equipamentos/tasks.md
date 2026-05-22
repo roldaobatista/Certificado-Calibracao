@@ -61,12 +61,12 @@ Convenção:
 
 | AC | Estado | T-EQP / nota |
 |----|--------|--------------|
-| AC-EQP-002b-1 | GAP | T-EQP-018 (tabela `AprovacaoPendenteEquipamentoVersao` 16 campos + trigger anti-mutation status terminal) |
-| AC-EQP-002b-2 | GAP | T-EQP-019 (SLA D+3/D+7 + `workalendar.america.Brazil` + pausa SLA + alerta D-1 — P-EQP-R5) |
-| AC-EQP-002b-3 | GAP | T-EQP-020 (`INV-EQP-002` — CHECK `solicitante_id != decisor_id` + competência declarada) |
-| AC-EQP-002b-4 | GAP | T-EQP-021 (Django admin botão aprovar/rejeitar + `parecer_gestor_texto` anti-PII) |
-| AC-EQP-002b-5 | GAP | T-EQP-022 (eventos aprovada/rejeitada/expirada via `publicar_evento`) |
-| AC-EQP-002b-6 | GAP | T-EQP-023 (predicate `decisor_tem_competencia_para_atividade` + stub `CompetenciaDeclarada` — P-EQP-R4) |
+| AC-EQP-002b-1 | **OK** | T-EQP-018 ✅ FECHADO 2026-05-23: modelo `AprovacaoPendenteEquipamentoVersao` (16 campos) em `models.py` + enum `StatusAprovacaoVersao` (4: pendente/aprovada/rejeitada/expirada) + constante `STATUS_TERMINAIS_APROVACAO`. Migration `0008` com RLS pattern v2 + trigger PG `aprovacao_versao_anti_mutacao_terminal_trg` (BEFORE UPDATE bloqueia mutação em 12 campos quando `OLD.status ∈ {aprovada,rejeitada,expirada}`). |
+| AC-EQP-002b-2 | GAP | T-EQP-019 (SLA D+3/D+7 + `workalendar.america.Brazil` + pausa SLA + alerta D-1 — P-EQP-R5; placeholder dias-corridos no service até workalendar) |
+| AC-EQP-002b-3 | **OK** | T-EQP-020 ✅ FECHADO 2026-05-23: CHECK `ck_aprovacao_solicitante_neq_decisor` na Meta.constraints (`~Q(solicitante=F('decisor'))`) + validação no `clean()` do modelo + assert no `services_aprovacao._decidir` (3 camadas — defesa em profundidade ISO 17025 cl. 6.2). |
+| AC-EQP-002b-4 | **OK** (sem admin) | T-EQP-021 ✅ FECHADO 2026-05-23 (validator parte): `validators.validar_parecer_gestor_texto` (>=30 chars + anti-PII via `conter_pii_direta`). Aplicado no `clean()` quando status=APROVADA/REJEITADA. Django admin (UI) fica Wave A com restante de telas. |
+| AC-EQP-002b-5 | **OK** | T-EQP-022 ✅ FECHADO 2026-05-23: services `aprovar`/`rejeitar`/`expirar` publicam 3 ações canônicas novas (`equipamento.versao_aprovada/rejeitada/expirada`) registradas em `acoes_canonicas.ACOES_EQUIPAMENTOS` com payload sanitizado (hashes HMAC do tenant para parecer/IDs; lista positiva implícita — não vaza texto cru). |
+| AC-EQP-002b-6 | **OK** | T-EQP-023 ✅ FECHADO 2026-05-22 junto com US-EQP-007: `predicates.decisor_tem_competencia_para_atividade` em `responsavel_tecnico/predicates.py`. |
 
 ### US-EQP-003 — Ficha 360° + scan QR + PWA
 

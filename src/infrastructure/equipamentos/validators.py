@@ -182,6 +182,34 @@ def texto_rejeicao_422_pos_cert(campo: str) -> str:
     return _CHAVE_PARA_TEXTO[chave]
 
 
+# T-EQP-021 (INV-EQP-VERSAO-001 reuso) — parecer_gestor_texto em
+# `AprovacaoPendenteEquipamentoVersao` rejeita PII direta + exige
+# >=30 chars (decisao auditavel).
+PARECER_GESTOR_MIN_CHARS: Final[int] = 30
+
+MENSAGEM_REJEICAO_PARECER_PII: Final[str] = (
+    "LGPD art. 5º I + INV-EQP-VERSAO-001 — parecer_gestor_texto contem "
+    "PII direta (CPF/CNPJ/e-mail/telefone/nomes proprios consecutivos). "
+    "Reformule sem dados pessoais."
+)
+
+
+def validar_parecer_gestor_texto(valor: str | None) -> None:
+    """Valida `parecer_gestor_texto` da Aprovacao (AC-EQP-002b-4).
+
+    - Exige >=30 chars (decisao auditavel ISO 17025 cl. 6.2).
+    - SEMPRE anti-PII (mesma regex INV-EQP-VERSAO-001 / INV-EQP-LOC-001).
+    """
+    texto = (valor or "").strip()
+    if len(texto) < PARECER_GESTOR_MIN_CHARS:
+        raise ValueError(
+            f"parecer_gestor_texto exige >={PARECER_GESTOR_MIN_CHARS} chars "
+            f"(atual={len(texto)}). ISO 17025 cl. 6.2 — decisao auditavel."
+        )
+    if conter_pii_direta(texto):
+        raise ValueError(MENSAGEM_REJEICAO_PARECER_PII)
+
+
 def validar_motivo_detalhe(
     valor: str | None,
     *,

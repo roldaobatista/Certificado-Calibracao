@@ -330,6 +330,32 @@ MOTIVOS_QUE_OBRIGAM_APROVACAO: frozenset[str] = frozenset(
 )
 
 
+class StatusAprovacaoVersao(models.TextChoices):
+    """Enum fechado de estados da aprovacao (AC-EQP-002b-1).
+
+    Maquina:
+    - PENDENTE -> APROVADA (gestor_qualidade decide)
+    - PENDENTE -> REJEITADA (gestor_qualidade decide)
+    - PENDENTE -> EXPIRADA (job Procrastinate apos SLA)
+    - APROVADA / REJEITADA / EXPIRADA = TERMINAIS (trigger PG bloqueia
+      qualquer UPDATE saindo destes estados).
+    """
+
+    PENDENTE = "pendente", "Pendente de decisao do gestor"
+    APROVADA = "aprovada", "Aprovada"
+    REJEITADA = "rejeitada", "Rejeitada"
+    EXPIRADA = "expirada", "Expirada por SLA"
+
+
+STATUS_TERMINAIS_APROVACAO: frozenset[str] = frozenset(
+    {
+        StatusAprovacaoVersao.APROVADA.value,
+        StatusAprovacaoVersao.REJEITADA.value,
+        StatusAprovacaoVersao.EXPIRADA.value,
+    }
+)
+
+
 class EquipamentoVersao(models.Model):
     """Versao auditada de mudanca em campo descritivo do equipamento
     (US-EQP-002 — AC-EQP-002-1; T-EQP-012).
@@ -521,3 +547,176 @@ class EquipamentoVersao(models.Model):
             from django.core.exceptions import ValidationError
 
             raise ValidationError({"motivo_detalhe": str(exc)}) from exc
+
+
+class AprovacaoPendenteEquipamentoVersao(models.Model):
+    """Aprovacao gestor_qualidade pra `EquipamentoVersao` com motivo
+    que obriga aprovacao (US-EQP-002b / AC-EQP-002b-1).
+
+    Maquina de estados (trigger PG `aprovacao_versao_anti_mutacao_terminal`
+    em migration 0008): PENDENTE -> APROVADA / REJEITADA / EXPIRADA.
+    Estados terminais sao imutaveis — UPDATE bloqueado.
+
+    INV-EQP-002 (AC-EQP-002b-3 / ISO 17025 cl. 6.2 segregacao): CHECK
+    `ck_aprovacao_solicitante_neq_decisor` proibe solicitante=decisor.
+    Validacao tambem em service (defesa em profundidade).
+
+    `parecer_gestor_texto` (AC-EQP-002b-4): >=30 chars + anti-PII via
+    `validar_parecer_gestor_texto` (mesma regex INV-EQP-VERSAO-001).
+
+    `sla_vencimento` calculado em T-EQP-019 via workalendar
+    (D+3 sem cert / D+7 com cert).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="aprovacoes_versao_equipamento",
+    )
+    equipamento = models.ForeignKey(
+        Equipamento,
+        on_delete=models.PROTECT,
+        related_name="aprovacoes_versao",
+    )
+    solicitante = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        related_name="aprovacoes_versao_solicitadas",
+        help_text="Quem propos a mudanca (geralmente metrologista).",
+    )
+    campo = models.CharField(max_length=50)
+    valor_anterior_hash = models.CharField(max_length=128)
+    valor_novo_hash = models.CharField(max_length=128)
+    motivo_mudanca = models.CharField(
+        max_length=40,
+        choices=MotivoMudancaEquipamentoVersao.choices,
+        help_text="Deve estar em MOTIVOS_QUE_OBRIGAM_APROVACAO.",
+    )
+    motivo_detalhe = models.TextField(
+        help_text=(
+            ">=100 chars + anti-PII (INV-EQP-VERSAO-001). Reuso do "
+            "mesmo validator do EquipamentoVersao."
+        ),
+    )
+    solicitado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+    sla_vencimento = models.DateTimeField(
+        help_text=(
+            "T-EQP-019: D+3 dias uteis se equipamento SEM cert vigente; "
+            "D+7 com cert vigente. Calculado por workalendar.america.Brazil."
+        ),
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=StatusAprovacaoVersao.choices,
+        default=StatusAprovacaoVersao.PENDENTE,
+        help_text="Trigger PG bloqueia UPDATE saindo de estados terminais.",
+    )
+    decisor = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="aprovacoes_versao_decididas",
+        help_text="gestor_qualidade que aprovou/rejeitou. NULL ate decidir.",
+    )
+    parecer_gestor_texto = models.TextField(
+        blank=True,
+        default="",
+        help_text=(
+            ">=30 chars quando decidida (aprovada ou rejeitada). Anti-PII "
+            "via validator (regex INV-EQP-VERSAO-001)."
+        ),
+    )
+    decidida_em = models.DateTimeField(null=True, blank=True)
+    evidencia_documental_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="Opcional: anexo de dossie tecnico que sustenta a decisao.",
+    )
+
+    class Meta:
+        app_label = "equipamentos"
+        db_table = "equipamentos_aprovacao_versao"
+        verbose_name = "Aprovacao de versao de equipamento"
+        verbose_name_plural = "Aprovacoes de versao de equipamentos"
+        ordering = ["-solicitado_em"]
+        indexes = [
+            models.Index(fields=["tenant", "status", "-solicitado_em"]),
+            models.Index(fields=["tenant", "sla_vencimento"]),
+            models.Index(fields=["equipamento", "-solicitado_em"]),
+        ]
+        constraints = [
+            # INV-EQP-002 (ISO 17025 cl. 6.2 segregacao de funcoes).
+            models.CheckConstraint(
+                condition=~models.Q(solicitante=models.F("decisor")),
+                name="ck_aprovacao_solicitante_neq_decisor",
+            ),
+            # AC-EQP-002b-1: decisor + parecer + decidida_em sao
+            # all-or-nothing quando status terminal por decisao humana
+            # (aprovada/rejeitada). EXPIRADA pode ter decisor=NULL
+            # (vem do job). Reforco e na service layer.
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"Aprovacao {self.id} eq={self.equipamento_id} "
+            f"campo={self.campo} status={self.status}"
+        )
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Defesa application: forca clean() (parecer anti-PII; INV-EQP-002)."""
+        self.full_clean(exclude=["sla_vencimento"] if self.pk is None and not self.sla_vencimento else [])
+        super().save(*args, **kwargs)
+
+    def clean(self) -> None:
+        super().clean()
+        from django.core.exceptions import ValidationError
+
+        from src.infrastructure.equipamentos.validators import (
+            validar_motivo_detalhe,
+            validar_parecer_gestor_texto,
+        )
+
+        # INV-EQP-002 (reforco application — CHECK no banco e camada B).
+        if (
+            self.solicitante_id is not None
+            and self.decisor_id is not None
+            and self.solicitante_id == self.decisor_id
+        ):
+            raise ValidationError(
+                {
+                    "decisor": (
+                        "INV-EQP-002 (ISO 17025 cl. 6.2) — solicitante "
+                        "nao pode ser o mesmo que o decisor (segregacao "
+                        "de funcoes)."
+                    )
+                }
+            )
+
+        # AC-EQP-002b-1: motivo_detalhe reusa validador EquipamentoVersao
+        # (sempre obriga >=100 chars + anti-PII, pois entrada na
+        # AprovacaoPendente so existe pra motivos que obrigam aprovacao).
+        try:
+            validar_motivo_detalhe(self.motivo_detalhe, motivo_obriga_detalhe=True)
+        except ValueError as exc:
+            raise ValidationError({"motivo_detalhe": str(exc)}) from exc
+
+        # AC-EQP-002b-4: parecer_gestor_texto obrigatorio quando
+        # decidida (aprovada/rejeitada). EXPIRADA dispensa.
+        if self.status in {
+            StatusAprovacaoVersao.APROVADA,
+            StatusAprovacaoVersao.REJEITADA,
+        }:
+            try:
+                validar_parecer_gestor_texto(self.parecer_gestor_texto)
+            except ValueError as exc:
+                raise ValidationError({"parecer_gestor_texto": str(exc)}) from exc
+            if self.decisor_id is None:
+                raise ValidationError(
+                    {"decisor": "Estado terminal exige decisor."}
+                )
+            if self.decidida_em is None:
+                raise ValidationError(
+                    {"decidida_em": "Estado terminal exige decidida_em."}
+                )
