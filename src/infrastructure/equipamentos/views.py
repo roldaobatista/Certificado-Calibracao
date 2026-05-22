@@ -144,6 +144,9 @@ class EquipamentoViewSet(
         ),
         # T-EQP-051 / US-EQP-006 AC-EQP-006-4: devolver.
         "devolver": "equipamentos.devolver",
+        # T-EQP-015 / US-EQP-002 AC-EQP-002-4: criar versao
+        # (despacha entre criacao direta e solicitacao de aprovacao).
+        "versao": "equipamentos.versionar",
     }
 
     def get_authz_action(self, request) -> str | None:
@@ -1075,6 +1078,103 @@ class EquipamentoViewSet(
                 "equipamento_status": equipamento.status,
             },
             status=status.HTTP_200_OK,
+        )
+
+    # authz-check: skip -- RequireAuthz global + ACTION_MAP['versao'] = 'equipamentos.versionar'
+    @action(detail=True, methods=["post"], url_path="versao")
+    def versao(
+        self, request: Request, id: str | None = None
+    ) -> Response:
+        """POST `/equipamentos/{id}/versao/` — US-EQP-002 (T-EQP-015).
+
+        Despacho automatico (AC-EQP-002-4 / P-EQP-R2):
+        - motivo livre (6 valores) → 201 com `{versao_id}`.
+        - motivo em `MOTIVOS_QUE_OBRIGAM_APROVACAO` → 202 com
+          `{aprovacao_id, sla_vencimento}`.
+        - motivo fora do enum → 400.
+        - motivo_detalhe invalido (curto/PII) → 400 (clean() do modelo).
+        """
+        from django.core.exceptions import ValidationError
+
+        from src.infrastructure.equipamentos.services_versao import (
+            DadosCriacaoVersao,
+            criar_ou_solicitar_versao_equipamento,
+        )
+
+        equipamento = self.get_object()
+        tenant_id = _active_tenant_obrigatorio()
+        user_id = request.user.id
+        assert user_id is not None
+        body = request.data or {}
+
+        evidencia_id_raw = body.get("evidencia_documental_id")
+        evidencia_id: UUID | None = None
+        if evidencia_id_raw:
+            try:
+                evidencia_id = UUID(str(evidencia_id_raw))
+            except ValueError:
+                return Response(
+                    {"detail": "evidencia_documental_id deve ser UUID."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        dados = DadosCriacaoVersao(
+            campo=str(body.get("campo", "")),
+            valor_anterior=str(body.get("valor_anterior", "")),
+            valor_novo=str(body.get("valor_novo", "")),
+            motivo_mudanca=str(body.get("motivo_mudanca", "")),
+            motivo_detalhe=str(body.get("motivo_detalhe", "")),
+            snapshot=body.get("snapshot") or None,
+        )
+
+        try:
+            resultado = criar_ou_solicitar_versao_equipamento(
+                tenant_id=tenant_id,
+                equipamento=equipamento,
+                solicitante_id=user_id,
+                dados=dados,
+                tem_cert_vigente=bool(body.get("tem_cert_vigente", False)),
+                evidencia_documental_id=evidencia_id,
+            )
+        except ValueError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except ValidationError as exc:
+            return Response(
+                {
+                    "detail": (
+                        exc.messages if hasattr(exc, "messages") else str(exc)
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if resultado.exige_aprovacao:
+            from src.infrastructure.equipamentos.models import (
+                AprovacaoPendenteEquipamentoVersao,
+            )
+
+            aprovacao = AprovacaoPendenteEquipamentoVersao.objects.get(
+                id=resultado.aprovacao_id
+            )
+            return Response(
+                {
+                    "aprovacao_id": str(aprovacao.id),
+                    "status": aprovacao.status,
+                    "sla_vencimento": aprovacao.sla_vencimento.isoformat(),
+                    "motivo_mudanca": aprovacao.motivo_mudanca,
+                },
+                status=status.HTTP_202_ACCEPTED,
+            )
+
+        return Response(
+            {
+                "versao_id": str(resultado.versao_id),
+                "exige_aprovacao": False,
+            },
+            status=status.HTTP_201_CREATED,
         )
 
 

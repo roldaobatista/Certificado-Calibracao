@@ -16,11 +16,12 @@ T-EQP-042+043+044+045+046 sucatamento US-EQP-005 completo +
 T-EQP-047+048+049+050+052+058+059 recebimento US-EQP-006 núcleo +
 T-EQP-051 devolução US-EQP-006 fase 2 +
 T-EQP-053+056+057 provisório US-EQP-006 fase 3 +
-**T-EQP-054 jobs Marco 2 (helper `processar_em_contexto_tenant` +
+T-EQP-054 jobs Marco 2 (helper `processar_em_contexto_tenant` +
 2 management commands: marcar_equipamentos_orfaos +
 alertar_aprovacoes_d1_equipamento) +
 T-EQP-055 ambientais + porta stub CAPA +
-T-EQP-060 cláusula contratual recusa foto** entregues;
+T-EQP-060 cláusula contratual recusa foto +
+**T-EQP-015 motivo→aprovação automática (despacho US-EQP-002b)** entregues;
 GATE-EQP-INV025-TRIGGER FECHADO).
 **Sessão 2026-05-22 (continuação)**: T-EQP-054+055+060 fechados.
 **Modo:** AUTÔNOMO.
@@ -49,7 +50,8 @@ GATE-EQP-INV025-TRIGGER FECHADO).
 - T-EQP-054 (helper jobs + 2 commands): **7/7 passed**
 - T-EQP-055 (ambientais + CAPA stub): **15/15 passed**
 - T-EQP-060 (cláusula recusa foto): **5/5 passed**
-- Suíte completa `tests/test_equipamentos*.py`: **252/252 passed** em 93s
+- T-EQP-015 (despacho motivo→aprovação): **9/9 passed**
+- Suíte completa `tests/test_equipamentos*.py`: **261/261 passed** em 106s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **192/192** verdes (22+1 ativos — sem hook novo nesta T)
@@ -491,9 +493,7 @@ rastreados Wave A.
    nativo (Chrome/Edge mobile) + fallback jsQR (Safari/Firefox).
    Service-worker `network-only` para `/qr/*` (impedir cache de payload
    sensível). Depende de aceite do ADR-0018 pelo Roldão.
-2. **US-EQP-002 GAP**: T-EQP-015 (motivo=`outros`/`substituicao_componente`/
-   `atualizacao_firmware` exige aprovação — P-EQP-R2).
-3. **Hooks + docs transversais**: T-EQP-072 (port-binding-validator),
+2. **Hooks + docs transversais**: T-EQP-072 (port-binding-validator),
    T-EQP-073 (trigger-stub-sweep), T-EQP-081 (aviso-aceite-presencial-
    atendente.md), T-EQP-084 (retencao-matriz +5 entradas Marco 2),
    T-EQP-085 (ADR-0022 RT do tenant).
