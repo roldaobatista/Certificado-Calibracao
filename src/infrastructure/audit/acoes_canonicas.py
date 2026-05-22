@@ -53,6 +53,11 @@ ACOES_SISTEMA: Final[frozenset[str]] = frozenset(
         # Payload sanitizado: tenant_id, janela_dia, contagem_requests,
         # limite_calculado, n_equipamentos_ativos.
         "sistema.qr_scraping_suspeito",
+        # T-EQP-056 (AC-EQP-006-6 / P-EQP-R9) — provisorio TTL D+7
+        # vencido sem promocao. Alerta P2 stub Marco 2; consumer real
+        # Wave A PagerDuty. Payload: provisorio_id, tag_provisoria,
+        # tenant_id_alvo, expirado_em.
+        "sistema.provisorio_expirado",
     }
 )
 
@@ -133,6 +138,17 @@ ACOES_EQUIPAMENTOS: Final[frozenset[str]] = frozenset(
         # condicao_visual_devolucao, foto_sha256, termo_versao_id,
         # termo_aceite_hash, devolvido_em. 25a WORM.
         "equipamento.devolvido",
+        # T-EQP-053 (US-EQP-006 AC-EQP-006-6 / INV-EQP-PROV-001 /
+        # Caminho A Roldao) — recebimento provisorio (equipamento sem
+        # cadastro completo). Payload sanitizado: provisorio_id,
+        # tag_provisoria, condicao_visual_chegada, foto_sha256,
+        # ttl_expira_em, data_recebimento. 25a WORM.
+        "equipamento.recebido_provisoriamente",
+        # T-EQP-053 — promocao do provisorio a equipamento definitivo.
+        # Payload sanitizado: provisorio_id, equipamento_id (criado),
+        # recebimento_id (1o canonico), tag_canonica, promovido_em.
+        # 25a WORM (cadeia de evidencia).
+        "equipamento.promovido_de_provisorio",
     }
 )
 

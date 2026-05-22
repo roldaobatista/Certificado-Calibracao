@@ -14,7 +14,8 @@ T-EQP-039+041 consentimento histórico granular +
 T-EQP-027+029+032 rate-limit QR + filtro histórico +
 T-EQP-042+043+044+045+046 sucatamento US-EQP-005 completo +
 T-EQP-047+048+049+050+052+058+059 recebimento US-EQP-006 núcleo +
-**T-EQP-051 devolução US-EQP-006 fase 2** entregues;
+T-EQP-051 devolução US-EQP-006 fase 2 +
+**T-EQP-053+056+057 provisório US-EQP-006 fase 3** entregues;
 GATE-EQP-INV025-TRIGGER FECHADO).
 **Sessão ativa 2026-05-23.**
 **Modo:** AUTÔNOMO.
@@ -39,7 +40,8 @@ GATE-EQP-INV025-TRIGGER FECHADO).
 - T-EQP-042+043+044+045+046 (sucatamento): **16/16 passed** em 8.6s
 - T-EQP-047+048+050+052+058+059 (recebimento núcleo): **17/17 passed** em 10.5s
 - T-EQP-051 (devolução): **13/13 passed** em 9.7s
-- Suíte completa `tests/test_equipamentos*.py`: **210/210 passed** em 74.7s
+- T-EQP-053+056+057 (provisório + TTL + métrica): **15/15 passed** em 11.3s
+- Suíte completa `tests/test_equipamentos*.py`: **225/225 passed** em 131s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **192/192** verdes (22+1 ativos — sem hook novo nesta T)
@@ -95,6 +97,40 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-053+056+057 ✅** (2026-05-23): US-EQP-006 fase 3 —
+  RecebimentoProvisorio (Caminho A Roldão — INV-EQP-PROV-001). Modelo
+  `RecebimentoProvisorio` (tabela SEPARADA, NÃO FK em equipamento) +
+  paralela `RecebimentoProvisorioFoto` (BLOB inline). Migration `0024`
+  RLS v2 + trigger PG `recebimento_provisorio_imutavel_trg` (10
+  campos CORE imutáveis pós-INSERT; matriz status pendente_promocao →
+  promovido/expirado_descartado; estados terminais bloqueiam re-
+  mutação). CHECK Django `ck_provisorio_promovido_all_or_nothing`.
+  Services `criar_provisorio` (valida tag ≥4 + anti-PII + descrição
+  10..200 + anti-PII + foto obrigatória + condição enum + TTL D+7
+  via `timedelta`) + `promover_provisorio` (cria `Equipamento`
+  canônico via `criar_equipamento` reusando pipeline INV-049 + 1º
+  `EquipamentoRecebimento` reusando foto, atualiza
+  `Equipamento.status`→`em_calibracao_lab`, status provisório→
+  `promovido` + `equipamento_promovido_id`+`promovido_em`, one-shot).
+  Service `calcular_taxa_provisorios_mensal` (T-EQP-057): taxa =
+  pendentes_ativos / (recebimentos_canonicos_mes + provisorios_mes),
+  `alerta_excedido` quando >5% (P-EQP-R9 limiar P2). Service
+  `marcar_provisorios_expirados` (T-EQP-056) chamado pelo
+  management command `processar_provisorios_expirados` (itera
+  tenants, marca TTL vencido como `expirado_descartado`, publica
+  `sistema.provisorio_expirado` via `run_as_system`). 3 ações
+  canônicas novas: `equipamento.recebido_provisoriamente` +
+  `equipamento.promovido_de_provisorio` + `sistema.provisorio_expirado`.
+  ViewSet dedicado `RecebimentoProvisorioViewSet` (URL `/api/v1/equipamentos/provisorios/`)
+  com POST criar (201) + POST `{id}/promover/` (200) + GET
+  `metricas/` (200). Seed authz 3 ações em migration `0025`
+  (`receber_provisorio`+`promover_provisorio`: admin_tenant+tecnico;
+  `ler_metricas_provisorio`: admin_tenant). AC-EQP-006-8 cumprido por
+  design (provisório NÃO tem ciclo de devolução próprio — só
+  Equipamento canônico via EquipamentoRecebimento). Trigger FK
+  bloqueio cert→provisório também por design (`Certificado.equipamento_id`
+  é FK em `Equipamento`, impossível referenciar provisório).
+  15/15 testes novos + 225/225 suíte completa — zero regressão.
 - **P4 T-EQP-051 ✅** (2026-05-23): US-EQP-006 fase 2 — devolução
   do equipamento (ISO 17025 cl. 7.4.5). Modelo `EquipamentoDevolucao`
   (1:1 com recebimento, 7 campos) + tabela paralela
@@ -447,14 +483,14 @@ rastreados Wave A.
    nativo (Chrome/Edge mobile) + fallback jsQR (Safari/Firefox).
    Service-worker `network-only` para `/qr/*` (impedir cache de payload
    sensível). Depende de aceite do ADR-0018 pelo Roldão.
-2. **US-EQP-006 fase 3 — provisório** (T-EQP-053+056+057): tabela
-   separada `RecebimentoProvisorio` (Caminho A Roldão — NÃO FK em
-   equipamento) + TTL D+7 + bloqueio devolução sem promoção prévia
-   (P-EQP-R9) + métrica `taxa_provisorios_mensal` com alerta >5%.
-3. **US-EQP-006 fase 4 — jobs + ambientais + CAPA** (T-EQP-054+055):
+2. **US-EQP-006 fase 4 — jobs + ambientais + CAPA** (T-EQP-054+055):
    jobs Marco 2 via `processar_em_contexto_tenant` (P-EQP-T9) +
    campos ambientais (`temp_ambiente_c`, `ur_percentual`, `pressao_kpa`)
    + porta stub `CAPAQueryService` para NC link.
+3. **US-EQP-006 fase 5 — cláusula contratual recusa foto**
+   (T-EQP-060): integrar texto já documentado em
+   `aviso-foto-recebimento.md` §3 no contrato-modelo tenant↔cliente
+   (Wave A `comunicacao-contratual`).
 4. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)

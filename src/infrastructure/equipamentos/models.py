@@ -1593,3 +1593,196 @@ class EquipamentoDevolucaoFoto(models.Model):
             f"Foto devolucao {self.id} dev={self.devolucao_id} "
             f"mime={self.mime_type} bytes={self.tamanho_bytes}"
         )
+
+
+class StatusRecebimentoProvisorio(models.TextChoices):
+    """3 estados do recebimento provisorio (P-EQP-R9 / INV-EQP-PROV-001).
+
+    - `pendente_promocao`: aguardando cadastro completo + foto + RT
+      decidir promocao.
+    - `promovido`: virou `Equipamento` definitivo (1x apenas — campo
+      `equipamento_promovido_id` aponta).
+    - `expirado_descartado`: TTL D+7 vencido sem promocao; job
+      `processar_provisorios_expirados` marca + publica
+      `sistema.provisorio_expirado` (alerta P2).
+    """
+
+    PENDENTE_PROMOCAO = "pendente_promocao", "Pendente de promocao"
+    PROMOVIDO = "promovido", "Promovido a equipamento definitivo"
+    EXPIRADO_DESCARTADO = "expirado_descartado", "Expirado descartado"
+
+
+class RecebimentoProvisorio(models.Model):
+    """Recebimento de equipamento SEM cadastro completo (Caminho A
+    Roldao — INV-EQP-PROV-001 / AC-EQP-006-6 / P-EQP-R9).
+
+    Tabela SEPARADA de `EquipamentoRecebimento`. NAO tem FK em
+    `Equipamento` ate ser promovida — exatamente o caso de uso: o
+    equipamento chegou no laboratorio sem ter sido cadastrado antes
+    (cliente trouxe sem agendamento, sem TAG canonica, sem dados
+    completos do fabricante). Operador registra provisoriamente com
+    o minimo necessario (TAG provisoria + descricao + foto +
+    condicao visual) e ate D+7 o tenant promove para
+    `Equipamento` definitivo (criando 1º EquipamentoRecebimento
+    canonico no MESMO ato).
+
+    **Defesa contra emitir cert sobre provisorio (Wave A — modulo
+    certificados):** trigger PG em `equipamentos_certificado` BLOQUEIA
+    INSERT/UPDATE referenciando `RecebimentoProvisorio.id` em qualquer
+    campo. Marco 2: `certificados` stub nao tem essa FK; defesa fica
+    no design (caller manual nao pode criar cert sobre provisorio
+    porque `Certificado.equipamento_id` ja e FK em Equipamento, e
+    provisorio NAO E Equipamento).
+
+    `equipamento_promovido_id` (NULL ate promover): UUID do
+    `Equipamento` definitivo criado na promocao. Imutavel pos-promocao.
+
+    `ttl_expira_em` (auto D+7 a partir de `data_recebimento`):
+    contagem dia-corrido. Job marca como `expirado_descartado` ao
+    cruzar.
+
+    Imutabilidade pos-INSERT: trigger PG bloqueia mutacao em CORE
+    (tag_provisoria, descricao, foto, recebido_por, data_recebimento,
+    ttl_expira_em); apenas 3 campos podem mutar 1 vez:
+    `status` (pendente → promovido OU expirado), `equipamento_promovido_id`
+    (NULL → UUID na promocao), `promovido_em`.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="recebimentos_provisorios",
+    )
+    tag_provisoria = models.CharField(
+        max_length=50,
+        help_text=(
+            "TAG temporaria operacional (ex: 'PROV-2026-05-23-001'). "
+            "NAO precisa ser unica entre tenants nem entre provisorios — "
+            "a promocao gera TAG canonica em Equipamento.tag (INV-049)."
+        ),
+    )
+    descricao_estimada = models.CharField(
+        max_length=200,
+        help_text=(
+            "Descricao livre informada pelo operador no recebimento "
+            "provisorio (ex: 'Balanca digital marca incerta cap 30kg'). "
+            "Anti-PII (mesmo padrao localizacao_fisica)."
+        ),
+    )
+    condicao_visual_chegada = models.CharField(
+        max_length=30,
+        choices=CondicaoVisualChegada.choices,
+    )
+    foto_storage_key = models.CharField(
+        max_length=64,
+        help_text="Obrigatoria sempre — defesa contra cliente reclamar dano pos-entrega.",
+    )
+    foto_sha256 = models.CharField(
+        max_length=64,
+        help_text="SHA-256 hex do binario pos-EXIF-strip. Imutavel pos-INSERT.",
+    )
+    recebido_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        related_name="provisorios_registrados",
+    )
+    data_recebimento = models.DateTimeField(auto_now_add=True, db_index=True)
+    ttl_expira_em = models.DateTimeField(
+        help_text=(
+            "D+7 dias corridos a partir de data_recebimento. Job "
+            "`processar_provisorios_expirados` marca status="
+            "expirado_descartado ao cruzar."
+        ),
+    )
+    status = models.CharField(
+        max_length=30,
+        choices=StatusRecebimentoProvisorio.choices,
+        default=StatusRecebimentoProvisorio.PENDENTE_PROMOCAO,
+    )
+    equipamento_promovido_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Aponta para Equipamento.id quando promovido. NULL ate "
+            "promocao; UUID imutavel pos-promocao."
+        ),
+    )
+    promovido_em = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        app_label = "equipamentos"
+        db_table = "equipamentos_recebimento_provisorio"
+        verbose_name = "Recebimento provisorio"
+        verbose_name_plural = "Recebimentos provisorios"
+        ordering = ["-data_recebimento"]
+        indexes = [
+            models.Index(fields=["tenant", "status", "-data_recebimento"]),
+            models.Index(fields=["tenant", "ttl_expira_em"]),
+        ]
+        constraints = [
+            # equipamento_promovido_id e promovido_em sao all-or-nothing
+            # com status=promovido.
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(status="promovido")
+                        & models.Q(equipamento_promovido_id__isnull=False)
+                        & models.Q(promovido_em__isnull=False)
+                    )
+                    | (
+                        ~models.Q(status="promovido")
+                        & models.Q(equipamento_promovido_id__isnull=True)
+                        & models.Q(promovido_em__isnull=True)
+                    )
+                ),
+                name="ck_provisorio_promovido_all_or_nothing",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"Provisorio {self.id} tag={self.tag_provisoria} "
+            f"status={self.status}"
+        )
+
+
+class RecebimentoProvisorioFoto(models.Model):
+    """Foto do recebimento provisorio (paralela a
+    EquipamentoRecebimentoFoto / EquipamentoDevolucaoFoto).
+
+    1:1 com RecebimentoProvisorio. BLOB inline Marco 2; Wave A: B2.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="provisorio_fotos",
+    )
+    provisorio = models.OneToOneField(
+        RecebimentoProvisorio,
+        on_delete=models.PROTECT,
+        related_name="foto",
+    )
+    storage_key = models.CharField(
+        max_length=64,
+        unique=True,
+    )
+    conteudo_bytes = models.BinaryField()
+    mime_type = models.CharField(max_length=30)
+    tamanho_bytes = models.PositiveIntegerField()
+    criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        app_label = "equipamentos"
+        db_table = "equipamentos_recebimento_provisorio_foto"
+        verbose_name = "Foto de recebimento provisorio"
+        verbose_name_plural = "Fotos de recebimentos provisorios"
+        ordering = ["-criado_em"]
+
+    def __str__(self) -> str:
+        return (
+            f"Foto provisorio {self.id} prov={self.provisorio_id} "
+            f"bytes={self.tamanho_bytes}"
+        )
