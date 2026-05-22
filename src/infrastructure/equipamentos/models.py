@@ -720,3 +720,163 @@ class AprovacaoPendenteEquipamentoVersao(models.Model):
                 raise ValidationError(
                     {"decidida_em": "Estado terminal exige decidida_em."}
                 )
+
+
+class MotivoCategoriaTransferencia(models.TextChoices):
+    """5 motivos canonicos AC-EQP-004-1."""
+
+    VENDA = "venda", "Venda"
+    COMODATO = "comodato", "Comodato"
+    DOACAO = "doacao", "Doacao"
+    CORRECAO_CADASTRAL = "correcao_cadastral", "Correcao cadastral"
+    OUTRO = "outro", "Outro (motivo_detalhe obrigatorio)"
+
+
+class StatusTransferencia(models.TextChoices):
+    """Estados da transferencia (AC-EQP-004-1).
+
+    - PENDENTE: aguardando aceites validos.
+    - EFETIVADA: ambos aceites validos + Equipamento.cliente_atual_id
+      atualizado + evento publicado.
+    - CANCELADA: rejeitada por cedente OU cessionario OU expirada.
+    """
+
+    PENDENTE = "pendente", "Pendente"
+    EFETIVADA = "efetivada", "Efetivada"
+    CANCELADA = "cancelada", "Cancelada"
+
+
+class ViaAceiteTransferencia(models.TextChoices):
+    """3 vias de aceite (AC-EQP-004-1)."""
+
+    PRESENCIAL_ATENDENTE = (
+        "presencial_atendente",
+        "Presencial via atendente (fraca — exige cap de risco GATE-EQP-S5)",
+    )
+    CONTRATO_FISICO_DIGITALIZADO = (
+        "contrato_fisico_digitalizado",
+        "Contrato fisico digitalizado",
+    )
+    PORTAL_CLIENTE_OTP = (
+        "portal_cliente_otp",
+        "Portal do cliente (OTP — Wave B+ GATE-EQP-3)",
+    )
+
+
+class TransferenciaEquipamentoAceite(models.Model):
+    """Transferencia de equipamento entre clientes do mesmo tenant
+    (US-EQP-004 / T-EQP-034..041).
+
+    Defesa em camadas:
+    - INV-050 (AC-EQP-004-2): cessionario_cliente.tenant_id ==
+      Equipamento.tenant_id. RLS na FK + assert no service.
+    - INV-INT-010 (AC-EQP-004-3): cessionario e cedente nao podem estar
+      bloqueados (predicate Marco 1 `cliente_nao_bloqueado`). Erro 412
+      no endpoint.
+    - AC-EQP-004-5 advogado: termo de transferencia tem 3 clausulas
+      minimas (cravadas em texto canonico Wave A `transferencia-termo.md`;
+      Marco 2 dogfooding aceita ID de versao do termo).
+    - AC-EQP-004-6: cessionario sem `consentimento_historico_expresso=True`
+      no aceite NAO ve historico (filtro no construir_ficha_360
+      Wave A; aqui apenas grava o flag).
+
+    aceite_cedente / aceite_cessionario JSONB com schema:
+    `{tipo: <ViaAceiteTransferencia>, usuario_id_atendente: UUID,
+       observacao: str, consentimento_historico_expresso: bool?}`.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="transferencias_equipamento",
+    )
+    equipamento = models.ForeignKey(
+        Equipamento,
+        on_delete=models.PROTECT,
+        related_name="transferencias",
+    )
+    cedente_cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.PROTECT,
+        related_name="transferencias_como_cedente",
+        null=True,
+        blank=True,
+        db_constraint=False,
+        help_text=(
+            "Cliente cedente — snapshot do `Equipamento.cliente_atual_id` no "
+            "momento da solicitacao. NULL quando equipamento orfao."
+        ),
+    )
+    cessionario_cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.PROTECT,
+        related_name="transferencias_como_cessionario",
+        db_constraint=False,
+        help_text=(
+            "Cliente cessionario. INV-050 cravado: tenant_id deve ser igual "
+            "ao Equipamento.tenant_id (validado em servico + RLS)."
+        ),
+    )
+    motivo_categoria = models.CharField(
+        max_length=30,
+        choices=MotivoCategoriaTransferencia.choices,
+    )
+    motivo_detalhe = models.TextField(
+        blank=True,
+        default="",
+        help_text="Obrigatorio quando motivo_categoria='outro'. Anti-PII Wave A.",
+    )
+    aceite_cedente = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Schema: {tipo: ViaAceiteTransferencia, usuario_id_atendente: "
+            "UUID, observacao: str, consentimento_historico_expresso: bool}. "
+            "{} antes do aceite ser registrado."
+        ),
+    )
+    aceite_cessionario = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Mesmo schema do aceite_cedente.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=StatusTransferencia.choices,
+        default=StatusTransferencia.PENDENTE,
+    )
+    solicitado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+    efetivada_em = models.DateTimeField(null=True, blank=True)
+    cancelada_em = models.DateTimeField(null=True, blank=True)
+    solicitado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        related_name="transferencias_solicitadas",
+    )
+    texto_termo_versao_id = models.CharField(
+        max_length=20,
+        default="v1.0-2026-05-22",
+        help_text=(
+            "Versao do termo de transferencia (3 clausulas advogado). "
+            "Marco 2 default v1.0; Wave A trara `transferencia-termo.md` "
+            "com bump explicito."
+        ),
+    )
+
+    class Meta:
+        app_label = "equipamentos"
+        db_table = "equipamentos_transferencia"
+        verbose_name = "Transferencia de equipamento"
+        verbose_name_plural = "Transferencias de equipamentos"
+        ordering = ["-solicitado_em"]
+        indexes = [
+            models.Index(fields=["tenant", "status", "-solicitado_em"]),
+            models.Index(fields=["equipamento", "-solicitado_em"]),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"Transf {self.id} eq={self.equipamento_id} "
+            f"cessionario={self.cessionario_cliente_id} status={self.status}"
+        )

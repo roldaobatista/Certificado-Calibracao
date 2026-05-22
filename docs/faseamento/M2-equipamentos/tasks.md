@@ -87,13 +87,13 @@ Convenção:
 
 | AC | Estado | T-EQP / nota |
 |----|--------|--------------|
-| AC-EQP-004-1 | GAP | T-EQP-034 (POST `/transferir/` + 3 vias aceite + tabela `TransferenciaEquipamentoAceite` + aviso atendente — P-EQP-A2) |
-| AC-EQP-004-2 | GAP | T-EQP-035 (`INV-050` cross-tenant 422 sem oracle + RLS) |
-| AC-EQP-004-3 | GAP | T-EQP-036 (predicate `cliente_nao_bloqueado` Marco 1 + cessionário/cedente bloqueado 412) |
+| AC-EQP-004-1 | **OK** | T-EQP-034 ✅ FECHADO 2026-05-23: modelo `TransferenciaEquipamentoAceite` (3 enums: `MotivoCategoriaTransferencia` 5, `StatusTransferencia` 3, `ViaAceiteTransferencia` 3) + migration `0012` RLS v2 + endpoint POST `/api/v1/equipamentos/{id}/transferir/`. Service `services_transferencia.solicitar_transferencia`: efetiva imediatamente quando ambos aceites válidos no payload (atualiza `Equipamento.cliente_atual_id` + publica `equipamento.transferido`); senão fica PENDENTE (Wave A: endpoint aceite tardio). Seed authz `equipamentos.transferir` em `migrations/0013` (admin_tenant + tecnico). |
+| AC-EQP-004-2 | **OK** | T-EQP-035 ✅ FECHADO 2026-05-23 junto com T-EQP-034: cessionário cross-tenant → `CessionarioCrossTenant("cliente nao encontrado neste tenant")` → 422 com mensagem genérica (sem oracle). RLS filter na consulta de `Cliente.objects.filter(id=cessionario_id)` + service compara `tenant_id` (defesa em profundidade). |
+| AC-EQP-004-3 | **OK** | T-EQP-036 ✅ FECHADO 2026-05-23 junto com T-EQP-034: reuso `clientes.predicates_authz.cliente_nao_bloqueado` Marco 1. Cedente bloqueado → 412 `lado=cedente`; cessionário bloqueado → 412 `lado=cessionario`; motivo estável (`cliente_bloqueado_inadimplencia`/`cliente_bloqueado_manual`). |
 | AC-EQP-004-4 | GAP | T-EQP-037 (`Idempotency-Key` 24h + concorrência 425 + payload diferente 422 — P-EQP-T6) |
 | AC-EQP-004-5 | GAP | T-EQP-038 (texto termo v1.1 com 4 cláusulas — P-EQP-A1; `texto_versao_id` versionado) |
 | AC-EQP-004-6 | GAP | T-EQP-039 (consentimento histórico granular cedente — P-EQP-R6) |
-| AC-EQP-004-7 | GAP | T-EQP-040 (evento `Equipamento.Transferido` 13 campos — P-EQP-A4) |
+| AC-EQP-004-7 | **PARCIAL** | T-EQP-040 ✅ FECHADO 2026-05-23 junto com T-EQP-034 (versão mínima 8 campos): ação canônica `equipamento.transferido` em `acoes_canonicas.ACOES_EQUIPAMENTOS`. Payload sanitizado: `tenant_id, equipamento_id, transferencia_id, cedente_id_hash, cessionario_id_hash, motivo_categoria, texto_termo_versao_id, transferido_em`. **Pendente Wave A**: 5 campos extras de P-EQP-A4 (`motivo_detalhe_hash, aceite_origem_ts/via, aceite_destino_ts/via, consentimento_compartilhamento_historico, causation_id`) — fica `GATE-EQP-TRANSF-PAYLOAD-COMPLETO` Wave A. |
 | AC-EQP-004-8 | GAP | T-EQP-041 (endpoint revogação consentimento posterior — P-EQP-R6) |
 
 ### US-EQP-005 — Sucatar equipamento

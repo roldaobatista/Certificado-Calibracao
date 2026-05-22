@@ -7,9 +7,10 @@
 T-EQP-012 + T-EQP-016 + T-EQP-017 + T-EQP-013 doc+helper +
 T-EQP-018+020+021+022 US-EQP-002b + T-EQP-019 SLA+job +
 T-EQP-013 trigger PG + T-EQP-071 hook + módulo stub `certificados` +
-T-EQP-024+030+031 ficha 360° + **T-EQP-025+026+033 QR público 3 escopos +
-timing constant** entregues; GATE-EQP-INV025-TRIGGER FECHADO).
-**Sessão em curso 2026-05-23** (US-EQP-003 fases 1 + 2).
+T-EQP-024+030+031 ficha 360° + T-EQP-025+026+033 QR público 3 escopos +
+**T-EQP-034+035+036+040 transferência fundação** entregues;
+GATE-EQP-INV025-TRIGGER FECHADO).
+**Sessão em curso 2026-05-22** (US-EQP-004 fase 1).
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (verificado 2026-05-23)
@@ -25,6 +26,7 @@ timing constant** entregues; GATE-EQP-INV025-TRIGGER FECHADO).
 - ⚠️→✅ **OOM resolvido**: docker-compose ganhou `mem_limit: 12g` (app) / 4g (db); `shm_size: 1g` (app) / 512m (db). **Suite completa: 621 passed em 37min sem OOM.**
 - T-EQP-024+030+031 (ficha 360°): **9/9 passed** em 7.6s
 - T-EQP-025+026+033 (QR público 3 escopos + timing): **10/10 passed** em 8.8s
+- T-EQP-034+035+036+040 (transferência fundação): **12/12 passed** em 6.4s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **179/179** verdes (22 ativos — sem hook novo nesta T)
@@ -80,6 +82,28 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-034+035+036+040 ✅** (2026-05-22): US-EQP-004 fase 1
+  transferência fundação. Modelo `TransferenciaEquipamentoAceite` (3
+  enums novos: `MotivoCategoriaTransferencia` 5 valores,
+  `StatusTransferencia` 3, `ViaAceiteTransferencia` 3) +
+  migration `0012` RLS v2. Service
+  `services_transferencia.solicitar_transferencia`: efetiva
+  imediatamente quando ambos aceites válidos (atualiza
+  `Equipamento.cliente_atual_id` + publica `equipamento.transferido`),
+  senão fica PENDENTE (Wave A: endpoint aceite tardio). INV-050
+  cravado: `CessionarioCrossTenant("cliente nao encontrado neste
+  tenant")` — 422 sem oracle. INV-INT-010: reuso `cliente_nao_bloqueado`
+  Marco 1; cedente/cessionário bloqueado → 412 `lado=...`. Action
+  canônica nova `equipamento.transferido` (payload sanitizado: hashes
+  HMAC de cedente/cessionário, NUNCA UUIDs crus). Endpoint POST
+  `/api/v1/equipamentos/{id}/transferir/` no `EquipamentoViewSet` +
+  seed authz `equipamentos.transferir` em `migrations/0013`. **T-EQP-040
+  PARCIAL** — 8 campos hoje vs 13 do P-EQP-A4 (motivo_detalhe_hash +
+  aceite_origem/destino timestamps/vias + consentimento +
+  causation_id) ficam `GATE-EQP-TRANSF-PAYLOAD-COMPLETO` Wave A.
+  12/12 testes (happy + aceite parcial → pendente + INV-050 422 +
+  INV-INT-010 cedente/cessionário 412 + 3 validações 400 + 403 +
+  payload sanitizado + RLS cross-tenant + status efetivada).
 - **P4 T-EQP-025+026+033 ✅** (2026-05-23): QR público 3 escopos +
   timing constant + 404 indistinguível. GET `/api/v1/qr/{hash}/` via
   `QRPublicoView(PublicEndpoint, APIView)` em `views_qr_publico.py`.
@@ -224,16 +248,19 @@ rastreados Wave A.
 
 ## Próximo passo
 
-1. **US-EQP-003 fase 3** (T-EQP-027+029+032): rate-limit 60req/min IP
-   (Redis) + lockout 24h após 100+ 4xx em 1h + cessionário
-   pós-transferência sem consentimento (depende US-EQP-004) +
-   rate-limit global por tenant + evento `sistema.qr_scraping_suspeito`.
-2. **US-EQP-003 fase 4** (T-EQP-028): PWA scanner `/scan/`
-   (BarcodeDetector nativo + jsQR fallback + SW network-only).
-3. **US-EQP-004 transferir** (T-EQP-034..041): POST `/transferir/` +
-   3 vias aceite + Idempotency-Key + consentimento histórico granular.
-4. **US-EQP-005 sucatamento** + **US-EQP-006 recebimento**.
-5. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
+1. **US-EQP-004 fase 2** (T-EQP-037 + T-EQP-038): Idempotency-Key 24h
+   no POST transferir (reusa horizontal F-A `idempotencia`) +
+   texto canônico do termo v1.1 com 4 cláusulas em
+   `transferencia-termo.md` + helper Python.
+2. **US-EQP-004 fase 3** (T-EQP-039 + T-EQP-041): consentimento histórico
+   granular do cedente + endpoint de revogação posterior +
+   `ConsentimentoHistoricoEquipamento`.
+3. **US-EQP-003 fase 3** (T-EQP-027+029+032): rate-limit 60req/min IP
+   (Redis) + cessionário pós-transferência sem consentimento (agora
+   destravado pela US-EQP-004) + rate-limit global por tenant.
+4. **US-EQP-003 fase 4** (T-EQP-028): PWA scanner.
+5. **US-EQP-005 sucatamento** + **US-EQP-006 recebimento**.
+6. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)
 

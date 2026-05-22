@@ -74,6 +74,11 @@ ACOES_EQUIPAMENTOS: Final[frozenset[str]] = frozenset(
         "equipamento.versao_aprovada",
         "equipamento.versao_rejeitada",
         "equipamento.versao_expirada",
+        # T-EQP-040 (US-EQP-004 AC-EQP-004-7) - efetivacao de
+        # transferencia de equipamento entre clientes (mesmo tenant).
+        # Payload sanitizado: cedente_id_hash + cessionario_id_hash +
+        # transferencia_id + motivo_categoria + texto_termo_versao_id.
+        "equipamento.transferido",
     }
 )
 

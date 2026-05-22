@@ -122,6 +122,8 @@ class EquipamentoViewSet(
         "etiqueta": "equipamentos.imprimir_etiqueta",
         # T-EQP-024 / US-EQP-003 AC-EQP-003-1: ficha 360°.
         "ficha360": "equipamentos.ficha360",
+        # T-EQP-034 / US-EQP-004 AC-EQP-004-1: transferir.
+        "transferir": "equipamentos.transferir",
     }
 
     def get_authz_action(self, request) -> str | None:
@@ -345,6 +347,137 @@ class EquipamentoViewSet(
 
         ficha = construir_ficha_360(equipamento)
         return Response(ficha, status=status.HTTP_200_OK)
+
+
+    # authz-check: skip -- RequireAuthz global + ACTION_MAP['transferir'] = 'equipamentos.transferir'
+    @action(detail=True, methods=["post"], url_path="transferir")
+    def transferir(self, request: Request, id: str | None = None) -> Response:
+        """POST `/equipamentos/{id}/transferir/` — US-EQP-004 (T-EQP-034..040).
+
+        Body:
+        ```
+        {
+          "cessionario_cliente_id": "uuid",
+          "motivo_categoria": "venda|comodato|doacao|correcao_cadastral|outro",
+          "motivo_detalhe": "string (obrigatorio se outro)",
+          "aceite_cedente": {
+            "tipo": "presencial_atendente|contrato_fisico_digitalizado|portal_cliente_otp",
+            "usuario_id_atendente": "uuid",
+            "observacao": "string",
+            "consentimento_historico_expresso": true|false
+          },
+          "aceite_cessionario": {... mesmo schema ...}
+        }
+        ```
+
+        Codigos:
+        - 200 OK + `{transferencia_id, status, foi_efetivada}` quando
+          ambos aceites validos -> EFETIVADA.
+        - 201 Created + `{transferencia_id, status="pendente"}` quando
+          0 ou 1 aceite -> PENDENTE (Wave A: endpoint de aceite tardio).
+        - 412 + `{detail, lado, motivo}` quando cedente/cessionario
+          bloqueado (INV-INT-010 — Marco 1 predicate).
+        - 422 + `{detail: "cliente nao encontrado neste tenant"}` quando
+          cessionario cross-tenant (INV-050 — sem oracle).
+        - 400 + `{detail}` outros erros de validacao.
+        """
+        from uuid import UUID as _UUID
+
+        from .services_transferencia import (
+            Aceite,
+            CessionarioCrossTenant,
+            CessionarioIgualCedente,
+            ClienteBloqueado,
+            DadosSolicitacaoTransferencia,
+            MotivoDetalheObrigatorio,
+            TransferenciaInvalida,
+            solicitar_transferencia,
+        )
+
+        equipamento = self.get_object()
+        tenant_id = _active_tenant_obrigatorio()
+        user_id = request.user.id
+        assert user_id is not None
+
+        body = request.data or {}
+        try:
+            cessionario_id = _UUID(str(body.get("cessionario_cliente_id", "")))
+        except (ValueError, TypeError):
+            return Response(
+                {"detail": "cessionario_cliente_id_invalido"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        def _parse_aceite(payload: dict | None) -> Aceite | None:
+            if not payload:
+                return None
+            try:
+                return Aceite(
+                    tipo=str(payload.get("tipo", "")),
+                    usuario_id_atendente=_UUID(
+                        str(payload.get("usuario_id_atendente", ""))
+                    ),
+                    observacao=str(payload.get("observacao", "")),
+                    consentimento_historico_expresso=bool(
+                        payload.get("consentimento_historico_expresso", False)
+                    ),
+                )
+            except (ValueError, TypeError):
+                return None
+
+        dados = DadosSolicitacaoTransferencia(
+            cessionario_cliente_id=cessionario_id,
+            motivo_categoria=str(body.get("motivo_categoria", "")),
+            motivo_detalhe=str(body.get("motivo_detalhe", "")),
+            aceite_cedente=_parse_aceite(body.get("aceite_cedente")),
+            aceite_cessionario=_parse_aceite(body.get("aceite_cessionario")),
+            texto_termo_versao_id=str(
+                body.get("texto_termo_versao_id", "v1.0-2026-05-22")
+            ),
+        )
+
+        try:
+            resultado = solicitar_transferencia(
+                tenant_id=tenant_id,
+                equipamento=equipamento,
+                solicitado_por_id=user_id,
+                dados=dados,
+            )
+        except CessionarioCrossTenant as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        except ClienteBloqueado as exc:
+            return Response(
+                {
+                    "detail": "cliente_bloqueado",
+                    "lado": exc.lado,
+                    "motivo": exc.motivo,
+                },
+                status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+        except (
+            CessionarioIgualCedente,
+            MotivoDetalheObrigatorio,
+            TransferenciaInvalida,
+        ) as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        status_http = (
+            status.HTTP_200_OK if resultado.foi_efetivada else status.HTTP_201_CREATED
+        )
+        return Response(
+            {
+                "transferencia_id": str(resultado.transferencia.id),
+                "status": resultado.transferencia.status,
+                "foi_efetivada": resultado.foi_efetivada,
+            },
+            status=status_http,
+        )
 
 
 def _resposta_erro_idempotencia(erro: ErroValidacao) -> Response:
