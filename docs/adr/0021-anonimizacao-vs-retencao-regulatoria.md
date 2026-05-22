@@ -128,14 +128,16 @@ max(25a, prazo LGPD do tenant).
 **Fluxo:**
 
 1. Pedido de eliminação chega de cliente PF com OS em estado não-terminal (RASCUNHO/AGENDADA/EM_EXECUCAO).
-2. Sistema **suspende a OS** por 15 dias úteis + notifica cliente:
+2. Sistema **suspende a OS** por **15 dias corridos** (conforme LGPD art. 18 §3º — "prazo razoável" ANPD interpreta como ≤15d corridos; prorrogação justificada pelo art. 18 §4º quando necessário) + notifica cliente:
 
-   > "Identificamos que você tem uma Ordem de Serviço em andamento (OS-####). Esta OS gera obrigação contratual (CC art. 422). Podemos: (a) concluir a OS e iniciar a eliminação após emissão de eventuais documentos legais; (b) cancelar a OS sem cobrança e eliminar imediatamente. Aguardamos sua decisão em até 15 dias úteis (LGPD art. 18 §3º)."
+   > "Identificamos que você tem uma Ordem de Serviço em andamento (OS-####). Esta OS gera obrigação contratual (CC art. 422). Podemos: (a) concluir a OS e iniciar a eliminação após emissão de eventuais documentos legais; (b) cancelar a OS sem cobrança e eliminar imediatamente. Aguardamos sua decisão em até 15 dias corridos (LGPD art. 18 §3º). Caso precisemos de prazo adicional pra completar a OS, comunicaremos formalmente a justificativa (art. 18 §4º) antes de exceder."
 
 3. Cliente responde:
    - **Opção A — concluir OS:** OS prossegue normalmente; quando concluir, sistema aplica matriz ADR-0021 zona A/B/C conforme cert/NF emitido.
    - **Opção B — cancelar:** sistema cancela OS sem cobrança + aplica zona A (eliminação efetiva, pois sem cert/NF).
-   - **Sem resposta em 15d:** sistema cancela automaticamente OS + zona A. Audit logado.
+   - **Sem resposta em 15d corridos:** sistema cancela automaticamente OS + zona A. Audit logado.
+
+4. **Prorrogação justificada (art. 18 §4º — adicionado Onda 7C NOVO-ALTO-4 R2):** quando OS exige >15d corridos pra concluir tecnicamente (ex: cliente farma com prazo regulatório pra liberar lote), tenant notifica cliente formalmente com justificativa (texto canônico em `docs/conformidade/comum/termos/prorrogacao-prazo-eliminacao-v1.0.md` — a criar Wave A). Boa-fé contratual CC art. 422 + transparência LGPD art. 6º VI.
 
 **Implicações:**
 
