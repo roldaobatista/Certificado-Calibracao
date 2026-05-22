@@ -1441,3 +1441,155 @@ class EquipamentoRecebimentoFoto(models.Model):
             f"Foto {self.id} rec={self.recebimento_id} "
             f"mime={self.mime_type} bytes={self.tamanho_bytes}"
         )
+
+
+class EquipamentoDevolucao(models.Model):
+    """Devolucao do equipamento ao cliente (US-EQP-006 AC-EQP-006-4 /
+    ISO 17025 cl. 7.4.5).
+
+    1:1 com EquipamentoRecebimento (o recebimento e o ciclo completo;
+    devolucao encerra o ciclo). Em re-recebimento futuro, novo
+    EquipamentoRecebimento eh criado.
+
+    `condicao_visual_devolucao`: mesmo enum do recebimento
+    (`integro`/`amassado`/etc.) — registra o estado fisico no momento
+    da devolucao para protecao bilateral (RAT-EQP-FOTO).
+
+    `foto_storage_key` + `foto_sha256`: obrigatorios em perfil A
+    (ISO 17025 cl. 7.4.5 — evidencia da devolucao); opcional em B/C/D
+    (Marco 2 dogfooding: obrigatorios sempre — Wave A diferencia por
+    perfil). Imutaveis via trigger PG pos-INSERT.
+
+    `termo_devolucao_versao_id`: versao do termo canonico
+    (`v1.0-2026-05-23`); Wave A: tabela
+    `TermoDevolucaoVersao`.
+
+    `termo_aceite_hash`: HMAC-SHA256 com salt do tenant do payload
+    `f"{texto_termo}|{usuario_id}|{ip_hash}|{aceite_em_iso}"`. Defesa
+    contra adulteracao (cliente nega ter aceitado — laboratorio
+    apresenta hash + texto canonico + log de IP).
+
+    Imutavel pos-INSERT — devolucao e terminal, registro nunca muda.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="devolucoes_equipamento",
+    )
+    recebimento = models.OneToOneField(
+        EquipamentoRecebimento,
+        on_delete=models.PROTECT,
+        related_name="devolucao",
+        help_text=(
+            "OneToOne — uma devolucao encerra um recebimento. "
+            "Re-recebimento futuro cria novo EquipamentoRecebimento."
+        ),
+    )
+    condicao_visual_devolucao = models.CharField(
+        max_length=30,
+        choices=CondicaoVisualChegada.choices,
+        help_text=(
+            "Reusa enum CondicaoVisualChegada (mesmo escopo) — registra "
+            "estado fisico na devolucao (RAT-EQP-FOTO protecao bilateral)."
+        ),
+    )
+    foto_storage_key = models.CharField(
+        max_length=64,
+        help_text=(
+            "Marco 2 dogfooding: obrigatoria sempre. Wave A: opcional em "
+            "perfil B/C/D. Imutavel via trigger PG."
+        ),
+    )
+    foto_sha256 = models.CharField(
+        max_length=64,
+        help_text="SHA-256 hex do binario pos-EXIF-strip. Imutavel pos-INSERT.",
+    )
+    termo_devolucao_versao_id = models.CharField(
+        max_length=30,
+        default="v1.0-2026-05-23",
+        help_text=(
+            "Versao do texto canonico do termo (CPC art. 411 III). "
+            "`termo-devolucao.md` v1.0; Marco 2 default; Wave A: tabela "
+            "`TermoDevolucaoVersao` com bumps."
+        ),
+    )
+    termo_aceite_hash = models.CharField(
+        max_length=128,
+        help_text=(
+            "HMAC-SHA256 com salt tenant de "
+            "`{texto_termo}|{usuario_id}|{ip_hash}|{aceite_em_iso}`. "
+            "Defesa anti-adulteracao + prova de aceite."
+        ),
+    )
+    devolvido_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        related_name="devolucoes_registradas",
+        help_text=(
+            "Atendente/almoxarife que processou a devolucao. Em portal-"
+            "cliente OTP Wave B+ pode ser o proprio cliente."
+        ),
+    )
+    devolvido_em = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        app_label = "equipamentos"
+        db_table = "equipamentos_devolucao"
+        verbose_name = "Devolucao de equipamento"
+        verbose_name_plural = "Devolucoes de equipamentos"
+        ordering = ["-devolvido_em"]
+        indexes = [
+            models.Index(fields=["tenant", "-devolvido_em"]),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"Devolucao {self.id} rec={self.recebimento_id} "
+            f"cond={self.condicao_visual_devolucao}"
+        )
+
+
+class EquipamentoDevolucaoFoto(models.Model):
+    """Foto da devolucao — paralela a `EquipamentoRecebimentoFoto`.
+
+    Justificativa do desdobramento (vs reuso): `EquipamentoRecebimentoFoto`
+    e OneToOne com recebimento. A devolucao precisa de foto INDEPENDENTE
+    (estado fisico na SAIDA — RAT-EQP-FOTO bilateral). Marco 2 dogfooding:
+    BLOB inline (≤5MB); Wave A: B2 (GATE-EQP-2).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="devolucao_fotos",
+    )
+    devolucao = models.OneToOneField(
+        EquipamentoDevolucao,
+        on_delete=models.PROTECT,
+        related_name="foto",
+    )
+    storage_key = models.CharField(
+        max_length=64,
+        unique=True,
+        help_text="UUID opaco — bate com `EquipamentoDevolucao.foto_storage_key`.",
+    )
+    conteudo_bytes = models.BinaryField()
+    mime_type = models.CharField(max_length=30)
+    tamanho_bytes = models.PositiveIntegerField()
+    criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        app_label = "equipamentos"
+        db_table = "equipamentos_devolucao_foto"
+        verbose_name = "Foto de devolucao"
+        verbose_name_plural = "Fotos de devolucoes"
+        ordering = ["-criado_em"]
+
+    def __str__(self) -> str:
+        return (
+            f"Foto devolucao {self.id} dev={self.devolucao_id} "
+            f"mime={self.mime_type} bytes={self.tamanho_bytes}"
+        )

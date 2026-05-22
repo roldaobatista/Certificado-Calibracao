@@ -126,6 +126,13 @@ ACOES_EQUIPAMENTOS: Final[frozenset[str]] = frozenset(
         # NotificacaoClienteService (stub Marco 2). Payload sanitizado.
         # 5a retencao (operacional, nao tecnico).
         "equipamento.notificacao_cliente_aguardando",
+        # T-EQP-051 (US-EQP-006 AC-EQP-006-4) — devolucao do equipamento
+        # ao cliente. Encerra ciclo do laboratorio (CC art. 624 fim do
+        # deposito + ISO 17025 cl. 7.4.5 + CPC art. 411 III). Payload
+        # sanitizado: equipamento_id, recebimento_id, devolucao_id,
+        # condicao_visual_devolucao, foto_sha256, termo_versao_id,
+        # termo_aceite_hash, devolvido_em. 25a WORM.
+        "equipamento.devolvido",
     }
 )
 

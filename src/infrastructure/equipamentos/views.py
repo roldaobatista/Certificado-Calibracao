@@ -68,6 +68,7 @@ ENDPOINT_REVOGAR_CONSENT_HISTORICO = "equipamentos.revogar_consentimento_histori
 ENDPOINT_SUCATEAR = "equipamentos.sucatear"
 ENDPOINT_RECEBER = "equipamentos.receber"
 ENDPOINT_TRANSICIONAR_RECEBIMENTO = "equipamentos.transicionar_recebimento"
+ENDPOINT_DEVOLVER = "equipamentos.devolver"
 
 
 def _hashear_ip_request(request, tenant_id: UUID) -> str:
@@ -141,6 +142,8 @@ class EquipamentoViewSet(
         "transicionar_recebimento": (
             "equipamentos.transicionar_recebimento"
         ),
+        # T-EQP-051 / US-EQP-006 AC-EQP-006-4: devolver.
+        "devolver": "equipamentos.devolver",
     }
 
     def get_authz_action(self, request) -> str | None:
@@ -921,6 +924,147 @@ class EquipamentoViewSet(
             {
                 "recebimento_id": str(resultado.recebimento.id),
                 "status_fluxo_lab": resultado.recebimento.status_fluxo_lab,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+    # authz-check: skip -- RequireAuthz global + ACTION_MAP['devolver'] = 'equipamentos.devolver'
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path=(
+            r"recebimentos/(?P<rec_id>[0-9a-f-]{36})/devolver"
+        ),
+    )
+    def devolver(
+        self,
+        request: Request,
+        id: str | None = None,
+        rec_id: str | None = None,
+    ) -> Response:
+        """POST `/equipamentos/{id}/recebimentos/{rec_id}/devolver/` —
+        US-EQP-006 AC-EQP-006-4 (T-EQP-051).
+
+        Multipart-form com `foto` obrigatoria + JSON fields:
+        - `condicao_visual_devolucao`: enum (integro|amassado|...).
+        - `termo_versao_id`: opcional (default v1.0-2026-05-23).
+
+        Codigos:
+        - 200 OK + `{devolucao_id, foto_sha256, termo_aceite_hash,
+          recebimento.status_fluxo_lab, equipamento.status}`.
+        - 400 validacao (condicao invalida, foto ausente/MIME, termo
+          versao desconhecida).
+        - 404 recebimento nao encontrado.
+        - 409 status_fluxo_lab != aguardando_devolucao OU devolucao
+          duplicada.
+        - 403 sem authz.
+        """
+        from uuid import UUID as _UUID
+
+        from src.infrastructure.equipamentos.models import (
+            EquipamentoRecebimento,
+        )
+        from src.infrastructure.equipamentos.services_devolucao import (
+            CondicaoDevolucaoInvalida,
+            DadosDevolucao,
+            DevolucaoDuplicada,
+            DevolucaoInvalida,
+            FotoObrigatoria,
+            StatusFluxoLabNaoAguardando,
+            TermoVersaoInvalida,
+            devolver_equipamento,
+        )
+        from src.infrastructure.equipamentos.services_foto_storage import (
+            FotoInvalida,
+        )
+
+        equipamento = self.get_object()
+        tenant_id = _active_tenant_obrigatorio()
+        user_id = request.user.id
+        assert user_id is not None
+        ip_hash = _hashear_ip_request(request, tenant_id)
+
+        try:
+            rec_uuid = _UUID(str(rec_id))
+        except (ValueError, TypeError):
+            return Response(
+                {"detail": "rec_id_invalido"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        recebimento = EquipamentoRecebimento.objects.filter(
+            id=rec_uuid,
+            tenant_id=tenant_id,
+            equipamento_id=equipamento.id,
+        ).first()
+        if recebimento is None:
+            return Response(
+                {"detail": "recebimento_nao_encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        body = request.data or {}
+        foto_arquivo = request.FILES.get("foto") if request.FILES else None
+        foto_bytes = foto_arquivo.read() if foto_arquivo is not None else b""
+        foto_mime = (
+            foto_arquivo.content_type if foto_arquivo is not None else ""
+        )
+
+        dados = DadosDevolucao(
+            condicao_visual_devolucao=str(body.get("condicao_visual_devolucao", "")),
+            foto_bytes=foto_bytes,
+            foto_mime_type=foto_mime,
+            termo_versao_id=str(
+                body.get("termo_versao_id", "v1.0-2026-05-23")
+            ),
+            ip_hash=ip_hash,
+        )
+
+        try:
+            resultado = devolver_equipamento(
+                tenant_id=tenant_id,
+                equipamento=equipamento,
+                recebimento=recebimento,
+                devolvido_por_id=user_id,
+                dados=dados,
+            )
+        except (
+            CondicaoDevolucaoInvalida,
+            FotoObrigatoria,
+            TermoVersaoInvalida,
+        ) as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except FotoInvalida as exc:
+            return Response(
+                {"detail": str(exc), "codigo": "foto_invalida"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except (
+            StatusFluxoLabNaoAguardando,
+            DevolucaoDuplicada,
+        ) as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except DevolucaoInvalida as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "devolucao_id": str(resultado.devolucao.id),
+                "foto_storage_key": resultado.foto_storage_key,
+                "foto_sha256": resultado.foto_sha256,
+                "termo_aceite_hash": resultado.termo_aceite_hash,
+                "recebimento_status_fluxo_lab": resultado.devolucao.recebimento.status_fluxo_lab,
+                "equipamento_status": equipamento.status,
             },
             status=status.HTTP_200_OK,
         )

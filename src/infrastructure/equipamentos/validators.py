@@ -377,6 +377,96 @@ def aviso_ux_foto_recebimento(
     )
 
 
+# =====================================================================
+# T-EQP-051 (US-EQP-006 AC-EQP-006-4 / ISO 17025 cl. 7.4.5) — texto
+# canonico do termo de devolucao.
+#
+# Fonte unica: docs/conformidade/equipamentos/termo-devolucao.md
+# Mudar texto exige PR + bump `versao_canonica` + advogado.
+# =====================================================================
+
+TEXTO_TERMO_DEVOLUCAO_VERSAO_CANONICA: Final[str] = "v1.0-2026-05-23"
+
+CLAUSULA_DEVOLUCAO_1_ISO_17025: Final[str] = (
+    "O cliente DECLARA expressamente, sob as cominacoes dos arts. 299 "
+    "(falsidade ideologica) e 171 (estelionato) do Codigo Penal e do "
+    "art. 482 alinea 'a' da CLT (justa causa por ato de improbidade), "
+    "que esta recebendo o equipamento identificado pela TAG operacional "
+    "registrada neste termo, e que VERIFICOU presencialmente seu estado "
+    "fisico no momento da retirada. A condicao visual atual esta "
+    "registrada expressamente neste termo (campo "
+    "`condicao_visual_devolucao`) e encerra, neste ato, o periodo de "
+    "manuseio sob responsabilidade do LABORATORIO conforme ISO/IEC "
+    "17025 cl. 7.4.5."
+)
+
+CLAUSULA_DEVOLUCAO_2_CC_624: Final[str] = (
+    "A devolucao ora formalizada encerra, nos termos do art. 624 do "
+    "Codigo Civil, o regime de DEPOSITO do equipamento sob a guarda do "
+    "LABORATORIO. A partir deste ato, a integridade fisica e "
+    "operacional do equipamento passa a responsabilidade integral do "
+    "CLIENTE, salvo defeito oculto cuja origem seja inequivocamente "
+    "atribuivel a atuacao do LABORATORIO durante o periodo de manuseio, "
+    "hipotese em que o CLIENTE devera comunicar o LABORATORIO no prazo "
+    "maximo de 30 (trinta) dias corridos contados da presente "
+    "devolucao, sob pena de preclusao."
+)
+
+CLAUSULA_DEVOLUCAO_3_CERT_VALIDO: Final[str] = (
+    "Eventual certificado de calibracao emitido durante o periodo de "
+    "manuseio do equipamento permanece TECNICAMENTE VALIDO conforme "
+    "ISO/IEC 17025 §7.1.1 — o certificado atesta o estado metrologico "
+    "do equipamento no momento da calibracao, independente da "
+    "titularidade ou posse subsequente. Esta clausula NAO ABRANGE "
+    "eventual cessao de direitos sobre dados pessoais associados ao "
+    "equipamento, regulada em termo de transferencia separado "
+    "(US-EQP-004)."
+)
+
+CLAUSULA_DEVOLUCAO_4_FOTO_LGPD: Final[str] = (
+    "O CLIENTE tem ciencia de que o LABORATORIO registrou FOTOGRAFIA "
+    "do estado fisico do equipamento neste ato de devolucao, em "
+    "cumprimento a ISO/IEC 17025 cl. 7.4.5 (rastreabilidade do "
+    "manuseio) e a LGPD art. 7º V (legitimo interesse para defesa em "
+    "processo judicial, administrativo ou arbitral). A fotografia tem "
+    "finalidade EXCLUSIVA de prova do estado fisico no momento da "
+    "entrega. NAO contem face do cliente, dados pessoais legiveis, "
+    "documentos ou terceiros — apenas o equipamento.\n\n"
+    "Metadados tecnicos (geolocalizacao, modelo de camera, timestamp "
+    "EXIF) sao removidos automaticamente pelo sistema antes do "
+    "armazenamento. Apenas o hash criptografico SHA-256 do conteudo "
+    "final e gravado na cadeia de auditoria imutavel.\n\n"
+    "Politica de retencao: 25 anos (RBC NIT-DICLA-021 + LGPD art. 16). "
+    "Para exercer direitos do titular (LGPD art. 18), entre em contato "
+    "com o Encarregado de Dados (DPO) pelos canais oficiais."
+)
+
+_CLAUSULAS_DEVOLUCAO_V1_0: Final[tuple[str, ...]] = (
+    CLAUSULA_DEVOLUCAO_1_ISO_17025,
+    CLAUSULA_DEVOLUCAO_2_CC_624,
+    CLAUSULA_DEVOLUCAO_3_CERT_VALIDO,
+    CLAUSULA_DEVOLUCAO_4_FOTO_LGPD,
+)
+
+
+def texto_termo_devolucao(
+    versao: str = TEXTO_TERMO_DEVOLUCAO_VERSAO_CANONICA,
+) -> str:
+    """Retorna o texto canonico do termo de devolucao (4 clausulas
+    concatenadas) — US-EQP-006 AC-EQP-006-4.
+
+    Marco 2 entende apenas `v1.0-2026-05-23`. Versoes futuras serao
+    implementadas via tabela `TermoDevolucaoVersao` em Wave A.
+    """
+    if versao != TEXTO_TERMO_DEVOLUCAO_VERSAO_CANONICA:
+        raise ValueError(
+            f"versao '{versao}' nao implementada em Marco 2. Atual: "
+            f"{TEXTO_TERMO_DEVOLUCAO_VERSAO_CANONICA}. Wave A: tabela "
+            "TermoDevolucaoVersao."
+        )
+    return "\n\n".join(_CLAUSULAS_DEVOLUCAO_V1_0)
+
+
 # T-EQP-047+048 (US-EQP-006 AC-EQP-006-1+2 / INV-EQP-ANOM-001+002) —
 # validators do recebimento.
 ANOMALIAS_OBSERVADAS_MAX_CHARS: Final[int] = 500
