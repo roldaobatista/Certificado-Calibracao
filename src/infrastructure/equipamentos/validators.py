@@ -325,6 +325,112 @@ def texto_modal_sucatamento_cert_vigente(
     return TEXTO_MODAL_SUCATAMENTO_CERT_VIGENTE
 
 
+# =====================================================================
+# T-EQP-047 / T-EQP-052 (US-EQP-006 AC-EQP-006-5 / P-EQP-A6 + P-EQP-A8 +
+# P-EQP-S4) — aviso UX da foto de recebimento.
+#
+# Fonte unica: docs/conformidade/equipamentos/aviso-foto-recebimento.md
+# Mudar texto exige PR + bump `versao_canonica` no frontmatter +
+# advogado-saas-regulado.
+# =====================================================================
+
+AVISO_UX_FOTO_RECEBIMENTO_VERSAO_CANONICA: Final[str] = "v1.0-2026-05-23"
+
+
+def aviso_ux_foto_recebimento(
+    versao: str = AVISO_UX_FOTO_RECEBIMENTO_VERSAO_CANONICA,
+) -> str:
+    """Retorna o texto canonico do aviso UX exibido ao operador antes
+    do upload da foto de recebimento (US-EQP-006 AC-EQP-006-5).
+
+    Marco 2 entende apenas `v1.0-2026-05-23`. Versoes futuras serao
+    implementadas via tabela `AvisoFotoRecebimentoVersao` em Wave A.
+    """
+    if versao != AVISO_UX_FOTO_RECEBIMENTO_VERSAO_CANONICA:
+        raise ValueError(
+            f"versao '{versao}' nao implementada em Marco 2. Atual: "
+            f"{AVISO_UX_FOTO_RECEBIMENTO_VERSAO_CANONICA}. Wave A: tabela "
+            "AvisoFotoRecebimentoVersao."
+        )
+    # Texto canonico (lista FECHADA — nao compor inline, nao passar
+    # por LLM). Mudar exige PR + advogado-saas-regulado + bump
+    # `versao_canonica` no frontmatter do doc.
+    return (
+        "ANTES DE TIRAR A FOTO:\n\n"
+        "[ ] Sem face/imagem do cliente final ou de terceiros "
+        "(LGPD art. 5º II).\n\n"
+        "[ ] Sem etiqueta/documento com CPF/RG/nome/e-mail/telefone "
+        "visivel (LGPD art. 5º I — dados de identificacao nao podem "
+        "aparecer fotografados; reposicione o equipamento ou cubra a "
+        "etiqueta).\n\n"
+        "[ ] Sem ambiente que identifique terceiros (outros equipamentos "
+        "com TAGs visiveis pertencentes a outros clientes).\n\n"
+        "[ ] A foto sera PRESERVADA por 25 anos (RBC NIT-DICLA-021 + "
+        "LGPD art. 16 retencao de evidencia forense). Metadados de "
+        "geolocalizacao e modelo de camera sao REMOVIDOS automaticamente "
+        "pelo sistema (TL2).\n\n"
+        "[ ] Declaracao: ao confirmar o upload, atesto sob as cominacoes "
+        "dos arts. 299 (falsidade ideologica) e 171 (estelionato) do "
+        "Codigo Penal e do art. 482 alinea 'a' da CLT (justa causa por "
+        "ato de improbidade) que a foto reflete o estado fisico real "
+        "do equipamento no momento do recebimento."
+    )
+
+
+# T-EQP-047+048 (US-EQP-006 AC-EQP-006-1+2 / INV-EQP-ANOM-001+002) —
+# validators do recebimento.
+ANOMALIAS_OBSERVADAS_MAX_CHARS: Final[int] = 500
+JUSTIFICATIVA_DECISAO_MIN_CHARS: Final[int] = 30
+
+MENSAGEM_REJEICAO_ANOMALIAS_PII: Final[str] = (
+    "LGPD art. 5º I + INV-EQP-ANOM-001 — anomalias_observadas contem "
+    "PII direta (CPF/CNPJ/e-mail/telefone/nomes proprios consecutivos). "
+    "Reformule sem dados pessoais."
+)
+
+MENSAGEM_REJEICAO_JUSTIFICATIVA_DECISAO_PII: Final[str] = (
+    "LGPD art. 5º I + INV-EQP-ANOM-002 — justificativa_decisao contem "
+    "PII direta (CPF/CNPJ/e-mail/telefone/nomes proprios consecutivos). "
+    "Reformule sem dados pessoais."
+)
+
+
+def validar_anomalias_observadas(valor: str | None) -> None:
+    """Valida `anomalias_observadas` do EquipamentoRecebimento
+    (INV-EQP-ANOM-001).
+
+    - Texto opcional (vazio aceito).
+    - Limite 500 chars (defesa anti-DoS + ISO 17025 cl. 7.4 conciso).
+    - Anti-PII (mesma regex INV-EQP-LOC-001).
+    """
+    texto = (valor or "").strip()
+    if len(texto) > ANOMALIAS_OBSERVADAS_MAX_CHARS:
+        raise ValueError(
+            f"anomalias_observadas nao pode passar de "
+            f"{ANOMALIAS_OBSERVADAS_MAX_CHARS} chars (atual={len(texto)})."
+        )
+    if texto and conter_pii_direta(texto):
+        raise ValueError(MENSAGEM_REJEICAO_ANOMALIAS_PII)
+
+
+def validar_justificativa_decisao(valor: str | None) -> None:
+    """Valida `justificativa_decisao` do EquipamentoRecebimento
+    (INV-EQP-ANOM-002).
+
+    - Exige >=30 chars (decisao auditavel ISO 17025 cl. 7.4).
+    - Anti-PII.
+    """
+    texto = (valor or "").strip()
+    if len(texto) < JUSTIFICATIVA_DECISAO_MIN_CHARS:
+        raise ValueError(
+            f"justificativa_decisao exige >="
+            f"{JUSTIFICATIVA_DECISAO_MIN_CHARS} chars (atual={len(texto)}). "
+            "ISO 17025 cl. 7.4 — decisao auditavel."
+        )
+    if conter_pii_direta(texto):
+        raise ValueError(MENSAGEM_REJEICAO_JUSTIFICATIVA_DECISAO_PII)
+
+
 # T-EQP-042 (US-EQP-005 AC-EQP-005-1) — justificativa de sucatamento.
 # >=30 chars + anti-PII (mesma regex INV-EQP-LOC-001). Texto cru NUNCA
 # persistido — service grava apenas hash HMAC com salt do tenant.

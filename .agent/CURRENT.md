@@ -12,7 +12,8 @@ T-EQP-034+035+036+040 transferência fundação +
 T-EQP-037+038 Idempotency + termo v1.1 +
 T-EQP-039+041 consentimento histórico granular +
 T-EQP-027+029+032 rate-limit QR + filtro histórico +
-**T-EQP-042+043+044+045+046 sucatamento US-EQP-005 completo**
+T-EQP-042+043+044+045+046 sucatamento US-EQP-005 completo +
+**T-EQP-047+048+049+050+052+058+059 recebimento US-EQP-006 núcleo**
 entregues; GATE-EQP-INV025-TRIGGER FECHADO).
 **Sessão ativa 2026-05-23.**
 **Modo:** AUTÔNOMO.
@@ -35,7 +36,8 @@ entregues; GATE-EQP-INV025-TRIGGER FECHADO).
 - T-EQP-039+041 (consentimento histórico granular): **13/13 passed** em 11.3s
 - T-EQP-027+029+032 (rate-limit QR + filtro hist.): **8/8 passed** em 33.4s
 - T-EQP-042+043+044+045+046 (sucatamento): **16/16 passed** em 8.6s
-- Suíte completa `tests/test_equipamentos*.py`: **180/180 passed** em 72.7s
+- T-EQP-047+048+050+052+058+059 (recebimento núcleo): **17/17 passed** em 10.5s
+- Suíte completa `tests/test_equipamentos*.py`: **197/197 passed** em 77.4s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **192/192** verdes (22+1 ativos — sem hook novo nesta T)
@@ -91,6 +93,56 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-047+048+049+050+052+058+059 ✅** (2026-05-23): US-EQP-006
+  núcleo do recebimento (ISO 17025 cl. 7.4). Modelo
+  `EquipamentoRecebimento` (6 enum condição + 4 enum decisão + 11 enum
+  `status_fluxo_lab` + foto_storage_key + foto_sha256 + 9 campos).
+  Tabela `EquipamentoRecebimentoFoto` separada (BLOB BYTEA inline
+  Marco 2 dogfooding; Wave A: B2 GATE-EQP-2). Migration `0019` RLS v2
+  + 2 triggers PG: `recebimento_foto_imutavel_trg` (T-EQP-058 bloqueia
+  mutação em `foto_storage_key`/`foto_sha256` pós-INSERT — corretora
+  RAT-EQP-FOTO) + `transicao_status_fluxo_lab_trg` (T-EQP-050 valida
+  matriz fechada de 9 fases + 2 alternativos NC; estados terminais
+  `devolvido`/`nao_conformidade_*` bloqueiam UPDATE). 2 CHECKs Django:
+  `ck_recebimento_anomalia_exige_decisao` (AC-EQP-006-2) +
+  `ck_recebimento_foto_storage_e_sha_all_or_nothing` (P-EQP-S3).
+  Service `services_foto_storage`: `preparar_foto` (valida MIME
+  jpeg/png + ≤5MB + EXIF strip via `ImageOps.exif_transpose` + re-encode
+  + SHA-256 + UUID storage_key — sem persistência) + `persistir_foto_preparada`
+  (grava BLOB após INSERT do recebimento). Override
+  audit-pii-salt-check justificado em `_hash_binario_foto`
+  (SHA-256 de BINÁRIO de imagem cross-tenant, não PII textual; WORM
+  25a forense). Service `services_recebimento.criar_recebimento`
+  orquestra: valida condição/anomalias/decisão/justificativa, prepara
+  foto ANTES do INSERT (chave pra contornar trigger T-EQP-058), grava
+  recebimento já com `foto_storage_key`+`foto_sha256` populados,
+  persiste BLOB foto, publica ação canônica nova `equipamento.recebido`
+  (payload sanitizado: `foto_sha256` + `tem_foto` + `condicao_visual`
+  + `status_fluxo_lab` + (anomalia) `decisao`). Decisao=`contatar_cliente_aguardando`
+  dispara ação adicional `equipamento.notificacao_cliente_aguardando`
+  (consumer real Wave A). Service `transicionar_status_fluxo_lab` +
+  endpoint POST `/recebimentos/{rec_id}/transicionar/` publica
+  `equipamento.recebimento_transicionado`. 3 ações canônicas novas em
+  `acoes_canonicas.ACOES_EQUIPAMENTOS`. Validators novos
+  `validar_anomalias_observadas` (INV-EQP-ANOM-001 — ≤500 + anti-PII)
+  + `validar_justificativa_decisao` (INV-EQP-ANOM-002 — ≥30 +
+  anti-PII). Endpoint POST `/recebimentos/` (action no
+  `EquipamentoViewSet` aceitando multipart-form). Seed authz
+  `equipamentos.receber` + `equipamentos.transicionar_recebimento` em
+  migration `0020`. Doc canônico
+  `docs/conformidade/equipamentos/aviso-foto-recebimento.md` v1.0
+  (P-EQP-A6+A8+S4 — advogado-saas-regulado): aviso UX antes do upload
+  (4 checks: sem face/sem PII/sem terceiros/declaração CLT+CP) +
+  aviso PDF ao cliente STUB Wave A + cláusula contratual direito de
+  recusa (P-EQP-S4) + allowlist semântica anti-CTA. Constantes
+  `AVISO_UX_FOTO_RECEBIMENTO_VERSAO_CANONICA` + texto canônico em
+  `validators.py`; teste anti-drift versão↔frontmatter. 17/17 testes
+  novos. 197/197 testes em `test_equipamentos*.py` — zero regressão.
+  **GAPs Wave A:** AC-EQP-006-4 devolução, AC-EQP-006-6/7/7b
+  provisório+jobs+ambientais, AC-EQP-006-8/9 promoção+métrica
+  taxa_provisorios, AC-EQP-006-12 cláusula contratual recusa foto
+  (já documentada no `aviso-foto-recebimento.md` §3; falta integrar no
+  contrato-modelo do tenant).
 - **P4 T-EQP-042+043+044+045+046 ✅** (2026-05-23): US-EQP-005
   sucatamento completo. Modelo `EquipamentoSucatamento` (1:1 com
   Equipamento, 7 campos + `texto_modal_versao_id` default
@@ -371,13 +423,17 @@ rastreados Wave A.
    nativo (Chrome/Edge mobile) + fallback jsQR (Safari/Firefox).
    Service-worker `network-only` para `/qr/*` (impedir cache de payload
    sensível). Depende de aceite do ADR-0018 pelo Roldão.
-2. **US-EQP-006 recebimento** (T-EQP-047..055): POST `/recebimentos/`
-   condição visual chegada (`integro`/`amassado`/`lacre_violado`/
-   `contaminado`/`sem_acessorios`/`outros`) + anomalias anti-PII +
-   ≥1 foto perfil A (opcional B/C/D) + `foto_sha256` (P-EQP-S3) +
-   recebimento provisório TTL D+7 (P-EQP-R9 — bloqueia devolução sem
-   promoção prévia) + métrica `taxa_provisorios_mensal`.
-3. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
+2. **US-EQP-006 fase 2 — devolução + provisório** (T-EQP-051+053+056+057):
+   POST `/devolucoes/` com termo presencial + tabela separada
+   `RecebimentoProvisorio` (Caminho A Roldão — NÃO FK em equipamento)
+   + TTL D+7 + bloqueio devolução sem promoção prévia (P-EQP-R9) +
+   métrica `taxa_provisorios_mensal` com alerta >5%.
+3. **US-EQP-006 fase 3 — jobs + ambientais + CAPA** (T-EQP-054+055):
+   jobs Marco 2 via `processar_em_contexto_tenant` (P-EQP-T9) +
+   campos ambientais (`temp_ambiente_c`, `ur_percentual`, `pressao_kpa`)
+   + estado `aguardando_padrao_disponivel` já implementado + porta
+   stub `CAPAQueryService` para NC link.
+4. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)
 

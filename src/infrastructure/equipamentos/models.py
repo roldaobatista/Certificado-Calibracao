@@ -1153,3 +1153,291 @@ class EquipamentoSucatamento(models.Model):
             f"Sucatamento {self.id} eq={self.equipamento_id} "
             f"cert_vigente={'sim' if self.tem_cert_vigente_no_momento else 'nao'}"
         )
+
+
+class CondicaoVisualChegada(models.TextChoices):
+    """6 condicoes visuais no recebimento (AC-EQP-006-1)."""
+
+    INTEGRO = "integro", "Integro"
+    AMASSADO = "amassado", "Amassado"
+    LACRE_VIOLADO = "lacre_violado", "Lacre violado"
+    CONTAMINADO = "contaminado", "Contaminado"
+    SEM_ACESSORIOS = "sem_acessorios", "Sem acessorios"
+    OUTROS = "outros", "Outros"
+
+
+class DecisaoAposAnomalia(models.TextChoices):
+    """4 decisoes operacionais quando condicao != integro (AC-EQP-006-2)."""
+
+    PROSSEGUIR = "prosseguir", "Prosseguir mesmo assim"
+    CONTATAR_CLIENTE_AGUARDANDO = (
+        "contatar_cliente_aguardando",
+        "Contatar cliente e aguardar resposta",
+    )
+    RECUSAR_RECEBIMENTO = "recusar_recebimento", "Recusar recebimento"
+    ACEITAR_COM_RESSALVA = "aceitar_com_ressalva", "Aceitar com ressalva"
+
+
+class StatusFluxoLab(models.TextChoices):
+    """9 fases + 2 alternativos terminais (AC-EQP-006-3b / P-EQP-R3).
+
+    Fluxo principal (linear):
+    aguardando_recebimento -> recebido_pendente_inspecao ->
+    em_inspecao_visual -> aguardando_calibracao ->
+    aguardando_padrao_disponivel (P-EQP-R3 — RBC cl. 6.3) ->
+    em_calibracao -> aguardando_aprovacao_tecnica ->
+    aguardando_devolucao -> devolvido.
+
+    Alternativos terminais (caem do fluxo + linkam com RegistroCAPA):
+    - nao_conformidade_recebimento
+    - nao_conformidade_calibracao
+    """
+
+    AGUARDANDO_RECEBIMENTO = "aguardando_recebimento", "Aguardando recebimento"
+    RECEBIDO_PENDENTE_INSPECAO = (
+        "recebido_pendente_inspecao",
+        "Recebido pendente de inspecao",
+    )
+    EM_INSPECAO_VISUAL = "em_inspecao_visual", "Em inspecao visual"
+    AGUARDANDO_CALIBRACAO = "aguardando_calibracao", "Aguardando calibracao"
+    AGUARDANDO_PADRAO_DISPONIVEL = (
+        "aguardando_padrao_disponivel",
+        "Aguardando padrao disponivel (RBC cl. 6.3)",
+    )
+    EM_CALIBRACAO = "em_calibracao", "Em calibracao"
+    AGUARDANDO_APROVACAO_TECNICA = (
+        "aguardando_aprovacao_tecnica",
+        "Aguardando aprovacao tecnica",
+    )
+    AGUARDANDO_DEVOLUCAO = "aguardando_devolucao", "Aguardando devolucao"
+    DEVOLVIDO = "devolvido", "Devolvido"
+    NAO_CONFORMIDADE_RECEBIMENTO = (
+        "nao_conformidade_recebimento",
+        "Nao conformidade no recebimento (CAPA)",
+    )
+    NAO_CONFORMIDADE_CALIBRACAO = (
+        "nao_conformidade_calibracao",
+        "Nao conformidade na calibracao (CAPA)",
+    )
+
+
+# T-EQP-050: estados terminais do fluxo do laboratorio. UPDATE saindo
+# destes esta bloqueado pelo trigger PG.
+STATUS_FLUXO_LAB_TERMINAIS: frozenset[str] = frozenset(
+    {
+        StatusFluxoLab.DEVOLVIDO.value,
+        StatusFluxoLab.NAO_CONFORMIDADE_RECEBIMENTO.value,
+        StatusFluxoLab.NAO_CONFORMIDADE_CALIBRACAO.value,
+    }
+)
+
+
+class EquipamentoRecebimento(models.Model):
+    """Recebimento fisico do equipamento no laboratorio (US-EQP-006 /
+    AC-EQP-006-1+2 / ISO 17025 cl. 7.4).
+
+    Cobre o nucleo do recebimento. Provisorio (RecebimentoProvisorio
+    tabela separada) + devolucao (POST `/devolucoes/`) ficam em
+    entregas futuras de Marco 2 / Wave A.
+
+    `foto_storage_key` (Marco 2): UUID opaco gerado pelo
+    `FotoStorageService.salvar`. Wave A migra para B2 (GATE-EQP-2);
+    Marco 2 dogfooding salva binario inline em
+    `EquipamentoRecebimentoFoto`.
+
+    `foto_sha256` (P-EQP-S3 — AC-EQP-006-10): SHA-256 do binario
+    FINAL pos-EXIF-strip. Imutavel via trigger PG pos-INSERT (corretora
+    RAT-EQP-FOTO).
+
+    `status_fluxo_lab` (AC-EQP-006-3b): maquina de 9 fases + 2
+    alternativos terminais. Trigger PG `transicao_status_fluxo_lab` em
+    migration 0019 valida.
+
+    Defesa em camadas anti-PII:
+    - `anomalias_observadas`: clean valida via `INV-EQP-ANOM-001`.
+    - `justificativa_decisao`: clean valida via `INV-EQP-ANOM-002`.
+
+    `decisao_apos_anomalia`: obrigatoria quando
+    `condicao_visual_chegada != 'integro'`. Service + Django
+    CheckConstraint ck_recebimento_anomalia_exige_decisao reforcam.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="recebimentos_equipamento",
+    )
+    equipamento = models.ForeignKey(
+        Equipamento,
+        on_delete=models.PROTECT,
+        related_name="recebimentos",
+    )
+    condicao_visual_chegada = models.CharField(
+        max_length=30,
+        choices=CondicaoVisualChegada.choices,
+    )
+    anomalias_observadas = models.TextField(
+        blank=True,
+        default="",
+        help_text=(
+            "Anti-PII (INV-EQP-ANOM-001) — texto <=500 chars descrevendo "
+            "o estado fisico. Proibido CPF/CNPJ/email/telefone/nomes."
+        ),
+    )
+    decisao_apos_anomalia = models.CharField(
+        max_length=40,
+        choices=DecisaoAposAnomalia.choices,
+        blank=True,
+        default="",
+        help_text=(
+            "Obrigatoria quando condicao_visual_chegada != 'integro' "
+            "(AC-EQP-006-2). Defesa A: service raise; B: CHECK Django."
+        ),
+    )
+    justificativa_decisao = models.TextField(
+        blank=True,
+        default="",
+        help_text=(
+            ">=30 chars + anti-PII (INV-EQP-ANOM-002) quando decisao "
+            "preenchida. Texto cru gravado (nao hash — auditoria ISO "
+            "17025 cl. 7.4 exige rastreabilidade legivel)."
+        ),
+    )
+    foto_storage_key = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text=(
+            "UUID opaco gerado pelo FotoStorageService.salvar. Vazio quando "
+            "perfil B/C/D recebe sem foto (perfil A: obrigatoria — service "
+            "valida)."
+        ),
+    )
+    foto_sha256 = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text=(
+            "SHA-256 hex do binario FINAL pos-EXIF-strip (P-EQP-S3 / "
+            "corretora RAT-EQP-FOTO). Imutavel via trigger PG pos-INSERT. "
+            "Vazio quando foto_storage_key vazio."
+        ),
+    )
+    status_fluxo_lab = models.CharField(
+        max_length=40,
+        choices=StatusFluxoLab.choices,
+        default=StatusFluxoLab.RECEBIDO_PENDENTE_INSPECAO,
+        help_text=(
+            "9 fases + 2 alternativos (AC-EQP-006-3b). Trigger PG "
+            "`transicao_status_fluxo_lab` valida + estados terminais "
+            "bloqueiam UPDATE."
+        ),
+    )
+    recebido_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        related_name="recebimentos_registrados",
+    )
+    data_recebimento = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        app_label = "equipamentos"
+        db_table = "equipamentos_recebimento"
+        verbose_name = "Recebimento de equipamento"
+        verbose_name_plural = "Recebimentos de equipamentos"
+        ordering = ["-data_recebimento"]
+        indexes = [
+            models.Index(fields=["tenant", "equipamento", "-data_recebimento"]),
+            models.Index(fields=["tenant", "status_fluxo_lab"]),
+        ]
+        constraints = [
+            # AC-EQP-006-2: anomalia exige decisao + justificativa.
+            models.CheckConstraint(
+                condition=(
+                    models.Q(condicao_visual_chegada="integro")
+                    | (
+                        ~models.Q(condicao_visual_chegada="integro")
+                        & ~models.Q(decisao_apos_anomalia="")
+                        & ~models.Q(justificativa_decisao="")
+                    )
+                ),
+                name="ck_recebimento_anomalia_exige_decisao",
+            ),
+            # P-EQP-S3: foto_sha256 e foto_storage_key all-or-nothing.
+            models.CheckConstraint(
+                condition=(
+                    (models.Q(foto_storage_key="") & models.Q(foto_sha256=""))
+                    | (
+                        ~models.Q(foto_storage_key="")
+                        & ~models.Q(foto_sha256="")
+                    )
+                ),
+                name="ck_recebimento_foto_storage_e_sha_all_or_nothing",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"Recebimento {self.id} eq={self.equipamento_id} "
+            f"cond={self.condicao_visual_chegada} status={self.status_fluxo_lab}"
+        )
+
+
+class EquipamentoRecebimentoFoto(models.Model):
+    """Foto do recebimento — armazenamento INLINE em Marco 2 dogfooding
+    (BYTEA) ate Wave A migrar pra B2 (GATE-EQP-2).
+
+    Tabela SEPARADA do recebimento por 2 motivos:
+    1. Permite `EquipamentoRecebimento` ser consultado sem carregar
+       binario (queries de fluxo lab + auditoria nao precisam dele).
+    2. Migracao pra B2 vira `EquipamentoRecebimentoFoto` apenas
+       referencia (`bucket`, `object_key`, `versao_b2`) — modelo
+       sobrevive a troca de storage backend.
+
+    Limite 5MB enforced no service (`FotoStorageService.salvar`); aqui
+    apenas a estrutura.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="recebimento_fotos",
+    )
+    recebimento = models.OneToOneField(
+        EquipamentoRecebimento,
+        on_delete=models.PROTECT,
+        related_name="foto",
+    )
+    storage_key = models.CharField(
+        max_length=64,
+        unique=True,
+        help_text="UUID opaco — bate com `EquipamentoRecebimento.foto_storage_key`.",
+    )
+    conteudo_bytes = models.BinaryField(
+        help_text=(
+            "Binario JPEG/PNG pos-EXIF-strip. Marco 2: ≤5MB inline; "
+            "Wave A migra pra B2 (GATE-EQP-2) — campo permanece como "
+            "fallback ou e dropado depois da migracao."
+        ),
+    )
+    mime_type = models.CharField(
+        max_length=30,
+        help_text="image/jpeg ou image/png (validado no service).",
+    )
+    tamanho_bytes = models.PositiveIntegerField()
+    criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        app_label = "equipamentos"
+        db_table = "equipamentos_recebimento_foto"
+        verbose_name = "Foto de recebimento"
+        verbose_name_plural = "Fotos de recebimentos"
+        ordering = ["-criado_em"]
+
+    def __str__(self) -> str:
+        return (
+            f"Foto {self.id} rec={self.recebimento_id} "
+            f"mime={self.mime_type} bytes={self.tamanho_bytes}"
+        )

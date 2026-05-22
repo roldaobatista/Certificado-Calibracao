@@ -66,6 +66,8 @@ ENDPOINT_CRIAR = "equipamentos.criar"
 ENDPOINT_TRANSFERIR = "equipamentos.transferir"
 ENDPOINT_REVOGAR_CONSENT_HISTORICO = "equipamentos.revogar_consentimento_historico"
 ENDPOINT_SUCATEAR = "equipamentos.sucatear"
+ENDPOINT_RECEBER = "equipamentos.receber"
+ENDPOINT_TRANSICIONAR_RECEBIMENTO = "equipamentos.transicionar_recebimento"
 
 
 def _hashear_ip_request(request, tenant_id: UUID) -> str:
@@ -133,6 +135,12 @@ class EquipamentoViewSet(
         ),
         # T-EQP-042 / US-EQP-005 AC-EQP-005-1: sucatear.
         "sucatear": "equipamentos.sucatear",
+        # T-EQP-047 / US-EQP-006 AC-EQP-006-1: receber.
+        "receber": "equipamentos.receber",
+        # T-EQP-050 / US-EQP-006 AC-EQP-006-3b: transicionar recebimento.
+        "transicionar_recebimento": (
+            "equipamentos.transicionar_recebimento"
+        ),
     }
 
     def get_authz_action(self, request) -> str | None:
@@ -731,6 +739,188 @@ class EquipamentoViewSet(
                     resultado.tem_cert_vigente_no_momento
                 ),
                 "status": "sucata",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+    # authz-check: skip -- RequireAuthz global + ACTION_MAP['receber'] = 'equipamentos.receber'
+    @action(detail=True, methods=["post"], url_path="recebimentos")
+    def receber(
+        self, request: Request, id: str | None = None
+    ) -> Response:
+        """POST `/equipamentos/{id}/recebimentos/` — US-EQP-006 (T-EQP-047+052).
+
+        Aceita multipart-form (foto opcional Marco 2) OU JSON:
+        ```
+        {
+          "condicao_visual_chegada": "integro|amassado|lacre_violado|...",
+          "anomalias_observadas": "string <=500 + anti-PII",
+          "decisao_apos_anomalia": "prosseguir|contatar_cliente_aguardando|...",  // se !integro
+          "justificativa_decisao": "string >=30 + anti-PII",  // se !integro
+        }
+        ```
+        + `foto` (multipart-form key) opcional.
+
+        Codigos: 200 OK + `{recebimento_id, status_fluxo_lab, foto_sha256?}`,
+        400/422 validacao, 403 sem authz.
+        """
+        from src.infrastructure.equipamentos.services_foto_storage import (
+            FotoInvalida,
+        )
+        from src.infrastructure.equipamentos.services_recebimento import (
+            AnomaliaSemDecisao,
+            AnomaliasObservadasInvalidas,
+            CondicaoInvalida,
+            DadosRecebimento,
+            DecisaoInvalida,
+            RecebimentoInvalido,
+            criar_recebimento,
+        )
+        from src.infrastructure.equipamentos.services_recebimento import (
+            JustificativaInvalida as JustifInv,
+        )
+
+        equipamento = self.get_object()
+        tenant_id = _active_tenant_obrigatorio()
+        user_id = request.user.id
+        assert user_id is not None
+
+        body = request.data or {}
+        foto_arquivo = request.FILES.get("foto") if request.FILES else None
+        foto_bytes = foto_arquivo.read() if foto_arquivo is not None else None
+        foto_mime = (
+            foto_arquivo.content_type if foto_arquivo is not None else ""
+        )
+
+        dados = DadosRecebimento(
+            condicao_visual_chegada=str(body.get("condicao_visual_chegada", "")),
+            anomalias_observadas=str(body.get("anomalias_observadas", "")),
+            decisao_apos_anomalia=str(body.get("decisao_apos_anomalia", "")),
+            justificativa_decisao=str(body.get("justificativa_decisao", "")),
+            foto_bytes=foto_bytes,
+            foto_mime_type=foto_mime,
+        )
+
+        try:
+            resultado = criar_recebimento(
+                tenant_id=tenant_id,
+                equipamento=equipamento,
+                recebido_por_id=user_id,
+                dados=dados,
+            )
+        except (
+            CondicaoInvalida,
+            DecisaoInvalida,
+            AnomaliaSemDecisao,
+            AnomaliasObservadasInvalidas,
+            JustifInv,
+        ) as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except FotoInvalida as exc:
+            return Response(
+                {"detail": str(exc), "codigo": "foto_invalida"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except RecebimentoInvalido as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "recebimento_id": str(resultado.recebimento.id),
+                "status_fluxo_lab": resultado.recebimento.status_fluxo_lab,
+                "foto_storage_key": resultado.foto_storage_key,
+                "foto_sha256": resultado.foto_sha256,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    # authz-check: skip -- RequireAuthz global + ACTION_MAP['transicionar_recebimento']
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path=(
+            r"recebimentos/(?P<rec_id>[0-9a-f-]{36})/transicionar"
+        ),
+    )
+    def transicionar_recebimento(
+        self,
+        request: Request,
+        id: str | None = None,
+        rec_id: str | None = None,
+    ) -> Response:
+        """POST `/equipamentos/{id}/recebimentos/{rec_id}/transicionar/` —
+        T-EQP-050.
+
+        Body: `{"status_alvo": "em_inspecao_visual", "observacao": ""}`.
+
+        Codigos: 200 OK / 404 nao encontrado / 409 transicao invalida /
+        400 status_alvo fora enum / 403 sem authz.
+        """
+        from uuid import UUID as _UUID
+
+        from src.infrastructure.equipamentos.models import (
+            EquipamentoRecebimento,
+        )
+        from src.infrastructure.equipamentos.services_recebimento import (
+            TransicaoStatusFluxoLabInvalida,
+            transicionar_status_fluxo_lab,
+        )
+
+        equipamento = self.get_object()
+        tenant_id = _active_tenant_obrigatorio()
+        user_id = request.user.id
+        assert user_id is not None
+
+        try:
+            rec_uuid = _UUID(str(rec_id))
+        except (ValueError, TypeError):
+            return Response(
+                {"detail": "rec_id_invalido"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        recebimento = (
+            EquipamentoRecebimento.objects.filter(
+                id=rec_uuid,
+                tenant_id=tenant_id,
+                equipamento_id=equipamento.id,
+            ).first()
+        )
+        if recebimento is None:
+            return Response(
+                {"detail": "recebimento_nao_encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        body = request.data or {}
+        status_alvo = str(body.get("status_alvo", ""))
+        observacao = str(body.get("observacao", ""))
+
+        try:
+            resultado = transicionar_status_fluxo_lab(
+                tenant_id=tenant_id,
+                recebimento=recebimento,
+                status_alvo=status_alvo,
+                transicionado_por_id=user_id,
+                observacao=observacao,
+            )
+        except TransicaoStatusFluxoLabInvalida as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        return Response(
+            {
+                "recebimento_id": str(resultado.recebimento.id),
+                "status_fluxo_lab": resultado.recebimento.status_fluxo_lab,
             },
             status=status.HTTP_200_OK,
         )

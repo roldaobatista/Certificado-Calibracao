@@ -110,6 +110,22 @@ ACOES_EQUIPAMENTOS: Final[frozenset[str]] = frozenset(
         # justificativa_hash, texto_modal_versao_id,
         # ciencia_validade_tecnica_registrada=True. 25a WORM.
         "equipamento.sucateado_com_cert_vigente",
+        # T-EQP-047+059 (US-EQP-006 AC-EQP-006-1+11 / P-EQP-S3) —
+        # recebimento fisico no laboratorio. Payload sanitizado:
+        # equipamento_id, recebimento_id, condicao_visual_chegada,
+        # status_fluxo_lab, tem_foto, foto_sha256 (hex 64), data_recebimento.
+        # ISO 17025 cl. 7.4 + RBC NIT-DICLA-021. 25a WORM.
+        "equipamento.recebido",
+        # T-EQP-050 (US-EQP-006 AC-EQP-006-3b) — transicao na maquina
+        # status_fluxo_lab. Payload sanitizado: equipamento_id,
+        # recebimento_id, status_origem, status_alvo, tem_observacao.
+        # 25a WORM.
+        "equipamento.recebimento_transicionado",
+        # T-EQP-048 (US-EQP-006 AC-EQP-006-2) — decisao
+        # `contatar_cliente_aguardando` dispara consumer
+        # NotificacaoClienteService (stub Marco 2). Payload sanitizado.
+        # 5a retencao (operacional, nao tecnico).
+        "equipamento.notificacao_cliente_aguardando",
     }
 )
 
