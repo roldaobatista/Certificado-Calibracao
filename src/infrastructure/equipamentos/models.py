@@ -29,11 +29,13 @@ P-EQP-T1, T2, T4, T5, T6, T9; P-EQP-R1.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from django.db import models
 
 from src.infrastructure.clientes.models import Cliente
 from src.infrastructure.tenant.models import Tenant
+from src.infrastructure.usuario.models import Usuario
 
 
 class EquipamentoStatus(models.TextChoices):
@@ -276,3 +278,246 @@ class QRCode(models.Model):
 
     def __str__(self) -> str:
         return f"QR {self.hash[:14]}... (eq {self.equipamento_id})"
+
+
+class MotivoMudancaEquipamentoVersao(models.TextChoices):
+    """Enum fechado RBC B7 + P-EQP-R2 (9 valores).
+
+    Os primeiros 6 sao do AC-EQP-002-1 original (revisao spec STABLE).
+    P-EQP-R2 expandiu para 9 com motivos operacionais frequentes que
+    o agente IA precisaria pedir ao Roldao caso a lista nao incluisse.
+
+    Motivos que OBRIGAM aprovacao gestor_qualidade (US-EQP-002b):
+    `outros`, `substituicao_componente_critico`, `atualizacao_firmware`.
+    Motivos que NAO obrigam aprovacao (rotina): demais 6.
+    """
+
+    CORRECAO_CADASTRAL = "correcao_cadastral", "Correcao cadastral"
+    MUDANCA_LOCAL = "mudanca_local", "Mudanca de local fisico"
+    TROCA_ACESSORIO = "troca_acessorio", "Troca de acessorio"
+    RECALIBRACAO_DIFERENTE_FAIXA = (
+        "recalibracao_diferente_faixa",
+        "Recalibracao em faixa diferente",
+    )
+    MUDANCA_CLASSE_METROLOGICA = (
+        "mudanca_classe_metrologica",
+        "Mudanca de classe metrologica (D->A via funcao SECURITY DEFINER)",
+    )
+    AJUSTE_POS_CALIBRACAO = (
+        "ajuste_pos_calibracao",
+        "Ajuste pos-calibracao (ISO 17025 cl. 6.4.10 — rotina)",
+    )
+    SUBSTITUICAO_COMPONENTE_CRITICO = (
+        "substituicao_componente_critico",
+        "Substituicao de componente critico (afeta rastreabilidade)",
+    )
+    ATUALIZACAO_FIRMWARE = (
+        "atualizacao_firmware",
+        "Atualizacao de firmware (OIML D 31)",
+    )
+    OUTROS = "outros", "Outros (motivo_detalhe obrigatorio + aprovacao)"
+
+
+# T-EQP-015 (P-EQP-R2): conjunto canonico de motivos que disparam fluxo
+# de aprovacao US-EQP-002b. Defesa em profundidade: enum + tupla + check
+# constraint (Wave A).
+MOTIVOS_QUE_OBRIGAM_APROVACAO: frozenset[str] = frozenset(
+    {
+        MotivoMudancaEquipamentoVersao.OUTROS.value,
+        MotivoMudancaEquipamentoVersao.SUBSTITUICAO_COMPONENTE_CRITICO.value,
+        MotivoMudancaEquipamentoVersao.ATUALIZACAO_FIRMWARE.value,
+    }
+)
+
+
+class EquipamentoVersao(models.Model):
+    """Versao auditada de mudanca em campo descritivo do equipamento
+    (US-EQP-002 — AC-EQP-002-1; T-EQP-012).
+
+    Insert-only (sem UPDATE/DELETE — INV-025 imutabilidade pos-emissao
+    de certificado sera cravada via trigger PG em T-EQP-013 quando o
+    modulo certificados existir).
+
+    Hashes:
+    - `valor_anterior_hash`/`valor_novo_hash`: HMAC-SHA256 com salt do
+      tenant (mesmo helper `hashear_pii_com_salt_tenant` do Marco 1).
+      Permite auditoria sem expor valor em claro (INV-EQP-VERSAO-002).
+
+    Assinatura A3 RT (P-EQP-T5):
+    - `assinatura_a3_referencia`: UUID opaco emitido pelo Lacuna
+      cliente-side (GATE-EQP-1 Wave A). Em Marco 2 o campo aceita NULL
+      para motivos que nao exigem A3; quando preenchido, os outros 2
+      campos (`assinada_em`, `certificado_emissor_hash`) tornam-se
+      obrigatorios via CHECK constraint.
+    - Proibido `assinatura_a3_hash` cru ou truncado (INV-EQP-VERSAO-002
+      lista negativa).
+
+    Snapshot:
+    - `snapshot_jsonb`: dump dos campos versionaveis no momento da
+      criacao da versao — permite reconstruir o estado historico sem
+      depender de joins com a tabela viva.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="equipamento_versoes",
+    )
+    equipamento = models.ForeignKey(
+        Equipamento,
+        on_delete=models.PROTECT,
+        related_name="versoes",
+    )
+    campo = models.CharField(
+        max_length=50,
+        help_text=(
+            "Nome do campo do Equipamento que mudou (`modelo`, `faixa`, "
+            "`classe`, `localizacao_fisica`, `perfil_tenant_snapshot`)."
+        ),
+    )
+    valor_anterior_hash = models.CharField(
+        max_length=128,
+        help_text=(
+            "HMAC-SHA256 do valor anterior em claro, salt do tenant. "
+            "Nunca o valor cru (INV-EQP-VERSAO-002)."
+        ),
+    )
+    valor_novo_hash = models.CharField(
+        max_length=128,
+        help_text=(
+            "HMAC-SHA256 do valor novo em claro, salt do tenant. "
+            "Nunca o valor cru (INV-EQP-VERSAO-002)."
+        ),
+    )
+    motivo_mudanca = models.CharField(
+        max_length=40,
+        choices=MotivoMudancaEquipamentoVersao.choices,
+        help_text="Enum fechado RBC B7 + P-EQP-R2 (9 valores).",
+    )
+    motivo_detalhe = models.TextField(
+        blank=True,
+        default="",
+        help_text=(
+            "Texto livre obrigatorio (>=100 chars) quando motivo_mudanca "
+            "obriga aprovacao (outros/substituicao_componente_critico/"
+            "atualizacao_firmware). Anti-PII via clean (INV-EQP-VERSAO-001)."
+        ),
+    )
+    snapshot_jsonb = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Dump dos campos versionaveis do Equipamento no momento da "
+            "criacao desta versao. Permite reconstruir estado historico "
+            "sem depender de joins. `{}` aceito (versoes minimas em "
+            "Marco 2; populado pelo service Wave A)."
+        ),
+    )
+    cliente_atual_id_no_momento = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Snapshot opaco do cliente_atual_id no momento. db_constraint "
+            "= n/a (UUID puro) - cliente pode ser eliminado por LGPD."
+        ),
+    )
+    criado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        related_name="equipamento_versoes_criadas",
+        help_text="Usuario que solicitou a versao.",
+    )
+    # P-EQP-T5 — referencia A3 do RT (NUNCA hash truncado).
+    assinatura_a3_referencia = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "UUID opaco emitido pelo Lacuna cliente-side (GATE-EQP-1 Wave A). "
+            "NULL para motivos que nao exigem A3. Proibido hash truncado "
+            "(INV-EQP-VERSAO-002)."
+        ),
+    )
+    assinatura_a3_assinada_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp do A3 (obrigatorio quando referencia presente).",
+    )
+    assinatura_a3_certificado_emissor_hash = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        help_text=(
+            "HMAC do thumbprint do certificado emissor (AC do A3) com "
+            "salt tenant. Obrigatorio quando referencia presente."
+        ),
+    )
+    criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        app_label = "equipamentos"
+        db_table = "equipamentos_versao"
+        verbose_name = "Versao de equipamento"
+        verbose_name_plural = "Versoes de equipamentos"
+        ordering = ["-criado_em"]
+        indexes = [
+            models.Index(fields=["tenant", "equipamento", "-criado_em"]),
+            models.Index(fields=["equipamento", "campo", "-criado_em"]),
+            models.Index(fields=["tenant", "motivo_mudanca"]),
+        ]
+        constraints = [
+            # P-EQP-T5: assinatura A3 e all-or-nothing.
+            models.CheckConstraint(
+                condition=(
+                    models.Q(assinatura_a3_referencia__isnull=True)
+                    | (
+                        models.Q(assinatura_a3_referencia__isnull=False)
+                        & models.Q(assinatura_a3_assinada_em__isnull=False)
+                        & ~models.Q(assinatura_a3_certificado_emissor_hash="")
+                    )
+                ),
+                name="ck_eqp_versao_a3_all_or_nothing",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"Versao {self.id} eq={self.equipamento_id} "
+            f"campo={self.campo} motivo={self.motivo_mudanca}"
+        )
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Insert-only (T-EQP-012). UPDATE bloqueado em codigo;
+        T-EQP-013 cravara trigger PG quando modulo certificados existir."""
+        if self.pk is not None and EquipamentoVersao.objects.filter(pk=self.pk).exists():
+            raise RuntimeError(
+                "EquipamentoVersao e INSERT-only (INV-025 imutabilidade "
+                "pos-cert; trigger PG em T-EQP-013)."
+            )
+        # Forca clean (defesa: codigo que cria via .objects.create pula).
+        self.full_clean(exclude=["assinatura_a3_assinada_em"])
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        raise RuntimeError(
+            "EquipamentoVersao e INSERT-only. DELETE bloqueado em codigo."
+        )
+
+    def clean(self) -> None:
+        """INV-EQP-VERSAO-001 — validador `motivo_detalhe` anti-PII +
+        tamanho minimo quando motivo obriga aprovacao."""
+        super().clean()
+        from src.infrastructure.equipamentos.validators import (
+            validar_motivo_detalhe,
+        )
+
+        try:
+            validar_motivo_detalhe(
+                self.motivo_detalhe,
+                motivo_obriga_detalhe=self.motivo_mudanca
+                in MOTIVOS_QUE_OBRIGAM_APROVACAO,
+            )
+        except ValueError as exc:
+            from django.core.exceptions import ValidationError
+
+            raise ValidationError({"motivo_detalhe": str(exc)}) from exc

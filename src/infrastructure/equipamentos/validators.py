@@ -75,6 +75,40 @@ MENSAGEM_LIMITE_LOCALIZACAO: Final[str] = (
     f"localizacao_fisica nao pode passar de {LIMITE_LOCALIZACAO_FISICA} caracteres."
 )
 
+# T-EQP-016 (INV-EQP-VERSAO-001): motivo_detalhe em `EquipamentoVersao`
+# rejeita PII direta (mesma regex de INV-EQP-LOC-001). LGPD art. 5º I +
+# ISO 17025 cl. 7.5 — campo textual de auditoria nao pode ter dado pessoal.
+MOTIVO_DETALHE_MIN_CHARS_QUANDO_OBRIGATORIO: Final[int] = 100
+
+MENSAGEM_REJEICAO_MOTIVO_DETALHE_PII: Final[str] = (
+    "LGPD art. 5º I + INV-EQP-VERSAO-001 — motivo_detalhe contem PII direta "
+    "(CPF/CNPJ/e-mail/telefone/nomes proprios consecutivos). Reformule sem "
+    "dados pessoais."
+)
+
+
+def validar_motivo_detalhe(
+    valor: str | None,
+    *,
+    motivo_obriga_detalhe: bool,
+) -> None:
+    """Valida `motivo_detalhe` de `EquipamentoVersao` (INV-EQP-VERSAO-001).
+
+    - Quando `motivo_obriga_detalhe=True` (motivos `outros`,
+      `substituicao_componente_critico`, `atualizacao_firmware`): exige
+      >=100 chars.
+    - Quando vazio/None com `motivo_obriga_detalhe=False`: OK (skip).
+    - SEMPRE anti-PII se preenchido.
+    """
+    texto = (valor or "").strip()
+    if motivo_obriga_detalhe and len(texto) < MOTIVO_DETALHE_MIN_CHARS_QUANDO_OBRIGATORIO:
+        raise ValueError(
+            f"motivo_detalhe exige >={MOTIVO_DETALHE_MIN_CHARS_QUANDO_OBRIGATORIO} "
+            f"chars quando motivo_mudanca obriga aprovacao (atual={len(texto)})."
+        )
+    if texto and conter_pii_direta(texto):
+        raise ValueError(MENSAGEM_REJEICAO_MOTIVO_DETALHE_PII)
+
 
 def conter_pii_direta(texto: str) -> bool:
     """True se o texto contiver CPF, CNPJ, e-mail, telefone ou >=2 nomes

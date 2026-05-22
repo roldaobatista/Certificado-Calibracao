@@ -50,11 +50,11 @@ Convenção:
 
 | AC | Estado | T-EQP / nota |
 |----|--------|--------------|
-| AC-EQP-002-1 | GAP | T-EQP-012 (`EquipamentoVersao` + enum 9 valores `motivo_mudanca` — P-EQP-R2) |
+| AC-EQP-002-1 | **OK** | T-EQP-012 ✅ FECHADO 2026-05-23: modelo `EquipamentoVersao` em `src/infrastructure/equipamentos/models.py` com 14 campos (id, tenant, equipamento, campo, valor_anterior_hash, valor_novo_hash, motivo_mudanca, motivo_detalhe, snapshot_jsonb, cliente_atual_id_no_momento, criado_por, assinatura_a3_referencia/assinada_em/certificado_emissor_hash, criado_em) + enum `MotivoMudancaEquipamentoVersao` 9 valores (P-EQP-R2: + `ajuste_pos_calibracao` + `substituicao_componente_critico` + `atualizacao_firmware`) + constante `MOTIVOS_QUE_OBRIGAM_APROVACAO` frozenset. Migration `0007_equipamentoversao.py` com RLS pattern v2 (4 policies SELECT/UPDATE/DELETE/INSERT) + CHECK `ck_eqp_versao_a3_all_or_nothing` (P-EQP-T5 — A3 referência+assinada_em+certificado_emissor_hash all-or-nothing). INSERT-only em Python (save() e delete() levantam RuntimeError; trigger PG fica T-EQP-013 quando módulo certificados existir). 13/13 testes passed. |
 | AC-EQP-002-2 | GAP | T-EQP-013 (`INV-025` imutabilidade pós-cert + texto canônico 422 T1-T5) |
 | AC-EQP-002-3 | TRACK | GATE-EQP-1 (A3 RT cliente-side via Lacuna — Wave A); endpoint contrato em T-EQP-014 |
 | AC-EQP-002-4 | GAP | T-EQP-015 (motivo=`outros`/`substituicao_componente`/`atualizacao_firmware` exige aprovação — P-EQP-R2) |
-| AC-EQP-002-5 | GAP | T-EQP-016 (`INV-EQP-VERSAO-001` — regex anti-PII em `motivo_detalhe`) |
+| AC-EQP-002-5 | **OK** | T-EQP-016 ✅ FECHADO 2026-05-23 junto com T-EQP-012: `validators.validar_motivo_detalhe` (anti-PII via reuso `conter_pii_direta` + ≥100 chars quando motivo ∈ MOTIVOS_QUE_OBRIGAM_APROVACAO). Aplicado no `clean()` do modelo → `ValidationError`. 4 testes anti-PII (CPF, email, nome próprio consecutivo, justificativa curta). |
 | AC-EQP-002-6 | GAP | T-EQP-017 (`INV-EQP-VERSAO-002` — payload com `assinatura_a3_referencia` UUID; lista positiva/negativa — P-EQP-T5) |
 
 ### US-EQP-002b — Aprovação gestor_qualidade

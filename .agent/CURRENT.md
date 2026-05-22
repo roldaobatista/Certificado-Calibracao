@@ -3,21 +3,23 @@
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
 **Fase:** Marco 1 **FECHADO** + Marco 2 `equipamentos` em P4 (T-EQP-001
-+ 006 + 002 + 003 + US-EQP-007 + T-EQP-005 + T-EQP-007 + **T-EQP-009**
-entregues).
-**Sessão em curso 2026-05-23** (T-EQP-009 promoção D→A SECURITY DEFINER).
++ 006 + 002 + 003 + US-EQP-007 + T-EQP-005 + T-EQP-007 + T-EQP-009 +
+**T-EQP-012 + T-EQP-016** entregues).
+**Sessão em curso 2026-05-23** (T-EQP-012+016 EquipamentoVersao + anti-PII).
 **Modo:** AUTÔNOMO.
 
-## Estado da suíte (verificado 2026-05-23 início de sessão)
+## Estado da suíte (verificado 2026-05-23)
 
-- Arquivo novo T-EQP-009: **15/15 passed** em 4.8s (isolado validado)
+- T-EQP-009: **15/15 passed** em 4.8s
+- T-EQP-012+016: **13/13 passed** em 4.0s
 - Hooks: **179/179** verdes (22 ativos — sem hook novo nesta T)
-- `makemigrations --check`: limpo
+- `makemigrations --check`: limpo; ruff zero issues
 - ⚠️ **Suite completa não pôde rodar** nesta sessão por OOM do WSL2/Docker
-  Desktop (exit 137 em runs >50 testes); Roldão precisa reiniciar Docker
-  Desktop pra rodar suíte completa. Validação isolada confirma T-EQP-009
-  + regressão `inv_eqp_rt_001` 3/3 verdes.
-- Working tree: 5 arquivos novos/alterados (T-EQP-009)
+  Desktop (exit 137 em runs >50 testes); reiniciar Docker não resolveu.
+  Pode ser quota WSL2 — `.wslconfig` com `memory=8GB` talvez. Validação
+  isolada confirma os 28 novos testes (T-EQP-009 + T-EQP-012/016) + 3
+  regressão inv_eqp_rt_001 verdes.
+- Working tree: T-EQP-012+016 novos arquivos / alterações
 
 ## Marco 1 `clientes` — FECHADO
 
@@ -66,6 +68,21 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-012 + T-EQP-016 ✅** (2026-05-23): modelo `EquipamentoVersao`
+  (US-EQP-002 fundação) — 14 campos, enum `MotivoMudancaEquipamentoVersao`
+  9 valores (P-EQP-R2), constante `MOTIVOS_QUE_OBRIGAM_APROVACAO` (3 que
+  disparam US-EQP-002b: `outros` + `substituicao_componente_critico` +
+  `atualizacao_firmware`). Migration `0007_equipamentoversao.py` com RLS
+  pattern v2 (4 policies SELECT/UPDATE/DELETE/INSERT) + CHECK
+  `ck_eqp_versao_a3_all_or_nothing` (P-EQP-T5: A3 referência+assinada_em+
+  certificado_emissor_hash all-or-nothing — proíbe referência sozinha).
+  INSERT-only em Python via `save()`/`delete()` (trigger PG INV-025 fica
+  T-EQP-013 quando módulo certificados existir). `validators.validar_motivo_detalhe`
+  cravado em `clean()` (anti-PII via `conter_pii_direta` + ≥100 chars
+  quando motivo obriga aprovação). 13/13 testes (1 happy + enum 9 +
+  motivos obrigatórios + 3 PII: CPF/email/nome + curta + opcional vazio
+  + RLS cross-tenant + INSERT-only save + INSERT-only delete + CHECK A3
+  sozinha falha + CHECK A3 NULL OK).
 - **P4 T-EQP-009 ✅** (2026-05-23): função PG SECURITY DEFINER
   `promover_perfil_equipamento_snapshot(uuid, text, uuid, text, uuid,
   uuid)` em migration `0006_promover_perfil_funcao.py` — direção
@@ -99,15 +116,23 @@ rastreados Wave A.
 
 ## Próximo passo
 
-1. **US-EQP-002 versionamento** (T-EQP-012..017): `EquipamentoVersao`
-   + enum 9 motivos + `INV-025` imutabilidade pós-cert + textos 422 +
-   `INV-EQP-VERSAO-002` payload sanitizado. Quando T-EQP-012 fechar,
-   estender `services_perfil.promover_perfil_equipamento` pra criar
-   `EquipamentoVersao` com `motivo_mudanca=mudanca_classe_metrologica`
-   na mesma transação (TODO já documentado no service).
-2. **US-EQP-002b aprovação gestor_qualidade** (T-EQP-018..023): SLA
+1. **T-EQP-017** (`INV-EQP-VERSAO-002` payload sanitizado): service
+   `services_versao.py` com `criar_versao_equipamento` publicando
+   `equipamento.versao_criada` no bus_outbox. Payload com APENAS
+   hashes + UUIDs + nome do campo + enum motivo. Lista positiva (5)
+   + negativa (7: motivo_detalhe cru, valor_anterior/novo crus,
+   cliente_atual_id cru, assinatura_a3_hash truncado, numero_serie).
+   Ação canônica nova: `equipamento.versao_criada`.
+2. **T-EQP-013** (`INV-025` trigger PG imutabilidade pós-cert): depende
+   de módulo certificados existir (Wave A). Por ora, INV-025 documentar
+   em REGRAS-INEGOCIAVEIS.md + textos canônicos 422 T1-T5 em
+   `docs/conformidade/equipamentos/textos-rejeicao-422.md`.
+3. **US-EQP-002b** (T-EQP-018..023): aprovação gestor_qualidade. SLA
    D+3/D+7 + competência declarada (US-EQP-007 ✅ já tem predicate).
-3. Sequência em `docs/faseamento/M2-equipamentos/tasks.md` §"Próximo passo".
+4. Quando T-EQP-013 fechar, estender `services_perfil.promover_perfil_equipamento`
+   pra criar `EquipamentoVersao` com `motivo_mudanca=mudanca_classe_metrologica`
+   na mesma transação (TODO já documentado no service).
+5. Sequência em `docs/faseamento/M2-equipamentos/tasks.md` §"Próximo passo".
 
 ## Pendências rastreadas (não bloqueiam)
 
