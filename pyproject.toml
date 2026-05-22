@@ -31,6 +31,12 @@ weasyprint = "^62.3"
 # constraint direta (poetry escolheria 0.12+ que quebra import).
 pydyf = "<0.11"
 qrcode = {version = "^7.4.2", extras = ["pil"]}
+# Marco 2 — SLA em dias uteis BR (T-EQP-019 / AC-EQP-002b-2). workalendar
+# fornece calendarios completos com feriados nacionais + estaduais ja
+# embutidos (Brasil base + 27 UFs). Manter manual exigiria atualizar
+# feriados moveis (Carnaval, Corpus Christi) a cada ano. MIT, sem CVE
+# recente, mantido pelo Peopledoc/UKG.
+workalendar = "^17.0.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.4.10"
@@ -121,6 +127,7 @@ django_settings_module = "config.settings.dev"
 module = [
     "procrastinate.*", "factory.*", "semgrep.*", "environ.*", "django_otp.*",
     "qrcode", "qrcode.*", "weasyprint", "weasyprint.*",
+    "workalendar", "workalendar.*",
 ]
 ignore_missing_imports = true
 

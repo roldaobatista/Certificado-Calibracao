@@ -29,12 +29,13 @@ Eventos publicados via `publicar_evento`:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
 from django.db import transaction
 from django.utils import timezone
+from workalendar.america import Brazil
 
 from src.infrastructure.audit.event_helpers import publicar_evento
 from src.infrastructure.audit.services import hashear_pii_com_salt_tenant
@@ -79,16 +80,36 @@ class ResultadoAprovacao:
     outbox_enfileirado: bool
 
 
-# Default temporario ate T-EQP-019 trazer workalendar.
-SLA_DIAS_DEFAULT_SEM_CERT: int = 3
-SLA_DIAS_DEFAULT_COM_CERT: int = 7
+# T-EQP-019 (AC-EQP-002b-2 / P-EQP-R5): SLA em dias UTEIS BR via
+# workalendar. Defaults — D+3 (sem cert vigente) / D+7 (com cert).
+# Extensao estadual cabe a Wave A (quando tenant tiver UF declarada,
+# trocar Brazil() por subclass BrazilAcre/BrazilSaoPaulo/...).
+SLA_DIAS_UTEIS_SEM_CERT: int = 3
+SLA_DIAS_UTEIS_COM_CERT: int = 7
+
+_calendario_brasil = Brazil()
 
 
-def _sla_vencimento_provisorio(tem_cert_vigente: bool) -> datetime:
-    """T-EQP-019 substituira por workalendar.america.Brazil (dias
-    UTEIS). Por ora soma dias corridos como placeholder."""
-    dias = SLA_DIAS_DEFAULT_COM_CERT if tem_cert_vigente else SLA_DIAS_DEFAULT_SEM_CERT
-    return timezone.now() + timedelta(days=dias)
+def calcular_sla_vencimento(
+    *,
+    tem_cert_vigente: bool,
+    base: datetime | None = None,
+) -> datetime:
+    """Retorna `base + N dias uteis BR` (workalendar.america.Brazil).
+
+    - N = 7 quando equipamento tem certificado vigente (mais urgencia
+      de revisao porque o cert ja afeta cliente final);
+    - N = 3 quando sem cert (revisao interna, menos critica).
+
+    `workalendar` cobre todos os feriados nacionais BR + feriados
+    moveis (Carnaval, Corpus Christi). Wave A trocara `Brazil()` por
+    subclass estadual quando tenant declarar UF.
+    """
+    inicio = base or timezone.now()
+    dias = SLA_DIAS_UTEIS_COM_CERT if tem_cert_vigente else SLA_DIAS_UTEIS_SEM_CERT
+    nova_data = _calendario_brasil.add_working_days(inicio.date(), dias)
+    # add_working_days retorna date; preserva hora do `inicio`.
+    return datetime.combine(nova_data, inicio.time(), tzinfo=inicio.tzinfo)
 
 
 def solicitar_aprovacao(
@@ -128,7 +149,9 @@ def solicitar_aprovacao(
             valor_novo_hash=valor_novo_hash,
             motivo_mudanca=dados.motivo_mudanca,
             motivo_detalhe=dados.motivo_detalhe,
-            sla_vencimento=_sla_vencimento_provisorio(tem_cert_vigente),
+            sla_vencimento=calcular_sla_vencimento(
+                tem_cert_vigente=tem_cert_vigente
+            ),
             evidencia_documental_id=dados.evidencia_documental_id,
         )
         aprovacao.save()  # clean() roda — INV-EQP-VERSAO-001 enforce.
@@ -212,6 +235,30 @@ def _decidir(
         cadeia_linha_id=evento.cadeia_linha_id,
         outbox_enfileirado=evento.outbox_enfileirado,
     )
+
+
+def expirar_aprovacoes_vencidas(
+    *,
+    tenant_id: UUID,
+) -> list[ResultadoAprovacao]:
+    """Job-helper T-EQP-019 — itera aprovacoes PENDENTES com
+    sla_vencimento <= now() e chama `expirar` em cada uma.
+
+    Pre-condicao: caller deve setar `app.active_tenant_id` (RLS).
+    Chamado pelo management command
+    `processar_aprovacoes_expiradas_equipamento` em todos os tenants.
+    """
+    agora = timezone.now()
+    pendentes_vencidas = AprovacaoPendenteEquipamentoVersao.objects.filter(
+        status=StatusAprovacaoVersao.PENDENTE,
+        sla_vencimento__lte=agora,
+    )
+    resultados: list[ResultadoAprovacao] = []
+    for aprovacao in pendentes_vencidas:
+        resultados.append(
+            expirar(tenant_id=tenant_id, aprovacao=aprovacao)
+        )
+    return resultados
 
 
 def aprovar(

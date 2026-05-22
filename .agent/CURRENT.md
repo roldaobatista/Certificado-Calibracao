@@ -5,9 +5,9 @@
 **Fase:** Marco 1 **FECHADO** + Marco 2 `equipamentos` em P4 (T-EQP-001
 + 006 + 002 + 003 + US-EQP-007 + T-EQP-005 + T-EQP-007 + T-EQP-009 +
 T-EQP-012 + T-EQP-016 + T-EQP-017 + T-EQP-013 doc+helper +
-**T-EQP-018+020+021+022 US-EQP-002b** entregues; T-EQP-019 SLA
-workalendar pendente; trigger PG INV-025 dependente certificados Wave A).
-**Sessão em curso 2026-05-23** (US-EQP-002b aprovação gestor_qualidade).
+T-EQP-018+020+021+022 US-EQP-002b + **T-EQP-019 SLA+job**
+entregues; trigger PG INV-025 dependente certificados Wave A).
+**Sessão em curso 2026-05-23** (US-EQP-002b completa).
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (verificado 2026-05-23)
@@ -17,6 +17,7 @@ workalendar pendente; trigger PG INV-025 dependente certificados Wave A).
 - T-EQP-017: **11/11 passed** em 8.0s
 - T-EQP-013: **7/7 passed** em 0.7s (textos canônicos T1-T5 + anti-drift)
 - T-EQP-018+020+021+022 (US-EQP-002b): **11/11 passed** em 3.5s
+- T-EQP-019 (SLA workalendar + job): **8/8 passed** em 4.9s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **179/179** verdes (22 ativos — sem hook novo nesta T)
@@ -72,6 +73,16 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-019 ✅** (2026-05-23): SLA workalendar + job de expiração.
+  Dep nova `workalendar ^17.0.0` (MIT, sem CVE recente) em `pyproject.toml`.
+  `services_aprovacao.calcular_sla_vencimento(tem_cert_vigente, base)`
+  usa `workalendar.america.Brazil` — dias úteis BR incluindo feriados
+  móveis Carnaval+Corpus Christi (D+3 sem cert / D+7 com cert).
+  `expirar_aprovacoes_vencidas(tenant_id)` itera PENDENTEs vencidas e
+  chama `expirar`. Management command
+  `processar_aprovacoes_expiradas_equipamento` itera multi-tenant.
+  PARCIAL: faltam pausa SLA + alerta D-1 + extensão estadual +
+  agendamento Procrastinate (Wave A). 8/8 testes em 4.9s.
 - **P4 T-EQP-018+020+021+022 ✅** (2026-05-23): fundação **US-EQP-002b**
   (aprovação gestor_qualidade) — modelo `AprovacaoPendenteEquipamentoVersao`
   (16 campos), enum `StatusAprovacaoVersao` 4 valores, constante
@@ -157,18 +168,14 @@ rastreados Wave A.
 
 ## Próximo passo
 
-1. **T-EQP-019** (SLA workalendar + job Procrastinate
-   `job_aprovacao_versionamento_escalacao`): adicionar dep `workalendar`,
-   substituir `_sla_vencimento_provisorio` em `services_aprovacao.py`
-   por cálculo de dias úteis BR + extensão estadual; job diário 03:00
-   BRT marca `status=expirada` via `services_aprovacao.expirar`; alerta
-   P2 + métrica `aprovacao_versionamento_expiradas_dia`.
-2. **T-EQP-014** (endpoint POST `/equipamentos/{id}/versao/assinar/`):
+1. **T-EQP-014** (endpoint POST `/equipamentos/{id}/versao/assinar/`):
    contrato pra A3 cliente-side via Lacuna (GATE-EQP-1 Wave A).
-3. **US-EQP-003 ficha 360°** (T-EQP-024..033): GET `/equipamentos/{id}/`
+2. **US-EQP-003 ficha 360°** (T-EQP-024..033): GET `/equipamentos/{id}/`
    + 3 escopos QR (A/B/C) + timing constant + rate-limit + PWA.
-4. **US-EQP-004 transferir** (T-EQP-034..041): POST `/transferir/` +
+3. **US-EQP-004 transferir** (T-EQP-034..041): POST `/transferir/` +
    3 vias aceite + Idempotency-Key + consentimento histórico granular.
+4. **US-EQP-005 sucatamento** (T-EQP-042..046): POST `/sucatear/` +
+   modal duplo consentimento + template notificação.
 5. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)
