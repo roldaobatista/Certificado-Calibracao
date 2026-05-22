@@ -147,7 +147,12 @@ recusa expressa de documentação fotográfica do equipamento.
 ```
 
 **Constantes:** `CLAUSULA_RECUSA_FOTO_VERSAO_CANONICA`,
-`CLAUSULA_RECUSA_FOTO` em `validators.py` (Wave A).
+`CLAUSULA_RECUSA_FOTO` em `src/infrastructure/equipamentos/validators.py`
+(T-EQP-060 — 2026-05-23 — fonte única do texto canônico Marco 2; Wave A
+`comunicacao-contratual` lê daqui).
+
+Helper Python: `clausula_contratual_recusa_foto(versao)` em
+`validators.py` — fail-loud se `versao` desconhecida (anti-drift).
 
 ---
 

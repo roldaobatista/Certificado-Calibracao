@@ -15,10 +15,14 @@ T-EQP-027+029+032 rate-limit QR + filtro histórico +
 T-EQP-042+043+044+045+046 sucatamento US-EQP-005 completo +
 T-EQP-047+048+049+050+052+058+059 recebimento US-EQP-006 núcleo +
 T-EQP-051 devolução US-EQP-006 fase 2 +
-**T-EQP-053+056+057 provisório US-EQP-006 fase 3** entregues;
+T-EQP-053+056+057 provisório US-EQP-006 fase 3 +
+**T-EQP-054 jobs Marco 2 (helper `processar_em_contexto_tenant` +
+2 management commands: marcar_equipamentos_orfaos +
+alertar_aprovacoes_d1_equipamento) +
+T-EQP-055 ambientais + porta stub CAPA +
+T-EQP-060 cláusula contratual recusa foto** entregues;
 GATE-EQP-INV025-TRIGGER FECHADO).
-**Sessão encerrada 2026-05-23** (6 commits enviados: 592651f, 9594420,
-2f3920c, 26dd88a, b30fb96, 1ccb3b9).
+**Sessão 2026-05-22 (continuação)**: T-EQP-054+055+060 fechados.
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (verificado 2026-05-23)
@@ -42,7 +46,10 @@ GATE-EQP-INV025-TRIGGER FECHADO).
 - T-EQP-047+048+050+052+058+059 (recebimento núcleo): **17/17 passed** em 10.5s
 - T-EQP-051 (devolução): **13/13 passed** em 9.7s
 - T-EQP-053+056+057 (provisório + TTL + métrica): **15/15 passed** em 11.3s
-- Suíte completa `tests/test_equipamentos*.py`: **225/225 passed** em 131s
+- T-EQP-054 (helper jobs + 2 commands): **7/7 passed**
+- T-EQP-055 (ambientais + CAPA stub): **15/15 passed**
+- T-EQP-060 (cláusula recusa foto): **5/5 passed**
+- Suíte completa `tests/test_equipamentos*.py`: **252/252 passed** em 93s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **192/192** verdes (22+1 ativos — sem hook novo nesta T)
@@ -484,15 +491,15 @@ rastreados Wave A.
    nativo (Chrome/Edge mobile) + fallback jsQR (Safari/Firefox).
    Service-worker `network-only` para `/qr/*` (impedir cache de payload
    sensível). Depende de aceite do ADR-0018 pelo Roldão.
-2. **US-EQP-006 fase 4 — jobs + ambientais + CAPA** (T-EQP-054+055):
-   jobs Marco 2 via `processar_em_contexto_tenant` (P-EQP-T9) +
-   campos ambientais (`temp_ambiente_c`, `ur_percentual`, `pressao_kpa`)
-   + porta stub `CAPAQueryService` para NC link.
-3. **US-EQP-006 fase 5 — cláusula contratual recusa foto**
-   (T-EQP-060): integrar texto já documentado em
-   `aviso-foto-recebimento.md` §3 no contrato-modelo tenant↔cliente
-   (Wave A `comunicacao-contratual`).
-4. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
+2. **US-EQP-002 GAP**: T-EQP-015 (motivo=`outros`/`substituicao_componente`/
+   `atualizacao_firmware` exige aprovação — P-EQP-R2).
+3. **Hooks + docs transversais**: T-EQP-072 (port-binding-validator),
+   T-EQP-073 (trigger-stub-sweep), T-EQP-081 (aviso-aceite-presencial-
+   atendente.md), T-EQP-084 (retencao-matriz +5 entradas Marco 2),
+   T-EQP-085 (ADR-0022 RT do tenant).
+4. **Suite anti-regressão**: T-EQP-090..104 (≥42 testes happy + unhappy
+   + cross-tenant) + T-EQP-105 drill `validar_m2_equipamentos`.
+5. Sequência em `docs/faseamento/M2-equipamentos/tasks.md`.
 
 ## Pendências rastreadas (não bloqueiam)
 

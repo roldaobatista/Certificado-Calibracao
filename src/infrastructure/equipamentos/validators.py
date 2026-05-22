@@ -336,6 +336,68 @@ def texto_modal_sucatamento_cert_vigente(
 
 AVISO_UX_FOTO_RECEBIMENTO_VERSAO_CANONICA: Final[str] = "v1.0-2026-05-23"
 
+# =====================================================================
+# T-EQP-060 (US-EQP-006 AC-EQP-006-12 / P-EQP-S4) — clausula contratual
+# que da ao laboratorio o direito de recusar recebimento sem RC quando
+# o cliente recusa a documentacao fotografica.
+#
+# Fonte unica: docs/conformidade/equipamentos/aviso-foto-recebimento.md §3
+# Mudar texto exige PR + advogado-saas-regulado + bump
+# CLAUSULA_RECUSA_FOTO_VERSAO_CANONICA + frontmatter do doc.
+#
+# Marco 2 expoe APENAS a constante + helper — o gerador de contrato
+# tenant<->cliente (Wave A `comunicacao-contratual`) lera daqui.
+# =====================================================================
+
+CLAUSULA_RECUSA_FOTO_VERSAO_CANONICA: Final[str] = "v1.0-2026-05-23"
+
+CLAUSULA_RECUSA_FOTO: Final[str] = (
+    "CLAUSULA — DOCUMENTACAO FOTOGRAFICA DE RECEBIMENTO\n\n"
+    "Para fins de cumprimento da ISO/IEC 17025 cl. 7.4 e de protecao "
+    "contra responsabilizacao por dano pre-existente, o LABORATORIO "
+    "registra, no momento da entrada do equipamento, fotografia do seu "
+    "estado fisico — exclusivamente do equipamento, sem face do cliente, "
+    "sem dados pessoais legiveis e sem terceiros.\n\n"
+    "Caso o CLIENTE recuse, no momento do recebimento, a documentacao "
+    "fotografica do equipamento, o LABORATORIO tera o direito de:\n\n"
+    "(a) Recusar o recebimento do equipamento, sem qualquer onus, multa "
+    "ou indenizacao ao CLIENTE; ou\n\n"
+    "(b) Aceitar o recebimento mediante termo de RESPONSABILIDADE "
+    "INTEGRAL do CLIENTE pelo estado fisico do equipamento na entrega, "
+    "isentando o LABORATORIO de qualquer pretensao futura de "
+    "indenizacao por dano pre-existente, com renuncia expressa do "
+    "CLIENTE ao direito de demandar judicialmente sobre o tema.\n\n"
+    "A escolha entre (a) e (b) cabe exclusivamente ao LABORATORIO, em "
+    "decisao a ser registrada no fluxo de nao-conformidade interno "
+    "(ISO 17025 cl. 8.7) e comunicada ao CLIENTE por escrito no mesmo "
+    "ato.\n\n"
+    "Fundamento legal: ISO/IEC 17025 cl. 7.4; LGPD art. 7º V (legitimo "
+    "interesse); Codigo Civil arts. 421 (funcao social do contrato) e "
+    "462 (responsabilidade objetiva por dano pre-existente). Esta "
+    "clausula NAO afasta direitos basicos do CLIENTE previstos no CDC "
+    "(arts. 6º, 39 e 51), aplicando-se apenas a hipotese especifica de "
+    "recusa expressa de documentacao fotografica do equipamento."
+)
+
+
+def clausula_contratual_recusa_foto(
+    versao: str = CLAUSULA_RECUSA_FOTO_VERSAO_CANONICA,
+) -> str:
+    """Retorna o texto canonico da clausula contratual de recusa de
+    foto (P-EQP-S4 / AC-EQP-006-12).
+
+    Marco 2 entende apenas `v1.0-2026-05-23`. Versoes futuras serao
+    implementadas via tabela `ClausulaContratualVersao` em Wave A
+    (`comunicacao-contratual`).
+    """
+    if versao != CLAUSULA_RECUSA_FOTO_VERSAO_CANONICA:
+        raise ValueError(
+            f"versao '{versao}' nao implementada em Marco 2. Atual: "
+            f"{CLAUSULA_RECUSA_FOTO_VERSAO_CANONICA}. Wave A: tabela "
+            "ClausulaContratualVersao em `comunicacao-contratual`."
+        )
+    return CLAUSULA_RECUSA_FOTO
+
 
 def aviso_ux_foto_recebimento(
     versao: str = AVISO_UX_FOTO_RECEBIMENTO_VERSAO_CANONICA,
