@@ -27,6 +27,7 @@ GATE-EQP-INV025-TRIGGER FECHADO).
 - T-EQP-024+030+031 (ficha 360°): **9/9 passed** em 7.6s
 - T-EQP-025+026+033 (QR público 3 escopos + timing): **10/10 passed** em 8.8s
 - T-EQP-034+035+036+040 (transferência fundação): **12/12 passed** em 6.4s
+- T-EQP-037+038 (Idempotency-Key + termo v1.1): **12/12 passed** em 8.0s
 - modelo_001 (regressão): **8/8 passed**
 - inv_eqp_rt_001 (regressão): **3/3 passed**
 - Hooks: **179/179** verdes (22 ativos — sem hook novo nesta T)
@@ -82,6 +83,19 @@ rastreados Wave A.
   `decisor_tem_competencia_para_atividade()` em `predicates.py` (Wave A
   usa em US-EQP-002b-6). Endpoints DRF: POST cadastrar/encerrar/trocar/
   competencias. 10 testes integrados + 3 anti-regressão T-EQP-094.
+- **P4 T-EQP-037+038 ✅** (2026-05-22): US-EQP-004 fase 2 — Idempotency-Key
+  no POST transferir + texto canônico do termo v1.1 com 4 cláusulas.
+  T-EQP-037: integração `avaliar_chave_idempotencia` no endpoint (reusa
+  horizontal F-A); política 400 ausente/inválido / 422 payload divergente
+  / 200 replay determinístico (mesmo `transferencia_id`); `falhar_chave`
+  em todos os erros 4xx/5xx. T-EQP-038: doc
+  `docs/conformidade/equipamentos/transferencia-termo.md` v1.1-2026-05-22
+  com 4 cláusulas pré-aprovadas advogado (LGPD art. 18 + Lei 14.063
+  art. 4º/CP/CLT + não-cessão garantia/cert ISO 17025 cl. 8.4 +
+  **NOVA v1.1 titularidade do dado pessoal não é cedida** LGPD art. 5º
+  VI/VII); helper `validators.texto_termo_transferencia(versao)` +
+  constante `TEXTO_TERMO_TRANSFERENCIA_VERSAO_CANONICA` + teste
+  anti-drift Python↔frontmatter. 12 testes (4 idempotency + 8 termo).
 - **P4 T-EQP-034+035+036+040 ✅** (2026-05-22): US-EQP-004 fase 1
   transferência fundação. Modelo `TransferenciaEquipamentoAceite` (3
   enums novos: `MotivoCategoriaTransferencia` 5 valores,
@@ -248,13 +262,10 @@ rastreados Wave A.
 
 ## Próximo passo
 
-1. **US-EQP-004 fase 2** (T-EQP-037 + T-EQP-038): Idempotency-Key 24h
-   no POST transferir (reusa horizontal F-A `idempotencia`) +
-   texto canônico do termo v1.1 com 4 cláusulas em
-   `transferencia-termo.md` + helper Python.
-2. **US-EQP-004 fase 3** (T-EQP-039 + T-EQP-041): consentimento histórico
-   granular do cedente + endpoint de revogação posterior +
-   `ConsentimentoHistoricoEquipamento`.
+1. **US-EQP-004 fase 3** (T-EQP-039 + T-EQP-041): consentimento histórico
+   granular do cedente (3 níveis nada/resumo/completo) + tabela
+   `ConsentimentoHistoricoEquipamento` + endpoint POST `/equipamentos/{id}/consentimento-historico/revogar/`
+   + eventos `Equipamento.ConsentimentoHistoricoConcedido/Revogado`.
 3. **US-EQP-003 fase 3** (T-EQP-027+029+032): rate-limit 60req/min IP
    (Redis) + cessionário pós-transferência sem consentimento (agora
    destravado pela US-EQP-004) + rate-limit global por tenant.

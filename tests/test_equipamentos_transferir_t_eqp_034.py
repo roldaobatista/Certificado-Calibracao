@@ -51,6 +51,9 @@ def _autenticar(client: APIClient, usuario, tenant) -> None:
     session[DEVICE_ID_SESSION_KEY] = device.persistent_id
     session.save()
     client.defaults["HTTP_X_AFERE_ACTIVE_TENANT"] = str(tenant.id)
+    # T-EQP-037: Idempotency-Key default — cada client tem uma chave
+    # nova por teste (pytest cria APIClient novo por @django_db).
+    client.defaults["HTTP_IDEMPOTENCY_KEY"] = str(uuid4())
 
 
 @pytest.fixture
@@ -112,6 +115,11 @@ def cenario(db):
         "cliente_b": cliente_b,
         "eq_a": eq_a,
     }
+
+
+def _idem_header():
+    """Header padrao Idempotency-Key UUID (T-EQP-037)."""
+    return {"HTTP_IDEMPOTENCY_KEY": str(uuid4())}
 
 
 def _payload_completo(cessionario_id, atendente_id, motivo="venda"):

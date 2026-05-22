@@ -63,6 +63,7 @@ from .services_etiqueta import gerar_etiqueta_pdf
 
 ENDPOINT_ETIQUETA = "equipamentos.etiqueta"
 ENDPOINT_CRIAR = "equipamentos.criar"
+ENDPOINT_TRANSFERIR = "equipamentos.transferir"
 
 
 def _hashear_ip_request(request, tenant_id: UUID) -> str:
@@ -408,6 +409,28 @@ class EquipamentoViewSet(
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # T-EQP-037: Idempotency-Key obrigatorio (reusa horizontal F-A).
+        chave_header = request.META.get("HTTP_IDEMPOTENCY_KEY")
+        avaliacao_idem = avaliar_chave_idempotencia(
+            tenant_id=tenant_id,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_TRANSFERIR,
+            chave_header=chave_header,
+            payload={
+                "equipamento_id": str(equipamento.id),
+                "cessionario_cliente_id": str(cessionario_id),
+                "motivo_categoria": str(body.get("motivo_categoria", "")),
+            },
+        )
+        if isinstance(avaliacao_idem, ErroValidacao):
+            return _resposta_erro_idempotencia(avaliacao_idem)
+        if isinstance(avaliacao_idem, Replay):
+            # Replay determinístico: devolve o transferencia_id da 1a
+            # chamada via resumo persistido (politica P-EQP-T6).
+            resumo = avaliacao_idem.response_body_resumo or {}
+            return Response(resumo, status=status.HTTP_200_OK)
+        assert isinstance(avaliacao_idem, NovoProcessamento)
+
         def _parse_aceite(payload: dict | None) -> Aceite | None:
             if not payload:
                 return None
@@ -444,11 +467,21 @@ class EquipamentoViewSet(
                 dados=dados,
             )
         except CessionarioCrossTenant as exc:
+            falhar_chave(
+                chave_id=avaliacao_idem.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id,
+                response_status=422,
+            )
             return Response(
                 {"detail": str(exc)},
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
         except ClienteBloqueado as exc:
+            falhar_chave(
+                chave_id=avaliacao_idem.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id,
+                response_status=412,
+            )
             return Response(
                 {
                     "detail": "cliente_bloqueado",
@@ -462,6 +495,11 @@ class EquipamentoViewSet(
             MotivoDetalheObrigatorio,
             TransferenciaInvalida,
         ) as exc:
+            falhar_chave(
+                chave_id=avaliacao_idem.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id,
+                response_status=400,
+            )
             return Response(
                 {"detail": str(exc)},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -470,14 +508,18 @@ class EquipamentoViewSet(
         status_http = (
             status.HTTP_200_OK if resultado.foi_efetivada else status.HTTP_201_CREATED
         )
-        return Response(
-            {
-                "transferencia_id": str(resultado.transferencia.id),
-                "status": resultado.transferencia.status,
-                "foi_efetivada": resultado.foi_efetivada,
-            },
-            status=status_http,
+        resumo = {
+            "transferencia_id": str(resultado.transferencia.id),
+            "status": resultado.transferencia.status,
+            "foi_efetivada": resultado.foi_efetivada,
+        }
+        concluir_chave(
+            chave_id=avaliacao_idem.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id,
+            response_status=status_http,
+            response_body_resumo=resumo,
         )
+        return Response(resumo, status=status_http)
 
 
 def _resposta_erro_idempotencia(erro: ErroValidacao) -> Response:

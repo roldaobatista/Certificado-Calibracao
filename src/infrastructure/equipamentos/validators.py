@@ -165,6 +165,96 @@ _CHAVE_PARA_TEXTO: Final[dict[str, str]] = {
 }
 
 
+# =====================================================================
+# T-EQP-038 (US-EQP-004 AC-EQP-004-5 / P-EQP-A1) — texto canonico do
+# termo de transferencia.
+#
+# Fonte unica: docs/conformidade/equipamentos/transferencia-termo.md
+# Mudar texto exige PR + bump `versao_canonica` no frontmatter +
+# advogado-saas-regulado.
+# =====================================================================
+
+TEXTO_TERMO_TRANSFERENCIA_VERSAO_CANONICA: Final[str] = "v1.1-2026-05-22"
+
+CLAUSULA_1_LGPD_ART_18: Final[str] = (
+    "O cedente preserva todos os direitos previstos no art. 18 da LGPD "
+    "sobre seus dados pessoais ja tratados pelo laboratorio responsavel, "
+    "inclusive: confirmacao de tratamento, acesso, correcao, "
+    "anonimizacao, eliminacao, portabilidade e informacao sobre uso "
+    "compartilhado. A transferencia deste equipamento nao revoga, "
+    "suspende nem limita tais direitos. Contato do Encarregado de Dados "
+    "(DPO) consta no Portal LGPD do laboratorio."
+)
+
+CLAUSULA_2_LEI_14063_ART_4: Final[str] = (
+    "A assinatura registrada neste termo enquadra-se em uma das "
+    "modalidades da Lei 14.063/2020 (art. 4o). Quando o aceite e "
+    "coletado presencialmente pelo atendente do laboratorio (modalidade "
+    "fraca), o atendente declara expressamente, sob as cominacoes dos "
+    "arts. 299 (falsidade ideologica) e 171 (estelionato) do Codigo "
+    "Penal e do art. 482 alinea 'a' da CLT (justa causa por ato de "
+    "improbidade), que apresentou este termo ao titular e obteve seu "
+    "consentimento verbal informado, registrando hora, local e "
+    "identificacao do interlocutor."
+)
+
+CLAUSULA_3_NAO_CESSAO_GARANTIA: Final[str] = (
+    "A transferencia altera EXCLUSIVAMENTE a titularidade cadastral do "
+    "equipamento para fins de identificacao do cliente atual. Nao "
+    "transfere ao cessionario: (a) garantias do fabricante; (b) "
+    "contratos de prestacao de servico entre o cedente e o laboratorio "
+    "(calibracao, manutencao, inspecao); (c) certificados emitidos sob "
+    "titularidade do cedente, que permanecem associados a versao "
+    "historica do equipamento conforme ISO/IEC 17025 cl. 8.4. O "
+    "cessionario deve celebrar novo contrato de servico com o "
+    "laboratorio, se assim desejar, antes da proxima calibracao."
+)
+
+# NOVA em v1.1 (P-EQP-A1 — auditoria advogado-saas-regulado 2026-05-21).
+CLAUSULA_4_TITULARIDADE_DADO_PESSOAL: Final[str] = (
+    "O cedente NAO transfere ao cessionario, neste ato, a titularidade "
+    "dos dados pessoais coletados pelo laboratorio durante o "
+    "relacionamento anterior. Dados sensiveis (LGPD art. 5o II), de "
+    "identificacao (art. 5o VI) e cadastrais (art. 5o VII) do cedente "
+    "permanecem sob sua titularidade — o cessionario NAO ganha direitos "
+    "sobre tais dados pelo simples fato de receber o equipamento. O "
+    "acesso a historico metrologico (certificados anteriores, OS, "
+    "eventos) do cedente pelo cessionario depende de CONSENTIMENTO "
+    "EXPRESSO do cedente registrado neste mesmo termo (campo "
+    "`consentimento_historico_expresso`). Na ausencia de consentimento, "
+    "o cessionario vera APENAS os dados gerados a partir da efetivacao "
+    "desta transferencia."
+)
+
+_CLAUSULAS_V1_1: Final[tuple[str, ...]] = (
+    CLAUSULA_1_LGPD_ART_18,
+    CLAUSULA_2_LEI_14063_ART_4,
+    CLAUSULA_3_NAO_CESSAO_GARANTIA,
+    CLAUSULA_4_TITULARIDADE_DADO_PESSOAL,
+)
+
+
+def texto_termo_transferencia(
+    versao: str = TEXTO_TERMO_TRANSFERENCIA_VERSAO_CANONICA,
+) -> str:
+    """Retorna o texto canonico completo (4 clausulas concatenadas) da
+    versao solicitada.
+
+    Marco 2 entende apenas `v1.1-2026-05-22` (atual). Versoes mais
+    antigas (transferencias gravadas antes de 2026-05-22 com
+    `v1.0-2026-05-22`) serao implementadas via tabela
+    `TermoTransferenciaVersao` em Wave A. Por ora, ValueError em
+    versao desconhecida — defesa fail-loud em audit CGCRE.
+    """
+    if versao != TEXTO_TERMO_TRANSFERENCIA_VERSAO_CANONICA:
+        raise ValueError(
+            f"versao '{versao}' nao implementada em Marco 2. Atual: "
+            f"{TEXTO_TERMO_TRANSFERENCIA_VERSAO_CANONICA}. Wave A: tabela "
+            "TermoTransferenciaVersao."
+        )
+    return "\n\n".join(_CLAUSULAS_V1_1)
+
+
 def texto_rejeicao_422_pos_cert(campo: str) -> str:
     """Retorna o texto canonico T1-T5 pra um campo afetado.
 
