@@ -57,6 +57,15 @@ Com o modelo atual, atendente é forçado a:
   - `sequencia` opcional (manutenção precede calibração na mesma OS).
   - `tecnico_executor_id` (pode variar entre atividades da mesma OS —
     metrologista calibra, mecânico conserta).
+- **Relação com módulo técnico (revisado NOVO-CRIT-1 R2 — 2026-05-23):** a FK
+  fica **no módulo técnico, NÃO na AtividadeDaOS**. Exemplo:
+  `Calibracao.atividade_os_id` aponta pra `AtividadeDaOS.id`. Query
+  reversa via `AtividadeDaOS.calibracao_set` ou JOIN explícito.
+  Decisão evita FK polimórfica não-tipada na AtividadeDaOS (que era
+  string genérica `link_modulo_tecnico` no design original).
+  Vantagens: (a) FK tipada com validação de tenant em trigger PG
+  (INV-OS-ATIV-005c); (b) fonte única de verdade; (c) compatibilidade
+  com RLS PostgreSQL nativa.
 - **OS só fecha (CONCLUÍDA) quando TODAS as atividades concluem.**
 - **Calibração técnica é disparada por `AtividadeDaOS.tipo=calibracao`**,
   não pela OS toda. AC-CAL-001-1 passa a aceitar "atividade de OS de

@@ -40,7 +40,7 @@ relacionados:
 
 - **Atributos obrigatórios:** `id`, `tenant_id`, `numero_interno`, **`atividade_os_id`** (FK `AtividadeDaOS`, nullable — recepção avulsa permitida), `cliente_id`, `instrumento_id` (FK Equipamento), **`snapshot_equipamento_json`** (jsonb imutável capturado em `recepcionarInstrumento` — TEMA-E.4 + cl. 7.4: nome, tag, NS, fabricante, modelo, `perfil_tenant_snapshot`), `tipo_acreditacao` (RBC, NAO_RBC), `escopo_id` (FK Escopo, nullable se NAO_RBC), `configuracao_id` (FK), `status` (RECEPCIONADA, CONFIGURADA, EM_EXECUCAO, EM_REVISAO_1, AGUARDANDO_2A_CONFERENCIA, APROVADA, REJEITADA, CANCELADA, **NAO_CONFORME**, **PENDENTE_RESOLUCAO_NC**), `executor_id` (FK Usuario), `revisor_id` (FK Usuario, nullable), `conferente_id` (FK Usuario, nullable), `decisao` (APROVADO, REPROVADO, CONDICIONAL, NA), `versao_motor_calculo`, `correlation_id`, `criado_em`.
 - **Atributos opcionais:** `observacoes_gerais` (validado anti-PII via INV-CAL-TXT-001, ≤500 chars), `condicoes_ambientais_id` (FK), `motivo_cancelamento_hash` (HMAC tenant).
-- **Invariantes:** `INV-002` (CMC), `INV-003` (rastreabilidade), `INV-005` (versão motor), `INV-007` (2ª conferência — promovido a `INV-CAL-CONF-001` se TEMA-F.3 aceito), `INV-019` (RT habilitado), `INV-CAL-RT-COMP-001` (snapshot retroativo bloqueado), `INV-022` (WORM), `INV-CAL-TXT-001`, `INV-CAL-AUD-001`, `INV-TENANT-001`, `INV-OS-ATIV-002` (herança tenant via `atividade_os_id`).
+- **Invariantes:** `INV-002` (CMC), `INV-003` (rastreabilidade), `INV-CAL-VERSAO-001` (versão motor), `INV-CAL-CONF-001` (2ª conferência — promovida 2026-05-23 onda 7A), `INV-CAL-RT-001` (RT habilitado por grandeza), `INV-CAL-RT-COMP-001` (snapshot retroativo bloqueado), `INV-CAL-WORM-001` (WORM), `INV-CAL-TXT-001`, `INV-CAL-AUD-001`, `INV-TENANT-001`, `INV-OS-ATIV-002` (herança tenant via `atividade_os_id`).
 - **Ciclo de vida:** estados imutáveis após APROVADA; reprocessar = nova Calibracao com `causation_id` apontando pra anterior.
 
 ### ConfiguracaoCalibracao
@@ -56,7 +56,7 @@ relacionados:
 ### Leitura (cl. 7.5 — imutável)
 
 - **Atributos obrigatórios:** `id`, `tenant_id`, `calibracao_id`, `ponto_calibracao`, `numero_repeticao`, `valor_lido`, `unidade`, `origem` (MANUAL, INTEGRACAO_SERIAL, INTEGRACAO_USB), `timestamp`, `executor_id_hash` (HMAC tenant — TEMA-C.12).
-- **Invariantes:** imutável após criação (INV-022). Correções pré-aprovação via `LeituraCorrecao` (TEMA-B.3 — rasura digital).
+- **Invariantes:** imutável após criação (INV-CAL-WORM-001). Correções pré-aprovação via `LeituraCorrecao` (TEMA-B.3 — rasura digital).
 
 ### LeituraCorrecao (cl. 7.5 — rasura digital — NOVO)
 
@@ -77,7 +77,7 @@ relacionados:
 - **Atributos obrigatórios:** `id`, `tenant_id`, `calibracao_id`, `u_combinada` (consolidada — para retrocompatibilidade quando incerteza é constante na faixa), `grau_liberdade_efetivo`, `k`, `U_expandida`, `nivel_confianca`, `versao_motor_calculo`, `calculado_em`, `correlation_id`.
 - **Relação 1:N com `ComponenteIncerteza`** (substitui `componentes_json` JSONB).
 - **Relação 1:N com `OrcamentoPorPonto`** (incerteza por ponto de calibração).
-- **Invariantes:** `INV-004` (GUM), `INV-005` (versão registrada).
+- **Invariantes:** `INV-004` (GUM), `INV-CAL-VERSAO-001` (versão motor registrada).
 
 ### ComponenteIncerteza (NOVO — TEMA-B.5)
 
@@ -91,12 +91,12 @@ relacionados:
 ### AvaliacaoConformidade
 
 - **Atributos obrigatórios:** `id`, `tenant_id`, `calibracao_id`, `especificacao_cliente`, `regra_decisao`, `resultado` (CONFORME, NAO_CONFORME, ZONA_INCERTEZA), `decisao_manual_se_zona` (≤500 chars, anti-PII via INV-CAL-TXT-001), `decidido_por_hash` (HMAC tenant), `decidido_em`.
-- **Invariantes:** `INV-006` + ISO 17025 7.8.6.
+- **Invariantes:** `INV-CAL-DEC-001` (regra decisão ISO 7.8.6 + ADR-0024).
 
 ### RevisaoTecnica
 
 - **Atributos obrigatórios:** `id`, `tenant_id`, `calibracao_id`, `etapa` (REVISAO_1, CONFERENCIA_2), `revisor_id_hash` (HMAC tenant em payload publicado; UUID interno preservado), `resultado` (APROVADO, REJEITADO, SOLICITA_CORRECAO), `nota` (≤500 chars, anti-PII via INV-CAL-TXT-001), `revisado_em`, `correlation_id`.
-- **Invariantes:** `INV-007`, `INV-019`, INV-022, INV-CER-COMP-001 (vigência RT na data de execução — não da revisão). Etapa CONFERENCIA_2 só após REVISAO_1 APROVADA.
+- **Invariantes:** `INV-CAL-CONF-001`, `INV-CAL-RT-001`, INV-CAL-WORM-001, INV-CER-COMP-001 (vigência RT na data de execução — não da revisão). Etapa CONFERENCIA_2 só após REVISAO_1 APROVADA.
 
 ### NaoConformidade (ciclo CAPA fechado — NOVO TEMA-B.2)
 
@@ -133,17 +133,17 @@ relacionados:
 ### Padrao
 
 - **Atributos obrigatórios:** `id`, `tenant_id`, `descricao`, `tipo` (PESO, BALANCA, TERMOMETRO, MICROMETRO — sem acento em enum, fix B-2 LLM-correctness), `fabricante`, `modelo`, `numero_serie`, `valor_nominal`, `unidade`, `classe` (E1, E2, F1, F2, M1, M2, M3 — quando aplicável), `localizacao_fisica` (≤200 chars, anti-PII via INV-EQP-LOC-001 estendido — MÉDIO-1 LGPD), `status` (DISPONIVEL, EM_CALIBRACAO_EXTERNA, INDISPONIVEL_VENCIDO, INDISPONIVEL_NC).
-- **Invariantes:** `INV-008`, INV-TENANT-001, INV-EQP-LOC-001 (estendido a Padrao).
+- **Invariantes:** `INV-CAL-RAST-001` (rastreabilidade padrão), INV-TENANT-001, INV-EQP-LOC-001 (estendido a Padrao).
 
 ### CertificadoPadrao
 
 - **Atributos obrigatórios:** `id`, `tenant_id`, `padrao_id`, `numero_externo`, `lab_emissor`, `data_emissao`, `data_validade`, `valor_convencional`, `incerteza`, `anexo_pdf_id`.
-- **Invariantes:** vigência respeitada (INV-008).
+- **Invariantes:** vigência respeitada (INV-CAL-RAST-001).
 
 ### VerificacaoIntermediaria
 
 - **Atributos obrigatórios:** `id`, `tenant_id`, `padrao_id`, `data_prevista`, `data_executada`, `resultado` (≤500 chars, anti-PII via INV-CAL-TXT-001), `desvio_observado`, `criterio_aceitacao`, `status_apos` (APROVADO, REPROVADO), `executado_por_id_hash`.
-- **Invariantes:** `INV-009` (renomeado pra `INV-CAL-VI-001` — colisão com MFA CDE legada).
+- **Invariantes:** `INV-CAL-VI-001` (verificação intermediária periódica — renomeado de INV-009 que conflita com MFA CDE).
 
 ### EnsaioComplementar
 
@@ -152,7 +152,7 @@ relacionados:
 ### ParticipacaoProficiencia
 
 - **Atributos obrigatórios:** `id`, `tenant_id`, `provedor`, `rodada`, `grandeza`, `faixa`, `data_participacao`, `escore_z`, `status` (PENDENTE, PASSED, QUESTIONABLE, UNACCEPTABLE), `relatorio_anexo_id`.
-- **Invariantes:** `INV-022`. ISO 17025 7.7.2.
+- **Invariantes:** `INV-CAL-WORM-001`. ISO 17025 7.7.2.
 
 ### Escopo
 
@@ -183,8 +183,8 @@ USING (tenant_id::text = ANY(string_to_array(current_setting('app.tenant_ids'), 
 | Agregado raiz | Entidades incluídas | Invariantes |
 |---|---|---|
 | Calibracao | ConfiguracaoCalibracao, PadraoUsado[], Leitura[], LeituraCorrecao[], CondicoesAmbientais, OrcamentoIncerteza, ComponenteIncerteza[], OrcamentoPorPonto[], AvaliacaoConformidade, RevisaoTecnica[], EnsaioComplementar[], NaoConformidade[], RecepcaoItemCalibracao, EventoDeCalibracao[] | INV-002..007, 019, 022, TENANT-001, CAL-TXT-001, CAL-AUD-001, CAL-RT-COMP-001 |
-| Padrao | CertificadoPadrao[], VerificacaoIntermediaria[], MedicaoControle[] | INV-008, CAL-VI-001, 022 |
-| ParticipacaoProficiencia | — | INV-022 |
+| Padrao | CertificadoPadrao[], VerificacaoIntermediaria[], MedicaoControle[] | INV-CAL-RAST-001, INV-CAL-VI-001, INV-CAL-WORM-001 |
+| ParticipacaoProficiencia | — | INV-CAL-WORM-001 |
 | Escopo | — | INV-002 |
 
 ---

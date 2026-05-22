@@ -26,8 +26,9 @@ dominio: operacao
 ### AtividadeDaOS — nova entidade (ADR-0023)
 
 - **Atributos obrigatórios:** `id` (uuid), `tenant_id`, `os_id`, `tipo` (enum: `calibracao | manutencao_corretiva | manutencao_preventiva | instalacao | verificacao_inmetro | vistoria`), `estado_atividade` (enum: PENDENTE | EM_EXECUCAO | CONCLUIDA | NAO_CONFORME | CANCELADA), `sequencia` (int — ordem dentro da OS, ex: manutenção corretiva 1, calibração 2), `criada_at`.
-- **Atributos opcionais:** `tecnico_executor_id` (pode diferir entre atividades — metrologista calibra, mecânico conserta), `iniciada_at`, `concluida_at`, `razao_nao_conformidade`, `link_modulo_tecnico` (id do registro no módulo correspondente: ex `calibracao_id` em metrologia/calibracao).
-- **Invariantes:** `INV-OS-ATIV-001..004`, `INV-TENANT-001` (herda da OS pai).
+- **Atributos opcionais:** `tecnico_executor_id` (pode diferir entre atividades — metrologista calibra, mecânico conserta), `iniciada_at`, `concluida_at`, `razao_nao_conformidade`.
+- **Relação reversa com módulo técnico (cravada em 2026-05-23 — NOVO-CRIT-1 rodada 2):** a FK fica no módulo técnico, não na AtividadeDaOS. Exemplo: `Calibracao.atividade_os_id` aponta pra `AtividadeDaOS.id`. Query reversa via `AtividadeDaOS.calibracao_set` (Django) ou JOIN explícito. **PROIBIDO** carregar `link_modulo_tecnico` na AtividadeDaOS — quebra INV-TENANT-001 (FK polimórfica sem validador de tenant) e duplica fonte de verdade.
+- **Invariantes:** `INV-OS-ATIV-001..005`, `INV-TENANT-001` (herda da OS pai).
 - **Imutável após** estado terminal (CONCLUIDA/CANCELADA).
 
 ### ItemDeOS
@@ -49,16 +50,21 @@ dominio: operacao
 - **Retenção:** 25 anos quando vinculado a atividade `calibracao` ou certificado emitido; 5 anos caso contrário (RAT-08 + matriz retenção).
 - **Invariantes:** RAT-08, INV-001, INV-AUTHZ-002, INV-OS-AUD-001, INV-OS-GEO-001.
 
-### AceiteAtividade (Lei 14.063/2020 + LGPD art. 7º V)
+### AceiteAtividade (Lei 14.063/2020 + LGPD art. 7º V + art. 11 II "g")
 
 > Nova entidade — TEMA-D.3 da auditoria 10 lentes. Garante aceite versionado + hash de texto + IP + carimbo tempo, necessário pra assinatura eletrônica simples ter valor jurídico (Lei 14.063 art. 4º).
+>
+> **Revisado em 2026-05-23 (NOVO-CRIT-2 + NOVO-CRIT-3 rodada 2):** texto canônico v1.0 existe em `docs/conformidade/comum/termos/aceite-atividade-v1.0.md` (CRT-2 fechado); `assinatura_base64` reclassificada como biometria sensível LGPD art. 11 — cifrada com chave KMS dedicada `BIOMETRIA_KEY_*` (CRT-3 fechado via INV-OS-ACEITE-BIO-001 + DPIA `docs/conformidade/comum/dpia-assinatura-touch.md`).
 
-- **Atributos obrigatórios:** `id` (uuid), `tenant_id`, `atividade_id` (FK AtividadeDaOS, 1:1), `versao_termo` (string — ex: `v1.0`), `hash_texto_termo` (SHA-256 do texto canônico no momento), `metodo_assinatura` (enum: `touch` | `A1` | `A3`), `aceito_em` (timestamp UTC), `ip_hash` (HMAC-tenant), `correlation_id`.
-- **Atributos opcionais:** `assinatura_base64` (touch); `certificado_subject_cn_hash` (A1/A3 — HMAC-tenant); `certificado_emissor_hash` (A1/A3 — HMAC-tenant); `geo_hash` (município/bairro — INV-OS-GEO-001).
+- **Atributos obrigatórios:** `id` (uuid), `tenant_id`, `atividade_id` (FK AtividadeDaOS, 1:1), `versao_termo` (string — ex: `v1.0-2026-05-23` apontando para arquivo versionado), `hash_texto_termo` (32 bytes SHA-256 sobre corpo canonicalizado pelo ADR-0029), `metodo_assinatura` (enum: `touch` | `A1` | `A3` | `presencial_atendente`), `aceito_em` (timestamp UTC), `ip_hash` (HMAC-tenant — IP cleartext NUNCA persiste fora do request scope), `correlation_id`.
+- **Atributos opcionais:** `assinatura_cifrada_bytea` (touch — cifrada com `BIOMETRIA_KEY_<tenant_id>`, NUNCA em claro); `assinatura_metadata_jsonb` (touch — `{n_pontos, bbox_area, hash_contexto, capturada_em}` para auditoria sem revelar traçado); `certificado_subject_cn_hash` (A1/A3 — HMAC-tenant); `certificado_emissor_hash` (A1/A3 — HMAC-tenant); `geo_hash` (município/bairro — INV-OS-GEO-001).
 - **Imutável após INSERT:** trigger PG bloqueia UPDATE/DELETE.
-- **Texto canônico:** referenciado por `versao_termo` em `docs/conformidade/comum/termos/aceite-atividade-vN.md` (a criar Wave A — uma versão por tipo de atividade ou genérica).
-- **Validação:** se `metodo_assinatura=A3`, exige validação server-side INV-CER-FRAUD-A3-001 (`certificado.subject_cn.cpf == sessao.usuario.cpf`).
-- **Invariantes:** Lei 14.063 art. 4º, INV-CER-FRAUD-A3-001, INV-OS-AUD-001.
+- **Texto canônico v1.0:** `docs/conformidade/comum/termos/aceite-atividade-v1.0.md` (corpo entre `<<<CORPO INICIO>>>` e `<<<CORPO FIM>>>`); canonicalização determinística por ADR-0029.
+- **Validações server-side:**
+  - se `metodo_assinatura=A3`: INV-CER-FRAUD-A3-001 (`certificado.subject_cn.cpf == sessao.usuario.cpf`).
+  - se `metodo_assinatura=touch`: INV-OS-ACEITE-BIO-001 — `len(trajetoria_pontos) ≥ 8` + bounding box ≥ 30×20px + cifragem `BIOMETRIA_KEY_*` + watermark com `hash_contexto`.
+  - `hash_texto_termo` recalculado server-side a partir do arquivo versionado; cliente NÃO controla o hash.
+- **Invariantes:** Lei 14.063 art. 4º, LGPD art. 11 II "g" + "a", INV-CER-FRAUD-A3-001, INV-OS-ACEITE-BIO-001, INV-OS-AUD-001, INV-DOC-CANON-001.
 
 ---
 
@@ -77,7 +83,7 @@ dominio: operacao
 
 **Role `app_user`:** `NOBYPASSRLS` + `NOSUPERUSER` (INV-TENANT-004 preservado).
 **Middleware Django** seta `SET LOCAL app.tenant_ids = '<uuid1>,<uuid2>,...'` em toda request (lista mesmo pra usuário com 1 tenant — INV-AUTHZ-003).
-**Cross-tenant em `link_modulo_tecnico`** (FK polimórfica de `os_atividade` apontando pra `calibracao.id`, `manutencao.id`, etc.) bloqueado por INV-OS-ATIV-005 (a) trigger PG validando `link.tenant_id == atividade.tenant_id` em INSERT/UPDATE; (b) hook `port-binding-validator.sh` valida em código.
+**Cross-tenant em FKs reversas pra atividade** (`Calibracao.atividade_os_id`, futuro `Manutencao.atividade_os_id`, etc.) bloqueado por INV-OS-ATIV-005 (a) trigger PG validando `modulo_tecnico.tenant_id == atividade.tenant_id` em INSERT/UPDATE; (b) hook `port-binding-validator.sh` valida em código. **Não existe `link_modulo_tecnico` na AtividadeDaOS** — a FK fica no módulo técnico (decisão NOVO-CRIT-1 rodada 2 — ver §AtividadeDaOS).
 
 ---
 

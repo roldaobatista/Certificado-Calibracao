@@ -30,7 +30,7 @@ dominio: operacao
 | OS de bancada | OS com todas atividades executadas no laboratório fixo | "OS interna" | dispensa geolocalização; instrumento entra via recepção | OP3 |
 | Geolocalização da Atividade | Lat/long capturada no início e fim da atividade (precisão limitada por INV-OS-GEO-001) | "GPS do técnico" | usado pra auditoria; LGPD exige opt-in + RIPD | INV-OS-GEO-001 + RAT-07 |
 | os_origem_id | Atributo que liga OS-filha (reaberta) à OS-mãe | "OS pai" | aparece no histórico do equipamento | INV-027 |
-| link_modulo_tecnico | FK tipada na atividade apontando pro registro técnico no módulo correspondente (ex: `Calibracao.id` para tipo=calibracao) | "ID externo da atividade" | resolve qual entidade técnica concretiza a atividade | ADR-0023 + INV-OS-ATIV-005 |
+| link_modulo_tecnico | **PROIBIDO** na AtividadeDaOS (decisão NOVO-CRIT-1 R2). A FK fica no módulo técnico: `Calibracao.atividade_os_id`, `Manutencao.atividade_os_id`, etc. Query reversa via `AtividadeDaOS.calibracao_set` ou JOIN. | — | resolve qual entidade técnica concretiza a atividade | ADR-0023 + INV-OS-ATIV-005 |
 | AceiteAtividade | Entidade que registra a assinatura digital do cliente sobre uma atividade específica (versão do termo + hash texto + IP + timestamp + base legal Lei 14.063) | "termo de aceite" (genérico) | uma OS combinada pode ter N AceiteAtividade, um por atividade | TEMA-D.3 da auditoria 2026-05-23 |
 
 ## Como esta lista evolui

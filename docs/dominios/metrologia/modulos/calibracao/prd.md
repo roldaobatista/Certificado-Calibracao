@@ -84,7 +84,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-001-1**: GIVEN **atividade de OS tipo=calibracao** (ADR-0023) OU recepção avulsa, WHEN registra entrada (cliente, instrumento, condições recebidas), THEN sistema gera etiqueta interna PDF com QR Code apontando ao registro de calibração. Quando origem = atividade de OS, o registro de calibração é vinculado via `link_modulo_tecnico` da atividade — permite OS combinada (manutenção + calibração) com a calibração só iniciando após manutenção concluída.
 - **AC-CAL-001-2**: GIVEN escopo de acreditação NÃO cobre o instrumento, WHEN tenta cadastrar como calibração RBC, THEN sistema avisa e permite seguir como NÃO-RBC.
 
-**Invariantes:** `INV-TENANT-001`, `INV-022`.
+**Invariantes:** `INV-TENANT-001`, `INV-CAL-WORM-001`.
 
 ---
 
@@ -96,7 +96,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-002-1**: GIVEN configuração nova, WHEN seleciona grandeza+faixa, THEN sistema oferece métodos disponíveis (NIT-DICLA / norma técnica) e padrões compatíveis.
 - **AC-CAL-002-2**: GIVEN faixa fora do escopo CMC, WHEN tenta salvar como RBC, THEN sistema bloqueia citando CMC oficial.
 
-**Invariantes:** `INV-002` (escopo CMC), `INV-022`.
+**Invariantes:** `INV-002` (escopo CMC), `INV-CAL-WORM-001`.
 
 ---
 
@@ -109,7 +109,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-003-2**: GIVEN padrão dentro da verificação intermediária programada, WHEN sistema verifica, THEN libera.
 - **AC-CAL-003-3**: GIVEN seleção concluída, WHEN salva, THEN snapshot de cada padrão (cert, validade, classe) fica anexo à calibração.
 
-**Invariantes:** `INV-003` (rastreabilidade padrão), `INV-014` (snapshot), `INV-022`.
+**Invariantes:** `INV-003` (rastreabilidade padrão), `INV-CAL-SNAP-001` (snapshot padrão externo), `INV-CAL-WORM-001`.
 
 ---
 
@@ -122,7 +122,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-004-2**: GIVEN integração com balança/padrão via serial/USB, WHEN equipamento envia leitura, THEN sistema persiste automaticamente.
 - **AC-CAL-004-3**: GIVEN leitura fora de faixa esperada, WHEN sistema detecta, THEN alerta metrologista mas NÃO bloqueia (decisão dele).
 
-**Invariantes:** `INV-022`.
+**Invariantes:** `INV-CAL-WORM-001`.
 
 ---
 
@@ -135,7 +135,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-005-2**: GIVEN cálculo executado, WHEN metrologista revisa, THEN cada componente do orçamento é editável (Tipo B vem de defaults configuráveis por padrão+grandeza).
 - **AC-CAL-005-3**: GIVEN versão do algoritmo, WHEN calibração executada, THEN sistema salva versão do motor de cálculo no snapshot (validação de software ISO 17025 7.11).
 
-**Invariantes:** `INV-004` (cálculo GUM), `INV-005` (versão software registrada), `INV-022`. Ver `validacao-software.md`.
+**Invariantes:** `INV-004` (cálculo GUM), `INV-CAL-VERSAO-001` (versão software registrada), `INV-CAL-WORM-001`. Ver `validacao-software.md`.
 
 ---
 
@@ -148,7 +148,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-006-2**: GIVEN ZONA DE INCERTEZA, WHEN sistema mostra, THEN exige decisão explícita do metrologista (CONFORME COM RESERVA / NÃO CONFORME / NÃO AVALIAR).
 - **AC-CAL-006-3**: GIVEN regra de decisão escolhida, WHEN certificado emitido, THEN regra fica documentada no certificado (citar ILAC G8).
 
-**Invariantes:** `INV-006`, ISO 17025 7.8.6.
+**Invariantes:** `INV-CAL-DEC-001` (regra decisão ISO 7.8.6), ADR-0024.
 
 ---
 
@@ -161,7 +161,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-007-2**: GIVEN rejeição ou correção solicitada, WHEN RT marca, THEN sistema volta calibração ao metrologista com nota.
 - **AC-CAL-007-3**: GIVEN revisor = executor da calibração, WHEN tenta revisar, THEN sistema avisa (independência ideal — mas não bloqueia se único RT habilitado disponível, registra exceção).
 
-**Invariantes:** `INV-019` (RT habilitado), `INV-022`.
+**Invariantes:** `INV-CAL-RT-001` (RT habilitado por grandeza), `INV-CAL-WORM-001`.
 
 ---
 
@@ -174,7 +174,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-008-2**: GIVEN aprovação da 2ª conferência, WHEN executada, THEN calibração vira APROVADA + libera emissão de certificado.
 - **AC-CAL-008-3**: GIVEN único RT disponível executou todas as etapas, WHEN tenta concluir, THEN sistema registra exceção em log de auditoria pra explicação posterior.
 
-**Invariantes:** `INV-007` (2ª conferência obrigatória), `INV-022`. Ver `garantia-validade-7.7.md`.
+**Invariantes:** `INV-CAL-CONF-001` (2ª conferência obrigatória), `INV-CAL-WORM-001`. Ver `garantia-validade-7.7.md`.
 
 ---
 
@@ -185,7 +185,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 **Critérios de aceite:**
 - **AC-CAL-009-1**: GIVEN instrumento com N calibrações, WHEN consulta histórico, THEN sistema mostra timeline com resultado, incerteza, decisão, certificado emitido.
 
-**Invariantes:** `INV-022`, `INV-TENANT-001`.
+**Invariantes:** `INV-CAL-WORM-001`, `INV-TENANT-001`.
 
 ---
 
@@ -197,7 +197,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-010-1**: GIVEN cadastro de peso padrão, WHEN preenche, THEN exige classe + valor nominal + cert externo + validade + localização.
 - **AC-CAL-010-2**: GIVEN peso com cert externo vencido, WHEN aparece em seleção de padrões, THEN marcado como INDISPONÍVEL.
 
-**Invariantes:** `INV-008` (rastreabilidade padrão), `INV-022`.
+**Invariantes:** `INV-CAL-RAST-001` (rastreabilidade padrão), `INV-CAL-WORM-001`.
 
 ---
 
@@ -209,7 +209,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-011-1**: GIVEN padrão indo pra calibração externa, WHEN registra envio (laboratório destino, data envio, NF/protocolo), THEN sistema marca padrão INDISPONÍVEL.
 - **AC-CAL-011-2**: GIVEN recebimento + novo certificado externo, WHEN registra (cert, validade, anexo PDF, valor convencional, incerteza), THEN sistema marca padrão DISPONÍVEL com nova vigência.
 
-**Invariantes:** `INV-008`, `INV-022`.
+**Invariantes:** `INV-CAL-RAST-001`, `INV-CAL-WORM-001`.
 
 ---
 
@@ -221,7 +221,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-012-1**: GIVEN padrão com programa de verificação intermediária, WHEN data prevista chega, THEN sistema alerta RT.
 - **AC-CAL-012-2**: GIVEN verificação executada, WHEN registra resultado, THEN sistema avalia critério de aceitação configurado; se reprovado, padrão fica INDISPONÍVEL + dispara NC.
 
-**Invariantes:** `INV-009`, `INV-022`.
+**Invariantes:** `INV-CAL-VI-001`, `INV-CAL-WORM-001`.
 
 ---
 
@@ -234,7 +234,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-013-2**: GIVEN repetibilidade, WHEN executa N medições no mesmo ponto, THEN sistema calcula desvio padrão experimental + Tipo A.
 - **AC-CAL-013-3**: GIVEN excentricidade (balanças), WHEN executa nas 4 posições + centro, THEN sistema calcula maior diferença vs ponto central.
 
-**Invariantes:** `INV-022`.
+**Invariantes:** `INV-CAL-WORM-001`.
 
 ---
 
@@ -246,7 +246,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-014-1**: GIVEN participação programada, WHEN registra (provedor, rodada, grandeza, faixa), THEN sistema cria registro pendente.
 - **AC-CAL-014-2**: GIVEN resultado recebido (escore z, status PASSED/UNACCEPTABLE), WHEN registra, THEN sistema anexa relatório + se UNACCEPTABLE dispara NC.
 
-**Invariantes:** `INV-022`, ISO 17025 7.7.2.
+**Invariantes:** `INV-CAL-WORM-001`, ISO 17025 7.7.2.
 
 ---
 
@@ -258,7 +258,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-015-1**: GIVEN escopo cadastrado (grandeza, faixa min/max, CMC, método), WHEN calibração configurada, THEN sistema valida se cobre.
 - **AC-CAL-015-2**: GIVEN renovação/revisão do escopo CGCRE, WHEN admin atualiza, THEN versão anterior preservada com janela de calibrações antigas.
 
-**Invariantes:** `INV-002`, `INV-012` (vincula com Licenças), `INV-022`.
+**Invariantes:** `INV-002`, `INV-012` (vincula com Licenças), `INV-CAL-WORM-001`.
 
 ---
 
