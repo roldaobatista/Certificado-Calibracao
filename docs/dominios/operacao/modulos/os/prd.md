@@ -65,8 +65,11 @@ Cobre BIG-01 (não perder informação entre WhatsApp/planilha/sistema), BIG-05 
 - **AC-OS-001-3:** GIVEN payload com `Idempotency-Key`, WHEN replay ocorre, THEN retorna mesma OS (não cria duplicada).
 - **AC-OS-001-4:** GIVEN orçamento cross-tenant, WHEN tenta abrir, THEN bloqueia com 422 `OrcamentoCrossTenant` (INV-TENANT-001).
 - **AC-OS-001-5 (Onda 6 auditor 5 — INV-OS-EQP-001):** GIVEN equipamento em estado `BAIXADO/DESCARTADO`, WHEN tenta criar OS, THEN bloqueia com 422 `EquipamentoBaixadoEmOS`.
+<!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
 - **AC-OS-001-6 (Onda 6 auditor 5 — INV-OS-ANON-001):** GIVEN cliente com OS em RASCUNHO/AGENDADA/EM_EXECUCAO + módulo Clientes recebe pedido de anonimização (Zona A/B ADR-0021), WHEN consulta dependências OS, THEN bloqueia com 409 `AnonimizacaoBloqueadaPorOSAberta` + emite `AnonimizacaoBloqueada` com payload `{cliente_id_hash, motivo=os_aberta, os_ids_bloqueantes}`.
-- **Invariantes:** INV-027, INV-026, INV-TENANT-001, INV-OS-ATIV-002, INV-OS-ATIV-003, INV-OS-EQP-001, INV-OS-ANON-001.
+- **AC-OS-001-7 (P3 RBC P-OS-R2 — cl. 7.1 análise crítica):** GIVEN abertura via orçamento, WHEN `abrirOS` executa, THEN copia `orcamento.analise_critica_id` + hash do snapshot pra OS (`analise_critica_snapshot_hash` — INV-DOC-CANON-001); se orçamento veio SEM análise crítica registrada (`orcamento.analise_critica IS NULL`) → 412 `OrcamentoSemAnaliseCritica` (INV-OS-ANAL-001).
+- **AC-OS-001-8 (P3 RBC P-OS-R4 — cl. 7.5 manuseio de itens):** GIVEN OS de bancada (equipamento no laboratório), WHEN `abrirOS` executa, THEN exige `equipamento_recebimento_id` vinculado ao recebimento mais recente em estado `recebido_pendente_inspecao | em_calibracao` daquele equipamento + cliente; ausente → 412 `EquipamentoSemRecebimentoRegistrado`. Para OS de campo (`TipoAtividadeConfig.executa_em_campo=true`) o campo permanece NULL e condição é registrada em `ChecklistDaAtividade` in loco.
+- **Invariantes:** INV-027, INV-026, INV-TENANT-001, INV-OS-ATIV-002, INV-OS-ATIV-003, INV-OS-EQP-001, INV-OS-ANON-001, INV-OS-ANAL-001, INV-OS-NUM-001.
 
 ### US-OS-002 — Adicionar atividade a OS (cadastro inicial ou em andamento)
 
@@ -86,8 +89,10 @@ Cobre BIG-01 (não perder informação entre WhatsApp/planilha/sistema), BIG-05 
 
 - **AC-OS-002-1:** GIVEN OS em RASCUNHO + técnico tem agenda válida (INV-020 se UMC), WHEN `atribuirTecnico` executa, THEN OS vira AGENDADA + publica `OSAtribuida`.
 - **AC-OS-002-2:** GIVEN UMC + agenda viola Lei 13.103, WHEN tenta atribuir, THEN bloqueia com 422 + razão.
+<!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
 - **AC-OS-002-3:** GIVEN atividade com `tecnico_executor_id` definido, WHEN `iniciarAtividade` executa, THEN só o executor designado pode iniciar (RBAC + INV-AUTHZ-001).
-- **Invariantes:** INV-020, INV-AUTHZ-001, INV-027.
+- **AC-OS-002b-4 (P3 RBC P-OS-R1 — cl. 6.2 competência executor):** GIVEN `tipo IN (calibracao, verificacao_inmetro)` no momento da atribuição inicial, WHEN servidor valida `tecnico_executor_id`, THEN executa predicate `rt_competencia_cobre(tecnico_executor_id, grandeza, data_atual)` (ADR-0022); se falso → 422 `ExecutorSemCompetencia: [grandeza]` (INV-OS-ATIV-005-EXEC-COMP).
+- **Invariantes:** INV-020, INV-AUTHZ-001, INV-027, INV-OS-ATIV-005-EXEC-COMP.
 
 ### US-OS-003 — Iniciar atividade no mobile (offline-first)
 
@@ -97,8 +102,10 @@ Cobre BIG-01 (não perder informação entre WhatsApp/planilha/sistema), BIG-05 
 - **AC-OS-003-2:** GIVEN POST sem `Idempotency-Key`, WHEN tenta iniciar, THEN 400 `IdempotencyKeyAusente`.
 - **AC-OS-003-3:** GIVEN replay (mesmo `client_event_id` + `Idempotency-Key`), WHEN servidor recebe, THEN retorna mesma resposta + não duplica evento (IDEMP-001).
 - **AC-OS-003-4:** GIVEN gate de `sequencia` ativo + atividade N-1 não terminal, WHEN tenta iniciar atividade N, THEN 412 `SequenciaPendente`.
+<!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
 - **AC-OS-003-5:** GIVEN geo opt-in ativo, WHEN inicia, THEN captura `geo` com precisão limitada (INV-OS-GEO-001).
-- **Invariantes:** INV-OS-ATIV-002, INV-OS-ATIV-005, IDEMP-001, INV-OS-GEO-001, RAT-07.
+- **AC-OS-003-6 (P3 RBC P-OS-R1 — cl. 6.2 competência executor no início):** GIVEN `tipo IN (calibracao, verificacao_inmetro)` no momento de iniciar, WHEN servidor valida, THEN re-executa predicate `rt_competencia_cobre(usuario, grandeza, data_inicio)` (competência pode ter revogado entre atribuição e início — vigência ADR-0030); se falso → 422 `ExecutorSemCompetenciaNaData` (INV-OS-ATIV-005-EXEC-COMP).
+- **Invariantes:** INV-OS-ATIV-002, INV-OS-ATIV-005, INV-OS-ATIV-005-EXEC-COMP, IDEMP-001, INV-OS-GEO-001, RAT-07.
 
 ### US-OS-004 — Concluir atividade
 
@@ -109,8 +116,10 @@ Cobre BIG-01 (não perder informação entre WhatsApp/planilha/sistema), BIG-05 
 - **AC-OS-004-3:** GIVEN TODAS atividades em estado terminal (CONCLUIDA/NAO_CONFORME/CANCELADA), WHEN última atividade conclui, THEN OS vira CONCLUIDA + publica `OSConcluida` com `tipo_predominante` calculado (regra de empate: `calibracao` sempre vence — alimenta KPI ISO 17025; vide modelo-de-dominio.md).
 - **AC-OS-004-4:** GIVEN executor ≠ usuário autenticado, WHEN tenta concluir, THEN 403 `NaoEExecutor` (INV-OS-ATIV-005).
 - **AC-OS-004-5 (Onda 6 auditor 5 — INV-OS-CAL-LINK-001):** GIVEN atividade `tipo=calibracao` CONCLUIDA sem FK reversa `Calibracao.atividade_os_id` em ≤24h, WHEN watchdog `os-calibracao-link-watchdog` consulta, THEN dispara alerta P2 ao RT + gerente; após 72h cria NC automática `NaoConformidade.tipo=link_calibracao_faltando` + bloqueia emissão de certificado.
-- **AC-OS-004-6 (Onda 6 auditor 5 — notificação):** GIVEN atividade CONCLUIDA, WHEN servidor processa, THEN publica `AtividadeConcluida` + portal-cliente recebe notificação + OmniChannel envia se `cliente.opt_in_whatsapp=true`.
-- **Invariantes:** INV-OS-ATIV-001, INV-OS-ATIV-005, INV-027, IDEMP-001, INV-OS-CAL-LINK-001.
+<!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
+- **AC-OS-004-6 (Onda 6 auditor 5 — notificação):** GIVEN atividade CONCLUIDA, WHEN servidor processa, THEN publica `AtividadeConcluida` + portal-cliente recebe notificação + OmniChannel envia se `cliente.opt_in_whatsapp=true`. Payload de `AtividadeConcluida` explicita `tecnico_executor_id` + `consentimento_id` (consumer M4 valida independência ADR-0026 — P-OS-R7).
+- **AC-OS-004-7 (P3 advogado P-OS-A1 — consentimento art. 11 antes de aceite):** GIVEN tela de aceite renderizada com texto canônico de consentimento art. 11 LGPD + botão "concordo e assino" SEPARADO de "concluir", WHEN cliente toca em concordar, THEN cria `ConsentimentoBiometriaTouch` ANTES de `AceiteAtividade` (FK 1:1, INV-OS-CONSBIO-001); sem consentimento → 412 `ConsentimentoBiometriaAusente`. Texto canônico: `docs/conformidade/comum/termos/consentimento-biometria-touch.md` (REQUER OAB — GATE-OS-CONSBIO-TEXTO-OAB).
+- **Invariantes:** INV-OS-ATIV-001, INV-OS-ATIV-005, INV-027, IDEMP-001, INV-OS-CAL-LINK-001, INV-OS-CONSBIO-001.
 
 ### US-OS-005 — Marcar NC em atividade tipo=calibracao
 
@@ -119,7 +128,9 @@ Cobre BIG-01 (não perder informação entre WhatsApp/planilha/sistema), BIG-05 
 - **AC-OS-005-1:** GIVEN atividade tipo=calibracao em EM_EXECUCAO, WHEN `marcarNaoConformidadeAtividade` executa com `razao_nao_conformidade` (≥30 chars, anti-PII via INV-OS-TXT-001), THEN atividade vira NAO_CONFORME + publica `AtividadeNaoConforme` + bloqueia emissão certificado (INV-012).
 - **AC-OS-005-2:** GIVEN OS com múltiplas atividades + 1 marcada NC, WHEN consultar OS, THEN `os.nao_conformidade_global=true` mas outras atividades permanecem em estados próprios.
 - **AC-OS-005-3:** GIVEN NC com causa-raiz registrada + ação corretiva executada + eficácia verificada (ciclo CAPA TEMA-B.2), WHEN `resolverNC` executa, THEN atividade volta para EM_EXECUCAO + publica `AtividadeNCResolvida` + libera certificado.
+<!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
 - **AC-OS-005-4:** GIVEN `razao_nao_conformidade` com PII, WHEN tenta marcar, THEN 400 `TextoComPII` (INV-OS-TXT-001).
+- **AC-OS-005-5 (P3 RBC P-OS-R5 — cl. 8.7 ciclo CAPA completo):** GIVEN NC marcada, WHEN `resolverNC` executa, THEN exige TODOS de: `causa_raiz_hash` (anti-PII INV-OS-TXT-001), `acao_corretiva_descricao_hash` (anti-PII), `eficacia_verificada_em ≠ NULL`, `eficacia_verificada_por_user_id ≠ NULL`; ausente → 412 `CAPAIncompleto`. FK opcional `registro_capa_id` preenchida pelo consumer reverso quando módulo qualidade Wave B nascer (GATE-RBC-CAPA-1).
 - **Invariantes:** INV-012, INV-OS-ATIV-001, INV-OS-TXT-001.
 
 ### US-OS-006 — Reabrir OS concluída
@@ -203,7 +214,9 @@ Cobre BIG-01 (não perder informação entre WhatsApp/planilha/sistema), BIG-05 
 - **AC-OS-013-1:** GIVEN atividade em EM_EXECUCAO + motivo (≥30 chars, anti-PII) + termo PDF anexado, WHEN `dispensarAceiteCliente(atividade_id, motivo, termo_pdf_id)` executa, THEN cria `DispensaAceiteAtividade(atividade_id, motivo, autorizado_por_gerente_id=sessao.usuario.id, termo_pdf_id)`.
 - **AC-OS-013-2:** GIVEN dispensa gravada, WHEN técnico chama `concluirAtividade`, THEN servidor aceita sem `AceiteAtividade` (consulta `DispensaAceiteAtividade` ativo).
 - **AC-OS-013-3:** GIVEN usuário sessão sem papel gerente, WHEN tenta dispensar, THEN 403 `SemAutorizacaoGerencial`.
-- **AC-OS-013-4:** GIVEN dispensa, WHEN certificado / fatura é gerada, THEN marca "aceite dispensado por gerência (ref: [dispensa_id_hash])".
+<!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
+- **AC-OS-013-4:** GIVEN dispensa, WHEN certificado / fatura é gerada, THEN marca "aceite dispensado por gerência (ref: [dispensa_id_hash])". Rodapé inclui link público (QR) para o cliente consultar o termo PDF — direito à informação CDC art. 6º III.
+- **AC-OS-013-5 (P3 advogado P-OS-A4 — termo formal CDC art. 39):** GIVEN dispensa solicitada, WHEN gerente confirma, THEN servidor gera `TermoDispensaAceite` a partir de template canonicalizado (INV-DOC-CANON-001) contendo OBRIGATORIAMENTE: (a) descrição objetiva da circunstância (3 cenários: recusa formal / ausência pós no-show registrado / impossibilidade técnica de captura); (b) referência ao no-show vinculado quando aplicável; (c) hash da foto de evidência (no-show ou recusa); (d) declaração de boa-fé do gerente; (e) **assinatura A3 do gerente** (não só sessão autenticada). Dispensa SEM precedente (sem no-show registrado nem recusa explícita gravada) → 412 `DispensaSemPrecedente`. **REQUER OAB:** modelo do `TermoDispensaAceite`.
 - **Invariantes:** INV-AUTHZ-001, INV-OS-TXT-001, RAT-08.
 
 ### US-OS-014 — Marcar no-show de cliente (Onda 6 auditor 5 — A2)
@@ -211,7 +224,9 @@ Cobre BIG-01 (não perder informação entre WhatsApp/planilha/sistema), BIG-05 
 **Como** P-OP-01 técnico, **quero** marcar quando cliente não comparece, **para** documentar visita perdida + cobrar deslocamento.
 
 - **AC-OS-014-1:** GIVEN atividade em AGENDADA (campo) + foto evidencia + hora, WHEN `marcarNoShow(atividade_id, foto_evidencia, hora)` executa, THEN atividade permanece em PENDENTE + grava `EventoDeOS.tipo=no_show_cliente` + dispara consumer `caixa-tecnico` (gera custo deslocamento — Wave B `GATE-FIN-NOSHOW-COBR`).
+<!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
 - **AC-OS-014-2:** GIVEN no-show registrado, WHEN portal-cliente plugado, THEN notifica cliente "técnico esteve em [hash endereço]; reagende".
+- **AC-OS-014-3 (P3 advogado P-OS-A5 — aviso terceiros na foto):** GIVEN captura de foto de no-show, WHEN técnico abre câmera, THEN UX exibe aviso "evite enquadrar pessoas; capture apenas a fachada e o número do imóvel" + campo `foto_no_show_avisos_terceiros_acknowledged BOOLEAN` que o técnico marca antes de salvar (audit do consentimento operador com a regra). Blur automático de rostos antes do upload fica em GATE-OS-FOTO-NOSHOW-BLUR Wave A2.
 - **Invariantes:** RAT-07, RAT-08.
 
 ### US-OS-015 — Criar OS avulsa balcão (Onda 6 auditor 5 — M6 avulsa)
