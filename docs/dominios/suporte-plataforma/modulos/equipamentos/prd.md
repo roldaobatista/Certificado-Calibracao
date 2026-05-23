@@ -1,10 +1,10 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-18
+revisado-em: 2026-05-23
 status: stable
 modulo: equipamentos
 dominio: suporte-plataforma
-versao: 2
+versao: 3
 ---
 
 # PRD — Módulo Equipamentos do cliente
@@ -12,6 +12,7 @@ versao: 2
 > **Histórico:**
 > - **v1 (draft 2026-05-17):** primeira passagem do PRD com 3 US (cadastrar+QR, editar+versionar, ficha 360°+scan).
 > - **v2 (stable 2026-05-18):** revisão pelos 4 subagentes (`tech-lead-saas-regulado`, `advogado-saas-regulado`, `corretora-seguros-saas`, `consultor-rbc-iso17025`) endereçou 16 bloqueadores. Pareceres em `revisoes/PRD-*.md`. Escopo expandiu para 6 US cobrindo ISO 17025 cl. 7.4 completo (decisão Roldão).
+> - **v3 (stable 2026-05-23):** Onda 5 saneamento pós-auditoria projeto-inteiro 10 lentes. AC novos em US-EQP-002 (faixas tipadas — D-EQP-002), US-EQP-003 (materialização histórico cert — D-EQP-004), US-EQP-006 (`local_recebimento` BPT — D-EQP-008). Nova US-EQP-007 (Movimentação — D-EQP-006). Nova US-EQP-RT-008 (RT competência expira/notifica — D-EQP-007). NG-EQP-6 confirmada e referencia ADR-0040 + módulo `metrologia/padroes`. Débitos rastreados em `debitos-tecnicos.md`. Integração Marco 3 OS (D-EQP-003/D-EQP-005) e cascade anonimização (D-EQP-009) declarados.
 
 ## 1. O que este módulo é
 
@@ -52,7 +53,7 @@ Detalhes em `personas.md`.
 - NÃO controla estoque do tenant (o equipamento é do cliente final, não do tenant)
 - NÃO faz cobrança (vai pra Financeiro)
 - **NÃO transfere equipamento entre tenants diferentes** (INV-050 — proibido)
-- NÃO trata padrão metrológico do laboratório (esse fica em módulo `padroes` separado — INV-021/022/023)
+- NÃO trata padrão metrológico do laboratório (esse fica em módulo `padroes` separado — INV-021/022/023; **ADR-0040** crava entidade `PadraoMetrologico` distinta de `Equipamento`; PRD em `docs/dominios/metrologia/modulos/padroes/prd.md`)
 - NÃO entrega blur facial automático em fotos no Marco 2 (V2 quando infra ML estiver pronta — fluxo manual via aviso UX no Marco 2)
 - NÃO entrega app Flutter no Marco 2 (Tela 5 vira PWA — ADR-0018)
 - NÃO entrega sincronização offline-first (ADR-0004, Wave B)
@@ -78,8 +79,9 @@ Detalhes em `personas.md`.
 - **AC-EQP-002-2**: GIVEN tento alterar TAG, NS ou fabricante de equipamento com certificado, THEN sistema bloqueia (campos imutáveis pós-cert — INV-025).
 - **AC-EQP-002-3**: GIVEN tenant em perfil A E edito `classe_exatidao` ou `faixa_medicao`, THEN sistema exige assinatura A3 do RT antes de gravar; assinatura registrada em audit WORM.
 - **AC-EQP-002-4**: GIVEN escolho motivo_mudanca = "outros", THEN sistema exige justificativa ≥100 chars + aprovação do gestor de qualidade.
+- **AC-EQP-002-5 (v3 — D-EQP-002):** GIVEN edito faixas, WHEN seleciono grandezas + faixas, THEN sistema persiste `faixas_medicao: list[FaixaMedicao]` referenciando VO em `src/domain/metrologia/value_objects.py` (1 equipamento N grandezas; cada grandeza M faixas). Texto livre `faixa: str` é apenas legado de retrocompatibilidade Marco 2 — Wave A migra para VO tipado e remove. `cmc_aplicavel_id: FK opcional` é preenchido na 1ª calibração (porta `padroes` ou `calibracao` — definida em Marco 4).
 
-**Invariantes:** `INV-025`, `INV-EQP-LOC-001`.
+**Invariantes:** `INV-025`, `INV-EQP-LOC-001`, `INV-PAD-002` (faixa tipada).
 
 ### US-EQP-003: Escanear QR Code e abrir ficha 360°
 
@@ -91,6 +93,7 @@ Detalhes em `personas.md`.
 - **AC-EQP-003-4**: GIVEN QR revogado/inválido, THEN sistema retorna 404 indistinguível de "hash de outro tenant" (sem oracle de enumeração).
 - **AC-EQP-003-5**: GIVEN 100+ tentativas 4xx do mesmo IP em 1h, THEN IP bloqueado por 24h + alerta P2.
 - **AC-EQP-003-6**: Tela 5 (Scanner QR mobile) funciona em PWA com `BarcodeDetector API` nativo + fallback jsQR — ADR-0018.
+- **AC-EQP-003-7 (v3 — D-EQP-004):** Ficha 360° agrega últimos 10 certs via materialização `HistoricoCertificadoEquipamento(equipamento_id, ultimos_10_certs: JSONB, atualizado_em)` mantida por consumer do evento `certificado.emitido` — p95 < 1.5s mesmo com 1000+ certs no histórico.
 
 **Invariantes:** `INV-051`, `INV-AUTHZ-001`, `INV-TENANT-001`.
 
@@ -124,8 +127,31 @@ Detalhes em `personas.md`.
 - **AC-EQP-006-3**: Máquina de estados `status_fluxo_lab` percorre: `aguardando_recebimento → recebido_pendente_inspecao → em_inspecao_visual → aguardando_calibracao → em_calibracao → aguardando_aprovacao_tecnica → aguardando_devolucao → devolvido`. Caminhos alternativos: `nao_conformidade_recebimento`, `nao_conformidade_calibracao`.
 - **AC-EQP-006-4**: GIVEN devolução ao cliente, WHEN registro saída física, THEN `EquipamentoRecebimento.data_hora_devolucao` + `condicao_visual_devolucao` + `fotos_devolucao` + `termo_devolucao_assinado_url` (assinatura cliente via portal ou presencial).
 - **AC-EQP-006-5**: Foto de chegada/devolução: EXIF removido no upload + aviso UX antes da câmera (E1 da revisão advogado) + limite ≤5MB + scan automático bloqueando se OCR detectar CPF/CNPJ em texto na foto (V2 — Marco 2 deixa em aviso textual).
+- **AC-EQP-006-6 (v3 — D-EQP-008 ADR-0028 BPT):** GIVEN registro recebimento, WHEN preencho `local_recebimento: enum {lab, domicilio_cliente, em_evento}`, THEN sistema persiste local; quando `local_recebimento != lab` dispara consumer `cobertura_bpt_acionada` (GATE-SEG-BPT-1 ADR-0028). Campo idem em `RecebimentoProvisorio` + `Movimentacao` (US-EQP-007).
 
 **Invariantes:** `INV-025`, `INV-AUTHZ-001`, ISO 17025 cl. 7.4.4 + 7.4.5.
+
+### US-EQP-007: Movimentação física do equipamento (D-EQP-006)
+
+**Como** almoxarife/metrologista, **quero** registrar movimentação física do equipamento que não seja recebimento/devolução, **para** preservar rastreabilidade em casos de empréstimo, troca de componente, reaparecimento.
+
+- **AC-EQP-007-1**: GIVEN equipamento ativo, WHEN registro `Movimentacao(tipo, data, responsavel, justificativa ≥30 chars, audit_event_id, local_recebimento)`, THEN movimentação persistida em padrão soft-delete B (WORM — ADR-0031); evento `equipamento.movimentado` publicado.
+- **AC-EQP-007-2**: GIVEN tipo = `reaparecimento`, WHEN equipamento estava `EXTRAVIADO`, THEN sistema permite transição `EXTRAVIADO → ATIVO` apenas via Movimentação tipo `reaparecimento` + justificativa (anti-PII INV-EQP-LOC-001).
+- **AC-EQP-007-3**: GIVEN mudança em `Equipamento.status`, THEN sistema exige Movimentação na mesma transação (FK reversa imutável).
+- **AC-EQP-007-4**: `local_recebimento` (D-EQP-008) sincronizado com US-EQP-006.
+
+**Invariantes:** `INV-025`, `INV-SOFT-002`, `INV-EQP-LOC-001`.
+
+### US-EQP-RT-008: RT competência vencendo / expirada (D-EQP-007)
+
+**Como** gestor de qualidade do tenant, **quero** receber alerta quando RT competência está vencendo ou expirada, **para** trocar RT antes da supervisão CGCRE.
+
+- **AC-EQP-RT-008-1**: Job diário 02:00 BRT `expirar_rt_competencia_vigente_ate` expira `RTCompetencia.vigente_ate < now()` → evento `padrao.competencia_expirada` (ADR-0022).
+- **AC-EQP-RT-008-2**: Job 09:00 BRT `notificar_rt_competencia_vencendo_30d_15d_7d_1d` notifica gestor de qualidade para competências vencendo nos 4 marcos.
+- **AC-EQP-RT-008-3**: GIVEN cadastro `RTCompetencia`, WHEN salvo, THEN exige anexo PDF da carta de competência (assinada A3 PJ) — retenção 25a (ISO 17025 cl. 8.4).
+- **AC-EQP-RT-008-4 (GATE-EQP-RT-NOTIF):** GIVEN troca de RT (encerramento + cadastro novo), WHEN salvo, THEN consumer stub `notificar_anpd_cgcre_rt_trocado` publica `padrao.rt_trocado_notificacao_pendente` em audit (Wave A entrega payload estruturado; integração real e-mail/API CGCRE é Wave A+ — GATE-EQP-RT-NOTIF em `debitos-tecnicos.md`).
+
+**Invariantes:** ADR-0022 (RT — competência vigente), `INV-CER-COMP-001`, `INV-VIG-001..004`.
 
 ## 7. Bases legais LGPD (art. 7º)
 

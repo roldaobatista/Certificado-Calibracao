@@ -1,6 +1,6 @@
 ---
 owner: roldao
-revisado_em: 2026-05-23
+revisado-em: 2026-05-23
 proximo_review: 2026-08-23
 status: draft
 modulo: os
@@ -93,6 +93,8 @@ dominio: operacao
 - OS combinada parada porque atividade 1 (manutenção) ainda não fechou e atividade 2 (calibração) está bloqueada por sequência
 
 **Devices:** web desktop + mobile (consulta).
+
+**Adicionado em Onda 6 auditor 5:** responsável também por (a) `dispensarAceiteCliente` (US-OS-013), (b) `reagendarAtividade` (US-OS-011), (c) `transferirTecnico` (US-OS-012), (d) recalibrar SLA quando reagendar atividade com prioridade `alta|emergencia`. Tela "Fila operacional" recebe overlay de SLA (vide `metricas.md`).
 
 ---
 

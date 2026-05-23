@@ -1,6 +1,6 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
+revisado-em: 2026-05-23
 status: draft
 modulo: orcamentos
 dominio: comercial
@@ -13,8 +13,8 @@ diataxis: reference
 
 ### Orcamento (agregado raiz)
 - **Obrigatórios:** `id`, `tenant_id`, `cliente_id` (FK), `numero` (sequencial por tenant), `criado_em`, `criado_por`, `estado`, `validade_ate`, `total_bruto`, `total_descontos`, `total_impostos`, `total_liquido`, `versao_ativa_id`.
-- **Opcionais:** `template_id`, `condicoes_pagamento`, `observacoes`, `comissao_prevista`, `responsavel_id`.
-- **Invariantes:** INV-026 (preço da versão aprovada é snapshot — não retroage), INV-TENANT-001.
+- **Opcionais:** `template_id`, `condicoes_pagamento`, `observacoes`, `comissao_prevista`, `responsavel_id`, `chamado_origem_id` (FK chamado — quando orçamento nasceu de chamado; INV-CHM-RAST-001), `tabela_preco_id` (FK — A-ORC-002), `aprovado_por_representante_id` (M-ORC-001 — quando aprovador é representante PJ), `procuracao_anexo_id` (M-ORC-001).
+- **Invariantes:** INV-026 (preço da versão aprovada é snapshot — não retroage), INV-TENANT-001, INV-CHM-RAST-001, INV-ORC-EXP-001.
 
 ### VersaoOrcamento
 - **Obrigatórios:** `id`, `orcamento_id`, `numero_versao` (1, 2, 3...), `snapshot` (jsonb com itens + condições + totais), `criado_em`, `criado_por`.
@@ -22,7 +22,9 @@ diataxis: reference
 
 ### ItemOrcamento
 - **Obrigatórios:** `id`, `versao_id`, `catalogo_item_id` (FK), `descricao_snapshot`, `quantidade`, `preco_unitario_snapshot`, `desconto_valor`, `total`.
+- **Opcionais:** `tipo_atividade_alvo` (enum: `calibracao | manutencao | instalacao | verificacao_inmetro | vistoria | OUTRO` — define que item gera `AtividadeDaOS` na conversão; itens sem este campo viram linhas comerciais sem atividade — ex: deslocamento, taxa), `tabela_preco_id` (FK para `precificacao` — quando preço veio de tabela específica do cliente; ver A-ORC-002).
 - **Regra:** preço unitário e descrição são **snapshot** do catálogo no momento — não vinculam.
+- **ADR-0051 (C-ORC-001):** mapeamento 1:1 entre item com `tipo_atividade_alvo` setado e `AtividadeDaOS` da OS gerada. Caso combinado: orçamento com 1 item `manutencao` + 1 item `calibracao` → 1 OS com 2 atividades.
 
 ### LinkPublico
 - **Obrigatórios:** `id`, `orcamento_id`, `token` (random URL-safe), `expira_em`, `revogado_em`.

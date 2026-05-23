@@ -1,6 +1,6 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
+revisado-em: 2026-05-23
 status: draft
 modulo: contas-receber
 dominio: financeiro
@@ -19,7 +19,8 @@ Atributos:
 - `data_emissao`, `valor_bruto`, `valor_liquido` (após descontos)
 - `origem`: `os` | `contrato-recorrente` | `manual`
 - `status`: `rascunho` | `emitida` | `parcialmente-paga` | `paga` | `cancelada`
-- `itens[]`: referência a OS ou linha de contrato
+- `itens[]`: referência a OS, **`AtividadeDaOS`** (ADR-0051 — permite faturamento parcial por atividade concluída) ou linha de contrato
+- `categoria_receita` (enum: `CALIBRACAO_RBC | CALIBRACAO_NAO_RBC | MANUTENCAO_CORRETIVA | MANUTENCAO_PREVENTIVA | PECA_REVENDA | DESLOCAMENTO | OUTROS` — A-FIN-002; preenchido na geração com base no tipo da `AtividadeDaOS` de origem)
 
 ### `Titulo` (raiz separada)
 
@@ -29,8 +30,9 @@ Atributos:
 - `id`, `fatura_id`, `tenant_id`, `cliente_id`
 - `valor_original`, `valor_atualizado` (com juros/multa)
 - `data_emissao`, `data_vencimento`, `data_baixa`
-- `meio`: `boleto` | `pix` | `cartao`
+- `meio`: `boleto` | `pix` | `pix_recorrente` | `cartao` | `cartao_recorrente` (ADR-0050)
 - `gateway_externo_id` (nullable até gateway responder)
+- `convenio_pix_id` (NOT NULL quando `meio=pix_recorrente` — INV-FIN-GW-002)
 - `linha_digitavel` / `qr_code` / `tx_id`
 - `status`: `aberto` | `pago` | `parcialmente-pago` | `vencido` | `cancelado` | `em-disputa`
 - `regra_juros_id`, `regra_multa_id`, `regra_desconto_id`
@@ -41,7 +43,7 @@ Quando título é parcelado. Cada parcela tem `valor`, `vencimento`, `status` pr
 
 ### `Pagamento` (entidade de evento)
 
-Registro imutável de baixa. Atributos: `titulo_id`, `valor`, `data`, `origem` (`webhook-gateway`, `ofx`, `manual`, `pix-direto`), `comprovante_url`, `audit`.
+Registro imutável de baixa. Atributos: `titulo_id`, `valor`, `data`, `origem` (`webhook-gateway`, `ofx`, `manual`, `pix-direto`), `comprovante_url`, `audit`, `valor_atualizado_snapshot_em_pagamento` (Decimal — M-FIN-002 — snapshot do `Titulo.valor_atualizado` no momento da baixa, fotografa juros+multa aplicados naquele instante).
 
 ## Regras de negócio
 
@@ -64,9 +66,15 @@ Registro imutável de baixa. Atributos: `titulo_id`, `valor`, `data`, `origem` (
 
 **Compatibilidade transitória:** aliases legados `TituloEmitido`/`Pago`/`BoletoGerado` aceitos durante Wave A (consumers antigos ainda escutam); auditor schema-version bloqueia novos handlers em aliases.
 
+## Consumers (deste módulo) — GATE-CLI-6 / INV-FIN-REATIV-001
+
+- **`ContasReceber.Pago`** (auto-consumido neste módulo) → quando título é a **última fatura vencida** do cliente bloqueado por inadimplência (INV-INT-010), o consumer publica `Cliente.Desbloqueado(motivo=pagamento_quitou)` em ≤5min. Em caso de pagamento parcial onde ainda existe fatura vencida em aberto, o bloqueio é mantido.
+- **Diferenciação tenant vs cliente do tenant — INV-FIN-INAD-001:** inadimplência do CLIENTE do tenant usa `Cliente.bloqueado` (INV-INT-010); inadimplência do TENANT (billing-saas) usa `BillingSaas.TenantSuspenso` (INV-INT-009). Os dois nunca cruzam.
+
 ## Eventos consumidos
 
 - `OS.Concluida` (Operação) → gera fatura + título
+- `AtividadeDaOS.Concluida` (ADR-0051) → gera fatura parcial quando flag de faturamento por atividade ativa
 - `Contrato.Renovado` (Comercial) → gera título recorrente
 - `Marketplace.PagamentoConfirmado` (Comercial/marketplace) → cria título já liquidado (registra recebimento) + publica `ContasReceber.TituloEmitido` + `ContasReceber.Pago` na mesma transação
 - `SLA.PenalidadeCalculada` (Comercial/sla-contratual) → cria desconto/multa em título aberto do cliente (ou nota de crédito se não houver título)
@@ -82,7 +90,7 @@ Registro imutável de baixa. Atributos: `titulo_id`, `valor`, `data`, `origem` (
 
 ## Invariantes
 
-- INV-026 (preço não-retroativo), INV-008 (audit log).
+- INV-026 (preço não-retroativo), INV-008 (audit log), **INV-FIN-REATIV-001**, **INV-FIN-INAD-001**, **INV-FIN-GW-001**, **INV-FIN-GW-002**.
 
 ## Referências
 

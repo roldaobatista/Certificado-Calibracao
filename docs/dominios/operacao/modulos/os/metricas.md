@@ -1,6 +1,6 @@
 ---
 owner: roldao
-revisado_em: 2026-05-23
+revisado-em: 2026-05-23
 proximo_review: 2026-08-23
 status: draft
 modulo: os
@@ -21,7 +21,7 @@ Toda métrica carrega `tenant_id` como label/dimensão obrigatória (OBS-002 —
 
 | Métrica | Definição | Target | Como medir | Frequência |
 |---|---|---|---|---|
-| % atividades no prazo | `AtividadeDaOS.CONCLUIDA` até a data prometida ÷ total CONCLUIDA no período | ≥ 85% | query banco filtrando `atividade.concluida_at <= os.prazo_prometido` | semanal |
+| % atividades no prazo (Onda 6 auditor 5 — A1) | `AtividadeDaOS.CONCLUIDA` até `SLA.prazo_prometido` (entidade SLA — vide `modelo-de-dominio.md`) ÷ total CONCLUIDA no período; agrupável por `SLA.prioridade` | ≥ 85% global; alta/emergencia ≥ 95% | query JOIN `atividade × sla` filtrando `atividade.concluida_at <= sla.prazo_prometido` | semanal |
 | Tempo médio PENDENTE→CONCLUIDA por TipoAtividade | Média (em horas úteis) por tipo de atividade | calibracao ≤ 48h; manutencao_corretiva ≤ 24h; manutencao_preventiva ≤ 48h; instalacao ≤ 16h; verificacao_inmetro ≤ 8h; vistoria ≤ 4h | timestamps transições da máquina de estados da atividade | semanal |
 | Taxa de retrabalho | OS-filha (reaberta) ÷ total OS CONCLUIDA no período anterior | ≤ 5% | contagem de `os_origem_id` preenchido | mensal |
 | Taxa de NC em calibração | Atividades tipo=calibracao com estado=NAO_CONFORME ÷ total atividades tipo=calibracao | ≤ 8% | máquina de estados da atividade + estado terminal NAO_CONFORME | mensal |

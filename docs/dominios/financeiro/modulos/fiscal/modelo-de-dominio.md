@@ -1,6 +1,6 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
+revisado-em: 2026-05-23
 status: draft
 modulo: fiscal
 dominio: financeiro
@@ -20,7 +20,7 @@ Razão: regimes (Simples Nacional, Lucro Presumido, Lucro Real), substituições
 
 Atributos:
 - `id`, `tenant_id`
-- `regime_tributario`: enum (`simples-nacional` | `lucro-presumido` | `lucro-real`)
+- `regime_tributario`: enum (`NORMAL` | `SIMPLES_NACIONAL` | `MEI` | `ST_INDICADOR` | `LUCRO_REAL` | `LUCRO_PRESUMIDO`) — Onda 8 A-REG-04
 - `cnpj`, `inscricao_municipal`, `inscricao_estadual` (opcional)
 - `regime_iss`: `normal` | `substituido` (informativo, não recalcula)
 - `aliquota_iss_padrao` (informativa)
@@ -81,10 +81,22 @@ Atributos:
 - `ContingenciaAtivada(modo)`
 - `ContingenciaEncerrada()`
 
-## Eventos consumidos
+## Eventos consumidos (Onda 8 — fluxo corrigido)
 
-- `Pago` (Contas a Receber) → opcional gatilho emissão automática (configurável tenant)
-- `OSConcluida` (Operação) → emissão pré-preenchida com dados OS
+**Gatilhos de emissão (US-FIS-001):**
+- `Certificados.CertificadoEmitido` (Metrologia) → emissão NFS-e com `tipo_servico=calibracao` + `certificado_id`
+- `OperacaoOS.OSConcluida` (Operação, manutenção sem cert) → emissão NFS-e com `tipo_servico=manutencao`
+- `Comercial.OrcamentoAprovado` (V2 — emissão antecipada por solicitação)
+
+**Eventos pós-emissão (consumidos por outros):**
+- `Fiscal.NFSeEmitida` → ContasReceber (US-FIS-007: cria `TituloEmitido` em ≤5s) — **INV-FIS-CR-001**
+
+**Atenção:** `ContasReceber.Pago` é evento POSTERIOR (pagamento da fatura) — **NÃO é gatilho de emissão de NF**. Correção da inversão detectada pela auditoria Onda 8.
+
+## Referências cruzadas (Onda 8)
+
+- `certificados-digitais` (ADR-0048) — porta `verificar_status(cert_id)` (ADR-0046) chamada antes de cada emissão
+- Tabelas de referência fiscais (US-FIS-008): `referencia_cfop`, `referencia_cst`, `referencia_csosn`, `referencia_ncm`, `referencia_lc116` (atualizadas anualmente, override por tenant)
 
 ## Adapter FiscalProvider (ADR-0008)
 

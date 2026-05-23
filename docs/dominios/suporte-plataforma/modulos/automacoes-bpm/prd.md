@@ -184,6 +184,38 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 
 ---
 
+### US-BPM-010: Migração explícita de versão de workflow (G-BPM-1)
+
+**Como** operador BPM, **quero** escolher quais instâncias em execução migram pra `v_atual` do workflow, **para** não quebrar instâncias antigas em fluxo (`INV-BPM-MIG-001`).
+
+**Critérios de aceite:**
+- **AC-BPM-010-1**: GIVEN nova versão `wf@v3` publicada, WHEN operador acessa "Migrar instâncias", THEN sistema lista instâncias em `v1`/`v2` com status atual; operador seleciona quais migrar (não automático).
+- **AC-BPM-010-2**: novas instâncias usam `v_atual`; antigas em `v_n` continuam até `CONCLUIDA` ou migração explícita.
+- **AC-BPM-010-3**: migração falha se etapa atual da instância não existe em `v_atual` → bloqueia + sugere "aguardar conclusão ou cancelar".
+
+### US-BPM-011: Pausa/retomada manual de instância (G-BPM-2)
+
+**Como** operador BPM, **quero** comando `pausarInstancia(workflow_id, motivo)` + `retomar`, **para** suspender fluxos durante incidente (ex: webhook destino fora).
+
+**Critérios de aceite:**
+- **AC-BPM-011-1**: GIVEN instância em execução, WHEN operador clica "Pausar" + motivo, THEN state machine entra `PAUSADA`; timers congelam; emite `BPM.InstanciaPausada`.
+- **AC-BPM-011-2**: GIVEN pausada, WHEN operador clica "Retomar", THEN volta ao estado anterior; timers recalculam offset.
+
+### US-BPM-012: Sandbox de teste de regra (G-BPM-3)
+
+**Como** configurador de regra, **quero** testar regra contra mock de evento antes de publicar, **para** evitar regra errada disparar em produção.
+
+**Critérios de aceite:**
+- **AC-BPM-012-1**: GIVEN regra em rascunho, WHEN configurador abre sandbox + escolhe evento de mock + edita payload, THEN sistema executa regra em dry-run; mostra condição avaliada + ação que seria disparada (sem efeito real).
+- **AC-BPM-012-2**: testes salvos viram fixtures regressivas — re-executados a cada nova versão da regra.
+
+### US-BPM-013: Política de eventos `@deprecated` (G-BPM-4)
+
+**Como** sistema, **quero** janela de 1 release pra evento `@deprecated`, **para** consumidores migrarem antes de remoção.
+
+**Critérios de aceite:**
+- **AC-BPM-013-1**: evento marcado `@deprecated` continua publicando + console_warning por 1 release inteira; após release seguinte → remoção; comunicado obrigatório via `release-management`.
+
 ### US-BPM-009: Detecção de ciclo + timeout
 
 **Como** sistema, **quero** detectar regras que disparam outras regras em loop infinito (A → B → A), **para** evitar travamento do engine.
@@ -191,7 +223,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 **Critérios de aceite:**
 - **AC-BPM-009-1**: GIVEN execução de regra dispara evento que dispara regra A novamente, WHEN engine detecta profundidade > 10 níveis, THEN aborta execução + publica `BPM.CicloDetectado` + alerta SEV-2 + escalação ao dono Aferê.
 - **AC-BPM-009-2**: Toda execução de regra tem timeout 30s. Se excede, publica `BPM.TimeoutExecucaoRegra` + entra em dead_letter_events pra investigação.
-- **AC-BPM-009-3**: Hard cap por tenant: máx 1000 execuções de automações/hora. Acima disso, dispara `BillingSaas.LimiteDuroAtingido(recurso=automacoes_hora)` e bloqueia execuções até próxima janela (ADR-0013).
+- **AC-BPM-009-3** (G-BPM-5 — convertido em uso variável): Hard cap por tenant: máx 1000 execuções/hora **vira `ComponenteUsoVariavel(recurso=automacoes_hora, unidade_inclusa=1000, preco_por_unidade_extra=R$0,02)` no billing-saas** (ADR-0013). Tenant não é bloqueado; paga extra. Acima de 5× (5000/h) dispara `BillingSaas.LimiteDuroAtingido` por proteção anti-runaway-loop.
 
 ---
 

@@ -41,8 +41,19 @@ Ver `personas.md` (P-MKT-01 Visitante anônimo, P-MKT-02 Cliente cadastrado auto
 - Rastreamento de conversão (visita → carrinho → orçamento → fechamento).
 - Integração com CRM (lead criado), Estoque (disponibilidade), Pagamento (quando habilitado), Orçamentos (carrinho vira orçamento), **Portal do Cliente (handoff pós-login + entrega de solicitação)**.
 
+## 4.1 Escopo V2/V3 — Marketplace de extensões (esqueleto)
+
+**NÃO Wave A.** ADR-0055 define curadoria + sandbox + revenue share para abertura do marketplace a parceiros externos (extensões/plugins instaláveis por N tenants). Resumo:
+
+- **Curadoria (G-MKT-1):** parceiro submete via portal dev → Aferê valida (testes + security review + DPA) → publica.
+- **Sandbox (G-MKT-2, `INV-MKT-SANDBOX-001`):** extensão Python executa em `RestrictedPython` + subprocess `firejail/nsjail` + cgroups (CPU 500ms, RAM 128MB, rede default-deny — só APIs Aferê via allowlist).
+- **Revenue share (G-MKT-3):** ADR-0013 ganha tipo 8 `ComponenteExtensaoMarketplace(extension_id, percentual_afere=30, percentual_desenvolvedor=70)`. Cobrança via billing-saas; payout PIX D+30.
+
+Toda execução de hook recebe `UntrustedInput[dict]` (porta #17 ACL `MarketplaceExtensionProvider`).
+
 ## 5. Non-goals (o que NÃO está neste módulo)
 
+- **Marketplace de extensões em Wave A** — só V2/V3 (ADR-0055).
 - **Não é área genérica do cliente** — relacionamento 360° (OS, orçamentos completos, faturas, certificados, contratos, mensagens, preferências de notificação, edição cadastral) é responsabilidade do módulo `portal-cliente`. Marketplace só mostra "estado do meu pedido vindo do marketplace" e redireciona pro portal para qualquer outra função.
 - **Não tem sistema de autenticação próprio** — login/sessão/senha/link mágico/2FA são do `portal-cliente` (entidade `UsuarioPortal`). Marketplace consome a sessão estabelecida; após login, redireciona pro portal.
 - **Checkout B2C com cobrança imediata** — V2; MVP é "solicitação de orçamento", não venda direta.

@@ -1,6 +1,6 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
+revisado-em: 2026-05-23
 status: draft
 modulo: orcamentos
 dominio: comercial
@@ -40,11 +40,13 @@ Ver `../../personas.md` (P-COM-02 Vendedor é a dominante) + P-COM-03 Cliente fi
 - **Assinatura digital ICP-Brasil** (V2)
 - **Negociação multi-rodada com tracking de chat** (V2 — só comentário simples no MVP-1)
 - **Orçamento sem cliente cadastrado** — cliente deve existir (US-CLI-001 é pré-requisito)
-- **Catálogo de serviços/produtos** — pertence ao módulo `suporte-plataforma/catalogo` (este módulo só consome)
+- **Catálogo de serviços/produtos** — pertence ao módulo `suporte-plataforma/catalogo` (**GATE Wave A — A-ORC-001:** módulo `catalogo` é bloqueante Wave A; este módulo só consome).
 - **Pricing dinâmico por margem** — V2
+- **Tabela de preço por cliente** — **GATE Wave A — A-ORC-002:** depende do módulo `comercial/precificacao` (Wave A); orçamento consome via `tabela_preco_id`.
 - **Orçamento internacional/multi-moeda** — fora do MVP
 - **Geração de NFS-e** — pertence a `financeiro` (após OS concluída)
 - **Re-precificação retroativa após aprovação** — INV-026 proíbe
+- **Portal cliente** (M-ORC-003) — pertence ao módulo `comercial/portal-cliente` (Wave A); orçamento publica link.
 
 ## 6. User Stories
 
@@ -76,6 +78,17 @@ Ver `../../personas.md` (P-COM-02 Vendedor é a dominante) + P-COM-03 Cliente fi
 
 ### US-ORC-006: Tracking de leitura (Wave B)
 **Como** vendedor, **quero** ver "cliente abriu o link há 2h, não respondeu", **para** fazer follow-up no momento certo.
+
+### US-ORC-007: Conversão de orçamento aprovado em OS com atividades (ADR-0023 + ADR-0051)
+**Como** sistema, **quero** que orçamento aprovado gere 1 OS com N `AtividadeDaOS` mapeadas 1:1 dos itens com `tipo_atividade_alvo` setado, **para** suportar caso combinado (manutenção + calibração).
+- **AC-ORC-007-1:** GIVEN orçamento aprovado com 2 itens (1 `manutencao` + 1 `calibracao`), WHEN evento `Orcamento.Aprovado` é consumido por operação, THEN cria 1 OS com 2 `AtividadeDaOS` (1 por tipo).
+- **AC-ORC-007-2:** GIVEN itens sem `tipo_atividade_alvo` (deslocamento, taxa), WHEN OS é criada, THEN viram linhas comerciais na OS mas não geram `AtividadeDaOS`.
+- **INV:** ADR-0023, ADR-0051.
+
+### US-ORC-008: Bloquear cancelamento de orçamento convertido
+**Como** sistema, **quero** impedir cancelamento de orçamento já convertido em OS, **para** preservar rastreabilidade (A-ORC-003).
+- **AC-ORC-008-1:** GIVEN orçamento estado `convertido`, WHEN comando `cancelar` é tentado, THEN sistema retorna erro "orçamento convertido — cancele a OS resultante pelo fluxo próprio".
+- **AC-ORC-008-2:** Cancelamento da OS resultante não reabre o orçamento (terminal).
 
 ## 7. Métricas
 

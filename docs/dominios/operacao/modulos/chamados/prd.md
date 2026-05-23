@@ -1,6 +1,6 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
+revisado-em: 2026-05-23
 status: draft
 modulo: chamados
 dominio: operacao
@@ -33,8 +33,13 @@ Dor #20 (atendente reabre WhatsApp 5x e perde contexto) + Dor #05 (cliente recla
 - Integração WhatsApp (link "fale com a gente" — Solution 8.2)
 - Audit log RAT-08
 
+### Conversão (INV-CHM-RAST-001)
+
+Chamado pode virar **(a) orçamento** (Wave B) **OR (b) OS direta**. A rastreabilidade tripla é preservada via `Orcamento.chamado_origem_id`, `OS.chamado_origem_id` e `OS.orcamento_origem_id`. Cliente não vê duplicidade — UI mostra "originado do chamado #N".
+
 ## 5. Non-goals MVP-1
 
+- **Integração OmniChannel (A-CH-001):** módulo `comunicacao-omnichannel` é Wave A e fornece porta `OmniChannelProvider` com 3 impls (WhatsApp Business API, Email SMTP, SMS). Chamados consome a porta, não implementa transporte aqui.
 - Bot/IA respondendo o cliente sozinho (humano sempre na triagem)
 - Mescla automática de duplicados (sempre humano decide)
 - Pesquisa de satisfação dentro do chamado (vai pra Comercial NPS)
@@ -59,7 +64,7 @@ Ver `metricas.md`. Primárias: tempo médio de triagem, % SLA cumprido, % chamad
 
 ## 8. NFR
 
-- Triagem deve completar em < 30s (UI otimizada — atalhos teclado + valores default)
+- **Triagem ≤ 30s p95 (A-CH-002):** `tempo_triagem_ms` é registrado em audit a cada triagem. Teste de carga obrigatório Wave A com 100 atendentes simultâneos. UI otimizada — atalhos teclado + valores default.
 - WCAG AA (INV-016)
 - LGPD: número WhatsApp do cliente é dado pessoal — mascarar exibições conforme RAT-03
 

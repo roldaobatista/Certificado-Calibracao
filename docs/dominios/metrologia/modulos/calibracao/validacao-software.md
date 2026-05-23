@@ -1,6 +1,6 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
+revisado_em: 2026-05-23
 status: draft
 ---
 
@@ -155,6 +155,64 @@ Quando tenant acreditado RBC pedir dossiê pra auditoria CGCRE (V2):
 - [ ] Cenários OQ-CAL-001..008 como testes pytest
 - [ ] RT do vendor contratado (V2)
 - [ ] Drill anual de auditoria CGCRE (V2)
+
+---
+
+## 12. Esqueleto URS/IQ/OQ/PQ (novo Onda 7 — A3-CAL)
+
+> Esqueleto com IDs + responsabilidade. Detalhes preenchidos Wave A no momento de codar cada US correspondente.
+
+### URS — User Requirements Specification (cl. 7.11.2)
+
+| ID | Requisito | US relacionada | Responsável | Critério binário |
+|---|---|---|---|---|
+| URS-CAL-001 | Sistema recebe instrumento + gera etiqueta QR Code | US-CAL-001 | metrologista | etiqueta gera em ≤ 5s; QR aponta ao registro correto |
+| URS-CAL-002 | Sistema configura calibração (grandeza, faixa, pontos, método) | US-CAL-002 | metrologista | configuração persiste; validação CMC bloqueia fora de escopo |
+| URS-CAL-003 | Sistema valida vigência de padrão antes de selecionar | US-CAL-003 | RT | padrão vencido bloqueia seleção |
+| URS-CAL-004 | Sistema registra leituras manuais e via integração | US-CAL-004 | metrologista | leitura persiste com timestamp; integração serial/USB funcional |
+| URS-CAL-005 | Sistema calcula erro + incerteza GUM com orçamento ponto-a-ponto | US-CAL-005 | metrologista | resultado bate com referência ±0.0001; orçamento auditável |
+| URS-CAL-006 | Sistema avalia conformidade com regra de decisão (ADR-0024) | US-CAL-006 | RT | classifica CONFORME/NÃO-CONFORME/ZONA INCERTEZA; regra documentada no cert |
+| URS-CAL-007 | Sistema enforça 2ª conferência independente (ADR-0026) | US-CAL-007/008 | RT | exceção executor==revisor exige 4 condições + 5%/mês |
+| URS-CAL-008 | Sistema vincula procedimento vigente na data de execução (ADR-0030) | US-CAL-016 | metrologista | predicate `procedimento_vigente_para` resolve ou bloqueia 412 |
+| URS-CAL-009 | Sistema permite Recall em batch por versão de motor (ADR-0045) | US-CER-018 | gestor qualidade | notifica cliente em 24h + ANPD cond + CGCRE em 30d |
+| URS-CAL-010 | Sistema preserva snapshot do cliente pós-anonimização (ADR-0021) | US-CER-002 AC-4 | sistema | `cliente_nome_snapshot` imutável em WORM |
+
+### IQ — Installation Qualification (cl. 7.11.4)
+
+| ID | Item | Local | Critério |
+|---|---|---|---|
+| IQ-CAL-001 | PostgreSQL 16 + RLS ativo + roles NOBYPASSRLS | local + prod | comando `verificar_objetos_seguranca` PASS |
+| IQ-CAL-002 | Docker compose roda + migrations rodam idempotente | local | `docker compose up` + `migrate` retorna 0 |
+| IQ-CAL-003 | KMS Multi-Region Key configurada (sa-east-1 + us-east-1) | prod | smoke encrypt/decrypt + replica |
+| IQ-CAL-004 | B2 WORM bucket `certificados-wormA` criado + retenção 25a | prod | bucket lifecycle policy PASS |
+| IQ-CAL-005 | TSA-ITI alcançável (ADR-0044) | prod | round-trip carimbo < 3s |
+
+### OQ — Operational Qualification (cl. 7.11.5)
+
+| ID | Cenário | Critério binário |
+|---|---|---|
+| OQ-CAL-001 | Emitir cert com dados válidos | PDF/A-3 gerado em <3s; hash registrado; audit log; XML embedded validado |
+| OQ-CAL-002 | Tentar emitir sem signatário | Bloqueio 412 + mensagem PT-BR |
+| OQ-CAL-003 | Cálculo de incerteza com entrada conhecida | Output bate com valor de referência ±0.0001 |
+| OQ-CAL-004 | Replay determinístico (mesmo cálculo 2x) | Outputs idênticos byte a byte (cl. 7.11 + ADR-0025) |
+| OQ-CAL-005 | Reemitir cert | Nova versão criada; original SUBSTITUIDA preservado WORM |
+| OQ-CAL-006 | Tentar deletar cert emitido | Bloqueio + audit (INV-001) |
+| OQ-CAL-007 | Cliente A consulta cert de cliente B | 0 rows (RLS) |
+| OQ-CAL-008 | Signatário sem competência tenta assinar | Bloqueio + mensagem (INV-CER-COMP-001) |
+| OQ-CAL-009 | Recall em batch por `versao_motor_calculo` | Todos cert da versão buggy viram `RECALL_ATIVO` + eventos publicados |
+| OQ-CAL-010 | Suspensão + levantamento preserva `dias_suspensao_acumulada` | Vigência retoma do ponto exato |
+
+### PQ — Performance Qualification (cl. 7.11.6)
+
+| ID | Critério | Janela | Responsável |
+|---|---|---|---|
+| PQ-CAL-001 | Balanças Solution opera 1 mês com cert emitidos sem NC | 30 dias pós-Wave A | Roldão + gestor qualidade |
+| PQ-CAL-002 | Tempo médio recepção→aprovação ≤ 3 dias úteis | 30 dias | metrologista |
+| PQ-CAL-003 | Zero gap de numeração | contínuo | sistema (`job_certificado_gap_detection`) |
+| PQ-CAL-004 | Zero cert RBC emitido fora do escopo | contínuo | sistema (INV-CAL-DEC-001) |
+| PQ-CAL-005 | Replay determinístico em amostra mensal de 10 cert (2º caminho ADR-0025) | mensal | gestor qualidade |
+
+> Cada ID URS/IQ/OQ/PQ acima exige: (a) preenchimento detalhado em arquivo próprio Wave A; (b) ≥1 teste pytest cujo nome cita o ID (TST-004); (c) revalidação por release major (cl. 7.11 + GAMP 5).
 
 ---
 

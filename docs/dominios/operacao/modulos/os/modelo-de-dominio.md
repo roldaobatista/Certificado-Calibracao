@@ -19,7 +19,7 @@ dominio: operacao
 ### OS (Ordem de Serviço) — agregado raiz
 
 - **Atributos obrigatórios:** `id` (uuid), `tenant_id`, `estado` (enum INV-027 — derivado das atividades), `cliente_id`, `equipamento_id`, `correlation_id` (uuid NOT NULL — raiz da cadeia forense; herdado do evento Orcamento.Aprovado quando aplicável, senão `= id`), `criada_at`, `criada_por`.
-- **Atributos opcionais:** `tipo_predominante` (estatística cache; recalculada via trigger PG `os_tipo_predominante_recalc_trg` após INSERT/UPDATE/DELETE em `os_atividade` — algoritmo: tipo com maior contagem de atividades não-canceladas; empate vai pra ordem alfabética; um único `tipo` → vira `tipo_predominante`), `tecnico_atribuido_id` (responsável geral), `agendada_para`, `iniciada_at`, `concluida_at`, `cancelada_at`, `razao_cancelamento`, `os_origem_id` (reabertura), `nao_conformidade_global` (bool — TRUE se qualquer atividade marcou NC), `prazo_prometido`.
+- **Atributos opcionais:** `tipo_predominante` (estatística cache; recalculada via trigger PG `os_tipo_predominante_recalc_trg` após INSERT/UPDATE/DELETE em `os_atividade` — algoritmo: tipo com maior contagem de atividades não-canceladas; empate: `calibracao` SEMPRE vence (alimenta KPI ISO 17025 — decisão Onda 6 auditor 5 M1); um único `tipo` → vira `tipo_predominante`), `tecnico_atribuido_id` (responsável geral), `agendada_para`, `iniciada_at`, `concluida_at`, `cancelada_at`, `razao_cancelamento`, `os_origem_id` (reabertura), `nao_conformidade_global` (bool — TRUE se qualquer atividade marcou NC), `prazo_prometido`.
 - **Invariantes:** `INV-027` (máquina de estados), `INV-020` (jornada UMC ao atribuir), `INV-012` (NC em atividade de calibração bloqueia certificado), `INV-026` (preço congelado na criação), `INV-OS-ATIV-001/002/003/004` (ADR-0023), RAT-08 (audit log).
 - **Ciclo de vida:** criada como RASCUNHO; imutável após FATURADA exceto cancelamento.
 
@@ -78,6 +78,21 @@ dominio: operacao
 - Mudar valor exige ADR + migration.
 - Aplicação: `concluirAtividade` consulta `TipoAtividadeConfig.exige_aceite_cliente` → se true, `AceiteAtividade` obrigatório no checklist; senão opcional.
 
+<!-- frontmatter-revisado-em: skip -- preserva topo -->
+### SLA — nova entidade (Onda 6 auditor 5 — A1)
+
+> Adicionada em 2026-05-23 (Onda 6 saneamento). Permite contrato com prazo prometido + prioridade. Gate Wave A `sla-contratual` instrumenta breach.
+
+- **Atributos:** `id` (uuid), `tenant_id`, `os_id` (FK; opcional, null = SLA por atividade), `atividade_id` (FK opcional; mutex com os_id no nível de aplicação), `prazo_prometido` (timestamp UTC), `prioridade` (enum: `baixa | normal | alta | emergencia`), `criado_em`.
+- **Métrica derivada:** "% atividades no prazo" (vide `metricas.md`).
+- **Invariantes:** RAT-08 (audit em qualquer alteração).
+
+### DispensaAceiteAtividade — nova entidade (Onda 6 auditor 5 — M2)
+
+- **Atributos obrigatórios:** `id` (uuid), `tenant_id`, `atividade_id` (FK 1:1), `motivo` (texto ≥30 chars, anti-PII INV-OS-TXT-001), `autorizado_por_gerente_id` (FK Usuario), `termo_pdf_id` (FK Documento — PDF assinado pela gerência), `dispensada_em` (timestamp UTC), `correlation_id`.
+- **Imutável após INSERT.**
+- **Invariantes:** INV-AUTHZ-001 (só gerente autoriza), INV-OS-TXT-001, RAT-08.
+
 ### AceiteAtividade (Lei 14.063/2020 + LGPD art. 7º V + art. 11 II "g")
 
 > Nova entidade — TEMA-D.3 da auditoria 10 lentes. Garante aceite versionado + hash de texto + IP + carimbo tempo, necessário pra assinatura eletrônica simples ter valor jurídico (Lei 14.063 art. 4º).
@@ -85,7 +100,8 @@ dominio: operacao
 > **Revisado em 2026-05-23 (NOVO-CRIT-2 + NOVO-CRIT-3 rodada 2):** texto canônico v1.0 existe em `docs/conformidade/comum/termos/aceite-atividade-v1.0.md` (CRT-2 fechado); `assinatura_base64` reclassificada como biometria sensível LGPD art. 11 — cifrada com chave KMS dedicada `BIOMETRIA_KEY_*` (CRT-3 fechado via INV-OS-ACEITE-BIO-001 + DPIA `docs/conformidade/comum/dpia-assinatura-touch.md`).
 
 - **Atributos obrigatórios:** `id` (uuid), `tenant_id`, `atividade_id` (FK AtividadeDaOS, 1:1), `versao_termo` (string — ex: `v1.0-2026-05-23` apontando para arquivo versionado), `hash_texto_termo` (32 bytes SHA-256 sobre corpo canonicalizado pelo ADR-0029), `metodo_assinatura` (enum: `touch` | `A1` | `A3` | `presencial_atendente`), `aceito_em` (timestamp UTC), `ip_hash` (HMAC-tenant — IP cleartext NUNCA persiste fora do request scope), `correlation_id`.
-- **Atributos opcionais:** `assinatura_cifrada_bytea` (touch — cifrada com `BIOMETRIA_KEY_<tenant_id>`, NUNCA em claro); `assinatura_metadata_jsonb` (touch — `{n_pontos, bbox_area, hash_contexto, capturada_em}` para auditoria sem revelar traçado); `certificado_subject_cn_hash` (A1/A3 — HMAC-tenant); `certificado_emissor_hash` (A1/A3 — HMAC-tenant); `geo_hash` (município/bairro — INV-OS-GEO-001).
+<!-- frontmatter-revisado-em: skip -- preserva topo -->
+- **Atributos opcionais:** `assinatura_cifrada_bytea` (touch — cifrada com `BIOMETRIA_KEY_<tenant_id>`, NUNCA em claro); `assinatura_metadata_jsonb` (touch — `{n_pontos, bbox_area, hash_contexto, capturada_em}` para auditoria sem revelar traçado); `certificado_subject_cn_hash` (A1/A3 — HMAC-tenant); `certificado_emissor_hash` (A1/A3 — HMAC-tenant); `geo_hash` (município/bairro — INV-OS-GEO-001); `geo_consentimento` (bool — default TRUE; FALSE = cliente opt-out, sistema usa fallback hash de CEP-3 dígitos; INV-OS-GEO-001 Onda 6 auditor 5 M4).
 - **Imutável após INSERT:** trigger PG bloqueia UPDATE/DELETE.
 - **Texto canônico v1.0:** `docs/conformidade/comum/termos/aceite-atividade-v1.0.md` (corpo entre `<<<CORPO INICIO>>>` e `<<<CORPO FIM>>>`); canonicalização determinística por ADR-0029.
 - **Validações server-side:**

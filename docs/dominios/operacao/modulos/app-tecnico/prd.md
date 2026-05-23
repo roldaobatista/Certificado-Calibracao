@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado_em: 2026-05-17
-proximo_review: 2026-08-17
+revisado_em: 2026-05-23
+proximo_review: 2026-08-23
 status: draft
 diataxis: explanation
 audiencia: agente
@@ -229,6 +229,59 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 - **AC-APP-012-2**: GIVEN sync em andamento, WHEN técnico fecha o app, THEN sync continua em background até concluir.
 
 **Dependências:** ADR-0004.
+
+---
+
+### US-APP-014: Login com biometria + PIN fallback + sessão offline 7 dias (A-APP-001)
+
+**Como** sistema, **quero** exigir biometria (face/digital) com PIN de 6 dígitos como fallback e expirar a sessão local após 7 dias sem sync, **para** mitigar furto e abandono.
+
+**Critérios de aceite:**
+- **AC-APP-014-1**: GIVEN dispositivo com biometria disponível, WHEN técnico abre o app, THEN biometria é exigida; falha cai em PIN.
+- **AC-APP-014-2**: GIVEN 7 dias sem sync com servidor, WHEN técnico abre o app, THEN é forçada re-autenticação completa contra o servidor (online).
+- **AC-APP-014-3**: GIVEN servidor recebe comando `RemoteWipe`, WHEN próximo poll do app ocorre, THEN dados locais são limpos + sessão encerrada.
+- **Invariantes:** `INV-APP-SESS-001`.
+
+---
+
+### US-APP-015: Sync parcial — só OS atribuídas + 6 meses (A-APP-002)
+
+**Como** sistema, **quero** baixar apenas OS atribuídas ao técnico + últimos 6 meses de histórico do cliente alvo, com quota local de 2GB + LRU eviction, **para** respeitar minimização LGPD + storage do dispositivo.
+
+**Critérios de aceite:**
+- **AC-APP-015-1**: GIVEN técnico autenticado, WHEN sync inicial roda, THEN servidor envia apenas OS onde `tecnico_id=current_user` + dados do cliente correspondente nos últimos 6 meses.
+- **AC-APP-015-2**: GIVEN armazenamento local alcança 2GB, WHEN nova OS chega, THEN LRU eviction remove itens mais antigos não-pendentes (pendentes nunca são removidos).
+- **Invariantes:** `INV-APP-SYNC-001`.
+
+---
+
+### US-APP-016: Mídia local + retenção 30d pós-sync (A-APP-003)
+
+**Como** sistema, **quero** armazenar mídia (fotos/vídeos) em filesystem local com metadata em `OperacaoSyncPendente.payload_json` e expirar local 30d após sync OK, **para** evitar JSONB inchado e respeitar storage local.
+
+**Critérios de aceite:**
+- **AC-APP-016-1**: WHEN técnico tira foto, THEN arquivo vai em filesystem local + entry em `OperacaoSyncPendente` referencia o arquivo.
+- **AC-APP-016-2**: GIVEN sync OK confirmado pelo servidor, WHEN 30d passam, THEN arquivo local é removido (mídia preservada no servidor).
+
+---
+
+### US-APP-017: Back-off exponencial + dead-letter (M-APP-001)
+
+**Como** sistema, **quero** retentar sync com back-off exponencial base 2, máximo 10 tentativas, e mover pra dead-letter na 11ª, **para** evitar tempestade de retry + permitir investigação manual de falhas.
+
+**Critérios de aceite:**
+- **AC-APP-017-1**: GIVEN sync falha, WHEN próxima tentativa, THEN intervalo é `2^n * base_segundos` (n=tentativa atual).
+- **AC-APP-017-2**: GIVEN 10 tentativas falharam, WHEN próxima tentativa ocorre, THEN operação vai pra `OperacaoSyncPendente.status='dead_letter'` e alerta o coordenador.
+
+---
+
+### US-APP-018: Chat interno via OmniChannelProvider (M-APP-002)
+
+**Como** técnico, **quero** chat interno com a equipe usando o transporte da plataforma (`OmniChannelProvider`), **para** unificar configuração; cliente externo NÃO entra neste canal.
+
+**Critérios de aceite:**
+- **AC-APP-018-1**: Chat interno consome `OmniChannelProvider` (mesma porta WhatsApp/Email/SMS).
+- **AC-APP-018-2**: Cliente externo nunca aparece como contato; thread de cliente vai por `comunicacao-omnichannel` separado.
 
 ---
 

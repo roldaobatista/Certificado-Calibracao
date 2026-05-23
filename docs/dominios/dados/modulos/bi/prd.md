@@ -237,6 +237,47 @@ Lista derivada **direto** das funcionalidades da seção 22 do `novas funcionali
 
 ---
 
+### US-BI-017: Dashboard customizado por tenant + default global
+
+**Como** tenant, **quero** salvar dashboard próprio, **para** customizar sem afetar outros tenants (G-BI-2).
+
+**Critérios de aceite:**
+- **AC-BI-017-1**: tenant clica "Salvar como meu dashboard" → grava em `DashboardCustom(tenant_id, user_id, layout_json)`.
+- **AC-BI-017-2**: admin Aferê (US-BI-018) publica `DashboardDefault(escopo=global)` que tenant herda se não tem custom; tenant pode "duplicar como meu" e editar.
+
+### US-BI-018: Admin Aferê publica default global
+
+- **AC-BI-018-1**: admin com `perfil=admin_afere` publica dashboard global; tenants veem automaticamente.
+
+### US-BI-019: Dashboard MRR/ARR alimentado por CDC desde dia 1 (G-BI-1)
+
+**Como** dono Aferê, **quero** ver MRR/ARR/churn em ≤5min de defasagem desde o dia 1 (`INV-BI-MRR-001`), **para** acompanhar receita do próprio SaaS.
+
+**Critérios de aceite:**
+- **AC-BI-019-1**: `MeterUsoEvent` + `BillingSaas.UsoMedido` + `BillingSaas.FaturaPaga` + `BillingSaas.PlanoCriado` alimentam dashboard MRR/ARR **via outbox transacional** (Fase 0 ADR-0011 — sem Debezium); refresh ≤5min p95.
+- **AC-BI-019-2**: dashboard separa **MRR por componente** (base / faixas / addons / uso variável / desconto) — visibilidade do mix de receita.
+- **AC-BI-019-3**: churn separado voluntário × involuntário (US-BIL-014 motivo_churn).
+- **AC-BI-019-4**: Debezium **Fase 2b** alimenta outros datasets (OS, equipamentos, certificados) — não bloqueia MRR/ARR no dia 1.
+
+**Invariantes:** `INV-BI-MRR-001`, `INV-001`.
+
+### US-BI-020: RBAC papel × dashboard (G-BI-3)
+
+**Como** sistema, **quero** matriz papel→dashboard via `AuthorizationProvider.can()`, **para** não usar `if user.groups.filter()` espalhado.
+
+**Critérios de aceite:**
+- **AC-BI-020-1** (refina US-BI-002): GIVEN usuário tenta abrir dashboard X, WHEN view consulta `AuthorizationProvider.can(action="dashboard.ver", resource={"dashboard_id": X})`, THEN decisão centralizada (ADR-0012).
+- **AC-BI-020-2**: matriz papel × dashboard configurável por tenant (admin tenant define quem vê o quê).
+
+### US-BI-021: Export CSV PII exige role + audit (G-BI-4)
+
+**Como** sistema, **quero** que export ad-hoc CSV com >100 linhas contendo PII exija `role=BI_EXPORT_PII` + audit, **para** mitigar exfiltração.
+
+**Critérios de aceite:**
+- **AC-BI-021-1**: GIVEN export CSV solicita >100 linhas E colunas incluem campo da denylist PII (cpf/email/telefone), WHEN usuário tenta, THEN sistema exige perfil `BI_EXPORT_PII`; sem perfil → bloqueia + log tentativa.
+- **AC-BI-021-2**: export aprovado grava `audit_trail.bi_export_pii(usuario, dashboard, filtros, linhas, hash_arquivo)`.
+- **AC-BI-021-3**: tipo de defasagem alinhada ADR-0011 (G-BI-5): operacional ≤5min via outbox, gerencial 1h (MV), executivo 1d (batch ETL).
+
 ## 7. Métricas de sucesso deste módulo
 
 Ver `metricas.md`. Resumo:

@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado_em: 2026-05-17
-proximo_review: 2026-08-17
+revisado-em: 2026-05-23
+proximo_review: 2026-08-23
 status: draft
 diataxis: explanation
 audiencia: agente
@@ -10,6 +10,9 @@ relacionados:
   - docs/dominios/metrologia/modulos/calibracao/prd.md
   - docs/dominios/metrologia/modulos/calibracao/conformidade-iso-17025.md
   - docs/dominios/metrologia/modulos/calibracao/responsabilidade-tecnica.md
+  - docs/dominios/seguranca/modulos/certificados-digitais/prd.md
+  - docs/adr/0014-transicoes-regulatorias.md
+  - docs/adr/0048-a3-ecpf-rt-cadastro.md
 ---
 
 # PRD — Módulo Licenças, Acreditações e Autorizações da Empresa
@@ -122,15 +125,78 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 
 ---
 
-### US-LIC-006: Cadastrar certificado digital A1/A3 da empresa
+### US-LIC-006: Cadastrar certificado digital A1/A3 da empresa (Onda 8 — fonte de verdade migrou)
 
 **Como** responsável administrativo, **quero** registrar metadados do certificado digital A1/A3 (CNPJ, validade, AC emissora), **para** controlar vencimento e renovação.
 
-**Critérios de aceite:**
-- **AC-LIC-006-1**: GIVEN certificado digital novo, WHEN cadastra, THEN sistema persiste tipo (A1/A3), titular CNPJ, AC emissora, data emissão, data validade, fingerprint (opcional). NÃO armazena chave privada nem PFX.
-- **AC-LIC-006-2**: GIVEN certificado A3 expirando em 30 dias, WHEN sistema verifica, THEN dispara alerta com instruções de renovação.
+**Onda 8 (ADR-0048):** cadastro físico do e-CNPJ migrou pra módulo `seguranca/certificados-digitais` (US-CER-DIG-001). Este US permanece como **referência cruzada** pra controle operacional de vencimento + bloqueio de operações dependentes.
 
-**Invariantes:** `INV-046` (anexo de evidência opcional para A3 — metadados obrigatórios), `INV-001`. Vincula ADR-0009 (assinatura A3 client-side).
+**Critérios de aceite (atualizados):**
+- **AC-LIC-006-1**: GIVEN admin tenant, WHEN consulta painel de licenças, THEN sistema mostra entrada "e-CNPJ" vinculada via FK pra `certificados-digitais.cert_id`, com `valido_ate`, `ac_emissora`, status local (vigente/vencido/revogado).
+- **AC-LIC-006-2**: GIVEN cert A3 expirando em 30 dias OU revogado pela AC (`A3.RevogacaoDetectada` ADR-0046), WHEN sistema verifica, THEN dispara alerta com instruções + bloqueia emissão de NF se marcado bloqueante (US-LIC-003 herdada).
+
+**Invariantes:** `INV-A3-OCSP-001` (ADR-0046), `INV-017`, `INV-001`. Vincula ADR-0009, ADR-0046, ADR-0048.
+
+---
+
+### US-LIC-008 (REPOSICIONADA — ADR-0048): Cadastro físico do e-CPF do RT migrou pra `certificados-digitais`
+
+**Status:** delegada ao módulo `seguranca/certificados-digitais` (US-CER-DIG-002). Este placeholder garante rastreabilidade da numeração + lembra que `licencas-acreditacoes` consulta o cert via FK pra controle operacional de bloqueio (US-LIC-003).
+
+- **AC-LIC-008-1**: GIVEN RT desligado (`Colaborador.Desligado` is_rt_signatario=true — INV-INT-002), WHEN consumer reage, THEN marca cert A3 do RT como `bloqueado_para_assinatura` aqui + delega revogação efetiva ao módulo `certificados-digitais` (US-CER-DIG-006).
+- **Vínculo onboarding (A-REG-06):** wizard onboarding RT em `certificados-digitais` (AC-CER-DIG-002-1) exige `cpf + A3 + OCSP good + subject_cn.cpf == usuario.cpf`. `licencas-acreditacoes` recebe evento `CertificadoDigital.Cadastrado{escopo: rt_signatario}` e cria entrada de controle ART/RRT vinculada.
+
+---
+
+### US-LIC-009 (REPOSICIONADA — ADR-0048): Cadastro físico do e-CPF de demais signatários migrou pra `certificados-digitais`
+
+**Status:** delegada ao módulo `seguranca/certificados-digitais` (US-CER-DIG-003).
+
+---
+
+### US-LIC-010 (Onda 8 — ADR-0014 fluxo 7): Ampliação de escopo de acreditação CGCRE
+
+**Como** RT, **quero** registrar pedido de ampliação de escopo (novas grandezas/faixas), **para** preparar dossiê pra submissão CGCRE e acompanhar status.
+
+**Critérios de aceite:**
+- **AC-LIC-010-1**: GIVEN RT acessa licença CGCRE vigente, WHEN clica "Solicitar ampliação", THEN sistema cria entidade `PedidoAmpliacaoEscopo` com `{grandezas_novas, faixas_novas, padroes_novos_id, procedimentos_validados_id, status: rascunho}`.
+- **AC-LIC-010-2**: GIVEN pedido completo (dossiê + ART RT + padrões rastreáveis + validação 7.11), WHEN RT submete, THEN sistema valida pré-requisitos, gera PDF consolidado, publica `Licencas.AmpliacaoEscopoSubmetida`, status→`em_analise_cgcre`.
+- **AC-LIC-010-3**: GIVEN CGCRE aprova ampliação, WHEN admin registra resultado + carta CGCRE, THEN cria nova revisão da licença com escopo expandido + publica `Licencas.AcreditacaoAmpliada` (consumidor: `certificados` libera emissão nas novas grandezas).
+
+**Invariantes:** `INV-INT-003` (snapshot acreditação), `INV-001`.
+
+---
+
+### US-LIC-011 (Onda 8 — ADR-0014 fluxo 8): Responder NC CGCRE (SLA 30 dias)
+
+**Como** RT, **quero** registrar e responder NC aberta pela CGCRE em supervisão, **para** evitar suspensão.
+
+**Critérios de aceite:**
+- **AC-LIC-011-1**: GIVEN admin recebe ofício CGCRE com NC, WHEN cadastra `NCCgcre {numero, severidade, prazo_resposta, evidencias_solicitadas}`, THEN sistema publica `Licencas.NCCgcreAberta`, agenda alertas D-15/7/3/1 antes do prazo de resposta (≤30 dias), bloqueia emissão se severidade=`maior` AND escopo afetado.
+- **AC-LIC-011-2**: GIVEN RT prepara resposta + evidências + plano de ação, WHEN submete via UI, THEN sistema gera PDF consolidado assinado pelo RT (ADR-0047 LTV) + publica `Licencas.NCCgcreRespondida`.
+- **AC-LIC-011-3 (prazo perdido)**: GIVEN >30 dias sem resposta, WHEN sistema verifica, THEN escalation P1 ao dono Aferê + bloqueia emissão hard até resposta + publica `Licencas.NCCgcrePrazoVencido`.
+
+**Invariantes:** `INV-032` (doc bloqueante), `INV-001`, `INV-INT-002` (RT designado).
+
+---
+
+### US-LIC-012 (Onda 8 — ADR-0014 fluxo 9): Preparar revisão CGCRE a cada 5 anos
+
+**Como** admin, **quero** sistema avisar 12 meses antes da revisão CGCRE quinquenal + checklist preparatório, **para** evitar lapsos.
+
+**Critérios de aceite:**
+- **AC-LIC-012-1**: GIVEN acreditação vigente com `proxima_revisao_5anos` calculada, WHEN data ≥ D-365/180/90/60/30, THEN sistema dispara alerta progressivo + checklist (atualização padrões, ART RT, validações 7.11, dossiê histórico).
+- **AC-LIC-012-2**: GIVEN admin marca checklist 100% concluído, WHEN gera dossiê pré-revisão, THEN sistema produz PDF consolidado + publica `Licencas.DossieRevisao5AnosPronto`.
+
+---
+
+### US-LIC-013 (Onda 8 — M-REG-05): Preparar dossiê pré-auditoria CGCRE
+
+**Como** admin, **quero** gerar checklist NIT-DICLA-021/030 com export consolidado, **para** apresentar à auditoria CGCRE/RBC.
+
+**Critérios de aceite:**
+- **AC-LIC-013-1**: GIVEN auditoria CGCRE agendada, WHEN admin clica "Gerar dossiê", THEN sistema produz PDF + ZIP com: licenças vigentes, ART RT, CertCalibração últimos 12m, NCs abertas/fechadas, validações 7.11, registros de treinamento, padrões com rastreabilidade.
+- **AC-LIC-013-2**: GIVEN dossiê gerado, WHEN auditor consulta hash, THEN bate com registro WORM.
 
 ---
 

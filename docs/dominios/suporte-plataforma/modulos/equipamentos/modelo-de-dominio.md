@@ -1,10 +1,10 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-18
+revisado-em: 2026-05-23
 status: stable
 modulo: equipamentos
 dominio: suporte-plataforma
-versao: 3
+versao: 4
 ---
 
 # Modelo de domínio — Equipamentos do cliente
@@ -12,6 +12,8 @@ versao: 3
 > **v2 (2026-05-18 manhã):** revisão pelos 4 subagentes endereçou 16 bloqueadores. `EquipamentoEvento` removido (usa `audit_trail.eventos`), `cliente_id_original` separado em hash + UUID nullable, `perfil_tenant_no_momento_cadastro` snapshot imutável, `RecebimentoEquipamento` entidade nova, motivo de versionamento enum, portas stub para módulos certificados/OS.
 >
 > **v3 (2026-05-18 noite):** revisão de 12 planos de US endereçou ressalvas finas: (a) `fotos_chegada`/`fotos_devolucao` guardam `storage_key` (não URL — tech-lead US-006), (b) `recebimento_aberto_id` materializado no `Equipamento` resolve ambiguidade `status=em_calibracao_lab` com múltiplos recebimentos, (c) `consentimento_compartilhamento_historico_em_transferencia` migrou para `TransferenciaEquipamentoAceite` (imutável no aceite) + flag derivada `mostrar_historico_anterior` no `Equipamento`, (d) entidade nova `RecebimentoProvisorio` (separada de `EquipamentoRecebimento` — decisão Roldão Caminho A).
+>
+> **v4 (2026-05-23):** Onda 5 saneamento pós-auditoria 10 lentes. (a) Faixa tipada — `faixas_medicao: list[FaixaMedicao]` referenciando VOs metrológicos (D-EQP-002 + INV-PAD-002). (b) Entidade `Movimentacao` (D-EQP-006 — INV-SOFT-002 padrão B WORM). (c) Seção "Integração Marco 3" com FK lógica `AtividadeDaOS.equipamento_id` + predicate "bloqueado por atividade" + matriz multi-estado (D-EQP-005). (d) Consumer cascade `consumir_cliente_anonimizado` (D-EQP-009 + ADR-0032). (e) Materialização `HistoricoCertificadoEquipamento` (D-EQP-004). (f) `local_recebimento` em Recebimento/Movimentacao (D-EQP-008 ADR-0028 BPT). Débitos rastreados em `debitos-tecnicos.md`.
 
 ## Entidades
 
@@ -26,7 +28,10 @@ versao: 3
 
 **Atributos versionáveis (criam `EquipamentoVersao` se há ≥1 cert emitido):**
 - `modelo`
-- `faixa_medicao`
+- `faixa_medicao: str` (LEGADO Marco 2 — Wave A migra para `faixas_medicao` tipado, D-EQP-002)
+- `faixas_medicao: list[FaixaMedicao]` (v4 — D-EQP-002 — 1 equipamento N grandezas; cada grandeza M faixas; VO em `src/domain/metrologia/value_objects.py`)
+- `grandezas: list[Grandeza]` (v4 — VO existente; deriva também de `faixas_medicao`)
+- `cmc_aplicavel_id: FK opcional` (v4 — CMC vive em `padroes` ou `calibracao` — Marco 4 define)
 - `classe_exatidao` (em perfil A exige A3 RT)
 - `descricao` (≤500 chars)
 - `localizacao_fisica` (≤200 chars, regex anti-PII — INV-EQP-LOC-001)
@@ -96,6 +101,7 @@ class SnapshotAtributosVersionaveis(BaseModel):
 - `decisao_apos_anomalia: enum {prosseguir, contatar_cliente_aguardando, recusar_devolver, prosseguir_com_ressalva}` (exigido se condição != integro)
 - `justificativa_decisao: text` (≥30 chars se decisao != prosseguir)
 - `lacre_chegada: text NULL` (id do lacre, se houver)
+- `local_recebimento: enum {lab, domicilio_cliente, em_evento}` (v4 — D-EQP-008 ADR-0028 BPT; default `lab`; quando `!= lab` dispara consumer cobertura BPT — GATE-SEG-BPT-1)
 - `status_fluxo_lab: enum` (máquina de estados — RBC B3):
   - `aguardando_recebimento → recebido_pendente_inspecao → em_inspecao_visual → aguardando_calibracao → em_calibracao → aguardando_aprovacao_tecnica → aguardando_devolucao → devolvido`
   - Caminhos alternativos terminais: `nao_conformidade_recebimento`, `nao_conformidade_calibracao`
@@ -125,6 +131,7 @@ class SnapshotAtributosVersionaveis(BaseModel):
 - `decisao_apos_anomalia: enum` (mesmas opções de EquipamentoRecebimento)
 - `justificativa_decisao: text` — INV-EQP-ANOM-002
 - `status: enum {aguardando_promocao, promovido, recusado, devolvido_sem_promocao}`
+- `local_recebimento: enum {lab, domicilio_cliente, em_evento}` (v4 — D-EQP-008 ADR-0028 BPT; default `lab`)
 - `promovido_para_equipamento_id: FK NULL` (preenchido após promoção)
 - `promovido_em: timestamp NULL`
 
@@ -261,6 +268,8 @@ Hook `port-binding-validator.sh` (a criar Wave A Marco 2) bloqueia release pra p
 | `equipamento.anomalia_recebimento` | Condição != integro + decisão tomada | `{ equipamento_id, recebimento_id, anomalia, decisao }` | Qualidade (abre NC se grave), Comercial (notifica cliente) |
 | `equipamento.orfao_detectado` | Job diário identifica cliente inativo >12m | `{ equipamento_id }` | Suporte tenant, Dashboard |
 | `equipamento.extraviado_reportado` | Cliente reporta perda/roubo | `{ equipamento_id, motivo }` | Comercial, Dashboard alerta |
+| `equipamento.movimentado` | Nova `Movimentacao` (v4 — D-EQP-006) | `{ equipamento_id, tipo, local_recebimento, responsavel_id_hash }` | Marco 3 OS, Comercial, Dashboard BPT (`local != lab`) |
+| `equipamento.cliente_anonimizado_propagado` | Consumer `Cliente.Anonimizado` aplicado (v4 — D-EQP-009 + ADR-0032) | `{ equipamento_id, cliente_id_anonimizado, propagado_em }` | Audit, Compliance LGPD |
 
 **Não logar em payload:** NS em claro, nome/CPF/CNPJ/e-mail/telefone cliente em claro, localização_fisica. Sempre hashes salgados por tenant ou IDs (que são opacos).
 
@@ -279,6 +288,136 @@ Hook `port-binding-validator.sh` (a criar Wave A Marco 2) bloqueia release pra p
 | `reemitir_qr` | UI/API | equip ativo | Novo QR ativo + anterior `revogado_em = now()` (salvo flag explícita) |
 | `marcar_orfao` | Job diário | cliente_atual_id aponta pra cliente inativo > 12m | Status=`orfao_pendente_decisao`; evento |
 | `marcar_extraviado` | UI/API | equip ativo; cliente reportou | Status=`extraviado`; alerta se QR escaneado depois |
+| `registrar_movimentacao` (v4 — D-EQP-006) | UI/API | equip existe; tipo válido; justificativa ≥30 chars anti-PII | `Movimentacao` criada (WORM); evento `equipamento.movimentado`; se tipo=`reaparecimento` muda status `EXTRAVIADO→ATIVO`; se `local != lab` dispara consumer BPT (D-EQP-008) |
+
+---
+
+### Movimentacao (entidade nova v4 — D-EQP-006)
+
+> Onda 5: rastreio físico do equipamento entre recebimentos/devoluções
+> sucessivas — empréstimo, troca de componente, reaparecimento de
+> extraviado, sucateamento.
+
+- `id: UUID`
+- `equipamento_id: FK`
+- `tenant_id: FK` (RLS)
+- `tipo: enum {recebimento_lab, recebimento_campo, saida_para_uso,
+  devolucao, emprestimo, troca_componente, sucateamento,
+  reaparecimento}`
+- `data: timestamp`
+- `responsavel_id: usuario_id`
+- `justificativa: text` (≥30 chars; regex anti-PII INV-EQP-LOC-001)
+- `audit_event_id: FK` (vínculo ao evento em `audit_trail.eventos`)
+- `local_recebimento: enum {lab, domicilio_cliente, em_evento} NULL`
+  (D-EQP-008 — ADR-0028 BPT)
+- `vigencia_inicio: timestamp` + `revogado_em: timestamp NULL` +
+  `motivo_revogacao: text NULL ≥10 chars` (ADR-0030)
+
+**Padrão soft-delete: B — revogado_em (WORM)** (ADR-0031 +
+INV-SOFT-002). DELETE direto bloqueado por trigger PG.
+
+**Regras de transição:**
+- Qualquer mudança em `Equipamento.status` exige `Movimentacao` na
+  mesma transação (FK reversa imutável; trigger PG valida).
+- `EXTRAVIADO → ATIVO` exige `tipo=reaparecimento` (não há outro
+  caminho).
+- `tipo=sucateamento` é terminal (mesma semântica de `status=sucata`).
+
+**Invariantes:** INV-025, INV-SOFT-002, INV-EQP-LOC-001.
+
+### HistoricoCertificadoEquipamento (entidade materializada v4 — D-EQP-004)
+
+> Onda 5: cache assíncrono dos últimos 10 certs por equipamento para
+> ficha 360° (p95 < 1.5s mesmo com 1000+ certs).
+
+- `equipamento_id: PK FK`
+- `tenant_id: FK` (RLS)
+- `ultimos_10_certs: JSONB` (estrutura
+  `[{numero, emitido_em, validade, status}]` × ≤10)
+- `atualizado_em: timestamp`
+
+Mantida por consumer do evento `certificado.emitido` (módulo
+`certificados` Wave A). Não é fonte de verdade — é cache.
+
+---
+
+## Integração Marco 3 OS (D-EQP-003 + D-EQP-005)
+
+Marco 3 (`os`) consome `Equipamento` via:
+
+### FK lógica `AtividadeDaOS.equipamento_id`
+
+- Cravado em INV-OS-ATIV-002 (já promovido) — herdada de
+  `OS.equipamento_id` da OS pai.
+- Cross-tenant proibido (trigger PG
+  `atividade_tenant_check_trg` valida `atividade.tenant_id ==
+  equipamento.tenant_id`).
+
+### Predicate "equipamento bloqueado por atividade em curso"
+
+```python
+def equipamento_bloqueado_por_atividade(
+    equipamento_id: UUID, tenant_id: UUID
+) -> tuple[bool, list[UUID]]:
+    """Retorna True + IDs de atividades EM_EXECUCAO."""
+```
+
+Exposto pelo módulo `os` via porta `OSQueryService`
+(`buscar_atividades_em_execucao_por_equipamento`). `equipamentos`
+consome em comandos `sucatear_equipamento`, `transferir_para_cliente`,
+`registrar_recebimento` (bloqueia se há atividade ativa
+incompatível).
+
+### Multi-estado em paralelo (D-EQP-005)
+
+`Equipamento.status` continua single-value para compat Marco 2; v4
+adiciona campos derivados:
+
+- `estados_concorrentes: set[EstadoConcorrente]` (computado das
+  atividades EM_EXECUCAO via porta `OSQueryService`)
+  - Valores: `EM_MANUTENCAO_CORRETIVA`, `EM_MANUTENCAO_PREVENTIVA`,
+    `EM_CALIBRACAO_LAB`, `EM_VERIFICACAO`
+
+Marco 3 cria **matriz de compatibilidade** em `INV-OS-CONC-001` (a
+cravar Onda 6) — quais combinações são SERIAL e quais PARALELAS.
+
+### Caso OS combinada (manutenção + calibração)
+
+ADR-0023 explicitamente permite — 1 OS contém N AtividadeDaOS com
+tipos diferentes. `equipamentos` apenas reflete via
+`estados_concorrentes`. **Cenário canônico:** equipamento entra na
+OS → atividade `manutencao_corretiva` EM_EXECUCAO → conclui →
+atividade `calibracao` EM_EXECUCAO → conclui → OS CONCLUIDA →
+certificado emitido referenciando a `EquipamentoVersao` vigente no
+momento da calibração.
+
+---
+
+## Consumer cascade — `Cliente.Anonimizado` (D-EQP-009 + ADR-0032)
+
+```python
+@evento.consumer("cliente.anonimizado")
+def consumir_cliente_anonimizado(evento):
+    """Cascade anonimização cliente → equipamento.
+
+    Onda 1 cria evento canônico Cliente.Anonimizado v11.
+    Esta declaração só descreve o consumer; implementação Wave A.
+    """
+    # 1. Equipamento.cliente_atual_id == evento.cliente_id → NULL
+    # 2. cliente_id_original_hash já é imutável (INV-025) — preserva
+    # 3. RecebimentoProvisorio.cliente_id_provisorio idem → NULL
+    # 4. Audit AcessoDadosCliente motivo=anonimizacao_propagada
+    #    (INV-ANON-004)
+    # 5. Publica equipamento.cliente_anonimizado_propagado
+```
+
+Idempotência via `event_id` (IDEMP-002). Path PROTECT em cert
+emitido **NÃO se aplica em equipamentos**: `cliente_atual_id` é
+`ON DELETE SET NULL`. O par hash+key_id (ADR-0032
+`ReferenciaPIIAnonimizavel`) preserva referência probatória.
+
+**Esta Onda 5 apenas declara.** Wave A pluga consumer; Onda 1 cria
+evento canônico.
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado_em: 2026-05-17
-proximo_review: 2026-08-17
+revisado_em: 2026-05-23
+proximo_review: 2026-08-23
 status: draft
 diataxis: explanation
 audiencia: agente
@@ -10,10 +10,15 @@ relacionados:
   - docs/dominios/metrologia/modulos/calibracao/conformidade-iso-17025.md
   - docs/dominios/metrologia/modulos/calibracao/controle-certificado-emitido.md
   - docs/dominios/metrologia/modulos/calibracao/garantia-validade-7.7.md
+  - docs/dominios/metrologia/modulos/calibracao/politica-verificacao-intermediaria.md
   - docs/dominios/metrologia/modulos/calibracao/responsabilidade-tecnica.md
   - docs/dominios/metrologia/modulos/calibracao/validacao-software.md
   - docs/dominios/metrologia/modulos/certificados/prd.md
+  - docs/dominios/metrologia/modulos/procedimentos/prd.md
   - docs/dominios/metrologia/modulos/licencas-acreditacoes/prd.md
+  - docs/adr/0043-calibracao-faturamento-bloqueio-inadimplencia.md
+  - docs/adr/0044-exportacao-regulatoria-anvisa-saude.md
+  - docs/adr/0045-certificado-recall-suspensao-errata.md
 ---
 
 # PRD — Módulo Laboratório de Calibração e Metrologia
@@ -246,8 +251,9 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 **Critérios de aceite:**
 - **AC-CAL-014-1**: GIVEN participação programada, WHEN registra (provedor, rodada, grandeza, faixa), THEN sistema cria registro pendente.
 - **AC-CAL-014-2**: GIVEN resultado recebido (escore z, status PASSED/UNACCEPTABLE), WHEN registra, THEN sistema anexa relatório + se UNACCEPTABLE dispara NC.
+- **AC-CAL-014-3 (novo Onda 7 — M2-CAL):** GIVEN resultado UNACCEPTABLE, WHEN registrado, THEN sistema **dispara análise de impacto retroativo** automaticamente: cria entidade `AnaliseImpactoNCProficiência(rodada_id, certs_no_periodo[], decisao)` listando todos os cert emitidos pela grandeza/faixa da rodada no intervalo da última PT PASSED→atual; gestor qualidade decide por cert se Recall (ADR-0045) / Suspensão / Sem impacto; decisão é audit-trail obrigatório.
 
-**Invariantes:** `INV-CAL-WORM-001`, ISO 17025 7.7.2.
+**Invariantes:** `INV-CAL-WORM-001`, `INV-CAL-NC-PT-001` (análise de impacto retroativo obrigatória em UNACCEPTABLE), ISO 17025 7.7.2.
 
 ---
 
@@ -260,6 +266,19 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 - **AC-CAL-015-2**: GIVEN renovação/revisão do escopo CGCRE, WHEN admin atualiza, THEN versão anterior preservada com janela de calibrações antigas.
 
 **Invariantes:** `INV-002`, `INV-012` (vincula com Licenças), `INV-CAL-WORM-001`.
+
+---
+
+### US-CAL-016: Vincular procedimento vigente à calibração (NOVO Onda 7 — A5-CAL)
+
+**Como** metrologista, **quero** que cada calibração referencie a versão vigente do `ProcedimentoCalibracao` aplicável à grandeza/faixa **na data de execução**, **para** atender ISO 17025 cl. 7.2.1 (procedimento documentado controlado) e permitir auditoria retroativa.
+
+**Critérios de aceite:**
+- **AC-CAL-016-1**: GIVEN configuração da calibração (US-CAL-002), WHEN metrologista seleciona grandeza+faixa, THEN sistema resolve `ProcedimentoCalibracao` vigente em `data_execucao` via predicate `procedimento_vigente_para(grandeza, faixa, em_data)` (referência `INV-VIG-001`/`INV-VIG-004` + ADR-0030) e vincula `Calibracao.procedimento_id` + `Calibracao.procedimento_versao_snapshot` (snapshot do código + versão + hash do anexo PDF).
+- **AC-CAL-016-2**: GIVEN nenhum `ProcedimentoCalibracao` vigente na data, WHEN tenta configurar como RBC, THEN sistema bloqueia com 412 `ProcedimentoVigenteAusente` + cita grandeza/faixa.
+- **AC-CAL-016-3**: GIVEN procedimento ativo em superseção (RT aprova versão N+1 após calibração começar), WHEN calibração está em `EM_EXECUCAO`/`EM_REVISAO_1`, THEN snapshot original é preservado (lock — `INV-CAL-WORM-001` estendido); só calibrações nascidas após `vigencia_inicio` de N+1 usam a nova.
+
+**Invariantes:** `INV-PROC-001` (procedimento vigente na data — referência módulo `procedimentos`), `INV-CAL-WORM-001`, `INV-CAL-VERSAO-001`.
 
 ---
 

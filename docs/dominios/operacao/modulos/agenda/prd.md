@@ -1,6 +1,6 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
+revisado-em: 2026-05-23
 status: draft
 modulo: agenda
 dominio: operacao
@@ -37,6 +37,7 @@ JTBD-009 (gerente não sabe onde técnico está hoje) + JTBD-010 (reagendar vira
 
 ## 5. Non-goals MVP-1
 
+- **Tempo de deslocamento real-time** (M-AG-003) depende de `MapsProvider` (Wave B). Fallback Wave A: input manual do gerente.
 - Roteirização inteligente (TSP) — MVP-2 (OP3.3)
 - Sugestão automática de melhor técnico por skill/proximidade — MVP-2
 - Integração 2-way com Google/Outlook Calendar — MVP-2
@@ -56,6 +57,9 @@ JTBD-009 (gerente não sabe onde técnico está hoje) + JTBD-010 (reagendar vira
 - **US-AG-008:** reagendamento notifica cliente com nova janela proposta (aprovação no portal)
 - **US-AG-009:** manutenção recorrente (semanal/mensal) gera slots futuros automaticamente
 - **US-AG-010:** capacidade do dia mostra "75% ocupado" — gerente decide se aceita mais OS
+- **US-AG-011 (A-AG-001):** atendente resolve conflito de agenda escolhendo entre {manter_novo, manter_antigo, reagendar_ambos}; sistema publica `Agenda.ConflitoResolvido`
+- **US-AG-012 (A-AG-002):** gerente registra no-show com custo de deslocamento + decisão de cobrar cliente; cria `RegistroNoShow` e dispara cobrança quando aplicável
+- **US-AG-013 (C-AG-001 / ADR-0051):** agendar atividade da OS (não a OS inteira) — atividades distintas da mesma OS podem ter janelas distintas e técnicos diferentes
 
 ## 7. Métricas
 

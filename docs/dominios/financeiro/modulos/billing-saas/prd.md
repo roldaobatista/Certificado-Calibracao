@@ -69,6 +69,8 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md`.
 
 ## 5. Non-goals (o que NÃO está neste módulo)
 
+- **Multi-moeda (Wave A non-goal explícito — G-BIL-1):** Wave A = **BRL único**. USD/EUR/multi-moeda fica V2 com ADR dedicada (FX rate frozen on invoice, gateway multi-moeda, conversão contábil).
+- **Receita reconhecida vs recebida (Wave B non-goal — G-BIL-3):** Wave A só fatura `valor_recebido`. Reconhecimento contábil (accrual basis, deferred revenue) fica Wave B junto com `contabilidade-export` avançado.
 - Cobrança dos CLIENTES dos tenants (isso é `contas-receber`).
 - **Emissão técnica de NFS-e**: este módulo **dispara** a emissão da NFS-e da assinatura SaaS (US-BIL-008), mas a integração com prefeitura/Padrão Nacional fica no módulo `fiscal` via `FiscalProvider` (ADR-0008).
 - Marketing/landing page de venda (fora do ERP).
@@ -276,6 +278,53 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md`.
 
 **Dependências:** ADR-0015, ADR-0007 (outbox), ADR-0002 (RLS).
 **Bloqueia:** uso do tenant em produção; cobrança recorrente.
+
+---
+
+### US-BIL-013: PIX recorrente BCB 1.071/2024 + tipos de MetodoPagamento
+
+**Como** tenant, **quero** pagar a assinatura SaaS via PIX recorrente (mandato bancário), **para** evitar MDR do cartão (3,5% → 0,4%) e chargeback.
+
+**Contexto:** ADR-0052 (G-BIL-2). `MetodoPagamento.tipo` vira enum fechado: `cartao_recorrente | pix_recorrente | boleto | pix_unico`.
+
+**Critérios de aceite:**
+- **AC-BIL-013-1**: GIVEN tenant escolhe PIX recorrente no checkout, WHEN gateway redireciona ao Internet Banking, THEN cliente autoriza mandato (valor_teto, periodicidade), banco devolve `mandato_id` opaco; Aferê grava `MetodoPagamento(tipo=pix_recorrente, mandato_id=...)` + emite `BillingSaas.MandatoPixCriado`.
+- **AC-BIL-013-2** (`INV-BIL-PIX-001`): GIVEN tentativa de cobrança PIX recorrente, WHEN `mandato_id` ausente OU revogado OU expirado OU `fatura.valor > mandato.valor_teto`, THEN sistema rejeita **antes** de chamar gateway; alerta tenant a renovar mandato.
+- **AC-BIL-013-3**: GIVEN cliente revoga mandato no banco, WHEN webhook `MandatoPixRevogado` chega, THEN Aferê pausa cobrança recorrente + alerta tenant a configurar novo método; consumer trata como falha D+0 (dunning).
+
+**Invariantes:** `INV-BIL-PIX-001`, `INV-001`, `SEC-PCI-001` (PIX não é PCI, mas auditoria igual).
+
+**Dependências:** ADR-0052, `PaymentGatewayProvider` (porta #11 ACL).
+
+---
+
+### US-BIL-014: Motivo de churn declarado (voluntário vs involuntário)
+
+**Como** sistema, **quero** registrar `motivo_churn` enum em cancelamento de assinatura, **para** que BI separe churn por causa (G-BIL-4).
+
+**Critérios de aceite:**
+- **AC-BIL-014-1**: cancelamento exige escolher `motivo_churn ∈ {voluntario_preco, voluntario_funcionalidade, voluntario_concorrente, voluntario_fechou_empresa, involuntario_inadimplencia, involuntario_falha_pagamento}`.
+- **AC-BIL-014-2**: BI dashboard MRR separa churn voluntário × involuntário (ver US-BI-019).
+
+---
+
+### US-BIL-015: Reembolso total cancela NFS-e + estorna gateway + audit
+
+**Como** operador comercial Aferê, **quero** reembolsar total de fatura, **para** desfazer cobrança com rastreabilidade fiscal.
+
+**Critérios de aceite:**
+- **AC-BIL-015-1** (G-BIL-6): GIVEN fatura paga, WHEN operador clica "Reembolsar total", THEN sistema **simultaneamente**: (a) chama `PaymentGatewayProvider.reembolsar(valor=None)`; (b) cancela NFS-e via `FiscalProvider.cancel_invoice(motivo)`; (c) audit_trail `fatura.reembolsada` com `quem/quando/motivo`.
+- **AC-BIL-015-2**: GIVEN reembolso parcial, WHEN operador tenta, THEN sistema rejeita ("estorno parcial só V3 — US-BIL-010 non-goal"); operador deve cancelar fatura inteira.
+
+---
+
+### US-BIL-016: Plano × feature flag sincronizado em ≤5min
+
+**Como** sistema, **quero** que mudança de plano atualize `tenant_features` em ≤5min (G-BIL-7), **para** features acompanharem contratação sem janela de drift.
+
+**Critérios de aceite:**
+- **AC-BIL-016-1**: GIVEN `BillingSaas.PlanoMudouModulos` publicado, WHEN consumer `acesso-seguranca` processa, THEN `tenant_features` sincroniza em ≤5min p95 (SLO).
+- **AC-BIL-016-2**: dunning retry usa back-off exponencial (G-BIL-5): D+1, D+3, D+7, D+15 (vs job fixo).
 
 ---
 

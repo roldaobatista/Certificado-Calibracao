@@ -1,6 +1,6 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
+revisado-em: 2026-05-23
 status: draft
 modulo: chamados
 dominio: operacao
@@ -16,9 +16,14 @@ dominio: operacao
 
 ### Chamado — agregado raiz
 
-- **Atributos obrigatórios:** `id`, `tenant_id`, `canal_origem` (enum: whatsapp | telefone | portal | email | presencial), `cliente_id`, `texto_inicial`, `estado` (enum: ABERTO | TRIADO | EM_ANDAMENTO | FECHADO | CANCELADO), `criado_at`, `criado_por`.
-- **Atributos opcionais:** `equipamento_id`, `tipo` (preenchido na triagem), `urgencia` (baixa | media | alta | critica), `sla_alvo_at`, `atribuido_a`, `os_id` (preenchido quando converte), `razao_fechamento`, `duplicado_de_id` (se humano marcou).
-- **Invariantes:** RAT-08 (audit), LGPD RAT-03 (telefone do cliente é dado pessoal), regra de duplicação documental (não automática).
+- **Atributos obrigatórios:** `id`, `tenant_id`, `canal_origem` (enum: whatsapp | telefone | portal | email | presencial), `cliente_id`, `texto_inicial`, `estado` (enum: ABERTO | TRIADO | EM_ANDAMENTO | FECHADO | CANCELADO), `criado_at`, `criado_por`, `tempo_triagem_ms` (preenchido na triagem — A-CH-002).
+- **Atributos opcionais:** `equipamento_id`, `tipo` (preenchido na triagem), `urgencia` (baixa | media | alta | critica), `sla_alvo_at`, `atribuido_a`, `os_id` (preenchido quando converte direto chamado→OS), `orcamento_id` (Wave B — quando vira orçamento antes de OS), `razao_fechamento`, `duplicado_de_id` (se humano marcou).
+- **Invariantes:** RAT-08 (audit), LGPD RAT-03 (telefone do cliente é dado pessoal), regra de duplicação documental (não automática), **INV-CHM-RAST-001** (rastreabilidade chamado→orçamento→OS).
+
+### ConfigEscalonamentoTenant (M-CH-002)
+
+- Atributos: `tenant_id`, `papel_gerente_id` (perfil que recebe escalação 100%), `percentual_trigger` (default 100%; ajustável por tenant), `percentual_aviso` (default 75%).
+- Sem essa config, default global aplica (75/100).
 
 ### MensagemDoChamado
 
@@ -52,7 +57,8 @@ stateDiagram-v2
 ```
 
 **Regras:**
-- Conversão em OS: estado vira FECHADO + `os_id` setado. Nova OS herda histórico via `os_origem_chamado_id`.
+- **Conversão (INV-CHM-RAST-001):** chamado pode virar **OR (a)** orçamento (Wave B — `orcamento_id` setado; `Orcamento.chamado_origem_id` preenchido) **OR (b)** OS direta (`os_id` setado; `OS.chamado_origem_id` preenchido, `OS.orcamento_origem_id IS NULL`). Os dois caminhos publicam evento distinto. Quando orçamento vira OS depois, `OS.orcamento_origem_id` é preenchido e a rastreabilidade tripla fica completa.
+- **SLA herdado (M-CH-001):** OS gerada de chamado herda SLA contratual do chamado; SLAs não somam — vence o mais restritivo (chamado vs contrato cliente).
 - FECHADO sem OS exige `razao_fechamento` ≠ null.
 - CANCELADO exige razão.
 - Transição reversa proibida.

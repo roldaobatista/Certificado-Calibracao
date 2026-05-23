@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado_em: 2026-05-17
-proximo_review: 2026-08-17
+revisado_em: 2026-05-23
+proximo_review: 2026-08-23
 status: draft
 diataxis: reference
 audiencia: agente
@@ -9,6 +9,10 @@ relacionados:
   - docs/comum/modelo-de-dominio.md
   - docs/comum/governanca-modelo-comum.md
   - docs/adr/0004-sync-offline-first.md
+  - docs/adr/0023-os-com-atividades.md
+  - docs/adr/0027-sync-mobile-merge-atividade.md
+  - docs/adr/0029-canonicalizacao-texto-probatorio.md
+  - docs/adr/0051-propagacao-adr0023-modulos-wave-a.md
 ---
 
 # Modelo de domínio — Módulo App do Técnico
@@ -37,12 +41,12 @@ relacionados:
 - **Ciclo de vida:** criado no toque "Cheguei"; imutável após criação.
 
 ### ServicoExecutado
-- **Atributos obrigatórios:** id, tenant_id, os_id, servico_catalogo_id (ou descricao_livre), hora_inicio, hora_fim, tecnico_id.
+- **Atributos obrigatórios:** id, tenant_id, **atividade_id** (FK `AtividadeDaOS` — NOT NULL; INV-APP-ADR0023-001), os_id (denormalizado = `atividade.os_id`), servico_catalogo_id (ou descricao_livre), hora_inicio, hora_fim, tecnico_id.
 - **Atributos opcionais:** observacoes.
 
 ### ConsumoPeca
-- **Atributos obrigatórios:** id, tenant_id, os_id, peca_id, quantidade, veiculo_origem_id, timestamp.
-- **Invariantes:** saldo do veículo não pode ficar negativo (CHECK no banco; regra de domínio).
+- **Atributos obrigatórios:** id, tenant_id, **atividade_id** (NOT NULL; INV-APP-ADR0023-001), os_id (denormalizado), peca_id, quantidade, veiculo_origem_id, timestamp.
+- **Invariantes:** saldo do veículo não pode ficar negativo (CHECK no banco; regra de domínio); INV-APP-ADR0023-001.
 - **Ciclo de vida:** baixa imediata no estoque do veículo (local); espelha no servidor pós-sync.
 
 ### SolicitacaoPeca
@@ -52,15 +56,16 @@ relacionados:
 - **Atributos obrigatórios:** id, tenant_id, veiculo_origem_id, veiculo_destino_id, peca_id, quantidade, hora_solicitacao, hora_aceite (opcional), status (pendente|aceita|recusada).
 
 ### Foto
-- **Atributos obrigatórios:** id, tenant_id, os_id, categoria (antes|durante|depois|avaria), arquivo_url, timestamp, gps_lat, gps_lng.
-- **Invariantes:** imutável após upload (`INV-001` — trilha WORM); EXIF preservado.
+- **Atributos obrigatórios:** id, tenant_id, **atividade_id** (NOT NULL; INV-APP-ADR0023-001), os_id (denormalizado), categoria (antes|durante|depois|avaria), arquivo_url (filesystem local até sync OK — A-APP-003), arquivo_metadata (em `OperacaoSyncPendente.payload_json`), timestamp, gps_lat, gps_lng.
+- **Invariantes:** imutável após upload (`INV-001` — trilha WORM); EXIF preservado; INV-APP-ADR0023-001.
+- **Retenção local (A-APP-003):** mídia no filesystem expira 30d pós-sync OK.
 
 ### Checklist (executado)
-- **Atributos obrigatórios:** id, tenant_id, os_id, template_checklist_id, itens (json com {id, marcado, observacao}), status (parcial|completo).
+- **Atributos obrigatórios:** id, tenant_id, **atividade_id** (NOT NULL; INV-APP-ADR0023-001 — checklist é por atividade, tipo distinto = checklist distinto), os_id (denormalizado), template_checklist_id, itens (json com {id, marcado, observacao}), status (parcial|completo).
 
 ### AssinaturaAceite
-- **Atributos obrigatórios:** id, tenant_id, os_id, assinatura_imagem, nome_cliente, cpf_cliente, timestamp.
-- **Invariantes:** NÃO é A3 ICP-Brasil — só aceite contratual com `INV-001` (WORM no aceite registrado). Ver ADR-0009 pra A3 do certificado de calibração regulado.
+- **Atributos obrigatórios:** id, tenant_id, **atividade_id** (NOT NULL; INV-APP-ADR0023-001 — termo é por atividade), os_id (denormalizado), assinatura_imagem, nome_cliente, cpf_cliente, timestamp, **`corpo_canonico_hash`** (SHA-256 sobre texto canonicalizado via `canonicalizar_texto_termo` — ADR-0029; INV-APP-CANON-001).
+- **Invariantes:** NÃO é A3 ICP-Brasil — só aceite contratual com `INV-001` (WORM no aceite registrado). Ver ADR-0009 pra A3 do certificado de calibração regulado. INV-APP-CANON-001 + INV-APP-ADR0023-001.
 
 ### Despesa
 - **Atributos obrigatórios:** id, tenant_id, tecnico_id, categoria, valor, comprovante_url, viagem_id (opcional), os_id (opcional), timestamp.
@@ -85,7 +90,7 @@ relacionados:
 | Agregado raiz | Entidades incluídas | Invariantes |
 |---|---|---|
 | SessaoTrabalho | Deslocamento, CheckIn, Despesa do dia | Uma única sessão aberta por técnico |
-| OS (em execução no app) | ServicoExecutado, ConsumoPeca, Foto, Checklist, AssinaturaAceite | OS só fecha com checklist obrigatório completo |
+| AtividadeDaOS (em execução no app) | ServicoExecutado, ConsumoPeca, Foto, Checklist, AssinaturaAceite | INV-APP-ADR0023-001 — todos filhos de atividade, não da OS; atividade só conclui com checklist obrigatório completo; OS só fecha quando todas atividades em estado terminal (ADR-0023) |
 | Viagem | Adiantamento, PrestacaoContas, Despesas vinculadas | Saldo = adiantamento − despesas comprovadas |
 
 ---
@@ -136,16 +141,17 @@ Ver `../schema-banco.md` (a criar) ou `../../../comum/schema-banco.md` quando co
 ## Diagramas
 
 ```mermaid
-%%{ Relação principal }%%
+%%{ Relação principal — pós ADR-0023/0051 }%%
 classDiagram
     SessaoTrabalho "1" --> "*" Deslocamento
     SessaoTrabalho "1" --> "*" Despesa
-    OS "1" --> "*" CheckIn
-    OS "1" --> "*" ServicoExecutado
-    OS "1" --> "*" ConsumoPeca
-    OS "1" --> "*" Foto
-    OS "1" --> "1" Checklist
-    OS "1" --> "0..1" AssinaturaAceite
+    OS "1" --> "*" AtividadeDaOS
+    AtividadeDaOS "1" --> "*" CheckIn
+    AtividadeDaOS "1" --> "*" ServicoExecutado
+    AtividadeDaOS "1" --> "*" ConsumoPeca
+    AtividadeDaOS "1" --> "*" Foto
+    AtividadeDaOS "1" --> "1" Checklist
+    AtividadeDaOS "1" --> "0..1" AssinaturaAceite
     Viagem "1" --> "*" Adiantamento
     Viagem "1" --> "1" PrestacaoContas
 ```
