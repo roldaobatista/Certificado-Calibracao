@@ -900,3 +900,156 @@ class ChecklistDaAtividade(models.Model):
 
     def __str__(self) -> str:
         return f"Checklist[{self.ordem}] atv={self.atividade_id} {self.estado}"
+
+
+class NaoConformidadeAtividade(models.Model):
+    """NC em atividade (US-OS-005 + P-OS-R5 RBC + cl. 8.7 ISO 17025).
+
+    Padrao B (ADR-0031) — trigger PG bloqueia UPDATE pos-INSERT salvo
+    transicao para campos CAPA via service controlado.
+
+    Cobertura cl. 8.7 (P-OS-R5): ciclo CAPA completo obrigatorio para
+    `resolverNC` (AC-OS-005-5):
+    - causa_raiz_hash ≠ NULL
+    - acao_corretiva_descricao_hash ≠ NULL
+    - eficacia_verificada_em ≠ NULL
+    - eficacia_verificada_por_user_id ≠ NULL
+    Ausente -> 412 CAPAIncompleto.
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="nao_conformidades",
+    )
+    atividade = models.ForeignKey(
+        AtividadeDaOS,
+        on_delete=models.PROTECT,
+        related_name="nao_conformidades",
+    )
+    razao_nao_conformidade_hash = models.CharField(
+        max_length=64,
+        help_text="SHA-256 do texto cru (anti-PII INV-OS-TXT-001).",
+    )
+    marcada_em = models.DateTimeField(help_text="Timestamp da marcacao NC.")
+    marcada_por_user_id = models.UUIDField(
+        help_text="FK user.id (db_constraint=False). Metrologista ou RT.",
+    )
+    # Campos CAPA (P-OS-R5 + cl. 8.7).
+    registro_capa_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "FK -> qualidade.registro_capa (Wave B; db_constraint=False). "
+            "Preenchido por consumer reverso quando modulo qualidade nascer "
+            "(GATE-RBC-CAPA-1)."
+        ),
+    )
+    causa_raiz_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Anti-PII (INV-OS-TXT-001). Obrigatorio em resolverNC.",
+    )
+    acao_corretiva_descricao_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Anti-PII. Obrigatorio em resolverNC.",
+    )
+    eficacia_verificada_em = models.DateTimeField(null=True, blank=True)
+    eficacia_verificada_por_user_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="Geralmente RT ou gerente_qualidade — predicate ABAC valida.",
+    )
+    revogado_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Raro — apenas se NC foi marcada por engano (audit preserva).",
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "ordens_servico"
+        db_table = "nao_conformidade_atividade"
+        verbose_name = "Nao conformidade de atividade"
+        verbose_name_plural = "Nao conformidades de atividade"
+        ordering = ["-criado_em"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("atividade",),
+                condition=models.Q(revogado_em__isnull=True),
+                name="uq_nc_ativa_por_atividade",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "atividade"], name="nc_tenant_atv_idx"),
+        ]
+
+    def __str__(self) -> str:
+        resolvida = " resolvida" if self.eficacia_verificada_em else ""
+        return f"NaoConformidade atv={self.atividade_id}{resolvida}"
+
+
+class SLAContrato(models.Model):
+    """Contrato de SLA do tenant com cliente (US-OS-007 saga 4).
+
+    Padrao A com vigencia (ADR-0030 JanelaVigencia). Suporta multiplos
+    SLAs vigentes simultaneos (ex: 1 SLA por categoria de servico). Usado
+    em US-OS-007 cancelarOS: se OS tem SLA contratual prioridade alta|
+    emergencia, dispara consumer `comercial/sla-breach`.
+    """
+
+    PRIORIDADE_CHOICES = [
+        ("baixa", "Baixa"),
+        ("normal", "Normal"),
+        ("alta", "Alta"),
+        ("emergencia", "Emergencia"),
+    ]
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="sla_contratos",
+    )
+    cliente = models.ForeignKey(
+        "clientes.Cliente",
+        on_delete=models.PROTECT,
+        db_constraint=False,
+        related_name="sla_contratos",
+    )
+    prioridade = models.CharField(max_length=20, choices=PRIORIDADE_CHOICES, default="normal")
+    prazo_atendimento_horas = models.IntegerField(
+        help_text="Horas a partir de OSAberta para atribuirTecnico (US-OS-002b).",
+    )
+    prazo_conclusao_horas = models.IntegerField(
+        help_text="Horas a partir de OSAberta para concluirAtividade da ultima atividade.",
+    )
+    descricao_publica = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        help_text="Descricao sem PII (categoria de servico).",
+    )
+    vigencia_inicio = models.DateTimeField(help_text="ADR-0030 JanelaVigencia.")
+    vigencia_fim = models.DateTimeField(null=True, blank=True, help_text="NULL = aberta.")
+    revogado_em = models.DateTimeField(null=True, blank=True)
+    motivo_revogacao_hash = models.CharField(max_length=64, blank=True, default="")
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "ordens_servico"
+        db_table = "sla_contrato"
+        verbose_name = "Contrato de SLA"
+        verbose_name_plural = "Contratos de SLA"
+        ordering = ["-vigencia_inicio"]
+        indexes = [
+            models.Index(fields=["tenant", "cliente", "vigencia_inicio"], name="sla_tenant_cli_vig_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"SLA cli={self.cliente_id} prio={self.prioridade}"
