@@ -136,11 +136,17 @@ Já registrados em `.claude/settings.json` (Onda 4):
 - `bus-envelope-validator` v10 — eventos com `event_id`, `_schema_version`, `occurred_at`, `correlation_id`, `actor`.
 - `migration-rls-check` — toda tabela com `tenant_id` exige policy RLS.
 
-### 2.4 DPIA aprovada (minuta OAB pendente)
+### 2.4 DPIA em minuta (aprovação OAB pendente — GATE-OS-DPIA-OAB pré-tenant externo pago)
 
-`docs/conformidade/comum/dpia/dpia-os.md` — avalia biometria touch
-(art. 11 LGPD), geolocalização (RAT-07), foto evidence em campo,
-audit log com motivo_hash (anti-PII).
+`docs/conformidade/comum/dpia/dpia-os.md` (`status: minuta`,
+`aguarda-revisao-oab: true`) — avalia biometria touch (art. 11 LGPD),
+geolocalização (RAT-07), foto evidence em campo, audit log com
+motivo_hash (anti-PII).
+
+**Marco 3 dogfooding-only (Balanças Solution) não exige DPIA
+OAB-aprovada;** 1º tenant externo pago bloqueia em GATE-OS-DPIA-OAB
+(§9). Subagente IA `advogado-saas-regulado` emite parecer consultivo
+em P2; OAB humana revalida antes de produção externa.
 
 ---
 
@@ -154,9 +160,11 @@ audit log com motivo_hash (anti-PII).
 | `AtividadeDaOS` | A (estado-máquina) | não | sim (via OS) | parcial |
 | `EventoDeOS` | B (`revogado_em` raro; uso normal append-only) | não | sim — hash sanitizado | sim (append-only) |
 | `AceiteAtividade` | B (imutável pós-coleta) | não | sim — biometria + cliente | sim |
+| `ConsentimentoBiometriaTouch` (NOVO P-OS-A1) | B (audit imutável) | não | sim — cliente_referencia_hash | sim |
 | `DispensaAceiteAtividade` | B (audit imutável) | não | sim — gerente_id + cliente_hash | sim |
 | `DelegacaoExecucao` | B (audit imutável) | não | sim — técnico delegante + delegado | sim |
 | `ChecklistDaAtividade` | A (estado por item) | não | não | não (preenchimento progressivo) |
+| `EvidenciaFotoAtividade` (NOVO P-OS-T5) | B (`revogado_em` só para LGPD art. 18 — face cliente) | não | sim — rosto cliente potencial | sim (append-only via trigger) |
 | `TipoAtividadeConfig` | C (`deletado_em`) | sim (procedimento vinculado) | não | não |
 | `SLAContrato` | A (revogado_em) | sim (vigência) | sim — cliente_id | não |
 | `NaoConformidadeAtividade` | B (revogado_em raro) | não | sim — descrição_hash | sim |
@@ -166,11 +174,16 @@ audit log com motivo_hash (anti-PII).
 **`OS`:**
 - `id UUID PK`
 - `tenant_id UUID NOT NULL` (RLS)
-- `numero_os VARCHAR(20)` — gerado pela sequence `os_numero_seq_<tenant>`
+- `numero_os BIGINT NOT NULL DEFAULT nextval('os_numero_seq_global')` — sequence global PG; `UNIQUE(tenant_id, numero_os)`; buracos por rollback aceitos (ADR-0056 + INV-OS-NUM-001)
+- `numero_os_exibido VARCHAR(20)` GENERATED ALWAYS AS (`'OS-' || EXTRACT(YEAR FROM criada_em) || '-' || LPAD(numero_os::text, 6, '0')`) STORED
 - `cliente_id UUID NULL` (FK → clientes; pode ficar NULL pós-anonimização)
 - `cliente_referencia_hash CHAR(64)` (HMAC-SHA256 do cliente_id original — preserva audit pós-anonimização ADR-0032)
 - `cliente_key_id VARCHAR(40)` (kms key id)
 - `equipamento_id UUID NOT NULL` (FK → equipamentos)
+- `equipamento_recebimento_id UUID NULL` (FK → EquipamentoRecebimento — null em OS de campo onde técnico vai até o cliente; cl. 7.5 ISO 17025 — P-OS-R4)
+- `analise_critica_id UUID NOT NULL` (FK → orcamento.analise_critica; cl. 7.1 ISO 17025 — INV-OS-ANAL-001; em US-OS-015 avulsa: `analise_critica_inline_texto` + `capacidade_tecnica_confirmada_por_user_id`)
+- `analise_critica_snapshot_hash CHAR(64)` (snapshot probatório no momento da abertura — INV-DOC-CANON-001)
+- `regra_decisao_acordada VARCHAR(20) NULL` (snapshot da regra cl. 7.1.3; overridable por cliente em M4 — ADR-0024)
 - `orcamento_origem_id UUID NULL` (FK; null em OS avulsa)
 - `os_origem_id UUID NULL` (FK reabertura)
 - `sucessao_societaria_id UUID NULL` (FK quando reabertura cross-cliente M&A)
@@ -194,13 +207,60 @@ audit log com motivo_hash (anti-PII).
 - `iniciada_em TIMESTAMPTZ`
 - `concluida_em TIMESTAMPTZ`
 - `valor_unitario_snapshot NUMERIC(14,2)`
-- `link_modulo_tecnico_id UUID` (FK reversa pra Calibracao/Manutencao — preenchido pelo módulo técnico em ≤24h via INV-OS-CAL-LINK-001)
-- `geo_ponto GEOGRAPHY(POINT, 4326) NULL` (opt-in; precisão limitada INV-OS-GEO-001)
+<!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
+- `link_modulo_tecnico_id UUID` (FK reversa pra Calibracao/Manutencao — preenchido pelo módulo técnico em ≤janela_tenant via INV-OS-CAL-LINK-001; default RBC perfil A: 72h alerta P2 / 15 dias úteis NC; perfis B/C/D: 7 dias / 30 dias — decisão Roldão D-M3-2)
+- `geo_ponto GEOGRAPHY(POINT, 4326) NULL` (opt-in; precisão limitada INV-OS-GEO-001; TTL automático 5 anos pós-conclusão via job `os-geo-truncamento` — P-OS-A2)
+- **Concorrência (ADR-0041 + P-OS-T1):** `CREATE UNIQUE INDEX idx_atividade_em_execucao_por_equip ON atividade_da_os (tenant_id, equipamento_id) WHERE estado='em_execucao' AND tipo_bloqueia_concorrencia=true` — INSERT/UPDATE de transição estoura unique violation → 412 determinístico. Flag `tipo_bloqueia_concorrencia` deriva de `TipoAtividadeConfig` (matriz tipo×tipo).
 
+**`ConsentimentoBiometriaTouch`** (NOVO P-OS-A1 — entidade imutável Padrão B):
+- `id UUID PK`
+- `tenant_id UUID NOT NULL` (RLS)
+- `atividade_id UUID NOT NULL FK`
+- `cliente_referencia_hash CHAR(64)`
+- `cliente_key_id VARCHAR(40)`
+- `texto_canonico_id UUID NOT NULL` (FK → docs/conformidade/comum/termos/consentimento-biometria-touch — REQUER OAB)
+- `texto_hash CHAR(64)` (SHA-256 do texto exibido — INV-DOC-CANON-001)
+- `versao_politica VARCHAR(20) NOT NULL` (semver da Política de Privacidade vigente)
+- `concedido_em TIMESTAMPTZ NOT NULL`
+- `tela_renderizada_evidencia BYTEA NULL` (screenshot opcional — RIPD pode exigir)
+- **Trigger:** bloqueia UPDATE/DELETE pós-INSERT.
+- **FK 1:1 com AceiteAtividade:** `AceiteAtividade.consentimento_id NOT NULL` quando captura biometria — INV-OS-CONSBIO-001.
+
+**`EvidenciaFotoAtividade`** (NOVO P-OS-T5 — entidade Padrão B append-only):
+- `id UUID PK`
+- `tenant_id UUID NOT NULL` (RLS)
+- `atividade_id UUID NOT NULL FK`
+- `tipo VARCHAR(30) NOT NULL` (checklist_item | conclusao | nc | no_show | recusa_aceite)
+- `b2_uri TEXT NOT NULL` (URL Backblaze WORM)
+- `foto_sha256 CHAR(64) NOT NULL` (hash pós EXIF strip)
+- `client_event_id UUID NOT NULL` (sync mobile — ADR-0027)
+- `client_event_created_at TIMESTAMPTZ NOT NULL`
+- `enviada_em TIMESTAMPTZ NOT NULL`
+- `tecnico_executor_id UUID FK`
+- `geo_ponto GEOGRAPHY(POINT, 4326) NULL` (opt-in)
+- `revogado_em TIMESTAMPTZ NULL` (LGPD art. 18 — face cliente)
+- **Trigger:** INSERT permitido em qualquer estado da atividade — em atividades terminais gera `EventoDeOS.tipo='foto_evidencia_tardia'` + alerta P3 ao RT. UPDATE bloqueado por trigger. INV-OS-SYNC-001 (reescrito).
+
+**`NaoConformidadeAtividade`** (Padrão B + campos CAPA — P-OS-R5):
+- `id UUID PK`
+- `tenant_id UUID NOT NULL` (RLS)
+- `atividade_id UUID NOT NULL FK`
+- `razao_nao_conformidade_hash CHAR(64)` (anti-PII INV-OS-TXT-001)
+- `marcada_em TIMESTAMPTZ NOT NULL`
+- `marcada_por_user_id UUID NOT NULL`
+- `registro_capa_id UUID NULL` (FK → qualidade.registro_capa, Wave B — preenchido por consumer reverso quando módulo qualidade nascer)
+- `causa_raiz_hash CHAR(64) NULL` (anti-PII)
+- `acao_corretiva_descricao_hash CHAR(64) NULL`
+- `eficacia_verificada_em TIMESTAMPTZ NULL`
+- `eficacia_verificada_por_user_id UUID NULL`
+- **AC-OS-005-5:** `resolverNC` exige TODOS dos 4 campos CAPA ≠ NULL; ausente → 412 `CAPAIncompleto`.
+
+<!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
 **`AceiteAtividade`** (entidade imutável — Padrão B):
 - `id UUID PK`
 - `tenant_id UUID NOT NULL`
 - `atividade_id UUID NOT NULL FK`
+- `consentimento_id UUID NULL` (FK → ConsentimentoBiometriaTouch — NOT NULL quando captura biometria; INV-OS-CONSBIO-001 — P-OS-A1)
 - `cliente_referencia_hash CHAR(64)` (HMAC PII)
 - `cliente_key_id VARCHAR(40)`
 - `texto_canonicalizado TEXT NOT NULL` (UTF-8 + LF + NFC + marcadores `<<<CORPO INICIO/FIM>>>`)
@@ -274,8 +334,14 @@ Regras (INV-OS-ATIV-*):
 | INV-OS-GEO-001 | Geolocalização precisão limitada + opt-in + RIPD |
 | INV-OS-TXT-001 | Anti-PII em texto livre (razão, observação) |
 | INV-OS-AUD-001 | Audit sanitizado escrita |
+<!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
 | INV-OS-ACEITE-BIO-001 | Biometria touch criptografada com BIOMETRIA_KEY_<tenant> |
 | INV-DOC-CANON-001 | Canonicalização texto probatório (AceiteAtividade) |
+| INV-OS-CONC-001 (NOVO P-OS-T1) | Concorrência atividades via unique partial index `(tenant_id, equipamento_id) WHERE estado='em_execucao' AND tipo_bloqueia_concorrencia=true` |
+| INV-OS-NUM-001 (NOVO P-OS-T2 + ADR-0056) | Numero OS via sequence global + `UNIQUE(tenant_id, numero_os)`; buracos aceitos |
+| INV-OS-ANAL-001 (NOVO P-OS-R2) | Toda OS com pelo menos 1 atividade tipo=calibracao\|verificacao_inmetro deve carregar `analise_critica_id` ou `analise_critica_inline_*` antes de AGENDADA (cl. 7.1) |
+| INV-OS-CONSBIO-001 (NOVO P-OS-A1) | `AceiteAtividade.consentimento_id NOT NULL` quando captura biometria touch — sem consentimento → 412 `ConsentimentoBiometriaAusente` |
+| INV-OS-ATIV-005-EXEC-COMP (NOVO P-OS-R1) | Executor de atividade tipo=calibracao\|verificacao_inmetro deve ter competência ativa pra grandeza na data de execução (predicate `rt_competencia_cobre`) |
 
 ### 5.2 INVs herdados aplicáveis
 
@@ -304,7 +370,7 @@ Todos com envelope v10 (`event_id`, `_schema_version: v1`, `occurred_at`, `corre
 | `OS.Reaberta` | `os_id (nova), os_origem_id, chamado_origem_id, motivo, garantia_procedente` | caixa-tecnico, chamados, portal-cliente |
 | `AtividadeAdicionada` | `os_id, atividade_id, tipo, sequencia` | agenda, mobile.sync |
 | `AtividadeIniciada` | `atividade_id, tecnico_executor_id, geo, client_event_id` | mobile.sync |
-| `AtividadeConcluida` | `atividade_id, tipo, checklist_id, aceite_id` | certificados (se tipo=calibracao), portal-cliente, omni |
+| `AtividadeConcluida` | `atividade_id, tipo, tecnico_executor_id (explicito P-OS-R7), checklist_id, aceite_id, consentimento_id` | certificados (se tipo=calibracao — valida independência ADR-0026), portal-cliente, omni |
 | `AtividadeNaoConforme` | `atividade_id, razao_hash` | qualidade (CAPA), certificados (bloqueio) |
 | `AtividadeNCResolvida` | `atividade_id, causa_raiz_hash, acao_corretiva_id` | certificados (libera) |
 | `AtividadeCancelada` | `atividade_id, razao_hash` | financeiro (via OS.EscopoAlterado) |
@@ -321,6 +387,8 @@ Todos com envelope v10 (`event_id`, `_schema_version: v1`, `occurred_at`, `corre
 | `OS.Faturada` / `OS.Paga` | financeiro/contas-receber | transição de estado da OS |
 | `Tenant.Suspenso` / `Tenant.Encerrado` | suporte-plataforma/billing-saas | bloqueia operação (ADR-0035) |
 | `Equipamento.Baixado` / `Equipamento.Descartado` | suporte-plataforma/equipamentos | bloqueia abrir OS (INV-OS-EQP-001) |
+| `Acreditacao.Vencida` / `Acreditacao.Suspensa` (NOVO P-OS-R3) | metrologia/licencas-acreditacoes | bloqueia abertura de atividades calibração/verificação_INMETRO em tenant perfil A/RBC |
+| `EquipamentoRecebimento.Registrado` (NOVO P-OS-R4) | suporte-plataforma/equipamentos | usado pra preencher `OS.equipamento_recebimento_id` em OS de bancada |
 
 ---
 
@@ -395,6 +463,15 @@ rastreados):
 - **GATE-OS-CAL-LINK-WATCHDOG** — operacional: deployar watchdog `os-calibracao-link-watchdog` (cron + procrastinate) com alertas P2/72h.
 - **GATE-OS-BIOMETRIA-KMS** — KMS key `BIOMETRIA_KEY_<tenant>` provisionada por tenant antes de coletar AceiteAtividade.
 - **GATE-OS-DPIA-OAB** — minuta DPIA-OS revisada por OAB humana antes do 1º tenant externo pago.
+- **GATE-OS-TENANT-SUSPENSO** (P-OS-T6) — matriz operações M3 × estado tenant (operacional/suspenso/encerrado) cravada; ADR-0035 aceita antes do 1º tenant pago.
+- **GATE-OS-FOTO-NOSHOW-BLUR** (P-OS-A5) — blur automático de rostos antes do upload (modelo on-device) Wave A2; até lá, aviso UX ao técnico.
+- **GATE-OS-SUCESSAO-EVIDENCIA** (P-OS-A7) — entidade `SucessaoSocietaria` + PDF ato societário + assinatura A3 admin antes de reabertura cross-cliente em produção.
+- **GATE-OS-CONSBIO-TEXTO-OAB** (P-OS-A1) — texto canônico do consentimento biométrico OAB-aprovado antes do 1º tenant externo.
+- **GATE-RBC-ESCOPO-1** (P-OS-R3) — predicate `tenant_dentro_escopo_acreditado` ativo + módulo `licencas-acreditacoes` operacional antes do 1º tenant perfil A/RBC.
+- **GATE-RBC-CAPA-1** (P-OS-R5) — módulo qualidade Wave B implementa `RegistroCAPA` consumindo `AtividadeNaoConforme`/`AtividadeNCResolvida`.
+- **GATE-SEG-INMETRO-PRAZO-1** (P-OS-S6) — cláusula `consequential regulatory damages` cobre prazo INMETRO de equipamento de cliente final do tenant.
+- **GATE-SEG-CYBER-1** (P-OS-S2) — cláusula `sensitive personal data art. 11` na apólice Cyber sem sublimite separado.
+- **GATE-SEG-EO-1** (P-OS-S3, P-OS-S4, P-OS-S5) — Modalidade E&O com: franquia R$ 5k wrongful billing, tax penalty exposure (Receita+SEFAZ nomeados), software validation defect upstream M3, vicarious admin decision via platform, image rights incidental.
 
 ---
 
@@ -486,7 +563,11 @@ precisa passar:
 | R-OS-7 | Texto AceiteAtividade não canonicalizado quebra hash em re-verificação | baixa | médio (probatório) | INV-DOC-CANON-001 + teste regressão |
 | R-OS-8 | Geo coletado sem opt-in viola LGPD | média | alto (ANPD) | RAT-07 + flag opt-in obrigatória + RIPD aprovado |
 | R-OS-9 | Cancelamento múltiplo concorrente vira inconsistência valor_total | média | médio | SELECT FOR UPDATE no cálculo `valor_total_atualizado` |
+<!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
 | R-OS-10 | OS combinada (US-OS-009) com manutenção NC trava calibração indefinidamente | média | médio | resolução NC clara + cancelamento manutenção libera calibração |
+| R-OS-11 (P-OS-S1) | M3 em dogfooding sem apólice BPT emitida → exposição CC art. 627 depositário sem cobertura | alta (default sem gate) | crítico | feature flag `OS_PRODUTIVO_DOGFOODING_BS=false` por default + GATE-SEG-BPT-1 bloqueante na DoD (§14) |
+| R-OS-12 (P-OS-S5 + P-OS-A5) | foto no-show captura terceiros → risco LGPD + RC imagem CC art. 20 | média | médio | AC-OS-014 aviso UX "evite enquadrar pessoas" + GATE-OS-FOTO-NOSHOW-BLUR Wave A2 + cláusula Cyber `image rights` (GATE-SEG-CYBER-1) |
+| R-OS-13 (P-OS-S5) | dispensa aceite pelo gerente do tenant gera vicarious contra Aferê | média | médio | termo dispensa cita explicitamente "decisão do tenant" + cláusula E&O `vicarious admin decision via platform` (GATE-SEG-EO-1) |
 
 ---
 
@@ -513,7 +594,12 @@ Marco 3 só fecha quando `python manage.py validar_m3_os` retorna **PASS em 20/2
 17. Cobertura ≥85% em `src/domain/operacao/os/` + `src/infrastructure/operacao/os/`.
 18. Suite regressão `tests/regressao/test_inv_os_*.py` 100% PASS.
 19. Suite sagas `tests/sagas/test_saga_*.py` 100% PASS.
+<!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
 20. INV-RITUAL-001 — 10 auditores Família 5 ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO.
+21. (NOVO P-OS-A2) Job `os-geo-truncamento` agendado no procrastinate; teste regressão com `freezegun` simula 5 anos + valida `geo_lat/long → NULL` e `geo_municipio_hash` preservado.
+22. (NOVO P-OS-T1) Unique partial index `idx_atividade_em_execucao_por_equip` criada + tabela `TipoAtividadeConfig.tipo_bloqueia_concorrencia` populada; teste de carga `tests/carga/test_concorrencia_iniciar_atividade.py` (50 threads → 1 sucesso + 49 → 412).
+23. (NOVO P-OS-S1) Feature flag `OS_PRODUTIVO_DOGFOODING_BS` existe + predicate `pode_criar_os_produtiva_balancas` consulta a flag; default `false`.
+24. (NOVO P-OS-R3) Predicate `tenant_dentro_escopo_acreditado(tenant_id, grandeza, faixa, data)` em ADR-0012 + consumer `Acreditacao.Suspensa`/`Acreditacao.Vencida` ativos.
 
 ---
 
@@ -531,7 +617,9 @@ Marco 3 está fechado quando:
 - [ ] 10 auditores Família 5 PASS ZERO C/A/M.
 - [ ] `docs/faseamento/M3-os/auditoria-familia5.md` consolidado.
 - [ ] CURRENT.md atualizado.
+<!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
 - [ ] AGENTS.md §12 reflete M3 fechado.
+- [ ] **(NOVO P-OS-S1 — bloqueante de entrada em produção dogfooding):** Feature flag `OS_PRODUTIVO_DOGFOODING_BS=false` por default; só liga após **GATE-SEG-BPT-1 emitido** (apólice BPT real ≥ R$ 500k/sinistro, franquia fixa R$ 10-15k, arquivada em `docs/conformidade/comum/seguros/apolices/`). M3 pode fechar tecnicamente sem BPT; **entrada em produção produtiva atendendo cliente real está bloqueada pelo predicate `pode_criar_os_produtiva_balancas`** até a corretora SUSEP confirmar.
 
 ---
 
