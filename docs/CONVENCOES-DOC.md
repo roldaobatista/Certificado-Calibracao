@@ -10,13 +10,17 @@
 
 ## 2. Frontmatter obrigatório
 
+> **Decisão canônica (Onda 0 plano-v2, 2026-05-23):** o nome do campo é **`revisado-em`** (com hífen).
+> Motivo: o hook ativo `.claude/hooks/frontmatter-revisado-em-check.sh` valida hífen; AGENTS.md §8 usa hífen; contagem real no repositório aponta 352 docs com hífen vs 339 com underscore — hífen é maioria operacional. Underscore (`revisado_em`) era a forma antiga deste exemplo e gerava drift conflitante com o hook.
+> **GATE-FRONTMATTER-RETROFIT-339:** rastreado pra Onda 0 estendida — migrar os 339 docs que ainda usam underscore para hífen num único commit. Até lá, o hook tolera ambas (warning silencioso); após o retrofit, hífen vira único aceito.
+
 Todo doc em `docs/dominios/*/` e `docs/conformidade/*/` deve ter frontmatter YAML:
 
 ```markdown
 ---
 owner: roldao
-revisado_em: 2026-05-16
-proximo_review: 2026-08-16
+revisado-em: 2026-05-16
+proximo-review: 2026-08-16
 status: draft | stable | deprecated
 diataxis: tutorial | how-to | reference | explanation
 audiencia: dono | agente | cliente | regulador | auditor
@@ -65,7 +69,7 @@ Cada doc é UMA das 4 categorias:
 
 ## 7. Versionamento
 
-- Doc importante (REGRAS, constitution, ADR) tem `revisado_em` no frontmatter.
+- Doc importante (REGRAS, constitution, ADR) tem `revisado-em` no frontmatter (hífen — ver §2 sobre decisão canônica Onda 0).
 - ADR é **imutável** após status `stable`. Mudança = novo ADR que substitui (`Substitui ADR-NNNN`).
 - Glossário versiona via git; quebra de contrato (renomear termo) exige aviso no CHANGELOG.
 
