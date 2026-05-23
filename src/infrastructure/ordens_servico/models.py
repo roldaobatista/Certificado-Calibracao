@@ -617,3 +617,99 @@ class EvidenciaFotoAtividade(models.Model):
     def __str__(self) -> str:
         rev = " REVOGADA" if self.revogado_em else ""
         return f"EvidenciaFoto({self.tipo} atv={self.atividade_id}{rev})"
+
+
+class EventoDeOS(models.Model):
+    """Timeline de eventos da OS/atividade — Padrao B append-only.
+
+    INV-OS-AUD-001: payload sanitizado NA ESCRITA — proibe `cliente_id`,
+    `tecnico_id`, `ator_id` UUID cru; so `*_hash` HMAC. `razao_*` cru
+    proibido; so hash. Geo precisao alta proibida. Texto livre fora
+    de `descricao_hash` validado anti-PII (INV-OS-TXT-001).
+
+    Trigger PG: UPDATE/DELETE bloqueados (append-only). Pos-INSERT eh
+    audit imutavel 25a.
+    """
+
+    TIPO_CHOICES = [
+        ("atividade_adicionada", "Atividade adicionada"),
+        ("atividade_iniciada", "Atividade iniciada"),
+        ("atividade_concluida", "Atividade concluida"),
+        ("atividade_nao_conforme", "Atividade nao conforme"),
+        ("atividade_nc_resolvida", "Atividade NC resolvida"),
+        ("atividade_cancelada", "Atividade cancelada"),
+        ("atividade_reagendada", "Atividade reagendada"),
+        ("atividade_tecnico_transferido", "Tecnico transferido"),
+        ("no_show_cliente", "No-show cliente"),
+        ("dispensa_aceite_emitida", "Dispensa de aceite emitida"),
+        ("foto_evidencia_tardia", "Foto evidencia em atividade terminal"),
+        ("watchdog_estendido", "Watchdog cal-link estendido"),
+        ("os_aberta", "OS aberta"),
+        ("os_atribuida", "OS atribuida"),
+        ("os_concluida", "OS concluida"),
+        ("os_cancelada", "OS cancelada"),
+        ("os_reaberta", "OS reaberta"),
+        ("os_escopo_alterado", "OS escopo alterado (ADR-0042)"),
+        ("sla_breach", "SLA quebrado"),
+    ]
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="eventos_os",
+    )
+    os = models.ForeignKey(
+        OS,
+        on_delete=models.PROTECT,
+        related_name="eventos",
+    )
+    atividade = models.ForeignKey(
+        AtividadeDaOS,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="eventos",
+        help_text="Opcional; preenchido quando o evento eh de atividade especifica.",
+    )
+    tipo = models.CharField(max_length=40, choices=TIPO_CHOICES)
+    payload_hash = models.CharField(
+        max_length=64,
+        help_text="SHA-256 do payload sanitizado (INV-OS-AUD-001 + INV-DOC-CANON-001).",
+    )
+    payload_data = models.JSONField(
+        default=dict,
+        help_text=(
+            "Payload sanitizado — NAO contem PII cru. Hashes em vez de "
+            "cliente_id/tecnico_id/ator_id. Helper unico "
+            "audit/event_helpers.publicar_evento garante sanitizacao."
+        ),
+    )
+    correlation_id = models.UUIDField(
+        help_text="Correlation ID propagado entre modulos (ADR-0033 bus envelope v10).",
+    )
+    actor_user_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="User que disparou (NULL em jobs automaticos: watchdog, retry).",
+    )
+    occurred_at = models.DateTimeField(
+        help_text="Timestamp do evento de negocio (pode preceder criado_em em sync mobile).",
+    )
+    criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        app_label = "ordens_servico"
+        db_table = "evento_de_os"
+        verbose_name = "Evento de OS"
+        verbose_name_plural = "Eventos de OS"
+        ordering = ["-occurred_at"]
+        indexes = [
+            models.Index(fields=["tenant", "os", "occurred_at"], name="evt_os_tenant_os_occ_idx"),
+            models.Index(fields=["tenant", "atividade", "occurred_at"], name="evt_os_tenant_atv_idx"),
+            models.Index(fields=["tenant", "tipo", "occurred_at"], name="evt_os_tenant_tip_idx"),
+            models.Index(fields=["tenant", "correlation_id"], name="evt_os_tenant_corr_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"EventoDeOS({self.tipo} os={self.os_id} @{self.occurred_at:%Y-%m-%d %H:%M})"
