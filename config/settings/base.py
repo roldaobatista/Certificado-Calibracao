@@ -220,6 +220,11 @@ LOCAL_APPS = [
     # campos criticos do Equipamento quando ha cert vigente). Wave A
     # expandira com emissao A3, PDF, RBC, NIT-DICLA, ciclo de revisao.
     "src.infrastructure.certificados.apps.CertificadosConfig",
+    # Wave A Marco 3 — Ordens de Servico (operacao/os). 1 OS contem N
+    # AtividadeDaOS (ADR-0023). T-OS-001 inicial: tabelas OS + AtividadeDaOS +
+    # sequence global os_numero_seq_global (ADR-0056). RLS+triggers+demais
+    # entidades em T-OS-002+.
+    "src.infrastructure.ordens_servico.apps.OrdensServicoConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
