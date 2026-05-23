@@ -203,9 +203,12 @@ class TestGateProd:
         assert "identica" in out.lower() or "distintas" in out.lower()
 
     def test_envs_minimos_importa_e_hardening_ligado(self) -> None:
-        # SEC-QR-001 (Marco 2): prod.py agora tambem exige QR_HMAC_KEY
-        # dedicada (>=32 chars) distinta de PII_HASH_KEY. Suite de gate
-        # absorve a nova exigencia.
+        # SEC-QR-001 (Marco 2): prod.py exige QR_HMAC_KEY dedicada (>=32
+        # chars) distinta de PII_HASH_KEY.
+        # MEDIO-1 P5 auditor-seguranca (d6ba200): prod.py tambem exige
+        # QR_IP_RATELIMIT_SALT (>=32 chars) distinta das outras chaves —
+        # salt do HMAC de ip_hash do rate-limit do QR publico (corretora
+        # RAT-EQP-QR). Suite de gate absorve a nova exigencia.
         out = _rodar_prod(
             {
                 "DJANGO_SECRET_KEY": self.SECRET_OK,
@@ -213,6 +216,7 @@ class TestGateProd:
                 "PII_HASH_KEY_ID": "v1",
                 "QR_HMAC_KEY": "z" * 40,
                 "QR_HMAC_KEY_ID": "qr1",
+                "QR_IP_RATELIMIT_SALT": "w" * 40,
             }
         ).stdout
         # `in` (nao startswith): sob pytest-cov o subprocesso pode emitir
