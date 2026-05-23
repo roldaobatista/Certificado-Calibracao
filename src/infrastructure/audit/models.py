@@ -421,3 +421,100 @@ class OperacaoTratamentoCliente(models.Model):
 
     def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
         raise RuntimeError("OperacaoTratamentoCliente e INSERT-only (LGPD art. 37).")
+
+
+# =============================================================
+# ADR-0033 aceito — consumer_idempotencia + dead_letter_events
+# Schema canonico vive em audit/migrations/0016. Modelos abaixo
+# espelham o schema pra ORM (consumer chama via Manager comum).
+# =============================================================
+
+
+class ConsumerIdempotencia(models.Model):
+    """Marca de idempotencia de consumer (INV-BUS-001).
+
+    PK composto `(consumer_id, event_id)`. INSERT ON CONFLICT DO NOTHING
+    é o pattern obrigatório de TODO consumer registrado no bus. Quando
+    0 linhas voltam = evento ja processado (replay-safe).
+
+    Schema cravado em ADR-0033. Tabela operacional (TTL 90 dias — job
+    diario `drenar_consumer_idempotencia_expirada` Wave A).
+    """
+
+    consumer_id = models.CharField(max_length=120)
+    event_id = models.UUIDField()
+    tenant_id = models.UUIDField(null=True, blank=True, db_index=True)
+    processado_em = models.DateTimeField(auto_now_add=True)
+    resultado = models.CharField(max_length=16)
+
+    class Meta:
+        app_label = "audit"
+        db_table = "consumer_idempotencia"
+        verbose_name = "Marca de idempotencia de consumer"
+        verbose_name_plural = "Marcas de idempotencia de consumer"
+        # PK composto NAO eh suportado direto pelo Django ORM (Django >=5
+        # tem `CompositePrimaryKey` mas ainda experimental). Mantemos PK
+        # auto-padrao (AutoField virtual) e UniqueConstraint sobre
+        # (consumer_id, event_id) — equivalente funcional. SQL puro na
+        # migration cria o INDEX UNIQUE.
+        constraints = [
+            models.UniqueConstraint(
+                fields=("consumer_id", "event_id"),
+                name="pk_consumer_idemp",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["tenant_id", "processado_em"],
+                name="idx_cons_idemp_tenant_dt",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.consumer_id} ← {self.event_id} ({self.resultado})"
+
+
+class DeadLetterEvent(models.Model):
+    """Evento que excedeu 5 tentativas (INV-BUS-002 + INV-BUS-003).
+
+    Append-only operacional: trigger PG bloqueia UPDATE em colunas que
+    nao sejam `status/resolucao_nota/resolvido_em/resolvido_por_id`.
+    DELETE NUNCA (RLS bloqueia universalmente).
+    """
+
+    STATUS_CHOICES = [
+        ("aberto", "Aberto"),
+        ("reprocessar", "Reprocessar"),
+        ("descartado", "Descartado"),
+        ("resolvido", "Resolvido"),
+    ]
+
+    id = models.UUIDField(default=__import__("uuid").uuid4, editable=False, primary_key=True)
+    consumer_id = models.CharField(max_length=120)
+    event_id = models.UUIDField()
+    event_name = models.CharField(max_length=120)
+    tenant_id = models.UUIDField(db_index=True)
+    payload = models.JSONField()
+    erro_classe = models.CharField(max_length=180)
+    erro_mensagem = models.TextField()
+    erro_stack = models.TextField(blank=True, default="")
+    tentativas = models.IntegerField()
+    primeira_tentativa = models.DateTimeField()
+    ultima_tentativa = models.DateTimeField()
+    status = models.CharField(max_length=16, default="aberto", choices=STATUS_CHOICES)
+    resolucao_nota = models.TextField(blank=True, default="")
+    resolvido_em = models.DateTimeField(null=True, blank=True)
+    resolvido_por_id = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        app_label = "audit"
+        db_table = "dead_letter_events"
+        verbose_name = "Dead letter event"
+        verbose_name_plural = "Dead letter events"
+        indexes = [
+            models.Index(fields=["status", "ultima_tentativa"], name="idx_dle_status_dt"),
+            models.Index(fields=["consumer_id"], name="idx_dle_consumer"),
+        ]
+
+    def __str__(self) -> str:
+        return f"DLE {self.consumer_id} ← {self.event_name} ({self.status})"

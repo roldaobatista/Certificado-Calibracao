@@ -2,11 +2,13 @@
 adr: 0033
 titulo: Bus de eventos — idempotência de consumer + dead-letter
 owner: roldao
-revisado-em: 2026-05-22
-status: proposta
+revisado-em: 2026-05-23
+status: aceito
 proposto-por: agente (auditoria projeto-inteiro 10 lentes — Onda 1 transversal)
 revisado-por: tech-lead-saas-regulado
-bloqueia-fase: Wave A Marco 3 (`os` é primeiro consumer cross-módulo crítico)
+aceito-em: 2026-05-23
+aceito-no-marco: Wave A Marco 3 Fase 4 (consumers OS — T-OS-029..039)
+bloqueia-fase: Wave A Marco 3 (`os` é primeiro consumer cross-módulo crítico) — DESTRAVADA
 depende-de: ADR-0007 (camada domínio), ADR-0015 (lifecycle tenant — outbox), IDEMP-002 (REGRAS)
 ---
 
