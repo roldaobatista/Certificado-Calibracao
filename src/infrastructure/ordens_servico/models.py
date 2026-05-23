@@ -361,3 +361,80 @@ class TipoAtividadeConfig(models.Model):
 
     def __str__(self) -> str:
         return f"TipoAtividadeConfig({self.tipo} tenant={self.tenant_id})"
+
+
+class ConsentimentoBiometriaTouch(models.Model):
+    """LGPD art. 11 II "a" (P-OS-A1 + INV-OS-CONSBIO-001).
+
+    Entidade imutavel (Padrao B ADR-0031). FK 1:1 obrigatoria de
+    AceiteAtividade quando captura biometria touch. Sem o consentimento
+    pre-gravado, AceiteAtividade nao pode ser criada -> 412
+    ConsentimentoBiometriaAusente.
+
+    Texto canonico do consentimento mora em
+    `docs/conformidade/comum/termos/consentimento-biometria-touch.md`
+    (REQUER OAB — GATE-OS-CONSBIO-TEXTO-OAB pre-1o tenant externo).
+
+    Trigger PG bloqueia UPDATE/DELETE pos-INSERT (audit-immutability).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="consentimentos_biometria_touch",
+    )
+    atividade = models.ForeignKey(
+        AtividadeDaOS,
+        on_delete=models.PROTECT,
+        related_name="consentimentos_biometria",
+        help_text="Atividade que vai gerar o AceiteAtividade (FK reversa 1:1).",
+    )
+    cliente_referencia_hash = models.CharField(
+        max_length=64,
+        help_text="HMAC-SHA256 do cliente_id original (ADR-0032).",
+    )
+    cliente_key_id = models.CharField(max_length=40)
+    texto_canonico_id = models.UUIDField(
+        help_text=(
+            "FK -> docs/conformidade/comum/termos/consentimento-biometria-touch.md "
+            "(db_constraint=False ate modulo termos existir). REQUER OAB."
+        ),
+    )
+    texto_hash = models.CharField(
+        max_length=64,
+        help_text="SHA-256 do texto canonico exibido (INV-DOC-CANON-001).",
+    )
+    versao_politica = models.CharField(
+        max_length=20,
+        help_text="Semver da Politica de Privacidade vigente no momento.",
+    )
+    concedido_em = models.DateTimeField(
+        help_text="Timestamp do toque no botao 'concordo e assino' (SEPARADO de 'concluir').",
+    )
+    tela_renderizada_evidencia = models.BinaryField(
+        null=True,
+        blank=True,
+        help_text="Screenshot opcional da tela exibida (RIPD pode exigir).",
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "ordens_servico"
+        db_table = "consentimento_biometria_touch"
+        verbose_name = "Consentimento de biometria touch"
+        verbose_name_plural = "Consentimentos de biometria touch"
+        ordering = ["-criado_em"]
+        constraints = [
+            # 1 consentimento ativo por atividade (FK 1:1 enforced).
+            models.UniqueConstraint(
+                fields=("atividade",),
+                name="uq_consentimento_biometria_por_atividade",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "atividade"], name="cbio_tenant_atv_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"ConsentimentoBiometriaTouch(atv={self.atividade_id} v={self.versao_politica})"
