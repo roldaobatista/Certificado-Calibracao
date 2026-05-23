@@ -811,3 +811,92 @@ class DispensaAceiteAtividade(models.Model):
 
     def __str__(self) -> str:
         return f"DispensaAceite(atv={self.atividade_id} prec={self.precedente_tipo})"
+
+
+class ChecklistDaAtividade(models.Model):
+    """Item de checklist de uma AtividadeDaOS (US-OS-004 conclusao).
+
+    Padrao A (ADR-0031) — estado por item. Mutavel via UPDATE
+    controlado em service layer; cada item caminha pendente ->
+    preenchido (ou nao_aplicavel). Atividade so conclui quando todos
+    itens em estado terminal (preenchido | nao_aplicavel).
+
+    Texto cru NUNCA persistido — `descricao_hash` + `valor_hash`
+    canonicalizados (INV-OS-TXT-001 + INV-DOC-CANON-001). Texto
+    publico fica em `valor_publico` (numero, OK/NOK, enum — nunca PII).
+    """
+
+    ESTADO_CHOICES = [
+        ("pendente", "Pendente"),
+        ("preenchido", "Preenchido"),
+        ("nao_aplicavel", "Nao aplicavel"),
+    ]
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="checklist_atividades",
+    )
+    atividade = models.ForeignKey(
+        AtividadeDaOS,
+        on_delete=models.PROTECT,
+        related_name="checklist_itens",
+    )
+    ordem = models.IntegerField(help_text="Sequencia de apresentacao do item.")
+    descricao_hash = models.CharField(
+        max_length=64,
+        help_text="SHA-256 da descricao canonicalizada (INV-DOC-CANON-001).",
+    )
+    descricao_publica = models.CharField(
+        max_length=200,
+        help_text="Descricao curta sem PII (rotulo do item — ex: 'Leitura padrao 1 kg').",
+    )
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default="pendente",
+    )
+    valor_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Hash do valor cru preenchido (anti-PII). Vazio em pendente/nao_aplicavel.",
+    )
+    valor_publico = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        help_text="Valor exibivel sem PII (numero, OK/NOK, enum).",
+    )
+    preenchido_por_user_id = models.UUIDField(null=True, blank=True)
+    preenchido_em = models.DateTimeField(null=True, blank=True)
+    evidencia_foto = models.ForeignKey(
+        EvidenciaFotoAtividade,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="checklist_itens",
+        help_text="Opcional — foto vinculada ao item (ex: foto de display).",
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "ordens_servico"
+        db_table = "checklist_da_atividade"
+        verbose_name = "Item de checklist de atividade"
+        verbose_name_plural = "Itens de checklist de atividade"
+        ordering = ["atividade", "ordem"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("atividade", "ordem"),
+                name="uq_checklist_atividade_ordem",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "atividade", "estado"], name="chk_tenant_atv_est_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Checklist[{self.ordem}] atv={self.atividade_id} {self.estado}"
