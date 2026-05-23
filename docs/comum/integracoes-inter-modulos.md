@@ -1,11 +1,13 @@
 ---
 owner: roldao
-revisado_em: 2026-05-23
+revisado-em: 2026-05-22
 proximo_review: 2026-08-23
 status: stable
 ---
 
 # Integrações entre módulos — eventos + contratos
+
+> **v11 (2026-05-22 — Onda 1 saneamento projeto-inteiro — auditoria 10 lentes):** adicionados eventos críticos transversais: `Cliente.Anonimizado` v1 (5 consumers obrigatórios — ADR-0032 / C-INT-01); `Audit.EventoCritico` v1 (sink único auditoria — C-INT-06); `LGPD.IncidenteDetectado` v1 + `Qualidade.NotificacaoCGCREDisparada` v1 (publicação ≤24h — C-INT-07). Categorização Domain/Integration/Notification declarada por evento (M-INT-05). Aliases legados ganham `remocao_em: 2026-12-31` (B-INT-04). Total atualizado: ~280 eventos.
 
 > **v10 (2026-05-23 — auditoria rodada 2 OS+Cal):** adicionados 9 eventos novos (`Atividade.*` 6, `OS.Faturada`/`OS.Paga`, `Calibracao.LeituraCorrigida`); consumer `metrologia/calibracao` migrou de `OS.Concluida` (legado) para `Atividade.Iniciada`; payloads cross-context obrigatoriamente carregam `correlation_id` + `causation_id` + IDs PII em `*_hash` HMAC-tenant. Total atualizado: ~276 eventos.
 
@@ -882,3 +884,181 @@ Hook valida que entidade derivada nunca tem `correlation_id` NULL ou diferente d
 - **~273 eventos** publicados (267 da v9 + 6 novos `Atividade.*`).
 - Todos eventos publicados pós-2026-05-23 carregam `correlation_id` + `causation_id` obrigatórios + IDs PII em hash HMAC-tenant.
 - **Invariantes de integração:** INV-INT-001..010 (criadas nas ADRs 0014, 0015, 0016 pós-auditoria).
+
+---
+
+## v11 — Eventos transversais novos (2026-05-22 — Onda 1 saneamento projeto-inteiro)
+
+### `Cliente.Anonimizado` v1 — C-INT-01 (ADR-0032)
+
+**Produtor:** `comercial/clientes`
+**Categoria:** Integration Event
+**Disparado quando:** módulo `clientes` aplica anonimização (Zona A=eliminação efetiva, B=in-place, C=campo-a-campo conforme ADR-0021).
+
+**Payload v1:**
+```json
+{
+  "event_name": "Cliente.Anonimizado",
+  "_schema_version": "v1",
+  "payload": {
+    "cliente_id": "uuid (vivo no momento da publicação; pode estar NULL no banco após Zona A)",
+    "hash_original": "string HMAC HEX 128 chars — preserva identidade pós-anonimização",
+    "anonimizado_em": "datetime ISO 8601 UTC",
+    "motivo": "art_18_vi | retencao_expirada | consentimento_revogado | suspensao_definitiva",
+    "zona_aplicada": "A | B | C",
+    "campos_anonimizados": ["nome", "cpf", "email", "telefone"],
+    "campos_eliminados": ["foto", "endereco_completo"]
+  }
+}
+```
+
+**Consumers obrigatórios (5):**
+
+| # | Consumer | Efeito | INV correspondente |
+|---|---|---|---|
+| 1 | `metrologia/equipamentos` | `Equipamento.cliente_atual_id = NULL` (Zona A); preservar `cliente_referencia_hash`. | INV-ANON-001..004 |
+| 2 | `metrologia/certificados` | **Não muta** (WORM ADR-0031 Padrão B). Apenas registra `acessos_dados_cliente` motivo `anonimizacao_propagada`. | INV-CER-WORM-001 + INV-ANON-004 |
+| 3 | `operacao/os` | Fecha OSes em andamento; transição `estado='cliente_anonimizado'`; bloqueia novas OS pra esse `cliente_id`. | INV-OS-ATIV-002 + ADR-0035 (matriz) |
+| 4 | `financeiro/contas-receber` | Mantém `Cobranca` (Receita 5 anos Zona B) mas anonimiza campos `nome_pagador`, `email`, `telefone`. | INV-026 + INV-ANON-001 |
+| 5 | `comercial/comunicacao-omnichannel` (Wave B) | Limpa contatos e marca `opt_out_pos_anonimizacao=true`. | RAT-08 |
+
+---
+
+### `Audit.EventoCritico` v1 — C-INT-06 (sink único)
+
+**Produtor:** módulo `audit_trail` (consumer cross-cutting de eventos críticos publicados em outros domínios; é o sink imutável)
+**Categoria:** Integration Event
+**Disparado quando:** qualquer evento abaixo é publicado em outro módulo:
+
+- `Audit.BypassA3Executado` (origem: emissão certificado com bypass — ADR-0024)
+- `Audit.ModoEmergencialAcionado` (origem: licencas-acreditacoes US-LIC-003 — INV-033)
+- `Audit.BypassExecutado` (origem: qualquer fluxo que aceitar bypass com A3 admin)
+- `Audit.AcessoNegado` (origem: AuthorizationProvider.can() retornou denied — agregado por janela)
+- `Audit.RTTrocado` (origem: troca de RT do tenant — ADR-0022)
+- `Audit.AlertaCGCRE` (origem: monitor CGCRE detecta NC bloqueante)
+
+**Payload v1:**
+```json
+{
+  "event_name": "Audit.EventoCritico",
+  "_schema_version": "v1",
+  "payload": {
+    "evento_origem": "string (Audit.BypassA3Executado | ...)",
+    "evento_origem_id": "uuid (event_id do evento origem)",
+    "ator_id_hash": "HMAC-tenant",
+    "tenant_id": "uuid",
+    "ocorrido_em": "datetime",
+    "resumo": "≤200 chars",
+    "severidade": "critica | alta",
+    "exige_resposta": "bool"
+  }
+}
+```
+
+**Sink obrigatório:** `audit_trail.eventos_criticos` (tabela WORM, append-only, hash chain — INV-AUDIT-IMMUT-002).
+
+**INV-BUS-AUDIT-001:** Todo evento crítico publicado no `outbox_events` é refletido em `auditoria` (sink) em ≤5s. SLA monitorado por job a cada 1min.
+
+---
+
+### `LGPD.IncidenteDetectado` v1 — C-INT-07a
+
+**Produtor:** módulo `lgpd-incidente` (a criar Wave A — alternativa: `compliance/lgpd`)
+**Categoria:** Integration Event
+**Disparado quando:** classificador de incidente LGPD marca evento como `incidente_confirmado` (detecção automatizada de vazamento, acesso anômalo, exfiltração).
+
+**Payload v1:**
+```json
+{
+  "event_name": "LGPD.IncidenteDetectado",
+  "_schema_version": "v1",
+  "payload": {
+    "incidente_id": "uuid",
+    "tenant_id": "uuid",
+    "tipo": "vazamento | acesso_anomalo | exfiltracao | corrupcao | indisponibilidade",
+    "severidade": "alta | media | baixa",
+    "detectado_em": "datetime",
+    "afetados_count": "int",
+    "dados_envolvidos": ["cpf", "email", "..."],
+    "fonte_deteccao": "ids | wam | denuncia_titular | log_anomalia",
+    "anpd_prazo_iso_8601_3d_uteis": "datetime — calculado automaticamente"
+  }
+}
+```
+
+**Consumers obrigatórios:**
+- `acesso-seguranca/dpo` (encarregado/DPO recebe notificação P0)
+- `colaboradores/rt` (RT do tenant recebe notificação P0 — RACI duplo)
+- `comunicacao-omnichannel` (modelo `notif-incidente-dpo-rt` + comunicacao opt-out independente)
+
+**INV-LGPD-NOTIF-001:** Publicação em ≤24h após detecção (window 24h é folga sobre o prazo legal 3 dias úteis ANPD — Res. CD/ANPD 15/2024 art. 6º + 9º + 10). Falha em publicar dispara alerta P0.
+
+---
+
+### `Qualidade.NotificacaoCGCREDisparada` v1 — C-INT-07b
+
+**Produtor:** módulo `qualidade` (consumer de `Qualidade.NCAberta` com `bloqueia_emissao=true AND impacto_cgcre=true`)
+**Categoria:** Integration Event
+**Disparado quando:** NC crítica que afeta acreditação CGCRE é confirmada (avaliação RT-do-tenant).
+
+**Payload v1:**
+```json
+{
+  "event_name": "Qualidade.NotificacaoCGCREDisparada",
+  "_schema_version": "v1",
+  "payload": {
+    "notificacao_id": "uuid",
+    "nc_id": "uuid",
+    "tenant_id": "uuid",
+    "tipo_notificacao": "cgcre | iaf | inmetro",
+    "disparada_em": "datetime",
+    "prazo_resposta_iso_8601": "datetime",
+    "responsavel_id_hash": "HMAC-tenant (RT do tenant)",
+    "anexos_evidencia_count": "int"
+  }
+}
+```
+
+**Consumers obrigatórios:**
+- `colaboradores/rt` (RT recebe + assina A3 ciência)
+- `audit_trail` (registra envio em WORM)
+- `comunicacao-omnichannel` (e-mail CGCRE — template aprovado)
+
+**INV-LGPD-NOTIF-002:** Notificação CGCRE registrada em audit imutável + cópia B2 WORM em ≤5min.
+
+---
+
+## Aliases legados — janela de remoção (atende B-INT-04)
+
+Aliases mapeados em `events/aliases.py` durante Wave A. **Remoção definitiva: 2026-12-31.** Após essa data, handler em alias falha hard.
+
+| Alias legado | Forma canônica | Remoção em |
+|---|---|---|
+| `OSAberta` | `OS.Aberta` | 2026-12-31 |
+| `Pago` | `ContasReceber.Pago` | 2026-12-31 |
+| `NcAberta` | `Qualidade.NCAberta` | 2026-12-31 |
+| `documento.criado` | `Documento.Criado` | 2026-12-31 |
+| `Estoque.movimento_registrado` | `Estoque.MovimentacaoRegistrada` | 2026-12-31 |
+| `acs.usuario.criado` | `AcessoSeguranca.UsuarioCriado` | 2026-12-31 |
+
+Auditor `bus-integrity` (`docs/governanca/auditor-bus-integrity-prompt.md`) valida que novo handler **não** usa alias.
+
+---
+
+## Categorização de eventos (atende M-INT-05)
+
+Toda entrada no catálogo a partir de v11 declara `categoria`:
+
+- **Domain Event** — mudou estado dentro do bounded context; **não** publica em `outbox_events`. Exemplo: `OrdemServico.AtividadeAdicionada` (interno ao módulo `operacao/os`).
+- **Integration Event** — cruza bounded context — entra em `outbox_events`. Exemplo: `Cliente.Anonimizado`, `OS.Concluida`, `Certificado.Emitido`.
+- **Notification** — comunicação com humano via porta `OmniChannelProvider` ou `EmailTemplateProvider`. Não é evento de domínio.
+
+Tabela de categorização completa em `events/catalogo.yaml` (Wave A).
+
+---
+
+## Total v11
+
+- **~280 eventos** publicados (276 da v10 + 4 transversais novos).
+- Todos eventos publicados pós-2026-05-22 declaram `categoria`.
+- **Invariantes adicionados:** INV-BUS-001..003 (ADR-0033), INV-BUS-AUDIT-001, INV-BUS-SCHEMA-001..003 (ADR-0036), INV-BUS-TS-001..003 (ADR-0035), INV-SAGA-001..004 (ADR-0034), INV-LGPD-NOTIF-001..002.

@@ -1,8 +1,8 @@
 ---
 owner: roldao
-revisado_em: 2026-05-17
-proximo_review: 2026-08-17
-status: draft
+revisado-em: 2026-05-22
+proximo_review: 2026-08-22
+status: stable
 diataxis: reference
 audiencia: agente
 relacionados:
@@ -10,6 +10,8 @@ relacionados:
   - docs/adr/0014-transicoes-regulatorias.md
   - docs/adr/0015-lifecycle-tenant.md
   - docs/adr/0016-operacao-consistente.md
+  - docs/adr/0033-bus-idempotencia-consumer.md
+  - docs/adr/0034-saga-compensacao-cross-modulo.md
   - docs/comum/integracoes-inter-modulos.md
 ---
 
@@ -246,8 +248,13 @@ automacao:
 
 ---
 
+## Categorização (atende M-INT-05 Onda 1)
+
+Toda automação acima é classificada como **Notification** (categoria do catálogo `integracoes-inter-modulos.md` v11). Automações disparam consumers via porta `OmniChannelProvider` (#10) ou `EmailTemplateProvider` (#18) — **não** publicam Integration Event próprio. Quando ação cria entidade nova (`criar_os_rascunho`, `criar_nc`), o módulo destino publica seu próprio Integration Event seguindo seu domínio.
+
 ## Referências
 
 - ADR-0005 (engine automações), ADR-0006 (feature flags), ADR-0013 (pricing — `LimiteDuro` em plano), ADR-0014, ADR-0015, ADR-0016
-- `docs/comum/integracoes-inter-modulos.md` v9 (catálogo de eventos)
-- `REGRAS-INEGOCIAVEIS.md` — INV-AGENT-001 (UntrustedInput), INV-INT-001..013
+- ADR-0033 (idempotência consumer) + ADR-0034 (saga + compensação) — automações executadas via bus aplicam pattern de idempotência (`idempotencia_key` declarada por automação) + tratamento `dead_letter_events`
+- `docs/comum/integracoes-inter-modulos.md` v11 (catálogo de eventos com categorização)
+- `REGRAS-INEGOCIAVEIS.md` — INV-AGENT-001 (UntrustedInput), INV-INT-001..013, INV-BUS-001..003

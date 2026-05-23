@@ -1,4 +1,4 @@
-# Anti-corrosion layer — 18 portas/adapters
+# Anti-corrosion layer — 19 portas/adapters
 
 > **Origem:** Parecer 9 da 2ª auditoria de 10 agentes (17/05/2026) — "agentes IA nunca importam direto dependências jovens/bus-factor-1; sempre via porta/adapter, pra trocar implementação em 1 sprint em vez de 6 meses".
 > **Status:** v3 (17/05/2026, madrugada — auditoria 10 agentes pós-48-módulos aplicada: +AuthorizationProvider, +BpmEngineProvider, +RuleEngineProvider, +AnalyticsBackend, +DocumentSearchProvider, +MarketplaceExtensionProvider, +EmailTemplateProvider). Documento vivo — toda nova integração externa precisa virar porta antes de ser usada.
@@ -688,6 +688,41 @@ class EmailTemplateProvider(Protocol):
 
 ---
 
+### 19. `OutboundWebhookProvider` (porta webhook saída — tenant integra com sistemas externos)
+
+**Por que existe:** ADR-0054 (auditoria Onda 10, achado G-INT-4). Tenant precisa receber eventos do Aferê via HTTP POST em URL própria (Zapier, Make, n8n, sistema interno). Sem porta, agente IA copia `requests.post()` em domínio — proibido. **PRÉ-REQUISITO Wave A** (Balanças Solution dogfooding).
+
+**Interface:**
+```python
+class OutboundWebhookProvider(Protocol):
+    def entregar(
+        self,
+        tenant_id: TenantId,
+        endpoint_id: UUID,
+        evento: EventoEnvelope,           # envelope v10
+        idempotency_key: str,
+    ) -> EntregaResult: ...
+
+    def listar_falhas(self, tenant_id: TenantId) -> list[FalhaEntrega]: ...
+    def reentregar(self, entrega_id: UUID) -> EntregaResult: ...
+    def rotacionar_secret(self, endpoint_id: UUID) -> SecretRotationResult: ...
+```
+
+**Implementações:**
+- `HttpxOutboundWebhookProvider` — httpx + retry exponencial + dead letter PG + circuit breaker (1ª implementação Wave A)
+- `MockOutboundWebhookProvider` — testes
+
+**Regras:**
+- ❌ NUNCA `requests.post(tenant_url)` direto em código de domínio
+- ✅ HMAC sha256 obrigatório (`X-Afere-Signature`)
+- ✅ SSRF guard: reject RFC 1918 / 127.0.0.0/8 / 169.254.0.0/16 (metadata cloud) / loopback
+- ✅ Retry exponencial 1m/5m/30m/2h/12h; dead letter após 5 falhas
+- ✅ Circuit breaker por endpoint (5 falhas em 10min abre; half-open após 30min)
+- ✅ Idempotency-Key header obrigatório
+- ✅ TLS obrigatório; rejeita HTTP plain
+
+---
+
 ## Estrutura no código
 
 ```
@@ -717,7 +752,8 @@ src/
 │   ├── analytics/             # AnalyticsBackend (ADR-0011, BI 3 fases)
 │   ├── docsearch/             # DocumentSearchProvider (FTS + OCR)
 │   ├── marketplace/           # MarketplaceExtensionProvider (V2/V3)
-│   └── email_template/        # EmailTemplateProvider (Jinja2 + versionamento)
+│   ├── email_template/        # EmailTemplateProvider (Jinja2 + versionamento)
+│   └── webhook_out/           # OutboundWebhookProvider (#19 — ADR-0054)
 │
 └── application/               # Casos de uso — recebem portas via DI
     ├── emitir_certificado.py
@@ -757,6 +793,7 @@ src/
    from infrastructure.docsearch.provider import DocumentSearchProvider
    from infrastructure.marketplace.provider import MarketplaceExtensionProvider
    from infrastructure.email_template.provider import EmailTemplateProvider
+   from infrastructure.webhook_out.provider import OutboundWebhookProvider
    ```
 
 3. **Lint custom (`ruff` rule customizada) bloqueia merge** se import direto de SDK acontecer fora de `infrastructure/`.
