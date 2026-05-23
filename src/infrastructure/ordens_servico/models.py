@@ -438,3 +438,95 @@ class ConsentimentoBiometriaTouch(models.Model):
 
     def __str__(self) -> str:
         return f"ConsentimentoBiometriaTouch(atv={self.atividade_id} v={self.versao_politica})"
+
+
+class AceiteAtividade(models.Model):
+    """Aceite do cliente para uma AtividadeDaOS (US-OS-004 + US-OS-013).
+
+    Entidade imutavel Padrao B (ADR-0031). Quando captura biometria
+    touch, exige `consentimento_id` NOT NULL (INV-OS-CONSBIO-001 + LGPD
+    art. 11 II "a"). Texto canonicalizado (INV-DOC-CANON-001 + ADR-0029).
+    Biometria cifrada com `BIOMETRIA_KEY_<tenant_id>` (INV-OS-ACEITE-BIO-001).
+
+    Trigger PG bloqueia UPDATE/DELETE pos-INSERT — registro probatorio
+    25a WORM equivalente.
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="aceites_atividade",
+    )
+    atividade = models.ForeignKey(
+        AtividadeDaOS,
+        on_delete=models.PROTECT,
+        related_name="aceites",
+    )
+    consentimento = models.ForeignKey(
+        ConsentimentoBiometriaTouch,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="aceite",
+        help_text=(
+            "FK 1:1 NOT NULL quando ha biometria touch (INV-OS-CONSBIO-001). "
+            "NULL apenas em aceites SEM biometria (cenario US-OS-013 dispensa)."
+        ),
+    )
+    cliente_referencia_hash = models.CharField(
+        max_length=64,
+        help_text="HMAC-SHA256 do cliente_id original (ADR-0032).",
+    )
+    cliente_key_id = models.CharField(max_length=40)
+    texto_canonicalizado = models.TextField(
+        help_text="UTF-8 sem BOM + LF + NFC + marcadores <<<CORPO INICIO/FIM>>> (ADR-0029).",
+    )
+    texto_hash = models.CharField(
+        max_length=64,
+        help_text="SHA-256 do texto pos-canonicalizacao (INV-DOC-CANON-001).",
+    )
+    biometria_payload_encrypted = models.BinaryField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Cifrado com BIOMETRIA_KEY_<tenant_id> (INV-OS-ACEITE-BIO-001). "
+            "NULL em aceites SEM biometria (caso de dispensa US-OS-013)."
+        ),
+    )
+    biometria_key_id = models.CharField(
+        max_length=40,
+        blank=True,
+        default="",
+        help_text="Id da chave KMS dedicada por tenant. Vazio se sem biometria.",
+    )
+    coletado_em = models.DateTimeField(help_text="Timestamp servidor da coleta.")
+    geo_lat = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Opt-in (RAT-07 + INV-OS-GEO-001). Mesma precisao limitada da atividade.",
+    )
+    geo_long = models.FloatField(null=True, blank=True)
+    geo_municipio_hash = models.CharField(max_length=64, blank=True, default="")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "ordens_servico"
+        db_table = "aceite_atividade"
+        verbose_name = "Aceite de atividade"
+        verbose_name_plural = "Aceites de atividade"
+        ordering = ["-criado_em"]
+        constraints = [
+            # Cada atividade tem no maximo 1 aceite ativo (INV-OS-ATIV-001).
+            models.UniqueConstraint(
+                fields=("atividade",),
+                name="uq_aceite_por_atividade",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "atividade"], name="aceite_tenant_atv_idx"),
+        ]
+
+    def __str__(self) -> str:
+        bio = "bio" if self.biometria_payload_encrypted else "sem-bio"
+        return f"AceiteAtividade({self.atividade_id} {bio})"
