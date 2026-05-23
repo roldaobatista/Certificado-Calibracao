@@ -28,14 +28,22 @@ worker `processar_outbox_em_contexto_tenant` (outbox_worker.py) drena.
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any, Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from django.db import connection
+from django.db import DatabaseError, OperationalError, connection
 
 from src.infrastructure.audit.acoes_canonicas import assert_acao_canonica
 from src.infrastructure.audit.services import sanitizar_payload_audit
+
+logger = logging.getLogger(__name__)
+
+# Onda 3 saneamento (2026-05-23) — envelope v10 canonico (catalogo eventos +
+# auditoria projeto-inteiro 10 lentes — lente 7 C7-01).
+ENVELOPE_SCHEMA_VERSION_DEFAULT = 1
 
 Escopo = Literal["auditoria", "authz"]
 
@@ -164,10 +172,29 @@ def _inserir_no_outbox(
     """T-CLI-107 — INSERT em bus_outbox no `transaction.atomic` do CALLER.
 
     Idempotente em `(causation_id, acao)` via ON CONFLICT DO NOTHING.
-    Retorna True se inseriu, False se idempotência atingiu linha pre-existente.
+    Retorna True se inseriu, False se idempotencia atingiu linha pre-existente.
+
+    Onda 3 saneamento (2026-05-23) — envelope v10 canonico:
+      - event_id: UUID unico do evento (idempotencia cross-consumer)
+      - _schema_version: versao do schema do payload (consumer compat)
+      - occurred_at: timestamp UTC-aware quando evento OCORREU (vs gravado_em)
+      - correlation_id: cadeia forense end-to-end (lido de
+        current_setting('app.correlation_id') quando disponivel)
+      - actor: pequena descricao do ator (usuario_id ou 'sistema')
     """
+    event_id = uuid4()
+    occurred_at = datetime.now(UTC)
+    correlation_id = _obter_correlation_id()
+    actor = str(usuario_id) if usuario_id else "sistema"
+
     envelope = {
-        "acao": acao,
+        "event_id": str(event_id),
+        "_schema_version": ENVELOPE_SCHEMA_VERSION_DEFAULT,
+        "event_name": acao,
+        "occurred_at": occurred_at.isoformat(),
+        "correlation_id": correlation_id,
+        "actor": actor,
+        "acao": acao,  # compat M1/M2 — manter durante 1 release
         "payload": payload_sanitizado,
         "causation_id": str(causation_id),
         "tenant_id": str(tenant_id) if tenant_id else None,
@@ -185,6 +212,32 @@ def _inserir_no_outbox(
         )
         row = cur.fetchone()
     return row is not None
+
+
+def _obter_correlation_id() -> str | None:
+    """Le correlation_id de current_setting('app.correlation_id', true).
+
+    Pre-2026-05-23 (Marco 1/2) nao setava esse setting — retornar None nesse caso
+    nao quebra retrocompat. Onda 3 saneamento promove `correlation_id` para
+    obrigatorio em endpoints novos via middleware (a criar Marco 3).
+    """
+    try:
+        with connection.cursor() as cur:
+            cur.execute("SELECT current_setting('app.correlation_id', true)")
+            row = cur.fetchone()
+            valor = row[0] if row else None
+            return valor if valor else None
+    except (DatabaseError, OperationalError) as exc:
+        # F-A-M5 (Onda 2 saneamento — 2026-05-22): except específico em vez de
+        # `except Exception` que engolia tudo. Causa-raiz: contexto PG ainda
+        # nao aberto / setting nao definido / connection morta.
+        # Outras exceptions sao bugs reais — propagar (nao mascarar).
+        logger.warning(
+            "correlation_id indisponivel via current_setting: %s (%s)",
+            exc.__class__.__name__,
+            exc,
+        )
+        return None
 
 
 def _validar_tenant_no_contexto(tenant_id: UUID | None) -> None:
