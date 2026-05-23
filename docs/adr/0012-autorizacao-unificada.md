@@ -153,6 +153,17 @@ Atributos derivados em runtime que entram na decisão. Ex:
 
 Esses atributos são funções Python registradas como `@authz_attribute("acreditacao_vigente")` — `AuthorizationProvider.can()` chama as funções necessárias conforme a ação solicitada.
 
+**Predicates ABAC catalogados (extensão pós-P3 Marco 3 — 2026-05-23):**
+
+| Predicate | Origem | Uso |
+|---|---|---|
+| `acreditacao_vigente(tenant_id)` | ADR-0012 v1 | RT pode emitir certificado |
+| `rt_competencia_cobre(user_id, grandeza, data)` (NOVO P-OS-R1) | ADR-0022 + parecer RBC M3 P-OS-R1 | Executor de atividade calibração/verificação_INMETRO em AC-OS-002b-4 e AC-OS-003-6 (INV-OS-ATIV-005-EXEC-COMP) |
+| `tenant_dentro_escopo_acreditado(tenant_id, grandeza, faixa_min, faixa_max, data)` (NOVO P-OS-R3) | NIT-DICLA-030 rev. 15 + parecer RBC M3 P-OS-R3 | `adicionarAtividade` em AC-OS-002-3 revisado (GATE-RBC-ESCOPO-1 — tenants A/RBC bloqueiam; B/C/D apenas marcam evento) |
+| `pode_estender_janela_cal_link_atividade(user_id, atividade_id)` (NOVO P-OS-T3) | parecer tech-lead M3 P-OS-T3 | Override de janela watchdog `os-calibracao-link-watchdog` pelo RT |
+| `pode_dispensar_aceite(user_id, atividade_id)` (NOVO P-OS-A4) | parecer advogado M3 P-OS-A4 + CDC art. 39 | US-OS-013 — verificar precedente (no-show OU recusa explícita) antes de permitir gravação de `DispensaAceiteAtividade` |
+| `pode_criar_os_produtiva_balancas(user_id, tenant_id)` (NOVO P-OS-S1) | parecer corretora M3 P-OS-S1 + CC art. 627 | Feature flag `OS_PRODUTIVO_DOGFOODING_BS` — só permite criar OS produtiva quando GATE-SEG-BPT-1 confirmado (apólice arquivada em `docs/conformidade/comum/seguros/apolices/`) |
+
 #### 4. `audit_trail.authz_decisions` — RAT LGPD automático
 
 Toda decisão (autorizada OU bloqueada) grava:

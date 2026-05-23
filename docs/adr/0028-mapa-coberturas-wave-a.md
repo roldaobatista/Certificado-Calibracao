@@ -123,8 +123,28 @@ Marsh Brasil, AON Tech, Howden Brasil — pedir 3 propostas.
 
 ## GATEs Wave A (consolidados em `gates-seg.md`)
 
-GATE-SEG-BPT-1 (IMEDIATO) · GATE-SEG-CAP-1 · GATE-SEG-CYBER-1 · GATE-SEG-EO-1 · GATE-SEG-DBI-1 · GATE-SEG-ACR-1 · GATE-SEG-VIST-1 · GATE-SEG-A3-1 · GATE-SEG-BPT-2 · GATE-SEG-VEIC-1 · GATE-SEG-RT-RC-1 (V2) · GATE-SEG-DRILL-1.
+GATE-SEG-BPT-1 (IMEDIATO) · GATE-SEG-CAP-1 · GATE-SEG-CYBER-1 · GATE-SEG-EO-1 · GATE-SEG-DBI-1 · GATE-SEG-ACR-1 · GATE-SEG-VIST-1 · GATE-SEG-A3-1 · GATE-SEG-BPT-2 · GATE-SEG-VEIC-1 · GATE-SEG-RT-RC-1 (V2) · GATE-SEG-DRILL-1 · GATE-SEG-INMETRO-PRAZO-1 (NOVO P-OS-S6).
+
+## Cláusulas adicionais — rev 2 (pós P3 Marco 3 — 2026-05-23)
+
+**Origem:** parecer corretora M3 P-OS-S2/S3/S4/S5. REQUER CORRETORA SUSEP HUMANA pra confirmar viabilidade de cada cláusula no mercado segurador brasileiro hoje.
+
+### Modalidade 1 (E&O ampliado) — cláusulas novas
+
+- **`Wrongful billing` revisado:** remover gatilho R$ 50k; usar franquia fixa R$ 5k por evento, cobrindo de R$ 5k até sublimite por evento R$ 3M. Cobre R-OS-5 (cancelamento parcial × CR) e R-OS-9 (race valor_total). (GATE-SEG-EO-1)
+- **`Tax penalty exposure — incorrect cancellation / late tax document`:** dentro do `consequential regulatory damages`, nomeando Receita Federal + SEFAZ específicos. Cobre R-OS-5 fiscal residual.
+- **`Software validation defect causing accreditation suspension`** estendido: cláusula explicita que cobre **vetores upstream do módulo Calibração** (não só erro no cálculo de incerteza — também erro no controle de OS que precede a medição). Cobre R-OS-6 (concorrência cascateia recall farma — vetor M3→M4).
+- **`Vicarious liability` expandido:** `Vicarious liability — tenant operative on-site OR tenant administrative decision via platform`. Cobre US-OS-013 dispensa de aceite gerencial (R-OS-13).
+
+### Modalidade 2 (Cyber) — cláusulas novas
+
+- **`Sensitive personal data — LGPD art. 11 (biometric, racial, health, religion) — affirmative coverage, no sub-aggregate restriction`:** cobre R-OS-3 (biometria cross-tenant). Sem sublimite separado para categoria especial. (GATE-SEG-CYBER-1)
+- **`Image rights — incidental third-party capture in field service photo`:** cobre R-OS-12 (foto no-show captura terceiros — CC art. 20 + LGPD).
+
+### Cláusula universal — rev 2
+
+- **`Continuity of coverage clause` (P-OS-S6):** retroatividade contínua via renovação anual sem gap — cobre R-OS-7 (hash quebrado 25a depois, sinistro reportado em ano X+1 sobre fato do ano X-5). REQUER corretora SUSEP confirmar mercado.
 
 ## Status
 
-Proposta expandida (7 modalidades) — aguarda corretora SUSEP humana. BPT EMERGENCIAL.
+Proposta rev 2 (7 modalidades + 6 cláusulas novas pós Marco 3 P3) — aguarda corretora SUSEP humana. BPT EMERGENCIAL.
