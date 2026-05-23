@@ -1,54 +1,60 @@
-# LICENÇA — A DEFINIR
+# Licença — Business Source License 1.1 (BUSL-1.1)
 
-> **Status (2026-05-17):** ⏳ pendente — decisão sobre licenciamento adiada até antes do primeiro release público.
->
-> **Default operacional na janela atual:** **proprietário, todos os direitos reservados, sem licença pública**.
-> Código não é open source. Não há permissão pra uso, cópia, modificação ou distribuição por terceiros sem autorização explícita do Roldão.
+> **Status (2026-05-23):** aplicada por decisão da Onda 0 do plano de saneamento pós-auditoria 10 lentes.
+> **Confirmação por advogado humano licenciado (OAB) PENDENTE** — texto definitivo pode ter ajustes na cláusula de Additional Use Grant.
 
 ---
 
-## Quando decidir
+## Parâmetros desta licença (preencher conforme §4 do texto oficial BUSL-1.1)
 
-Antes de:
-- Primeiro release público (V2 quando 1º cliente externo aparecer)
-- Publicar repositório como público no GitHub
-- Aceitar contribuição externa
+| Parâmetro | Valor |
+|---|---|
+| **Licensor** | Roldão Batista (CPF a confirmar com advogado humano) |
+| **Licensed Work** | Aferê (nome provisório) — todo código deste repositório |
+| **Additional Use Grant** | Uso não-produtivo (avaliação, ensino, desenvolvimento de extensão homologada pelo Marketplace Aferê V2 sob termos próprios). Uso produtivo competitivo (oferecer o Licensed Work, ou serviço substancialmente similar, como serviço comercial a terceiros) **NÃO** está permitido até a Change Date. |
+| **Change Date** | 2030-05-23 (quatro anos após a aplicação) |
+| **Change License** | Apache License, Version 2.0 |
 
----
+## Texto oficial da licença
 
-## Opções a considerar (quando decidir)
+O texto integral da Business Source License 1.1 é mantido pela MariaDB Corporation e está disponível em:
 
-| Licença | Características | Adequado pra Aferê? |
-|---------|-----------------|----------------------|
-| **Proprietário (atual)** | Sem licença pública; uso restrito | ✅ janela atual |
-| **AGPL-3.0** | Open source com cláusula viral (SaaS conta) | Adequado se quiser comunidade open mas proteger contra cópia fechada |
-| **MIT / Apache 2.0** | Liberal, permite uso comercial fechado | Inadequado pra produto comercial — concorrente clona |
-| **BUSL-1.1** | Source-available; vira open source após N anos | Modelo Sentry/Cockroach — equilíbrio entre transparência e proteção |
-| **Comercial + Open core** | Núcleo open, features pagas fechadas | Modelo GitLab, Mattermost |
+- **Canônico:** https://mariadb.com/bsl11/
+- **Tradução PT-BR (não oficial):** a anexar quando advogado humano confirmar tradução juridicamente equivalente.
 
----
-
-## Recomendação preliminar (a confirmar)
-
-**BUSL-1.1** ou similar quando publicar — source-available + cláusula que vira Apache 2.0 após 3 anos. Modelo testado em SaaS regulado.
-
-Decisão final exige:
-- Advogado especializado em propriedade intelectual + SaaS (subagent `advogado-saas-regulado` prepara minuta; humano licenciado revisa)
-- Análise de dependências (algumas têm copyleft que força licença derivada)
+Os parâmetros acima preenchem as variáveis `Licensor`, `Licensed Work`, `Additional Use Grant`, `Change Date` e `Change License` definidas na seção "Parameters" do texto oficial.
 
 ---
+
+## Resumo objetivo (não substitui o texto oficial)
+
+- **Código visível** no repositório (público ou privado, à escolha do Licensor).
+- **Permitido:** leitura, estudo, modificação para uso não-produtivo, contribuição mediante CLA quando solicitada.
+- **Proibido até a Change Date:** oferecer o Aferê (ou serviço substancialmente similar) como serviço comercial a terceiros sem licença comercial separada concedida pelo Licensor.
+- **Após a Change Date (2030-05-23):** cada versão licenciada sob BUSL converte automaticamente para Apache 2.0.
+- **Marketplace V2:** extensões de terceiros submetidas ao Marketplace Aferê serão licenciadas conforme termos próprios do programa de Marketplace (ainda a redigir — ADR-0055 proposta).
 
 ## Direitos autorais
 
 ```
-Copyright (c) 2026 Roldão Batista / Balanças Solution (razão social a definir)
-Todos os direitos reservados.
+Copyright (c) 2026 Roldão Batista
+Todos os direitos reservados, exceto quando expressamente concedidos por esta licença.
 ```
 
 ---
 
+## Limites desta aplicação
+
+Esta versão da LICENSE foi:
+
+1. **Recomendada** pelo subagente `advogado-saas-regulado` em 2026-05-23 (parecer arquivado em `docs/governanca/parecer-licenca-2026-05-23.md` — a criar) com base em critérios (a) bloqueio anti-clone Calibre, (b) mostrar a investidor sem ceder uso, (c) compatibilidade Marketplace V2 70/30, (d) compatibilidade WeasyPrint LGPL-2.1+, (e) migração futura indolor.
+2. **NÃO substitui** parecer de advogado humano licenciado. Antes do 1º cliente externo pago ou de tornar o repositório público, exige:
+   - Validação do texto oficial BUSL-1.1 (versão inglesa prevalece — confirmar com tradução juridicamente equivalente).
+   - Redação final do `Additional Use Grant` específico do Marketplace V2.
+   - Confirmação de compatibilidade WeasyPrint LGPL-2.1+ no modo de uso concreto.
+
 ## Referências
 
-- `discovery/sintese-final.md`
-- Subagent `advogado-saas-regulado`
-- Memória `sem-cliente-externo-na-janela-atual`
+- `docs/governanca/parecer-licenca-2026-05-23.md` (parecer subagente — a arquivar)
+- ADR-0055 (Marketplace V2 — proposta)
+- Memória `project_sem_cliente_externo_agora`
