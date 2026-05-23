@@ -713,3 +713,101 @@ class EventoDeOS(models.Model):
 
     def __str__(self) -> str:
         return f"EventoDeOS({self.tipo} os={self.os_id} @{self.occurred_at:%Y-%m-%d %H:%M})"
+
+
+class DispensaAceiteAtividade(models.Model):
+    """Dispensa formal de aceite do cliente (US-OS-013 + P-OS-A4).
+
+    Entidade imutavel Padrao B. Exigida pelo CDC art. 39 / parecer
+    advogado P-OS-A4:
+
+    - `precedente_tipo` obrigatorio: dispensa SO permitida apos
+      no-show registrado (US-OS-014) OU recusa explicita gravada
+      (foto/audio do cliente recusando — opt-in).
+    - `a3_assinatura_hash` obrigatorio: assinatura A3 do gerente
+      (nao basta sessao autenticada).
+    - `termo_pdf_b2_uri` + `termo_pdf_sha256`: TermoDispensaAceite
+      canonicalizado (INV-DOC-CANON-001 + ADR-0029).
+
+    REQUER OAB: modelo do TermoDispensaAceite em
+    `docs/conformidade/comum/termos/` (GATE-OS-CONSBIO-TEXTO-OAB).
+
+    Trigger PG bloqueia UPDATE/DELETE pos-INSERT.
+    """
+
+    PRECEDENTE_CHOICES = [
+        ("no_show", "No-show do cliente"),
+        ("recusa_explicita", "Recusa explicita gravada"),
+        ("impossibilidade_tecnica", "Impossibilidade tecnica de captura"),
+    ]
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="dispensas_aceite",
+    )
+    atividade = models.ForeignKey(
+        AtividadeDaOS,
+        on_delete=models.PROTECT,
+        related_name="dispensas_aceite",
+    )
+    motivo_hash = models.CharField(
+        max_length=64,
+        help_text=(
+            "SHA-256 do motivo livre (anti-PII INV-OS-TXT-001). "
+            "Texto cru NUNCA persistido — soh em B2 WORM se necessario."
+        ),
+    )
+    autorizado_por_gerente_id = models.UUIDField(
+        help_text="FK user.id (db_constraint=False). Papel gerente verificado em camada de aplicacao.",
+    )
+    a3_assinatura_hash = models.CharField(
+        max_length=64,
+        help_text="SHA-256 da assinatura A3 do gerente (P-OS-A4 — nao basta sessao autenticada).",
+    )
+    a3_certificado_emissor_hash = models.CharField(
+        max_length=64,
+        help_text="Hash do AC emissor (ICP-Brasil); valida cadeia OCSP/CRL em camada de aplicacao.",
+    )
+    a3_assinada_em = models.DateTimeField(help_text="Timestamp da assinatura A3.")
+    termo_pdf_b2_uri = models.TextField(
+        help_text="URL Backblaze B2 WORM do TermoDispensaAceite (REQUER OAB modelo).",
+    )
+    termo_pdf_sha256 = models.CharField(
+        max_length=64,
+        help_text="SHA-256 do PDF (INV-DOC-CANON-001 — prova determinística 25a).",
+    )
+    precedente_tipo = models.CharField(
+        max_length=30,
+        choices=PRECEDENTE_CHOICES,
+        help_text="Obrigatorio (P-OS-A4). Sem precedente -> 412 DispensaSemPrecedente.",
+    )
+    precedente_evento_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "FK -> EventoDeOS (precedente=no_show) ou EvidenciaFotoAtividade "
+            "(precedente=recusa_explicita). db_constraint=False — FK polimorfica."
+        ),
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "ordens_servico"
+        db_table = "dispensa_aceite_atividade"
+        verbose_name = "Dispensa de aceite de atividade"
+        verbose_name_plural = "Dispensas de aceite de atividade"
+        ordering = ["-criado_em"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("atividade",),
+                name="uq_dispensa_aceite_por_atividade",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "atividade"], name="disp_tenant_atv_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"DispensaAceite(atv={self.atividade_id} prec={self.precedente_tipo})"
