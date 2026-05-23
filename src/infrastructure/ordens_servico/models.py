@@ -530,3 +530,90 @@ class AceiteAtividade(models.Model):
     def __str__(self) -> str:
         bio = "bio" if self.biometria_payload_encrypted else "sem-bio"
         return f"AceiteAtividade({self.atividade_id} {bio})"
+
+
+class EvidenciaFotoAtividade(models.Model):
+    """Foto de evidencia da AtividadeDaOS (P-OS-T5 + INV-OS-SYNC-001).
+
+    Padrao B append-only via trigger:
+    - INSERT permitido em qualquer estado da atividade (inclusive
+      terminal — gera EventoDeOS tipo='foto_evidencia_tardia' em T-OS-008).
+    - UPDATE bloqueado exceto setar `revogado_em` (LGPD art. 18 — face
+      cliente). UPDATE de outro campo -> RAISE EXCEPTION.
+    - DELETE bloqueado.
+
+    INV-OS-SYNC-001 (reescrito P-OS-T5): foto enviada nunca eh descartada
+    no merge LWW; entra na galeria com `vencedora_lww=False` se necessario
+    (LWW so para campos escalares da atividade).
+    """
+
+    TIPO_CHOICES = [
+        ("checklist_item", "Item de checklist"),
+        ("conclusao", "Conclusao"),
+        ("nc", "Nao conformidade"),
+        ("no_show", "No-show"),
+        ("recusa_aceite", "Recusa de aceite"),
+    ]
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="evidencias_foto",
+    )
+    atividade = models.ForeignKey(
+        AtividadeDaOS,
+        on_delete=models.PROTECT,
+        related_name="evidencias_foto",
+    )
+    tipo = models.CharField(max_length=30, choices=TIPO_CHOICES)
+    b2_uri = models.TextField(
+        help_text="URL Backblaze B2 WORM (foto armazenada imutavel 25a).",
+    )
+    foto_sha256 = models.CharField(
+        max_length=64,
+        help_text="SHA-256 da foto pos EXIF strip (cadeia probatoria).",
+    )
+    client_event_id = models.UUIDField(
+        help_text="UUID gerado pelo client (sync mobile ADR-0027).",
+    )
+    client_event_created_at = models.DateTimeField(
+        help_text="Timestamp do client no momento da captura (offline-first).",
+    )
+    enviada_em = models.DateTimeField(help_text="Timestamp do servidor no upload.")
+    tecnico_executor_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="FK user.id (db_constraint=False); pode ser diferente do tecnico_executor_id atual da atividade.",
+    )
+    geo_lat = models.FloatField(null=True, blank=True)
+    geo_long = models.FloatField(null=True, blank=True)
+    geo_municipio_hash = models.CharField(max_length=64, blank=True, default="")
+    revogado_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="LGPD art. 18 (face cliente). Unico campo mutavel via UPDATE.",
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "ordens_servico"
+        db_table = "evidencia_foto_atividade"
+        verbose_name = "Evidencia foto de atividade"
+        verbose_name_plural = "Evidencias foto de atividade"
+        ordering = ["-criado_em"]
+        constraints = [
+            # client_event_id deve ser unico por tenant — anti-duplicacao no sync.
+            models.UniqueConstraint(
+                fields=("tenant", "client_event_id"),
+                name="uq_evidencia_foto_client_event_por_tenant",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "atividade"], name="evid_tenant_atv_idx"),
+            models.Index(fields=["tenant", "atividade", "tipo"], name="evid_tenant_atv_tip_idx"),
+        ]
+
+    def __str__(self) -> str:
+        rev = " REVOGADA" if self.revogado_em else ""
+        return f"EvidenciaFoto({self.tipo} atv={self.atividade_id}{rev})"
