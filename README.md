@@ -14,7 +14,7 @@
 - **Foundation F-C reservada** (3 sub-foundations sequenciais: F-C1 hardening, F-C2 observabilidade, F-C3 instrumentação+resiliência) — bloqueia Wave A; pré-requisito do 1º deploy externo
 - **Stack ativa:** Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry + Docker Compose
 - **LICENSE:** BUSL-1.1 aplicada na Onda 0 do plano-v2 (parecer subagente `advogado-saas-regulado`; confirmação OAB humano pendente)
-- **57 ADRs aceitas/propostas + 6 reservadas** (ADR-0056..0061 — a11y, ProductAnalytics, LLMProvider, EmailTemplate, DPO, Devcontainer)
+- **57 ADRs aceitas/propostas + 6 reservadas** (ADR-0057..0062 — a11y, ProductAnalytics, LLMProvider, EmailTemplate, DPO, Devcontainer; ADR-0056 = numeração OS Marco 3 P3, já aceita)
 - **Suite:** 621 testes verdes em 37 min; 32 hooks ativos; 207/207 casos no `_test-runner.sh`
 
 > Detalhamento vivo: `docs/faseamento-foundation-waves.md` + `.agent/CURRENT.md`.

@@ -232,7 +232,7 @@ F-C é o "endurecimento" do alicerce antes de subir paredes. F-A montou o alicer
 
 - F-A + F-B verdes (já fechadas em 2026-05-19)
 - LICENSE definida (Onda 0 ✅)
-- Devcontainer materializado (D4 ✅ — `.devcontainer/devcontainer.json` já existe; ADR-0061 reservada formaliza)
+- Devcontainer materializado (D4 ✅ — `.devcontainer/devcontainer.json` já existe; ADR-0062 reservada formaliza)
 - ADR-0054 (Webhook out) — aceita E implementada juntas em F-C1
 - Roldão aprovar arrancar F-C1
 
@@ -240,11 +240,11 @@ F-C é o "endurecimento" do alicerce antes de subir paredes. F-A montou o alicer
 
 Os seguintes itens ficam **explicitamente fora** de F-C e entram em ondas posteriores do plano-v2:
 
-- Acessibilidade WCAG (ADR-0056) → Onda 2 do plano-v2, paralela ao Marco 3 OS spec FORWARD
-- Analytics produto (ADR-0057) → Onda 2 do plano-v2
-- LLMProvider + INV-LLM (ADR-0058) → Onda 3 do plano-v2
-- EmailTemplateProvider + INV-MAIL (ADR-0059) → Onda 4 do plano-v2
-- Canal titular + DPO (ADR-0060) → Onda 3 do plano-v2 (antecipada da Onda 5 pós-auditoria LGPD)
+- Acessibilidade WCAG (ADR-0057) → Onda 2 do plano-v2, paralela ao Marco 3 OS (antes M3 implementar tela)
+- Analytics produto (ADR-0058) → Onda 2 do plano-v2
+- LLMProvider + INV-LLM (ADR-0059) → Onda 3 do plano-v2
+- EmailTemplateProvider + INV-MAIL (ADR-0060) → Onda 4 do plano-v2
+- Canal titular + DPO (ADR-0061) → Onda 3 do plano-v2 (antecipada da Onda 5 pós-auditoria LGPD)
 - Sagas orquestradas (ADR-0034) → Onda 4 do plano-v2
 - Replay schema (ADR-0036) → Onda 4 do plano-v2
 - Restore drill mensal → Onda 5 do plano-v2
