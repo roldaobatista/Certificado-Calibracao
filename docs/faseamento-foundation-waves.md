@@ -174,7 +174,84 @@ Login funciona + 4 perfis básicos funcionam + MFA TOTP obrigatório pros perfis
 
 ---
 
-## 4. Wave A — MVP-1 com 18 módulos
+## 4. Foundation F-C — Hardening + Observabilidade (3 sub-foundations sequenciais)
+
+> **Criada em 2026-05-23** pela Onda 0 do plano-v2 de saneamento (após auditoria 10 lentes detectar que LICENSE indefinida, logging placeholder, paginação ausente, throttle ausente, circuit breaker ausente, hardening prod ausente e pin SHA ausente bloqueavam o 1º deploy externo).
+>
+> **Por que 3 sub-foundations e não uma só:** auditoria do plano-v1 com 10 lentes (2026-05-23) detectou que F-C com 9 GAPs violava o princípio "Conciso vence completo" (F-A teve 8 GAPs, F-B teve 6 — projeção pra F-C com 9 GAPs era de ~25 achados pendentes no fechamento, igual Marco 2 estourou). Convergência LLM + OBS + SEC: quebrar em 3 sub-foundations sequenciais.
+>
+> **Bloqueia Wave A inteira.** Sem F-C1/F-C2/F-C3 verdes, 1º deploy externo é inviável.
+
+### Pra dono (Roldão)
+
+F-C é o "endurecimento" do alicerce antes de subir paredes. F-A montou o alicerce multi-tenant, F-B ligou o controle de quem pode o quê. Agora F-C garante que (1) o sistema não vaze coisa em produção por descuido de configuração, (2) a gente consegue ver o que está acontecendo quando algo der errado, e (3) o sistema aguenta quando uma dependência externa cair. Sem F-C, qualquer cliente externo pago vai ver bug que a gente não consegue diagnosticar.
+
+### 4.1 F-C1 — Hardening crítico
+
+**Objetivo:** trancar a configuração de produção, blindar o `/admin/` e fechar a porta de saída pra requisições não confiáveis (SSRF).
+
+**Entregáveis técnicos:**
+1. Hook `prod-settings-check.sh` valida `config/settings/prod.py` exige: `DEBUG=False`, `ALLOWED_HOSTS` lista fechada, `SESSION_COOKIE_SECURE=True`, `CSRF_COOKIE_SECURE=True`, `SECURE_HSTS_SECONDS >= 31536000`, `SECURE_SSL_REDIRECT=True`, `SECURE_REFERRER_POLICY=same-origin`, `X_FRAME_OPTIONS=DENY`, `SECURE_CONTENT_TYPE_NOSNIFF=True` + cabeçalhos CSP via `django-csp` ou middleware próprio.
+2. INV-ADMIN-001 redigida em REGRAS-INEGOCIÁVEIS + hook `admin-hardening-check.sh`: rota `/admin/` exige MFA obrigatório + rate-limit + IP allowlist + log auditável de cada acesso.
+3. ADR-0054 aceita E IMPLEMENTADA na mesma sub-foundation (não split — aceitação cega é débito): porta `OutboundWebhookProvider` com HMAC + SSRF guard (bloqueio de IPs privados RFC1918/loopback/link-local + DNS rebinding lock) + allowlist de portas + timeout.
+4. Rotação de credenciais dogfooding (lição da auditoria SEC: gitleaks sem rotação é teatro — mesmo sem segredo encontrado no histórico, faz sentido rotacionar `DJANGO_SECRET_KEY` e `KMS_KEY_ID` dogfooding como exercício antes do 1º deploy).
+
+**Critérios de saída:** 10 auditores Família 5 PASS ZERO CRÍTICO/ALTO/MÉDIO + drill SSRF (tentar resolver `169.254.169.254`, `localhost`, `192.168.x.x` no provider — bloqueio) + drill MFA admin (sem MFA = 403 + log) + suite verde.
+
+### 4.2 F-C2 — Observabilidade infra
+
+**Objetivo:** ter log estruturado com `tenant_id`+`correlation_id`+`request_id` automático em toda chamada, ter endpoints de health/readiness corretos, decidir destino do log.
+
+**Entregáveis técnicos:**
+1. Substituir placeholder em `config/settings/base.py:441-462` por configuração real de `structlog` + processor automático que injeta `tenant_id` (vindo do middleware multi-tenant), `correlation_id` (gerado/lido em middleware HTTP via header `X-Correlation-Id`) e `request_id` em todo `logger.info/warning/error`. Decisão: `extra={...}` manual fica PROIBIDO (causa drift); processor é fonte única. Retrofit dos 29 call sites com `extra=` manual (13 arquivos) num único commit "logging-processor-canonico".
+2. INV-LOG-001..003 redigidas em REGRAS: (001) todo log estruturado tem `tenant_id`+`correlation_id`; (002) `extra=` manual proíbido fora do processor; (003) destino do log é stdout + driver Docker → Axiom (decisão a fechar nesta sub-foundation; alternativa: Promtail → Grafana Cloud Loki).
+3. Endpoints separados (correção da confusão liveness vs readiness apontada pelo auditor OBS):
+   - `/health` (liveness) → só processo vivo + connection pool ok
+   - `/ready` (readiness k8s) → só DB respondendo (B2 e KMS FORA — se B2 piscar, k8s não pode tirar pod)
+   - `/health/deep` (probe operacional, não k8s) → DB + B2 + KMS + bus outbox sem backlog grande
+4. SIGTERM handler em procrastinate worker (versão a pinar — auditor PERF confirmou suporte nativo desde 2.x, mas plano-v1 não tinha versão fixada): worker termina job em voo, drena fila, não pega novo.
+5. Contextvar `correlation_id` propagado nos 4 pontos críticos: middleware HTTP grava; DRF view lê; `EventEnvelope.publicar()` lê do contextvar e inclui no envelope; consumer entra no contextvar antes de processar evento. Sem isso, tracing quebra na borda outbox.
+
+**Critérios de saída:** 10 auditores PASS + drill "matar worker durante job" (SIGTERM → drena → sem job perdido) + verificar 100% dos logs novos têm `tenant_id`+`correlation_id` automáticos + drill `/ready` vs `/health/deep` (B2 cai → `/ready` continua 200, `/health/deep` retorna 503).
+
+### 4.3 F-C3 — Instrumentação + resiliência
+
+**Objetivo:** medir o que importa (técnico + negócio), proteger contra abuso e proteger contra dependência externa derrubando o sistema.
+
+**Entregáveis técnicos:**
+1. Adicionar serviço **Redis** ao `docker-compose.yml` (auditor PERF: throttle DRF sem Redis cai em LocMemCache por worker, vira ficção em multi-worker gunicorn).
+2. PERF-1 paginação DRF: `DEFAULT_PAGINATION_CLASS=PageNumberPagination` + `PAGE_SIZE=50` em `config/settings/base.py` + hook `paginacao-obrigatoria-check.sh` que rejeita `ListAPIView`/`ModelViewSet` sem `pagination_class` declarada. **Retrofit dos 621 testes** que esperam array cru pra esperar `{count,results}` — orçado como T próprio (`T-FC3-PAGINACAO-RETROFIT-TESTES`).
+3. PERF-3 throttle DRF: `DEFAULT_THROTTLE_CLASSES` ativo + escopos por endpoint caro autenticado (POST `/clientes/`, importação CSV, revogação consentimento, futuras chamadas LLM) + INV-RATE-001..003.
+4. PERF-2 circuit breaker + DLQ ativa: implementar `circuitbreaker` em chamadas externas (Lacuna, KMS, futuro Asaas) com **fake adapter determinístico** (injeta timeout/erro/lentidão — não mock vazio); `outbox_worker.py` move pra `dead_letter_events` após `max_tentativas=5` com backoff exponencial + jitter; **drill de envenenamento orçado** como T próprio (T-FC3-DLQ-DRILL — forçar 5 falhas e asserir linha em `dead_letter_events`).
+5. OBS-2 instrumentação: `prometheus-client` + `opentelemetry-sdk` + decoradores em consumers/views/sagas + dashboard Grafana Cloud com 5 métricas técnicas (p95/p99 por endpoint, taxa de erro, depth fila outbox, taxa DLQ) **e 5 métricas de NEGÓCIO acordadas com Roldão** (OS aberta/dia, certificado emitido/dia, OS sem aceite > 48h, inadimplência R$/dia, NPS dogfooding).
+6. SUPPLY-1 pin SHA: `Dockerfile` base + 3 actions (`checkout@v4`, `setup-python@v5`, `github-script@v7`) + base PostgreSQL + Redis → todos pinados por `@sha256:` (Docker) ou `@<commit>` (Actions). `.github/dependabot.yml` ativo com **política escrita** em `docs/governanca/dependabot-policy.md`: auto-merge patch+security em actions/docker; humano (eu — Claude Code) avalia minor/major.
+
+**Critérios de saída:** 10 auditores PASS + drill DLQ envenenamento (5 falhas → mensagem em `dead_letter_events` + alerta) + drill throttle multi-worker (Redis ativo, 100 req/s em endpoint throttle=10/s → 90 bloqueadas) + 5 métricas de negócio populadas em Grafana com dados sintéticos + Dependabot rodando 1 ciclo sem ruído.
+
+### Bloqueado por
+
+- F-A + F-B verdes (já fechadas em 2026-05-19)
+- LICENSE definida (Onda 0 ✅)
+- Devcontainer materializado (D4 ✅ — `.devcontainer/devcontainer.json` já existe; ADR-0061 reservada formaliza)
+- ADR-0054 (Webhook out) — aceita E implementada juntas em F-C1
+- Roldão aprovar arrancar F-C1
+
+### Não-objetivos de F-C (Onda 5 do plano-v2)
+
+Os seguintes itens ficam **explicitamente fora** de F-C e entram em ondas posteriores do plano-v2:
+
+- Acessibilidade WCAG (ADR-0056) → Onda 2 do plano-v2, paralela ao Marco 3 OS spec FORWARD
+- Analytics produto (ADR-0057) → Onda 2 do plano-v2
+- LLMProvider + INV-LLM (ADR-0058) → Onda 3 do plano-v2
+- EmailTemplateProvider + INV-MAIL (ADR-0059) → Onda 4 do plano-v2
+- Canal titular + DPO (ADR-0060) → Onda 3 do plano-v2 (antecipada da Onda 5 pós-auditoria LGPD)
+- Sagas orquestradas (ADR-0034) → Onda 4 do plano-v2
+- Replay schema (ADR-0036) → Onda 4 do plano-v2
+- Restore drill mensal → Onda 5 do plano-v2
+
+---
+
+## 5. Wave A — MVP-1 com 18 módulos
 
 ### Pra dono (Roldão)
 Wave A é o sistema ficar **realmente útil** pra Balanças Solution. Aqui você passa a usar o produto no dia a dia: técnico abre OS no app, vai pra campo, calibra balança do cliente, emite certificado ISO 17025 assinado, manda nota fiscal de serviço, recebe pagamento, registra que o RT é acreditado, que o técnico está treinado, que o checklist de segurança foi feito, e que o estoque das peças foi baixado. Sem dependência de cliente externo pagando — Balanças Solution é o piloto.
