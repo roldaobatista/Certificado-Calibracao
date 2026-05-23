@@ -78,7 +78,7 @@ Aferê (operador) **encaminha solicitação ao controlador (tenant)** em até 24
 
 ---
 
-## 5. Incidentes de segurança — playbook ANPD 72h (Resolução 15/2024)
+## 5. Incidentes de segurança — playbook ANPD 3 dias úteis (Resolução CD/ANPD 15/2024)
 
 Em caso de incidente envolvendo dados pessoais:
 
@@ -88,7 +88,7 @@ Em caso de incidente envolvendo dados pessoais:
 | **T+15min** | Acionamento do RACI (`docs/governanca/RACI-incidente-ai.md`) — Roldão notificado |
 | **T+1h** | Contenção inicial (suspender tenant afetado, rotacionar credencial, etc.) |
 | **T+24h** | Avaliação do impacto — comunicar tenant(s) afetado(s) se confirmado |
-| **T+72h** | Comunicação ANPD via formulário oficial (resolução exige até 3 dias úteis) |
+| **T+3 dias úteis** | Comunicação ANPD via formulário oficial (Res. CD/ANPD 15/2024 art. 6º — 3 dias úteis, não 72h corridas) |
 | **T+30d** | Postmortem público (`docs/operacao/incidente-postmortem.md` — template a criar) |
 
 Template de notificação ANPD em `docs/conformidade/comum/incidente-anpd-modelo.md` (a criar).

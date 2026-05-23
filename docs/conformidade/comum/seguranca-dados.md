@@ -8,7 +8,7 @@ status: draft
 
 > **Pra quê:** define a postura de segurança do Aferê — controles, classificação, criptografia, retenção, incidentes. Fonte explicativa dos IDs **SEC-001..003** e SEC-TENANT-001 de `REGRAS-INEGOCIAVEIS.md`. Cobre os requisitos LGPD art. 46-49 (segurança e boas práticas) + Resolução ANPD 15/2024 (incidentes).
 >
-> **Promovido a 🔴** em v5 do `documentos-do-projeto.md` por exigência ANPD 72h.
+> **Promovido a 🔴** em v5 do `documentos-do-projeto.md` por exigência ANPD 3 dias úteis (Res. CD/ANPD 15/2024).
 
 ---
 
@@ -114,7 +114,7 @@ Tensão **fiscal 5 anos × ISO 25 anos × LGPD direito ao esquecimento** resolvi
 | Detecção | Grafana alert + auditor de segurança bloqueio em série + report manual | `docs/operacao/observabilidade.md` (a criar) |
 | Acionamento | RACI define quem age (Roldão + subagente segurança) | `docs/governanca/RACI-incidente-ai.md` ✅ |
 | Contenção | Suspender tenant, rotacionar credencial, isolar host | `docs/operacao/runbook.md` (a criar) |
-| Notificação ANPD | T+72h, via formulário oficial | `lgpd-rat.md` seção 5 |
+| Notificação ANPD | T+3 dias úteis (Res. CD/ANPD 15/2024), via formulário oficial | `lgpd-rat.md` seção 5 |
 | Notificação tenant | T+24h se confirmado impacto | DPA modelo |
 | Postmortem | T+30d, sem culpado, foco em sistema | `docs/operacao/incidente-postmortem.md` template (a criar) |
 | Aprendizado | Atualizar `REGRAS-INEGOCIAVEIS.md` se necessário | Auditor de Segurança Família 5 |

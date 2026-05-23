@@ -29,7 +29,7 @@ Incidente que afete dados pessoais com **risco ou dano relevante** aos titulares
 Fluxo:
 - T+0: detecção
 - T+24h: comunicar tenant(s) afetado(s) se confirmado
-- T+72h: comunicar ANPD via formulário oficial
+- T+3 dias úteis: comunicar ANPD via formulário oficial
 
 ---
 
@@ -80,7 +80,7 @@ status: draft | enviado | resposta_recebida
 - T+15min: [contenção inicial]
 - T+1h: [...]
 - T+24h: [...]
-- T+72h: [enviar esta notificação]
+- T+3 dias úteis: [enviar esta notificação]
 - T+30d: [postmortem público]
 
 ## 8. Causa raiz (5 porquês)
@@ -134,7 +134,7 @@ Backup: e-mail formal pro DPO da ANPD com PDF assinado A3.
 
 - [ ] DPO formal designado (V2)
 - [ ] Conta no portal ANPD criada (V2)
-- [ ] Drill anual: simular incidente; redigir notificação completa em < 72h; medir tempo
+- [ ] Drill anual: simular incidente; redigir notificação completa em < 3 dias úteis (Res. CD/ANPD 15/2024); medir tempo
 - [ ] Template digital (formulário pronto, não markdown) — V2
 
 ---

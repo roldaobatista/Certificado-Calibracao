@@ -279,6 +279,67 @@ Exceção única: pasta `infrastructure/multitenant/` pode ter raw queries (revi
 
 ---
 
+## 4.6 Mapa Zona A/B/C dos campos F-A (ADR-0021)
+
+> **Adicionado em 2026-05-22 (Onda 2 saneamento — F-A-M4).** ADR-0021 separa dado pessoal em três zonas conforme conflito entre LGPD art. 16/18 (direito ao esquecimento) e retenção regulatória (Receita 5a / ISO 17025 ~25a). Esta seção mapeia, **campo a campo**, os atributos da Foundation F-A pra cada zona — sem isso, agente que mexe em audit/middleware na Wave A não sabe se "anonimizar" um campo é (a) eliminar de fato, (b) substituir por hash anonimizado, ou (c) deixar como está (público).
+
+### 4.6.1 Definições rápidas
+
+- **Zona A — Eliminação efetiva.** Dado precisa ser **fisicamente apagado** ao fim do prazo / ao exercício do direito. Não basta hashear. Ex: e-mail de contato em campanha de marketing.
+- **Zona B — Pseudonimização irreversível com retenção.** Dado é **substituído por hash HMAC** (preservando capacidade de auditoria e busca por chave) e **retido pelo prazo legal**. A chave de hash em si tem ciclo (ver `docs/seguranca/ciclo-chave-pii.md`). Ex: CPF em audit trail, IP em log de acesso.
+- **Zona C — Público / não-PII / dado operacional não-eliminável.** Sem PII relevante, ou PII de tenant (não cliente final), ou dado já anonimizado. Ex: `Tenant.id`, `Tenant.slug`, status de provisioning.
+
+> **Importante (parecer advogado 2026-05-18):** "anonimização por hash" é tecnicamente **pseudonimização** porque CPF tem espaço enumerável. Vira anonimização efetiva só quando combinada com crypto-shredding da chave KMS do tenant + indisponibilidade da chave de hash de PII. Ver nota em `retencao-matriz.md` §1.
+
+### 4.6.2 Tabela canônica — campos F-A
+
+| Entidade / campo | Zona | Justificativa | Ação no fim do prazo / direito esquecimento |
+|------------------|------|---------------|--------------------------------------------|
+| `Tenant.id` (UUID) | **C** | Identificador opaco de tenant; não-PII; necessário para integridade referencial entre plano-de-controle e dados | Mantém (FK no plano-de-controle); shredding atinge dados via chave KMS do tenant |
+| `Tenant.slug`, `Tenant.nome_fantasia` | **C** | Dados de **empresa-tenant**, não de pessoa natural; LGPD não aplica diretamente (pessoa jurídica) | Mantém; pode ser higienizado em portabilidade competitiva sob NDA |
+| `Tenant.cnpj` | **B** | CNPJ é dado de PJ na maioria das vezes; quando MEI/empresário individual com CPF embutido vira PII — tratar como B por segurança | Mantém em texto claro durante vigência + Receita 5a; pós-extinção via crypto-shredding |
+| `Tenant.estado_lifecycle` (`TenantLifecycleEstado`) | **C** | Estado operacional, não-PII | Mantém |
+| `Auditoria.id` (linha hash chain) | **C** | UUID opaco | Mantém pelo prazo (Receita/ISO/audit) → crypto-shredding |
+| `Auditoria.usuario_id` | **B** | FK pra usuário, identifica pessoa natural | Mantém **como hash** após art. 16 LGPD se titular sair; preserva auditoria de ações passadas via `hash_original` |
+| `Auditoria.payload` (JSONB sanitizado) | **C** | Já passou por `sanitizar_payload_audit` antes de gravar — PII bruta nunca entra aqui; conteúdo restante é metadado operacional | Mantém; shredding via chave KMS do tenant |
+| `Auditoria.resource_summary` (string) | **C** | Resumo de recurso sem PII bruta (regra do sanitizador) | Mantém |
+| `Auditoria.hash_anterior` (hash chain) | **C** | Hash HMAC; quebra do elo dispara alerta P1 | **NÃO eliminar nem alterar** — quebra cadeia de prova |
+| `AcessoDadosCliente.id` | **C** | UUID opaco | Mantém |
+| `AcessoDadosCliente.usuario_id` | **B** | Quem viu o dado — necessário pra resposta ANPD ("quem viu CPF do João?") | Hash retido 25a (alinhado a auditoria); referência `ReferenciaPIIAnonimizavel` quando usuário pede esquecimento mas auditoria precisa permanecer |
+| `AcessoDadosCliente.recurso` (JSONB) | **C** | Resumo do recurso sem PII bruta (ex: `{"cliente_final_id": "<uuid>", "campos": ["nome","cpf"]}`) | Mantém |
+| `AcessoDadosCliente.ip_hash` | **B** | IP é dado pessoal (jurisprudência STF + posição ANPD); hash HMAC com salt-por-tenant — pseudonimização | Mantém pelo prazo + chave de hash de PII rotaciona anualmente (`PII_HASH_KEYS_RETIRED`) |
+| `AcessoDadosCliente.finalidade` | **C** | Enum LGPD (`execucao_contrato`, etc.) | Mantém |
+| `AuthorizationDecision.id` | **C** | UUID opaco | Mantém |
+| `AuthorizationDecision.usuario_id` | **B** | Idem `AcessoDadosCliente.usuario_id` | Idem |
+| `AuthorizationDecision.ip_hash` | **B** | Idem `AcessoDadosCliente.ip_hash` | Idem |
+| `AuthorizationDecision.escopo_avaliado` (JSONB ABAC) | **B** | Pode conter atributos derivados de PII (ex: `idade_titular_acima_de_18=true`) — sanitização força hash em qualquer campo nominal | Mantém com sanitização garantida pelo helper |
+| `AuthorizationDecision.perfis_aplicados` | **C** | Lista de UUIDs de perfil — não-PII | Mantém |
+| `Usuario.email`, `Usuario.cpf` (na tabela `auth_usuario` — Wave A) | **A** | E-mail e CPF do operador do tenant; LGPD art. 16 aplica direto se conta encerrada | Eliminação efetiva após fim de contrato + janela mínima 5a (Receita arrolamento solidário) → eliminação |
+| `UsuarioPerfilTenant.valido_de/ate` | **C** | Datas de vigência — não-PII | Mantém |
+| `bus_outbox.envelope_jsonb` | **B/C** (depende do conteúdo do evento) | Envelope vai pra consumers — pode carregar payload com referência a PII via UUID, **nunca** PII bruta (regra do helper) | Mantém pelo prazo + worker drena; histórico segue retenção do dado-origem |
+| `bus_outbox.causation_id` | **C** | UUID opaco de request | Mantém |
+| `kms_chaves_tenant.kms_key_arn` | **C** | Identificador ARN — não-PII; é o **alvo** do crypto-shredding | Mantém durante vigência; revoga ao extinguir o tenant |
+| `PII_HASH_KEYS_RETIRED.key_id`, `referencia_secrets_manager` | **C** | Identificadores de chave aposentada — não-PII | Mantém ≥ maior prazo de audit trail que a chave cobriu |
+
+### 4.6.3 Regras de derivação para entidades futuras
+
+Quando Wave A acrescenta nova entidade tocando audit/PII, agente deve, **antes de implementar**, classificar cada campo novo em A/B/C nesta tabela. Default conservador: campo nominal/identificável → B. Campo opaco UUID interno → C. Campo de marketing direto → A.
+
+### 4.6.4 Implementação técnica
+
+- **Zona A**: campo no banco; ao extinguir, `UPDATE … SET campo = NULL` + audit do evento de eliminação.
+- **Zona B**: campo no banco em texto claro durante vigência + hash sincronizado em `*_hash`; ao extinguir o titular, `UPDATE … SET campo = NULL` mantendo `*_hash` populado via `ReferenciaPIIAnonimizavel` (VO em `value_objects.py`).
+- **Zona C**: sem ação específica; depende do crypto-shredding da chave KMS do tenant.
+
+### 4.6.5 Referências cruzadas
+
+- `docs/adr/0021-anonimizacao-vs-retencao.md` — origem do conceito Zona A/B/C
+- `docs/adr/0032-fk-cross-modulo-anonimizacao.md` — VO `ReferenciaPIIAnonimizavel`
+- `docs/conformidade/comum/retencao-matriz.md` — prazos por categoria
+- `docs/seguranca/ciclo-chave-pii.md` — rotação anual da chave de hash de PII
+
+---
+
 ## 5. Crypto-shredding por tenant — LGPD direito ao esquecimento
 
 ### 5.1 Mecanismo
@@ -519,4 +580,4 @@ Lista fechada do que **NÃO** vamos fazer (e por quê):
 - `docs/conformidade/comum/seguranca-dados.md` — classificação + criptografia + controles
 - `docs/conformidade/comum/retencao-matriz.md` — Receita 5a × ISO 17025 8.4 × LGPD
 - `docs/conformidade/comum/dpia-modulos-novos.md` — avaliação de impacto por módulo
-- `docs/conformidade/comum/incidente-anpd-modelo.md` — fluxo de incidente 72h
+- `docs/conformidade/comum/incidente-anpd-modelo.md` — fluxo de incidente 3 dias úteis (Res. CD/ANPD 15/2024)

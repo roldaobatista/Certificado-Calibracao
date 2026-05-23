@@ -21,14 +21,30 @@ relacionados:
 
 ---
 
-## Catálogo inicial (4 entradas — MVP-1)
+## Catálogo (12 entradas — Wave A pós Onda 7 saneamento 2026-05-23)
+
+### Finalidades originais (MVP-1)
 
 | Código | Base legal | Quando usar | Coleta consentimento extra? |
 |---|---|---|---|
 | `execucao_contrato` | LGPD Art. 7º V | Cadastro/atendimento de cliente, OS, agendamento, financeiro do contrato comercial | Não — base autoexecutável |
-| `obrigacao_legal` | LGPD Art. 7º II | NF-e, certificado ISO 17025, RAT trabalhista, retenção fiscal | Não |
-| `interesse_legitimo` | LGPD Art. 7º IX | Anti-fraude, dedup, métricas internas anonimizadas | Não — exige LIA (`docs/conformidade/comum/lia-template.md` quando for usado) |
-| `consentimento` | LGPD Art. 7º I | Marketing/lembretes WhatsApp (RAT-06 opt-in), comunicação não-contratual | **SIM** — opt-in explícito, separado do aceite de cadastro (vedação de bundle Art. 8º §4º) |
+| `obrigacao_legal` | LGPD Art. 7º II | NF-e, retenção fiscal, RAT trabalhista | Não |
+| `interesse_legitimo` | LGPD Art. 7º IX | Anti-fraude, dedup, métricas internas anonimizadas | Não — exige LIA (`docs/conformidade/comum/lia-template.md`) |
+| `consentimento` | LGPD Art. 7º I | Marketing/lembretes WhatsApp (RAT-06 opt-in), comunicação não-contratual | **SIM** — opt-in explícito separado |
+
+### Finalidades estendidas (Onda 7 — pré-Marco 3/4/5 + Wave A regulatório)
+
+| Código | Base legal | Quando usar | Coleta consentimento extra? |
+|---|---|---|---|
+| `obrigacao_regulatoria_iso17025` | LGPD Art. 7º II | RT, signatário, certificado de calibração, registros técnicos cl. 7.5, validação software cl. 7.11 | Não — base regulatória autônoma |
+| `auditoria_cgcre` | LGPD Art. 7º II + Art. 11 II "a" | Acesso CGCRE/RBC durante supervisão; consultor RBC; auditor externo | Não — base regulatória |
+| `signatario_a3` | LGPD Art. 7º II + MP 2.200-2/2001 | Captura/persistência de dados ICP-Brasil A3 (CPF, dados certificado, nonce, signing-time) | Não — exigência ICP-Brasil |
+| `responsavel_tecnico_tenant` | LGPD Art. 7º II + NIT-DICLA-021 + ADR-0022 | RT vigente do tenant: nome, CPF, registro conselho, vigência, competências por grandeza | Não — obrigação regulatória |
+| `tecnico_campo` | LGPD Art. 7º V | Técnico executor da OS: geolocalização opt-in, foto perfil, biometria touch quando exigida | **SIM para geo** — opt-in explícito (RAT-07); biometria sob art. 11 II "g" + "a" |
+| `defesa_em_juizo` | LGPD Art. 7º VI | Litígio/contestação; preservação de evidências; produção de prova | Não — base autônoma |
+| `cumprimento_judicial` | LGPD Art. 7º II + Art. 12 §1º | Ofício judicial; intimação; mandado | Não — obrigação legal |
+| `comunicacao_servico_titular` | LGPD Art. 7º V | Notificação ao Cliente Final sobre status da OS, agendamento, recalibração, certificado emitido | Não para comunicação contratual; **SIM para WhatsApp marketing** |
+| `anonimizacao_propagada` | LGPD Art. 7º II + Art. 18 VI + ADR-0021/0032 | Audit registrado por consumer cross-módulo após receber evento `Cliente.Anonimizado` | Não — propagação automática |
 
 ---
 
@@ -67,3 +83,4 @@ Por hora, o catálogo só vive aqui em texto. Quando Wave B (LGPD portal/DPO) pr
 | Data | Mudança |
 |------|---------|
 | 2026-05-18 | Criação. 4 finalidades iniciais validadas pelo advogado. |
+| 2026-05-23 | Onda 7 saneamento — 8 finalidades estendidas (obrigacao_regulatoria_iso17025, auditoria_cgcre, signatario_a3, responsavel_tecnico_tenant, tecnico_campo, defesa_em_juizo, cumprimento_judicial, comunicacao_servico_titular, anonimizacao_propagada). Trigger: auditoria projeto-inteiro lente 2 advogado-saas-regulado. Minuta — REQUER VALIDAÇÃO OAB antes do 1º tenant externo pago. |
