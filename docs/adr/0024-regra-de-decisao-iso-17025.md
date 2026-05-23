@@ -1,8 +1,9 @@
 ---
 adr: 0024
 titulo: Regra de decisão ISO/IEC 17025 cl. 7.8.6 — 3 modos + override por cliente
-status: proposta
+status: aceito
 data: 2026-05-23
+aceito-em: 2026-05-23 (Onda 6 saneamento — destravar Marco 4 calibração)
 proposto-por: agente (auditoria 10 lentes — TEMA-F.1)
 revisado-por: consultor-rbc-iso17025 + tech-lead-saas-regulado
 bloqueia-fase: Wave A Marco 4 (calibracao)

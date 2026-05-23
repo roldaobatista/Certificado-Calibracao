@@ -51,12 +51,12 @@ Ver `.specify/memory/constitution.md` (6 princípios) + `REGRAS-INEGOCIAVEIS.md`
 **Resumo operacional:**
 1. **Documento é estado compartilhado** — agente que decidir sem doc inventa diferente toda vez.
 2. **Spec gera código** (spec-as-source). Não código gera spec.
-3. **Conciso vence completo** — AGENTS.md e CLAUDE.md ≤ 250 e ≤ 150 linhas respectivamente.
+3. **Conciso vence completo** — AGENTS.md e CLAUDE.md ≤ 300 e ≤ 150 linhas respectivamente.
 4. **Non-goals explícitos** — toda spec/ADR declara o que NÃO está no escopo.
 5. **IDs rastreáveis** — `US-<MOD>-NNN` → `AC-<MOD>-NNN-N` → `T<MOD>NNN` → commit.
 6. **Negócio vence conveniência do agente** — não otimizar pelo que o agente IA erra menos; otimizar pelo Roldão/produto. Critério "agentes dominam X" é tiebreaker, nunca principal.
 
-**Regra mestre:** regra crítica vira **hook**, não só doc. Hoje em `.claude/hooks/` (21 hooks ativos, 168/168 casos verdes no `_test-runner`): `block-destructive`, `secrets-scanner`, `_test-runner`, `INV-checker`, `tenant-id-validator`, `anti-mascaramento`, `context-budget`, `paths-frontmatter-validator`, `bus-envelope-validator`, `authz-check`, `provisioning-checkpoint-check`, `mock-in-production`, `migration-rls-check`, `audit-immutability-check`, `audit-pii-salt-check`, `pyproject-validator` (drill F-A — PEP 440 + sintaxe extras Poetry), `policy-test-coverage` (drill F-A — `# tests-coverage:` em migration que cria policy RLS), `ritual-gate-check` (2026-05-19 — INV-RITUAL-001 MÉDIO+ bloqueia fechamento), `cliente-canonico-imutavel` (T-CLI-113 — INV-CLI-001), `event-helper-unico` (T-CLI-105 — SANEA-08 publicar_evento único), `lgpd-policy-unica` (Marco 1 P5 — INV-CLI-002), `csv-safety-import` (Marco 1 P5 — SEC-CSV-001).
+**Regra mestre:** regra crítica vira **hook**, não só doc. Hoje em `.claude/hooks/` (**32 hooks ativos**, 207/207 casos verdes no `_test-runner` — ampliação Onda 4 saneamento 2026-05-23 a validar): block-destructive, secrets-scanner, INV-checker, tenant-id-validator, anti-mascaramento, context-budget, paths-frontmatter-validator, bus-envelope-validator (estendido Onda 3 — Cliente.Anonimizado + envelope v10), authz-check, provisioning-checkpoint-check, mock-in-production, migration-rls-check, audit-immutability-check, audit-pii-salt-check, pyproject-validator, policy-test-coverage, ritual-gate-check, cliente-canonico-imutavel, event-helper-unico, lgpd-policy-unica, csv-safety-import, qr-hmac-check, equipamento-imutabilidade-check, trigger-stub-sweep, port-binding-validator, **vigencia-canonica-check** (Onda 4 — ADR-0030 INV-VIG-001..004), **soft-delete-padrao-check** (Onda 4 — ADR-0031 INV-SOFT-001..003), **fk-pii-anonimizavel-check** (Onda 4 — ADR-0032 INV-ANON-001..004), **biometria-key-validator** (Onda 4 — INV-OS-ACEITE-BIO-001), **os-conclusao-todas-terminais-check** (Onda 4 — INV-OS-ATIV-001), **frontmatter-revisado-em-check** (Onda 4), **spec-ac-binario-check** (Onda 4). `_test-runner.sh` é o orquestrador.
 
 ---
 
@@ -209,6 +209,33 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 | ADR-0026 | 2ª conferência + independência RT (cl. 6.2.5 — política de exceção objetiva 4 condições + 5%/mês) | 🟡 proposta — auditoria 10 lentes TEMA-F.3 (2026-05-23) | Wave A Marco 4 (`calibracao`) | ADR-0022, ADR-0023 |
 | ADR-0027 | Sync mobile com merge por atividade (atualiza ADR-0004 pós-ADR-0023 — LWW por atividade_id + IDEMP-001 + backlog visível) | 🟡 proposta — auditoria 10 lentes TEMA-F.4 (2026-05-23) | Wave A Marco 3 + app-tecnico | ADR-0004, ADR-0023 |
 | ADR-0028 | Mapa de coberturas seguro Wave A (5 modalidades: E&O ampliado + Cyber A3 + D&O + BPT + extensão veicular UMC) — GATE-SEG-BPT-1 IMEDIATO pra Balanças Solution dogfooding | 🟡 proposta — auditoria 10 lentes TEMA-F.5 + TEMA-G (2026-05-23) | Marco 3 dogfooding BPT + 1º tenant externo pago demais modalidades | ADR-0019, ADR-0023 |
+| ADR-0029 | Canonicalização de texto probatório (UTF-8 sem BOM + LF + NFC + sem trailing whitespace + marcadores `<<<CORPO INICIO/FIM>>>`) — INV-DOC-CANON-001 | ✅ aceito (2026-05-23) — auditoria 10 lentes Onda 7E pré-Marco 3 OS | Wave A Marco 3 (`os` — AceiteAtividade) + Marco 4 (`calibracao` — RegistroTecnico) + certificados (snapshot probatório) | ADR-0007 |
+| ADR-0030 | Vigência temporal canônica (VO `JanelaVigencia` + campos `vigencia_inicio/vigencia_fim/revogado_em/motivo_revogacao` em toda entidade temporal) — auditoria projeto-inteiro 2026-05-23 lente 10 | 🟡 proposta — pré-Marco 3 (bloqueia drift em OS/Cal/Cert/Procedimento/Padrão/Tarifa) | Wave A Marco 3 + retrofit RT/RTCompetencia/Certificado | ADR-0007 |
+| ADR-0031 | Soft-delete em 3 padrões (estado-máquina explícita / `revogado_em` para imutáveis / `deletado_em` para configurações mutáveis) — tabela entidade→padrão + hook validador | 🟡 proposta — pré-Marco 3 (bloqueia 5ª variante em OS) | Wave A Marco 3 + retrofit | ADR-0007 |
+| ADR-0032 | FK cross-módulo + `ReferenciaPIIAnonimizavel(uuid_atual_id NULL, hash_original NOT NULL)` — propagação Zona A/B/C ADR-0021 via evento `Cliente.Anonimizado` | 🟡 proposta — pré-Marco 3 (bloqueia PROTECT em cert emitido) | Wave A Marco 3 + retrofit Equipamento/Certificado/OS | ADR-0021, ADR-0030 |
+| ADR-0033 | Bus idempotência consumer (tabela `consumer_idempotencia` + `dead_letter_events` + IDEMP-001/002) — Onda 8 auditoria projeto-inteiro 10 lentes (2026-05-23 noite) | 🟡 proposta | Wave A Marco 3 (qualquer consumer) | ADR-0007 |
+| ADR-0034 | Saga compensação cross-módulo (Orquestrada vs Coreografia + 4 sagas críticas mapeadas) | 🟡 proposta | Wave A Marco 3+4 | ADR-0033 |
+| ADR-0035 | Tenant suspenso modo read-only (matriz módulos param/continuam — LGPD art. 18 preservado) | 🟡 proposta | Wave A (billing-saas suspensão) | ADR-0015 |
+| ADR-0036 | Replay determinismo schema evento (`_schema_version: vN` + janela 90d tolerância) | 🟡 proposta | Wave A bus | ADR-0033 |
+| ADR-0037 | Glossário PT-EN canônico (PRD em PT-BR; código `src/` em EN; eventos PascalCase PT) | 🟡 proposta | transversal | ADR-0007 |
+| ADR-0038 | Família INV-AUTH (lockout + política senha + sessão idle + retenção 365d) | 🟡 proposta | Wave A (F-B retrofit) | ADR-0012 |
+| ADR-0039 | Cliente exterior + MEI (TipoPessoa expandido {PF, PJ, MEI, CLIENTE_EXTERIOR} + tax_id_estrangeiro) | 🟡 proposta | Wave A (retrofit Marco 1) | ADR-0017 |
+| ADR-0040 | Padrão metrológico como entidade separada (módulo `metrologia/padroes` distinto de `equipamentos`) | 🟡 proposta | Wave A Marco 4 + dogfooding lab | ADR-0007 |
+| ADR-0041 | OS concorrência atividades (matriz tipo×tipo + INV-OS-CONC-001) | 🟡 proposta — pré-Marco 3 spec | Wave A Marco 3 | ADR-0023 |
+| ADR-0042 | OS cancelamento parcial × faturamento (escopo final pós-cancelamentos + evento `OS.EscopoAlterado`) | 🟡 proposta — pré-Marco 3 spec | Wave A Marco 3 | ADR-0023 |
+| ADR-0043 | Calibração faturamento + bloqueio inadimplência (consumer `Certificado.Emitido → CR` + 409 inadimplência dura + override A3) | 🟡 proposta | Wave A Marco 4 | ADR-0015 |
+| ADR-0044 | Exportação regulatória ANVISA/SAÚDE/INMETRO (PDF/A-3 + XML embedded XSD setorial + TSA-ITI + B2 WORM 25a) | 🟡 proposta | Wave A Marco 4 + 1º tenant farma | ADR-0047 |
+| ADR-0045 | Certificado recall + suspensão + errata (3 cenários pós-emissão + notificação ANPD/CGCRE) | 🟡 proposta | Wave A Marco 4 | ADR-0023 |
+| ADR-0046 | OCSP/CRL revogação online (timeout 3s + fallback CRL 1h + bloqueio assinatura com cert revogado) | 🟡 proposta | Wave A (qualquer A3) | ADR-0009 |
+| ADR-0047 | Carimbo TSA-ITI PAdES-LTV (PDF longa duração 25a + ICP-Brasil fallback) | 🟡 proposta | Wave A Marco 4 cert | ADR-0009 |
+| ADR-0048 | A3 e-CPF RT cadastro (módulo `seguranca/certificados-digitais` — 3 cadastros: e-CNPJ + e-CPF RT + e-CPF demais) | 🟡 proposta | Wave A | ADR-0046 |
+| ADR-0049 | Fiscal CT-e + NFC-e + devolução (CT-e non-goal Wave A; NFC-e non-goal; devolução US-FIS-009) | 🟡 proposta | Wave A fiscal | ADR-0008 |
+| ADR-0050 | Gateway pagamento (porta `PaymentGatewayProvider` — cartão recorrente, PIX recorrente, boleto; default Asaas) | 🟡 proposta | Wave A financeiro | ADR-0008 |
+| ADR-0051 | Propagação ADR-0023 nos módulos Wave A (orçamento item→atividade; agenda evento→atividade; app filhos da atividade; CR faturamento por atividade) | 🟡 proposta | Wave A (5 módulos operacionais) | ADR-0023 |
+| ADR-0052 | PIX recorrente BCB 1.071/2024 (enum `MetodoPagamento.tipo` + INV-BIL-PIX-001) | 🟡 proposta | Wave A billing-saas | ADR-0050 |
+| ADR-0053 | Export SPED contábil (SPED ECF + EFD Contribuições + layout Sage/Domínio/Alterdata) | 🟡 proposta — PRÉ-REQUISITO Wave A (contador externo) | Wave A | ADR-0008 |
+| ADR-0054 | Webhook out provider (19ª porta ACL `OutboundWebhookProvider` + HMAC + retry + dead letter + SSRF guard) | 🟡 proposta — PRÉ-REQUISITO Wave A (Roldão pediu) | Wave A | ADR-0007 |
+| ADR-0055 | Marketplace sandbox + revenue share (RestrictedPython + 70/30 + curadoria Aferê) | 🟡 proposta — V2/V3 | V2 marketplace | ADR-0013 |
 
 **Como ler a tabela:** "Bloqueia fase" = essa ADR precisa estar aprovada+implementada antes que a fase comece. "Depende de" = essa ADR usa decisões de outras (`soft` = referência conceitual, não bloqueante). Detalhe das fases em `docs/faseamento-foundation-waves.md`.
 

@@ -12,15 +12,37 @@
 REGRAS-INEGOCIAVEIS.md                  @roldao
 docs/conformidade/                      @roldao
 docs/comum/automacoes-catalogo.md       @roldao   # catálogo fechado de ações do engine — ANTI-11
+docs/comum/integracoes-inter-modulos.md @roldao   # catálogo eventos v10+ — contrato cross-módulo
+docs/adr/                               @roldao   # toda ADR é decisão arquitetural
 
-# === Pastas críticas de ERP financeiro (Auditor 1 v2 expandiu) ===
-# Estas pastas ainda não existem como código — entram quando stack for definida (ADR-0001).
-financeiro/                             @roldao
-auth/                                   @roldao
-tenant/                                 @roldao
-kms/                                    @roldao
-migrations/                             @roldao
+# === Pastas críticas de ERP financeiro + multi-tenant + regulatório (D5 expandida + retrofit 2026-05-23) ===
+# Paths REAIS sob src/infrastructure/ pós-Foundation/M1/M2 (auditoria projeto-inteiro 2026-05-23 detectou drift D5).
+src/infrastructure/audit/               @roldao
+src/infrastructure/authz/               @roldao
+src/infrastructure/certificados/        @roldao
+src/infrastructure/clientes/            @roldao
+src/infrastructure/equipamentos/        @roldao
+src/infrastructure/feature_flag/        @roldao
+src/infrastructure/idempotencia/        @roldao
+src/infrastructure/multitenant/         @roldao
+src/infrastructure/responsavel_tecnico/ @roldao
+src/infrastructure/tenant/              @roldao
+src/infrastructure/usuario/             @roldao
+src/infrastructure/qualidade/           @roldao
+# Domínio puro — qualquer mudança em regra de negócio (spec-as-source ADR-0007)
+src/domain/                             @roldao
+# Migrations — qualquer migration é mudança estrutural de dado
+**/migrations/                          @roldao
+# Stubs herdados pra módulos Wave A que ainda não têm pasta em src/infrastructure/
+# (entram quando o módulo for codado; mantemos pra não regredir D5)
+src/infrastructure/financeiro/          @roldao
+src/infrastructure/fiscal/              @roldao
+src/infrastructure/billing_saas/        @roldao
+src/infrastructure/kms/                 @roldao
+src/infrastructure/os/                  @roldao
+src/infrastructure/calibracao/          @roldao
+src/infrastructure/app_tecnico/         @roldao
 
 # === Default ===
 # Tudo o que NÃO está acima segue a regra "trabalhar na main, sem PR" (CLAUDE.md global).
-# Agente opera autônomo com 3 auditores-agentes; humano só nos 10 paths acima.
+# Agente opera autônomo com 4 humano-substitutos + 10 auditores Família 5; humano só nos paths acima.

@@ -1,6 +1,12 @@
-# ADR-0014 — Transições regulatórias críticas (6 invariantes de integração)
+---
+owner: roldao
+revisado-em: 2026-05-23
+status: proposta
+---
 
-> **Status:** **PROPOSTA** (17/05/2026, madrugada). Resolve 6 gaps críticos identificados pela auditoria de 10 agentes (Auditores C, E, F, J) onde eventos de transição regulatória não disparam bloqueios automáticos no resto do sistema, causando emissão de certificado inválido / NC retroativa / NF-e órfã.
+# ADR-0014 — Transições regulatórias críticas (6 invariantes de integração + 3 fluxos proativos Onda 8)
+
+> **Status:** **PROPOSTA** (17/05/2026, madrugada). Resolve 6 gaps críticos identificados pela auditoria de 10 agentes (Auditores C, E, F, J) + **3 fluxos proativos adicionados pela auditoria Onda 8 (2026-05-23 — auditor regulatório 7)**: ampliação de escopo CGCRE, NC CGCRE com SLA 30d, revisão CGCRE quinquenal. Também atualiza Fluxo 4 (bypass exige A3 do dono Aferê — local ou cross-tenant via SaaS suporte).
 > **Autor:** Claude Code (orquestrador) + Roldão (decisor)
 > **Origem:** Auditoria de integrações inter-modulares 17/05/2026 madrugada.
 > **Depende de:** ADR-0001 (stack), ADR-0007 (camada domínio + outbox), ADR-0011 (BI 3 fases), ADR-0012 (autorização), ADR-0008 (fiscal pluggable).
@@ -107,7 +113,7 @@ Cravar **6 fluxos de integração de transição regulatória** com eventos novo
   - Atualiza tabela `padroes_disponibilidade`: padrão marcado como `bloqueado_uso: true`
 - Consumer em `metrologia/certificados` **bloqueia hard** emissão que usaria padrão bloqueado:
   - `AuthorizationProvider.can(action="certificado.emitir", resource={"padroes_usados": [...]})` consulta `padroes_disponibilidade` e retorna `denied, reason="padrao_X_vencido_em_Y"`
-- **Modo emergencial (INV-033):** RT pode forçar emissão com `bypass=true + justificativa_min_50_chars + assinatura_a3` — publica `Padroes.ModoEmergencialAcionado` (audit + escalação pra dono Aferê)
+- **Modo emergencial (INV-033 — atualizado Onda 8 A-REG-07):** bypass exige **A3 do dono Aferê presente no ambiente do cliente**. Se não houver A3 do dono local (caso típico de tenant pequeno sem dono Aferê presencial), bypass é executado **cross-tenant via Aferê SaaS suporte** (operador do dono assina remotamente via canal Aferê), com `audit WORM + retenção 25a + escalação síncrona ao dono Aferê`. Publica `Padroes.ModoEmergencialAcionado{modo: local_a3 | saas_suporte_remoto}`. Justificativa mínima 50 chars obrigatória.
 - **Verificação intermediária:** se passou data de verificação intermediária + 7 dias sem registro, padrão também marca como bloqueado (INV-022 automatizada)
 - **INV-INT-004** registrada.
 
@@ -154,7 +160,54 @@ Cravar **6 fluxos de integração de transição regulatória** com eventos novo
 
 ---
 
-## Os 6 eventos NOVOS publicados (somam ao catálogo v8 → v9)
+---
+
+### Fluxo 7 (Onda 8) — Ampliação de escopo de acreditação CGCRE (INV-INT-007 — proativo)
+
+**Problema:** RT identifica nova grandeza/faixa que quer acreditar. Sem fluxo guiado, dossiê é montado por planilha + e-mail; CGCRE devolve por documentação incompleta; cronograma se arrasta.
+
+**Decisão:**
+- US-LIC-010 (em `licencas-acreditacoes/prd.md`) cria entidade `PedidoAmpliacaoEscopo` com pré-requisitos validados antes da submissão (dossiê 7.11 + ART RT + padrões rastreáveis pra novas grandezas + procedimentos validados).
+- Eventos publicados: `Licencas.AmpliacaoEscopoSubmetida`, `Licencas.AcreditacaoAmpliada` (consumido por `metrologia/certificados` pra liberar emissão nas novas grandezas).
+- Snapshot acreditação (INV-INT-003) congelado com novo escopo na data efetiva CGCRE.
+
+---
+
+### Fluxo 8 (Onda 8) — Resposta a NC CGCRE com SLA 30 dias (INV-INT-008 — proativo)
+
+**Problema:** CGCRE abre NC em supervisão (NIT-DICLA-021 prevê severidade `menor` / `maior` / `crítica`). Sem fluxo, prazo vence e supervisão escalona pra suspensão.
+
+**Decisão:**
+- US-LIC-011 cria entidade `NCCgcre` com `{numero, severidade, prazo_resposta, evidencias_solicitadas}`.
+- Sistema agenda alertas D-15/7/3/1 antes do prazo (≤30 dias padrão; menor pode ter prazo distinto).
+- Severidade `maior` AND escopo afetado bloqueia emissão **hard** durante o período (INV-032).
+- Evento `Licencas.NCCgcreAberta` consumido por `certificados` (bloqueia emissão se escopo afetado), `dashboard-dono-afere` (escalação), `comunicacao-omnichannel` (notifica RT + admin).
+- Prazo vencido publica `Licencas.NCCgcrePrazoVencido` + escalation P1.
+
+---
+
+### Fluxo 9 (Onda 8) — Revisão CGCRE quinquenal (INV-INT-009 — proativo)
+
+**Problema:** Acreditação CGCRE tem revisão obrigatória a cada 5 anos (NIT-DICLA-021). Sem aviso, admin descobre 30 dias antes do prazo e dossiê fica incompleto.
+
+**Decisão:**
+- US-LIC-012 calcula `proxima_revisao_5anos` a partir da última revisão; dispara alertas progressivos D-365/180/90/60/30.
+- Checklist preparatório: atualização de padrões, ART RT vigente, validações 7.11 atualizadas, dossiê histórico, NCs fechadas.
+- Evento `Licencas.DossieRevisao5AnosPronto` consumido por `dashboard-dono-afere`.
+
+---
+
+## Os 9 eventos NOVOS publicados (somam ao catálogo v8 → v10 com Onda 8)
+
+**Eventos do Fluxo 7-9 (Onda 8):**
+- `Licencas.AmpliacaoEscopoSubmetida{licenca_id, grandezas_novas, faixas_novas}`
+- `Licencas.AcreditacaoAmpliada{licenca_id, escopo_novo}` → `certificados` libera emissão
+- `Licencas.NCCgcreAberta{nc_id, severidade, prazo, escopo_afetado}` → `certificados` bloqueia se maior + escopo
+- `Licencas.NCCgcreRespondida{nc_id}` → dashboard
+- `Licencas.NCCgcrePrazoVencido{nc_id}` → P1 escalation
+- `Licencas.DossieRevisao5AnosPronto{licenca_id}` → dashboard
+
+## Os 6 eventos NOVOS originais (catálogo v8 → v9)
 
 | Evento | Origem | Quem publica | Consumers |
 |---|---|---|---|

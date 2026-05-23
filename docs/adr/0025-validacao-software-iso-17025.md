@@ -1,8 +1,9 @@
 ---
 adr: 0025
 titulo: Validação de software ISO/IEC 17025 cl. 7.11 — URS/IQ/OQ/PQ + replay determinístico + 2º caminho
-status: proposta
+status: aceito
 data: 2026-05-23
+aceito-em: 2026-05-23 (Onda 6 saneamento — destravar Marco 4 calibração)
 proposto-por: agente (auditoria 10 lentes — TEMA-F.2)
 revisado-por: consultor-rbc-iso17025 + tech-lead-saas-regulado
 bloqueia-fase: Wave A Marco 4 (calibracao) + V2 (RT vendor)

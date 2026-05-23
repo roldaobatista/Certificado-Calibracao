@@ -1,8 +1,9 @@
 ---
 adr: 0027
 titulo: Sync mobile com merge por atividade (atualiza ADR-0004 pós-ADR-0023)
-status: proposta
+status: aceito
 data: 2026-05-23
+aceito-em: 2026-05-23 (Onda 6 saneamento — destravar Marco 3 OS + app-tecnico)
 proposto-por: agente (auditoria 10 lentes — TEMA-F.4 + TEMA-C.7)
 revisado-por: tech-lead-saas-regulado + corretora-seguros-saas
 bloqueia-fase: Wave A Marco 3 (os) + Wave A app-tecnico

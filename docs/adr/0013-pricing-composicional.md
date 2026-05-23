@@ -73,6 +73,7 @@ Adotar **modelo de pricing composicional**: cada `Plano` é composto por **uma l
 | 5 | **`ComponenteAddon`** | Módulo opcional avulso | Marketplace = R$ 150/mês extra |
 | 6 | **`ComponenteUsoVariavel`** | Cobrança por uso acima do incluso | 100 NFS-e inclusas, extra = R$ 0,80/un |
 | 7 | **`ComponenteDesconto`** | Desconto automático por volume/ciclo | Acima de 50 usuários, -10% no total. Anual = -15% no total. |
+| 8 | **`ComponenteExtensaoMarketplace`** (V2/V3 — ADR-0055) | Cobrança de extensão de parceiro + revenue share | Extensão "Balança Rodoviária" = R$ 50/mês; Aferê fica com 30%, desenvolvedor 70% |
 
 **Combinação típica de um Plano "Pro" no Aferê (exemplo concreto):**
 
@@ -199,6 +200,13 @@ ComponenteDesconto
 ├── desconto_percentual: Decimal | null
 ├── desconto_valor_fixo: Money | null
 ├── parametro: dict   # ex: {volume_acima_de: 50}
+
+ComponenteExtensaoMarketplace (V2/V3 — ADR-0055, achado G-MKT-3)
+├── extension_id: str                   # FK MarketplaceExtension publicada
+├── preco_mensal: Money                 # cobrado do tenant
+├── percentual_afere: Decimal = 30      # Aferê retém
+├── percentual_desenvolvedor: Decimal = 70  # repassado mensal via payout PIX D+30
+├── opcional_no_checkout: bool = true
 
 LimiteDuro
 ├── plano_id

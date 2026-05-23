@@ -1,8 +1,9 @@
 ---
 adr: 0026
 titulo: 2ª conferência + independência RT (ISO 17025 cl. 6.2.5 + 7.7) — política de exceção objetiva
-status: proposta
+status: aceito
 data: 2026-05-23
+aceito-em: 2026-05-23 (Onda 6 saneamento — destravar Marco 4 calibração)
 proposto-por: agente (auditoria 10 lentes — TEMA-F.3)
 revisado-por: consultor-rbc-iso17025 + advogado-saas-regulado
 bloqueia-fase: Wave A Marco 4 (calibracao)
