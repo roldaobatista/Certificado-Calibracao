@@ -1,7 +1,7 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
-status: draft
+revisado-em: 2026-05-23
+status: stable
 ---
 
 # PRD — Aferê (provisório)

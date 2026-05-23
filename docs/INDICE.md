@@ -4,7 +4,7 @@
 >
 > Para versão lida por agente (machine-readable com tokens estimados), ver `docs/INDEX.yaml`.
 >
-> **Atualizado v8 (2026-05-17 noite+12h):** +1 domínio (`dados/`) +25 módulos novos. Total: ~480 docs.
+> **Atualizado v9 (2026-05-23 — pós Foundation F-A+F-B + Marco 1 + Marco 2 fechados, auditoria projeto-inteiro 10 lentes):** Foundation entregue; 30 ADRs ativas (0000..0032 com 3 novas Onda 1 saneamento); ~480 docs estruturais + Family 0 Discovery STABLE; 25 hooks ativos / 207 casos verdes; 10 auditores Família 5.
 
 ---
 
@@ -40,7 +40,7 @@
 - `../REGRAS-INEGOCIAVEIS.md`
 - `comum/glossario.md` (a criar)
 - `comum/automacoes-catalogo.md` — 13 ações do engine de automação
-- `adr/*.md` (17 ADRs ativas — 0000 a 0017; ADR-0017 = CNPJ alfanumérico IN RFB 2.229/2024)
+- `adr/*.md` (**32 ADRs ativas — 0000 a 0032**; última batch Onda 1 saneamento 2026-05-23: ADR-0030 vigência temporal, ADR-0031 soft-delete em 3 padrões, ADR-0032 FK cross-módulo + ReferenciaPIIAnonimizavel)
 - `orcamento-financeiro.md` — projeção ano 1/3/5
 - `dominios/financeiro/modulos/billing-saas/calculadora-fatura.md` — algoritmo de fatura composicional + 30 casos
 
@@ -57,16 +57,16 @@
 
 | Família | Pasta | Status |
 |---|---|---|
-| 0 — Discovery | `discovery/` | ⏳ 15 cabeçalhos prontos pra preencher (Rodada 0) |
-| 1 — Contrato dos agentes | `../CLAUDE.md`, `../AGENTS.md`, `../.claude/`, `roteamento-dual.md`, `orcamento-contexto.md`, `INDEX.yaml` | 🟡 parcial |
-| 2 — Produto | `comum/`, `dominios/`, `prd.md` (a criar), `glossario.md` (a criar) | ⏳ pós-discovery |
-| 3 — Arquitetura + Segurança | `adr/`, `arquitetura/`, `seguranca/`, `comum/integracoes-*` | ⏳ pós-discovery |
-| 4 — Operação | `operacao/` | ⏳ pós-stack |
-| 5 — Governança IA | `governanca/`, `plano-defesas-anti-erros-ia.md`, `../.specify/memory/constitution.md` | 🟡 parcial |
-| 6 — Conformidade | `conformidade/comum/`, `dominios/metrologia/modulos/calibracao/` (a criar) | ⏳ |
+| 0 — Discovery | `discovery/` | ✅ STABLE v1.0 (sintese-final fechada 2026-05-17; Caminho A diferido pra V2) |
+| 1 — Contrato dos agentes | `../CLAUDE.md`, `../AGENTS.md`, `../.claude/`, `roteamento-dual.md`, `orcamento-contexto.md`, `INDEX.yaml` | ✅ stable (25 hooks ativos, 10 auditores Família 5, 4 humano-substitutos) |
+| 2 — Produto | `comum/`, `dominios/` (48 módulos com 8 docs cada), `prd.md` (stable), `glossario-roldao.md` | ✅ stable (PRD raiz stable 2026-05-23; 46/48 PRDs ainda draft preenchimento US/AC Onda 5) |
+| 3 — Arquitetura + Segurança | `adr/` (30 ADRs), `arquitetura/`, `seguranca/`, `comum/integracoes-inter-modulos.md` v10 | ✅ stable (Foundation F-A+F-B fechadas; anti-corrosion-layer.md v3 com 18 portas) |
+| 4 — Operação | `operacao/` | 🟡 parcial (setup-local.md ✅; runbook/dr-plan pendentes pré-Wave A produção) |
+| 5 — Governança IA | `governanca/` (10 auditores Família 5 stable), `plano-defesas-anti-erros-ia.md`, `../.specify/memory/constitution.md` | ✅ stable |
+| 6 — Conformidade | `conformidade/comum/` (LGPD-RAT, retenção, DPA modelo, transferência internacional, papéis multi-tenant, 4-party, finalidades, DPIA modelos), `dominios/metrologia/modulos/calibracao/` (conformidade-iso-17025, garantia-validade-7.7, validacao-software, registros-tecnicos-7.5, responsabilidade-tecnica) | 🟡 parcial (Onda 7 pré-1º tenant externo: ToU/PoP/DPO/DPAs sub-operadores) |
 | 7 — Evolução pós-MVP | `evolucao/` | ⏳ lazy |
 | 8 — Docs externos | `externos/` | ⏳ lazy |
-| Extra — Sessão/handoff | `../.agent/`, `../.github/`, `tutoriais/dono/` | 🟡 parcial |
+| Extra — Sessão/handoff | `../.agent/CURRENT.md`, `../.github/CODEOWNERS` (D5 retrofit 2026-05-23), `tutoriais/dono/` | ✅ stable |
 
 ---
 

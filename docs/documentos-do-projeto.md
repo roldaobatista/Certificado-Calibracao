@@ -1,11 +1,13 @@
-# Documentos do projeto Aferê (v8)
+# Documentos do projeto Aferê (v9)
 
 > **Pra que serve:** mapa de TODOS os documentos que o projeto precisa pra funcionar 100% tocado por agentes de IA, sem o Roldão precisar virar programador.
 >
 > **Status:** ✅ existe | ⏳ falta criar | 🟡 parcial | ❌ removido
 > **Prioridade:** 🔴 MVP-obrigatório | 🟡 próximo | ⚪ lazy
 >
-> **Atualização:** 2026-05-17 noite+12h (v8 — incorpora **25 módulos adicionais** identificados em inventário paralelo (10 agentes Explore) confrontando `docs/novas funcionalidades.txt` × v7. Adições: 1 domínio novo (`dados/` com módulo `bi/`), 24 módulos novos distribuídos em domínios existentes (`comercial`, `operacao`, `financeiro`, `suporte-plataforma`, `metrologia`, `rh-frota-qualidade`), completar PRD do módulo `calibracao`. Cada módulo novo recebe 8 docs (~200 docs novos). Roldão autorizou criar TODOS — **nenhum corte**. Total projeto após v8: ~480 docs).
+> **Atualização v9 (2026-05-23 — pós Foundation F-A+F-B + Marco 1 + Marco 2 fechados; auditoria projeto-inteiro 10 lentes Onda 1):** Família 0 Discovery STABLE v1.0 (sintese-final fechada 2026-05-17; Caminho A diferido pra V2). Família 1 stable (25 hooks ativos, 10 auditores Família 5, 4 humano-substitutos). Família 2 stable (PRD raiz stable; 48 PRDs draft no preenchimento US/AC — Onda 5). Família 3 stable (30 ADRs ativas 0000..0032; anti-corrosion-layer v3 18 portas; Foundation FECHADA). Família 5 stable (10 auditores). Famílias 4, 6, 7, 8 parciais (pré-Wave A). CODEOWNERS retrofit para paths reais `src/infrastructure/*` (2026-05-23).
+>
+> **Atualização v8 anterior:** 2026-05-17 noite+12h (incorpora 25 módulos adicionais; total ~480 docs).
 >
 > **Atualização anterior:** 2026-05-17 (v7 — incorpora mapeamento de 25 módulos da lista funcional do Roldão. Adições: 5 OPs novas (OP13/14/15/16/17), 7 INVs novos (INV-021..027), 3 ADRs reservadas viraram reais (0004 sync mobile / 0005 engine automações / 0006 feature flags), 5 domínios novos (`comercial`, `operacao`, `financeiro`, `suporte-plataforma`, `rh-frota-qualidade`) com README + personas, 19 módulos novos com 8 docs cada (~152 docs novos). Nenhum corte de escopo aplicado).
 
