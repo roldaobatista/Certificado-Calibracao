@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** Foundation F-A+F-B FECHADAS · Marco 1 `clientes` FECHADO · Marco 2 `equipamentos` FECHADO · **Marco 3 `os`: P1+P2+P3 fechadas + P4 FASE 1 (Schema) FECHADA (2026-05-23) — 11 tabelas + 12 migrations.**
+**Fase:** Foundation F-A+F-B FECHADAS · Marco 1 `clientes` FECHADO · Marco 2 `equipamentos` FECHADO · **Marco 3 `os`: P1+P2+P3 fechadas + P4 FASES 1+2 (Schema + Domain) FECHADAS (2026-05-23).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (verificado 2026-05-23 pós T-OS-001/002)
@@ -44,6 +44,15 @@
 - **51 GATEs Wave A** em `gates-wave-a-consolidado.md` + 9 GATEs novos do M3 (BPT, CONSBIO-OAB, ESCOPO-RBC, CAPA, FOTO-BLUR, SUCESSAO-EVIDENCIA, TENANT-SUSPENSO, INMETRO-PRAZO, CYBER-EO ampliados).
 - **ADR-0018 PWA QR** + ADR-0019 Pilar 2 apólice (Marco 2 GATEs).
 
+## P4 Fase 2 (Domain) FECHADA
+
+`src/domain/operacao/os/` entregue — 5 arquivos puros sem Django:
+- `value_objects.py`: 8 enums + `NumeroOSFormatado` + `MotivoCancelamento` (anti-PII estendida P-OS-A3 + palavras-chave saúde)
+- `entities.py`: 11 Snapshot dataclasses frozen (DTOs imutáveis)
+- `regras.py`: transições estado-máquina + INV-OS-ATIV-001/002/005 + INV-OS-FAT-001 + canonicalização ADR-0029
+- `repository.py`: `OSRepository` Protocol (22 métodos DI)
+- ruff verde + smoke test runtime OK + hooks 207/207
+
 ## Próximo passo
 
-**P4 Fase 2 (Domain entities + VOs)** — `src/domain/operacao/os/` com entidades puras + value objects (`EstadoOS`/`EstadoAtividade`/`TipoAtividade` enums, `NumeroOSFormatado`, `MotivoCancelamento` ≥30 chars anti-PII, regras de transição estado-máquina). Depois Fase 3 (predicates authz), Fase 4 (consumers + sagas), Fase 5 (use cases — 15 US).
+**P4 Fase 3 (Predicates authz)** — `src/infrastructure/authz/predicates_os.py` com 5 predicates: `rt_competencia_cobre`, `tenant_dentro_escopo_acreditado`, `pode_estender_janela_cal_link_atividade`, `pode_dispensar_aceite`, `pode_criar_os_produtiva_balancas`. Depois Fase 4 (consumers + sagas), Fase 5 (use cases — 15 US).
