@@ -90,4 +90,34 @@ if printf '%s' "$content" | grep -qE 'BillingSaas\.TenantSuspenso|TenantSuspenso
     fi
 fi
 
+# Regra 4: Cliente.Anonimizado exige zona_anonimizacao (ADR-0032 INV-ANON-002)
+if printf '%s' "$content" | grep -qE 'Cliente\.Anonimizado'; then
+    if ! printf '%s' "$content" | grep -qE '(zona_anonimizacao[[:space:]]*[=:]|"zona_anonimizacao")'; then
+        echo "bus-envelope-validator (INV-ANON-002 ADR-0032): Cliente.Anonimizado sem zona_anonimizacao em $file_path" >&2
+        echo "Consumers (equipamentos/OS/cert/financeiro) decidem comportamento por zona A/B/C — sem isso, propagacao silenciosa." >&2
+        exit 2
+    fi
+fi
+
+# Regras 5-8 (CONCERN — Onda 3 saneamento): publish DIRETO (nao via helper publicar_evento)
+# deve carregar event_id, _schema_version, occurred_at, correlation_id pos-2026-05-23.
+# Promovido a BLOCK em Onda 4 quando GATE-CLI-MIGRATE-OUTBOX-V2 fechar.
+# Helper `publicar_evento` (audit/event_helpers.py) ja injeta automaticamente.
+case "$content" in
+    *publicar_evento*) ;;  # via helper canonico — OK
+    *)
+        warnings=()
+        printf '%s' "$content" | grep -qE '(event_id|"event_id")' || warnings+=("event_id (UUID idempotencia cross-consumer)")
+        printf '%s' "$content" | grep -qE '(_schema_version|"_schema_version")' || warnings+=("_schema_version (envelope canonico v10)")
+        printf '%s' "$content" | grep -qE '(occurred_at|"occurred_at")' || warnings+=("occurred_at (timezone-aware)")
+        printf '%s' "$content" | grep -qE '(correlation_id|"correlation_id")' || warnings+=("correlation_id (cadeia forense TEMA-E.5)")
+        if [ ${#warnings[@]} -gt 0 ]; then
+            echo "bus-envelope-validator (CONCERN — Onda 3 saneamento envelope v10): publish direto em $file_path falta:" >&2
+            for w in "${warnings[@]}"; do echo "  - $w" >&2; done
+            echo "Use helper publicar_evento (src/infrastructure/audit/event_helpers.py) que injeta automaticamente." >&2
+            # CONCERN — nao bloqueia ainda. Promover para BLOCK em Onda 4.
+        fi
+        ;;
+esac
+
 exit 0
