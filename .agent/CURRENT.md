@@ -2,16 +2,17 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** Foundation F-A+F-B FECHADAS · Marco 1 `clientes` FECHADO · Marco 2 `equipamentos` FECHADO · **Marco 3 `os`: P1+P2+P3 fechadas + P4 FASES 1+2 (Schema + Domain) FECHADAS (2026-05-23).**
+**Fase:** Foundation F-A+F-B FECHADAS · Marco 1 `clientes` FECHADO · Marco 2 `equipamentos` FECHADO · **Marco 3 `os`: P1+P2+P3 fechadas + P4 FASES 1+2+3 (Schema + Domain + Predicates authz) FECHADAS (2026-05-23).**
 **Modo:** AUTÔNOMO.
 
-## Estado da suíte (verificado 2026-05-23 pós T-OS-001/002)
+## Estado da suíte (verificado 2026-05-23 pós T-OS-023..028)
 
-- Suite completa: **904 passed em 13min27s** (sem coverage). Zero regressão.
 - Hooks `_test-runner.sh`: **207/207** verdes.
 - ruff: All checks passed em `src/infrastructure/ordens_servico/`.
 - makemigrations --check: limpo.
-- migrate ordens_servico: 0001 + 0002 OK aplicadas.
+- migrate ordens_servico: 0001..0013 OK aplicadas.
+- Subset `pytest -k authz`: **58 passed** (zero regressão authz).
+- Smoke runtime predicates: 12 cenários PASS.
 
 ## Marcos fechados
 
@@ -46,13 +47,19 @@
 
 ## P4 Fase 2 (Domain) FECHADA
 
-`src/domain/operacao/os/` entregue — 5 arquivos puros sem Django:
-- `value_objects.py`: 8 enums + `NumeroOSFormatado` + `MotivoCancelamento` (anti-PII estendida P-OS-A3 + palavras-chave saúde)
-- `entities.py`: 11 Snapshot dataclasses frozen (DTOs imutáveis)
-- `regras.py`: transições estado-máquina + INV-OS-ATIV-001/002/005 + INV-OS-FAT-001 + canonicalização ADR-0029
-- `repository.py`: `OSRepository` Protocol (22 métodos DI)
-- ruff verde + smoke test runtime OK + hooks 207/207
+`src/domain/operacao/os/` — 5 arquivos puros sem Django: `value_objects.py` (8 enums + VOs anti-PII), `entities.py` (11 Snapshot frozen), `regras.py` (transições + INVs + canonicalização), `repository.py` (Protocol 22 métodos).
+
+## P4 Fase 3 (Predicates authz + seed) FECHADA (2026-05-23)
+
+`src/infrastructure/ordens_servico/predicates_os.py` — 5 predicates + registro `AppConfig.ready` com escopo declarado (T-FB-01):
+- `rt_competencia_cobre` (T-OS-023) — INV-OS-ATIV-005-EXEC-COMP. Self-guard `grandeza` vazia → não aplica. Consulta `ResponsavelTecnicoTenant` + `RTCompetencia` por (tenant, user, grandeza, data).
+- `tenant_dentro_escopo_acreditado` (T-OS-024) — STUB Wave A (GATE-RBC-ESCOPO-1). Contrato cravado; bloqueio duro entra com módulo `licencas-acreditacoes`.
+- `pode_estender_janela_cal_link_atividade` (T-OS-025) — restringe a `gerente_operacional/rt_signatario/signatario/admin_tenant`.
+- `pode_dispensar_aceite` (T-OS-026) — P-OS-A4. Exige precedente em `EventoDeOS` (no_show) ou `EvidenciaFotoAtividade` (recusa); `impossibilidade_tecnica` exige só autorização gerente (validada na camada de aplicação).
+- `pode_criar_os_produtiva_balancas` (T-OS-027) — P-OS-S1 / GATE-SEG-BPT-1. Self-guard: só aplica ao tenant `balancas-solution`; consulta `FeatureFlag(OS_PRODUTIVO_DOGFOODING_BS)`.
+
+`ordens_servico/migrations/0013_seed_authz_os.py` (T-OS-028) — 27 linhas perfil×ação (8 ações × 5 perfis seedados real: admin_tenant, gerente_operacional, atendente, metrologista_bancada, tecnico). Aplicada com `authz/0007_seed_perfis_marco_3_4`.
 
 ## Próximo passo
 
-**P4 Fase 3 (Predicates authz)** — `src/infrastructure/authz/predicates_os.py` com 5 predicates: `rt_competencia_cobre`, `tenant_dentro_escopo_acreditado`, `pode_estender_janela_cal_link_atividade`, `pode_dispensar_aceite`, `pode_criar_os_produtiva_balancas`. Depois Fase 4 (consumers + sagas), Fase 5 (use cases — 15 US).
+**P4 Fase 4 (Consumers + sagas)** — T-OS-029..039 (11 tarefas): consumers `Orcamento.Aprovado`, `Cliente.Anonimizado`, `Calibracao.Iniciada/Concluida`, `OS.Faturada/Paga`, `Tenant.Suspenso/Encerrado`, `Equipamento.Baixado/Descartado`, `Acreditacao.Vencida/Suspensa`, `EquipamentoRecebimento.Registrado` + 3 sagas (anonimização bloqueada, reabertura sucessão M&A, sync mobile LWW).
