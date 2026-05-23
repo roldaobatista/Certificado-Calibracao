@@ -86,3 +86,72 @@ class OrdensServicoConfig(AppConfig):
             pode_criar_os_produtiva_balancas,
             actions={"os.abrir"},
         )
+
+        # =============================================================
+        # Fase 4 (P4 / T-OS-029..039) — consumers + sagas
+        # Registra cada handler em audit.outbox_worker._REGISTRY por
+        # nome de acao canonica. Worker `processar_outbox_em_contexto_tenant`
+        # entra no `run_in_tenant_context(tenant_id)` antes de invocar.
+        # =============================================================
+        from src.infrastructure.audit.outbox_worker import registrar_consumer
+
+        from .consumers.acreditacao import (
+            handle_acreditacao_suspensa,
+            handle_acreditacao_vencida,
+        )
+        from .consumers.calibracao import (
+            handle_calibracao_concluida,
+            handle_calibracao_iniciada,
+        )
+        from .consumers.cliente import handle_cliente_anonimizado
+        from .consumers.equipamento import (
+            handle_equipamento_baixado,
+            handle_equipamento_descartado,
+            handle_equipamento_recebimento_registrado,
+        )
+        from .consumers.financeiro import handle_os_faturada, handle_os_paga
+        from .consumers.orcamento import handle_orcamento_aprovado
+        from .consumers.tenant import handle_tenant_encerrado, handle_tenant_suspenso
+        from .sagas.anonimizacao import handle_os_em_estado_terminal
+        from .sagas.sucessao import handle_reabertura_solicitada
+        from .sagas.sync_mobile import handle_sync_atividade, handle_sync_foto
+
+        # Mapeamento de acao_canonica -> handler.
+        # Acoes precisam estar no enum `acoes_canonicas.ACOES_CANONICAS`
+        # (CHECK SQL bloqueia publish; consumer apenas escuta).
+        _MAPA_CONSUMERS = {
+            # T-OS-029
+            "orcamento.aprovado": handle_orcamento_aprovado,
+            # T-OS-030
+            "cliente.anonimizado": handle_cliente_anonimizado,
+            # T-OS-031
+            "calibracao.iniciada": handle_calibracao_iniciada,
+            "calibracao.concluida": handle_calibracao_concluida,
+            # T-OS-032
+            "os.faturada": handle_os_faturada,
+            "os.paga": handle_os_paga,
+            # T-OS-033
+            "tenant.suspenso": handle_tenant_suspenso,
+            "tenant.encerrado": handle_tenant_encerrado,
+            # T-OS-034 + T-OS-036
+            "equipamento.baixado": handle_equipamento_baixado,
+            "equipamento.descartado": handle_equipamento_descartado,
+            "equipamento_recebimento.registrado": handle_equipamento_recebimento_registrado,
+            # T-OS-035
+            "acreditacao.vencida": handle_acreditacao_vencida,
+            "acreditacao.suspensa": handle_acreditacao_suspensa,
+            # T-OS-037 saga anonimizacao — assina transicoes terminais de OS
+            "os.concluida": handle_os_em_estado_terminal,
+            "os.cancelada": handle_os_em_estado_terminal,
+            # T-OS-038 saga sucessao
+            "os.reabertura_solicitada": handle_reabertura_solicitada,
+            # T-OS-039 saga sync mobile
+            "sync.atividade_recebida": handle_sync_atividade,
+            "sync.foto_recebida": handle_sync_foto,
+        }
+        for acao, fn in _MAPA_CONSUMERS.items():
+            try:
+                registrar_consumer(acao, fn)
+            except ValueError:
+                # Ja registrado (re-entry em test runner). Idempotente.
+                pass
