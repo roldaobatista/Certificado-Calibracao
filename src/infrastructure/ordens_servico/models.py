@@ -254,3 +254,89 @@ class AtividadeDaOS(models.Model):
 
     def __str__(self) -> str:
         return f"AtividadeDaOS({self.tipo}#{self.sequencia} {self.estado})"
+
+
+class TipoAtividadeConfig(models.Model):
+    """Configuracao por tipo de atividade (ADR-0023 + ADR-0041 + ADR-0024).
+
+    Tabela seed com 6 tipos fixos (INV-OS-ATIV-003). Flags governam
+    comportamento de validacao:
+
+    - `requer_competencia_rt`: predicate `rt_competencia_cobre` exigido
+      (calibracao, verificacao_inmetro). Origem: INV-CAL-RT-001 + cl. 6.2.
+    - `tipo_bloqueia_concorrencia`: matriz tipo x tipo ADR-0041. True =
+      atividade entra na unique partial index `equipamento_em_execucao`.
+    - `executa_em_campo`: tecnico vai ate o cliente (true) ou bancada
+      no laboratorio (false). Governa US-OS-001-8 (equipamento_recebimento
+      so obrigatorio em OS de bancada).
+    - `prazo_link_calibracao_alerta_h`: janela INV-OS-CAL-LINK-001 antes
+      do alerta P2 (default RBC perfil A: 72h; perfis B/C/D: 7 dias =
+      168h). NULL = nao se aplica (so tipo=calibracao).
+    - `prazo_link_calibracao_nc_dias_uteis`: dias uteis ate NC automatica
+      por link faltando (default A: 15 dias; B/C/D: 30 dias). NULL =
+      nao se aplica.
+    """
+
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="tipos_atividade_config",
+        help_text="Cada tenant tem 6 entradas. Seed inicial via data migration.",
+    )
+    tipo = models.CharField(
+        max_length=30,
+        choices=[
+            ("calibracao", "Calibracao"),
+            ("manutencao_corretiva", "Manutencao corretiva"),
+            ("manutencao_preventiva", "Manutencao preventiva"),
+            ("instalacao", "Instalacao"),
+            ("verificacao_inmetro", "Verificacao INMETRO"),
+            ("vistoria", "Vistoria"),
+        ],
+    )
+    requer_competencia_rt = models.BooleanField(
+        default=False,
+        help_text="Predicate rt_competencia_cobre exigido (INV-CAL-RT-001 + cl. 6.2).",
+    )
+    tipo_bloqueia_concorrencia = models.BooleanField(
+        default=False,
+        help_text="Matriz ADR-0041. True = entra na unique partial index INV-OS-CONC-001.",
+    )
+    executa_em_campo = models.BooleanField(
+        default=False,
+        help_text="True = tecnico vai ao cliente; False = bancada laboratorio.",
+    )
+    prazo_link_calibracao_alerta_h = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Watchdog os-calibracao-link: horas ate alerta P2. NULL se tipo != calibracao.",
+    )
+    prazo_link_calibracao_nc_dias_uteis = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Watchdog os-calibracao-link: dias uteis ate NC automatica.",
+    )
+    deletado_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Padrao C soft-delete (ADR-0031). UNIQUE parcial WHERE deletado_em IS NULL.",
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "ordens_servico"
+        db_table = "tipo_atividade_config"
+        verbose_name = "Configuracao de tipo de atividade"
+        verbose_name_plural = "Configuracoes de tipos de atividade"
+        ordering = ["tenant", "tipo"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("tenant", "tipo"),
+                condition=models.Q(deletado_em__isnull=True),
+                name="uq_tipo_atividade_config_por_tenant_ativos",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"TipoAtividadeConfig({self.tipo} tenant={self.tenant_id})"
