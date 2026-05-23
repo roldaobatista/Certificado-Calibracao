@@ -75,7 +75,7 @@ class Migration(migrations.Migration):
                 ('deletado_em', models.DateTimeField(blank=True, help_text='Padrao C soft-delete (ADR-0031). UNIQUE parcial WHERE deletado_em IS NULL.', null=True)),
                 ('criado_em', models.DateTimeField(auto_now_add=True)),
                 ('atualizado_em', models.DateTimeField(auto_now=True)),
-                ('tenant', models.ForeignKey(help_text='Cada tenant tem 6 entradas. Seed via data migration.', on_delete=django.db.models.deletion.PROTECT, related_name='tipos_atividade_config', to='tenant.tenant')),
+                ('tenant', models.ForeignKey(help_text='Cada tenant tem 6 entradas. Seed inicial via data migration.', on_delete=django.db.models.deletion.PROTECT, related_name='tipos_atividade_config', to='tenant.tenant')),
             ],
             options={
                 'verbose_name': 'Configuracao de tipo de atividade',

@@ -237,6 +237,27 @@ class AtividadeDaOS(models.Model):
         default="",
         help_text="Hash do municipio (preservado mesmo pos-TTL — INV-OS-GEO-001 item d).",
     )
+    # ===== INV-OS-CONC-001 (ADR-0041) - desnormalizacao pra unique partial index =====
+    # Copiados via trigger BEFORE INSERT a partir de OS.equipamento_id e
+    # TipoAtividadeConfig.tipo_bloqueia_concorrencia. NUNCA editar manualmente -
+    # sao snapshot imutavel pos-INSERT.
+    equipamento_id_desnormalizado = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Desnormalizado de OS.equipamento_id via trigger BEFORE INSERT. "
+            "Existe em atividade_da_os porque o unique partial index "
+            "INV-OS-CONC-001 exige todas as colunas na mesma tabela."
+        ),
+    )
+    tipo_bloqueia_concorrencia = models.BooleanField(
+        default=False,
+        help_text=(
+            "Desnormalizado de TipoAtividadeConfig.tipo_bloqueia_concorrencia "
+            "via trigger BEFORE INSERT. True = entra no unique partial index "
+            "idx_atividade_em_execucao_por_equip (INV-OS-CONC-001 + ADR-0041)."
+        ),
+    )
 
     class Meta:
         app_label = "ordens_servico"
@@ -281,7 +302,7 @@ class TipoAtividadeConfig(models.Model):
         "tenant.Tenant",
         on_delete=models.PROTECT,
         related_name="tipos_atividade_config",
-        help_text="Cada tenant tem 6 entradas. Seed inicial via data migration.",
+        help_text="Cada tenant tem 6 entradas. Seed inicial via data migration.",  # mantém alinhado com migration 0003
     )
     tipo = models.CharField(
         max_length=30,
