@@ -123,7 +123,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 | Aplicar migrations | `docker compose exec app poetry run python manage.py migrate --database=migrator` |
 | Verificar objetos de segurança no banco (FA-A4) | `docker compose exec app poetry run python manage.py verificar_objetos_seguranca` |
 | Shell Django | `docker compose exec app poetry run python manage.py shell_plus` |
-| Testar hooks | `bash .claude/hooks/_test-runner.sh` (207 casos / 25 hooks) |
+| Testar hooks | `bash .claude/hooks/_test-runner.sh` (207 casos / 32 hooks ativos) |
 
 ---
 
@@ -236,6 +236,12 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 | ADR-0053 | Export SPED contábil (SPED ECF + EFD Contribuições + layout Sage/Domínio/Alterdata) | 🟡 proposta — PRÉ-REQUISITO Wave A (contador externo) | Wave A | ADR-0008 |
 | ADR-0054 | Webhook out provider (19ª porta ACL `OutboundWebhookProvider` + HMAC + retry + dead letter + SSRF guard) | 🟡 proposta — PRÉ-REQUISITO Wave A (Roldão pediu) | Wave A | ADR-0007 |
 | ADR-0055 | Marketplace sandbox + revenue share (RestrictedPython + 70/30 + curadoria Aferê) | 🟡 proposta — V2/V3 | V2 marketplace | ADR-0013 |
+| ADR-0056 | Acessibilidade WCAG 2.1 AA — checklist binária por tela + INV-A11Y-001..00N + hook a11y-checklist-spec (reservada Onda 0 plano-v2; será aceita antes do Marco 3 spec FORWARD) | 🔴 reservada | Wave A (toda tela nova) | ADR-0010 |
+| ADR-0057 | Porta `ProductAnalyticsProvider` (19ª-20ª na ACL) — eventos de produto + matriz consentimento LGPD (legítimo interesse × opt-in) + hook anti-PII em payload (reservada Onda 0 plano-v2; aceitar antes Marco 3) | 🔴 reservada | Wave A | ADR-0021 |
+| ADR-0058 | Porta `LLMProvider` canônica + INV-LLM-001..010 (redaction pré-envio, vector DB tenant namespace, jailbreak/injection tests, orçamento por usuário, audit log prompt/resposta, retenção ≤30d, sanitize resposta) + hook llm-pii-redaction-check (reservada Onda 0 plano-v2) | 🔴 reservada | antes 1ª feature LLM-em-produto | ADR-0021 |
+| ADR-0059 | Porta `EmailTemplateProvider` + INV-MAIL-001 (dedup hash event_id+template+destinatário 24h justificado) + tabela backoff explícita (5min→30min→4h→24h) + opt-out + bounce (reservada Onda 0 plano-v2) | 🔴 reservada | antes Marco 4/5 | ADR-0033 |
+| ADR-0060 | Canal do titular + DPO + INV-DPO-001..003 (rota `/privacidade` + prazo 15 dias resposta + registro RIPD + retenção solicitações 365d) — LGPD art. 41 §1º (reservada Onda 0 plano-v2; movida da Onda 5 → Onda 3 por auditoria LGPD) | 🔴 reservada | antes 1º tenant externo (originalmente Onda 5, antecipada) | ADR-0021 |
+| ADR-0061 | Devcontainer canônico + INV-DEVCONT-001 (sandbox host = devcontainer; Claude Code roda dentro; FS read-only fora do projeto; network egress allowlist) — formaliza D4 (decisão 2026-05-16) que já tem arquivo `.devcontainer/devcontainer.json` mas nunca foi documentada como ADR (reservada Onda 0 plano-v2) | 🔴 reservada | antes 1º A3/KMS real no host | ADR-0000 |
 
 **Como ler a tabela:** "Bloqueia fase" = essa ADR precisa estar aprovada+implementada antes que a fase comece. "Depende de" = essa ADR usa decisões de outras (`soft` = referência conceitual, não bloqueante). Detalhe das fases em `docs/faseamento-foundation-waves.md`.
 
@@ -256,7 +262,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 
 - **F-A** + **F-B** — ritual Spec Kit completo (spec forward → plan + reviews → matriz reconciliação → conserto causa-raiz → 3 auditores Família 5 = PASS ZERO CRÍTICO/ALTO/MÉDIO). Foundation FECHADA. Detalhes: `docs/faseamento/F-A/auditoria-familia5.md` + `docs/faseamento/F-B/auditoria-familia5.md`.
 
-### Hooks (25 ativos — 207/207 casos verdes; +9 qr-hmac-check + 13 equipamento-imutabilidade-check + 9 port-binding-validator + 6 trigger-stub-sweep Marco 2)
+### Hooks (32 ativos — 207/207 casos verdes; +9 qr-hmac-check + 13 equipamento-imutabilidade-check + 9 port-binding-validator + 6 trigger-stub-sweep Marco 2; contagem corrigida pós-auditoria Onda 0 do plano de saneamento — drift de doc detectado quando §6/§12 diziam 25 enquanto §3 já listava 32)
 
 Veja §3 pra lista completa. Marco 5 da F-A (2026-05-17) acrescentou:
 - `migration-rls-check.sh` — INV-TENANT-003: bloqueia migration que cria tabela com `tenant_id` sem `CREATE POLICY`/`ENABLE ROW LEVEL SECURITY` na mesma migration (allow via `# rls-policy: external NNNN`).
