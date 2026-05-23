@@ -2,8 +2,23 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** Foundation F-A+F-B FECHADAS · Marco 1 `clientes` FECHADO · Marco 2 `equipamentos` FECHADO · **Auditoria projeto-inteiro 10 lentes Onda 8 (2026-05-23 noite) — 147 achados RESOLVIDOS em 10 ondas paralelas.**
+**Fase:** Foundation F-A+F-B FECHADAS · Marco 1 `clientes` FECHADO · Marco 2 `equipamentos` FECHADO · **Marco 3 OS P3 FECHADA (2026-05-23)** — spec FORWARD + plan ata + 4 reviews paralelos + retrofit + matriz reconciliação ZERO CONFLITO PRD↔spec↔plan↔ADRs↔REGRAS.
 **Modo:** AUTÔNOMO.
+
+## Marco 3 OS — P1/P2/P3 ENTREGUES (2026-05-23)
+
+- **P1 spec FORWARD stable** — 15 US, 10 entidades, 17 INVs próprios, 14 eventos publicados, 6 consumidos, 10 sagas, 14 non-goals, drill 24 verificações.
+- **P2 4 reviews paralelos** — tech-lead (6), advogado (7), corretora (6), RBC (8) = **27 achados** (6 BLOQ + 12 MÉD + 9 GATE/ACEITE).
+- **P3 retrofit** absorvendo 6 BLOQ + 12 MÉD INV-RITUAL-001:
+  - **ADR-0056 NOVA** (numeração OS — buracos aceitos — decisão Roldão D-M3-1).
+  - spec.md retrofit (ConsentimentoBiometriaTouch + EvidenciaFotoAtividade + analise_critica + equipamento_recebimento_id + concorrência unique partial index + GATE-SEG-BPT-1 no DoD).
+  - REGRAS: **5 INVs novos** (INV-OS-CONC-001, INV-OS-NUM-001, INV-OS-ANAL-001, INV-OS-CONSBIO-001, INV-OS-ATIV-005-EXEC-COMP) + 3 estendidos.
+  - PRD: **10 ACs novos** (AC-OS-001-7/8, 002b-4, 003-6, 004-7, 005-5, 013-4 estendido, 013-5, 014-3, 004-6 estendido).
+  - ADR-0012: **5 predicates novos** (rt_competencia_cobre, tenant_dentro_escopo_acreditado, pode_estender_janela_cal_link, pode_dispensar_aceite, pode_criar_os_produtiva_balancas).
+  - ADR-0028 rev 2: **6 cláusulas seguráveis novas** (Modalidade 1 E&O + Modalidade 2 Cyber + continuity of coverage).
+  - **Matriz reconciliação** com 27 achados rastreados (zero conflito).
+  - **9 GATEs Wave A novos** registrados em gates-wave-a-consolidado.md.
+- **3 decisões Roldão tomadas:** D-M3-1 = (A) buracos aceitos, D-M3-2 = (A) 72h/15d watchdog, D-M3-3 = (A) BPT bloqueia produção.
 
 ## Estado da suíte (verificado 2026-05-23)
 

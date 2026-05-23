@@ -135,6 +135,28 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | GATE-RBC-RT-SUBST-1 | 🟡 | Tenant RBC + Marco 3 OS | Tech-lead | Substituto RT / afastamento temporário |
 | GATE-RBC-NC-RECONC-1 | 🔴 | Marco 4 calibração + qualidade | Tech-lead | Reconciliar `calibracao.NaoConformidade` vs `qualidade.NC` (ADR transversal) |
 | GATE-RBC-CL-8-1 | 🔴 | Tenant RBC | Tech-lead + Consultor | cl. 8.5/8.8/8.9 audit interna + revisão direção |
+| GATE-RBC-ESCOPO-1 (NOVO M3 P-OS-R3) | 🔴 | 1º tenant perfil A/RBC | Tech-lead + Consultor RBC | NIT-DICLA-030: predicate `tenant_dentro_escopo_acreditado` + consumer `Acreditacao.Vencida/Suspensa` ativos |
+| GATE-RBC-CAPA-1 (NOVO M3 P-OS-R5) | 🟡 | Módulo qualidade Wave B | Tech-lead | `RegistroCAPA` consume `AtividadeNaoConforme`/`AtividadeNCResolvida` + FK reversa `NaoConformidadeAtividade.registro_capa_id` |
+
+### Marco 3 OS (NOVOS — pós-P3 ritual 2026-05-23)
+
+| GATE | Severidade | Bloqueia | Owner | Prazo |
+|---|---|---|---|---|
+| GATE-OS-TENANT-SUSPENSO (P-OS-T6) | 🔴 | 1º tenant pago | Tech-lead + Roldão | ADR-0035 aceita + matriz operações M3 × estado tenant em `docs/dominios/operacao/modulos/os/operacao-suspenso-matriz.md` |
+| GATE-OS-FOTO-NOSHOW-BLUR (P-OS-A5) | 🟡 | Wave A2 | Tech-lead | Blur automático de rostos antes do upload (modelo on-device) — até lá, aviso UX |
+| GATE-OS-SUCESSAO-EVIDENCIA (P-OS-A7) | 🟡 | Reabertura cross-cliente em produção | Tech-lead + Advogado | Entidade `SucessaoSocietaria` + PDF ato societário + A3 admin |
+| GATE-OS-CONSBIO-TEXTO-OAB (P-OS-A1) | 🔴 | 1º tenant externo pago | OAB humana | Texto canônico `consentimento-biometria-touch.md` validado OAB |
+| GATE-OS-DPIA-OAB (já existia em spec) | 🔴 | 1º tenant externo pago | OAB humana | DPIA-OS revisada por OAB humana |
+| GATE-OS-CAL-LINK-WATCHDOG (P-OS-R6) | 🟡 | Marco 3 P4 | Tech-lead | Janela parametrizável por-tenant: 72h alerta / 15 dias úteis NC (defaults perfil A) |
+| GATE-OS-PERF-N+1 (P-OS-T4) | 🟡 | Wave A — antes 1º tenant pago | Tech-lead | `OSVisao360QueryService` + p95 budget + teste assertNumQueries ≤5 |
+
+### Seguros (cláusulas adicionais pós Marco 3 P3 — ADR-0028 rev 2)
+
+| GATE | Severidade | Bloqueia | Owner | Prazo |
+|---|---|---|---|---|
+| GATE-SEG-INMETRO-PRAZO-1 (NOVO M3 P-OS-S6) | 🟡 | 1º tenant com equipamento INMETRO obrigatório | Roldão + corretora SUSEP | Cláusula `consequential regulatory damages` cobre prazo INMETRO de cliente final do tenant |
+| GATE-SEG-CYBER-1 (atualizado M3 P-OS-S2) | 🔴 | 1º tenant externo pago | Roldão + corretora SUSEP | Cláusula afirmativa `sensitive personal data art. 11` SEM sublimite separado + `image rights` incidental (P-OS-S5) |
+| GATE-SEG-EO-1 (atualizado M3 P-OS-S3/S4/S5) | 🔴 | Aceite tenant farma/alimento | Roldão + corretora SUSEP | Franquia R$ 5k wrongful billing (sem gatilho R$ 50k) + tax penalty exposure (Receita+SEFAZ) + software validation defect upstream M3 + vicarious admin decision via platform |
 
 ### Bus / integração (4 abertos + 1 fechado)
 
