@@ -329,5 +329,31 @@ run_case "PB8 override com motivo"                    PASS  port-binding-validat
 run_case "PB9 outros modulos sem porta nao bloqueia"  PASS  port-binding-validator.sh '{"tool_input":{"file_path":"src/infrastructure/equipamentos/foo.py","content":"from src.infrastructure.clientes.models import Cliente"}}'
 
 echo ""
+echo "===== seed-anti-pii-real (Onda 0 plano-v2 / auditor LGPD) ====="
+
+# CPF nao-canonico (DV valido fora da lista) -> BLOCK
+run_case "SP1 CPF nao-canonico fixture"               BLOCK seed-anti-pii-real.sh '{"tool_input":{"file_path":"tests/fixtures/clientes.py","content":"cpf = \"123.456.789-01\""}}'
+# CPF canonico (digitos repetidos) -> PASS
+run_case "SP2 CPF canonico repetido"                  PASS  seed-anti-pii-real.sh '{"tool_input":{"file_path":"tests/fixtures/clientes.py","content":"cpf = \"111.111.111-11\""}}'
+# CPF nao-canonico com allowlist inline -> PASS
+run_case "SP3 CPF allowlist inline"                   PASS  seed-anti-pii-real.sh '{"tool_input":{"file_path":"tests/fixtures/x.py","content":"cpf = \"123.456.789-09\"  # fixture-cpf-canonico INSS"}}'
+# CNPJ nao-canonico -> BLOCK
+run_case "SP4 CNPJ nao-canonico"                      BLOCK seed-anti-pii-real.sh '{"tool_input":{"file_path":"tests/fixtures/pj.py","content":"cnpj = \"12.345.678/0001-95\""}}'
+# CNPJ digitos repetidos -> PASS
+run_case "SP5 CNPJ canonico repetido"                 PASS  seed-anti-pii-real.sh '{"tool_input":{"file_path":"tests/fixtures/pj.py","content":"cnpj = \"22.222.222/2222-22\""}}'
+# E-mail dominio real proibido -> BLOCK
+run_case "SP6 email gmail BLOCK"                      BLOCK seed-anti-pii-real.sh '{"tool_input":{"file_path":"tests/fixtures/users.py","content":"email = \"joao@gmail.com\""}}'
+# E-mail dominio sintetico -> PASS
+run_case "SP7 email example.com OK"                   PASS  seed-anti-pii-real.sh '{"tool_input":{"file_path":"tests/fixtures/users.py","content":"email = \"joao@example.com\""}}'
+# Telefone celular nao-canonico -> BLOCK
+run_case "SP8 telefone nao-canonico"                  BLOCK seed-anti-pii-real.sh '{"tool_input":{"file_path":"tests/fixtures/contatos.py","content":"tel = \"(11) 98765-4321\""}}'
+# Telefone digitos repetidos -> PASS
+run_case "SP9 telefone canonico"                      PASS  seed-anti-pii-real.sh '{"tool_input":{"file_path":"tests/fixtures/contatos.py","content":"tel = \"(11) 90000-0000\""}}'
+# Arquivo fora de tests/ -> PASS (ignora)
+run_case "SPa src/ ignora"                            PASS  seed-anti-pii-real.sh '{"tool_input":{"file_path":"src/clientes/models.py","content":"cpf = \"123.456.789-01\""}}'
+# Allow arquivo inteiro
+run_case "SPb skip arquivo com razao"                 PASS  seed-anti-pii-real.sh '{"tool_input":{"file_path":"tests/fixtures/legacy.py","content":"# seed-anti-pii: skip -- fixture legada Marco 1 sera migrada Onda 0 retrofit\ncpf = \"123.456.789-01\""}}'
+
+echo ""
 echo "===== resumo: $pass ok, $fail falhas ====="
 exit $fail
