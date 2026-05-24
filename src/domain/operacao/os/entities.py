@@ -166,7 +166,7 @@ class EventoDeOSSnapshot:
     atividade_id: UUID | None
     tipo: TipoEventoDeOS
     payload_hash: str
-    payload_data: dict  # sanitizado — sem PII cru
+    payload_data: dict[str, object]  # sanitizado — sem PII cru
     correlation_id: UUID
     actor_user_id: UUID | None
     occurred_at: datetime
