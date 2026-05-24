@@ -355,5 +355,59 @@ run_case "SPa src/ ignora"                            PASS  seed-anti-pii-real.s
 run_case "SPb skip arquivo com razao"                 PASS  seed-anti-pii-real.sh '{"tool_input":{"file_path":"tests/fixtures/legacy.py","content":"# seed-anti-pii: skip -- fixture legada Marco 1 sera migrada Onda 0 retrofit\ncpf = \"123.456.789-01\""}}'
 
 echo ""
+echo "===== prd-ux-states-check (Onda 2 plano-v2 / auditor PROD) ====="
+
+# PRD sem secao -> BLOCK
+run_case "UX1 PRD sem secao"                          BLOCK prd-ux-states-check.sh '{"tool_input":{"file_path":"docs/dominios/operacao/modulos/os/prd.md","content":"# PRD OS\n\n## 1. Objetivo\n\nGerenciar OS.\n\n## 2. User stories\n\nUS-OS-001..."}}'
+
+# PRD com secao completa -> PASS
+run_case "UX2 PRD com secao completa"                 PASS  prd-ux-states-check.sh '{"tool_input":{"file_path":"docs/dominios/operacao/modulos/os/prd.md","content":"# PRD OS\n\n## 1. Objetivo\n\n## 9. UX dos estados nao-felizes\n\n- Empty: AC-OS-001\n- Loading: AC-OS-002\n- Erro 5xx servidor: AC-OS-003\n- Permissao negada 403: AC-OS-004\n- Sessao expirada 401: AC-OS-005\n- Duplo submit idempotency: AC-OS-006\n- Validacao 422: AC-OS-007\n- 404 nao existe: AC-OS-008\n\n## 10. Outra\n"}}'
+
+# PRD com secao parcial -> BLOCK
+run_case "UX3 PRD com secao incompleta"               BLOCK prd-ux-states-check.sh '{"tool_input":{"file_path":"docs/dominios/operacao/modulos/os/prd.md","content":"# PRD OS\n\n## 9. UX dos estados nao-felizes\n\n- Empty: AC-001\n- Loading: AC-002\n\n## 10."}}'
+
+# Arquivo fora de docs/dominios/ -> PASS (ignora)
+run_case "UX4 doc fora de dominios ignora"            PASS  prd-ux-states-check.sh '{"tool_input":{"file_path":"docs/governanca/ritual.md","content":"# Sem nada"}}'
+
+# Template ignora
+run_case "UX5 PRD_TEMPLATE ignora"                    PASS  prd-ux-states-check.sh '{"tool_input":{"file_path":"docs/dominios/_TEMPLATE/modulos/x/prd.md","content":"# Sem nada"}}'
+
+# Allow arquivo inteiro
+run_case "UX6 skip arquivo com razao"                 PASS  prd-ux-states-check.sh '{"tool_input":{"file_path":"docs/dominios/operacao/modulos/os/prd.md","content":"# prd-ux-states: skip -- PRD legado Marco 3 ja em stable; retrofit agendado Wave A\n# PRD OS\n"}}'
+
+# Variacao do titulo da secao
+run_case "UX7 variacao titulo Estados nao-felizes"    PASS  prd-ux-states-check.sh '{"tool_input":{"file_path":"docs/dominios/operacao/modulos/os/prd.md","content":"## Estados nao-felizes\n\n- Empty AC-1\n- Loading AC-2\n- Server 5xx AC-3\n- 403 AC-4\n- 401 expirada AC-5\n- Idempotency AC-6\n- 422 validacao AC-7\n- 404 AC-8\n"}}'
+
+echo ""
+echo "===== mass-assignment-check (Onda 2 plano-v2 / auditor QUAL) ====="
+
+# fields = "__all__" em ModelSerializer -> BLOCK
+run_case "MA1 ModelSerializer __all__"                BLOCK mass-assignment-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/serializers.py","content":"from rest_framework import serializers\nfrom .models import Cliente\nclass ClienteSerializer(serializers.ModelSerializer):\n    class Meta:\n        model = Cliente\n        fields = \"__all__\""}}'
+
+# ModelSerializer com Meta.model = Usuario sem read_only_fields -> BLOCK
+run_case "MA2 ModelSerializer Usuario sem read_only"  BLOCK mass-assignment-check.sh '{"tool_input":{"file_path":"src/infrastructure/auth/serializers.py","content":"class UserSerializer(serializers.ModelSerializer):\n    class Meta:\n        model = Usuario\n        fields = [\"id\", \"email\", \"is_admin\"]"}}'
+
+# ModelSerializer com Meta.model = Usuario COM read_only_fields -> PASS
+run_case "MA3 ModelSerializer Usuario read_only OK"   PASS  mass-assignment-check.sh '{"tool_input":{"file_path":"src/infrastructure/auth/serializers.py","content":"class UserSerializer(serializers.ModelSerializer):\n    class Meta:\n        model = Usuario\n        fields = [\"id\", \"email\", \"is_admin\"]\n        read_only_fields = [\"id\", \"is_admin\"]"}}'
+
+# tenant_id em fields sem read_only_fields tenant_id -> BLOCK
+run_case "MA4 tenant_id writable BLOCK"               BLOCK mass-assignment-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/serializers.py","content":"class ClienteSerializer(serializers.ModelSerializer):\n    class Meta:\n        model = Cliente\n        fields = [\"id\", \"nome\", \"tenant_id\"]\n        read_only_fields = [\"id\"]"}}'
+
+# tenant_id em fields E em read_only_fields -> PASS
+run_case "MA5 tenant_id read_only OK"                 PASS  mass-assignment-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/serializers.py","content":"class ClienteSerializer(serializers.ModelSerializer):\n    class Meta:\n        model = Cliente\n        fields = [\"id\", \"nome\", \"tenant_id\"]\n        read_only_fields = [\"id\", \"tenant_id\"]"}}'
+
+# Modelo nao-sensivel sem read_only_fields -> PASS
+run_case "MA6 modelo nao-sensivel sem read_only OK"   PASS  mass-assignment-check.sh '{"tool_input":{"file_path":"src/infrastructure/x/serializers.py","content":"class ConfigSerializer(serializers.ModelSerializer):\n    class Meta:\n        model = ConfigGenerica\n        fields = [\"chave\", \"valor\"]"}}'
+
+# Arquivo fora de src/*serializer* -> PASS
+run_case "MA7 fora de serializer.py ignora"           PASS  mass-assignment-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","content":"fields = \"__all__\""}}'
+
+# tests/ ignora
+run_case "MA8 tests/ ignora"                          PASS  mass-assignment-check.sh '{"tool_input":{"file_path":"tests/test_serializer.py","content":"class UserSerializer(serializers.ModelSerializer):\n    class Meta:\n        model = Usuario\n        fields = \"__all__\""}}'
+
+# Allow arquivo inteiro
+run_case "MA9 skip com motivo"                        PASS  mass-assignment-check.sh '{"tool_input":{"file_path":"src/infrastructure/admin_ops/serializers.py","content":"# mass-assignment: skip -- endpoint admin ops interno requer setar role manualmente\nclass AdminSerializer(serializers.ModelSerializer):\n    class Meta:\n        model = Usuario\n        fields = \"__all__\""}}'
+
+echo ""
 echo "===== resumo: $pass ok, $fail falhas ====="
 exit $fail

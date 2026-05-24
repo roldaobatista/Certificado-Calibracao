@@ -225,6 +225,16 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/seed-anti-pii-real.sh\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/prd-ux-states-check.sh\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/mass-assignment-check.sh\"",
+            "timeout": 5
           }
         ]
       }

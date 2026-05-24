@@ -57,6 +57,29 @@ Detalhada em `comum/governanca-modelo-comum.md`. Resumo:
 - Outros docs sem teto rígido, mas se passar 500 linhas, considerar quebrar.
 - Hook `context-budget` tokeniza (não conta linhas) e falha acima do teto.
 
+## 5.bis Seção obrigatória em PRD — UX dos estados não-felizes (Onda 2 plano-v2)
+
+> **Decisão Onda 2 plano-v2 (2026-05-23):** auditor de produto da auditoria projeto-inteiro detectou que PRDs cobrem o caminho feliz mas omitem regras dos estados não-felizes, gerando o erro "feature implementada, mas sem critério de aceitação" (item 1200 da checklist de problemas IA).
+
+Todo PRD novo (`docs/dominios/*/modulos/*/prd.md`) DEVE conter uma seção `## N. UX dos estados não-felizes` declarando, por tela ou fluxo, AC binário para:
+
+| Estado | Pergunta a responder no PRD |
+|---|---|
+| **Empty state** | O que o usuário vê quando a lista/dashboard está vazio? Tem texto orientador? Tem CTA pra primeira ação? |
+| **Loading state** | O que aparece enquanto a requisição roda? Skeleton, spinner, mensagem "Carregando..."? Tem timeout? |
+| **Erro do servidor (5xx)** | O que aparece quando o backend falha? Tem botão "Tentar de novo"? A mensagem é humana? Disparou audit log? |
+| **Erro de rede (offline / timeout)** | App técnico em campo: o que faz quando rede some? Salva local + sincroniza? Mostra ícone offline? |
+| **Permissão negada (403)** | O usuário não-autorizado tenta a ação: vê 404 (indistinguível) ou 403 explícito? Aparece "Sem permissão" sem revelar se recurso existe? |
+| **Sessão expirada / não-autenticado (401)** | Redireciona pra login preservando contexto (deep-link de retorno)? Salva form em rascunho? |
+| **Duplo submit / dupla submissão** | O botão fica desabilitado após clique? `Idempotency-Key` no header? O servidor dedupe? |
+| **Validação falhou (422)** | Erro de campo mostrado inline + `aria-invalid` (INV-A11Y-005)? Foco move pro 1º erro? |
+| **Recurso não-existe (404)** | Tela de "Não encontrado" tem CTA de volta? Tem link pra busca? |
+| **Conflito (409)** | "Outro usuário editou enquanto você editava" — apresenta diff ou força recarregar? |
+
+Hook `prd-ux-states-check.sh` valida presença desta seção em PRD novo. Cada linha da tabela acima é "✅ AC-XXX-N" ou "n/a (motivo)".
+
+Para fluxos que claramente não têm um estado (ex: tela `/health` sem permissão negada porque é público), declarar `n/a` com motivo curto. `n/a` sem motivo = bloqueio do hook.
+
 ## 6. Diátaxis (tipo de doc)
 
 Cada doc é UMA das 4 categorias:
