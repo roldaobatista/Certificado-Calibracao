@@ -594,6 +594,37 @@ run_case "WSa skip-all com motivo PASS"               PASS  outbound-webhook-ssr
 run_case "WSb codigo sem HTTP OK"                     PASS  outbound-webhook-ssrf-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/models.py","content":"class Cliente(models.Model):\n    nome = models.CharField()"}}'
 
 echo ""
+echo "===== admin-hardening-check (F-C1 P4 / INV-ADMIN-001) ====="
+
+# AH1: urls.py monta /admin/ + settings/base.py ja tem middleware -> PASS
+# (verifica que o arquivo real config/settings/base.py em disco tem o
+# middleware — usa o estado atual do repo)
+run_case "AH1 urls.py com /admin OK"                  PASS  admin-hardening-check.sh '{"tool_input":{"file_path":"config/urls.py","content":"from django.contrib import admin\nfrom django.urls import path\nurlpatterns = [path(\"admin/\", admin.site.urls)]"}}'
+
+# AH2: settings/base.py SEM AdminHardeningMiddleware + urls.py em disco
+# monta /admin/ -> BLOCK
+run_case "AH2 settings sem middleware BLOCK"          BLOCK admin-hardening-check.sh '{"tool_input":{"file_path":"config/settings/base.py","content":"MIDDLEWARE = [\n    \"django.middleware.security.SecurityMiddleware\",\n    \"django.contrib.auth.middleware.AuthenticationMiddleware\",\n]"}}'
+
+# AH3: settings/base.py COM middleware -> PASS
+run_case "AH3 settings com middleware OK"             PASS  admin-hardening-check.sh '{"tool_input":{"file_path":"config/settings/base.py","content":"MIDDLEWARE = [\n    \"django.middleware.security.SecurityMiddleware\",\n    \"src.infrastructure.authz.middleware_admin.AdminHardeningMiddleware\",\n]"}}'
+
+# AH4: settings/prod.py SEM middleware (heranca de base nao detectada) ->
+# BLOCK (mesma logica)
+run_case "AH4 prod.py sem middleware BLOCK"           BLOCK admin-hardening-check.sh '{"tool_input":{"file_path":"config/settings/prod.py","content":"MIDDLEWARE = [\n    \"django.middleware.security.SecurityMiddleware\",\n]"}}'
+
+# AH5: arquivo fora de config/ -> PASS (ignora)
+run_case "AH5 arquivo fora ignora"                    PASS  admin-hardening-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","content":"# qualquer coisa"}}'
+
+# AH6: urls.py SEM /admin/ -> PASS (nem precisa do middleware)
+run_case "AH6 urls.py sem /admin OK"                  PASS  admin-hardening-check.sh '{"tool_input":{"file_path":"config/urls.py","content":"from django.urls import path\nurlpatterns = [path(\"healthz/\", lambda r: None)]"}}'
+
+# AH7: settings sem MIDDLEWARE = [...] (placeholder) -> PASS
+run_case "AH7 settings sem MIDDLEWARE list ignora"    PASS  admin-hardening-check.sh '{"tool_input":{"file_path":"config/settings/base.py","content":"DEBUG = False\n# MIDDLEWARE virou outra coisa"}}'
+
+# AH8: skip com motivo -> PASS
+run_case "AH8 skip com motivo PASS"                   PASS  admin-hardening-check.sh '{"tool_input":{"file_path":"config/settings/base.py","content":"# admin-hardening: skip -- migration intermediaria entre F-A e F-C1; restaurar antes do P5\nMIDDLEWARE = [\"django.middleware.security.SecurityMiddleware\"]"}}'
+
+echo ""
 if [ -n "$FILTER" ]; then
     echo "===== resumo (filtro='$FILTER'): $pass ok, $fail falhas, $skipped pulados ====="
 else

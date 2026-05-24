@@ -518,3 +518,83 @@ class DeadLetterEvent(models.Model):
 
     def __str__(self) -> str:
         return f"DLE {self.consumer_id} ← {self.event_name} ({self.status})"
+
+
+# =============================================================
+# AdminAccess — F-C1 P4 T-FC1-05 (INV-ADMIN-002)
+# =============================================================
+class AdminAccess(models.Model):
+    """Trilha append-only de acessos a /admin/* (Django admin nativo).
+
+    Materializa INV-ADMIN-002: append-only com RLS + trigger anti-mutation;
+    retencao 24m rolling; pseudonimizacao usuario_id -> usuario_id_hash apos
+    90d (resolve LGPD art. 18 x auditoria — R-4 / CONV-FC1-B).
+
+    `ip_hash` e `user_agent_hash` em HMAC-SHA256 com salt versionado
+    (anti-reversao por brute force — R-10 / LGP-FC1-03). IP em claro NAO
+    eh armazenado.
+
+    Job mensal `pseudonimizar_admin_access_antigo` (Wave A) substitui
+    `usuario_id` por hash em linhas com `timestamp > 90 dias` — admin
+    demitido pode pedir pseudonimizacao (LGPD art. 18) preservando a
+    trilha sem expor identidade.
+
+    Job mensal `purgar_admin_access_antigo` (Wave A) soft-deleta linhas com
+    `timestamp > 24 meses` (`tombstoned_em`).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    usuario_id = models.UUIDField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="NULL quando request anonimo no /admin/* OU apos pseudonimizacao 90d.",
+    )
+    usuario_id_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="HMAC do usuario_id apos 90d (LGPD art. 18 + audit imutavel).",
+    )
+    ip_hash = models.CharField(max_length=64)
+    user_agent_hash = models.CharField(max_length=64)
+    path = models.CharField(max_length=500)
+    metodo = models.CharField(max_length=10)
+    status_code = models.IntegerField()
+    motivo_negacao = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text=(
+            "Valores estaveis (sem oracle): 'anonimo', 'ip_fora_allowlist',"
+            " 'mfa_nao_verificado', 'mfa_janela_expirada', 'rate_limit',"
+            " 'session_rebind_mismatch'. Vazio = sucesso."
+        ),
+    )
+    eh_break_glass = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="True quando login via conta admin-recovery (US-FC1-006).",
+    )
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    tombstoned_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Soft-delete apos retencao 24m. Linha continua existindo (audit imutavel) mas user_agent_hash zerado.",
+    )
+
+    class Meta:
+        app_label = "audit"
+        db_table = "admin_access"
+        verbose_name = "Acesso admin (trilha)"
+        verbose_name_plural = "Acessos admin (trilha)"
+        indexes = [
+            models.Index(fields=["timestamp"], name="idx_admin_acc_ts"),
+            models.Index(fields=["usuario_id", "timestamp"], name="idx_admin_acc_user_ts"),
+            models.Index(fields=["motivo_negacao", "timestamp"], name="idx_admin_acc_neg_ts"),
+        ]
+
+    def __str__(self) -> str:
+        marca = "[BG]" if self.eh_break_glass else ""
+        return f"{marca}{self.metodo} {self.path} -> {self.status_code} ({self.motivo_negacao or 'ok'})"

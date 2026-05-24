@@ -257,6 +257,10 @@ MIDDLEWARE = [
     # F-B: enforcement MFA TOTP pros perfis sensiveis (SEC-MFA-001).
     # Depois de TenantMiddleware (le active_tenant_context).
     "src.infrastructure.authz.middleware.MfaRequiredMiddleware",
+    # F-C1 P4 T-FC1-04: hardening do /admin/* (INV-ADMIN-001/002/003)
+    # MFA verificado + IP allowlist + rate-limit 5/15min + session-rebind.
+    # Depois de MfaRequiredMiddleware (compoe sobre is_verified()).
+    "src.infrastructure.authz.middleware_admin.AdminHardeningMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"

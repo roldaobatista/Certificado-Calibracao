@@ -255,6 +255,11 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/outbound-webhook-ssrf-check.sh\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/admin-hardening-check.sh\"",
+            "timeout": 5
           }
         ]
       }
