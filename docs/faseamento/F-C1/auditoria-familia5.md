@@ -2,7 +2,7 @@
 owner: roldao
 revisado-em: 2026-05-24
 proximo-review: 2026-08-24
-status: draft
+status: stable
 diataxis: explanation
 audiencia: agente
 fase: Foundation F-C1
@@ -15,6 +15,8 @@ relacionados:
   - docs/faseamento/F-B/auditoria-familia5.md
   - docs/faseamento/M1-clientes/auditoria-familia5.md
   - docs/faseamento/M2-equipamentos/auditoria-familia5.md
+  - docs/operacao/drills/rotacao-dogfooding-2026-05-24.md
+  - docs/operacao/drills/break-glass-2026-05-24.md
   - REGRAS-INEGOCIAVEIS.md
 ---
 
@@ -101,11 +103,29 @@ Vários auditores reportaram o mesmo achado por ângulos diferentes (drift-docs 
 
 **Tasks #12..#23 fechadas:** 21 dos 22 itens C/A/M consertados via causa-raiz (3 commits: `6f3e755` + `4957cf5` + `ff45fa0`).
 
-**Pendente pra 2ª passada (Task #24):**
-- Roldão executa rotação real de 1 chave dogfooding → arquiva `docs/operacao/drills/rotacao-dogfooding-YYYY-MM-DD.md` com declaração datada (LGPD art. 16).
-- Roldão executa `manage.py criar_admin_recovery` → arquiva `docs/operacao/drills/break-glass-YYYY-MM-DD.md`.
+## 2ª passada — 2026-05-24
 
-**Após Task #24:** dispara 2ª passada (10 auditores). Critério ZERO C/A/M (INV-RITUAL-001).
+6 auditores que tinham reportado FAIL na 1ª passada foram re-auditados. Os outros 4 que já tinham PASS (performance, idempotência, supplychain, LGPD) não foram re-rodados (consertos não tocaram escopo deles).
+
+| Lente | Auditor | 1ª passada | 2ª passada |
+|---|---|---|---|
+| Segurança | `auditor-seguranca` | FAIL (2M+1B) | **PASS** ZERO C/A/M |
+| Qualidade | `auditor-qualidade` | FAIL (1A+2B) | **PASS** ZERO C/A/M |
+| Produto | `auditor-produto` | FAIL (3C+1A+1M) | **PASS** ZERO C/A/M — 9/9 itens checklist saída F-C1 verdes |
+| Drift docs | `auditor-drift-docs` | FAIL (2C+6A+4M+1B) | **PASS** ZERO C/A/M — sem drift novo introduzido pelos consertos |
+| LLM correctness | `auditor-llm-correctness` | FAIL (1M+2B) | **PASS** ZERO C/A/M |
+| Observabilidade | `auditor-observabilidade` | FAIL (1M+1B) | **PASS** ZERO C/A/M |
+| Performance | `auditor-performance` | PASS (não re-rodado) | PASS herdado |
+| Idempotência | `auditor-idempotencia` | PASS (não re-rodado) | PASS herdado |
+| Supply chain | `auditor-supplychain` | PASS (não re-rodado) | PASS herdado |
+| Conformidade LGPD | `auditor-conformidade-lgpd` | PASS (não re-rodado) | PASS herdado |
+
+**Veredito de encerramento: 10/10 lentes PASS ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO. Foundation F-C1 FECHADA sob INV-RITUAL-001 em 2026-05-24.**
+
+## Drills reais arquivados (Task #24)
+
+- `docs/operacao/drills/rotacao-dogfooding-2026-05-24.md` — `DJANGO_SECRET_KEY` rotacionada; declaração datada LGPD art. 16; AC-FC1-004-1..5 todos fechados.
+- `docs/operacao/drills/break-glass-2026-05-24.md` — conta `admin-recovery@afere.local` criada (id `02ec172e-...`); evento `Admin.BreakGlass.CONTA_CRIADA` na cadeia (id `29cbd69d-...`); AC-FC1-006-1..5 todos fechados.
 
 ## GATEs Wave A propostos
 
