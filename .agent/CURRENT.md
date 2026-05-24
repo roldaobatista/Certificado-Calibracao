@@ -33,7 +33,9 @@
 - **T-OS-044 entregue:** pre-check `Equipamento.status IN {sucata, extraviado}` no consumer `Orcamento.Aprovado` (`7b7bbee`).
 - **Fase 9 T-OS-105 entregue:** hook `migration-concorrencia-os-check.sh` (`4ef49e9`) — bloqueia migration que cria/remove `idx_atividade_em_execucao_por_equip` ou desativa RLS em `atividade_da_os`. +7 casos no `_test-runner.sh`.
 - **Hooks: 288 → 295 ok / 0 falhas.**
-- **Suíte M3 chave consolidada: 52/52 PASS em 181s.**
+- 6º arquivo regressão (`6c99b2c`): INV-OS-CONSBIO-001 + INV-OS-ANAL-001 (6 testes — happy + unhappy + cross-tenant cada).
+- **Suíte M3 chave consolidada: 58/58 PASS em 193s.**
+- **Hooks: 295/295 verdes.**
 
 ## Próximas fatias (restante M3)
 
