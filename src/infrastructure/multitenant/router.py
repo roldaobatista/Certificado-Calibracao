@@ -11,7 +11,32 @@ migration em endpoint operacional).
 
 from __future__ import annotations
 
+import os
+import sys
 from typing import Any
+
+
+def _esta_em_pytest() -> bool:
+    """Detecta execucao sob pytest.
+
+    Usa 3 sinais robustos:
+    1. PYTEST_CURRENT_TEST em os.environ — setado pelo pytest durante test.
+    2. 'pytest' importado em sys.modules — setado quando pytest-django carrega.
+    3. sys.argv[0] contendo 'pytest' — chamada CLI direta.
+
+    NAO usa comparacao de DATABASES.TEST.NAME — em PROD, ambos os aliases
+    `default` e `migrator` apontam pro mesmo banco fisico runtime (`afere`),
+    e settings.DATABASES['default']['TEST']['NAME'] sai como 'test_afere'
+    (default Django) mesmo fora de pytest. Comparacao seria True em runtime
+    real → liberava DDL no alias `default` em PROD, derrubando defesa em
+    profundidade do ADR-0002 §2 (achado segurança-MED-1 do P5 F-C1).
+    """
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        return True
+    if "pytest" in sys.modules:
+        return True
+    argv0 = sys.argv[0] if sys.argv else ""
+    return "pytest" in argv0
 
 
 class TenantMultiRoleRouter:
@@ -35,17 +60,11 @@ class TenantMultiRoleRouter:
         **hints: Any,
     ) -> bool | None:
         # Em runtime: migrations SO rodam no alias `migrator` (CREATE/ALTER).
-        # Em test: pytest-django cria test_afere via alias `default` e roda
-        # migrate la — `default` e `migrator` sao o mesmo banco fisico de
-        # teste (DATABASES['default']['TEST']['NAME'] == DATABASES['migrator']
-        # ['TEST']['NAME']). Sem este fallback, test_afere fica vazio (router
+        # Em test (pytest-django): cria test_afere via alias `default` e roda
+        # migrate la — sem este fallback, test_afere fica vazio (router
         # bloqueia migrate em `default`) e toda a suite reporta "relation X
-        # does not exist".
-        from django.conf import settings
-
-        databases = settings.DATABASES
-        default_test = databases.get("default", {}).get("TEST", {}).get("NAME")
-        migrator_test = databases.get("migrator", {}).get("TEST", {}).get("NAME")
-        if default_test and default_test == migrator_test:
+        # does not exist". Detecta pytest via env+sys.modules (NAO via
+        # settings — comparacao por NAME daria True em PROD).
+        if _esta_em_pytest():
             return True
         return db == "migrator"

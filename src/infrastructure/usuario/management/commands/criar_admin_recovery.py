@@ -81,18 +81,46 @@ class Command(BaseCommand):
         if senha != senha_2:
             raise CommandError("Senhas nao batem. Conta NAO criada.")
 
-        usuario = Usuario.objects.create_user(
-            email=email,
-            password=senha,
-            nome_completo=nome,
-            is_staff=True,
-            is_superuser=True,
-            is_break_glass=True,
-            mfa_obrigatorio=True,
-        )
+        # INV-ADMIN-003 + OBS-001: criacao crava na cadeia hash imutavel
+        # (P5 F-C1 conserto obs-MED-1). Sem isto, auditor LGPD/CGCRE nao
+        # consegue responder "quem criou conta break-glass em data Y?" —
+        # so sobraria `Usuario.criado_em` mutavel sem hash chain.
+        # Atomico: usuario + evento na MESMA transacao (Garantia 3 do
+        # publicar_evento — caller responsavel pelo atomic).
+        from uuid import uuid4
 
-        # TODO Wave A: integracao WebAuthn — cadastrar U2F via fluxo dedicado
-        # depois deste comando. Sem U2F, login fica bloqueado pelo
+        from django.db import transaction
+
+        from src.infrastructure.audit.event_helpers import publicar_evento
+        from src.infrastructure.multitenant.connection import run_as_system
+
+        with run_as_system(), transaction.atomic():
+            usuario = Usuario.objects.create_user(
+                email=email,
+                password=senha,
+                nome_completo=nome,
+                is_staff=True,
+                is_superuser=True,
+                is_break_glass=True,
+                mfa_obrigatorio=True,
+            )
+            publicar_evento(
+                acao="Admin.BreakGlass.CONTA_CRIADA",
+                payload={
+                    "usuario_id": str(usuario.id),
+                    "email": usuario.email,
+                    "forcar_rotacao_senha": opts.get("forcar_rotacao_senha", False),
+                    "criado_via": "manage.py criar_admin_recovery",
+                },
+                causation_id=uuid4(),
+                tenant_id=None,  # conta global, cadeia sistema
+                usuario_id=None,  # CLI sem request.user
+                resource_summary=f"usuario={usuario.email}",
+                outbox=False,  # evento sistema-only, sem fan-out cross-modulo
+            )
+
+        # GATE-CYBER-BREAKGLASS-U2F-ENFORCE (INV-ADMIN-003): Wave A liga
+        # WebAuthn obrigatorio. Sem U2F, login fica bloqueado pelo
         # MfaRequiredMiddleware (is_verified() = False).
 
         self.stdout.write(

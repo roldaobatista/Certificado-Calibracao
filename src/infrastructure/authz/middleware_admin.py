@@ -105,6 +105,24 @@ def _ip_no_allowlist(ip: str) -> bool:
     return False
 
 
+def _device_eh_webauthn(user) -> bool:  # type: ignore[no-untyped-def] -- django-otp ate Wave A sem stub
+    """INV-ADMIN-003 — break-glass exige device WebAuthn (U2F), nao TOTP.
+
+    django-otp expõe `.otp_device` (device atualmente verificado na sessao)
+    apos chamada de `is_verified()`. Cada device tem `persistent_id` no
+    formato `app_label.ModelName/pk` — webauthn vira `otp_webauthn.WebAuthnDevice/N`.
+    Ate Wave A entregar django-otp-webauthn integrado, NENHUM device casa
+    o prefixo, e o gate fica fail-loud (login break-glass sempre negado
+    com motivo `break_glass_sem_u2f`). Comportamento consciente do
+    GATE-CYBER-BREAKGLASS-U2F-ENFORCE.
+    """
+    device = getattr(user, "otp_device", None)
+    if device is None:
+        return False
+    persistent_id = getattr(device, "persistent_id", "") or ""
+    return "webauthn" in persistent_id.lower()
+
+
 def _registrar_acesso_admin(
     *,
     request: HttpRequest,
@@ -198,8 +216,12 @@ class AdminHardeningMiddleware(MiddlewareMixin):
             return HttpResponseForbidden()
 
         # ---- Camada 1: MFA verificado (django-otp) ----
-        # Break-glass usa U2F (verificacao especifica em T-FC1-13).
-        # Normal: exige is_verified() do django-otp + janela 8h.
+        # P5 F-C1 conserto seguranca-MED-2 (INV-ADMIN-003):
+        # Break-glass EXIGE WebAuthn (U2F) — TOTP eh proibido (mesmo vetor
+        # que derrubou MFA principal pode ter sido `roubo de celular`,
+        # entao TOTP backup nao garante defesa). Ate Wave A entregar
+        # fluxo WebAuthn real, GATE-CYBER-BREAKGLASS-U2F-ENFORCE bloqueia
+        # login break-glass fail-loud.
         is_verified = getattr(user, "is_verified", lambda: False)()
         if not is_verified:
             _registrar_acesso_admin(
@@ -207,6 +229,21 @@ class AdminHardeningMiddleware(MiddlewareMixin):
                 status_code=403,
                 motivo_negacao="mfa_nao_verificado",
                 eh_break_glass=eh_break_glass,
+            )
+            return HttpResponseForbidden()
+
+        # INV-ADMIN-003: break-glass exige device WebAuthn especificamente.
+        # `_device_eh_webauthn` checa pelo prefixo de classe no
+        # `persistent_id` do device verificado (django-otp); compatibilidade
+        # com django-otp-webauthn quando Wave A entregar. Ate la, ativa
+        # GATE fail-loud (sem device WebAuthn cadastrado, login break-glass
+        # eh negado).
+        if eh_break_glass and not _device_eh_webauthn(user):
+            _registrar_acesso_admin(
+                request=request,
+                status_code=403,
+                motivo_negacao="break_glass_sem_u2f",
+                eh_break_glass=True,
             )
             return HttpResponseForbidden()
 

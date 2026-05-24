@@ -85,11 +85,12 @@ def _seeds_estao_vazios() -> bool:
 def _aplicar_seed(app_label: str, migration_name: str) -> None:
     """Importa a migration e chama `seed(apps, schema_editor)`.
 
-    Tolerante a IntegrityError (idempotente) — se o seed ja rodou para
-    aquela linha, o `ON CONFLICT DO NOTHING` interno cuida; se a
-    migration nao tem ON CONFLICT (caso de 0003), engolimos a excecao
-    com log de DEBUG porque a tabela esta limpa quando entramos aqui
-    (pytest TRUNCATE) — significa que `seed()` sempre tem chao limpo.
+    Captura APENAS `ModuleNotFoundError` (caso entry de `_SEED_MIGRATIONS`
+    desincronize com filesystem — migration renomeada/removida). Toda
+    outra excecao propaga: como `_seeds_estao_vazios()` gate-ia execucao
+    e o teste transacional acabou de fazer TRUNCATE, a tabela esta limpa
+    quando o seed roda — IntegrityError aqui seria bug de migration que
+    precisa ser visto, NAO engolido.
     """
     module_path = f"src.infrastructure.{app_label}.migrations.{migration_name}"
     try:

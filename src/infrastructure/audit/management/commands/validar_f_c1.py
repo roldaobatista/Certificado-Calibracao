@@ -385,16 +385,33 @@ class Command(BaseCommand):
         )
 
     def _drill_rotacao_arquivada(self) -> tuple[str, bool, str]:
-        """Confirma que docs/operacao/rotacao-credenciais-dogfooding.md existe +
-        pelo menos 1 arquivo em docs/operacao/drills/rotacao-*"""
+        """Confirma procedimento canonico + DRILL REAL arquivado.
+
+        AC-FC1-004-2 e -3 exigem drill REAL com declaracao datada de
+        eliminacao efetiva (LGPD art. 16). Aceitacao do procedimento
+        (`*-aceitacao-procedimento.md`) NAO conta — drill real precisa
+        ser arquivo `rotacao-dogfooding-YYYY-MM-DD.md` (sem sufixo
+        adicional). P5 F-C1 conserto produto-CRITICO-3 (falso positivo).
+        """
+        import re
+
         proc = Path("docs/operacao/rotacao-credenciais-dogfooding.md")
         drills_dir = Path("docs/operacao/drills")
-        drills_rotacao = list(drills_dir.glob("rotacao-*.md")) if drills_dir.exists() else []
-        ok = proc.exists() and len(drills_rotacao) >= 1
+        if not drills_dir.exists():
+            drills_reais: list[Path] = []
+        else:
+            # Convencao estrita: rotacao-dogfooding-YYYY-MM-DD.md
+            # (sem sufixo `-aceitacao-procedimento` ou similar).
+            padrao = re.compile(r"^rotacao-dogfooding-\d{4}-\d{2}-\d{2}\.md$")
+            drills_reais = [
+                p for p in drills_dir.glob("rotacao-dogfooding-*.md")
+                if padrao.match(p.name)
+            ]
+        ok = proc.exists() and len(drills_reais) >= 1
         return (
-            "9. rotacao dogfooding (procedimento + drill)",
+            "9. rotacao dogfooding (procedimento + drill REAL datado)",
             ok,
-            f"procedimento={proc.exists()} drills={len(drills_rotacao)}",
+            f"procedimento={proc.exists()} drills_reais={len(drills_reais)}",
         )
 
     def _drill_break_glass(self) -> tuple[str, bool, str]:

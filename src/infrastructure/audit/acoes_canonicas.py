@@ -172,8 +172,23 @@ ACOES_EQUIPAMENTOS: Final[frozenset[str]] = frozenset(
     }
 )
 
+# F-C1 P4 (INV-ADMIN-003) — break-glass account lifecycle.
+# Eventos sistema-level (tenant_id=None / cadeia sistema), exigem run_as_system.
+ACOES_ADMIN_BREAK_GLASS: Final[frozenset[str]] = frozenset(
+    {
+        # criacao via `manage.py criar_admin_recovery` — grava na cadeia
+        # imutavel pra LGPD/CGCRE poder responder "quem criou conta
+        # break-glass em data Y?". Payload sanitizado: usuario_id, email
+        # (vai pra event_helpers redaction), forcar_rotacao_senha, criado_via.
+        "Admin.BreakGlass.CONTA_CRIADA",
+        # cada login da conta dispara alerta CRITICO; cravado na cadeia
+        # alem da linha em `admin_access`.
+        "Admin.BreakGlass.Usado",
+    }
+)
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
-    ACOES_CLIENTES | ACOES_SISTEMA | ACOES_RT | ACOES_EQUIPAMENTOS
+    ACOES_CLIENTES | ACOES_SISTEMA | ACOES_RT | ACOES_EQUIPAMENTOS | ACOES_ADMIN_BREAK_GLASS
 )
 
 
