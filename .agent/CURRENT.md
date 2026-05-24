@@ -11,13 +11,13 @@
 - ruff: All checks passed em `src/infrastructure/audit/management/commands/validar_f_c1.py`.
 - `validar_f_c1`: **10/10 PASS** em DB dev (com `--rapido` 9/9; sem flag 10/10).
 - makemigrations --check: limpo após Blocos 4-6 + catch-up.
-- **Pytest test_afere DESTRAVADO** em 3 saltos (commits 6c5b795 → 9c86767):
+- **Pytest test_afere DESTRAVADO + 100% VERDE** (905/0/0) em 5 saltos:
   - Antes: 0 testes válidos (`relation tenants não existe`).
-  - Salto 1 — router fix + btree_gist init: 706 passed / 198 failed / 599 errors.
-  - Salto 2 (tentativa MIRROR): **DESASTRE** — pytest escreveu em DEV `afere` (733 tenants vazaram). DEV recriado limpo via DROP + migrate.
-  - Salto 3 — test_afere OWNER=app_user + descartável-check via psycopg: **708 passed / 197 failed / 0 errors**.
-  - **197 fails restantes**: TRUNCATE em TransactionTestCase limpa seeds (authz_perfil, tipo_atividade_config) entre tests; seed via RunPython da migration só roda 1x. → Task #9.
-  - **Bloqueia P5 `auditor-qualidade`** até Task #9 resolver.
+  - Salto 1 (6c5b795) — router fix + btree_gist init: 706 passed / 198 failed / 599 errors.
+  - Salto 2 (revertido) — tentativa MIRROR fez pytest escrever em DEV; DEV recriado limpo.
+  - Salto 3 (9c86767) — test_afere OWNER=app_user + descartável-check via psycopg: 708 / 197 / 0.
+  - Salto 4 (14d2325, Task #9) — conftest restaura seeds via importlib das 21 migrations seed após cada TransactionTestCase: **902 / 3 / 0**.
+  - Salto 5 (8688a7e, Task #10) — 3 fails restantes: testes RAISE-on-empty-table (auditoria vazia, policy USING não avaliada) + clear_registry contaminando registry de predicates: **905 / 0 / 0** verde 100%.
 
 ## F-C1 P4 — entregue (2026-05-24)
 
@@ -31,9 +31,7 @@
 
 ## Próximo passo
 
-**Task #9** — resolver TRUNCATE+seed (197 fails). Recomendado: autouse fixture function-scope que detecta authz_perfil vazio e dispara `call_command('migrate', 'authz', '0003', fake=False)` OU re-roda seeds inline. **Bloqueia P5 F-C1** (auditor-qualidade exige suite verde).
-
-**Depois disso: P5 F-C1 — 10 auditores Família 5 em paralelo** (`docs/faseamento/F-C1/auditoria-familia5.md`). Critério: ZERO C/A/M (INV-RITUAL-001).
+**P5 F-C1 — 10 auditores Família 5 em paralelo** (`docs/faseamento/F-C1/auditoria-familia5.md`). Critério: ZERO C/A/M (INV-RITUAL-001). Suite 905/0/0 verde + drill `validar_f_c1` 10/10 PASS + hooks 288/288 verdes = todos os pré-requisitos atendidos.
 
 ## Marcos anteriores fechados
 
