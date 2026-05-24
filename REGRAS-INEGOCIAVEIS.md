@@ -577,6 +577,36 @@ Reforçados pelo ADR-0002 (multi-tenancy) — rascunho em `docs/adr/0002-multi-t
 
 ---
 
+## INV-ADMIN-* — Invariantes de hardening do `/admin/` Django (F-C1 P4 — ADR-0054)
+
+| ID | Regra | Veredito | Hook | Consequência |
+|---|---|---|---|---|
+| INV-ADMIN-001 | **`/admin/*` exige MFA TOTP verificado dentro da janela ≤8h + IP em allowlist tenant + rate-limit 5 tentativas/15min + session-rebind a `ip_hash` + `ua_hash` (mismatch invalida sessão).** | ALTO | `admin-hardening-check.sh` (bloqueia `urls.py` que monta `/admin/` sem `AdminHardeningMiddleware` em settings) | Roubo de sessão admin → escalonamento privilégio cross-tenant; cumpre AC-FC1-002-8 |
+| INV-ADMIN-002 | **`admin_access` é append-only (RLS + trigger anti-mutation imutável: path, metodo, status_code, motivo_negacao, eh_break_glass, timestamp, ip_hash); retenção 24m rolling; pseudonimização `usuario_id → usuario_id_hash` após 90d (LGPD art. 18).** | ALTO | `audit-immutability-check.sh` estendido cobre `admin_access` | Apagar trilha de admin → não-conformidade ANPD + CGCRE; cumpre AC-FC1-002-3..7 |
+| INV-ADMIN-003 | **Conta `admin-recovery` (`is_break_glass=True`) exige U2F WebAuthn (NÃO aceita TOTP — defesa contra mesmo vetor que derrubou MFA principal); login dispara evento `Admin.BreakGlass.Usado` em cadeia auditável + linha em `admin_access` com flag `eh_break_glass=True`; CRIAÇÃO da conta também grava evento `Admin.BreakGlass.CONTA_CRIADA`; máximo 2 contas break-glass por instalação (Roldão + DPO Wave A).** | ALTO | Revisão `auditor-seguranca` + drill mensal `validar_f_c1` drill 10; GATE-CYBER-BREAKGLASS-U2F-ENFORCE (até U2F real, login break-glass bloqueado fail-loud) | Conta zumbi sem auditoria → backdoor admin não-rastreável |
+
+---
+
+## INV-PROD-SET-* — Invariantes de settings de produção Django (F-C1 P4 — ADR-0054)
+
+| ID | Regra | Veredito | Hook | Consequência |
+|---|---|---|---|---|
+| INV-PROD-SET-001 | **`config/settings/prod.py` força: `DEBUG=False`, `ALLOWED_HOSTS` lista fechada, cookies `SECURE`, HSTS ≥ 1 ano com `includeSubDomains; preload`, `X-Frame-Options=DENY`, `Content-Type-NoSniff`, Referrer Policy, CSP, `SECURE_PROXY_SSL_HEADER`, `CSRF_TRUSTED_ORIGINS`, `DATA_UPLOAD_MAX_MEMORY_SIZE≤10MB`, `DATA_UPLOAD_MAX_NUMBER_FIELDS≤1000`.** | ALTO | `prod-settings-check.sh` (11 casos no `_test-runner.sh`) | DEBUG=True em prod → vazamento traceback PII; sem HSTS → MITM downgrade |
+
+---
+
+## INV-WEBHOOK-OUT-* — Invariantes de chamadas HTTP de saída (ADR-0054 — F-C1 P4)
+
+| ID | Regra | Veredito | Hook | Consequência |
+|---|---|---|---|---|
+| INV-WEBHOOK-OUT-001 | **Toda chamada HTTP de saída (Lacuna, KMS, Asaas, INMETRO, SendGrid, qualquer destino externo) passa por `OutboundWebhookProvider`. Uso direto de `requests`/`httpx`/`urllib3`/`urllib.request` em `src/infrastructure/**` é proibido fora do adapter.** | ALTO | `outbound-webhook-ssrf-check.sh` | Bypass de SSRF/HMAC/DPA → SSRF, vazamento de PII a destino não-DPA, exfiltração |
+| INV-WEBHOOK-OUT-002 | **`OutboundWebhookProvider` valida SSRF antes do connect: bloqueia 8 faixas (RFC1918 + loopback + link-local + multicast + IPv6 ULA `fc00::/7` + CGN `100.64/10` + `0.0.0.0/8` + sufixos DNS internos). DNS resolve UMA vez via `getaddrinfo` → valida TODOS os A/AAAA → connect pelo IP fixado.** | ALTO | Hook + revisão `auditor-seguranca`; drill `validar_f_c1` drills 5+8 | SSRF a `169.254.169.254` (AWS metadata) → roubo de credenciais IAM |
+| INV-WEBHOOK-OUT-003 | **`OutboundWebhookProvider` assina HMAC-SHA256 com canonical string `{timestamp}.{method}.{path}.{sha256(body)}` + janela ≤5min + `event_id` em `consumer_idempotencia`.** | ALTO | Revisão `auditor-seguranca`; drill `validar_f_c1` drill 6 | Replay attack, tamper de body sem detecção, double-spend |
+| INV-WEBHOOK-OUT-004 | **DNS rebinding: TTL=0 tratado igual TTL>0; connect sempre pelo IP fixado pelo guard (não pelo hostname).** | ALTO | Revisão `auditor-seguranca`; drill `validar_f_c1` drill 8 | DNS rebinding bypassa SSRF guard inicial |
+| INV-WEBHOOK-OUT-005 | **Chamada saída exige `webhook_destino.dpa_assinado_em IS NOT NULL` e `dpa_vence_em > NOW()`. Adapter rejeita destino com DPA vencido ou inexistente (LGPD art. 33).** | ALTO | Drill `validar_f_c1` drill 7 | Envio de PII a operador sem DPA → multa ANPD |
+
+---
+
 ## INV-SPED-* — Invariantes de Contabilidade Export
 
 | ID | Regra | Veredito | Hook | Consequência |

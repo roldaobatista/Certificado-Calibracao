@@ -1,19 +1,20 @@
 ---
 owner: roldao
-revisado_em: 2026-05-23
-proximo_review: 2026-08-23
-status: proposta
+revisado_em: 2026-05-24
+proximo_review: 2026-08-24
+status: aceito
 diataxis: explanation
 audiencia: agente
 relacionados:
   - docs/arquitetura/anti-corrosion-layer.md
   - docs/dominios/suporte-plataforma/modulos/webhook-out/prd.md
   - docs/adr/0005-engine-automacoes.md
+  - REGRAS-INEGOCIAVEIS.md
 ---
 
 # ADR-0054 — `OutboundWebhookProvider` (19ª porta ACL) + módulo `webhook-out`
 
-> **Status:** proposta. **PRÉ-REQUISITO Wave A** — Roldão vai pedir webhook saída no dogfooding Balanças Solution (integrar com automações próprias dele). Resolve achado **G-INT-4**.
+> **Status:** aceito (2026-05-24 — implementada em F-C1 P4 Bloco 3: commits 7920fb8 + 3747341). Porta `src/domain/shared/webhook_out_provider.py` (Protocol) + adapter `src/infrastructure/webhook_out/{adapter,ssrf_guard,hmac_sign}.py` + tabela `webhook_destino` (com DPA enforcement). Invariantes cravadas: `INV-WEBHOOK-OUT-001..005` em `REGRAS-INEGOCIAVEIS.md`. Drill end-to-end em `validar_f_c1` drills 5-8 PASS. Resolve achado **G-INT-4**.
 > **Decisor:** Roldão.
 > **Bloqueia:** integração de qualquer tenant com sistema externo (Zapier, Make, n8n, webhook próprio).
 
