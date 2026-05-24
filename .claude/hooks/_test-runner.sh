@@ -470,5 +470,59 @@ run_case "AT6 tests/ ignora"                          PASS  arquivo-tamanho-avis
 run_case "AT7 views.py 1600L BLOCK"                   BLOCK arquivo-tamanho-aviso.sh "{\"tool_input\":{\"file_path\":\"src/infrastructure/foo/views.py\",\"content\":\"$(printf '%s' "$conteudo_1600" | sed 's/$/\\n/' | tr -d '\n' | sed 's/\\n$//')\"}}"
 
 echo ""
+echo "===== prod-settings-check (F-C1 P4 / INV-PROD-SET-001) ====="
+
+# Helper para construir conteudo prod.py minimo correto
+PROD_OK='DEBUG = False
+ALLOWED_HOSTS = ["app.afere.local"]
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_HSTS_SECONDS = 31_536_000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+SECURE_SSL_REDIRECT = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = ["https://app.afere.local"]
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10_485_760
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
+X_FRAME_OPTIONS = "DENY"
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+CONTENT_SECURITY_POLICY = {"DIRECTIVES": {"default-src": ("'\''self'\''",)}}'
+
+# PS1 prod.py completo correto -> PASS
+run_case "PS1 prod.py completo OK"                    PASS  prod-settings-check.sh "{\"tool_input\":{\"file_path\":\"config/settings/prod.py\",\"content\":\"${PROD_OK}\"}}"
+
+# PS2 DEBUG=True -> BLOCK
+run_case "PS2 DEBUG=True BLOCK"                       BLOCK prod-settings-check.sh '{"tool_input":{"file_path":"config/settings/prod.py","content":"DEBUG = True\nALLOWED_HOSTS = [\"x\"]"}}'
+
+# PS3 ALLOWED_HOSTS=["*"] -> BLOCK
+run_case "PS3 ALLOWED_HOSTS=['*'] BLOCK"              BLOCK prod-settings-check.sh '{"tool_input":{"file_path":"config/settings/prod.py","content":"DEBUG = False\nALLOWED_HOSTS = [\"*\"]"}}'
+
+# PS4 HSTS_PRELOAD ausente -> BLOCK
+run_case "PS4 HSTS_PRELOAD ausente BLOCK"             BLOCK prod-settings-check.sh '{"tool_input":{"file_path":"config/settings/prod.py","content":"DEBUG = False\nALLOWED_HOSTS = [\"x\"]\nSESSION_COOKIE_SECURE = True\nCSRF_COOKIE_SECURE = True\nSECURE_HSTS_SECONDS = 31_536_000\nSECURE_HSTS_INCLUDE_SUBDOMAINS = True\nSECURE_SSL_REDIRECT = True\nSECURE_PROXY_SSL_HEADER = (\"x\", \"y\")\nCSRF_TRUSTED_ORIGINS = [\"https://x\"]\nDATA_UPLOAD_MAX_MEMORY_SIZE = 1000\nDATA_UPLOAD_MAX_NUMBER_FIELDS = 100\nX_FRAME_OPTIONS = \"DENY\"\nSECURE_CONTENT_TYPE_NOSNIFF = True\nSECURE_REFERRER_POLICY = \"same-origin\"\nCONTENT_SECURITY_POLICY = {}"}}'
+
+# PS5 CSRF_TRUSTED_ORIGINS=['*'] -> BLOCK
+run_case "PS5 CSRF_TRUSTED_ORIGINS=['*'] BLOCK"       BLOCK prod-settings-check.sh '{"tool_input":{"file_path":"config/settings/prod.py","content":"DEBUG = False\nALLOWED_HOSTS = [\"x\"]\nCSRF_TRUSTED_ORIGINS = [\"*\"]\nSESSION_COOKIE_SECURE = True\nCSRF_COOKIE_SECURE = True\nSECURE_HSTS_SECONDS = 31_536_000\nSECURE_HSTS_INCLUDE_SUBDOMAINS = True\nSECURE_HSTS_PRELOAD = True\nSECURE_SSL_REDIRECT = True\nSECURE_PROXY_SSL_HEADER = (\"x\", \"y\")\nDATA_UPLOAD_MAX_MEMORY_SIZE = 1000\nDATA_UPLOAD_MAX_NUMBER_FIELDS = 100\nX_FRAME_OPTIONS = \"DENY\"\nSECURE_CONTENT_TYPE_NOSNIFF = True\nSECURE_REFERRER_POLICY = \"same-origin\"\nCONTENT_SECURITY_POLICY = {}"}}'
+
+# PS6 DATA_UPLOAD_MAX_MEMORY_SIZE>10MB -> BLOCK
+run_case "PS6 DATA_UPLOAD_MAX > 10MB BLOCK"           BLOCK prod-settings-check.sh '{"tool_input":{"file_path":"config/settings/prod.py","content":"DEBUG = False\nALLOWED_HOSTS = [\"x\"]\nCSRF_TRUSTED_ORIGINS = [\"https://x\"]\nSESSION_COOKIE_SECURE = True\nCSRF_COOKIE_SECURE = True\nSECURE_HSTS_SECONDS = 31_536_000\nSECURE_HSTS_INCLUDE_SUBDOMAINS = True\nSECURE_HSTS_PRELOAD = True\nSECURE_SSL_REDIRECT = True\nSECURE_PROXY_SSL_HEADER = (\"x\", \"y\")\nDATA_UPLOAD_MAX_MEMORY_SIZE = 999999999\nDATA_UPLOAD_MAX_NUMBER_FIELDS = 100\nX_FRAME_OPTIONS = \"DENY\"\nSECURE_CONTENT_TYPE_NOSNIFF = True\nSECURE_REFERRER_POLICY = \"same-origin\"\nCONTENT_SECURITY_POLICY = {}"}}'
+
+# PS7 SECURE_PROXY_SSL_HEADER ausente -> BLOCK
+run_case "PS7 PROXY_SSL_HEADER ausente BLOCK"         BLOCK prod-settings-check.sh '{"tool_input":{"file_path":"config/settings/prod.py","content":"DEBUG = False\nALLOWED_HOSTS = [\"x\"]\nCSRF_TRUSTED_ORIGINS = [\"https://x\"]\nSESSION_COOKIE_SECURE = True\nCSRF_COOKIE_SECURE = True\nSECURE_HSTS_SECONDS = 31_536_000\nSECURE_HSTS_INCLUDE_SUBDOMAINS = True\nSECURE_HSTS_PRELOAD = True\nSECURE_SSL_REDIRECT = True\nDATA_UPLOAD_MAX_MEMORY_SIZE = 1000\nDATA_UPLOAD_MAX_NUMBER_FIELDS = 100\nX_FRAME_OPTIONS = \"DENY\"\nSECURE_CONTENT_TYPE_NOSNIFF = True\nSECURE_REFERRER_POLICY = \"same-origin\"\nCONTENT_SECURITY_POLICY = {}"}}'
+
+# PS8 CSP ausente -> BLOCK
+run_case "PS8 CSP ausente BLOCK"                      BLOCK prod-settings-check.sh '{"tool_input":{"file_path":"config/settings/prod.py","content":"DEBUG = False\nALLOWED_HOSTS = [\"x\"]\nCSRF_TRUSTED_ORIGINS = [\"https://x\"]\nSESSION_COOKIE_SECURE = True\nCSRF_COOKIE_SECURE = True\nSECURE_HSTS_SECONDS = 31_536_000\nSECURE_HSTS_INCLUDE_SUBDOMAINS = True\nSECURE_HSTS_PRELOAD = True\nSECURE_SSL_REDIRECT = True\nSECURE_PROXY_SSL_HEADER = (\"x\", \"y\")\nDATA_UPLOAD_MAX_MEMORY_SIZE = 1000\nDATA_UPLOAD_MAX_NUMBER_FIELDS = 100\nX_FRAME_OPTIONS = \"DENY\"\nSECURE_CONTENT_TYPE_NOSNIFF = True\nSECURE_REFERRER_POLICY = \"same-origin\""}}'
+
+# PS9 skip pontual de CSP -> PASS
+run_case "PS9 skip CSP com motivo PASS"               PASS  prod-settings-check.sh '{"tool_input":{"file_path":"config/settings/prod.py","content":"# prod-settings: skip-CSP -- inventario assets Wave A; entra F-C2 quando UI nascer\nDEBUG = False\nALLOWED_HOSTS = [\"x\"]\nCSRF_TRUSTED_ORIGINS = [\"https://x\"]\nSESSION_COOKIE_SECURE = True\nCSRF_COOKIE_SECURE = True\nSECURE_HSTS_SECONDS = 31_536_000\nSECURE_HSTS_INCLUDE_SUBDOMAINS = True\nSECURE_HSTS_PRELOAD = True\nSECURE_SSL_REDIRECT = True\nSECURE_PROXY_SSL_HEADER = (\"x\", \"y\")\nDATA_UPLOAD_MAX_MEMORY_SIZE = 1000\nDATA_UPLOAD_MAX_NUMBER_FIELDS = 100\nX_FRAME_OPTIONS = \"DENY\"\nSECURE_CONTENT_TYPE_NOSNIFF = True\nSECURE_REFERRER_POLICY = \"same-origin\""}}'
+
+# PSa arquivo fora de prod.py -> PASS (ignora)
+run_case "PSa dev.py ignora"                          PASS  prod-settings-check.sh '{"tool_input":{"file_path":"config/settings/dev.py","content":"DEBUG = True"}}'
+
+# PSb skip-all do arquivo -> PASS
+run_case "PSb skip-all com motivo PASS"               PASS  prod-settings-check.sh '{"tool_input":{"file_path":"config/settings/prod.py","content":"# prod-settings: skip-all -- arquivo placeholder Wave A; revisao adiada\nDEBUG = True"}}'
+
+echo ""
 echo "===== resumo: $pass ok, $fail falhas ====="
 exit $fail

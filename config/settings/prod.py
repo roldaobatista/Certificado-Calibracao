@@ -82,8 +82,10 @@ if _qr_ip_salt == _qr_key or _qr_ip_salt == _pii_key:
 if not _allowed:
     raise ImproperlyConfigured("prod: DJANGO_ALLOWED_HOSTS obrigatorio.")
 
+ALLOWED_HOSTS = _allowed
+
 # =============================================================
-# Hardening de transporte / cookies (FA-M2)
+# Hardening de transporte / cookies (FA-M2 + F-C1 P3 retrofit R-1)
 # =============================================================
 SECURE_SSL_REDIRECT = True
 SECURE_HSTS_SECONDS = 31_536_000  # 1 ano
@@ -96,5 +98,55 @@ X_FRAME_OPTIONS = "DENY"
 # Atras do proxy Hostinger (TLS termina no proxy) — confia no header dele.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# NAO-OBJETIVO: CSP fica fora desta frente (depende de inventario de assets
-# da Wave A UI). Logging JSON estruturado entra junto com o deploy.
+# =============================================================
+# F-C1 P3 retrofit (R-1 / TL-01 — settings expandidos)
+# =============================================================
+# Referrer Policy — limita vazamento de URL atraves do Referer header.
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
+# CSRF Trusted Origins — exige declaracao explicita; sem isso, POST cross-site
+# de qualquer dominio dispara CsrfViewMiddleware reject.
+# Hostinger + Cloudflare colocam o app atras de proxy; os hosts confiaveis
+# (mesmos do ALLOWED_HOSTS com prefixo https) entram aqui.
+CSRF_TRUSTED_ORIGINS = env(
+    "DJANGO_CSRF_TRUSTED_ORIGINS",
+    default=[f"https://{host}" for host in _allowed if host and host != "*"],
+)
+if not CSRF_TRUSTED_ORIGINS:
+    raise ImproperlyConfigured(
+        "prod: CSRF_TRUSTED_ORIGINS vazio (deriva de DJANGO_ALLOWED_HOSTS — "
+        "verifique que ALLOWED_HOSTS tem >=1 host valido)."
+    )
+
+# Anti-DoS form bomb (TL-01 / R-1): limita tamanho de upload em memoria e
+# numero de campos por request. Defaults Django sao generosos (2.5MB / 1000)
+# — apertamos pra 10MB / 1000 explicitos no prod.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10_485_760  # 10 MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
+# FILE_UPLOAD_MAX_MEMORY_SIZE mantem default Django (2.5MB) — uploads
+# grandes vao pra disco temporario, nao a memoria.
+
+# Content Security Policy (R-1 / TL-01): nivel minimo restritivo —
+# default-src 'self' + bloqueio de inline scripts. Wave A UI vai
+# ajustar quando inventario de assets externos for definido (CDNs,
+# fontes, etc). Ate la, qualquer recurso externo precisa ADR.
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": ("'self'",),
+        "script-src": ("'self'",),
+        "style-src": ("'self'", "'unsafe-inline'"),  # HTMX swap injeta style inline
+        "img-src": ("'self'", "data:"),
+        "font-src": ("'self'",),
+        "connect-src": ("'self'",),
+        "frame-ancestors": ("'none'",),  # complementa X-Frame-Options DENY
+        "form-action": ("'self'",),
+        "base-uri": ("'self'",),
+        "object-src": ("'none'",),
+    },
+}
+# django-csp 4.0+ usa setting unica acima. MIDDLEWARE ja foi configurado
+# em base.py se django-csp estiver instalado; aqui so a politica.
+
+# NAO-OBJETIVO: logging JSON estruturado entra junto com a Foundation F-C2
+# (observabilidade infra — structlog + middleware HTTP correlation_id +
+# processor automatico tenant_id/correlation_id/request_id).

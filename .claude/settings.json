@@ -245,6 +245,11 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/arquivo-tamanho-aviso.sh\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/prod-settings-check.sh\"",
+            "timeout": 5
           }
         ]
       }
