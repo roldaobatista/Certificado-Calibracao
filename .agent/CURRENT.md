@@ -11,12 +11,13 @@
 - ruff: All checks passed em `src/infrastructure/audit/management/commands/validar_f_c1.py`.
 - `validar_f_c1`: **10/10 PASS** em DB dev (com `--rapido` 9/9; sem flag 10/10).
 - makemigrations --check: limpo após Blocos 4-6 + catch-up.
-- **Pytest test_afere DESTRAVADO** (router fix + btree_gist init scripts, commits 6c5b795 + 46b57c5):
-  - Antes: 0 testes válidos (todos errors por `relation tenants não existe`).
-  - Após: ~706 passed / ~198 failed / ~599 errors em suite completa.
-  - **Diagnóstico**: rodando arquivo-por-arquivo, testes passam 100% (ex: `test_certificados_inv_025_t_eqp_013_trigger.py` 14/14). Problema é **estado sujo entre testes** na suite completa — fixtures não isoladas, RLS leaking, ou seeds que rodam entre tests e conflitam.
-  - **Não é regressão funcional do código F-C1 P4**; é problema de infra de fixtures pré-existente.
-  - **Bloqueia P5 auditores `qualidade`** (suite total não fecha verde). Task #8 fica em andamento como frente própria.
+- **Pytest test_afere DESTRAVADO** em 3 saltos (commits 6c5b795 → 9c86767):
+  - Antes: 0 testes válidos (`relation tenants não existe`).
+  - Salto 1 — router fix + btree_gist init: 706 passed / 198 failed / 599 errors.
+  - Salto 2 (tentativa MIRROR): **DESASTRE** — pytest escreveu em DEV `afere` (733 tenants vazaram). DEV recriado limpo via DROP + migrate.
+  - Salto 3 — test_afere OWNER=app_user + descartável-check via psycopg: **708 passed / 197 failed / 0 errors**.
+  - **197 fails restantes**: TRUNCATE em TransactionTestCase limpa seeds (authz_perfil, tipo_atividade_config) entre tests; seed via RunPython da migration só roda 1x. → Task #9.
+  - **Bloqueia P5 `auditor-qualidade`** até Task #9 resolver.
 
 ## F-C1 P4 — entregue (2026-05-24)
 
@@ -30,7 +31,7 @@
 
 ## Próximo passo
 
-**Estabilizar suite pytest** (Task #8 ainda in_progress) — investigar isolamento de fixtures entre tests. Causa provável: TransactionTestCase faz cleanup parcial, deixando dados em tabelas com RLS forçada; OU seeds idempotent inserem duplicatas; OU connection pool retem app.tenant_ids de tests anteriores.
+**Task #9** — resolver TRUNCATE+seed (197 fails). Recomendado: autouse fixture function-scope que detecta authz_perfil vazio e dispara `call_command('migrate', 'authz', '0003', fake=False)` OU re-roda seeds inline. **Bloqueia P5 F-C1** (auditor-qualidade exige suite verde).
 
 **Depois disso: P5 F-C1 — 10 auditores Família 5 em paralelo** (`docs/faseamento/F-C1/auditoria-familia5.md`). Critério: ZERO C/A/M (INV-RITUAL-001).
 
