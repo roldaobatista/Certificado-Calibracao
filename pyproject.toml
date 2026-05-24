@@ -38,6 +38,25 @@ qrcode = {version = "^7.4.2", extras = ["pil"]}
 # recente, mantido pelo Peopledoc/UKG.
 workalendar = "^17.0.0"
 
+# F-C1 P4 (T-FC1-09) — adapter HttpxWebhookOut canonico (ADR-0054 aceita
+# dentro desta fase). Por que httpx vs requests:
+# (a) ja vem como transitiva (httpx 0.28.1 no poetry.lock), declaracao
+#     explicita aqui evita virar dep indireta sem controle.
+# (b) httpx tem Transport customizavel — INV-WEBHOOK-OUT-004 (anti-DNS-
+#     rebinding) exige connect pelo IP fixado preservando Host header
+#     pra SNI/TLS validar cert pelo hostname original. Em requests isso
+#     exige monkey-patch do urllib3 PoolManager; httpx aceita Transport
+#     custom de forma limpa.
+# (c) requests esta em modo manutencao (sem features novas); httpx eh o
+#     padrao moderno (e tem suporte async se evoluirmos pra workers
+#     async em F-C2/F-C3).
+# CVE-check: pip-audit limpo em 2026-05-24; sem CVE conhecida em httpx
+# 0.28.1. Mantenedor: encode (mesma org do Django REST Framework).
+# Hash pin (DEP-002): nao toca KMS/cripto diretamente (HMAC e' stdlib
+# `hmac`), entao versao ^ aceitavel; revisar quando entrar adapter KMS
+# em F-C3.
+httpx = "^0.28.1"
+
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.4.10"
 mypy = "^1.10.0"

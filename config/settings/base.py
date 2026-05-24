@@ -225,6 +225,10 @@ LOCAL_APPS = [
     # sequence global os_numero_seq_global (ADR-0056). RLS+triggers+demais
     # entidades em T-OS-002+.
     "src.infrastructure.ordens_servico.apps.OrdensServicoConfig",
+    # F-C1 P4 — adapter canonico OutboundWebhookProvider (ADR-0054 aceita
+    # dentro desta fase). SSRF guard + HMAC canonical + DNS rebinding lock
+    # + DPA enforcement (INV-WEBHOOK-OUT-001..005).
+    "src.infrastructure.webhook_out.apps.WebhookOutConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
