@@ -39,8 +39,31 @@ from src.application.operacao.os.abrir_os_via_orcamento import (
 from src.domain.operacao.os.value_objects import TipoAtividade
 from src.infrastructure.audit.event_helpers import publicar_evento as publicar_evento_bus
 from src.infrastructure.bus.consumer_base import consumer_idempotente
+from src.infrastructure.equipamentos.models import Equipamento, EquipamentoStatus
 from src.infrastructure.multitenant.connection import run_in_tenant_context
 from src.infrastructure.ordens_servico.repositories import DjangoOSRepository
+
+# T-OS-044 / AC-OS-001-5 (INV-OS-EQP-001) — equipamento em estado terminal
+# bloqueia abertura de OS. Pre-check do consumer (use case eh puro).
+_ESTADOS_EQUIPAMENTO_BLOQUEIAM_OS: frozenset[str] = frozenset(
+    {
+        EquipamentoStatus.SUCATA,
+        EquipamentoStatus.EXTRAVIADO,
+    }
+)
+
+
+class EquipamentoBaixadoEmOSError(Exception):
+    """Levantada pelo consumer quando equipamento.status bloqueia abertura."""
+
+    def __init__(self, equipamento_id: UUID, status: str) -> None:
+        super().__init__(
+            f"EquipamentoBaixadoEmOS: status={status} para equipamento={equipamento_id}"
+        )
+        self.codigo = "EquipamentoBaixadoEmOS"
+        self.http_status = 422
+        self.equipamento_id = equipamento_id
+        self.status = status
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +168,18 @@ def handle_orcamento_aprovado(envelope: dict[str, Any]) -> None:
     repository = DjangoOSRepository()
     try:
         with run_in_tenant_context(os_input.tenant_id), transaction.atomic():
+            # T-OS-044 / AC-OS-001-5: pre-check equipamento BAIXADO/DESCARTADO.
+            equip_status = (
+                Equipamento.all_objects.filter(id=os_input.equipamento_id)
+                .values_list("status", flat=True)
+                .first()
+            )
+            if equip_status in _ESTADOS_EQUIPAMENTO_BLOQUEIAM_OS:
+                raise EquipamentoBaixadoEmOSError(
+                    equipamento_id=os_input.equipamento_id,
+                    status=equip_status,
+                )
+
             resultado = abrir_os_via_orcamento(
                 payload=os_input,
                 repository=repository,
@@ -173,7 +208,7 @@ def handle_orcamento_aprovado(envelope: dict[str, Any]) -> None:
                 usuario_id=os_input.criada_por_user_id,
                 resource_summary=f"OS {resultado.numero_os}",
             )
-    except ErroAbrirOS as exc:
+    except (ErroAbrirOS, EquipamentoBaixadoEmOSError) as exc:
         logger.warning(
             "os.consumer.orcamento_aprovado: regra violada correlation_id=%s codigo=%s http=%s",
             correlation_id,
