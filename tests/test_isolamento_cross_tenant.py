@@ -105,7 +105,24 @@ class TestRLSBloqueiaCrossTenant:
 
     def test_query_sem_tenant_ids_setado_falha_duro(self) -> None:
         """ADR-0002 §6: sem fallback permissivo. current_setting sem default = error."""
-        # Sem run_in_tenant_context — tenant_ids vazio
+        # Insere 1 linha em auditoria (em run_as_system) — sem dados,
+        # PG pula avaliacao USING da policy e SELECT retorna 0 sem error,
+        # mascarando a defesa. Com 1 linha, policy USING eh avaliada,
+        # require_tenant_ctx() roda e RAISE.
+        with run_as_system():
+            t = TenantFactory()
+            u = UsuarioFactory()
+        with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
+            Auditoria.objects.create(
+                tenant=t,
+                usuario=u,
+                action="evento.semente",
+                resource_summary="linha-pra-policy-avaliar",
+                payload_jsonb={"x": 1},
+                hash_atual="hash-semente",
+            )
+
+        # Agora sem run_in_tenant_context — tenant_ids vazio
         with pytest.raises(ERROS_RLS):
             list(Auditoria.objects.all())
 

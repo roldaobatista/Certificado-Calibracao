@@ -227,6 +227,20 @@ class TestCadeiaPorTenant:
         """Fail-loud preservado: contexto vazio sem modo_sistema → RAISE."""
         from django.db.utils import ProgrammingError
 
+        # Auditoria precisa ter ao menos 1 linha — sem dados, PG pula
+        # avaliacao USING e SELECT retorna 0 sem error.
+        with run_as_system():
+            t = TenantFactory()
+            u = UsuarioFactory()
+        with run_in_tenant_context(tenant_id=t.id, usuario_id=u.id):
+            registrar_auditoria(
+                tenant_id=t.id,
+                usuario_id=u.id,
+                action="evento.semente",
+                resource_summary="linha-pra-policy-avaliar",
+                payload={"x": 1},
+            )
+
         with transaction.atomic():
             with connection.cursor() as cur:
                 cur.execute(

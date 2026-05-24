@@ -38,10 +38,20 @@ pytestmark = pytest.mark.tenant_isolation
 
 class TestPredicateBindingT_FB_01:
     def setup_method(self) -> None:
+        # Snapshot do registry original (predicates registrados em AppConfig.ready)
+        # pra restaurar no teardown — clear_registry() esvazia TUDO inclusive
+        # `cliente_nao_bloqueado` da clientes.apps, contaminando testes
+        # subsequentes que dependem dele.
+        from src.infrastructure.authz.predicates import _REGISTRY
+
+        self._registry_original = dict(_REGISTRY)
         clear_registry()
 
     def teardown_method(self) -> None:
+        from src.infrastructure.authz.predicates import _REGISTRY
+
         clear_registry()
+        _REGISTRY.update(self._registry_original)
 
     def test_sem_escopo_erro_em_registro(self) -> None:
         """Predicate sem `actions` → ValueError NO REGISTRO (não runtime,
