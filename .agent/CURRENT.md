@@ -2,37 +2,38 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 FECHADAS · **M3 OS P4 Fase 5 — 17 use cases entregues (2026-05-24)**.
+**Fase:** F-A+F-B + M1 + M2 + F-C1 FECHADAS · **M3 OS Fases 5+6+8 ENTREGUES (2026-05-24)**.
 **Modo:** AUTÔNOMO.
 
-## Estado da suíte (2026-05-24 pós Fase 5 fatias 1–6)
+## Estado da suíte (2026-05-24 pós Fase 5+6+8)
 
 - Hooks `_test-runner.sh`: **288/288 verdes**.
-- ruff/mypy: limpos em todo `src/application/operacao/os/` (10 source files) + adapter + entities.
-- Suite M3 Fase 5: **23/23 PASS** (4 abrir + 3 adicionar + 3 lifecycle + 5 NC/cancel + 8 avançadas).
+- ruff/mypy: limpos em `src/application/operacao/os/`, `src/infrastructure/ordens_servico/{views,serializers,repositories,consumers}`.
+- Suite M3 chave: **37/37 PASS** em 131s (8 arquivos `test_m3_os_*.py`).
 
-## M3 OS Fase 5 (sessão 2026-05-24 noite)
+## M3 OS Fases entregues (sessão 2026-05-24 noite)
 
-**17 use cases puros entregues** atravessando `DjangoOSRepository` real:
+**18 use cases puros + adapter + bus publish + 4 query services + 11 endpoints REST**:
 
-| Bloco | Use case | Commit | ACs cobertos |
+| Fase | Escopo | Commit | Testes |
 |---|---|---|---|
-| 1 | T-OS-040 `DjangoOSRepository` | `6e1faa8` | adapter Protocol |
-| 2 | T-OS-041 `abrir_os_via_orcamento` + consumer real | `2c9b760` | AC-OS-001-1/2/7/8 |
-| 3 | T-OS-048 `adicionar_atividade` | `317fa1a` | AC-OS-002-1/2/4 |
-| 3 | T-OS-052 `atribuir_tecnico` + T-OS-055 `iniciar` + T-OS-059 `concluir` | `2db…` | AC-OS-002b-1, AC-OS-003-1/4, AC-OS-004-1/3/4 |
-| 4/5 | T-OS-064 `marcar_nao_conformidade` + T-OS-065 `resolver_nc` + T-OS-070 `cancelar_atividade` + T-OS-072 `cancelar_os` | `a329ebb` | AC-OS-005-*, ADR-0042 |
-| 4/5/6 | T-OS-063 `coletar_aceite` + T-OS-066 `reabrir_os` + T-OS-077 `reagendar` + T-OS-078 `transferir_tecnico` + T-OS-079 `dispensar_aceite` + T-OS-082 `marcar_no_show` + T-OS-083 `criar_os_avulsa` | `8ce76dc` | AC-OS-004-7, AC-OS-006, AC-OS-012/013/014/015 |
+| 5 Bloco 1 | T-OS-040 `DjangoOSRepository` | `6e1faa8` | isinstance Protocol OK |
+| 5 Bloco 2 | T-OS-041 `abrir_os_via_orcamento` + consumer real | `2c9b760` | 4/4 |
+| 5 Bloco 3 | T-OS-048 adicionar_atividade | `317fa1a` | 3/3 |
+| 5 Bloco 3 | T-OS-052/055/059 atribuir + iniciar + concluir | `2db…` | 3/3 |
+| 5 Bloco 4/5 | T-OS-064/065/070/072 NC + cancelar | `a329ebb` | 5/5 |
+| 5 Bloco 4/5/6 | T-OS-063/066/077/078/079/082/083 aceite + reabrir + 5 avançadas | `8ce76dc` | 8/8 |
+| 5 Bus | `audit.event_helpers.publicar_evento` no consumer + ACOES_OS canônicas + bug fix `marcar_idempotencia` | `56b33f9` | 2/2 |
+| 6 | T-OS-085..088 query services: visao 360 + listagem + timeline + do_tecnico | `…` | 6/6 |
+| 8 | T-OS-094..099 ViewSets DRF: OS + Atividade + 11 endpoints + ACTION_MAP authz | `…` | 6/6 |
 
-## Próximas fatias (Fase 5 restante e além)
+## Próximas fatias (restante M3)
 
-- **Bus publish** (audit/event_helpers): `OS.Aberta`, `AtividadeConcluida`, etc. — caller dos consumers.
-- **Predicates externos no consumer**: T-OS-044 (equipamento baixado), T-OS-050/054 (RT competência), T-OS-052 (UMC Lei 13.103).
-- **Fase 6**: Query services (T-OS-085..089 — visão 360, listagem, timeline).
-- **Fase 7**: Jobs procrastinate (T-OS-090..093 — watchdog cal-link, geo TTL).
-- **Fase 8**: ViewSets DRF (T-OS-094..104 — endpoint POST/GET + idempotency-key).
-- **Fase 9**: Hooks pré-commit novos (T-OS-105..107).
-- **Fase 10**: 13 testes regressão INV (T-OS-108..120).
+- **Fase 7 (T-OS-090..093)**: 4 jobs procrastinate (watchdog cal-link, geo TTL 5a, anonimização retry, SLA breach watcher).
+- **Fase 9 (T-OS-105..107)**: 3 hooks novos (migration-concorrencia-os, sync-merge-foto-appendonly, authz-check estendido).
+- **Fase 10 (T-OS-108..120)**: 13 testes regressão INV (1 por INV-OS).
+- **Predicates no consumer**: T-OS-044 (equipamento_baixado pré-use-case) + T-OS-050/054 (RT competência).
+- **P5 ritual Spec Kit M3 OS** (10 auditores Família 5) — gate de fechamento.
 
 ## Marcos anteriores fechados
 
@@ -40,4 +41,4 @@ F-A+F-B (ritual completo). M1 `clientes` (ADR-0021). M2 `equipamentos` 65 T-EQP 
 
 ## Pendências rastreadas
 
-70 GATEs Wave A (51 prévios + 9 M3 + 10 F-C1). T-OS-085..147 (Fases 6–10) restantes. Drift de PRD/spec após acumular Fase 5 será reconciliado no encerramento M3 OS.
+70 GATEs Wave A. T-OS-090..147 (Fases 7, 9, 10 + ritual P5) restantes. Drift de PRD/spec/AGENTS sobre Fase 5/6/8 acumulada será reconciliado no encerramento M3 OS.
