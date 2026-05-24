@@ -27,17 +27,20 @@
 | 6 | T-OS-085..088 query services: visao 360 + listagem + timeline + do_tecnico | `…` | 6/6 |
 | 8 | T-OS-094..099 ViewSets DRF: OS + Atividade + 11 endpoints + ACTION_MAP authz | `…` | 6/6 |
 
-## Fase 10 parcial (sessão 2026-05-24 noite)
+## Fase 10 (sessão 2026-05-24 noite)
 
-- 3 arquivos regressão entregues (`d5f1005`): INV-OS-ATIV-002 (cross-tenant), INV-OS-CONC-001 (constraint declarativo), INV-OS-FAT-001 (cancelamento + OS.EscopoAlterado). Cada arquivo: happy + unhappy + cross-tenant = 9/9 PASS.
-- **Suíte M3 chave consolidada: 46/46 PASS em 205s.**
+- 5 arquivos regressão entregues: INV-OS-ATIV-002 (cross-tenant), INV-OS-CONC-001 (constraint declarativo), INV-OS-FAT-001 (cancelamento + OS.EscopoAlterado), **INV-OS-SUC-001** (sucessão M&A — `7b7bbee`), **INV-OS-EQP-001** (equipamento baixado — `7b7bbee`). 15/15 testes regressão PASS.
+- **T-OS-044 entregue:** pre-check `Equipamento.status IN {sucata, extraviado}` no consumer `Orcamento.Aprovado` (`7b7bbee`).
+- **Fase 9 T-OS-105 entregue:** hook `migration-concorrencia-os-check.sh` (`4ef49e9`) — bloqueia migration que cria/remove `idx_atividade_em_execucao_por_equip` ou desativa RLS em `atividade_da_os`. +7 casos no `_test-runner.sh`.
+- **Hooks: 288 → 295 ok / 0 falhas.**
+- **Suíte M3 chave consolidada: 52/52 PASS em 181s.**
 
 ## Próximas fatias (restante M3)
 
 - **Fase 7 (T-OS-090..093)**: 4 jobs procrastinate (watchdog cal-link, geo TTL 5a, anonimização retry, SLA breach watcher).
-- **Fase 9 (T-OS-105..107)**: 3 hooks novos (migration-concorrencia-os, sync-merge-foto-appendonly, authz-check estendido).
-- **Fase 10 restante (T-OS-111..120)**: 10 testes regressão INV ainda — INV-OS-ATIV-001, ATIV-005, EQP-001, ANON-001, CAL-LINK-001, CONSBIO-001, ANAL-001, SUC-001, AUD-001, GEO-001, SYNC-001.
-- **Predicates no consumer**: T-OS-044 (equipamento_baixado pré-use-case) + T-OS-050/054 (RT competência).
+- **Fase 9 restante (T-OS-106/107)**: hook sync-merge-foto-appendonly (Wave A — sync mobile não existe) + authz-check estendido (`authz-check.sh` já vigilante; só precisa formalizar predicates M3).
+- **Fase 10 restante**: testes regressão para INV-OS-CONSBIO-001, ANAL-001, ATIV-001, ATIV-005, AUD-001, CAL-LINK-001, GEO-001, SYNC-001, ANON-001 (8 INVs).
+- **Predicates no consumer**: T-OS-050/054 (RT competência) — depende de `rt_competencia_cobre` (existe em `predicates_os.py`).
 - **P5 ritual Spec Kit M3 OS** (10 auditores Família 5) — gate de fechamento.
 
 ## Marcos anteriores fechados
