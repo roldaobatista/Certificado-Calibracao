@@ -184,12 +184,21 @@ class Command(BaseCommand):
     # Helpers
     # =================================================================
     def _abortar_se_nao_descartavel(self, flag: bool) -> None:
-        nome = connection.settings_dict.get("NAME") or ""
-        if flag or nome.startswith("test"):
+        # NAME do settings_dict eh o runtime alias (afere). Em pytest+MIRROR,
+        # o DB real conectado pode ser test_afere. Checa o nome REAL via
+        # connection.connection.info.dbname (psycopg) com fallback pro settings.
+        nome_settings = connection.settings_dict.get("NAME") or ""
+        nome_real = nome_settings
+        try:
+            if connection.connection is not None:
+                nome_real = connection.connection.info.dbname
+        except AttributeError:
+            pass
+        if flag or nome_real.startswith("test") or nome_settings.startswith("test"):
             return
         self.stdout.write(
             self.style.ERROR(
-                f"banco '{nome}' não parece descartável. "
+                f"banco '{nome_real}' não parece descartável. "
                 "Passe --em-banco-descartavel se for ambiente local efêmero."
             )
         )

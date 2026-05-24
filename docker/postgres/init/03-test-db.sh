@@ -16,11 +16,14 @@
 set -euo pipefail
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-    -- Criacao do banco de teste com OWNER=app_migrator.
-    -- OWNER eh quem ganha CREATE/CONNECT/TEMPORARY no banco; o runner
-    -- de testes (pytest-django) usa DATABASE_MIGRATOR_URL pra DDL, logo
-    -- consegue --keepdb (manter) ou drop+recreate apontando aqui.
-    SELECT 'CREATE DATABASE test_afere OWNER app_migrator'
+    -- Criacao do banco de teste com OWNER=app_user.
+    -- ATENCAO: app_user (NAO app_migrator) eh dono em TEST. Razao:
+    -- pytest-django itera aliases alfabeticamente; default (app_user)
+    -- vem antes de migrator. setup_databases() tenta DROP+CREATE via
+    -- default; sem OWNER pra app_user, falha com "must be owner".
+    -- Conserto 2026-05-24 — Task #8. Em PROD, migrator continua sendo
+    -- o role canonico pra DDL (init script 01-roles + base.py router).
+    SELECT 'CREATE DATABASE test_afere OWNER app_user'
     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'test_afere')
     \gexec
 
@@ -50,4 +53,4 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "test_afere" <<-EOS
         GRANT USAGE, SELECT ON SEQUENCES TO app_user;
 EOSQL
 
-echo "[init] banco test_afere criado (OWNER=app_migrator) + extensoes + grants."
+echo "[init] banco test_afere criado (OWNER=app_user em test; app_migrator em prod) + extensoes + grants."

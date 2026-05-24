@@ -9,7 +9,7 @@ Decisao 2026-05-18 noite, pos-review tech-lead US-EQP-003 (Redis no dev/prod;
 LocMem em test pra nao acoplar CI a container externo).
 """
 
-from .base import *
+from .base import *  # noqa: F403 -- overlay de settings com star import canonico
 
 # Sobrescreve cache Redis -> LocMem em testes.
 # Memoria `feedback_nao_declarar_pronto_sem_rodar`: testes precisam rodar isolados.
@@ -31,3 +31,11 @@ PASSWORD_HASHERS = [
 
 # DEBUG False em test pra forcar comportamento de producao em erros.
 DEBUG = False
+
+# =============================================================
+# REVERT 2026-05-24: MIRROR config causou pytest-django a escrever
+# em DEV `afere` em vez de test_afere (733 tenants vazaram). Sem MIRROR
+# por enquanto — config canonica em base.py basta (TEST.NAME='test_afere'
+# em ambos default e migrator). Owner do test_afere precisa ser app_user
+# pra pytest poder DROP+CREATE; ajuste em docker/postgres/init/03-test-db.sh.
+# =============================================================
