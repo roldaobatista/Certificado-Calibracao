@@ -27,11 +27,16 @@
 | 6 | T-OS-085..088 query services: visao 360 + listagem + timeline + do_tecnico | `…` | 6/6 |
 | 8 | T-OS-094..099 ViewSets DRF: OS + Atividade + 11 endpoints + ACTION_MAP authz | `…` | 6/6 |
 
+## Fase 10 parcial (sessão 2026-05-24 noite)
+
+- 3 arquivos regressão entregues (`d5f1005`): INV-OS-ATIV-002 (cross-tenant), INV-OS-CONC-001 (constraint declarativo), INV-OS-FAT-001 (cancelamento + OS.EscopoAlterado). Cada arquivo: happy + unhappy + cross-tenant = 9/9 PASS.
+- **Suíte M3 chave consolidada: 46/46 PASS em 205s.**
+
 ## Próximas fatias (restante M3)
 
 - **Fase 7 (T-OS-090..093)**: 4 jobs procrastinate (watchdog cal-link, geo TTL 5a, anonimização retry, SLA breach watcher).
 - **Fase 9 (T-OS-105..107)**: 3 hooks novos (migration-concorrencia-os, sync-merge-foto-appendonly, authz-check estendido).
-- **Fase 10 (T-OS-108..120)**: 13 testes regressão INV (1 por INV-OS).
+- **Fase 10 restante (T-OS-111..120)**: 10 testes regressão INV ainda — INV-OS-ATIV-001, ATIV-005, EQP-001, ANON-001, CAL-LINK-001, CONSBIO-001, ANAL-001, SUC-001, AUD-001, GEO-001, SYNC-001.
 - **Predicates no consumer**: T-OS-044 (equipamento_baixado pré-use-case) + T-OS-050/054 (RT competência).
 - **P5 ritual Spec Kit M3 OS** (10 auditores Família 5) — gate de fechamento.
 
