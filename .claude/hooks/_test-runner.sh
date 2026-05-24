@@ -409,5 +409,66 @@ run_case "MA8 tests/ ignora"                          PASS  mass-assignment-chec
 run_case "MA9 skip com motivo"                        PASS  mass-assignment-check.sh '{"tool_input":{"file_path":"src/infrastructure/admin_ops/serializers.py","content":"# mass-assignment: skip -- endpoint admin ops interno requer setar role manualmente\nclass AdminSerializer(serializers.ModelSerializer):\n    class Meta:\n        model = Usuario\n        fields = \"__all__\""}}'
 
 echo ""
+echo "===== idempotency-key-header-check (Onda 2 plano-v2 / IDEMP-001a) ====="
+
+# View POST em path critico sem leitura do header -> BLOCK
+run_case "IK1 view POST OS sem header"                BLOCK idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/views.py","content":"class OSViewSet(viewsets.ModelViewSet):\n    def create(self, request, *args, **kwargs):\n        return Response({\"id\": 1})"}}'
+
+# View POST em path critico COM leitura do header -> PASS
+run_case "IK2 view POST com header.get OK"            PASS  idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/views.py","content":"class OSViewSet(viewsets.ModelViewSet):\n    def create(self, request, *args, **kwargs):\n        key = request.headers.get(\"Idempotency-Key\")\n        if not key:\n            return Response(status=400)"}}'
+
+# View POST com META.HTTP_IDEMPOTENCY_KEY OK
+run_case "IK3 META HTTP_IDEMPOTENCY_KEY OK"           PASS  idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/financeiro/views.py","content":"class PagamentoView(APIView):\n    def post(self, request):\n        key = request.META.get(\"HTTP_IDEMPOTENCY_KEY\")"}}'
+
+# View POST com decorator @idempotente OK
+run_case "IK4 decorator @idempotente OK"              PASS  idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/certificados/views.py","content":"@idempotente\ndef post(self, request):\n    pass"}}'
+
+# View POST com Mixin IdempotencyMixin OK
+run_case "IK5 Mixin IdempotencyMixin OK"              PASS  idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/contas_receber/views.py","content":"class CobrancaView(IdempotencyMixin, APIView):\n    def post(self, request):\n        pass"}}'
+
+# View POST em path nao critico -> PASS (ignora)
+run_case "IK6 path nao critico ignora"                PASS  idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","content":"def create(self, request, *args, **kwargs):\n    return Response()"}}'
+
+# tests/ ignora
+run_case "IK7 tests/ ignora"                          PASS  idempotency-key-header-check.sh '{"tool_input":{"file_path":"tests/test_os.py","content":"class TestView:\n    def create(self): pass"}}'
+
+# Sem view POST -> PASS (so GET)
+run_case "IK8 so GET em path critico OK"              PASS  idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/views.py","content":"class OSListView(generics.ListAPIView):\n    queryset = OS.objects.all()"}}'
+
+# Allow inline
+run_case "IK9 skip com motivo"                        PASS  idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/views.py","content":"# idempotency-key: skip -- endpoint internal admin sync sem replay risk\nclass OSSyncView(APIView):\n    def post(self, request): pass"}}'
+
+echo ""
+echo "===== arquivo-tamanho-aviso (Onda 2 plano-v2 / rede seguranca god-modules) ====="
+
+# Helper pra gerar conteudo com N linhas
+gen_n_linhas() { python3 -c "print('\n'.join(['x = 1'] * $1))" 2>/dev/null || awk 'BEGIN { for(i=0;i<'"$1"';i++) print "x = 1" }'; }
+
+# Arquivo pequeno -> PASS sem aviso
+run_case "AT1 arquivo pequeno OK"                     PASS  arquivo-tamanho-aviso.sh '{"tool_input":{"file_path":"src/infrastructure/foo/models.py","content":"x = 1"}}'
+
+# Arquivo > 1500 linhas em path coberto -> BLOCK
+conteudo_1600=$(gen_n_linhas 1600)
+run_case "AT2 arquivo 1600 linhas BLOCK"              BLOCK arquivo-tamanho-aviso.sh "{\"tool_input\":{\"file_path\":\"src/infrastructure/foo/models.py\",\"content\":\"$(printf '%s' "$conteudo_1600" | sed 's/$/\\n/' | tr -d '\n' | sed 's/\\n$//')\"}}"
+
+# Arquivo entre 600 e 1500 linhas -> PASS (so aviso)
+conteudo_800=$(gen_n_linhas 800)
+run_case "AT3 arquivo 800 linhas AVISO mas PASS"      PASS  arquivo-tamanho-aviso.sh "{\"tool_input\":{\"file_path\":\"src/infrastructure/foo/models.py\",\"content\":\"$(printf '%s' "$conteudo_800" | sed 's/$/\\n/' | tr -d '\n' | sed 's/\\n$//')\"}}"
+
+# Arquivo gigante com skip -> PASS
+conteudo_2000_skip=$(printf '# arquivo-tamanho: skip -- god-module DEFERIDO pos-Marco 3 Fase 5 ver god-modules-deferral.md\n'; gen_n_linhas 2000)
+run_case "AT4 god-module com skip valido"             PASS  arquivo-tamanho-aviso.sh "{\"tool_input\":{\"file_path\":\"src/infrastructure/equipamentos/models.py\",\"content\":\"$(printf '%s' "$conteudo_2000_skip" | sed 's/$/\\n/' | tr -d '\n' | sed 's/\\n$//')\"}}"
+
+# Arquivo fora de paths cobertos -> PASS
+conteudo_2000=$(gen_n_linhas 2000)
+run_case "AT5 arquivo grande fora de path PASS"       PASS  arquivo-tamanho-aviso.sh "{\"tool_input\":{\"file_path\":\"docs/foo.md\",\"content\":\"$(printf '%s' "$conteudo_2000" | sed 's/$/\\n/' | tr -d '\n' | sed 's/\\n$//')\"}}"
+
+# tests/ ignora
+run_case "AT6 tests/ ignora"                          PASS  arquivo-tamanho-aviso.sh "{\"tool_input\":{\"file_path\":\"tests/test_x.py\",\"content\":\"$(printf '%s' "$conteudo_2000" | sed 's/$/\\n/' | tr -d '\n' | sed 's/\\n$//')\"}}"
+
+# views.py tambem coberto
+run_case "AT7 views.py 1600L BLOCK"                   BLOCK arquivo-tamanho-aviso.sh "{\"tool_input\":{\"file_path\":\"src/infrastructure/foo/views.py\",\"content\":\"$(printf '%s' "$conteudo_1600" | sed 's/$/\\n/' | tr -d '\n' | sed 's/\\n$//')\"}}"
+
+echo ""
 echo "===== resumo: $pass ok, $fail falhas ====="
 exit $fail
