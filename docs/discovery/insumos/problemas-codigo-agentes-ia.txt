@@ -1,0 +1,1292 @@
+os principais problemas que podem existir em código feito por agentes de IA
+
+1. Secrets expostos no código.
+
+2. API keys hardcoded.
+
+3. Tokens hardcoded.
+
+4. Senhas em plaintext.
+
+5. Credenciais commitadas em arquivos versionados.
+
+6. Arquivos `.env` enviados para o repositório.
+
+7. `.env` ausente no `.gitignore`.
+
+8. Ausência de `.env.example` seguro.
+
+9. Valores reais em `.env.example`.
+
+10. Senhas hardcoded em `docker-compose.yml`.
+
+11. Connection strings expostas.
+
+12. Secrets em logs.
+
+13. Secrets em mensagens de erro.
+
+14. Chaves privadas usando prefixos públicos como `NEXT_PUBLIC_` ou `VITE_`.
+
+15. Chamadas para OpenAI, Anthropic ou outras APIs feitas diretamente do frontend.
+
+16. Falta de proxy/backend para proteger chaves de APIs externas.
+
+17. Histórico do Git não escaneado com ferramentas como `trufflehog` ou `gitleaks`.
+
+18. Rotas sem autenticação.
+
+19. Middleware de autenticação ausente.
+
+20. Autenticação aplicada de forma inconsistente.
+
+21. JWT mal validado.
+
+22. JWT aceito sem verificação de assinatura.
+
+23. JWT confiando apenas em dados legíveis no client.
+
+24. Token sensível armazenado em `localStorage` quando deveria usar cookie `HttpOnly`.
+
+25. Session fixation.
+
+26. Reutilização insegura de sessão ou token.
+
+27. Falta de expiração adequada de sessão.
+
+28. Falta de revogação de sessão.
+
+29. Webhooks sem verificação de assinatura.
+
+30. Login sem proteção contra brute force.
+
+31. Falta de rate limit em endpoints de autenticação.
+
+32. Falta de autorização em API routes.
+
+33. Rotas autenticadas, mas sem verificação de permissão.
+
+34. Usuário comum acessando recurso de admin.
+
+35. Privilege escalation.
+
+36. Roles de admin hardcoded no código.
+
+37. Roles de admin controladas pelo frontend.
+
+38. Backend não validando permissões.
+
+39. Lógica crítica dependendo de esconder botão ou tela no frontend.
+
+40. Falha ao verificar ownership antes de ler, alterar ou deletar recurso.
+
+41. IDOR, isto é, acesso indevido por ID previsível ou não autorizado.
+
+42. Permissões inconsistentes entre endpoints.
+
+43. Permissões inconsistentes entre frontend, backend e banco.
+
+44. Falta de isolamento entre usuários.
+
+45. Falta de isolamento entre tenants.
+
+46. Queries sem filtro por usuário.
+
+47. Queries sem filtro por tenant.
+
+48. Vazamento de dados entre contas.
+
+49. Um cliente acessando dados de outro cliente.
+
+50. Falta de Row Level Security, RLS.
+
+51. RLS desabilitado em tabelas sensíveis.
+
+52. Políticas de RLS ausentes.
+
+53. Políticas de RLS incorretas.
+
+54. Cache compartilhado vazando dados entre usuários.
+
+55. Cache sem chave por usuário/tenant.
+
+56. IDs públicos sequenciais em vez de UUIDs.
+
+57. Dados multi-tenant misturados no mesmo fluxo sem validação forte.
+
+58. SQL injection.
+
+59. Query SQL montada por concatenação de string.
+
+60. Input de usuário usado diretamente em query.
+
+61. Falta de queries parametrizadas.
+
+62. Uso inseguro de ORM.
+
+63. Filtro dinâmico de query sem whitelist.
+
+64. Ordenação, paginação ou busca controlada pelo usuário sem validação.
+
+65. XSS.
+
+66. Uso de `innerHTML` com conteúdo não sanitizado.
+
+67. Uso inseguro de `dangerouslySetInnerHTML`.
+
+68. Falta de sanitização de HTML.
+
+69. CSP ausente.
+
+70. CSP mal configurada.
+
+71. Renderização de markdown ou HTML gerado por IA sem sanitização.
+
+72. CSRF.
+
+73. Mutações sem token CSRF.
+
+74. Cookies sem configuração adequada de `SameSite`.
+
+75. Endpoints sensíveis aceitando requisições cross-site.
+
+76. CORS permissivo.
+
+77. `Access-Control-Allow-Origin: *` em endpoint sensível.
+
+78. `allow-credentials` usado de forma insegura.
+
+79. Origem não validada corretamente.
+
+80. API acessível por domínios não autorizados.
+
+81. SSRF.
+
+82. `fetch` ou request para URL controlada pelo usuário.
+
+83. Falta de allowlist para URLs externas.
+
+84. Serviços internos expostos via requisição server-side.
+
+85. Path traversal.
+
+86. Uso de `../` em path vindo do usuário.
+
+87. Leitura ou escrita de arquivos fora do diretório esperado.
+
+88. Falta de normalização e validação de caminhos.
+
+89. Command injection.
+
+90. Uso de `exec`, `spawn` ou shell com string montada dinamicamente.
+
+91. Argumentos de comando vindos do usuário sem escaping ou validação.
+
+92. Execução de comandos desnecessária em vez de APIs seguras.
+
+93. Insecure deserialization.
+
+94. Desserialização de payload não confiável.
+
+95. Uso inseguro de pickle, eval-like parsers ou formatos executáveis.
+
+96. Execução implícita de código durante parsing.
+
+97. XXE.
+
+98. Parsing XML inseguro.
+
+99. Entidades externas XML habilitadas.
+
+100. Leitura indevida de arquivos ou recursos internos via XML.
+
+101. Open redirect.
+
+102. Redirecionamento para URL controlada pelo usuário.
+
+103. Falta de allowlist para URLs de retorno.
+
+104. Callback OAuth validado de forma fraca.
+
+105. Prompt injection.
+
+106. Input do usuário concatenado em system prompt.
+
+107. Dados externos tratados como instruções confiáveis.
+
+108. Ferramentas de agente chamadas com argumentos manipuláveis pelo usuário.
+
+109. Falta de separação entre dados, instruções e políticas.
+
+110. Agente com permissões excessivas.
+
+111. Agente executando ações sem validação humana quando deveria haver aprovação.
+
+112. Agente alterando arquivos fora do escopo.
+
+113. Agente apagando código útil por interpretação incorreta.
+
+114. Agente criando soluções que parecem corretas, mas violam requisitos.
+
+115. Agente inventando APIs, métodos, schemas ou arquivos inexistentes.
+
+116. Agente mascarando incerteza com código plausível.
+
+117. Agente implementando workaround frágil em vez de corrigir causa raiz.
+
+118. Input do usuário sem validação.
+
+119. Ausência de validação com schema, como Zod, Pydantic ou Joi.
+
+120. Backend aceitando campos arbitrários enviados pelo client.
+
+121. Mass assignment.
+
+122. Usuário podendo alterar campos como `role`, `isAdmin`, `credits` ou `verified`.
+
+123. Falta de validação em boundaries.
+
+124. Falta de validação de respostas de APIs externas.
+
+125. Falta de validação de payloads de webhooks.
+
+126. Falta de validação de tipos em runtime.
+
+127. Confiança excessiva em tipagem estática.
+
+128. Upload de arquivos inseguro.
+
+129. Upload sem validação de tipo real.
+
+130. Upload validando apenas extensão.
+
+131. Upload sem limite de tamanho.
+
+132. Nome de arquivo controlado pelo usuário.
+
+133. Arquivos salvos dentro do código da aplicação.
+
+134. Upload irrestrito de HTML.
+
+135. Upload irrestrito de JavaScript.
+
+136. Upload irrestrito de PHP ou executáveis.
+
+137. Falta de antivírus ou varredura quando aplicável.
+
+138. Falta de isolamento entre arquivos de usuários diferentes.
+
+139. Falta de rate limiting.
+
+140. Rate limit ausente em endpoints caros.
+
+141. Rate limit ausente em APIs de IA.
+
+142. Rate limit ausente em criação de conta.
+
+143. Rate limit ausente em envio de e-mail.
+
+144. Rate limit ausente em uploads.
+
+145. Risco de estouro de custo por abuso de APIs pagas.
+
+146. Retry agressivo causando tempestade de requisições.
+
+147. Lógica incorreta.
+
+148. Código que compila, mas faz a coisa errada.
+
+149. Código que passa nos testes, mas viola regra de negócio.
+
+150. Requisitos interpretados de forma errada pelo agente.
+
+151. Condições de borda ignoradas.
+
+152. Fluxos alternativos ignorados.
+
+153. Tratamento incorreto de valores nulos.
+
+154. Tratamento incorreto de listas vazias.
+
+155. Tratamento incorreto de datas, timezones ou moedas.
+
+156. Comparações frágeis de string.
+
+157. Arredondamento financeiro incorreto.
+
+158. Validação feita no lugar errado.
+
+159. Regra de negócio duplicada e divergente.
+
+160. Estado global usado indevidamente.
+
+161. Ordem de execução incorreta.
+
+162. Código dependente de timing implícito.
+
+163. Race conditions.
+
+164. TOCTOU, isto é, check-then-act sem lock/transação.
+
+165. Operações concorrentes sobrescrevendo dados.
+
+166. Falta de transação em operação composta.
+
+167. Falta de idempotência em endpoints críticos.
+
+168. Retry inseguro em operação não idempotente.
+
+169. Processamento duplicado de webhooks.
+
+170. Jobs concorrentes sem lock.
+
+171. Escritas parciais sem rollback.
+
+172. Error handling ruim.
+
+173. `catch` vazio.
+
+174. Exceções engolidas silenciosamente.
+
+175. Bugs silenciosos.
+
+176. Erros genéricos demais para depuração.
+
+177. Erros detalhados demais em produção.
+
+178. Stack trace exposto em produção.
+
+179. Mensagens vazando estrutura do banco.
+
+180. Mensagens vazando paths internos.
+
+181. Mensagens vazando tokens ou variáveis.
+
+182. Falta de fallback seguro.
+
+183. Falha em diferenciar erro esperado de erro crítico.
+
+184. Logs inseguros.
+
+185. Logs sensíveis no console do browser.
+
+186. Logs de produção com dados pessoais.
+
+187. Logs de produção com tokens.
+
+188. Logs de produção com payloads completos.
+
+189. Falta de redaction em logs.
+
+190. Falta de ferramenta adequada de observabilidade.
+
+191. Ausência de correlação entre logs e requests.
+
+192. Logs insuficientes para investigar incidente.
+
+193. Blocking calls no event loop.
+
+194. Código síncrono pesado em servidor assíncrono.
+
+195. I/O bloqueante em rota crítica.
+
+196. Falta de timeout em chamadas externas.
+
+197. Falta de circuit breaker.
+
+198. Falta de backoff em retry.
+
+199. Falta de cancelamento de operação longa.
+
+200. Uso ineficiente de memória.
+
+201. Queries N+1.
+
+202. Paginação ausente.
+
+203. Carregamento excessivo de dados.
+
+204. Processamento em memória quando deveria ser streaming.
+
+205. Código duplicado.
+
+206. Funções repetidas.
+
+207. Lógicas duplicadas em arquivos diferentes.
+
+208. Validações recriadas desnecessariamente.
+
+209. Sanitização replicada com versões divergentes.
+
+210. Lógica de segurança duplicada.
+
+211. DRY violation em auth.
+
+212. DRY violation em crypto.
+
+213. Boilerplate replicado entre handlers.
+
+214. Duplicação gerando drift de comportamento.
+
+215. Código morto.
+
+216. Branches inalcançáveis.
+
+217. Funções não usadas.
+
+218. Arquivos obsoletos mantidos no projeto.
+
+219. TODOs críticos esquecidos.
+
+220. FIXME em código sensível.
+
+221. Código experimental deixado em produção.
+
+222. Feature flags antigas sem remoção.
+
+223. Código comentado acumulado.
+
+224. Código morto escondendo backdoor ou comportamento perigoso.
+
+225. Tipagem ignorada.
+
+226. Uso excessivo de `any`.
+
+227. Type hints ausentes em código sensível.
+
+228. Supressões como `eslint-disable` em código crítico.
+
+229. Supressões como `ts-ignore` sem justificativa.
+
+230. Tipos incompatíveis mascarados por casts.
+
+231. Tipos gerados desatualizados em relação ao schema real.
+
+232. Padrões de código misturados.
+
+233. Estrutura inconsistente entre módulos.
+
+234. Arquivos grandes demais.
+
+235. Funções grandes demais.
+
+236. Classes grandes demais.
+
+237. God objects.
+
+238. Módulo acumulando responsabilidades demais.
+
+239. Interface inchada.
+
+240. Muitos métodos públicos expondo detalhe interno.
+
+241. Módulos shallow, cuja interface é quase tão complexa quanto a implementação.
+
+242. Pass-throughs sem valor real.
+
+243. Módulos que falham no deletion test.
+
+244. Código difícil de manter.
+
+245. Baixa coesão.
+
+246. Alto acoplamento.
+
+247. Responsabilidades mal separadas.
+
+248. Seams no lugar errado.
+
+249. Testar um componente força subir dependências desnecessárias.
+
+250. Seam ausente onde deveria existir fronteira de variação ou teste.
+
+251. Seam hipotético criado sem necessidade real.
+
+252. Porta criada com apenas um adapter.
+
+253. Over-engineering arquitetural.
+
+254. Adapter criado sem justificativa.
+
+255. Acoplamento direto a dependência concreta.
+
+256. Dependência externa chamada diretamente no domínio.
+
+257. Falta de Ports & Adapters onde a dependência exige isolamento.
+
+258. Dependência mal classificada.
+
+259. Dependência in-process tratada como externa.
+
+260. Dependência remota própria sem porta/adaptador.
+
+261. Dependência externa real testada como se fosse local.
+
+262. Estratégia de teste errada para o tipo de dependência.
+
+263. Mock excessivo em dependência que poderia ser local-substituível.
+
+264. Falta de mock em serviço verdadeiramente externo.
+
+265. Teste dependente de Stripe, Twilio ou serviço real sem necessidade.
+
+266. Teste dependente de rede externa.
+
+267. Teste frágil por ambiente.
+
+268. Falta de testes.
+
+269. Testes superficiais.
+
+270. Testes gerados por IA que apenas confirmam a implementação.
+
+271. Testes sem assertions úteis.
+
+272. Testes que mockam tudo e não validam comportamento real.
+
+273. Testes que passam mesmo com bug.
+
+274. Falta de testes de autorização.
+
+275. Falta de testes de isolamento multi-tenant.
+
+276. Falta de testes de erro.
+
+277. Falta de testes de concorrência.
+
+278. Falta de testes de regressão.
+
+279. Falta de testes de integração.
+
+280. Falta de testes end-to-end para fluxos críticos.
+
+281. Testes lentos demais.
+
+282. Testes não determinísticos.
+
+283. Fixtures inconsistentes.
+
+284. Dados de teste parecidos demais com happy path.
+
+285. Conhecimento espalhado.
+
+286. Mesma regra exigindo alteração em muitos arquivos.
+
+287. Falta de locality.
+
+288. Bug pequeno exigindo mudança em vários call sites.
+
+289. Conceitos de domínio duplicados.
+
+290. Regras de negócio espalhadas por controllers, services e frontend.
+
+291. Falta de fonte única da verdade.
+
+292. Configuração duplicada.
+
+293. Constantes mágicas espalhadas.
+
+294. Strings mágicas espalhadas.
+
+295. Vocabulário inconsistente.
+
+296. Mesmo conceito com nomes diferentes.
+
+297. Termos sobrecarregados.
+
+298. Nome como `boundary`, `handler`, `service` ou `manager` significando coisas diferentes.
+
+299. Nomes genéricos demais.
+
+300. Nomes enganosos.
+
+301. Nomes que refletem implementação antiga.
+
+302. Domínio mal modelado.
+
+303. Entidades confundidas com DTOs.
+
+304. Objetos de banco vazando para camadas erradas.
+
+305. Bifurcação de roteamento.
+
+306. `if/else` por tipo espalhado em vários lugares.
+
+307. Switches duplicados.
+
+308. Falta de polimorfismo ou registry quando faria sentido.
+
+309. Factory mal projetada.
+
+310. Dispatch implícito difícil de rastrear.
+
+311. Configuração insegura.
+
+312. Ambiente de desenvolvimento usado em produção.
+
+313. Debug habilitado em produção.
+
+314. Flags perigosas ligadas por padrão.
+
+315. Permissões excessivas em buckets, filas ou banco.
+
+316. Credenciais com escopo amplo demais.
+
+317. Falta de princípio do menor privilégio.
+
+318. Configuração divergente entre staging e produção.
+
+319. Variáveis obrigatórias sem validação na inicialização.
+
+320. Dependências vulneráveis.
+
+321. Pacotes desatualizados.
+
+322. Pacotes abandonados.
+
+323. Pacotes adicionados sem necessidade.
+
+324. Supply chain risk.
+
+325. Dependência com licença incompatível.
+
+326. Dependência pesada para tarefa simples.
+
+327. Dependência usada de forma insegura.
+
+328. Lockfile ausente ou inconsistente.
+
+329. Scripts de instalação perigosos ignorados.
+
+330. Criptografia incorreta.
+
+331. Hash inseguro para senha.
+
+332. Falta de salt.
+
+333. Uso de algoritmo obsoleto.
+
+334. Criptografia caseira.
+
+335. Chaves criptográficas hardcoded.
+
+336. IV/nonce reutilizado.
+
+337. Comparação insegura de segredo sem constant-time compare.
+
+338. Dados sensíveis salvos sem criptografia quando necessário.
+
+339. Privacidade e dados pessoais mal tratados.
+
+340. PII armazenada sem necessidade.
+
+341. PII exposta em logs.
+
+342. PII enviada para ferramenta externa sem controle.
+
+343. Dados sensíveis enviados para modelo de IA indevidamente.
+
+344. Falta de minimização de dados.
+
+345. Falta de retenção/expurgo.
+
+346. Falta de consentimento ou base legal quando aplicável.
+
+347. Problemas específicos de agentes de IA.
+
+348. Alterações grandes demais em um único commit.
+
+349. Refatoração não solicitada.
+
+350. Mudança de arquitetura sem necessidade.
+
+351. Correção local criando inconsistência global.
+
+352. Agente não entende invariantes do sistema.
+
+353. Agente remove validação achando que é redundante.
+
+354. Agente duplica implementação existente em vez de reutilizar.
+
+355. Agente cria abstração prematura.
+
+356. Agente cria nomes plausíveis, mas fora do padrão do projeto.
+
+357. Agente não atualiza documentação.
+
+358. Agente não atualiza testes.
+
+359. Agente não atualiza migrations.
+
+360. Agente não atualiza tipos gerados.
+
+361. Agente não atualiza exemplos ou scripts.
+
+362. Agente corrige sintoma, não causa raiz.
+
+363. Agente introduz dependência nova sem avaliar impacto.
+
+364. Agente ignora convenções locais do repositório.
+
+365. Agente mistura estilos de frameworks.
+
+366. Agente escreve código “bonito”, mas incompatível com produção.
+
+367. Agente passa no lint, mas quebra fluxo real.
+
+368. Agente introduz comportamento não especificado.
+
+369. Agente altera contrato público sem versionamento.
+
+370. Agente quebra compatibilidade com dados antigos.
+
+371. Problemas de banco de dados.
+
+372. Migration ausente.
+
+373. Migration destrutiva sem plano de rollback.
+
+374. Migration não idempotente.
+
+375. Schema divergente dos tipos da aplicação.
+
+376. Índices ausentes.
+
+377. Índices excessivos.
+
+378. Constraint ausente.
+
+379. Constraint errada.
+
+380. Falta de foreign key quando necessária.
+
+381. Cascade delete perigoso.
+
+382. Transação ausente.
+
+383. Deadlock não tratado.
+
+384. Query lenta em produção.
+
+385. Falta de paginação em consulta grande.
+
+386. Dados órfãos.
+
+387. Seed inseguro ou com dados reais.
+
+388. Problemas de API.
+
+389. Contrato de API inconsistente.
+
+390. Status codes incorretos.
+
+391. Erros sem formato padronizado.
+
+392. Versionamento ausente.
+
+393. Breaking change silencioso.
+
+394. Falta de validação de payload.
+
+395. Falta de limite de payload.
+
+396. Falta de idempotency key em operações críticas.
+
+397. Falta de timeout.
+
+398. Falta de paginação.
+
+399. Falta de ordenação determinística.
+
+400. Falta de documentação de endpoint.
+
+401. Problemas de frontend.
+
+402. Estado inconsistente.
+
+403. Loading state ausente.
+
+404. Error state ausente.
+
+405. Empty state ausente.
+
+406. Dados sensíveis no bundle.
+
+407. Regra crítica só no frontend.
+
+408. Validação só no frontend.
+
+409. Tela exibindo dados antes da autorização real.
+
+410. XSS por renderização insegura.
+
+411. Componentes grandes demais.
+
+412. Hooks com responsabilidades demais.
+
+413. Fetch duplicado.
+
+414. Race condition entre requests.
+
+415. UI aceitando ação duplicada por duplo clique.
+
+416. Falta de acessibilidade.
+
+417. Falta de tratamento responsivo.
+
+418. Performance ruim por renderizações desnecessárias.
+
+419. Problemas de backend.
+
+420. Controller com regra de negócio demais.
+
+421. Service genérico demais.
+
+422. Repository vazando detalhes de banco.
+
+423. Falta de separação entre camadas.
+
+424. Jobs sem retry seguro.
+
+425. Filas sem dead-letter queue.
+
+426. Falta de observabilidade.
+
+427. Falta de health check.
+
+428. Falta de graceful shutdown.
+
+429. Falta de controle de concorrência.
+
+430. Falta de timeout para dependências externas.
+
+431. Problemas de deploy.
+
+432. Build não reprodutível.
+
+433. Ambiente de produção sem variáveis obrigatórias.
+
+434. Secrets de produção misturados com staging.
+
+435. Pipeline sem testes obrigatórios.
+
+436. Pipeline sem scanner de secrets.
+
+437. Pipeline sem scanner de dependências.
+
+438. Pipeline sem lint/typecheck.
+
+439. Deploy sem rollback.
+
+440. Deploy sem migração coordenada.
+
+441. Deploy quebrando compatibilidade entre frontend e backend.
+
+442. Cache/CDN servindo versão incompatível.
+
+443. Configuração de produção diferente da testada.
+
+444. Problemas de documentação.
+
+445. README desatualizado.
+
+446. Documentação contradizendo o código.
+
+447. Setup local incompleto.
+
+448. Variáveis de ambiente não documentadas.
+
+449. Decisões arquiteturais não registradas.
+
+450. Endpoints não documentados.
+
+451. Fluxos críticos não documentados.
+
+452. Scripts sem explicação.
+
+453. Comentários explicando comportamento antigo.
+
+454. Comentários enganosos gerados por IA.
+
+455. Problemas de validação de achados.
+
+456. Falsos positivos aceitos sem checagem.
+
+457. Severidade exagerada.
+
+458. Finding real marcado como irrelevante.
+
+459. Correção aplicada sem reproduzir o bug.
+
+460. Correção aplicada sem teste de regressão.
+
+461. Auditoria sem verificar o código real.
+
+462. Relatórios duplicados entre agentes.
+
+463. Achados equivalentes não deduplicados.
+
+464. Overengineering causado por recomendações automáticas.
+
+465. Correções geradas sem nova rodada de auditoria/testes.
+
+466. Problemas de governança do agente.
+
+467. Falta de escopo claro para o agente.
+
+468. Falta de limite de arquivos que o agente pode alterar.
+
+469. Falta de revisão humana em mudanças críticas.
+
+470. Falta de política para secrets, auth, banco e deploy.
+
+471. Falta de checklist antes de merge.
+
+472. Falta de branch isolada para alterações do agente.
+
+473. Falta de diff review.
+
+474. Falta de ownership claro do código gerado.
+
+475. Falta de rastreabilidade entre requisito, alteração e teste.
+
+Essa lista cobre segurança, arquitetura, testes, lógica, deploy, manutenção e riscos específicos de agentes de IA.
+
+Sim. A lista anterior ficou bem ampla, mas ainda dá para acrescentar alguns blocos importantes. Eu incluiria estes itens extras:
+
+1. **Licenciamento e compliance de dependências**
+
+   * Uso de bibliotecas com licença incompatível.
+   * Código copiado de exemplos sem checar licença.
+   * Dependências com obrigações de atribuição ignoradas.
+   * Uso de pacote comercial sem direito de uso.
+   * Dependência GPL/AGPL introduzida sem avaliação jurídica.
+   * Arquivo `LICENSE` ausente ou incompatível com o produto.
+
+2. **Compatibilidade e versionamento**
+
+   * Breaking changes sem migração.
+   * API pública alterada sem versionamento.
+   * SDK ou client antigo quebrado por mudança no backend.
+   * Contratos GraphQL/REST alterados sem aviso.
+   * Mudança de schema sem compatibilidade retroativa.
+   * Feature nova quebrando dados antigos.
+   * Falta de estratégia blue-green, canary ou rollback.
+
+3. **Migração e evolução de dados**
+
+   * Migration sem plano de rollback.
+   * Migration que bloqueia tabela grande em produção.
+   * Migration que apaga dados.
+   * Migration que assume dados limpos, mas produção tem inconsistências.
+   * Backfill sem batch.
+   * Backfill sem checkpoint.
+   * Backfill sem idempotência.
+   * Migration incompatível com múltiplas versões da aplicação rodando ao mesmo tempo.
+
+4. **Integridade financeira**
+
+   * Cálculo monetário usando `float`.
+   * Arredondamento inconsistente.
+   * Moedas tratadas como número genérico.
+   * Falta de controle de casas decimais.
+   * Falta de ledger/auditoria em movimentações.
+   * Créditos, saldo ou cobrança atualizados sem transação.
+   * Reembolso, chargeback ou cancelamento sem fluxo consistente.
+   * Operações financeiras sem idempotency key.
+
+5. **Internacionalização e localização**
+
+   * Datas sem timezone explícito.
+   * Comparação de datas usando timezone local do servidor.
+   * Formatos de data fixos em uma região.
+   * Moeda hardcoded.
+   * Texto hardcoded em uma língua.
+   * Ordenação alfabética incorreta para idiomas diferentes.
+   * Falta de suporte a acentos, Unicode e normalização.
+   * Bugs com nomes, endereços e documentos internacionais.
+
+6. **Acessibilidade**
+
+   * Botões sem label acessível.
+   * Inputs sem `label`.
+   * Navegação por teclado quebrada.
+   * Contraste insuficiente.
+   * Foco visual ausente.
+   * Modais sem trap de foco.
+   * Erros de formulário não anunciados para leitores de tela.
+   * Uso incorreto de ARIA.
+   * Componentes clicáveis que não são botões reais.
+
+7. **SEO e metadata**
+
+   * Falta de title/description.
+   * Canonical ausente.
+   * Páginas indexáveis expondo conteúdo que não deveria.
+   * Páginas públicas marcadas como `noindex` por engano.
+   * Open Graph incorreto.
+   * Sitemap ausente ou desatualizado.
+   * Conteúdo renderizado só no client quando precisa ser indexável.
+   * Redirecionamentos quebrados.
+
+8. **Cache e invalidação**
+
+   * Cache sem chave por usuário.
+   * Cache servindo dados antigos.
+   * Invalidação ausente após update/delete.
+   * Cache de resposta autenticada tratado como público.
+   * CDN cacheando página privada.
+   * `stale-while-revalidate` causando inconsistência crítica.
+   * Cache local divergente do servidor.
+   * Race condition entre mutação e refetch.
+
+9. **Observabilidade avançada**
+
+   * Falta de tracing distribuído.
+   * Falta de métricas de negócio.
+   * Falta de métricas técnicas por endpoint.
+   * Falta de alertas acionáveis.
+   * Alertas ruidosos demais.
+   * Alertas que não disparam em falhas reais.
+   * Falta de dashboards para SLO/SLA.
+   * Falta de correlação entre request, job, webhook e log.
+
+10. **Resiliência operacional**
+
+* Falta de graceful shutdown.
+* Jobs interrompidos sem retomada.
+* Falta de dead-letter queue.
+* Falta de retry com backoff.
+* Retry infinito.
+* Retry duplicando cobrança, e-mail ou webhook.
+* Falta de circuit breaker.
+* Falta de bulkhead/isolation entre serviços.
+* Dependência externa derrubando o sistema inteiro.
+
+11. **Filas, workers e jobs**
+
+* Job não idempotente.
+* Job sem lock.
+* Job processado duas vezes.
+* Job perdido sem alerta.
+* Fila sem limite.
+* Worker sem controle de concorrência.
+* Worker processando payload inválido.
+* Falta de DLQ.
+* Falta de reprocessamento seguro.
+
+12. **E-mail e notificações**
+
+* Envio duplicado de e-mails.
+* Template com dados errados.
+* Link mágico sem expiração.
+* Link mágico reutilizável.
+* Token de unsubscribe inseguro.
+* Falta de opt-out.
+* Falta de controle de bounce.
+* Falta de rate limit de envio.
+* E-mails transacionais misturados com marketing.
+
+13. **Webhooks**
+
+* Falta de validação de assinatura.
+* Falta de tolerância a reenvio.
+* Falta de idempotência por event ID.
+* Evento processado fora de ordem.
+* Evento antigo sobrescrevendo estado novo.
+* Webhook aceitando payload incompleto.
+* Webhook sem log/auditoria.
+* Webhook retornando erro temporário indevido.
+
+14. **IA/LLM em produção**
+
+* Prompt injection indireta via documentos, sites ou e-mails.
+* Tool calling sem política de autorização.
+* Agente chamando ferramenta destrutiva sem aprovação.
+* Modelo recebendo PII desnecessária.
+* Falta de redaction antes de enviar dados ao modelo.
+* Falta de logging seguro de prompts/respostas.
+* Falta de avaliação offline de qualidade.
+* Falta de testes contra jailbreak/prompt injection.
+* Falta de limites de custo por usuário.
+* Falta de fallback quando o modelo falha.
+* Resposta de IA usada como verdade sem validação.
+* RAG retornando documento errado.
+* Embeddings ou chunks vazando dados entre tenants.
+* Vector DB sem isolamento por tenant.
+* Agente executando código gerado sem sandbox.
+
+15. **Sandboxing e execução de código**
+
+* Execução de código arbitrário sem isolamento.
+* Sandbox com acesso à rede sem necessidade.
+* Sandbox com acesso ao filesystem real.
+* Timeout ausente.
+* Limite de memória ausente.
+* Processo filho não encerrado.
+* Dependência de ambiente local não reprodutível.
+* Código gerado podendo ler secrets do host.
+
+16. **Supply chain e CI/CD**
+
+* Pipeline executando scripts de PR externo com secrets.
+* CI expondo variáveis sensíveis em logs.
+* Dependabot/Renovate sem revisão.
+* Build usando imagem Docker não pinada.
+* Imagem base vulnerável.
+* Falta de SBOM.
+* Artefatos não assinados.
+* Deploy a partir de branch errada.
+* Pipeline permitindo bypass de testes.
+* Permissões excessivas no token do CI.
+
+17. **Infraestrutura como código**
+
+* Buckets públicos por padrão.
+* Security groups permissivos.
+* Banco exposto à internet.
+* Falta de encryption at rest.
+* Falta de backup automático.
+* Backup sem teste de restore.
+* IAM permissivo demais.
+* Recursos órfãos gerando custo.
+* Ambientes staging/prod misturados.
+* Terraform drift não detectado.
+
+18. **Backups e recuperação**
+
+* Backup ausente.
+* Backup sem criptografia.
+* Backup sem retenção definida.
+* Backup sem teste de restore.
+* RPO/RTO não definidos.
+* Falta de plano de desastre.
+* Restore parcial não testado.
+* Logs/auditoria não restauráveis.
+
+19. **Auditoria e trilha de alterações**
+
+* Falta de audit log para ações administrativas.
+* Falta de audit log para alteração de permissões.
+* Falta de audit log para dados sensíveis.
+* Logs editáveis por usuários com privilégio.
+* Falta de trilha de quem fez o quê e quando.
+* Falta de motivo/justificativa em ações críticas.
+* Falta de detecção de comportamento anômalo.
+
+20. **Admin panels e backoffice**
+
+* Painel admin exposto publicamente sem proteção adicional.
+* Admin sem MFA.
+* Ação destrutiva sem confirmação.
+* Admin podendo editar dados críticos sem auditoria.
+* Busca admin sem filtro de tenant.
+* Exportação de dados sem controle.
+* Impersonation sem log.
+* Permissões admin muito amplas.
+
+21. **UX de erro e segurança**
+
+* Erro técnico mostrado para usuário final.
+* Mensagem de erro permitindo enumeração de conta.
+* Tela sem recuperação clara.
+* Fluxo quebrado após expiração de sessão.
+* Usuário consegue repetir ação crítica por refresh.
+* Botão não bloqueia após submit.
+* Falha parcial sem explicação.
+
+22. **Qualidade de produto**
+
+* Feature implementada, mas sem critério de aceitação.
+* Código resolve caso técnico, mas não resolve problema do usuário.
+* Fluxo sem empty state.
+* Fluxo sem loading state.
+* Fluxo sem estado de permissão negada.
+* Falta de analytics de uso.
+* Falta de instrumentação para saber se a feature funciona.
+
+23. **Compatibilidade de browser/device**
+
+* Código só testado em Chrome.
+* Layout quebrado em mobile.
+* Falha em Safari/iOS.
+* APIs modernas sem fallback.
+* Problemas com touch devices.
+* Performance ruim em dispositivo fraco.
+* Bundle grande demais.
+
+24. **Performance de build e bundle**
+
+* Dependência pesada no frontend sem necessidade.
+* Import dinâmico ausente.
+* Tree shaking quebrado.
+* Bundle incluindo código server-side.
+* Source maps públicos com código sensível.
+* Imagens não otimizadas.
+* Fonts bloqueando renderização.
+* Hydration mismatch.
+
+25. **Dados analíticos e tracking**
+
+* Eventos duplicados.
+* Eventos disparados com dados pessoais.
+* Eventos sem consentimento quando aplicável.
+* Nome de evento inconsistente.
+* Analytics quebrando performance.
+* Tracking bloqueando fluxo principal.
+* Dados de produção misturados com teste.
+
+26. **Políticas de retenção**
+
+* Dados nunca expiram.
+* Arquivos temporários nunca são apagados.
+* Tokens antigos continuam válidos.
+* Logs mantidos tempo demais.
+* Dados de usuários deletados permanecem em storage secundário.
+* Falta de hard delete quando necessário.
+* Falta de soft delete quando necessário.
+
+27. **Consistência entre documentação, código e operação**
+
+* README ensina setup que não funciona.
+* `.env.example` divergente da aplicação.
+* Scripts de deploy desatualizados.
+* Runbook ausente.
+* Runbook que não corresponde ao sistema real.
+* Comentários gerados por IA descrevendo intenção falsa.
+* ADRs ausentes para decisões críticas.
+
+28. **Problemas de revisão de PR feita por agentes**
+
+* Agente aprova código que ele mesmo gerou.
+* Agente só revisa diff, não contexto global.
+* Agente não detecta impacto em arquivos não alterados.
+* Agente não roda testes reais.
+* Agente aceita solução porque “parece padrão”.
+* Agente cria findings genéricos sem apontar arquivo/linha.
+* Agente não diferencia risco teórico de bug explorável.
+
+29. **Segurança de branches e repositório**
+
+* Branch principal sem proteção.
+* Merge sem revisão obrigatória.
+* Merge sem CI verde.
+* Force push permitido.
+* Releases sem tag assinada.
+* Permissões excessivas no GitHub/GitLab.
+* Secrets disponíveis para forks.
+* CODEOWNERS ausente.
+
+30. **Problemas de especificação**
+
+* Requisito ambíguo interpretado livremente pelo agente.
+* Agente implementa comportamento não pedido.
+* Falta de definição de “done”.
+* Falta de exemplos de entrada/saída.
+* Falta de restrições negativas: o que não deve acontecer.
+* Falta de invariantes explícitas.
+* Falta de threat model.
+* Falta de critérios de rollback.
+
+Eu diria que a lista anterior cobria bem o núcleo técnico. As maiores lacunas eram: **licenciamento, CI/CD, infraestrutura, backups, observabilidade, LLM/RAG em produção, sandboxing, webhooks, compatibilidade, acessibilidade, retenção de dados e governança de repositório**.
+
