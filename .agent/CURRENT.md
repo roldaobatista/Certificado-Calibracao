@@ -34,15 +34,20 @@
 - **Fase 9 T-OS-105 entregue:** hook `migration-concorrencia-os-check.sh` (`4ef49e9`) — bloqueia migration que cria/remove `idx_atividade_em_execucao_por_equip` ou desativa RLS em `atividade_da_os`. +7 casos no `_test-runner.sh`.
 - **Hooks: 288 → 295 ok / 0 falhas.**
 - 6º arquivo regressão (`6c99b2c`): INV-OS-CONSBIO-001 + INV-OS-ANAL-001 (6 testes — happy + unhappy + cross-tenant cada).
-- **Suíte M3 chave consolidada: 58/58 PASS em 193s.**
+
+## Fase 7 (sessão 2026-05-24 noite)
+
+- **4 jobs procrastinate entregues** (`…`): watchdog_calibracao_link (T-OS-090), truncar_geo_lgpd (T-OS-091), retry_anonimizacao_pendente (T-OS-092), detectar_sla_breach (T-OS-093).
+- Management command `python manage.py processar_jobs_os [--tenant X] [--job Y]`.
+- 6/6 testes Fase 7 PASS.
+- **Suíte M3 chave consolidada: 64/64 PASS em 284s.**
 - **Hooks: 295/295 verdes.**
 
 ## Próximas fatias (restante M3)
 
-- **Fase 7 (T-OS-090..093)**: 4 jobs procrastinate (watchdog cal-link, geo TTL 5a, anonimização retry, SLA breach watcher).
-- **Fase 9 restante (T-OS-106/107)**: hook sync-merge-foto-appendonly (Wave A — sync mobile não existe) + authz-check estendido (`authz-check.sh` já vigilante; só precisa formalizar predicates M3).
-- **Fase 10 restante**: testes regressão para INV-OS-CONSBIO-001, ANAL-001, ATIV-001, ATIV-005, AUD-001, CAL-LINK-001, GEO-001, SYNC-001, ANON-001 (8 INVs).
-- **Predicates no consumer**: T-OS-050/054 (RT competência) — depende de `rt_competencia_cobre` (existe em `predicates_os.py`).
+- **Fase 9 restante (T-OS-106/107)**: hook sync-merge-foto-appendonly (Wave A — sync mobile não existe) + authz-check estendido (vigilante).
+- **Fase 10 restante**: testes regressão para INV-OS-ATIV-001, ATIV-005, AUD-001, CAL-LINK-001, GEO-001, SYNC-001, ANON-001 (7 INVs).
+- **Predicates no consumer**: T-OS-050/054 (RT competência) — depende de `rt_competencia_cobre`.
 - **P5 ritual Spec Kit M3 OS** (10 auditores Família 5) — gate de fechamento.
 
 ## Marcos anteriores fechados
