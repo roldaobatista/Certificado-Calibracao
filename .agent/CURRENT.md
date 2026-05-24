@@ -2,36 +2,37 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + **F-C1 FECHADAS** · M3 OS P4 Fase 4 fechado (2026-05-24).
+**Fase:** F-A+F-B + M1 + M2 + F-C1 FECHADAS · **M3 OS P4 Fase 5 — 17 use cases entregues (2026-05-24)**.
 **Modo:** AUTÔNOMO.
 
-## Estado da suíte (2026-05-24 pós F-C1 P5 2ª passada)
+## Estado da suíte (2026-05-24 pós Fase 5 fatias 1–6)
 
 - Hooks `_test-runner.sh`: **288/288 verdes**.
-- ruff/mypy: limpos.
-- Drill `validar_f_c1`: **10/10 PASS** sem `--rapido` (inclui drill 9 reconhecendo `rotacao-dogfooding-YYYY-MM-DD.md` real + drill 10 break-glass).
-- Pytest: **905/0/0** verde (re-validação pós-consertos pendente, suite chave 30/30 OK).
+- ruff/mypy: limpos em todo `src/application/operacao/os/` (10 source files) + adapter + entities.
+- Suite M3 Fase 5: **23/23 PASS** (4 abrir + 3 adicionar + 3 lifecycle + 5 NC/cancel + 8 avançadas).
 
-## F-C1 FECHADA sob INV-RITUAL-001 (2026-05-24)
+## M3 OS Fase 5 (sessão 2026-05-24 noite)
 
-- **P4 entregue:** 14 T-FC1 (settings prod + admin hardening + ADR-0054 webhook out + rotação dogfooding + break-glass + drill).
-- **P5 1ª passada:** 5 FAIL + 4 PASS — 5 C + 8 A + 9 M (16 commits de conserto: `d19ad60`..`3e92368`).
-- **Consertos causa-raiz** Tasks #12..#24: REGRAS 9 INV, ADR-0054 aceito, router via PYTEST_CURRENT_TEST, break-glass U2F enforce + GATE fail-loud, evento Admin.BreakGlass.CONTA_CRIADA na cadeia, drill 9 ajustado, 5 testes INV-ADMIN-003, conftest docstring honesta, glossário +5 termos, runbook §10, drills reais arquivados (rotação + break-glass).
-- **P5 2ª passada:** 10/10 PASS ZERO C/A/M. Doc canônico `docs/faseamento/F-C1/auditoria-familia5.md` `stable`.
+**17 use cases puros entregues** atravessando `DjangoOSRepository` real:
 
-## Próximo passo
+| Bloco | Use case | Commit | ACs cobertos |
+|---|---|---|---|
+| 1 | T-OS-040 `DjangoOSRepository` | `6e1faa8` | adapter Protocol |
+| 2 | T-OS-041 `abrir_os_via_orcamento` + consumer real | `2c9b760` | AC-OS-001-1/2/7/8 |
+| 3 | T-OS-048 `adicionar_atividade` | `317fa1a` | AC-OS-002-1/2/4 |
+| 3 | T-OS-052 `atribuir_tecnico` + T-OS-055 `iniciar` + T-OS-059 `concluir` | `2db…` | AC-OS-002b-1, AC-OS-003-1/4, AC-OS-004-1/3/4 |
+| 4/5 | T-OS-064 `marcar_nao_conformidade` + T-OS-065 `resolver_nc` + T-OS-070 `cancelar_atividade` + T-OS-072 `cancelar_os` | `a329ebb` | AC-OS-005-*, ADR-0042 |
+| 4/5/6 | T-OS-063 `coletar_aceite` + T-OS-066 `reabrir_os` + T-OS-077 `reagendar` + T-OS-078 `transferir_tecnico` + T-OS-079 `dispensar_aceite` + T-OS-082 `marcar_no_show` + T-OS-083 `criar_os_avulsa` | `8ce76dc` | AC-OS-004-7, AC-OS-006, AC-OS-012/013/014/015 |
 
-**M3 OS P4 Fase 5 (Services + use cases — 15 US, T-OS-040..084 ~45 tarefas).** Substitui placeholders dos consumers Fase 4 pelas chamadas reais aos use cases.
+## Próximas fatias (Fase 5 restante e além)
 
-### Fatias entregues nesta sessão (2026-05-24 noite)
-
-- **Bloco 1 ✅** — T-OS-040: `DjangoOSRepository` (adapter Django pro `OSRepository` Protocol). 11 conversores Model↔Snapshot + 24 métodos do Protocol; `isinstance(DjangoOSRepository(), OSRepository) = True`. Commit `6e1faa8`.
-- **Bloco 2 (parcial) ✅** — T-OS-041: use case `abrir_os_via_orcamento` puro + 4 DTOs (`ItemOrcamento`, `AbrirOSInput`, `AtividadePlanejada`, `AbrirOSResultado`) + `ErroAbrirOS`. Consumer `Orcamento.Aprovado` plug real (substitui placeholder Fase 4). Smoke test 4/4 PASS cobrindo AC-OS-001-1/2/7/8. Commit `2c9b760`.
-
-### Próxima fatia
-
-- **Bloco 2 (restante):** T-OS-044 (validação equipamento baixado no consumer pré-use-case) + T-OS-045 (predicate `cliente_tem_os_aberta`) + bus publish `OS.Aberta` via `audit.event_helpers.publicar_evento`.
-- **Bloco 3:** T-OS-048..062 — atividade lifecycle (`adicionar_atividade`, `atribuir_tecnico`, `iniciar_atividade`, `concluir_atividade`, watchdog cal-link).
+- **Bus publish** (audit/event_helpers): `OS.Aberta`, `AtividadeConcluida`, etc. — caller dos consumers.
+- **Predicates externos no consumer**: T-OS-044 (equipamento baixado), T-OS-050/054 (RT competência), T-OS-052 (UMC Lei 13.103).
+- **Fase 6**: Query services (T-OS-085..089 — visão 360, listagem, timeline).
+- **Fase 7**: Jobs procrastinate (T-OS-090..093 — watchdog cal-link, geo TTL).
+- **Fase 8**: ViewSets DRF (T-OS-094..104 — endpoint POST/GET + idempotency-key).
+- **Fase 9**: Hooks pré-commit novos (T-OS-105..107).
+- **Fase 10**: 13 testes regressão INV (T-OS-108..120).
 
 ## Marcos anteriores fechados
 
@@ -39,4 +40,4 @@ F-A+F-B (ritual completo). M1 `clientes` (ADR-0021). M2 `equipamentos` 65 T-EQP 
 
 ## Pendências rastreadas
 
-10 GATEs Wave A novos (F-C1): GATE-CYBER-BREAKGLASS-U2F-ENFORCE, GATE-CYBER-BREAKGLASS-DRILL, GATE-FC1-ROTACAO-DRILL-REAL (próxima 2026-06-24), GATE-FC1-ENV-PRODUTIVO, GATE-LGPD-DPIA-ADMIN-2, GATE-OBS-BREAKGLASS-METRICS, GATE-FC1-CRIAR-RECOVERY-SENHA-COMPLEXA, GATE-QLD-FC1-2/3, GATE-DEP-DOCKERFILE-SHA-PIN. Total Wave A: 51 prévios + 9 M3 + 10 F-C1 = 70 GATEs. T-OS-040..147 (8 fases M3 OS) restantes.
+70 GATEs Wave A (51 prévios + 9 M3 + 10 F-C1). T-OS-085..147 (Fases 6–10) restantes. Drift de PRD/spec após acumular Fase 5 será reconciliado no encerramento M3 OS.
