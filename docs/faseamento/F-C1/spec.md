@@ -210,7 +210,7 @@ Bloqueia: Wave A (1º deploy externo).
 
 **AC binários:**
 
-- **AC-FC1-005-1:** Comando `validar_f_c1` em `src/infrastructure/admin_ops/management/commands/validar_f_c1.py`.
+- **AC-FC1-005-1:** Comando `validar_f_c1` em `src/infrastructure/audit/management/commands/validar_f_c1.py` (consolidado no app `audit` porque `AdminAccess` model vive lá; app dedicado `admin_ops` foi descartado em P4 — coesão > nomenclatura).
 - **AC-FC1-005-2:** Drills executados em ordem:
   1. Hook `prod-settings-check.sh` rejeita as ~14 violações sintéticas (settings expandido R-1).
   2. Middleware `AdminHardeningMiddleware` bloqueia: sem MFA / IP fora allowlist / 6ª tentativa / session-rebind mismatch (AC-FC1-002-8).
@@ -297,7 +297,7 @@ Bloqueia: Wave A (1º deploy externo).
 
 - F-A (multi-tenant + RLS) — fechada.
 - F-B (auth + MFA TOTP) — fechada. MFA TOTP do `/admin/` reusa o `django-otp` já instalado.
-- ADR-0062 (Devcontainer) — aceita Onda 2 sub-A. Sessões de F-C1 que tocam `auth/`, `kms/`, `admin_ops/`, `webhook_out/` rodam dentro do devcontainer (INV-DEVCONT-001).
+- ADR-0062 (Devcontainer) — aceita Onda 2 sub-A. Sessões de F-C1 que tocam `auth/`, `kms/`, `audit/` (que absorveu o escopo de `admin_ops`), `webhook_out/` rodam dentro do devcontainer (INV-DEVCONT-001).
 
 > **R-6 / TL-09:** ADR-0054 NÃO é dependência externa — é **entregável** desta F-C1 (item 11 do §6). Aceitação + implementação acontecem juntas na P4 (auditor DRIFT alertou que aceitar sem implementar gera drift).
 
