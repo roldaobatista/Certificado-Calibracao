@@ -72,6 +72,16 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         default=False,
         help_text="True para perfis sensiveis (RT, admin_tenant). Marco F-B liga django-otp.",
     )
+    # F-C1 P4 T-FC1-13 — US-FC1-006 (INV-ADMIN-003)
+    is_break_glass = models.BooleanField(
+        default=False,
+        help_text=(
+            "Conta admin-recovery (acesso emergencial pos-MFA perdido). "
+            "Exige U2F (WebAuthn) — NAO aceita TOTP (defesa contra mesmo vetor "
+            "que tirou TOTP da conta principal). Login dispara alerta CRITICO + "
+            "evento Admin.BreakGlass.Usado. Criar via manage.py criar_admin_recovery."
+        ),
+    )
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 

@@ -269,6 +269,67 @@ Procedimento produtivo (KMS MRK, AWS): F-C3 (`GATE-CYBER-KMSROT`).
 
 ---
 
+## 11.bis Break-glass do `/admin/` (F-C1 US-FC1-006)
+
+> **Quando usar:** APENAS depois de esgotar reset normal de MFA (celular roubado, app MFA quebrado, conta principal trancada). NÃO usar pra "atalho" — cada login dispara alerta crítico.
+
+### Pré-requisitos (criação da conta)
+
+Antes do incidente, criar a conta:
+
+```bash
+docker compose exec app poetry run python manage.py criar_admin_recovery \
+    --email admin-recovery@afere.local \
+    --nome-completo "Conta Recovery Roldão Batista"
+```
+
+O comando:
+- Cria Usuario com `is_break_glass=True` + `is_superuser=True` + `mfa_obrigatorio=True`
+- Limita instalação a 2 contas break-glass (Roldão + DPO formal Wave A)
+- Exige confirmação literal `CRIAR BREAK-GLASS <email>` (anti-acidente)
+- Exige senha ≥14 chars
+- Imprime checklist obrigatório pós-criação
+
+Depois (Wave A, quando WebAuthn entrar):
+- Cadastrar U2F físico (YubiKey ou similar) via fluxo dedicado
+- Guardar U2F em local físico seguro (cofre, NÃO carteira)
+
+### Uso emergencial
+
+1. **Confirmar que não há outro caminho.** Reset normal de MFA via celular alternativo, e-mail de recuperação, etc — tentar primeiro.
+2. **Acessar `/admin/login/`** com email da conta `admin-recovery@...` + senha + U2F.
+3. **AdminHardeningMiddleware bypassa IP allowlist** pra conta break-glass — login funciona de qualquer IP.
+4. **Registrar motivo + horário** em texto livre num arquivo:
+
+   ```
+   docs/operacao/drills/break-glass-uso-YYYY-MM-DD-HHMM.md
+   ```
+
+5. Executar a ação emergencial (reset da conta principal, etc).
+6. **Ações obrigatórias pós-uso:**
+   - Restaurar MFA da conta principal.
+   - Revisar `audit_trail.admin_access` filtrando `eh_break_glass=True` no período.
+   - Confirmar que alerta crítico chegou em Roldão + DPO.
+   - Documentar postmortem ≤30 dias (SEV-1).
+
+### Drill mensal
+
+Para a conta `admin-recovery` não virar "conta zumbi", drill mensal:
+- Logar com a conta uma vez por mês.
+- Confirmar que U2F continua funcional.
+- Confirmar que evento `Admin.BreakGlass.Usado` chegou em audit + alerta.
+- Arquivar: `docs/operacao/drills/break-glass-drill-mensal-YYYY-MM.md`
+
+GATE-CYBER-BREAKGLASS-DRILL: rastreado Wave A.
+
+### Limites
+
+- Máximo 2 contas `is_break_glass=True` por instalação (comando bloqueia 3ª).
+- Conta break-glass NÃO substitui rotação de MFA — é exceção, não rotina.
+- Após o uso, considerar rotacionar U2F (cadastrar novo, revogar usado) se houver suspeita de comprometimento físico.
+
+---
+
 ## 11. Quem opera o quê (estado atual)
 
 - **Roldão:** decisor final em incidente; aprovar mudança em REGRAS-INEGOCIAVEIS, constitution, AGENTS.md (paths protegidos por CODEOWNERS); rotacionar credencial; instalar ferramenta nova no host.
