@@ -23,6 +23,16 @@
 
 **M3 OS P4 Fase 5 (Services + use cases — 15 US, T-OS-040..084 ~45 tarefas).** Substitui placeholders dos consumers Fase 4 pelas chamadas reais aos use cases.
 
+### Fatias entregues nesta sessão (2026-05-24 noite)
+
+- **Bloco 1 ✅** — T-OS-040: `DjangoOSRepository` (adapter Django pro `OSRepository` Protocol). 11 conversores Model↔Snapshot + 24 métodos do Protocol; `isinstance(DjangoOSRepository(), OSRepository) = True`. Commit `6e1faa8`.
+- **Bloco 2 (parcial) ✅** — T-OS-041: use case `abrir_os_via_orcamento` puro + 4 DTOs (`ItemOrcamento`, `AbrirOSInput`, `AtividadePlanejada`, `AbrirOSResultado`) + `ErroAbrirOS`. Consumer `Orcamento.Aprovado` plug real (substitui placeholder Fase 4). Smoke test 4/4 PASS cobrindo AC-OS-001-1/2/7/8. Commit `2c9b760`.
+
+### Próxima fatia
+
+- **Bloco 2 (restante):** T-OS-044 (validação equipamento baixado no consumer pré-use-case) + T-OS-045 (predicate `cliente_tem_os_aberta`) + bus publish `OS.Aberta` via `audit.event_helpers.publicar_evento`.
+- **Bloco 3:** T-OS-048..062 — atividade lifecycle (`adicionar_atividade`, `atribuir_tecnico`, `iniciar_atividade`, `concluir_atividade`, watchdog cal-link).
+
 ## Marcos anteriores fechados
 
 F-A+F-B (ritual completo). M1 `clientes` (ADR-0021). M2 `equipamentos` 65 T-EQP (CVE-2025-68616 mitigado). **F-C1** (14 T-FC1 + 10 auditores ZERO C/A/M; ADR-0054 aceito; 9 INVs novas em REGRAS; drills reais arquivados).
