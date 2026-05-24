@@ -230,14 +230,23 @@ docker compose up -d app worker
 
 ## 9. Rotação de credencial dogfooding
 
-Janela atual usa `.env` com `DJANGO_SECRET_KEY` e outras chaves dev. Procedimento de rotação (exercício antes de F-C1):
+> **F-C1 P4 T-FC1-12** entregou o procedimento canônico expandido em
+> `docs/operacao/rotacao-credenciais-dogfooding.md` (com mapeamento 1:1 →
+> AWS KMS produtivo de F-C3 + checklist eliminação efetiva LGPD art. 16).
 
-1. Gerar nova chave: `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`.
-2. Editar `.env` substituindo o valor.
-3. `docker compose restart app worker`.
-4. Conferir que sessões antigas precisam re-login.
+Resumo (ver doc canônico pro passo-a-passo completo):
 
-Procedimento de rotação produtiva (KMS MRK, AWS): entra em F-C1.
+1. Gerar nova chave (Django: `get_random_secret_key()`; HMAC: `openssl rand -hex 32`).
+2. Backup do `.env` antigo (temporário — eliminado no passo 7).
+3. Substituir no `.env` + bumpar `KEY_ID` quando aplicável (HMAC).
+4. `docker compose restart app worker`.
+5. Validar (`manage.py check`, sessões antigas inválidas, hash novo ≠ antigo).
+6. **`shred -u`** no backup + checklist manual (history, OneDrive, backup local).
+7. Arquivar drill em `docs/operacao/drills/rotacao-dogfooding-YYYY-MM-DD.md` com declaração datada de eliminação efetiva.
+
+**Chaves cobertas** (5): `DJANGO_SECRET_KEY`, `PII_HASH_KEY` (+ID), `QR_HMAC_KEY` (+ID), `QR_IP_RATELIMIT_SALT`, `ADMIN_ACCESS_HASH_SALT` (F-C1).
+
+Procedimento produtivo (KMS MRK, AWS): F-C3 (`GATE-CYBER-KMSROT`).
 
 ---
 
