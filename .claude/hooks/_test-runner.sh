@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 # Bateria de testes dos hooks. NAO eh hook em si — eh validador local.
-# Roda: bash .claude/hooks/_test-runner.sh
+#
+# USO:
+#   bash .claude/hooks/_test-runner.sh              # roda TUDO (~280 casos)
+#   bash .claude/hooks/_test-runner.sh WS           # roda so casos com ID
+#                                                   # comecando em "WS"
+#   bash .claude/hooks/_test-runner.sh prod-set     # roda so casos do hook
+#                                                   # prod-settings-check
+#                                                   # (match no nome do hook)
+#
+# Regra de uso (runbook.md §5):
+# - Iteracao (criar/ajustar UM hook): usar filtro pelo prefixo
+# - Antes de commit final (varios hooks): rodar sem filtro
+# - Antes de fechar fase (P4 → P5): rodar sem filtro + pytest completo
 #
 # Nota: tokens de exemplo abaixo sao montados por concatenacao
 # (ex: AK="AKI"; AK="${AK}A"; FAKE="${AK}1234..."), pra evitar que o
@@ -9,15 +21,36 @@
 set -u
 cd "$(dirname "$0")/../.." || exit 1
 
+# Filtro opcional pelo 1o arg (prefixo de ID do caso OU substring do nome
+# do hook). Vazio = roda tudo.
+FILTER="${1:-}"
+
 # Monta tokens fake sem que o source contenha o padrao literal.
 P1="AKI"; AKIA_FAKE="${P1}A1234567890123456"
 P2="gh"; GHP_FAKE="${P2}p_abc123def456ghi789jkl012mno345pqr678"
 
 fail=0
 pass=0
+skipped=0
 
 run_case() {
     local id="$1" expect="$2" hook="$3" json="$4"
+
+    # Filtro: se FILTER nao-vazio, executa SO se o ID OU o nome do hook
+    # casa o prefixo (case-insensitive).
+    if [ -n "$FILTER" ]; then
+        local id_low hook_low filter_low
+        id_low=$(printf '%s' "$id" | tr '[:upper:]' '[:lower:]')
+        hook_low=$(printf '%s' "$hook" | tr '[:upper:]' '[:lower:]')
+        filter_low=$(printf '%s' "$FILTER" | tr '[:upper:]' '[:lower:]')
+        case "$id_low" in "${filter_low}"*) ;; *)
+            case "$hook_low" in *"${filter_low}"*) ;; *)
+                skipped=$((skipped+1))
+                return 0 ;;
+            esac ;;
+        esac
+    fi
+
     local exit_code
     exit_code=$(printf '%s' "$json" | bash ".claude/hooks/$hook" 2>/dev/null; echo $?)
     exit_code=$(printf '%s' "$exit_code" | tail -n 1)
@@ -524,5 +557,46 @@ run_case "PSa dev.py ignora"                          PASS  prod-settings-check.
 run_case "PSb skip-all com motivo PASS"               PASS  prod-settings-check.sh '{"tool_input":{"file_path":"config/settings/prod.py","content":"# prod-settings: skip-all -- arquivo placeholder Wave A; revisao adiada\nDEBUG = True"}}'
 
 echo ""
-echo "===== resumo: $pass ok, $fail falhas ====="
+# Aqui em diante: novos blocos de teste vao antes deste echo.
+echo "===== outbound-webhook-ssrf-check (F-C1 P4 / INV-WEBHOOK-OUT-001) ====="
+
+# WS1: requests.get em src/infrastructure/** -> BLOCK
+run_case "WS1 requests.get BLOCK"                     BLOCK outbound-webhook-ssrf-check.sh '{"tool_input":{"file_path":"src/infrastructure/financeiro/cobranca.py","content":"import requests\ndef cobrar():\n    r = requests.get(\"https://api.asaas.com/v2/cobranca/1\")"}}'
+
+# WS2: httpx.post em src/infrastructure/** -> BLOCK
+run_case "WS2 httpx.post BLOCK"                       BLOCK outbound-webhook-ssrf-check.sh '{"tool_input":{"file_path":"src/infrastructure/certificados/lacuna.py","content":"import httpx\nclient = httpx.Client()\nclient.post(\"/sign\")"}}'
+
+# WS3: urllib.request.urlopen -> BLOCK
+run_case "WS3 urllib.request BLOCK"                   BLOCK outbound-webhook-ssrf-check.sh '{"tool_input":{"file_path":"src/infrastructure/x/y.py","content":"from urllib.request import urlopen\nresp = urllib.request.urlopen(\"http://x\")"}}'
+
+# WS4: urllib3.PoolManager -> BLOCK
+run_case "WS4 urllib3 BLOCK"                          BLOCK outbound-webhook-ssrf-check.sh '{"tool_input":{"file_path":"src/infrastructure/x/y.py","content":"import urllib3\nhttp = urllib3.PoolManager()\nr = urllib3.request(\"GET\", \"http://x\")"}}'
+
+# WS5: aiohttp -> BLOCK
+run_case "WS5 aiohttp BLOCK"                          BLOCK outbound-webhook-ssrf-check.sh '{"tool_input":{"file_path":"src/infrastructure/x/y.py","content":"import aiohttp\nasync with aiohttp.ClientSession() as s: pass"}}'
+
+# WS6: uso dentro de webhook_out/ -> PASS (eh quem implementa)
+run_case "WS6 webhook_out/ ignora"                    PASS  outbound-webhook-ssrf-check.sh '{"tool_input":{"file_path":"src/infrastructure/webhook_out/adapter.py","content":"import requests\nresp = requests.post(\"https://x\")"}}'
+
+# WS7: arquivo fora de src/infrastructure -> PASS
+run_case "WS7 fora de infrastructure ignora"          PASS  outbound-webhook-ssrf-check.sh '{"tool_input":{"file_path":"src/domain/x/y.py","content":"import requests\nrequests.get(\"http://x\")"}}'
+
+# WS8: tests/ -> PASS
+run_case "WS8 tests/ ignora"                          PASS  outbound-webhook-ssrf-check.sh '{"tool_input":{"file_path":"tests/test_x.py","content":"import requests\nrequests.get(\"http://x\")"}}'
+
+# WS9: skip inline (linha) -> PASS
+run_case "WS9 skip inline com motivo PASS"            PASS  outbound-webhook-ssrf-check.sh '{"tool_input":{"file_path":"src/infrastructure/x/y.py","content":"# webhook-out: skip -- chamada interna pra healthcheck local sem PII\nimport requests\nr = requests.get(\"http://localhost\")"}}'
+
+# WSa: skip-all do arquivo -> PASS
+run_case "WSa skip-all com motivo PASS"               PASS  outbound-webhook-ssrf-check.sh '{"tool_input":{"file_path":"src/infrastructure/x/legacy.py","content":"# webhook-out: skip-all -- modulo legado em deprecation; retrofit Wave A\nimport requests\nrequests.get(\"x\")\nrequests.post(\"y\")"}}'
+
+# WSb: codigo limpo sem HTTP -> PASS
+run_case "WSb codigo sem HTTP OK"                     PASS  outbound-webhook-ssrf-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/models.py","content":"class Cliente(models.Model):\n    nome = models.CharField()"}}'
+
+echo ""
+if [ -n "$FILTER" ]; then
+    echo "===== resumo (filtro='$FILTER'): $pass ok, $fail falhas, $skipped pulados ====="
+else
+    echo "===== resumo: $pass ok, $fail falhas ====="
+fi
 exit $fail

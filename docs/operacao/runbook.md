@@ -100,6 +100,15 @@ Esperado: `resumo: NNN ok, 0 falhas`. Se há falha, o output mostra qual caso e 
 
 Se um hook está bloqueando edit legítimo, NÃO desativar — usar allowlist explícita (`# hook-name: skip -- <razão>`) e justificar.
 
+**Modo rápido por filtro (iteração — desde Onda 2 plano-v2):**
+
+```bash
+bash .claude/hooks/_test-runner.sh WS          # só casos com ID começando em "WS"
+bash .claude/hooks/_test-runner.sh prod-set    # só casos do hook prod-settings-check
+```
+
+Suite completa demora ~30-60s no Windows (cada caso forka bash+perl). Em iteração de UM hook, rodar só os casos dele economiza ~95% do tempo. **Antes de commit final** (com vários hooks tocados) rodar SEM filtro pra pegar regressões cross-hook.
+
 ### 3.4 Container `app` está vivo mas API retorna 500
 
 ```bash
