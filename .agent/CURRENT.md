@@ -5,13 +5,18 @@
 **Fase:** F-A+F-B + Marco 1 + Marco 2 + Marco 3 P4 Fase 4 fechados · **F-C1 P4 COMPLETA (Blocos 1..6 + catch-up)** (2026-05-24).
 **Modo:** AUTÔNOMO.
 
-## Estado da suíte (verificado 2026-05-24 pós Bloco 6)
+## Estado da suíte (verificado 2026-05-24 pós Bloco 6 + fix test-infra)
 
 - Hooks `_test-runner.sh`: **288/288** verdes (+8 FR1..FR8 do hook frontmatter-revisado-em-check).
 - ruff: All checks passed em `src/infrastructure/audit/management/commands/validar_f_c1.py`.
 - `validar_f_c1`: **10/10 PASS** em DB dev (com `--rapido` 9/9; sem flag 10/10).
 - makemigrations --check: limpo após Blocos 4-6 + catch-up.
-- **Pytest test_afere: regressão pré-existente** (relation tenants não existe) — Task #8 rastreia investigação. Não bloqueia P4; bloqueia P5 auditores.
+- **Pytest test_afere DESTRAVADO** (router fix + btree_gist init scripts, commits 6c5b795 + 46b57c5):
+  - Antes: 0 testes válidos (todos errors por `relation tenants não existe`).
+  - Após: ~706 passed / ~198 failed / ~599 errors em suite completa.
+  - **Diagnóstico**: rodando arquivo-por-arquivo, testes passam 100% (ex: `test_certificados_inv_025_t_eqp_013_trigger.py` 14/14). Problema é **estado sujo entre testes** na suite completa — fixtures não isoladas, RLS leaking, ou seeds que rodam entre tests e conflitam.
+  - **Não é regressão funcional do código F-C1 P4**; é problema de infra de fixtures pré-existente.
+  - **Bloqueia P5 auditores `qualidade`** (suite total não fecha verde). Task #8 fica em andamento como frente própria.
 
 ## F-C1 P4 — entregue (2026-05-24)
 
@@ -25,9 +30,9 @@
 
 ## Próximo passo
 
-**P5 F-C1 — 10 auditores Família 5 em paralelo** (`docs/faseamento/F-C1/auditoria-familia5.md`). Critério: ZERO C/A/M (INV-RITUAL-001).
+**Estabilizar suite pytest** (Task #8 ainda in_progress) — investigar isolamento de fixtures entre tests. Causa provável: TransactionTestCase faz cleanup parcial, deixando dados em tabelas com RLS forçada; OU seeds idempotent inserem duplicatas; OU connection pool retem app.tenant_ids de tests anteriores.
 
-**Bloqueador pré-P5:** Task #8 — pytest test_afere schema regressão. Sem pytest verde, auditores `qualidade` e `seguranca` vão FAIL.
+**Depois disso: P5 F-C1 — 10 auditores Família 5 em paralelo** (`docs/faseamento/F-C1/auditoria-familia5.md`). Critério: ZERO C/A/M (INV-RITUAL-001).
 
 ## Marcos anteriores fechados
 
