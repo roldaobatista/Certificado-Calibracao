@@ -34,5 +34,18 @@ class TenantMultiRoleRouter:
         model_name: str | None = None,
         **hints: Any,
     ) -> bool | None:
-        # Migrations SO rodam no alias `migrator`.
+        # Em runtime: migrations SO rodam no alias `migrator` (CREATE/ALTER).
+        # Em test: pytest-django cria test_afere via alias `default` e roda
+        # migrate la — `default` e `migrator` sao o mesmo banco fisico de
+        # teste (DATABASES['default']['TEST']['NAME'] == DATABASES['migrator']
+        # ['TEST']['NAME']). Sem este fallback, test_afere fica vazio (router
+        # bloqueia migrate em `default`) e toda a suite reporta "relation X
+        # does not exist".
+        from django.conf import settings
+
+        databases = settings.DATABASES
+        default_test = databases.get("default", {}).get("TEST", {}).get("NAME")
+        migrator_test = databases.get("migrator", {}).get("TEST", {}).get("NAME")
+        if default_test and default_test == migrator_test:
+            return True
         return db == "migrator"

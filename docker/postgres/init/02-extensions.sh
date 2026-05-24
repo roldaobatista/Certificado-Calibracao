@@ -10,6 +10,10 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     CREATE EXTENSION IF NOT EXISTS pgcrypto;
     CREATE EXTENSION IF NOT EXISTS citext;
     CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    -- btree_gist: EXCLUDE constraints (ex: vigencia temporal sem overlap em
+    -- RT/Equipamento/etc — ADR-0030). responsavel_tecnico/0001_initial.py
+    -- pressupoe disponivel; app_migrator nao tem privilegio pra criar.
+    CREATE EXTENSION IF NOT EXISTS btree_gist;
 EOSQL
 
 echo "[init] extensoes pgcrypto + citext + pg_trgm habilitadas."

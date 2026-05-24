@@ -33,6 +33,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "test_afere" <<-EOS
     CREATE EXTENSION IF NOT EXISTS pgcrypto;
     CREATE EXTENSION IF NOT EXISTS citext;
     CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    CREATE EXTENSION IF NOT EXISTS btree_gist;
 
     -- No test_afere, app_user tambem tem CREATE no schema public porque
     -- pytest-django chama `migrate` por alias e a tabela django_migrations
