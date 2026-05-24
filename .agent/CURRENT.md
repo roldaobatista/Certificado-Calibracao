@@ -2,65 +2,42 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** Foundation F-A+F-B FECHADAS · Marco 1 `clientes` FECHADO · Marco 2 `equipamentos` FECHADO · **Marco 3 `os`: P1+P2+P3 fechadas + P4 FASES 1+2+3+4 (Schema + Domain + Predicates authz + Consumers/Sagas) FECHADAS (2026-05-23).**
+**Fase:** F-A+F-B + Marco 1 + Marco 2 + Marco 3 P4 Fase 4 fechados · **F-C1 P4 COMPLETA (Blocos 1..6 + catch-up)** (2026-05-24).
 **Modo:** AUTÔNOMO.
 
-## Estado da suíte (verificado 2026-05-23 pós T-OS-029..039 + ADR-0033 aceito)
+## Estado da suíte (verificado 2026-05-24 pós Bloco 6)
 
-- Hooks `_test-runner.sh`: **207/207** verdes.
-- ruff: All checks passed em `src/infrastructure/ordens_servico/` + `src/infrastructure/bus/` + `src/infrastructure/audit/`.
-- makemigrations --check: limpo.
-- migrate: 0016_consumer_idempotencia_dead_letter OK aplicada.
-- `pytest -k "audit or authz"`: **112 passed** (zero regressão).
-- Smoke runtime: 18/18 consumers/sagas registrados no `_REGISTRY` do outbox_worker.
+- Hooks `_test-runner.sh`: **288/288** verdes (+8 FR1..FR8 do hook frontmatter-revisado-em-check).
+- ruff: All checks passed em `src/infrastructure/audit/management/commands/validar_f_c1.py`.
+- `validar_f_c1`: **10/10 PASS** em DB dev (com `--rapido` 9/9; sem flag 10/10).
+- makemigrations --check: limpo após Blocos 4-6 + catch-up.
+- **Pytest test_afere: regressão pré-existente** (relation tenants não existe) — Task #8 rastreia investigação. Não bloqueia P4; bloqueia P5 auditores.
 
-## Marcos fechados
+## F-C1 P4 — entregue (2026-05-24)
 
-- **M1 `clientes`** — P5 10 auditores ZERO C/A/M. `docs/faseamento/M1-clientes/auditoria-familia5.md`.
-- **M2 `equipamentos`** — 65 T-EQP, P5 2ª passada ZERO C/A/M (CVE-2025-68616 WeasyPrint mitigado). `docs/faseamento/M2-equipamentos/auditoria-familia5.md`.
-
-## Marco 3 OS — P1+P2+P3 + P4 inicial entregues (2026-05-23)
-
-- **P1 spec FORWARD stable** — 15 US, 10 entidades, 17 INVs, 14 eventos, 10 sagas, drill 24 verificações. `docs/faseamento/M3-os/spec.md`.
-- **P2 4 reviews paralelos** — tech-lead (6) + advogado (7) + corretora (6) + RBC (8) = **27 achados** (6 BLOQ + 12 MÉD + 9 GATE/ACEITE). `docs/faseamento/M3-os/reviews/{tech-lead,advogado,corretora,rbc}.md` + `plan.md` ata.
-- **P3 retrofit** absorvendo 6 BLOQ + 12 MÉD: ADR-0056 NOVA (numeração buracos aceitos), spec retrofit, REGRAS 5 INVs novos + 3 estendidos, PRD 10 ACs novos, ADR-0012 5 predicates novos, ADR-0028 rev 2 com 6 cláusulas seguráveis novas, matriz reconciliação zero conflito, 9 GATEs Wave A. `docs/faseamento/M3-os/matriz-reconciliacao.md`.
-- **3 decisões Roldão tomadas:** D-M3-1 = (A) buracos aceitos, D-M3-2 = (A) 72h/15d watchdog, D-M3-3 = (A) BPT bloqueia produção.
-- **P4 FASE 1 (Schema) FECHADA:** 11 tabelas + 12 migrations aplicadas (T-OS-001..011):
-  - `ordens_servico` (OS) + sequence global `os_numero_seq_global` (ADR-0056)
-  - `atividade_da_os` + unique partial index INV-OS-CONC-001 + triggers desnormalização
-  - `tipo_atividade_config` + seed 6 tipos x 9 tenants = 54 linhas
-  - `consentimento_biometria_touch` (Padrão B + FK 1:1 → AceiteAtividade — INV-OS-CONSBIO-001)
-  - `aceite_atividade` (Padrão B + trigger valida consentimento quando bio touch)
-  - `evidencia_foto_atividade` (Padrão B append-only; UPDATE só revogado_em LGPD art. 18)
-  - `evento_de_os` (append-only sanitizada — INV-OS-AUD-001)
-  - `dispensa_aceite_atividade` (P-OS-A4 — precedente_tipo + A3 gerente)
-  - `checklist_da_atividade` (Padrão A — estado por item)
-  - `nao_conformidade_atividade` (5 campos CAPA P-OS-R5)
-  - `sla_contrato` (vigência ADR-0030)
-- ~40 policies RLS pattern v2 + ~10 triggers PG. Fix lateral: drift QR_IP_RATELIMIT_SALT pré-existente.
-
-## Pendências rastreadas (não bloqueiam Marco 3 dogfooding)
-
-- **T-OS-003..147** restantes em `docs/faseamento/M3-os/tasks.md` (12 fases).
-- **51 GATEs Wave A** em `gates-wave-a-consolidado.md` + 9 GATEs novos do M3 (BPT, CONSBIO-OAB, ESCOPO-RBC, CAPA, FOTO-BLUR, SUCESSAO-EVIDENCIA, TENANT-SUSPENSO, INMETRO-PRAZO, CYBER-EO ampliados).
-- **ADR-0018 PWA QR** + ADR-0019 Pilar 2 apólice (Marco 2 GATEs).
-
-## P4 Fase 2 (Domain) FECHADA
-
-`src/domain/operacao/os/` — 5 arquivos puros sem Django: `value_objects.py` (8 enums + VOs anti-PII), `entities.py` (11 Snapshot frozen), `regras.py` (transições + INVs + canonicalização), `repository.py` (Protocol 22 métodos).
-
-## P4 Fase 3 (Predicates authz + seed) FECHADA (2026-05-23)
-
-`src/infrastructure/ordens_servico/predicates_os.py` — 5 predicates registrados em `AppConfig.ready` com escopo declarado (T-OS-023..027). `migrations/0013_seed_authz_os.py` (T-OS-028) — 27 linhas perfil×ação.
-
-## P4 Fase 4 (Consumers + Sagas + ADR-0033 aceito) FECHADA (2026-05-23)
-
-**ADR-0033 aceito** (proposta → aceito): tabelas `consumer_idempotencia` + `dead_letter_events` em `audit/migrations/0016` com RLS + CHECK + trigger anti-mutation INV-BUS-003. `src/infrastructure/bus/consumer_base.py` entrega decorator `@consumer_idempotente` (INV-BUS-001 reusável).
-
-**11 handlers registrados** em `audit.outbox_worker._REGISTRY` (T-OS-029..039):
-- 8 consumers em `ordens_servico/consumers/`: `orcamento.aprovado` (placeholder Fase 5), `cliente.anonimizado` (side-effect real: UPDATE OS.cliente_id=NULL preservando hash ADR-0032), `calibracao.iniciada/concluida` (atualiza `link_modulo_tecnico_id`), `os.faturada/paga` (transição estado financeiro), `tenant.suspenso/encerrado` (observabilidade; estado vive em `Tenant.status_lifecycle`), `equipamento.baixado/descartado` (log + count OS pendentes), `equipamento_recebimento.registrado` (preenche `OS.equipamento_recebimento_id` — cl. 7.5 P-OS-R4), `acreditacao.vencida/suspensa` (log + GATE-RBC-ESCOPO-1).
-- 3 sagas em `ordens_servico/sagas/`: `anonimizacao_re_tentar` (consome `os.concluida/cancelada` + detecta cliente liberado), `reabertura_sucessao` (bloqueia cross-cliente sem `sucessao_societaria_id` — INV-OS-SUC-001), `sync_mobile` (placeholder Wave A app-tecnico).
+- Bloco 1 (T-FC1-01..03 settings prod) — commit ca25a47 (prévio).
+- Bloco 2 (T-FC1-04..07 AdminHardeningMiddleware + admin_access + hook) — commit e7c64bc (prévio).
+- Bloco 3 (T-FC1-08..11 webhook_out + SSRF + HMAC + DPA) — commits 7920fb8 + 3747341 (prévios).
+- Bloco 4 (T-FC1-12 rotação dogfooding) — commit 3f5be6b. Procedimento canônico 5 chaves + drill aceitação arquivado. GATE-FC1-ROTACAO-DRILL-REAL aguarda execução real Roldão.
+- Bloco 5 (T-FC1-13 break-glass) — commit f43faaa. INV-ADMIN-003 + Usuario.is_break_glass + criar_admin_recovery + runbook §11.bis. Wave A: U2F WebAuthn.
+- Bloco 6 (T-FC1-14 drill validar_f_c1) — commit 33bf243. 10 drills end-to-end.
+- Bônus: fix hook frontmatter-revisado-em (commit d19ad60) + drift spec admin_ops→audit (d6f3dbe) + catch-up migrations + insumo (5c8c421).
 
 ## Próximo passo
 
-**P4 Fase 5 (Services + use cases — 15 US)** — T-OS-040..084 (~45 tarefas). Maior fase do Marco 3: implementa todos os use cases de OS (abrir/adicionar atividade/iniciar/concluir/marcar NC/reabrir/cancelar/dispensar aceite/no-show/avulsa). Substitui placeholders dos consumers Fase 4 pelas chamadas reais aos use cases.
+**P5 F-C1 — 10 auditores Família 5 em paralelo** (`docs/faseamento/F-C1/auditoria-familia5.md`). Critério: ZERO C/A/M (INV-RITUAL-001).
+
+**Bloqueador pré-P5:** Task #8 — pytest test_afere schema regressão. Sem pytest verde, auditores `qualidade` e `seguranca` vão FAIL.
+
+## Marcos anteriores fechados
+
+- **F-A + F-B** — ritual Spec Kit completo. `docs/faseamento/{F-A,F-B}/auditoria-familia5.md`.
+- **M1 `clientes`** — P5 10 auditores ZERO C/A/M. ADR-0021.
+- **M2 `equipamentos`** — 65 T-EQP, P5 2ª passada ZERO C/A/M. CVE-2025-68616 WeasyPrint mitigado.
+- **M3 OS** — P1+P2+P3 + P4 FASES 1-4 fechadas. P4 Fase 5 (Services + use cases — 15 US, T-OS-040..084 ~45 tarefas) é o próximo passo dessa frente (depois de F-C1 fechar).
+
+## Pendências rastreadas
+
+- 51+9 GATEs Wave A consolidados (`gates-wave-a-consolidado.md`).
+- T-OS-040..147 restantes em `docs/faseamento/M3-os/tasks.md` (8 fases).
+- Task #8 investigação pytest.
