@@ -43,10 +43,15 @@
 - **Suíte M3 chave consolidada: 64/64 PASS em 284s.**
 - **Hooks: 295/295 verdes.**
 
+## Fase 10 cont. (sessão 2026-05-24 noite)
+
+- 2 arquivos regressão adicionais: INV-OS-ATIV-001 (terminal — 3 testes) + INV-OS-ATIV-005 (executor único — 4 testes). 7/7 PASS.
+- **Total Fase 10: 8 arquivos / 30 testes regressão INV-OS.**
+
 ## Próximas fatias (restante M3)
 
 - **Fase 9 restante (T-OS-106/107)**: hook sync-merge-foto-appendonly (Wave A — sync mobile não existe) + authz-check estendido (vigilante).
-- **Fase 10 restante**: testes regressão para INV-OS-ATIV-001, ATIV-005, AUD-001, CAL-LINK-001, GEO-001, SYNC-001, ANON-001 (7 INVs).
+- **Fase 10 restante**: regressão para INV-OS-AUD-001, CAL-LINK-001, GEO-001, SYNC-001, ANON-001 (5 INVs — alguns já cobertos implicitamente em jobs/timeline tests).
 - **Predicates no consumer**: T-OS-050/054 (RT competência) — depende de `rt_competencia_cobre`.
 - **P5 ritual Spec Kit M3 OS** (10 auditores Família 5) — gate de fechamento.
 
