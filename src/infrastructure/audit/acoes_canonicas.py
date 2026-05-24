@@ -187,8 +187,40 @@ ACOES_ADMIN_BREAK_GLASS: Final[frozenset[str]] = frozenset(
     }
 )
 
+# Marco 3 `ordens_servico` — US-OS-001..015 (Fase 5).
+ACOES_OS: Final[frozenset[str]] = frozenset(
+    {
+        # OS (agregado raiz)
+        "os.aberta",
+        "os.atribuida",
+        "os.concluida",
+        "os.cancelada",
+        "os.reaberta",
+        "os.escopo_alterado",
+        # AtividadeDaOS (filha)
+        "os.atividade_adicionada",
+        "os.atividade_iniciada",
+        "os.atividade_concluida",
+        "os.atividade_nao_conforme",
+        "os.atividade_nc_resolvida",
+        "os.atividade_cancelada",
+        "os.atividade_reagendada",
+        "os.atividade_tecnico_transferido",
+        # Aceite / dispensa / no-show
+        "os.no_show_cliente",
+        "os.dispensa_aceite_emitida",
+        "os.aceite_coletado",
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
-    ACOES_CLIENTES | ACOES_SISTEMA | ACOES_RT | ACOES_EQUIPAMENTOS | ACOES_ADMIN_BREAK_GLASS
+    ACOES_CLIENTES
+    | ACOES_SISTEMA
+    | ACOES_RT
+    | ACOES_EQUIPAMENTOS
+    | ACOES_ADMIN_BREAK_GLASS
+    | ACOES_OS
 )
 
 

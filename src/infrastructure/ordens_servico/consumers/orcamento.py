@@ -37,7 +37,9 @@ from src.application.operacao.os.abrir_os_via_orcamento import (
     abrir_os_via_orcamento,
 )
 from src.domain.operacao.os.value_objects import TipoAtividade
+from src.infrastructure.audit.event_helpers import publicar_evento as publicar_evento_bus
 from src.infrastructure.bus.consumer_base import consumer_idempotente
+from src.infrastructure.multitenant.connection import run_in_tenant_context
 from src.infrastructure.ordens_servico.repositories import DjangoOSRepository
 
 logger = logging.getLogger(__name__)
@@ -142,10 +144,34 @@ def handle_orcamento_aprovado(envelope: dict[str, Any]) -> None:
 
     repository = DjangoOSRepository()
     try:
-        with transaction.atomic():
+        with run_in_tenant_context(os_input.tenant_id), transaction.atomic():
             resultado = abrir_os_via_orcamento(
                 payload=os_input,
                 repository=repository,
+            )
+            # Bus publish (cadeia auditavel + outbox transacional) — mesmo
+            # transaction.atomic do use case. Helper sanitiza payload.
+            publicar_evento_bus(
+                acao="os.aberta",
+                payload={
+                    "os_id": str(resultado.os_id),
+                    "numero_os": resultado.numero_os,
+                    "orcamento_id": str(os_input.orcamento_id),
+                    "tenant_id": str(os_input.tenant_id),
+                    "cliente_referencia_hash": os_input.cliente_referencia_hash,
+                    "atividades_planejadas": [
+                        {
+                            "atividade_id": str(p.atividade_id),
+                            "tipo": p.tipo,
+                            "sequencia": p.sequencia,
+                        }
+                        for p in resultado.atividades_planejadas
+                    ],
+                },
+                causation_id=resultado.correlation_id,
+                tenant_id=os_input.tenant_id,
+                usuario_id=os_input.criada_por_user_id,
+                resource_summary=f"OS {resultado.numero_os}",
             )
     except ErroAbrirOS as exc:
         logger.warning(

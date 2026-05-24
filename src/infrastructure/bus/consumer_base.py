@@ -93,10 +93,12 @@ def marcar_idempotencia(
     from django.db import connection
 
     with connection.cursor() as cur:
+        # `processado_em` eh NOT NULL no schema (Django auto_now_add nao
+        # cria DEFAULT no DB; raw SQL precisa passar NOW()).
         cur.execute(
             "INSERT INTO consumer_idempotencia "
-            "(consumer_id, event_id, tenant_id, resultado) "
-            "VALUES (%s, %s, %s, %s) "
+            "(consumer_id, event_id, tenant_id, resultado, processado_em) "
+            "VALUES (%s, %s, %s, %s, NOW()) "
             "ON CONFLICT (consumer_id, event_id) DO NOTHING "
             "RETURNING 1",
             [consumer_id, str(event_id), str(tenant_id) if tenant_id else None, resultado],
