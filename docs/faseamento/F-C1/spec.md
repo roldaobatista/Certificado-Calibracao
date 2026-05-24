@@ -256,7 +256,7 @@ Bloqueia: Wave A (1º deploy externo).
 
 - [ ] Comando `validar_f_c1` retorna **10/10 PASS** (drill expandido após P3).
 - [ ] 10 auditores Família 5 PASS ZERO CRÍTICO/ALTO/MÉDIO.
-- [ ] Suite total (≥250 hooks; pytest ≥621) verde.
+- [ ] Suite total (≥280 casos de hook em `_test-runner.sh`; pytest ≥900) verde.
 - [ ] Hooks novos: `prod-settings-check.sh`, `admin-hardening-check.sh`, `outbound-webhook-ssrf-check.sh` — cada um com ≥8 casos verdes no `_test-runner.sh` (8 em vez de 6 — escopo expandido P3).
 - [ ] AGENTS §11: ADR-0054 promovida proposta → aceito.
 - [ ] REGRAS-INEGOCIAVEIS.md: **INV-ADMIN-001..003 + INV-PROD-SET-001 + INV-WEBHOOK-OUT-001..005** cravadas (9 invariantes; era 6 — escopo expandido P3 absorveu break-glass, audit retention, DPA enforcement).

@@ -250,7 +250,15 @@ Procedimento produtivo (KMS MRK, AWS): F-C3 (`GATE-CYBER-KMSROT`).
 
 ---
 
-## 10. Próximos runbooks (a criar quando entrar a fase correspondente)
+## 10. Procedimentos canônicos (vigentes na janela atual)
+
+| Procedimento | Doc canônico | Vigente | Status |
+|---|---|---|---|
+| Rotação de credencial dogfooding | `docs/operacao/rotacao-credenciais-dogfooding.md` | F-C1 P4 (este runbook §9) | ✅ aceito (2026-05-24); GATE-FC1-ROTACAO-DRILL-REAL pendente execução pelo Roldão |
+| Break-glass admin-recovery | runbook §11.bis (abaixo) + `manage.py criar_admin_recovery` | F-C1 P4 (US-FC1-006 / INV-ADMIN-003) | ✅ código entregue; GATE-CYBER-BREAKGLASS-U2F-ENFORCE até Wave A |
+| Drill end-to-end F-C1 | `manage.py validar_f_c1` (10 drills) | F-C1 P4 | ✅ 10/10 PASS em DB dev |
+
+### Próximos runbooks (a criar quando entrar a fase correspondente)
 
 | Doc | Quando criar | Bloqueia |
 |---|---|---|
@@ -261,7 +269,7 @@ Procedimento produtivo (KMS MRK, AWS): F-C3 (`GATE-CYBER-KMSROT`).
 | `go-live-checklist.md` | Wave A | 1º cliente externo pago |
 | `incidente-postmortem.md` | F-C3 | 1º SEV-0/SEV-1 |
 | `multi-tenant-ops.md` | Wave A | 1º tenant externo |
-| `rotacao-credenciais.md` (produtivo) | F-C1 | 1º deploy externo |
+| `rotacao-credenciais.md` (produtivo KMS MRK) | F-C3 | 1º deploy externo |
 | `provisionamento.md` | F-C3 + Wave A | 1º deploy externo |
 | `maintenance-windows.md` | Wave A | 1º cliente externo pago |
 | `capacity-planning.md` | Wave B | quando passar de 3 tenants |

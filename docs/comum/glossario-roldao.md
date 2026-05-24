@@ -33,6 +33,7 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **ADN** — Ambiente de Dados Nacional (da NFS-e). Banco de dados nacional pra onde toda nota fiscal de serviço tem que ser espelhada a partir de 2026, mesmo as emitidas em sistemas próprios de prefeitura (SP, Goiânia etc.).
 - **ADR** — Architecture Decision Record / Registro de Decisão de Arquitetura. Documento curto onde a gente registra por que escolheu uma solução técnica, pra não esquecer depois. Ex: ADR-0000 (uso de IA), ADR-0001 (stack).
 - **Adiantamento** — dinheiro entregue ao técnico antes da viagem pra cobrir despesas em campo (combustível, alimentação, hospedagem). Depois ele "presta contas" anexando os comprovantes.
+- **Admin-recovery** — apelido da conta `admin-recovery@afere.local`. Ver **break-glass**.
 - **Ajuste** — operação que mexe no instrumento pra corrigir o erro de medição (diferente de calibração, que só mede o erro sem corrigir). *(você sabe — só pra referência)*
 - **ANATEL** — Agência Nacional de Telecomunicações. Aparece se o cliente for empresa de telecom.
 - **ANP** — Agência Nacional do Petróleo. Aparece em cliente de postos de combustível.
@@ -62,11 +63,13 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **Branch** — em humano: uma "linha de trabalho" paralela no código. Permite trabalhar numa correção sem mexer no sistema que está funcionando. O equivalente pra Roldão: "cópia de rascunho do sistema, antes de salvar a versão oficial".
 - **Build** — em humano: o processo automático que monta o programa final a partir do código. Tipo "compilar a planilha pra ela rodar".
 - **Bus factor** — quantas pessoas precisam ser "atropeladas pelo ônibus" pra o projeto morrer. Bus factor = 1 é arriscado (= Roldão sozinho).
+- **Break-glass** — em humano: "conta de emergência pra entrar no sistema quando a senha + celular da conta principal sumiram juntos". Privilégio máximo, mas cada login dispara alerta crítico. No projeto vira a conta `admin-recovery@afere.local`, criada via `manage.py criar_admin_recovery`. Exige U2F físico (YubiKey) — não aceita só celular. Máximo 2 contas dessa por instalação (Roldão + DPO da Wave A). F-C1 P4.
 
 ### C
 
 - **Caixa do Técnico** — controle das despesas que o técnico faz em campo (adiantamento + prestação de contas). Módulo central do produto.
 - **Calibração** — operação que estabelece a relação entre o que o instrumento mostra e o valor real (rastreado). Diferente de "ajuste" e "verificação". *(você sabe — só pra referência)*
+- **Canonical string** — em humano: "fórmula fixa de juntar dados pra assinar". Quando o sistema manda webhook, ele forma a string `{timestamp}.{método}.{caminho}.{hash do conteúdo}` e assina ISSO com HMAC. Quem recebe refaz a mesma fórmula e confere — se bater, é autêntico. INV-WEBHOOK-OUT-003.
 - **CC-e** — Carta de Correção Eletrônica. Permite corrigir erros não-tributários numa NF-e já emitida (até 30 dias).
 - **CDC** — Código de Defesa do Consumidor (Lei 8.078/90). Aplica quando o cliente final é PF.
 - **CDE** — Cardholder Data Environment. O "ambiente" do sistema que toca dado de cartão de crédito. Se o produto tocar nisso, vira PCI-DSS.
@@ -231,6 +234,7 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **OS** — Ordem de Serviço. *(você sabe — só pra referência)*
 - **OS multi-equipamento** — uma mesma OS pode ter vários instrumentos ligados a ela. Decisão fundadora do produto.
 - **OST** — Opportunity Solution Tree. Árvore que mapeia: meta → oportunidades (dores) → soluções (features) → experimentos.
+- **Outbound webhook** — em humano: "o sistema envia recado pra outro sistema externo (Zapier, Make, n8n, sistema próprio do cliente)". É chamada HTTP de saída. Toda chamada passa pelo `OutboundWebhookProvider` (porta ACL — ADR-0054) que assina HMAC, valida que IP destino não é interno (SSRF guard) e exige DPA assinado.
 
 ### P
 
@@ -277,6 +281,7 @@ Termos organizados em 4 grandes grupos (mas a listagem abaixo é em **ordem alfa
 - **SCADA** — Supervisory Control and Data Acquisition. Sistema industrial de supervisão. Adjacente ao nosso produto.
 - **Scope creep** — quando o escopo do projeto vai inchando sem controle e nunca termina. Risco grande pro nosso ERP "de N módulos".
 - **SEFAZ** — Secretaria da Fazenda estadual. Quem autoriza NF-e.
+- **SSRF guard** — em humano: "porteiro que checa o IP do destino antes de o sistema mandar recado pra fora". Se o IP for interno (rede privada, AWS metadata, localhost), bloqueia — senão um cliente mal-intencionado faria nosso servidor ler dados de outros sistemas internos. Cobre 8 faixas (INV-WEBHOOK-OUT-002). SSRF = Server-Side Request Forgery.
 - **Signatário (técnico autorizado)** — pessoa que assina o certificado de calibração. Tem que ser autorizada por escopo (cl. 6.2 da 17025). *(você sabe — só pra referência)*
 - **Sidoq** — Sistema de Documentos do INMETRO. Portal onde a gente baixa NIT, DOQ etc.
 - **SLA** — Service Level Agreement. Acordo de "em X horas a gente responde / em Y dias a gente conclui".
