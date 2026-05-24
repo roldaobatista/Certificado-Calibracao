@@ -652,6 +652,30 @@ run_case "FR7 template ignora"                        PASS  frontmatter-revisado
 run_case "FR8 skip com motivo PASS"                   PASS  frontmatter-revisado-em-check.sh '{"tool_input":{"file_path":"docs/dominios/x/prd.md","content":"# frontmatter-revisado-em: skip -- doc legado em migracao\n# PRD"}}'
 
 echo ""
+echo "===== migration-concorrencia-os-check (T-OS-105 / INV-OS-CONC-001) ====="
+
+# MC1: CREATE TABLE atividade_da_os sem indice -> BLOCK
+run_case "MC1 create table sem indice"                BLOCK migration-concorrencia-os-check.sh '{"tool_input":{"file_path":"a/migrations/0099.py","content":"CREATE TABLE atividade_da_os ( id uuid );"}}'
+
+# MC2: CREATE TABLE atividade_da_os COM o indice na mesma migration -> PASS
+run_case "MC2 create table com indice PASS"           PASS  migration-concorrencia-os-check.sh '{"tool_input":{"file_path":"a/migrations/0099.py","content":"CREATE TABLE atividade_da_os ( id uuid );\nCREATE UNIQUE INDEX idx_atividade_em_execucao_por_equip ON atividade_da_os (tenant_id, equipamento_id_desnormalizado) WHERE estado=em_execucao;"}}'
+
+# MC3: DROP INDEX do idx sem recriar -> BLOCK
+run_case "MC3 drop sem recriar"                       BLOCK migration-concorrencia-os-check.sh '{"tool_input":{"file_path":"a/migrations/0100.py","content":"DROP INDEX IF EXISTS idx_atividade_em_execucao_por_equip;"}}'
+
+# MC4: DROP + recriar na mesma migration -> PASS
+run_case "MC4 drop e recria PASS"                     PASS  migration-concorrencia-os-check.sh '{"tool_input":{"file_path":"a/migrations/0100.py","content":"DROP INDEX idx_atividade_em_execucao_por_equip;\nCREATE UNIQUE INDEX idx_atividade_em_execucao_por_equip ON atividade_da_os (tenant_id, equipamento_id_desnormalizado);"}}'
+
+# MC5: DISABLE ROW LEVEL SECURITY em atividade_da_os -> BLOCK
+run_case "MC5 disable RLS bloqueia"                   BLOCK migration-concorrencia-os-check.sh '{"tool_input":{"file_path":"a/migrations/0101.py","content":"ALTER TABLE atividade_da_os DISABLE ROW LEVEL SECURITY;"}}'
+
+# MC6: Override skip com razao -> PASS
+run_case "MC6 skip com motivo PASS"                   PASS  migration-concorrencia-os-check.sh '{"tool_input":{"file_path":"a/migrations/0102.py","content":"# concorrencia-os: skip -- migracao legada arquivada\nDROP INDEX idx_atividade_em_execucao_por_equip;"}}'
+
+# MC7: arquivo fora de migrations -> PASS
+run_case "MC7 fora migrations ignora"                 PASS  migration-concorrencia-os-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"CREATE TABLE atividade_da_os ( id uuid );"}}'
+
+echo ""
 if [ -n "$FILTER" ]; then
     echo "===== resumo (filtro='$FILTER'): $pass ok, $fail falhas, $skipped pulados ====="
 else
