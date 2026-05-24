@@ -165,6 +165,8 @@ module = [
     "src.infrastructure.equipamentos.serializers",
     "src.infrastructure.responsavel_tecnico.views",
     "src.infrastructure.responsavel_tecnico.serializers",
+    "src.infrastructure.ordens_servico.views",
+    "src.infrastructure.ordens_servico.serializers",
     "src.infrastructure.authz.views",
     "src.infrastructure.authz.serializers",
     "src.infrastructure.authz.admin",
