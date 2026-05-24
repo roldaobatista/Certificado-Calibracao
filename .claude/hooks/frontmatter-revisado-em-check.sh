@@ -17,7 +17,22 @@ content=$(printf '%s' "$input" | perl -MJSON::PP -e '
     local $/; my $raw = <STDIN>; my $j;
     eval { $j = JSON::PP->new->decode($raw); 1 } or exit 0;
     my $ti = $j->{tool_input} // {};
-    print $ti->{content} // $ti->{new_string} // "";
+    # Write: tool_input.content tem o arquivo inteiro; Edit: tool_input.new_string
+    # so contem o fragmento alterado. So validamos quando temos arquivo inteiro
+    # (Write) ou quando o fragmento contem frontmatter (caso raro de Edit que
+    # toca o proprio bloco --- ... ---).
+    my $c = $ti->{content};
+    if (!defined $c || $c eq "") {
+        my $ns = $ti->{new_string} // "";
+        # Heuristica: Edit valida apenas se new_string contem linha "---" sozinha
+        # (indicio de que o edit toca o frontmatter). Caso contrario, exit 0.
+        if ($ns =~ /^---\s*$/m) {
+            $c = $ns;
+        } else {
+            exit 0;
+        }
+    }
+    print $c;
 ' 2>/dev/null)
 
 file_path=$(printf '%s' "$input" | perl -MJSON::PP -e '

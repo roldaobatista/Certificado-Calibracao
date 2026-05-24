@@ -625,6 +625,33 @@ run_case "AH7 settings sem MIDDLEWARE list ignora"    PASS  admin-hardening-chec
 run_case "AH8 skip com motivo PASS"                   PASS  admin-hardening-check.sh '{"tool_input":{"file_path":"config/settings/base.py","content":"# admin-hardening: skip -- migration intermediaria entre F-A e F-C1; restaurar antes do P5\nMIDDLEWARE = [\"django.middleware.security.SecurityMiddleware\"]"}}'
 
 echo ""
+echo "===== frontmatter-revisado-em-check (Onda 2 plano-v2) ====="
+
+# FR1: Write com frontmatter completo -> PASS
+run_case "FR1 write frontmatter OK"                   PASS  frontmatter-revisado-em-check.sh '{"tool_input":{"file_path":"docs/dominios/x/prd.md","content":"---\nowner: roldao\nrevisado-em: 2026-05-24\nstatus: draft\n---\n\n# PRD"}}'
+
+# FR2: Write SEM frontmatter -> BLOCK
+run_case "FR2 write sem frontmatter BLOCK"            BLOCK frontmatter-revisado-em-check.sh '{"tool_input":{"file_path":"docs/dominios/x/prd.md","content":"# PRD sem frontmatter"}}'
+
+# FR3: Write com revisado-em mal formatado -> BLOCK
+run_case "FR3 write revisado-em invalido BLOCK"       BLOCK frontmatter-revisado-em-check.sh '{"tool_input":{"file_path":"docs/dominios/x/prd.md","content":"---\nowner: roldao\nrevisado-em: ontem\nstatus: draft\n---\n"}}'
+
+# FR4: Edit fragmento que NAO toca frontmatter -> PASS (corrige false-positive)
+run_case "FR4 edit fragmento corpo PASS"              PASS  frontmatter-revisado-em-check.sh '{"tool_input":{"file_path":"docs/dominios/x/prd.md","new_string":"linha alterada do corpo"}}'
+
+# FR5: Edit fragmento que CONTEM frontmatter quebrado -> BLOCK
+run_case "FR5 edit toca frontmatter quebrado BLOCK"   BLOCK frontmatter-revisado-em-check.sh '{"tool_input":{"file_path":"docs/dominios/x/prd.md","new_string":"---\nowner: roldao\n---\n"}}'
+
+# FR6: Arquivo fora de docs canonicos -> PASS
+run_case "FR6 arquivo fora ignora"                    PASS  frontmatter-revisado-em-check.sh '{"tool_input":{"file_path":"src/x/foo.py","content":"def f(): pass"}}'
+
+# FR7: Template ignorado -> PASS
+run_case "FR7 template ignora"                        PASS  frontmatter-revisado-em-check.sh '{"tool_input":{"file_path":"docs/_TEMPLATE_prd.md","content":"# sem frontmatter"}}'
+
+# FR8: Skip inline com motivo -> PASS
+run_case "FR8 skip com motivo PASS"                   PASS  frontmatter-revisado-em-check.sh '{"tool_input":{"file_path":"docs/dominios/x/prd.md","content":"# frontmatter-revisado-em: skip -- doc legado em migracao\n# PRD"}}'
+
+echo ""
 if [ -n "$FILTER" ]; then
     echo "===== resumo (filtro='$FILTER'): $pass ok, $fail falhas, $skipped pulados ====="
 else
