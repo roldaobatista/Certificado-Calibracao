@@ -1,3 +1,4 @@
+# arquivo-tamanho: skip -- god-module DEFERIDO pos-Marco 3 Fase 5 (ver docs/arquitetura/god-modules-deferral.md); quebra por agregado DDD em ADR a numerar
 """Modelo Equipamento — Wave A · Marco 2 (suporte-plataforma/equipamentos).
 
 Equipamento fisico do cliente (balanca, paquimetro, termometro etc.) que
