@@ -766,3 +766,337 @@ class CondicoesAmbientais(models.Model):
 
     def __str__(self) -> str:
         return f"CondicoesAmbientais {self.temperatura_lida_celsius}°C / {self.umidade_lida_pct}%"
+
+
+# =============================================================
+# OrcamentoIncerteza + ComponenteIncerteza + OrcamentoPorPonto
+# (cl. 7.6 ISO 17025 + NIT-DICLA-030 rev. 15)
+# =============================================================
+
+TIPO_COMPONENTE_CHOICES = [
+    ("A", "Tipo A (estatistica — repetibilidade)"),
+    ("B", "Tipo B (avaliacao por outros meios)"),
+]
+
+# §16.6 — 8 origens obrigatorias por grandeza (matriz CGCRE)
+TIPO_ORIGEM_COMPONENTE_CHOICES = [
+    ("REPETIBILIDADE", "Repetibilidade (Tipo A)"),
+    ("RESOLUCAO_INSTRUMENTO", "Resolucao do instrumento"),
+    ("INCERTEZA_PADRAO_REF", "Incerteza herdada do padrao de referencia"),
+    ("DERIVA_PADRAO", "Deriva do padrao"),
+    ("CONDICOES_AMBIENTAIS", "Condicoes ambientais (temp/umidade/pressao)"),
+    ("EXCENTRICIDADE", "Excentricidade (balanca)"),
+    ("POLARIZACAO_BIAS", "Polarizacao / bias conhecido (GUM §4.3)"),
+    ("OUTRO", "Outro (justificavel)"),
+]
+
+DISTRIBUICAO_CHOICES = [
+    ("NORMAL", "Normal"),
+    ("RETANGULAR", "Retangular (uniforme)"),
+    ("TRIANGULAR", "Triangular"),
+    ("U", "U (arcoseno)"),
+    ("OUTRA", "Outra"),
+]
+
+FORMULA_CALCULO_CHOICES = [
+    ("REPETIBILIDADE_STD_MEDIA", "Repetibilidade — s(x)/sqrt(n) Tipo A"),
+    ("RESOLUCAO_RETANGULAR", "Resolucao — d/(2*sqrt(3))"),
+    ("PADRAO_CERTIFICADO", "Padrao certificado — U_pdr/k_pdr"),
+    ("DERIVA_LINEAR", "Deriva linear historica do padrao"),
+    ("TEMPERATURA_QUADRATICA", "Temperatura — coef * deltaT^2"),
+    ("BIAS_CONHECIDO", "Bias conhecido (GUM §4.3)"),
+    ("OUTRO", "Outro (justificavel)"),
+]
+
+
+class OrcamentoIncerteza(models.Model):
+    """Orcamento de incerteza ponto-a-ponto (NIT-DICLA-030 rev. 15).
+
+    Imutavel pos EM_REVISAO_1 (INV-CAL-WORM-001 — trigger PG na migration).
+    Algoritmos 1 e 2 (GUM Decimal + Monte Carlo NumPy — spec §3.3 +
+    ADR-0025 + ADR-0065). Replay deterministico em CI (30 fixtures).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="orcamentos_incerteza",
+    )
+    calibracao = models.ForeignKey(
+        Calibracao,
+        on_delete=models.PROTECT,
+        related_name="orcamentos_incerteza",
+    )
+    # Snapshot do algoritmo 1 (GUM classico) — campos diretos pra query rapida
+    u_combinada = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        help_text="Snapshot do algoritmo 1 (GUM classico — pior caso quando OrcamentoPorPonto[]).",
+    )
+    grau_liberdade_efetivo = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Welch-Satterthwaite (GUM §G.4).",
+    )
+    k = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default="2.0",
+        help_text="Fator de abrangencia (default k=2 -> 95.45%).",
+    )
+    U_expandida = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        help_text="U = u_combinada * k.",
+    )
+    nivel_confianca = models.DecimalField(
+        max_digits=5,
+        decimal_places=3,
+        default="0.9545",
+        help_text="k=2 -> 95.45%.",
+    )
+    documentacao_agregacao = models.TextField(
+        help_text=(
+            ">=50 chars (INV-CAL-INC-001) declarando como u_combinada agrega quando "
+            "OrcamentoPorPonto[] existe (NIT-DICLA-030 rev. 15 NOVO-3 RBC R2)."
+        ),
+    )
+    versao_motor_calculo = models.CharField(
+        max_length=50,
+        help_text="Semver + commit-hash do motor (ADR-0025 + INV-CAL-VERSAO-001).",
+    )
+    # §16.6 — algoritmo 1 + algoritmo 2 separados em JSONB
+    algoritmo_1_resultado = models.JSONField(
+        help_text=(
+            "Resultado completo do algoritmo 1 (GUM classico Decimal): "
+            "u_combinada, U_expandida, k, grau_liberdade_efetivo, etc."
+        ),
+    )
+    algoritmo_2_resultado = models.JSONField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Resultado completo do algoritmo 2 (Monte Carlo NumPy + seed em "
+            "Calibracao.id). NULL se 2o caminho nao aplicavel pra grandeza."
+        ),
+    )
+    divergencia_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text=(
+            "Divergencia entre algoritmo 1 e 2 em porcentagem. "
+            "<=0.1% silencioso; 0.1-1% alerta P3; >1% bloqueia "
+            "DivergenciaCalculoInaceitavel (NC automatica)."
+        ),
+    )
+    replay_determinismo_hash = models.CharField(
+        max_length=80,
+        help_text=(
+            "HashVersionado v<NN>$<base64> (ADR-0064) de inputs ordenados "
+            "canonicamente + outputs separados. Regressao de calculo (mesmo "
+            "input, output diferente) detectada em CI replay."
+        ),
+    )
+    bias_orcado = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        null=True,
+        blank=True,
+        help_text="Bias conhecido (GUM §4.3 + NIT-DICLA-030 — quando aplicavel).",
+    )
+    bias_origem = models.CharField(
+        max_length=80,
+        blank=True,
+        default="",
+        help_text="Origem do bias (ex: calibracao_externa_padrao_referencia).",
+    )
+    arredondamento_aplicado_regra = models.CharField(
+        max_length=20,
+        default="NIT_DICLA_030_2_DIGITOS_SIG",
+        help_text="Regra de arredondamento (NIT-DICLA-030 §7.5).",
+    )
+    calculado_em = models.DateTimeField(
+        auto_now_add=True,
+    )
+    correlation_id = models.UUIDField(
+        default=uuid.uuid4,
+    )
+
+    class Meta:
+        verbose_name = "Orcamento de Incerteza"
+        verbose_name_plural = "Orcamentos de Incerteza"
+        db_table = "orcamento_incerteza"
+        ordering = ["-calculado_em"]
+        indexes = [
+            models.Index(fields=["tenant", "calibracao"], name="orcinc_tenant_cal_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"OrcamentoIncerteza U={self.U_expandida} (k={self.k})"
+
+
+class ComponenteIncerteza(models.Model):
+    """Componente individual do orcamento (1:N de OrcamentoIncerteza).
+
+    Imutavel pos-INSERT (INV-CAL-WORM-001).
+    Tipo A exige n_amostras >= 6 + s_x NOT NULL (INV-CAL-INC-003).
+    Correlacao com outro componente via self-FK (GUM §5.2.2 +
+    INV-CAL-INC-004).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="componentes_incerteza",
+    )
+    orcamento_incerteza = models.ForeignKey(
+        OrcamentoIncerteza,
+        on_delete=models.PROTECT,
+        related_name="componentes",
+    )
+    nome_componente = models.CharField(
+        max_length=80,
+        help_text="Ex: 'Resolucao do indicador', 'Deriva do padrao'.",
+    )
+    tipo_componente = models.CharField(
+        max_length=1,
+        choices=TIPO_COMPONENTE_CHOICES,
+        help_text="A=estatistico (repetibilidade); B=outros meios.",
+    )
+    tipo_origem_componente = models.CharField(
+        max_length=30,
+        choices=TIPO_ORIGEM_COMPONENTE_CHOICES,
+        help_text=(
+            "8 origens (§16.6). INV-CAL-INC-002 valida obrigatorias por "
+            "grandeza+padrao (matriz componentes-obrigatorios-por-grandeza)."
+        ),
+    )
+    distribuicao = models.CharField(
+        max_length=20,
+        choices=DISTRIBUICAO_CHOICES,
+    )
+    divisor = models.DecimalField(
+        max_digits=15,
+        decimal_places=5,
+        help_text="Ex: sqrt(3) p/ retangular, sqrt(6) p/ triangular.",
+    )
+    valor_estimativa = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+    )
+    contribuicao = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+    )
+    grau_liberdade = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default="50.0",
+    )
+    fonte_default_padrao_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="FK PadraoMetrologico (db_constraint=False — modulo padroes).",
+    )
+    formula_calculo = models.CharField(
+        max_length=40,
+        choices=FORMULA_CALCULO_CHOICES,
+        help_text="§16.6 — formula declarada (matriz formula-calculo-por-grandeza).",
+    )
+    correlacao_com_componente_id = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="correlacionados",
+        help_text="Self-FK GUM §5.2.2 — quando 2+ componentes vem do mesmo padrao.",
+    )
+    coeficiente_correlacao = models.DecimalField(
+        max_digits=5,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="-1 a 1; NOT NULL quando correlacao_com_componente_id NOT NULL.",
+    )
+    n_amostras = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text=(
+            "NOT NULL quando tipo='A' (CHECK constraint na migration). "
+            "INV-CAL-INC-003: n>=6 (NIT-DICLA-030 §7.4)."
+        ),
+    )
+    s_x = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        null=True,
+        blank=True,
+        help_text="Desvio-padrao amostral. NOT NULL quando tipo='A'.",
+    )
+
+    class Meta:
+        verbose_name = "Componente de Incerteza"
+        verbose_name_plural = "Componentes de Incerteza"
+        db_table = "componente_incerteza"
+        ordering = ["orcamento_incerteza", "nome_componente"]
+        indexes = [
+            models.Index(fields=["tenant", "orcamento_incerteza"], name="cmpinc_tenant_orc_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Componente {self.nome_componente} ({self.tipo_componente})"
+
+
+class OrcamentoPorPonto(models.Model):
+    """Incerteza por ponto da calibracao (1:N de OrcamentoIncerteza).
+
+    Imutavel pos-INSERT (INV-CAL-WORM-001).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="orcamentos_por_ponto",
+    )
+    orcamento_incerteza = models.ForeignKey(
+        OrcamentoIncerteza,
+        on_delete=models.PROTECT,
+        related_name="pontos",
+    )
+    ponto_calibracao = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+    )
+    u_combinada_no_ponto = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+    )
+    U_expandida_no_ponto = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+    )
+    k_no_ponto = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default="2.0",
+    )
+
+    class Meta:
+        verbose_name = "Orcamento por Ponto"
+        verbose_name_plural = "Orcamentos por Ponto"
+        db_table = "orcamento_por_ponto"
+        ordering = ["orcamento_incerteza", "ponto_calibracao"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "orcamento_incerteza", "ponto_calibracao"],
+                name="uq_orcamento_ponto",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"OrcamentoPorPonto p={self.ponto_calibracao} U={self.U_expandida_no_ponto}"
