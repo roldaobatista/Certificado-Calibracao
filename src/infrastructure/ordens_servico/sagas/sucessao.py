@@ -30,7 +30,15 @@ CONSUMER_ID = "os.saga.reabertura_sucessao"
 
 @consumer_idempotente(consumer_id=CONSUMER_ID)
 def handle_reabertura_solicitada(envelope: dict[str, Any]) -> None:
-    """Bloqueia reabertura cross-cliente sem SucessaoSocietaria (INV-OS-SUC-001)."""
+    """STUB Marco 3 (GATE-OS-SUCESSAO-EVIDENCIA): apenas LOGA decisao.
+
+    Bloqueio efetivo de reabertura cross-cliente acontece DENTRO do
+    use case `reabrir_os` (operacoes_avancadas.py) — valida
+    `sucessao_societaria_id` e raises `ErroReabrir(412)` se ausente.
+    Este consumer eh OBSERVABILIDADE retroativa do evento via bus +
+    GATE pra Wave A publicar `OS.ReaberturaBloqueada` em portal-cliente.
+    Docstring agora reflete o corpo: LOGA + GATE.
+    """
     payload = envelope.get("payload", {})
     cliente_original = payload.get("cliente_id_original")
     cliente_sucessor = payload.get("cliente_id_sucessor")

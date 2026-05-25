@@ -33,10 +33,17 @@ CONSUMER_ID_FOTO = "os.saga.sync_foto"
 
 @consumer_idempotente(consumer_id=CONSUMER_ID_ATIVIDADE)
 def handle_sync_atividade(envelope: dict[str, Any]) -> None:
-    """LWW por atividade — TODO Wave A app-tecnico mobile."""
+    """STUB Marco 3 (GATE-OS-SYNC-WAVE-A): apenas LOGA recebimento.
+
+    Implementacao real LWW por atividade depende de ADR-0003 (app-tecnico
+    mobile) que so chega em Wave A. Ate la o consumer existe pra
+    registrar o contrato + IDEMP-002 (dedup `(consumer_id, event_id)`
+    via decorator). Side-effect REAL fica pendente — comportamento
+    documentado em REGRAS-INEGOCIAVEIS.md GATE-OS-SYNC-WAVE-A.
+    """
     payload = envelope.get("payload", {})
     logger.info(
-        "os.saga.sync_atividade: TODO ADR-0027 merge LWW atividade=%s modificado_em=%s",
+        "os.saga.sync_atividade: STUB GATE-OS-SYNC-WAVE-A atividade=%s modificado_em=%s",
         payload.get("atividade_id"),
         payload.get("modificado_em"),
     )
@@ -44,10 +51,16 @@ def handle_sync_atividade(envelope: dict[str, Any]) -> None:
 
 @consumer_idempotente(consumer_id=CONSUMER_ID_FOTO)
 def handle_sync_foto(envelope: dict[str, Any]) -> None:
-    """Foto append-only — INV-OS-SYNC-001."""
+    """STUB Marco 3 (GATE-OS-SYNC-WAVE-A): apenas LOGA recebimento.
+
+    INV-OS-SYNC-001 (append-only) ja eh garantida pelo trigger PG em
+    `EvidenciaFotoAtividade` (migration 0008) + hook
+    `sync-merge-foto-appendonly`. Consumer da saga real (INSERT em
+    `EvidenciaFotoAtividade`) entra com ADR-0003 (app-tecnico Wave A).
+    """
     payload = envelope.get("payload", {})
     logger.info(
-        "os.saga.sync_foto: TODO ADR-0027 append-only foto atividade=%s hash=%s",
+        "os.saga.sync_foto: STUB GATE-OS-SYNC-WAVE-A atividade=%s hash=%s",
         payload.get("atividade_id"),
         payload.get("foto_sha256", "")[:16],
     )

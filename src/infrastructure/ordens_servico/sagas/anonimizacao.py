@@ -37,8 +37,16 @@ ESTADOS_TERMINAIS = frozenset({"concluida", "cancelada", "faturada", "paga"})
 
 @consumer_idempotente(consumer_id=CONSUMER_ID)
 def handle_os_em_estado_terminal(envelope: dict[str, Any]) -> None:
-    """Quando OS entra em estado terminal, verifica se cliente liberou todas
-    as OS abertas. Se sim, publica `Cliente.AnonimizacaoSolicitadaRetry`.
+    """STUB Marco 3 (GATE-OS-ANON-RETRY-1): consulta predicate + LOGA decisao.
+
+    Comportamento atual: quando OS entra em estado terminal, verifica
+    se cliente liberou TODAS as OS abertas (predicate
+    `cliente_tem_os_aberta`). Se zero pendentes, apenas LOGA — a
+    publicacao de `Cliente.AnonimizacaoSolicitadaRetry` depende de
+    Marco 1 ter `tabela_anonimizacao_pendente` (GATE Wave A).
+
+    Docstring reflete o corpo: predicate + log. Saga completa fica
+    em Wave A junto com retentativa real da anonimizacao.
     """
     payload = envelope.get("payload", {})
     os_id_raw = payload.get("os_id")

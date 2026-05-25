@@ -174,10 +174,25 @@ _EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")
 _TELEFONE_RE = re.compile(r"\b(?:\+?55\s?)?\(?\d{2}\)?\s?9?\s?\d{4}\s?[\-.]?\d{4}\b")
 _NOMES_RE = re.compile(r"\b[A-Z][a-z]+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b")
 _ENDERECO_RE = re.compile(
-    r"\d+\s*(?:ap|apto|apt|bloco|sala|conjunto|cj)\.?\s*\d+",
+    # `(?:^|\s)` em vez de `\b` puro: bug-classe TST-007 — slug
+    # `q58gjwv5cj2csxbhwk0n` casava "5cj2" como falso-positivo de
+    # endereco. Exigimos whitespace ou inicio antes do digito.
+    r"(?:^|\s)\d+\s*(?:ap|apto|apt|bloco|sala|conjunto|cj)\.?\s*\d+",
     re.IGNORECASE,
 )
 _SEQ_NUMERICA_RE = re.compile(r"\b\d{7,}\b")
+
+# Guard anti-falso-positivo TST-007 (bug-classe `sanitizar_payload_audit`
+# 2026-05-19): UUIDs com runs longos de digitos hex acabam casando
+# `_SEQ_NUMERICA_RE` em ~2.6% dos casos. Removemos UUIDs estruturais do
+# texto canonico ANTES do scan PII — UUID NUNCA e dado pessoal (chave
+# tecnica), entao guard seguro. CPF/CNPJ/email/telefone reais jamais
+# parseiam como UUID. Aplicado tambem a hashes hex64 (paridade audit).
+_UUID_ESTRUTURAL_RE = re.compile(
+    r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
+    re.IGNORECASE,
+)
+_HEX64_ESTRUTURAL_RE = re.compile(r"\b[0-9a-f]{64}\b", re.IGNORECASE)
 
 # Palavras-chave que disparam revisao do gerente (P-OS-A3 — REQUER OAB).
 _PALAVRAS_SAUDE = re.compile(
@@ -217,6 +232,11 @@ class MotivoCancelamento:
 
         # Anti-PII canonicalizado.
         canonico = self._canonicalizar(self.texto)
+        # Guard TST-007 (bug-classe 2026-05-19): remove identificadores
+        # estruturais (UUID, hex64) antes do scan PII — UUID/hash NUNCA
+        # sao dado pessoal e seu run de digitos confunde regex CPF/seq.
+        canonico_scan = _UUID_ESTRUTURAL_RE.sub(" ", canonico)
+        canonico_scan = _HEX64_ESTRUTURAL_RE.sub(" ", canonico_scan)
         for nome, regex in [
             ("CPF", _CPF_RE),
             ("CNPJ", _CNPJ_RE),
@@ -225,7 +245,7 @@ class MotivoCancelamento:
             ("endereco", _ENDERECO_RE),
             ("sequencia_numerica", _SEQ_NUMERICA_RE),
         ]:
-            if regex.search(canonico):
+            if regex.search(canonico_scan):
                 raise ValueError(
                     f"MotivoCancelamento (INV-OS-TXT-001): texto contem {nome}."
                 )

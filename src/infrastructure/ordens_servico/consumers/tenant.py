@@ -28,6 +28,11 @@ CONSUMER_ID_ENCERRADO = "os.consumer.tenant_encerrado"
 
 @consumer_idempotente(consumer_id=CONSUMER_ID_SUSPENSO)
 def handle_tenant_suspenso(envelope: dict[str, Any]) -> None:
+    """STUB Marco 3 (GATE ADR-0035): apenas LOGA evento. Bloqueio real
+    ja eh aplicado pelo predicate `tenant_nao_suspenso` consultando
+    `Tenant.status_lifecycle` direto. Matriz operacoes x modo
+    (read_only/bloqueado_total) entra com ADR-0035 aceito em Wave A.
+    """
     payload = envelope.get("payload", {})
     logger.info(
         "os.consumer.tenant_suspenso: tenant=%s modo=%s motivo=%s correlation_id=%s",
@@ -36,15 +41,17 @@ def handle_tenant_suspenso(envelope: dict[str, Any]) -> None:
         payload.get("motivo_categoria", ""),
         envelope.get("correlation_id"),
     )
-    # TODO ADR-0035: aplicar matriz de bloqueio por modo (read_only|bloqueado_total).
 
 
 @consumer_idempotente(consumer_id=CONSUMER_ID_ENCERRADO)
 def handle_tenant_encerrado(envelope: dict[str, Any]) -> None:
+    """STUB Marco 3 (GATE ADR-0035): apenas LOGA encerramento. Movimentacao
+    de OS pendentes para arquivo morto (respeitando retencao Receita 5a /
+    ISO 17025 25a / LGPD art. 16) entra com ADR-0035 + processo de
+    offboarding tenant em Wave A.
+    """
     logger.info(
         "os.consumer.tenant_encerrado: tenant=%s correlation_id=%s",
         envelope.get("tenant_id"),
         envelope.get("correlation_id"),
     )
-    # TODO ADR-0035: tenant encerrado -> OS pendentes movem para arquivo morto
-    # respeitando retencao Receita 5a / ISO 17025 25a (LGPD art. 16).

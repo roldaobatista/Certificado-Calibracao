@@ -146,6 +146,46 @@ def test_inv_os_aud_001_unhappy_pii_em_texto_livre_redatada(db):
 # =============================================================
 
 
+# =============================================================
+# TST-006: UUIDs literais digit-heavy — bug-classe 2026-05-19
+# =============================================================
+
+
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
+def test_inv_os_aud_001_uuid_digit_heavy_literais_passam_intactos(db):
+    """TST-006: UUIDs literais com runs longos de digitos (cenario do bug
+    `sanitizar_payload_audit` 2026-05-19 onde ~8.4% dos uuid4 viravam
+    [REDACTED] por regex CPF). Guard UUID estrutural protege determinis-
+    ticamente — esses literais NUNCA podem ser redatados."""
+    tenant = TenantFactory(slug=f"inv-aud-dh-{uuid4().hex[:6]}")
+    # 4 UUIDs validos digit-heavy — runs longos de digitos.
+    uuids_literais = [
+        "00000000-0000-4000-8000-000000000000",
+        "33333333-3333-4333-8333-333333333333",
+        "12345678-9012-4345-8678-901234567890",
+        "98765432-1098-4765-8432-109876543210",
+    ]
+    _publicar(
+        tenant.id,
+        "os.aberta",
+        {
+            "os_id": uuids_literais[0],
+            "atividade_id": uuids_literais[1],
+            "client_event_id": uuids_literais[2],
+            "actor_id_estrutural": uuids_literais[3],
+        },
+    )
+    with run_in_tenant_context(tenant.id):
+        aud = Auditoria.objects.filter(tenant=tenant, action="os.aberta").get()
+    p = aud.payload_jsonb
+    assert p["os_id"] == uuids_literais[0], (
+        "UUID digit-heavy '0000...' deveria passar intacto (guard UUID)"
+    )
+    assert p["atividade_id"] == uuids_literais[1]
+    assert p["client_event_id"] == uuids_literais[2]
+    assert p["actor_id_estrutural"] == uuids_literais[3]
+
+
 @pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
 def test_inv_os_aud_001_cross_tenant_auditoria_isolada(db):
     """Cross-tenant: publicar_evento exige tenant_id == contexto ativo;
