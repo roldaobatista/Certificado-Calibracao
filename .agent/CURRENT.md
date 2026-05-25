@@ -25,18 +25,33 @@ P3 do ritual Spec Kit completo em 3 commits hoje:
 - D-M4-2: ADR-0063 Opção A lazy ✓
 - D-M4-3, D-M4-4, D-M4-5: sem previsão de contratação → agente cria minutas/matrizes preliminares com selos REQUER {OAB,CGCRE,SUSEP} HUMANO.
 
-## P4 Fase 1 — entregue ac71dc0 (2/25 migrations)
+## P4 Fase 1 — 9/25 migrations entregues hoje (7 entidades + triggers)
 
-T-CAL-001 + T-CAL-002 fechadas:
-- App `calibracao` em INSTALLED_APPS.
-- `models.py` Calibracao raiz agregado consolidada (50 campos §3.2 + §16.4).
-- Migration 0001 (Calibracao + sequence global + UNIQUE per-tenant + 4 índices).
-- Migration 0002 (RLS pattern v2 — 4 policies tenant_isolation).
-- `migrate` aplicou OK; `pg_class.relrowsecurity=t`. Suite regressão 168/168 passou. Hooks 312/312.
+T-CAL-001 a T-CAL-007 fechadas em 6 commits incrementais (ac71dc0 → 3eb9b74 → 7780511 → 5754785 → bfd49b4 → 9e45e28):
+
+**Entidades persistidas em PG com RLS + triggers WORM:**
+1. `calibracao` (raiz agregado — 50 campos §3.2 + §16.4 + CAS revision + 6 zonas ILAC G8 + PFA/PRA).
+2. `leitura` (cl. 7.5 + UNIQUE composto ADR-0065 + INV-CAL-CONC-001).
+3. `leitura_correcao` (rasura digital cl. 7.5 + anti-fraude COR-001).
+4. `condicoes_ambientais` (cl. 6.3.1 + `dentro_tolerancia` GENERATED via ABS+CASE IMMUTABLE).
+5. `orcamento_incerteza` (cl. 7.6 + GUM JCGM 100 + algoritmo_1/2_resultado JSONB + divergencia_pct + replay_determinismo_hash).
+6. `componente_incerteza` (NIT-DICLA-030 §6.3/§7.4 + Tipo A n≥6 CHECK + correlação self-FK + coeficiente CHECK).
+7. `orcamento_por_ponto` (1:N + UNIQUE ponto).
+
+**Triggers PG criados:** 6 anti-mutation WORM + 1 populador (`calibracao_numero_exibido` BEFORE INSERT) + 1 imutabilidade terminal (`calibracao_anti_mutation_terminal_check` — 18 campos forensicos bloqueiam UPDATE pós-aprovada/rejeitada/cancelada).
+
+**CHECK constraints DDL:** `ck_componente_tipo_a_n_min` + `ck_componente_correlacao_coef`.
+
+**Suite:** pytest regressão 168/168 passou. Hooks `_test-runner.sh` 312/312 verdes ao longo dos 6 commits.
 
 ## Próxima fatia
 
-**P4 Fase 1 continuação (T-CAL-003..025):** 23 migrations restantes — entidades Leitura + LeituraCorrecao + CondicoesAmbientais + OrcamentoIncerteza + ComponenteIncerteza + OrcamentoPorPonto + PadraoUsado + RecepcaoItemCalibracao + MedicaoControle + EventoDeCalibracao + NaoConformidade + AnaliseImpactoNCProficiencia + LaboratorioSubcontratado + AceiteSubcontratacao + AceiteRegraDecisao + OverrideRegraDecisaoCliente + ReclamacaoCalibracao + ConsentimentoContatoTecnicoCliente + ConsentimentoFotoRecusado + AvaliacaoPeriodicaSubcontratado + PlanoAcaoProficienciaWarning + EventoBackupMetrologico + migration cross-marco M3 plugando `AtividadeDaOS.grandeza` + RLS policies + triggers imutabilidade.
+**P4 Fase 1 continuação (T-CAL-008..025) — 16 migrations restantes:**
+- PadraoUsado (snapshot ADR-0040 + snapshot_lock pós em_revisao_1) + RecepcaoItemCalibracao (cl. 7.4 — análise crítica + foto + recusa) + MedicaoControle (Western Electric P-CAL-R8 + escore_z) + EventoDeCalibracao (hash-chain por calibracao_id + sequencia_local + advisory lock).
+- NaoConformidade (cl. 7.10/8.7 + decisão parar/continuar + notificação cliente) + AnaliseImpactoNCProficiência (janela ao invés de array — P-CAL-T8 reescrito) + PlanoAcaoProficienciaWarning (|z|∈(2,3]).
+- LaboratorioSubcontratado (cl. 6.6.2 + avaliação periódica + país) + AceiteSubcontratacao (touch/A3 + consentimento contato PF) + AvaliacaoPeriodicaSubcontratado.
+- Entidades novas P3: AceiteRegraDecisao + OverrideRegraDecisaoCliente + ReclamacaoCalibracao + ConsentimentoContatoTecnicoCliente + ConsentimentoFotoRecusado + EventoBackupMetrologico.
+- Migration cross-marco M3 (`AtividadeDaOS.grandeza`) — ADR-0063 Opção A.
 
 **Paralelizável (P3.5 — não bloqueia P4 dogfooding):** 14 tarefas T-CAL-P35-* (minutas canônicas OAB + matrizes técnicas CGCRE + ADR-0028 rev 3 + DPIA-calibracao). Bloqueia 1º tenant externo pago.
 
