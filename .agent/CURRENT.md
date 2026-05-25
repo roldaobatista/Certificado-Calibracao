@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25 — T-CAL-001..025 entregues; drill T-CAL-025 5/5 PASS + 1 SKIP esperado).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 Batch A ENTREGUE (T-CAL-026..030 — 5 VOs novos M4 com 36/36 testes verdes).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -60,13 +60,16 @@ T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em
 
 ## Próxima fatia
 
-**P4 Fase 1 FECHADA (25/25)** — drill T-CAL-025 verde (commit `ade4bee`): 5 PASS (RLS+FORCE+grants+policies em 23 tabelas) + 1 SKIP esperado (app_migrator em test_afere — memória `test_db_owner_app_user`).
+**P4 Fase 2 Batch A ENTREGUE (T-CAL-026..030)** — commit `ac33195`. 5 VOs novos puros (Decimal + frozenset whitelist + JanelaVigencia composto): `VersaoMotorCalculo`, `EscoreZ` + `ClassificacaoZ`, `ZonaILACG8`, `HashVersionadoV0`, `IncertezaCombinada`. 36 testes (>=1 happy + >=1 borda explícita por VO — TST-005+TST-006). Ruff+mypy limpos.
 
-**Próxima fatia: P4 Fase 2 — Domain (entities + VOs + helpers crypto)** — T-CAL-026..045, 20 tarefas:
-- VOs: `VersaoMotorCalculo`, `JanelaVigencia` (ADR-0030), `HashVersionado` (ADR-0064), `IncertezaCombinada`, `EscoreZ`, `ZonaILACG8`.
-- Helpers crypto: `hash_versionado(plaintext, key_id)`, `hmac_chain_advance(prev_hash, payload)` (cl. 7.5 hash-chain).
-- Entities Python (dataclasses frozen) mapeadas 1:1 com 23 modelos PG via portas/repositórios.
-- Predicates: `cmc_cobre(grandeza, faixa)`, `procedimento_vigente_para(grandeza, data)`, `rt_competencia_cobre(rt_id, grandeza, data)` — invocados em Fase 5 use cases.
+**Próxima fatia: P4 Fase 2 Batch B — helpers crypto HashVersionado (T-CAL-031..036)**
+- `src/domain/metrologia/calibracao/hash_versionado.py`: funções puras `parsear_hash_versionado(s)`, `formatar_hash_versionado(versao, hmac_bytes)`, `validar_versao(n)`.
+- Camada de chamada KMS Multi-Region fica em `src/infrastructure/calibracao/hash_kms.py` (Fase 5 use cases).
+- Testes: roundtrip, rejeição base64 inválido, rejeição versão >99, formato canônico ADR-0064.
+
+**Depois: P4 Fase 2 Batch C — Entities + Predicates (T-CAL-037..045)**
+- 9 dataclasses puras (Calibracao, Leitura, OrcamentoIncerteza, ComponenteIncerteza, PadraoUsado, RecepcaoItemCalibracao, EventoDeCalibracao, NaoConformidade, AceiteRegraDecisao).
+- Predicates puros: `cmc_cobre`, `procedimento_vigente_para`, `rt_competencia_cobre` (ADR-0063 Opção A lazy).
 
 **Paralelizável (P3.5 — não bloqueia P4 dogfooding):** 14 tarefas T-CAL-P35-* (minutas canônicas OAB + matrizes técnicas CGCRE + ADR-0028 rev 3 + DPIA-calibracao). Bloqueia 1º tenant externo pago.
 
