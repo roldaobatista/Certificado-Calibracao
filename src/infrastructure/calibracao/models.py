@@ -590,3 +590,179 @@ class Leitura(models.Model):
 
     def __str__(self) -> str:
         return f"Leitura {self.ponto_calibracao}@{self.numero_repeticao} = {self.valor_lido}"
+
+
+# =============================================================
+# LeituraCorrecao (cl. 7.5 ISO 17025 — rasura digital)
+# =============================================================
+
+
+class LeituraCorrecao(models.Model):
+    """Rasura digital sobre uma Leitura (cl. 7.5 ISO 17025).
+
+    Preserva valor_original (NAO muta a Leitura — INV-CAL-WORM-001).
+    Append-only WORM (INV-CAL-WORM-001 + trigger PG na migration).
+    AC-CAL-004-7: so permitido quando calibracao.status IN
+    (CONFIGURADA, EM_EXECUCAO). Apos EM_REVISAO_1 correcao exige
+    reabertura formal via CAPA (gera NaoConformidade).
+    Anti-fraude INV-CAL-FRAUDE-COR-001 (corretor=user).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="leituras_correcao",
+    )
+    leitura = models.ForeignKey(
+        Leitura,
+        on_delete=models.PROTECT,
+        related_name="correcoes",
+        help_text="Leitura corrigida (NAO muta — INV-CAL-WORM-001).",
+    )
+    valor_original = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        help_text="Snapshot do valor_lido da Leitura ANTES da correcao.",
+    )
+    valor_corrigido = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        help_text="Valor depois da correcao.",
+    )
+    razao_correcao_canonicalizada = models.TextField(
+        help_text=(
+            ">=30 chars + anti-PII INV-CAL-TXT-001 + INV-DOC-CANON-001 "
+            "(UTF-8 + LF + NFC + marcadores <<<CORPO INICIO/FIM>>>)."
+        ),
+    )
+    razao_correcao_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado v<NN>$<base64> do texto canonicalizado (ADR-0064).",
+    )
+    corretor_id_hash = models.CharField(
+        max_length=80,
+        help_text=(
+            "HashVersionado do corretor (ADR-0064). UUID cru NAO persistido "
+            "aqui — anti-stalking. Validacao INV-CAL-FRAUDE-COR-001 feita no "
+            "use case (corretor_user_id == request.user.id)."
+        ),
+    )
+    corrigido_em = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Momento da correcao.",
+    )
+    correlation_id = models.UUIDField(
+        default=uuid.uuid4,
+        help_text="Cadeia forense.",
+    )
+
+    class Meta:
+        verbose_name = "Leitura — Correcao"
+        verbose_name_plural = "Leituras — Correcoes"
+        db_table = "leitura_correcao"
+        ordering = ["-corrigido_em"]
+        indexes = [
+            models.Index(fields=["tenant", "leitura"], name="leitcorr_tenant_leit_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"LeituraCorrecao {self.leitura_id}: {self.valor_original} -> {self.valor_corrigido}"
+
+
+# =============================================================
+# CondicoesAmbientais (cl. 6.3.1 + NIT-DICLA-030 — snapshot WORM)
+# =============================================================
+
+
+class CondicoesAmbientais(models.Model):
+    """Snapshot de condicoes ambientais no momento da medicao.
+
+    Imutavel pos-INSERT (INV-CAL-WORM-001 + trigger PG na migration).
+    INV-CAL-AMB-001: registrarLeitura bloqueia 412 quando
+    `dentro_tolerancia=false` (override possivel com justificativa +
+    audit + alerta P2 Qualidade).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="condicoes_ambientais",
+    )
+    temperatura_lida_celsius = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        help_text="Temperatura medida na bancada/ambiente.",
+    )
+    umidade_lida_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        help_text="Umidade relativa medida (0..100).",
+    )
+    pressao_lida_kpa = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Pressao barometrica (opcional por grandeza).",
+    )
+    temperatura_alvo_celsius = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Temperatura alvo do ProcedimentoCalibracao.",
+    )
+    temperatura_tolerancia_celsius = models.DecimalField(
+        max_digits=5,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Tolerancia +/- em torno da temperatura_alvo.",
+    )
+    umidade_alvo_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Umidade alvo do ProcedimentoCalibracao.",
+    )
+    umidade_tolerancia_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Tolerancia +/- em torno da umidade_alvo.",
+    )
+    # dentro_tolerancia GENERATED COLUMN sera adicionada via SQL na migration
+    # (Django ORM nao tem suporte nativo; aceita ABS+CASE que sao IMMUTABLE).
+    dentro_tolerancia = models.BooleanField(
+        default=True,
+        help_text=(
+            "GENERATED em migration via ABS + CASE NULL-safe. INV-CAL-AMB-001 — "
+            "registrarLeitura bloqueia 412 quando false."
+        ),
+    )
+    executor_id_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado executor (ADR-0064).",
+    )
+    medido_em = models.DateTimeField(
+        help_text="Momento da medicao.",
+    )
+    correlation_id = models.UUIDField(
+        default=uuid.uuid4,
+    )
+
+    class Meta:
+        verbose_name = "Condicoes Ambientais"
+        verbose_name_plural = "Condicoes Ambientais"
+        db_table = "condicoes_ambientais"
+        ordering = ["-medido_em"]
+        indexes = [
+            models.Index(fields=["tenant", "medido_em"], name="condamb_tenant_med_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"CondicoesAmbientais {self.temperatura_lida_celsius}°C / {self.umidade_lida_pct}%"
