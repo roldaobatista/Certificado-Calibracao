@@ -76,6 +76,12 @@ TIPO_ACREDITACAO_CHOICES = [
     ("NAO_RBC", "Nao RBC"),
 ]
 
+# Subcontratacao — modo assinatura (P-CAL-A6 advogado)
+ASSINATURA_MODO_CHOICES = [
+    ("TOUCH", "Touch (biometria simples — exige declaracao alto-risco)"),
+    ("A3", "A3 (certificado ICP-Brasil)"),
+]
+
 
 class Calibracao(models.Model):
     """Raiz agregado metrologica (ISO/IEC 17025 + ADRs 0023/0024/0025/0026/0040/0064/0065).
@@ -1863,3 +1869,346 @@ class PlanoAcaoProficienciaWarning(models.Model):
 
     def __str__(self) -> str:
         return f"PlanoAcaoProficienciaWarning z={self.escore_z}"
+
+
+class LaboratorioSubcontratado(models.Model):
+    """Cadastro de laboratorio externo subcontratado (cl. 6.6 + US-CAL-017).
+
+    Padrao C — soft-delete configuracao (`deletado_em`). PII Zona B
+    (razao_social_hash + cnpj_hash + contatos PF hashed). Avaliacao
+    periodica obrigatoria (P-CAL-R5 RBC cl. 6.6.2) — 1:N
+    AvaliacaoPeriodicaSubcontratado.
+
+    Quando `pais != 'BR'`: dpa_clausulas_internacionais_id NOT NULL
+    (P-CAL-A1 advogado — transferencia internacional LGPD art. 33).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="laboratorios_subcontratados",
+    )
+    # PII Zona B (razao social + CNPJ + contatos PF hashed)
+    razao_social_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado v<NN>$<base64> (ADR-0064).",
+    )
+    razao_social_key_id = models.CharField(
+        max_length=40,
+        help_text="ID chave KMS p/ razao social cleartext (off-band).",
+    )
+    cnpj_hash = models.CharField(max_length=80)
+    cnpj_key_id = models.CharField(max_length=40)
+    credenciamento_atual = models.CharField(
+        max_length=50,
+        help_text="Ex: 'CGCRE-CAL-0123' (codigo acreditacao CGCRE).",
+    )
+    acreditacoes_vigentes = models.JSONField(
+        help_text=(
+            "Array [{grandeza, faixa_min, faixa_max, validade}]. "
+            "Snapshot consultado em subcontratarCalibracao (US-CAL-017)."
+        ),
+    )
+    contato_comercial_hash = models.CharField(max_length=80)
+    contato_tecnico_hash = models.CharField(max_length=80)
+    dpa_versao = models.CharField(
+        max_length=20,
+        help_text="Versao DPA assinada (cl. 4.7 ISO 17025).",
+    )
+    # §16.10 — campos novos P-CAL-R5
+    criterio_selecao_documento_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="FK criterio-selecao-subcontratado-v1.0.md (REQUER OAB).",
+    )
+    ultima_avaliacao_periodica_em = models.DateTimeField(null=True, blank=True)
+    proxima_avaliacao_periodica_em = models.DateTimeField(
+        help_text="Default vigencia_inicio + 12 meses (cl. 6.6.2).",
+    )
+    score_avaliacao_atual = models.DecimalField(
+        max_digits=3,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        help_text="0-10 (avaliacao periodica).",
+    )
+    avaliado_por_user_id = models.UUIDField(null=True, blank=True)
+    pais = models.CharField(
+        max_length=2,
+        default="BR",
+        help_text="ISO 3166-1 alpha-2 (P-CAL-A1 transferencia internacional).",
+    )
+    dpa_clausulas_internacionais_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="NOT NULL quando pais != 'BR' (CHECK na migration).",
+    )
+    # ADR-0030 — vigencia canonica
+    vigencia_inicio = models.DateTimeField()
+    vigencia_fim = models.DateTimeField(null=True, blank=True)
+    # ADR-0031 Padrao C — soft-delete configuracao
+    deletado_em = models.DateTimeField(null=True, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    correlation_id = models.UUIDField(default=uuid.uuid4)
+
+    class Meta:
+        verbose_name = "Laboratorio Subcontratado"
+        verbose_name_plural = "Laboratorios Subcontratados"
+        db_table = "laboratorio_subcontratado"
+        ordering = ["-criado_em"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "cnpj_hash"],
+                name="labsub_tenant_cnpj_idx",
+            ),
+            models.Index(
+                fields=["tenant", "proxima_avaliacao_periodica_em"],
+                name="labsub_tenant_proxav_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"LaboratorioSubcontratado {self.credenciamento_atual}"
+
+
+class AceiteSubcontratacao(models.Model):
+    """Aceite explicito do cliente para subcontratar cl. 6.6 (US-CAL-017).
+
+    Imutavel pos-INSERT (WORM). texto_canonico_id REQUER OAB
+    (`aceite-subcontratacao-v1.0.md`). Assinatura touch (biometria) ou
+    A3 (ICP-Brasil) — quando touch, declaracao_aceite_touch_alto_risco_id
+    NOT NULL (P-CAL-A6 advogado).
+
+    Trigger pos-INSERT bloqueia UPDATE/DELETE
+    (INV-CAL-WORM-001 + INV-CAL-SUBC-001).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="aceites_subcontratacao",
+    )
+    calibracao = models.ForeignKey(
+        Calibracao,
+        on_delete=models.PROTECT,
+        related_name="aceites_subcontratacao",
+    )
+    cliente_referencia_hash = models.CharField(
+        max_length=80,
+        help_text=(
+            "HashVersionado do cliente_id (ADR-0064 + ADR-0032 — preserva "
+            "evidencia pos-anonimizacao)."
+        ),
+    )
+    texto_canonico_id = models.UUIDField(
+        help_text=(
+            "FK aceite-subcontratacao-v1.0.md (REQUER OAB). Texto exibido "
+            "ao cliente — INV-DOC-CANON-001."
+        ),
+    )
+    texto_hash = models.CharField(
+        max_length=80,
+        help_text="SHA-256 do texto exibido (HashVersionado).",
+    )
+    assinatura_modo = models.CharField(
+        max_length=10,
+        choices=ASSINATURA_MODO_CHOICES,
+        help_text="TOUCH ou A3. §16.11.",
+    )
+    assinatura_payload_encrypted = models.BinaryField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Touch: payload cifrado com BIOMETRIA_KEY_<tenant> "
+            "(INV-OS-ACEITE-BIO-001 herdado). A3: PKCS#7."
+        ),
+    )
+    declaracao_aceite_touch_alto_risco_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "NOT NULL quando assinatura_modo='TOUCH' (texto canonico extra "
+            "P-CAL-A6 advogado). CHECK na migration."
+        ),
+    )
+    consentimento_contato_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "FK ConsentimentoContatoTecnicoCliente — NOT NULL quando contato PF "
+            "PJ-empregado assina (P-CAL-A6)."
+        ),
+    )
+    motivo_subcontratacao_canonicalizado = models.TextField(
+        help_text=">=30 chars + anti-PII + INV-DOC-CANON-001.",
+    )
+    motivo_hash = models.CharField(max_length=80)
+    ip_hash = models.CharField(
+        max_length=80,
+        help_text=(
+            "HashVersionado do IP cliente — INV-CAL-SUBC-001: IP nunca "
+            "persiste cleartext."
+        ),
+    )
+    concedido_em = models.DateTimeField()
+    correlation_id = models.UUIDField(default=uuid.uuid4)
+
+    class Meta:
+        verbose_name = "Aceite Subcontratacao"
+        verbose_name_plural = "Aceites Subcontratacao"
+        db_table = "aceite_subcontratacao"
+        ordering = ["-concedido_em"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "calibracao"],
+                name="acsub_tenant_cal_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"AceiteSubcontratacao {self.id}"
+
+
+class AvaliacaoPeriodicaSubcontratado(models.Model):
+    """Avaliacao periodica anual obrigatoria de subcontratado (P-CAL-R5 RBC).
+
+    1:N de LaboratorioSubcontratado (cl. 6.6.2 — avaliacao da efetividade
+    do subcontratado). Imutavel pos-INSERT (WORM). Job
+    `verificar_avaliacao_subcontratado_vencendo` consome essa tabela
+    para alerta P2 30 dias antes de proxima_avaliacao_periodica_em.
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="avaliacoes_subcontratado",
+    )
+    laboratorio = models.ForeignKey(
+        LaboratorioSubcontratado,
+        on_delete=models.PROTECT,
+        related_name="avaliacoes_periodicas",
+    )
+    avaliado_em = models.DateTimeField()
+    avaliado_por_user_id_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado (ADR-0064) — gerente qualidade.",
+    )
+    score = models.DecimalField(
+        max_digits=3,
+        decimal_places=1,
+        help_text="0-10 (criterios cl. 6.6.2).",
+    )
+    criterios_aplicados_json = models.JSONField(
+        help_text=(
+            "Snapshot do criterio-selecao-subcontratado-v1.0.md com "
+            "marcacoes [aprovado|pendente|nao_atende]."
+        ),
+    )
+    parecer_canonicalizado = models.TextField(
+        help_text=">=100 chars + anti-PII + INV-DOC-CANON-001.",
+    )
+    parecer_hash = models.CharField(max_length=80)
+    decisao = models.CharField(
+        max_length=20,
+        choices=[
+            ("MANTER", "Manter (subcontratado aprovado)"),
+            ("ACOMPANHAMENTO", "Manter com acompanhamento (score 6-8)"),
+            ("DESCREDENCIAR", "Descredenciar (score <6 ou nc grave)"),
+        ],
+    )
+    proxima_avaliacao_em = models.DateTimeField(
+        help_text="Default = avaliado_em + 12 meses (cl. 6.6.2).",
+    )
+    correlation_id = models.UUIDField(default=uuid.uuid4)
+    criada_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Avaliacao Periodica Subcontratado"
+        verbose_name_plural = "Avaliacoes Periodicas Subcontratado"
+        db_table = "avaliacao_periodica_subcontratado"
+        ordering = ["-avaliado_em"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "laboratorio"],
+                name="avalsub_tenant_lab_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"AvaliacaoPeriodicaSubcontratado {self.score}"
+
+
+class AceiteRegraDecisao(models.Model):
+    """Aceite cliente sobre regra de decisao por calibracao (ADR-0024 rev.).
+
+    Cl. 7.1.3 + ADR-0024 revisado §16.3 — cliente acorda explicitamente
+    qual regra de decisao (ACEITACAO_SIMPLES / BANDA_GUARDA_30 /
+    RISCO_COMPARTILHADO) sera aplicada. Imutavel pos-INSERT (WORM).
+
+    P-CAL-R3 RBC + P-CAL-A3 advogado — sem aceite, calibracao nao avanca
+    para configurada (INV-CAL-DEC-006).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="aceites_regra_decisao",
+    )
+    calibracao = models.ForeignKey(
+        Calibracao,
+        on_delete=models.PROTECT,
+        related_name="aceites_regra_decisao",
+    )
+    cliente_referencia_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado cliente_id (ADR-0064 + ADR-0032).",
+    )
+    regra_decisao_escolhida = models.CharField(
+        max_length=25,
+        choices=REGRA_DECISAO_CHOICES,
+    )
+    escopo_aplicacao = models.CharField(
+        max_length=25,
+        choices=[
+            ("CALIBRACAO_UNICA", "Aplica-se a esta calibracao especifica"),
+            ("CONTRATO_GUARDA_CHUVA", "Aplica-se ao contrato vigente (guarda-chuva)"),
+        ],
+        default="CALIBRACAO_UNICA",
+    )
+    nivel_confianca_acordado = models.DecimalField(
+        max_digits=5,
+        decimal_places=4,
+        default="0.9545",
+        help_text="Default 95.45% (k=2). Cliente pode pedir outro nivel.",
+    )
+    texto_canonico_id = models.UUIDField(
+        help_text="FK aceite-regra-decisao-v1.0.md (REQUER OAB).",
+    )
+    texto_hash = models.CharField(max_length=80)
+    assinatura_modo = models.CharField(
+        max_length=10,
+        choices=ASSINATURA_MODO_CHOICES,
+    )
+    assinatura_payload_encrypted = models.BinaryField(null=True, blank=True)
+    ip_hash = models.CharField(max_length=80)
+    concedido_em = models.DateTimeField()
+    correlation_id = models.UUIDField(default=uuid.uuid4)
+
+    class Meta:
+        verbose_name = "Aceite Regra Decisao"
+        verbose_name_plural = "Aceites Regra Decisao"
+        db_table = "aceite_regra_decisao"
+        ordering = ["-concedido_em"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "calibracao"],
+                name="aceiterd_tenant_cal_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"AceiteRegraDecisao {self.regra_decisao_escolhida}"
