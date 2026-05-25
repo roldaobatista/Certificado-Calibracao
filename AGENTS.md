@@ -123,7 +123,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Rodam em D
 | Aplicar migrations | `docker compose exec app poetry run python manage.py migrate --database=migrator` |
 | Verificar objetos de segurança no banco (FA-A4) | `docker compose exec app poetry run python manage.py verificar_objetos_seguranca` |
 | Shell Django | `docker compose exec app poetry run python manage.py shell_plus` |
-| Testar hooks | `bash .claude/hooks/_test-runner.sh` (309 casos / 42 hooks ativos) |
+| Testar hooks | `bash .claude/hooks/_test-runner.sh` (312 casos / 42 hooks ativos) |
 
 ---
 
