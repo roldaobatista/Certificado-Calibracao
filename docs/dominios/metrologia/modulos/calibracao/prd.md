@@ -1,8 +1,8 @@
 ---
 owner: roldao
-revisado_em: 2026-05-23
-proximo_review: 2026-08-23
-status: draft
+revisado_em: 2026-05-25
+proximo_review: 2026-08-25
+status: stable
 diataxis: explanation
 audiencia: agente
 relacionados:
@@ -16,9 +16,15 @@ relacionados:
   - docs/dominios/metrologia/modulos/certificados/prd.md
   - docs/dominios/metrologia/modulos/procedimentos/prd.md
   - docs/dominios/metrologia/modulos/licencas-acreditacoes/prd.md
+  - docs/adr/0024-regra-de-decisao-iso-17025.md
   - docs/adr/0043-calibracao-faturamento-bloqueio-inadimplencia.md
   - docs/adr/0044-exportacao-regulatoria-anvisa-saude.md
   - docs/adr/0045-certificado-recall-suspensao-errata.md
+  - docs/adr/0063-rt-competencia-grandeza-diferida-marco4.md
+  - docs/adr/0065-concorrencia-calibracao-metrologica.md
+  - docs/faseamento/M4-calibracao/spec.md
+  - docs/faseamento/M4-calibracao/plan.md
+fase-ritual: P3-aprovada (2026-05-25 — §11 absorve ACs novos do P3 M4)
 ---
 
 # PRD — Módulo Laboratório de Calibração e Metrologia
@@ -349,3 +355,91 @@ Ver `glossario.md` deste módulo.
 - US nova → próximo `US-CAL-NNN`.
 - US deprecada → `@deprecated` + ADR.
 - Mudança no motor de cálculo → ADR + bump versão + validação ISO 17025 7.11.
+
+---
+
+## 11. Revisão P3 (2026-05-25) — ACs novos e modificados absorvidos do ritual Spec Kit M4
+
+> **Esta seção é fonte de verdade pós-P3 ritual Spec Kit do Marco 4** — qualquer divergência com §6 acima resolve em favor de §11. ACs originais permanecem em §6 por rastreabilidade; §11 adiciona/modifica conforme reviews paralelos `docs/faseamento/M4-calibracao/reviews/{tech-lead,advogado,corretora,rbc}.md` e plano consolidado `docs/faseamento/M4-calibracao/plan.md`.
+
+### 11.1 ACs novos por US
+
+**US-CAL-001 (Recepcionar instrumento) — 1 AC novo**
+
+- **AC-CAL-001-3** (P-CAL-R4 RBC + P-CAL-A5 advogado): GIVEN recepção AVULSA (`atividade_os_id IS NULL`), WHEN `recepcionarInstrumento`, THEN sistema exige (a) `analise_critica_pedido_inline_hash` (texto ≥100 chars + anti-PII INV-CAL-TXT-001 + canonicalização INV-DOC-CANON-001 declarando capacidade técnica + regra de decisão + escopo confirmado) + (b) `capacidade_tecnica_confirmada_por_user_id NOT NULL` + (c) renderiza texto canônico `aviso-foto-recepcao-v1.0.md` antes da captura de foto; cliente concorda (foto entra em `RecepcaoItemCalibracao.foto_evidencia_id`) OU recusa (entra em `ConsentimentoFotoRecusado.id`); ausente → 412 `AnaliseCriticaPedidoAusente`.
+
+**US-CAL-002 (Configurar calibração) — 1 AC novo**
+
+- **AC-CAL-002-3** (P-CAL-A3 advogado + ADR-0024 revisado): GIVEN cliente requisita override de regra de decisão (`regra_decisao_override_cliente=true`), WHEN tenant tenta aceitar em `configurarCalibracao`, THEN sistema exige (a) cláusula contratual ativa vigente — predicate `clausula_override_vigente(cliente_id, em_data)`; (b) assinatura A3 do cliente (NÃO touch — Lei 14.063 art. 4º alto risco); (c) justificativa canonicalizada ≥100 chars anti-PII; ausente → 412 `OverrideSemContratoOuA3`. Cria entidade `OverrideRegraDecisaoCliente` (Padrão B imutável).
+
+**US-CAL-004 (Registrar leituras) — 2 ACs novos**
+
+- **AC-CAL-004-7** (P-CAL-T1 tech-lead + ADR-0065): GIVEN tentativa de registrar `(calibracao_id, ponto_calibracao, numero_repeticao)` que já existe, WHEN INSERT em `leitura`, THEN sistema retorna 412 `LeituraDuplicada` via UNIQUE composto `idx_leitura_unica`. Replay com mesmo `Idempotency-Key` retorna 200 idempotente.
+- **AC-CAL-004-8** (P-CAL-R13 RBC): GIVEN `ConfiguracaoCalibracao.condicoes_ambientais_alvo_id NOT NULL` E `CondicoesAmbientais.dentro_tolerancia=false`, WHEN `registrarLeitura`, THEN bloqueia leitura com 412 `CondicoesAmbientaisForaTolerancia`; override possível com justificativa ≥50 chars + audit `EventoDeCalibracao(tipo=condicoes_fora_override)` + alerta P2 Qualidade.
+
+**US-CAL-005 (Calcular incerteza) — 4 ACs novos**
+
+- **AC-CAL-005-4** (P-CAL-R2 RBC + NIT-DICLA-030 §6.3): GIVEN `OrcamentoIncerteza` calculado, WHEN `solicitarRevisao`, THEN sistema valida matriz componentes-obrigatórios por grandeza+padrão (`docs/dominios/metrologia/modulos/calibracao/componentes-obrigatorios-por-grandeza.md` — minuta preliminar pelo agente; REQUER CGCRE humano); ausência → 412 `ComponentesMinimosAusentes: [lista]`.
+- **AC-CAL-005-5** (P-CAL-R7 RBC): GIVEN `ComponenteIncerteza.tipo_componente='A'`, WHEN INSERT, THEN exige `n_amostras ≥ 6` (NIT-DICLA-030 §7.4) + `s_x NOT NULL`; ausência → 412 `TipoAIncompleto`.
+- **AC-CAL-005-6** (P-CAL-R7 RBC + GUM §5.2.2): GIVEN 2+ `ComponenteIncerteza` com mesmo `fonte_default_padrao_id`, WHEN cálculo de `OrcamentoIncerteza`, THEN sistema verifica `correlacao_com_componente_id` em pelo menos um; ausente → alerta P2 Qualidade (não bloqueia mas registra `EventoDeCalibracao(tipo=correlacao_nao_declarada)`).
+- **AC-CAL-005-7** (P-CAL-R7 RBC + cl. 7.8.3.1.h): GIVEN `OrcamentoIncerteza.U_expandida` calculado, WHEN cravado em snapshot, THEN aplica regra de arredondamento `NIT_DICLA_030_2_DIGITOS_SIG` (incerteza com ≤2 dígitos significativos, valor reportado arredondado ao mesmo nível); valor pré-arredondamento preservado em `algoritmo_1_resultado JSONB`.
+
+**US-CAL-006 (Avaliar conformidade) — 1 AC novo + 1 AC modificado**
+
+- **AC-CAL-006-1 MODIFICADO** (P-CAL-R1 RBC + ADR-0024 revisado): GIVEN `OrcamentoIncerteza` cravado, WHEN `avaliarConformidade`, THEN sistema calcula `zona_ilac_g8 IN ('PASS', 'CONDITIONAL_PASS', 'PASS_COM_RESSALVA', 'CONDITIONAL_FAIL', 'FAIL_COM_RESSALVA', 'FAIL', 'NA')` (6 zonas ILAC G8 + NA) + popula `decisao` correspondente.
+- **AC-CAL-006-4** (P-CAL-R1 RBC + ILAC G8 §4.4 + JCGM 106 §9): GIVEN `regra_decisao = BANDA_GUARDA_30`, WHEN `avaliarConformidade`, THEN exige `pfa_calculada NOT NULL` (probabilidade de aceitação falsa); GIVEN `regra_decisao = RISCO_COMPARTILHADO`, THEN exige `pra_calculada NOT NULL`; ausente → 412 `PFANaoCalculada` / `PRANaoCalculada`.
+
+**US-CAL-007 (Revisão técnica) — 1 AC novo**
+
+- **AC-CAL-007-5** (P-CAL-R10 RBC + cl. 6.2): GIVEN `aprovarRevisao`, WHEN UPDATE para `aguardando_2a_conferencia`, THEN captura `Calibracao.snapshot_competencia_revisor_json` imutável contendo (grandeza, faixa, vigência da `RTCompetencia` do revisor NA DATA da aprovação); paralelo invoca predicate `rt_competencia_cobre(revisor_user_id, calibracao.grandeza, em_data=hoje)` (ADR-0063 Opção A); falha → 422 `RTSemCompetencia`.
+
+**US-CAL-008 (Segunda conferência) — 2 ACs novos**
+
+- **AC-CAL-008-4** (P-CAL-R10 RBC + cl. 6.2.5): GIVEN `aprovar2aConferencia`, WHEN UPDATE para `aprovada`, THEN captura `snapshot_competencia_conferente_json` imutável + invoca `rt_competencia_cobre(conferente_user_id, calibracao.grandeza, em_data=hoje)` + valida `conferente_id != revisor_id` (ou ADR-0026 4 condições objetivas); falha → 422 `ConferenteSemCompetencia` / 422 `Excecao62_5InaceitavelSemCondicoes`.
+- **AC-CAL-008-5** (P-CAL-S9 corretora — alerta exceção): GIVEN tenant usa exceção 2ª conferência (ADR-0026), WHEN sistema computa uso mensal, THEN dispara alerta P2 Qualidade quando uso atinge 3%/mês (1/3 do limite ADR-0026 5%/mês) — janela móvel 30 dias.
+
+**US-CAL-014 (Comparação interlaboratorial / proficiência) — 1 AC novo**
+
+- **AC-CAL-014-5** (P-CAL-R6 RBC + cl. 7.10.1/2): GIVEN `marcarNaoConformidade(decisao_continuar_ou_parar)`, WHEN transição `→ ACAO_EXECUTADA`, THEN exige `decisao_continuar_ou_parar != 'A_DEFINIR'`; quando `PARAR_TRABALHO`, exige `cliente_notificado_em NOT NULL` antes; consumer `Calibracao.NCAberta(PARAR_TRABALHO)` publica `Cliente.NotificacaoPendente`.
+
+**US-CAL-017 (Subcontratar calibração cl. 6.6) — 2 ACs novos**
+
+- **AC-CAL-017-7** (P-CAL-A1 advogado + Lei 14.063 art. 4º): GIVEN subcontratação iniciada, WHEN `assinatura_modo='TOUCH'` em vez de A3, THEN sistema marca alerta P3 + grava no audit indicação `touch-em-alto-risco` + exige `declaracao_aceite_touch_alto_risco_id NOT NULL` (texto canônico extra `aceite-subcontratacao-touch-alto-risco-v1.0.md` — REQUER OAB). Default `A3`.
+- **AC-CAL-017-8** (P-CAL-A1 advogado + LGPD art. 33): GIVEN `LaboratorioSubcontratado.pais != 'BR'`, WHEN `subcontratarCalibracao`, THEN sistema bloqueia 412 `SubcontratadoForaBR_TransferenciaInternacionalSemBase` quando `dpa_clausulas_internacionais_id IS NULL`; destrava com cláusulas-padrão ANPD aprovadas.
+
+### 11.2 US nova — US-CAL-018: Reclamação do cliente sobre calibração emitida
+
+| Campo | Valor |
+|---|---|
+| **Persona** | Cliente (titular ou contato técnico PJ) |
+| **Necessidade** | Contestar formalmente cert emitido com erro técnico suspeito |
+| **Resultado esperado** | Reclamação registrada + RT independente atribui + resposta fundamentada ≤15 dias úteis |
+| **Base normativa** | ISO 17025 cl. 7.9 (Reclamações) + CDC art. 26 (30 dias serviço aparente / 90 dias vício oculto) |
+
+**AC-CAL-018-1:** GIVEN cert emitido há ≤90 dias, WHEN cliente abre reclamação via portal-cliente, THEN cria `ReclamacaoCalibracao` em estado `RECEBIDA` + publica `Calibracao.ReclamacaoAberta`. Descrição canonicalizada ≥30 chars + anti-PII INV-CAL-TXT-001.
+
+**AC-CAL-018-2:** GIVEN reclamação aberta, WHEN sistema atribui RT, THEN preferência por RT independente (`revisor_id != calibracao_original.revisor_id` E `revisor_id != calibracao_original.conferente_id`); RT atribuído é notificado.
+
+**AC-CAL-018-3:** GIVEN reclamação em análise, WHEN `prazo_resposta_dia_util` excedido (15 dias úteis), THEN alerta P1 gerente qualidade + DPO.
+
+**AC-CAL-018-4:** GIVEN reclamação respondida, WHEN `decisao IN ('PROCEDENTE_RECALL', 'PROCEDENTE_ERRATA', 'IMPROCEDENTE_FUNDAMENTADA')`, THEN publica `Calibracao.ReclamacaoRespondida` → quando PROCEDENTE_RECALL, Marco 5 dispara saga recall ADR-0045.
+
+### 11.3 Decisões ADR aplicadas
+
+- **ADR-0024 revisado:** 6 zonas ILAC G8 + PFA/PRA + AceiteRegraDecisao + INV-CAL-DEC-004..006.
+- **ADR-0063 esclarecida:** Opção A lazy — predicate em `configurar_calibracao` + `aprovar_revisao` + `aprovar_2a_conferencia` (NÃO em `iniciar_atividade`).
+- **ADR-0065 NOVA:** Concorrência metrológica (UNIQUE composto + CAS + advisory lock).
+
+### 11.4 GATEs Wave A do PRD (não bloqueiam M4 dogfooding)
+
+Lista completa em `docs/faseamento/M4-calibracao/plan.md` §"Bloqueantes Wave A" — 32 GATEs novos. Itens críticos pré-1º tenant externo pago (todos 🔴):
+
+- 🔴 6 GATE-CAL-*-OAB (P-CAL-A1, A2, A3, A5, A6 + DPIA).
+- 🔴 9 GATE-SEG-* SUSEP (cláusulas E&O multi-tier, Cyber HMAC 25a, Modalidade 8 Property padrão próprio).
+- 🔴 5 GATE-CAL-*-CGCRE (componentes-obrigatórios por grandeza, fórmula por grandeza, política critério-seleção subcontratado, declaração subcontratação cert, matriz CGCRE).
+
+### 11.5 INVs novas aplicáveis ao PRD (gravadas em REGRAS-INEGOCIAVEIS.md)
+
+24 INVs CAL novas cravadas em commit `b1c1d6a`:
+
+CONC-001..004, AUD-002, DEC-004..006, INC-002..004, ANAL-001, RT-002, RAST-002, SUBC-005..006, NC-002..003, AMB-001, BACKUP-001, PAD-CASCADE-001, ANON-001, IDEMP-001, CONT-001, FRAUDE-RECEB-001.

@@ -2,10 +2,11 @@
 owner: roldao
 revisado_em: 2026-05-25
 proximo_review: 2026-08-25
-status: draft
+status: stable
 diataxis: reference
 audiencia: agente
 marco: Wave A Marco 4 — metrologia/calibracao
+fase-ritual: P3-aprovada (P1+P2+P3 entregues; §16 absorve 10 BLOQ + 23 MÉD dos 4 reviews paralelos)
 tipo: especificacao-forward
 relacionados:
   - .specify/memory/constitution.md
@@ -46,6 +47,12 @@ relacionados:
   - docs/adr/0040-padrao-metrologico-entidade-separada.md
   - docs/adr/0063-rt-competencia-grandeza-diferida-marco4.md
   - docs/adr/0064-rotacao-chave-hmac-retencao-metrologica-25a.md
+  - docs/adr/0065-concorrencia-calibracao-metrologica.md
+  - docs/faseamento/M4-calibracao/plan.md
+  - docs/faseamento/M4-calibracao/reviews/tech-lead.md
+  - docs/faseamento/M4-calibracao/reviews/advogado.md
+  - docs/faseamento/M4-calibracao/reviews/corretora.md
+  - docs/faseamento/M4-calibracao/reviews/rbc.md
   - REGRAS-INEGOCIAVEIS.md
 ---
 
@@ -674,3 +681,365 @@ O Marco 4 é o **coração do produto**: tudo que o sistema sabe fazer de calibr
 - NÃO faz OCR de cert externo (manual).
 
 **Próximo passo:** P2 — pedir review do plano de implementação aos 4 subagentes especialistas (tech-lead, advogado, corretora, consultor RBC).
+
+---
+
+## 16. Revisão P3 (2026-05-25) — Absorção dos 4 reviews paralelos
+
+> **Esta seção é fonte de verdade pós-P3** — qualquer divergência com seções §1..§15 acima resolve em favor de §16. A spec original (P1) é preservada por rastreabilidade; §16 documenta o estado final aprovado em P3 ritual Spec Kit, absorvendo 10 BLOQUEANTES + 23 MÉDIOS dos reviews `reviews/{tech-lead,advogado,corretora,rbc}.md`.
+
+### 16.1 Decisões cravadas do Roldão (P2 → P3)
+
+- **D-M4-1:** Motor 2º caminho = **GUM clássico Python (Decimal) + Monte Carlo NumPy** (JCGM 101 + seed em `Calibracao.id`).
+- **D-M4-2:** ADR-0063 = **Opção A lazy** — predicate invocado em `configurar_calibracao` + `aprovar_revisao` + `aprovar_2a_conferencia`. `iniciar_atividade` fail-open by design.
+- **D-M4-3:** Corretora SUSEP humana = **sem previsão** → 9 GATE-SEG-* rastreados pré-1º tenant externo. NÃO bloqueia M4 dogfooding.
+- **D-M4-4:** Consultor CGCRE humano = **sem previsão** → 2 matrizes técnicas preliminares pelo agente com selo `REQUER VALIDAÇÃO CGCRE HUMANO`. GATE-CAL-MATRIZES-CGCRE rastreado.
+- **D-M4-5:** OAB humana = **sem previsão** → 6 minutas canônicas preliminares pelo agente com selo `REQUER VALIDAÇÃO OAB HUMANA`. 8 GATE-CAL-*-OAB rastreados.
+
+### 16.2 ADRs aplicadas no escopo M4 (consolidação pós-P3)
+
+Substitui §2.1 — esta é a tabela final:
+
+| ADR | Tema | Status pós-P3 |
+|---|---|---|
+| 0002 | Multi-tenancy (RLS) | aceito |
+| 0007 | Camada domínio + gerador spec→código | aceito |
+| 0012 | Autorização unificada | aceito (5 predicates M4 ATIVOS) |
+| 0021 | Anonimização vs retenção (3 Zonas) | aceito |
+| 0022 | RT tenant | aceito + ADR-0063 atualizada lazy |
+| 0023 | OS com Atividades | aceito |
+| 0024 | Regra de decisão ISO 17025 | **REVISADO 2026-05-25** — 6 zonas ILAC G8 + PFA/PRA + AceiteRegraDecisao |
+| 0025 | Validação software ISO 17025 cl. 7.11 | aceito (motor §16.5) |
+| 0026 | 2ª conferência + independência RT | aceito |
+| 0027 | Sync mobile merge por atividade | aceito (M4 core lab não usa; só calibração de campo) |
+| 0029 | Canonicalização texto probatório | aceito |
+| 0030 | Vigência temporal canônica | aceito |
+| 0031 | Soft-delete 3 padrões | aceito |
+| 0032 | FK cross-módulo + anonimização | aceito |
+| 0033 | Bus idempotência consumer | aceito |
+| 0040 | Padrão metrológico entidade separada | aceito |
+| 0063 | RT competência diferida → Opção A lazy | **ESCLARECIDO 2026-05-25** |
+| 0064 | Rotação HMAC + KMS Multi-Region 25a | aceito |
+| **0065** | **Concorrência em calibração metrológica** | **NOVO 2026-05-25 — UNIQUE composto + CAS + advisory lock** |
+
+### 16.3 Entidades novas em §3.2 (somam às 17 da P1; total 25)
+
+| Entidade nova | Padrão soft-delete | Origem | Trigger imutabilidade |
+|---|---|---|---|
+| `AceiteRegraDecisao` | B (WORM) | P-CAL-R3 RBC + P-CAL-A3 advogado + ADR-0024 revisado | sim |
+| `OverrideRegraDecisaoCliente` | B (WORM) | P-CAL-A3 advogado | sim |
+| `ReclamacaoCalibracao` | B + estado-máquina | P-CAL-A4 advogado | parcial (estado-máquina) |
+| `ConsentimentoContatoTecnicoCliente` | B (WORM) | P-CAL-A6 advogado | sim |
+| `ConsentimentoFotoRecusado` | B (WORM) | P-CAL-A5 advogado | sim |
+| `AvaliacaoPeriodicaSubcontratado` | B (WORM 1:N de `LaboratorioSubcontratado`) | P-CAL-R5 RBC | sim |
+| `PlanoAcaoProficienciaWarning` | B (WORM paralelo `AnaliseImpactoNCProficiência`) | P-CAL-R8 RBC | sim |
+| `EventoBackupMetrologico` | B (WORM append-only) | P-CAL-R11 RBC | sim |
+
+### 16.4 Campos novos em `Calibracao` (somam aos da P1)
+
+```
+-- Concorrência (ADR-0065)
+revision INTEGER NOT NULL DEFAULT 0
+
+-- 6 zonas ILAC G8 + PFA/PRA (ADR-0024 revisado)
+zona_ilac_g8 VARCHAR(20) NOT NULL CHECK IN ('PASS', 'CONDITIONAL_PASS',
+  'PASS_COM_RESSALVA', 'CONDITIONAL_FAIL', 'FAIL_COM_RESSALVA', 'FAIL', 'NA')
+pfa_calculada NUMERIC(5,4) NULL    -- NOT NULL quando regra_decisao=BANDA_GUARDA_30
+pra_calculada NUMERIC(5,4) NULL    -- NOT NULL quando regra_decisao=RISCO_COMPARTILHADO
+nivel_confianca NUMERIC(5,4) NOT NULL DEFAULT 0.9545
+
+-- Acordo cliente (ADR-0024 revisado + cl. 7.1.3)
+regra_decisao_acordada_em TIMESTAMPTZ NOT NULL
+regra_decisao_acordada_documento_id UUID NOT NULL FK -> AceiteRegraDecisao
+regra_decisao_acordada_hash CHAR(80) NOT NULL  -- HashVersionado ADR-0064
+
+-- Análise crítica em recepção avulsa (P-CAL-R4 RBC + cl. 7.1.1)
+analise_critica_pedido_id UUID NULL FK  -- quando atividade_os_id NOT NULL
+analise_critica_pedido_inline_hash CHAR(80) NULL    -- recepção avulsa
+analise_critica_pedido_inline_canonicalizada TEXT NULL   -- ≥100 chars anti-PII
+capacidade_tecnica_confirmada_por_user_id UUID NOT NULL
+-- CHECK ((atividade_os_id IS NOT NULL AND analise_critica_pedido_id IS NOT NULL)
+--        OR (atividade_os_id IS NULL AND analise_critica_pedido_inline_hash IS NOT NULL))
+
+-- Snapshot competência RT (P-CAL-R10 RBC)
+snapshot_competencia_revisor_json JSONB NULL    -- capturado em aprovarRevisao
+snapshot_competencia_conferente_json JSONB NULL  -- capturado em aprovar2aConferencia
+
+-- Subcontratação: recebedor distinto do executor (P-CAL-T9 tech-lead)
+-- executor_id agora NULLABLE quando subcontratado_id NOT NULL
+recebedor_user_id UUID NULL FK  -- NOT NULL quando subcontratado_id NOT NULL
+
+-- Wording ILAC G18 cert subcontratação (P-CAL-R12 RBC)
+declaracao_subcontratacao_texto_id UUID NULL FK  -- → declaracao-subcontratacao-certificado-v1.0.md
+
+-- Rastreabilidade SI estruturada (P-CAL-R9 RBC)
+-- Movida pra PadraoUsado (não Calibracao) — ver 16.7
+```
+
+### 16.5 Nova §3.3 — Motor de cálculo (contrato — D-M4-1)
+
+```
+src/domain/metrologia/calibracao/motor_calculo/
+├── __init__.py
+├── gum_classico.py        # 1º caminho — Decimal puro, NIT-DICLA-030 rev. 15
+├── monte_carlo.py         # 2º caminho — NumPy, BIPM JCGM 101, seed em Calibracao.id
+├── arredondamento.py      # NIT-DICLA-030 §7.5 — 2 dígitos significativos
+└── validacao_replay.py    # Replay determinístico CI
+```
+
+**`VersaoMotorCalculo` VO** (`src/domain/metrologia/value_objects.py`):
+```python
+@dataclass(frozen=True)
+class VersaoMotorCalculo:
+    semver: str              # ex: "1.0.0"
+    commit_hash: str         # 40 chars git SHA
+    algoritmo_id: str        # IN ('GUM_CLASSICO_v1', 'MONTE_CARLO_v1')
+    janela_vigencia: JanelaVigencia  # ADR-0030
+```
+
+**`OrcamentoIncerteza`** ganha:
+- `algoritmo_1_resultado JSONB NOT NULL` (u_combinada, U_expandida, k, grau_liberdade_efetivo)
+- `algoritmo_2_resultado JSONB NULL` (mesmo formato; NULL se 2º caminho não aplicável)
+- `divergencia_pct NUMERIC(5,3) NULL` (calculada quando ambos algoritmos rodam)
+- `replay_determinismo_hash CHAR(80) NOT NULL` (HMAC de inputs ordenados canonicamente + outputs separados — ADR-0064)
+
+**Comportamento divergência:**
+- `divergencia_pct ≤ 0.1%` → silencioso, passa.
+- `0.1% < divergencia_pct ≤ 1%` → alerta P3 Qualidade (não bloqueia).
+- `divergencia_pct > 1%` → lança `DivergenciaCalculoInaceitavel` → estado calibração volta a `em_execucao` + NC automática (CAPA aberto).
+
+**CI replay:** `tests/replay_metrologico/` com 30 fixtures `fixture_<grandeza>_<faixa>.json` contendo `inputs` + `outputs_esperados_v<NN>` por algoritmo. Hook `metrology-replay-fixtures-versionadas.sh` bloqueia mudança em `outputs_esperados_*` sem aceite explícito (`# replay-fixture-aceite: <razão> + <commit hash>`).
+
+### 16.6 Campos novos em `OrcamentoIncerteza` + `ComponenteIncerteza` (P-CAL-R7 RBC)
+
+```
+-- OrcamentoIncerteza
+arredondamento_aplicado_regra VARCHAR(20) NOT NULL DEFAULT 'NIT_DICLA_030_2_DIGITOS_SIG'
+bias_orcado NUMERIC(20,8) NULL
+bias_origem VARCHAR(80) NULL    -- ex: 'calibracao_externa_padrao_referencia'
+algoritmo_1_resultado JSONB NOT NULL
+algoritmo_2_resultado JSONB NULL
+divergencia_pct NUMERIC(5,3) NULL
+documentacao_agregacao TEXT NOT NULL    -- ≥50 chars quando OrcamentoPorPonto[] existe
+
+-- ComponenteIncerteza
+tipo_origem_componente VARCHAR(30) NOT NULL CHECK IN (
+  'REPETIBILIDADE',           -- Tipo A
+  'RESOLUCAO_INSTRUMENTO',    -- Tipo B
+  'INCERTEZA_PADRAO_REF',     -- Tipo B
+  'DERIVA_PADRAO',            -- Tipo B
+  'CONDICOES_AMBIENTAIS',     -- Tipo B
+  'EXCENTRICIDADE',           -- Tipo B
+  'POLARIZACAO_BIAS',         -- Tipo B
+  'OUTRO'                     -- Tipo B (justificável)
+)
+formula_calculo VARCHAR(40) NOT NULL    -- REPETIBILIDADE_STD_MEDIA | RESOLUCAO_RETANGULAR | ...
+correlacao_com_componente_id UUID NULL FK -- self-FK (GUM §5.2.2)
+coeficiente_correlacao NUMERIC(5,4) NULL  -- -1 a 1; obrigatório quando correlacao_com_componente_id NOT NULL
+n_amostras INTEGER NULL    -- NOT NULL quando tipo='A'; CHECK >= 6 (NIT-DICLA-030 §7.4)
+s_x NUMERIC(20,8) NULL    -- desvio-padrão; NOT NULL quando tipo='A'
+```
+
+### 16.7 Campos novos em `PadraoUsado` (rastreabilidade SI estruturada — P-CAL-R9 RBC)
+
+```
+vinculacao_si_tipo VARCHAR(20) NOT NULL CHECK IN (
+  'BIPM_DIRETO',
+  'INMETRO',
+  'RBC',
+  'NMI_ESTRANGEIRO',
+  'MRC_NIST_PTB_NPL',
+  'INTERNO_DECLARADO'    -- proibido em tenant RBC (INV-CAL-RAST-002)
+)
+vinculacao_si_referencia_id VARCHAR(80) NOT NULL  -- ex: "INMETRO-LAB-METROL-MASSA-CERT-2024-456"
+cadeia_rastreabilidade_documento_id UUID NULL FK  -- arquivo do cert do lab emissor
+```
+
+### 16.8 Campos novos em `MedicaoControle` (Western Electric — P-CAL-R8 RBC)
+
+```
+escore_z NUMERIC(5,3) NULL
+regra_western_electric_violada VARCHAR(20) NULL  -- RULE_1_3SIGMA | RULE_2_SEVEN_SAME_SIDE | RULE_3_TREND | RULE_5_TWO_OF_THREE
+```
+
+Job procrastinate `analisar_padrao_medicoes_controle` — após cada INSERT, recalcula últimas 30 medições e dispara alerta P2 se Western Electric violada.
+
+Consumer `Padrao.IntercomparacaoConcluida` (já em §6.2):
+- `2 < |z| ≤ 3` (WARNING) → cria `PlanoAcaoProficienciaWarning` automaticamente (não NC formal).
+- `|z| > 3` (UNACCEPTABLE) → mantém comportamento atual (cria `AnaliseImpactoNCProficiência`).
+
+### 16.9 Campos novos em `NaoConformidade` (cl. 7.10.1/2 — P-CAL-R6 RBC + P-CAL-A2 advogado)
+
+```
+decisao_continuar_ou_parar VARCHAR(20) NOT NULL DEFAULT 'A_DEFINIR'
+  CHECK IN ('PARAR_TRABALHO', 'CONTINUAR_COM_CONTROLE', 'A_DEFINIR')
+cliente_notificado_em TIMESTAMPTZ NULL
+cliente_notificado_via VARCHAR(20) NULL  -- EMAIL_PORTAL | A3_ASSINATURA | TERMO_PRESENCIAL
+cliente_notificado_documento_id UUID NULL FK
+autorizacao_retomada_user_id UUID NULL
+autorizacao_retomada_em TIMESTAMPTZ NULL
+responsavel_acao_user_id_hash CHAR(80) NOT NULL  -- HashVersionado (substitui UUID cru — P-CAL-A2)
+-- responsavel_acao_user_id UUID NULL (zona quente ≤90d; job nc-responsavel-pseudonimizacao zera)
+```
+
+CHECK constraint composta: transição `→ ACAO_EXECUTADA` exige `decisao != 'A_DEFINIR'`. PARAR_TRABALHO exige `cliente_notificado_em NOT NULL`.
+
+Saga consumer `Calibracao.NCAberta` publica `Cliente.NotificacaoPendente` quando `decisao = PARAR_TRABALHO`.
+
+### 16.10 Campos novos em `LaboratorioSubcontratado` (cl. 6.6.2 — P-CAL-R5 RBC)
+
+```
+criterio_selecao_documento_id UUID NULL FK  -- → criterio-selecao-subcontratado-v1.0.md
+ultima_avaliacao_periodica_em TIMESTAMPTZ NULL
+proxima_avaliacao_periodica_em TIMESTAMPTZ NOT NULL  -- default vigencia_inicio + 12 months
+score_avaliacao_atual NUMERIC(3,1) NULL  -- 0-10
+avaliado_por_user_id UUID NULL
+pais VARCHAR(2) NOT NULL DEFAULT 'BR'    -- ISO 3166-1 alpha-2 (P-CAL-A1 transferência internacional)
+dpa_clausulas_internacionais_id UUID NULL FK  -- NOT NULL quando pais != 'BR'
+```
+
+### 16.11 Campos novos em `AceiteSubcontratacao` (P-CAL-A1 + P-CAL-A6 advogado)
+
+```
+consentimento_contato_id UUID NULL FK  -- → ConsentimentoContatoTecnicoCliente (NOT NULL quando contato PF assina)
+assinatura_modo VARCHAR(10) NOT NULL CHECK IN ('TOUCH', 'A3')
+declaracao_aceite_touch_alto_risco_id UUID NULL FK  -- NOT NULL quando assinatura_modo='TOUCH' (texto canônico extra)
+```
+
+### 16.12 Campos novos em `RecepcaoItemCalibracao` (P-CAL-A5 advogado + P-CAL-R13 RBC)
+
+```
+foto_evidencia_recusa_id UUID NULL FK  -- → ConsentimentoFotoRecusado (alternativa a foto_evidencia_id)
+aviso_foto_texto_canonico_id UUID NOT NULL FK  -- → aviso-foto-recepcao-v1.0.md (REQUER OAB)
+condicoes_ambientais_id UUID NOT NULL FK  -- snapshot no momento da recepção
+```
+
+`CondicoesAmbientais` detalhada em §16.13.
+
+### 16.13 Entidade `CondicoesAmbientais` detalhada (P-CAL-R13 RBC)
+
+```
+- id UUID PK
+- tenant_id UUID NOT NULL (RLS)
+- temperatura_lida_celsius NUMERIC(6,3) NOT NULL
+- umidade_lida_pct NUMERIC(5,2) NOT NULL
+- pressao_lida_kpa NUMERIC(6,2) NULL    -- opcional por grandeza
+- temperatura_alvo_celsius NUMERIC(6,3) NULL
+- temperatura_tolerancia_celsius NUMERIC(5,3) NULL
+- umidade_alvo_pct NUMERIC(5,2) NULL
+- umidade_tolerancia_pct NUMERIC(5,2) NULL
+- dentro_tolerancia BOOLEAN GENERATED ALWAYS AS (
+    (temperatura_alvo_celsius IS NULL OR
+     ABS(temperatura_lida_celsius - temperatura_alvo_celsius) <= temperatura_tolerancia_celsius)
+    AND
+    (umidade_alvo_pct IS NULL OR
+     ABS(umidade_lida_pct - umidade_alvo_pct) <= umidade_tolerancia_pct)
+  ) STORED
+- executor_id_hash CHAR(80) NOT NULL
+- medido_em TIMESTAMPTZ NOT NULL
+- correlation_id UUID NOT NULL
+-- Trigger: imutável pós-INSERT.
+```
+
+### 16.14 Lista final de INVs novas M4 (consolidada — gravadas em REGRAS-INEGOCIAVEIS.md)
+
+24 INVs gravadas (commit `b1c1d6a` 2026-05-25):
+
+CONC-001..004, AUD-002, DEC-004..006, INC-002..004, ANAL-001, RT-002, RAST-002, SUBC-005..006, NC-002..003, AMB-001, BACKUP-001, PAD-CASCADE-001, ANON-001, IDEMP-001, CONT-001, FRAUDE-RECEB-001.
+
+### 16.15 Eventos novos publicados M4 (somam aos da §6.1)
+
+| Evento | Payload essencial | Consumidores |
+|---|---|---|
+| `Calibracao.AceiteRegraDecisaoConcedido` | `aceite_id, calibracao_id, cliente_referencia_hash, regra_decisao, escopo` | M5 cert (informa cliente assinou) |
+| `Calibracao.OverrideRegraDecisaoCriado` | `override_id, calibracao_id, regra_escolhida, regra_default_tenant, contrato_clausula_id` | Marco 5 + observabilidade |
+| `Calibracao.ReclamacaoAberta` | `reclamacao_id, calibracao_id, certificado_id, prazo_resposta_dia_util` | Marco 5 + DPO + observabilidade |
+| `Calibracao.ReclamacaoRespondida` | `reclamacao_id, decisao (PROCEDENTE_RECALL/PROCEDENTE_ERRATA/IMPROCEDENTE)` | Marco 5 (recall/errata saga) |
+| `Calibracao.NCDecisaoParar` | `nc_id, calibracao_id, motivo_hash, cliente_notificado_via` | M3 OS (atividade marca NC bloqueante) |
+| `Calibracao.PlanoAcaoProficienciaWarningCriado` | `plano_id, padrao_id, rodada_id, escore_z` | qualidade (não NC formal) |
+| `Calibracao.BackupExecutado` | `evento_backup_id, b2_object_key, hash_arquivo, tabelas_count` | observabilidade (alerta P1 se gap>25h) |
+| `Calibracao.AvaliacaoSubcontratadoVencendo` | `subcontratado_id, dias_para_vencer, ultima_avaliacao_em` | gerente qualidade (alerta P2 30d antes) |
+| `Calibracao.ConfiguradaComBloqueioConcorrencia` | `calibracao_id, tipo_lock_origem` | observabilidade (medir contenção) |
+
+### 16.16 Consumers novos M4 (somam aos da §6.2)
+
+| Evento | Origem | Ação |
+|---|---|---|
+| `Cliente.AnonimizacaoSolicitada` | `comercial/clientes` | INV-CAL-ANON-001 — bloqueia se Calibracao aberta; publica `AnonimizacaoBloqueada` |
+| `Padrao.Baixado` / `Padrao.Sucateado` | `metrologia/padroes` | INV-CAL-PAD-CASCADE-001 — marca calibrações em_execucao com padrão como nao_conforme |
+
+### 16.17 US-CAL-018 nova — Reclamação do cliente (cl. 7.9 + CDC art. 26)
+
+| Campo | Valor |
+|---|---|
+| ID | US-CAL-018 |
+| Persona | Cliente (titular ou contato técnico PJ) |
+| Necessidade | Contestar formalmente cert emitido com erro técnico suspeito |
+| Resultado | Reclamação registrada + RT independente atribui + resposta fundamentada ≤15 dias úteis |
+| AC count | 4 |
+
+**AC-CAL-018-1:** GIVEN cert emitido há ≤90 dias, WHEN cliente abre reclamação via portal-cliente, THEN cria `ReclamacaoCalibracao` em estado `RECEBIDA` + publica `Calibracao.ReclamacaoAberta`.
+**AC-CAL-018-2:** GIVEN reclamação aberta, WHEN sistema atribui RT, THEN RT independente (preferencialmente `revisor_id != original.revisor_id` E `revisor_id != original.conferente_id`) é notificado.
+**AC-CAL-018-3:** GIVEN reclamação em análise, WHEN prazo_resposta_dia_util excedido (15 dias úteis), THEN alerta P1 gerente qualidade + DPO.
+**AC-CAL-018-4:** GIVEN reclamação respondida, WHEN decisao=PROCEDENTE_RECALL, THEN publica `Calibracao.ReclamacaoRespondida(decisao=PROCEDENTE_RECALL)` → Marco 5 dispara saga recall ADR-0045.
+
+### 16.18 Riscos novos M4 (somam aos R-M4-01..17 da §8)
+
+| ID | Risco | Probabilidade | Impacto | Mitigação |
+|---|---|---|---|---|
+| R-M4-18 | Subcontratado erra calibração e cascateia contra Aferê via tenant (solidariedade CDC art. 25) | MÉDIA | ALTO | INV-CAL-SUBC-005 + GATE-SEG-SUBC-1 + cláusula seguro sub-contracted quality |
+| R-M4-19 | Fraude criminal técnico → omissão admin tenant → subrogação Aferê | BAIXA | CRÍTICO | 4 INV-CAL-FRAUDE-* + GATE-SEG-EO-FRAUDE-1 (E&O wrongful platform design) |
+| R-M4-20 | Padrão metrológico próprio extraviado/danificado (R$ 50k-500k) | BAIXA | MÉDIO | GATE-SEG-BPT-PADROES-1 + Modalidade 8 NOVA Property |
+| R-M4-21 | Foto recepção captura etiqueta paciente farma (PII saúde 3rd-party) | MÉDIA | ALTO | hook foto-exif-strip-check + DPIA + redação OCR + GATE-SEG-CYBER-PATIENT-1 |
+| R-M4-22 | Cliente alega "nunca consenti" subcontratação (texto OAB-pendente) | MÉDIA | MÉDIO | texto canônico v1.0 OAB + AceiteSubcontratacao hash + GATE-SEG-EO-CONSENT-1 |
+
+### 16.19 GATEs Wave A novos M4 (consolidação — 32 totais)
+
+Lista completa em `plan.md` §"Bloqueantes Wave A". Resumo:
+
+- **12 GATEs RBC** (P-CAL-R1..R14): GATE-CAL-ZONAS-ILAC-G8, GATE-CAL-COMPONENTES-MIN 🔴, GATE-CAL-ACEITE-REGRA-DEC 🔴, GATE-CAL-ANAL-CRIT-AVULSA, GATE-CAL-SUBC-AVAL 🔴, GATE-CAL-NC-CLIENTE-NOTIF, GATE-CAL-INC-FORMULA 🔴, GATE-CAL-EP-WARNING, GATE-CAL-RAST-SI-ENUM, GATE-CAL-RT-SNAPSHOT, GATE-CAL-BACKUP-METROL, GATE-CAL-SUBC-WORDING 🔴.
+- **8 GATEs advogado**: GATE-CAL-SUBC-OAB 🔴, GATE-CAL-PII-SAUDE-OAB 🔴, GATE-CAL-OVERRIDE-OAB 🔴, GATE-CAL-RECLAMACAO-FLUXO, GATE-CAL-FOTO-OAB 🔴, GATE-CAL-CONT-OAB 🔴, GATE-CAL-FOTO-EXIF-HOOK, GATE-CAL-ANON-CONCORRENCIA.
+- **9 GATEs corretora SUSEP** 🔴: GATE-SEG-EO-CAL-1, GATE-SEG-SUBC-1, GATE-SEG-CYBER-HMAC-1, GATE-SEG-EO-INVEST-1, GATE-SEG-EO-FRAUDE-1, GATE-SEG-BPT-PADROES-1, GATE-SEG-CYBER-PATIENT-1, GATE-SEG-EO-CONSENT-1, GATE-SEG-ACR-EXCECAO-1.
+- **3 GATEs tech-lead**: GATE-CAL-ACREDITACAO-CONSUMER, GATE-CAL-MIG-CLASSIF, GATE-CAL-DRILL.
+- **GATE-CAL-MATRIZES-CGCRE 🔴** (D-M4-4) — 2 matrizes técnicas com selo CGCRE-pendente.
+
+🔴 = bloqueia 1º tenant externo pago. Nenhum bloqueia M4 dogfooding.
+
+### 16.20 Hooks novos M4 P9 (8, não 4)
+
+1. `cmc-binding-check.sh` (INV-002 + INV-CAL-CMC-001).
+2. `incerteza-versao-motor-check.sh` (INV-CAL-VERSAO-001).
+3. `hmac-versao-formato-check.sh` (INV-HMAC-001).
+4. `migration-metrology-classifier.sh` (ADR-0025 cl. 7.11.3 + GATE-CAL-MIG-CLASSIF) — convenção `# metrologia-classificacao: IQ|OQ|PQ` + `# replay-fixture: ...` no topo.
+5. `migration-concorrencia-calibracao-check.sh` (ADR-0065 + INV-CAL-CONC-001..004).
+6. `metrology-replay-fixtures-versionadas.sh` (motor §16.5 + INV-CAL-VERSAO-001).
+7. `foto-exif-strip-check.sh` (INV-CAL-FOTO-001 + P-CAL-A5 + LPI art. 195).
+8. `override-regra-decisao-contrato-check.sh` (INV-CAL-DEC-002 + P-CAL-A3 + CDC art. 25/51).
+
+### 16.21 Critérios de fechamento M4 — REVISADOS (substitui §11)
+
+Marco 4 só fecha sob INV-RITUAL-001 com:
+
+- 10/10 auditores Família 5 PASS ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO (P5).
+- Suite pytest chave M4 verde (≥80 testes incluindo `tests/regressao/test_inv_cal_conc_*.py`, `tests/regressao/test_inv_cal_dec_*.py`, `tests/replay_metrologico/*.py`, `tests/carga/test_concorrencia_*.py`).
+- Hooks `_test-runner.sh` permanecem ≥312/312 + **8 hooks novos M4** (não 4).
+- ruff + mypy zero issues em paths novos.
+- Drill `validar_m4_calibracao` PASS — **25 checagens** (lista completa em `plan.md` §"Drill `validar_m4_calibracao`").
+- Anti-replay pytest `--randomly-seed=$(date +%s)` 3x; zero flake.
+- Drift docs ZERADO: CURRENT.md ≤40 linhas, AGENTS contagens reais, tasks.md ✅ onde entregue.
+
+### 16.22 Sumário atualizado pra Roldão (§15 — item 10)
+
+10. **Canal de reclamação técnica** — cliente que recebe cert e suspeita de erro abre reclamação formal; sistema atribui RT independente (não o revisor original); RT responde em ≤15 dias úteis; se procedente, dispara recall (Marco 5) ou errata.
+
+### 16.23 Dependências P1 → P5 — atualizadas
+
+- **P1 (2026-05-25 manhã)** ✅ spec FORWARD 676 linhas.
+- **P2 (2026-05-25 tarde)** ✅ 4 reviews paralelos + `plan.md` ata absorve 45 achados + `CURRENT.md` + diário.
+- **P3 (2026-05-25 noite)** 🔄 EM CURSO — ADR-0065 nova + retrofit ADR-0024/0063 + 24 INVs em REGRAS + §16 desta spec + PRD com ACs novos + 5 minutas canônicas preliminares + 2 matrizes técnicas preliminares + `matriz-reconciliacao.md` + `tasks.md` ~150 T-CAL.
+- **P4** — implementação fase-a-fase, 10 fases (modelos+migrations / VOs+helpers crypto / predicates+authz / use cases / UI+endpoints / consumers+sagas / jobs procrastinate / integrações / hooks novos / regressões+drill).
+- **P5** — 10 auditores Família 5 sobre estado reconciliado.
+
+### 16.24 Próximo passo
+
+P3 continua: PRD calibração ACs novos + matriz-reconciliacao.md + tasks.md ~150 T-CAL. Minutas canônicas + matrizes técnicas (P3.5) podem rodar em paralelo a P4 sem bloquear.
