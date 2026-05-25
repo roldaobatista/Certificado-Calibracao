@@ -282,6 +282,48 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 
 ---
 
+### US-CAL-017: Subcontratar calibração fora do escopo CMC (ISO 17025 cl. 6.6) — NOVO 2026-05-25
+
+**Como** gestor do laboratório, **quero** aceitar instrumento do cliente cuja calibração não está no meu escopo CMC e despachar para outro laboratório acreditado (subcontratado), **mantendo a relação contratual com o cliente final**, **para** atender ISO 17025 cl. 6.6 (provisão externa de produtos e serviços) sem perder o cliente nem ferir as restrições do escopo RBC.
+
+**Contexto regulatório:** ISO/IEC 17025 cl. 6.6 + NIT-DICLA-021 + RBC permitem subcontratação **temporária ou permanente** desde que: (a) subcontratado seja acreditado para o mesmo escopo/grandeza; (b) cliente seja **informado** e dê consentimento documentado; (c) certificado final declare claramente que serviço foi subcontratado; (d) lab principal mantém responsabilidade técnica total perante o cliente.
+
+**Critérios de aceite:**
+
+- **AC-CAL-017-1**: GIVEN configuração de calibração (US-CAL-002) onde grandeza+faixa está FORA do escopo CMC do tenant principal, WHEN gestor seleciona "subcontratar para lab externo acreditado", THEN sistema exige (a) escolha de `LaboratorioSubcontratado` cadastrado + (b) consentimento documentado do cliente (texto canônico `aceite-subcontratacao-v1.0.md` com hash + assinatura cliente) + (c) campo `motivo_subcontratacao` (≥30 chars, anti-PII INV-CAL-TXT-001).
+- **AC-CAL-017-2**: GIVEN subcontratação aceita pelo cliente, WHEN calibração sai pra subcontratado, THEN status `Calibracao.status = AGUARDANDO_SUBCONTRATADO` + campo `subcontratado_id` (FK `LaboratorioSubcontratado`) + evento `Calibracao.SubcontratadaParaLab` publicado + `RecepcaoItemCalibracao.fluxo_subcontratacao_id` preenchido.
+- **AC-CAL-017-3**: GIVEN certificado externo recebido do subcontratado (PDF anexo + número certificado externo + escopo declarado), WHEN gestor registra recebimento, THEN sistema valida: (a) acreditação do subcontratado está VIGENTE para a grandeza/faixa na data do serviço (consulta `LaboratorioSubcontratado.acreditacoes_vigentes`); (b) snapshot do certificado externo cravado em `Calibracao.certificado_subcontratado_snapshot_json` (imutável); (c) status muda para `RECEBIDA_DO_SUBCONTRATADO`.
+- **AC-CAL-017-4**: GIVEN certificado final do tenant principal a ser emitido com base em serviço subcontratado, WHEN módulo Certificados (Marco 5) emite, THEN texto do certificado declara obrigatoriamente: "Esta calibração foi realizada pelo laboratório acreditado <nome+credenciamento>, sob responsabilidade técnica de <RT subcontratado>. Lab principal: <tenant principal+credenciamento>." (cl. 6.6.2 e ILAC G18).
+- **AC-CAL-017-5**: GIVEN subcontratado tenta calibrar fora do próprio escopo dele (descoberto na verificação do snapshot), WHEN sistema detecta, THEN bloqueia recebimento com 412 `SubcontratadoFaixaForaEscopo` + dispara NC interna (CAPA aberta).
+- **AC-CAL-017-6**: GIVEN cliente não consentiu subcontratação (recusou aceite v1.0), WHEN gestor tenta subcontratar mesmo assim, THEN sistema bloqueia com 412 `SubcontratacaoSemConsentimentoCliente`.
+
+**Invariantes:** `INV-CAL-SUBC-001` (consentimento cliente obrigatório, hash+IP+timestamp), `INV-CAL-SUBC-002` (subcontratado vigente na data do serviço — não-CMC=409), `INV-CAL-SUBC-003` (snapshot certificado externo imutável), `INV-CAL-SUBC-004` (texto certificado final declara subcontratação — cl. 6.6.2), `INV-CAL-WORM-001`.
+
+**Non-goals da US:**
+
+- NÃO substitui módulo `licencas-acreditacoes` — `LaboratorioSubcontratado.acreditacoes_vigentes` é snapshot, não cadastro completo do subcontratado.
+- NÃO trata pagamento subcontratado → tenant principal (financeiro Wave B).
+- NÃO trata responsabilidade civil disputada — apólice E&O ampliada (ADR-0028 + GATE-SEG-* Wave A).
+- NÃO trata sub-subcontratação (subcontratado terceiriza pra outro) — non-goal Wave A (ADR adicional se aparecer demanda).
+
+**Entidades novas (modelo de domínio):**
+
+- `LaboratorioSubcontratado` (cadastrado pelo tenant principal; nome, CNPJ, credenciamento atual, acreditações vigentes snapshot, contato comercial, contato técnico, DPA cl. 4.7).
+- `AceiteSubcontratacao` (FK Calibracao + FK Cliente + hash texto v1.0 + IP_hash + assinatura touch ou A3 cliente + correlation_id).
+
+**Eventos novos:**
+
+- `Calibracao.SubcontratadaParaLab` (payload: `calibracao_id`, `subcontratado_id`, `motivo_hash`, `aceite_cliente_id`).
+- `Calibracao.RecebidaDoSubcontratado` (payload: `calibracao_id`, `cert_externo_snapshot_hash`, `validacao_acreditacao_ok`).
+
+**Bloqueios cross-módulo:**
+
+- Subcontratação não exime cobrança do cliente — mesmo fluxo financeiro (ADR-0043).
+- Cliente sob inadimplência dura NÃO pode subcontratar (bloqueio INV-CLI-BLOQ-001 herdado).
+- Certificado emitido com declaração subcontratação ainda é WORM no tenant principal (INV-CAL-WORM-001).
+
+---
+
 ## 7. Métricas de sucesso
 
 Ver `metricas.md`. Resumo:

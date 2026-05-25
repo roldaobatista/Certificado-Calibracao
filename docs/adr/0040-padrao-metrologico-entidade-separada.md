@@ -1,10 +1,11 @@
 ---
 adr: 0040
 titulo: Padrão metrológico do laboratório é entidade separada (módulo `padroes`) — NÃO um `Equipamento` do cliente
-status: proposta
+status: aceito
 data: 2026-05-23
+aceito-em: 2026-05-25 (saneamento pré-Marco 4 — decisão Roldão)
 proposto-por: agente (Onda 5 saneamento pré-Marco 3 — auditoria projeto-inteiro 10 lentes — G2 CRÍTICO)
-revisado-por: pendente (consultor-rbc-iso17025, tech-lead-saas-regulado)
+revisado-por: consultor-rbc-iso17025 + tech-lead-saas-regulado (revisão técnica diferida pós-aceite — não bloqueante)
 bloqueia-fase: Wave A Marco 4 (`calibracao` — cadeia de rastreabilidade)
 depende-de: ADR-0007 (camada domínio), ADR-0002 (multi-tenancy), ADR-0022 (RT do tenant)
 ---
