@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE (2026-05-25).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 primeira fatia ENTREGUE (T-CAL-001/002 em commit `ac71dc0`).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -25,9 +25,18 @@ P3 do ritual Spec Kit completo em 3 commits hoje:
 - D-M4-2: ADR-0063 Opção A lazy ✓
 - D-M4-3, D-M4-4, D-M4-5: sem previsão de contratação → agente cria minutas/matrizes preliminares com selos REQUER {OAB,CGCRE,SUSEP} HUMANO.
 
+## P4 Fase 1 — entregue ac71dc0 (2/25 migrations)
+
+T-CAL-001 + T-CAL-002 fechadas:
+- App `calibracao` em INSTALLED_APPS.
+- `models.py` Calibracao raiz agregado consolidada (50 campos §3.2 + §16.4).
+- Migration 0001 (Calibracao + sequence global + UNIQUE per-tenant + 4 índices).
+- Migration 0002 (RLS pattern v2 — 4 policies tenant_isolation).
+- `migrate` aplicou OK; `pg_class.relrowsecurity=t`. Suite regressão 168/168 passou. Hooks 312/312.
+
 ## Próxima fatia
 
-**P4 (`/implement`) — Fase 1 migrations (T-CAL-001..025):** começar pela DDL completa M4 com 19 tabelas + UNIQUE índices + triggers imutabilidade + RLS policies + migration cross-marco M3 plugando `AtividadeDaOS.grandeza` (ADR-0063 Opção A). Sequência sugerida: Fase 1 → Fase 2 (domain) → Fase 3 (motor §3.3) → Fase 4..10. **Estimativa:** 2-3 semanas agente.
+**P4 Fase 1 continuação (T-CAL-003..025):** 23 migrations restantes — entidades Leitura + LeituraCorrecao + CondicoesAmbientais + OrcamentoIncerteza + ComponenteIncerteza + OrcamentoPorPonto + PadraoUsado + RecepcaoItemCalibracao + MedicaoControle + EventoDeCalibracao + NaoConformidade + AnaliseImpactoNCProficiencia + LaboratorioSubcontratado + AceiteSubcontratacao + AceiteRegraDecisao + OverrideRegraDecisaoCliente + ReclamacaoCalibracao + ConsentimentoContatoTecnicoCliente + ConsentimentoFotoRecusado + AvaliacaoPeriodicaSubcontratado + PlanoAcaoProficienciaWarning + EventoBackupMetrologico + migration cross-marco M3 plugando `AtividadeDaOS.grandeza` + RLS policies + triggers imutabilidade.
 
 **Paralelizável (P3.5 — não bloqueia P4 dogfooding):** 14 tarefas T-CAL-P35-* (minutas canônicas OAB + matrizes técnicas CGCRE + ADR-0028 rev 3 + DPIA-calibracao). Bloqueia 1º tenant externo pago.
 
