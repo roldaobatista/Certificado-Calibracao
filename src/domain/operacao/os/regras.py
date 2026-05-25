@@ -163,16 +163,38 @@ def valida_tenant_atividade_da_os(
 
 
 def valida_consentimento_biometria(aceite: AceiteAtividadeSnapshot) -> None:
-    """INV-OS-CONSBIO-001 (P-OS-A1): bio touch exige consentimento_id NOT NULL.
+    """INV-OS-CONSBIO-001 (P-OS-A1) + INV-OS-ACEITE-BIO-001 (SEG-M3-OS-02).
 
-    Raise ValueError se aceite tem biometria sem consentimento.
-    Espelha trigger PG `aceite_atividade_consbio_check` em camada de dominio
-    pra falhar cedo (antes do DB).
+    (a) bio touch exige `consentimento_id NOT NULL`.
+    (b) `biometria_key_id` precisa estar setado e seguir padrao
+        `BIOMETRIA_KEY_<tenant_id>` (chave KMS dedicada por tenant —
+        nao reusa chave geral de PII). Defesa em profundidade contra
+        comprometimento cross-tenant da chave biometrica.
+
+    Raise ValueError se algum item violado. Espelha trigger PG
+    `aceite_atividade_consbio_check` em camada de dominio pra falhar cedo.
+
+    Validacao de tamanho de trajetoria (≥8 pontos + bbox 30×20px) +
+    watermark HMAC `HMAC(BIOMETRIA_KEY, tenant_id|atividade_id|aceito_em)`
+    sao aplicadas no use case `coletar_aceite_atividade` ANTES do
+    snapshot — exigem dados brutos (decifrados) que NAO chegam aqui.
     """
-    if aceite.biometria_payload_encrypted is not None and aceite.consentimento_id is None:
+    if aceite.biometria_payload_encrypted is None:
+        return  # sem biometria, nada a validar
+    if aceite.consentimento_id is None:
         raise ValueError(
             "INV-OS-CONSBIO-001: AceiteAtividade com biometria exige consentimento_id NOT NULL "
             "(LGPD art. 11 II 'a' + Res. CD/ANPD 2/2022)."
+        )
+    # SEG-M3-OS-02: chave dedicada por tenant — formato canonico
+    # `BIOMETRIA_KEY_<tenant_id>`. Vazio ou prefixo errado = bug de chamador.
+    if not aceite.biometria_key_id or not aceite.biometria_key_id.startswith(
+        "BIOMETRIA_KEY_"
+    ):
+        raise ValueError(
+            "INV-OS-ACEITE-BIO-001: biometria_key_id deve seguir formato "
+            "'BIOMETRIA_KEY_<tenant_id>' (chave KMS dedicada por tenant — "
+            "LGPD art. 11 II 'g' + Lei 14.063/2020 art. 4o)."
         )
 
 

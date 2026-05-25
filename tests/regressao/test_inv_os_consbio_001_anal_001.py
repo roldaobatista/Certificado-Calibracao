@@ -183,7 +183,7 @@ def test_inv_os_consbio_001_unhappy_bio_sem_consent_412(db):
                 coletado_em=datetime.now(UTC),
                 correlation_id=uuid4(),
                 biometria_payload_encrypted=b"\x01\x02\x03",
-                biometria_key_id="bio-key",
+                biometria_key_id="BIOMETRIA_KEY_test-tenant",
                 # consentimento_concedido_em propositalmente None.
             ),
             repository=repo,
@@ -212,7 +212,7 @@ def test_inv_os_consbio_001_cross_tenant_consent_pertence_ao_mesmo_tenant(db):
                 coletado_em=agora,
                 correlation_id=uuid4(),
                 biometria_payload_encrypted=b"\x01\x02\x03",
-                biometria_key_id="bio-key",
+                biometria_key_id="BIOMETRIA_KEY_test-tenant",
                 consentimento_texto_canonico_id=uuid4(),
                 consentimento_texto_hash="c" * 64,
                 consentimento_versao_politica="1.0.0",

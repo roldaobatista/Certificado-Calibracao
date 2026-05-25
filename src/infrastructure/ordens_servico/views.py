@@ -262,13 +262,18 @@ class OSViewSet(viewsets.ViewSet):
 
     # GET /v1/os/{id}/
     def retrieve(self, request, pk=None):
-        _active_tenant_ou_403()
+        tid = _active_tenant_ou_403()
         repo = DjangoOSRepository()
         try:
             visao = visao_360_da_os(UUID(pk), repo)
         except (ValueError, TypeError):
             return Response({"codigo": "OSIdInvalido"}, status=400)
         if visao is None:
+            return Response({"codigo": "OSNaoEncontrada"}, status=404)
+        # SEG-M3-OS-04 (P5 conserto): defesa em profundidade contra IDOR.
+        # RLS isola, mas se contexto vazar (test mal isolado, role bypass)
+        # retorna 404 em vez de revelar existencia de OS de outro tenant.
+        if visao.tenant_id != tid:
             return Response({"codigo": "OSNaoEncontrada"}, status=404)
         return Response(
             {
@@ -304,10 +309,16 @@ class OSViewSet(viewsets.ViewSet):
     # GET /v1/os/{id}/timeline/
     @action(detail=True, methods=["get"])
     def timeline(self, request, pk=None):
-        _active_tenant_ou_403()
+        tid = _active_tenant_ou_403()
         repo = DjangoOSRepository()
         try:
             limit = int(request.query_params.get("limit", "100"))
+            os_obj = repo.get_os_by_id(UUID(pk))
+            if os_obj is None:
+                return Response({"codigo": "OSNaoEncontrada"}, status=404)
+            # SEG-M3-OS-04 (P5 conserto): defesa em profundidade contra IDOR.
+            if os_obj.tenant_id != tid:
+                return Response({"codigo": "OSNaoEncontrada"}, status=404)
             eventos = timeline_da_os(UUID(pk), repo, limit=limit)
         except (ValueError, TypeError) as exc:
             return Response({"codigo": "ParametroInvalido", "detalhe": str(exc)}, status=400)

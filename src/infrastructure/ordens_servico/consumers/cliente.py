@@ -56,12 +56,23 @@ def handle_cliente_anonimizado(envelope: dict[str, Any]) -> None:
     # Import tardio — apps loading
     from src.infrastructure.ordens_servico.models import OS
 
+    # SEG-M3-OS-01 (P5 conserto): tenant_id explicito no WHERE como defesa
+    # em profundidade — worker outbox ja entra em run_in_tenant_context
+    # (RLS isola), mas filtro explicito protege contra: contexto vazado
+    # em teste mal isolado, role bypass acidental, retrofit que perca
+    # contexto. Extracao do envelope eh confiavel — `_validar_tenant_no_contexto`
+    # do publicar_evento garantiu igualdade tenant_id == active.
+    tenant_uuid_str = envelope.get("tenant_id")
+    tenant_filter = (
+        {"tenant_id": UUID(str(tenant_uuid_str))} if tenant_uuid_str else {}
+    )
+
     # INV-OS-ANON-001 defesa em profundidade: se houver OS NAO-terminal
     # com este cliente, registra warning (Marco 1 nao devia ter
     # publicado Anonimizado nesse caso — saga T-OS-037 trata).
     estados_terminais = {"concluida", "cancelada", "faturada", "paga"}
     pendentes = OS.objects.filter(
-        cliente_id=cliente_uuid,
+        cliente_id=cliente_uuid, **tenant_filter,
     ).exclude(estado__in=estados_terminais)
     pendentes_count = pendentes.count()
     if pendentes_count > 0:
@@ -77,7 +88,9 @@ def handle_cliente_anonimizado(envelope: dict[str, Any]) -> None:
     # Side-effect real: zera cliente_id em TODAS as OS do tenant (terminais
     # ou nao). cliente_referencia_hash preserva audit (ADR-0032).
     afetadas = (
-        OS.objects.filter(Q(cliente_id=cliente_uuid)).update(cliente_id=None)
+        OS.objects.filter(Q(cliente_id=cliente_uuid), **tenant_filter).update(
+            cliente_id=None
+        )
     )
     logger.info(
         "os.consumer.cliente_anonimizado: %d OS atualizadas cliente=%s -> NULL",

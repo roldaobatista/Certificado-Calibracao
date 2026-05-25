@@ -216,7 +216,7 @@ def test_coletar_aceite_com_biometria_cria_consentimento(db):
                 coletado_em=agora,
                 correlation_id=uuid4(),
                 biometria_payload_encrypted=b"\x01\x02\x03\x04\x05",
-                biometria_key_id="bio-key-tenant",
+                biometria_key_id="BIOMETRIA_KEY_test-tenant",
                 consentimento_texto_canonico_id=uuid4(),
                 consentimento_texto_hash="c" * 64,
                 consentimento_versao_politica="1.0.0",
