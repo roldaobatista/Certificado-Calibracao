@@ -482,3 +482,111 @@ class Calibracao(models.Model):
 
     def __str__(self) -> str:
         return f"Calibracao {self.numero_exibido or self.id} ({self.status})"
+
+
+# =============================================================
+# Leitura (cl. 7.5 ISO 17025 — imutavel apos INSERT)
+# =============================================================
+
+ORIGEM_LEITURA_CHOICES = [
+    ("MANUAL", "Manual (operador digita)"),
+    ("INTEGRACAO_SERIAL", "Integracao serial (cabo serial)"),
+    ("INTEGRACAO_USB", "Integracao USB"),
+]
+
+
+class Leitura(models.Model):
+    """Leitura individual em ponto+repeticao (cl. 7.5 ISO 17025).
+
+    Imutavel pos-INSERT (INV-CAL-WORM-001 + trigger PG em migration 0004).
+    Correcoes via `LeituraCorrecao` (rasura digital — entidade T-CAL-005).
+    UNIQUE composto (tenant_id, calibracao_id, ponto, numero_repeticao)
+    impede leituras duplicadas concorrentes (ADR-0065 + INV-CAL-CONC-001).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="leituras",
+    )
+    calibracao = models.ForeignKey(
+        Calibracao,
+        on_delete=models.PROTECT,
+        related_name="leituras",
+        help_text="Calibracao raiz agregado.",
+    )
+    ponto_calibracao = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        help_text="Valor do ponto da calibracao (ex: 10.000 kg).",
+    )
+    numero_repeticao = models.IntegerField(
+        help_text=(
+            "1, 2, 3, ... Tipicamente 3-10 repeticoes por ponto. "
+            "UNIQUE composto (tenant, calibracao, ponto, repeticao) — "
+            "INV-CAL-CONC-001 + ADR-0065."
+        ),
+    )
+    valor_lido = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        help_text="Valor lido do instrumento sob calibracao.",
+    )
+    unidade = models.CharField(
+        max_length=20,
+        help_text="Unidade SI ou derivada (kg, g, mL, °C, ...).",
+    )
+    origem = models.CharField(
+        max_length=20,
+        choices=ORIGEM_LEITURA_CHOICES,
+        default="MANUAL",
+        help_text="Origem da leitura.",
+    )
+    timestamp = models.DateTimeField(
+        help_text="Momento da leitura no instrumento (relogio do PC do operador).",
+    )
+    executor_id_hash = models.CharField(
+        max_length=80,
+        help_text=(
+            "HashVersionado v<NN>$<base64> do executor (ADR-0064 + INV-CAL-FRAUDE-EXEC-001). "
+            "UUID cru NAO persistido aqui — anti-stalking pos 25a."
+        ),
+    )
+    client_event_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "ID idempotente client-generated para sync de calibracao de campo "
+            "(ADR-0027). UNIQUE parcial WHERE NOT NULL. NULL em laboratorio."
+        ),
+    )
+    correlation_id = models.UUIDField(
+        default=uuid.uuid4,
+        help_text="Cadeia forense (paralelo M3).",
+    )
+
+    class Meta:
+        verbose_name = "Leitura"
+        verbose_name_plural = "Leituras"
+        db_table = "leitura"
+        ordering = ["calibracao", "ponto_calibracao", "numero_repeticao"]
+        constraints = [
+            # INV-CAL-CONC-001 + ADR-0065 — idempotencia forte
+            models.UniqueConstraint(
+                fields=["tenant", "calibracao", "ponto_calibracao", "numero_repeticao"],
+                name="uq_leitura_ponto_repeticao",
+            ),
+            # Idempotencia client-event sync mobile (ADR-0027)
+            models.UniqueConstraint(
+                fields=["tenant", "calibracao", "client_event_id"],
+                condition=models.Q(client_event_id__isnull=False),
+                name="uq_leitura_client_event",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "calibracao", "ponto_calibracao"], name="leit_cal_ponto_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Leitura {self.ponto_calibracao}@{self.numero_repeticao} = {self.valor_lido}"
