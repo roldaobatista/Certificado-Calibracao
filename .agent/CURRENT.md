@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P1 ENTREGUE (2026-05-25).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P2 ENTREGUE (2026-05-25).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -11,28 +11,38 @@
 - Hooks `_test-runner.sh`: **312/312** verdes / **42 hooks ativos**.
 - ruff/mypy: limpos nos paths novos.
 
-## Saneamento pré-M4 concluído 2026-05-25 (commit `27f7699`)
+## M4 calibracao — P2 entregue (4 reviews paralelos)
 
-- ADR-0040 aceita (padrão metrológico módulo separado).
-- ADR-0064 criada e aceita (rotação HMAC + KMS Multi-Region 25a; INV-HMAC-001..005).
-- US-CAL-017 adicionada ao PRD calibracao (subcontratação cl. 6.6, 6 AC, 4 INV-CAL-SUBC-*).
-- Drift AGENTS §11 zerado (ADRs 0021/0024/0025/0026 status aceito).
-- Dossiê `docs/faseamento/auditorias/PRE-M4-CALIBRACAO-saneamento.md` com 10 lições G1..G10 do M3 OS.
+4 subagentes humano-substitutos revisaram spec.md em paralelo + plan.md consolida ata P2:
+- `reviews/tech-lead.md` — 4 BLOQUEANTE + 5 MÉDIO + 2 ALTO Wave A (concorrência, motor de cálculo VAPOR, hash-chain garfo, ADR-0063 fail-open eterno).
+- `reviews/advogado.md` — 0 BLOQUEANTE + 6 MÉDIO + 2 GATE Wave A (subcontratação DPA cl. 4.7, override de regra, anti-PII saúde, reclamação CDC art. 26, foto base legal, consentimento contato PF).
+- `reviews/corretora.md` — 0 BLOQUEANTE + 4 MÉDIO + 5 ALTO + 1 ACEITE (8 cláusulas SUSEP novas + Modalidade 8 NOVA Property padrão próprio).
+- `reviews/rbc.md` — 6 BLOQUEANTE + 3 MÉDIO + 5 ALTO Wave A + 2 ACEITE (6 zonas ILAC G8, componentes mínimos NIT-DICLA-030, acordo cliente cl. 7.1.3, recepção avulsa, política subcontratado cl. 6.6.2, decisão parar/continuar NC).
+- **Total 45 achados** (vs 27 do M3 OS — +67%, coerente com densidade técnica M4).
 
-## M4 calibracao — P1 entregue (commit `08264cf`)
+`plan.md` consolida 10 BLOQUEANTE + 23 MÉDIO + 14 ALTO Wave A + 3 ACEITE + 32 GATEs Wave A novos + tabela ACTION_IDEMPOTENT 18 endpoints + drill `validar_m4_calibracao` 25 checagens + performance budgets p95.
 
-`docs/faseamento/M4-calibracao/spec.md` (676 linhas, 13 seções, similar a M3 649 linhas):
-- 17 entidades + schema sketch (Calibracao, Leitura, LeituraCorrecao, OrcamentoIncerteza + ComponenteIncerteza + OrcamentoPorPonto, PadraoUsado, RecepcaoItemCalibracao, MedicaoControle, EventoDeCalibracao, NaoConformidade, AnaliseImpactoNCProficiência, LaboratorioSubcontratado, AceiteSubcontratacao, etc).
-- 24 INV-CAL-* + 5 INV-HMAC-* + 6 INV-PAD-* + 4 INV-CAL-SUBC-* + 4 INV-CAL-FRAUDE-* a cravar em P3.
-- Máquina estados Calibracao (10 estados) + ciclo CAPA NaoConformidade.
-- 23 eventos publicados + 8 consumidos com envelope v10.
-- 17 user stories (US-CAL-001..017) referenciadas no PRD.
-- 17 riscos R-M4-01..17 mapeados; R-M4-11..17 cobrem G1..G10 das lições M3.
+## 5 decisões do Roldão (P2 → P3)
+
+- **D-M4-1:** Motor 2º caminho = **GUM clássico Python (Decimal) + Monte Carlo NumPy (JCGM 101, seed em Calibracao.id)**. ✓
+- **D-M4-2:** ADR-0063 ativação = **Lazy em configurar_calibracao + 3 use cases pós** (configurar_calibracao + aprovar_revisao + aprovar_2a_conferencia). `iniciar_atividade` fail-open documentado proposital. ✓
+- **D-M4-3:** Corretora SUSEP humana = **sem previsão** → 9 GATE-SEG-* M4 rastreados pré-1º tenant externo; M4 dogfooding NÃO bloqueado.
+- **D-M4-4:** Consultor CGCRE humano = **sem previsão** → agente redige 2 matrizes preliminares (componentes-obrigatorios + formula-calculo por grandeza) baseadas em NIT-DICLA-030 + ILAC G8 + GUM JCGM 100, selo `REQUER VALIDAÇÃO CGCRE HUMANO`. **GATE-CAL-MATRIZES-CGCRE** rastreado.
+- **D-M4-5:** OAB humana = **sem previsão** → agente redige 6 minutas preliminares (DPA subcontratado + aceite subcontratação + cláusula override + aviso foto + consentimento contato PF + DPIA), selo `REQUER VALIDAÇÃO OAB HUMANA`. 8 GATE-CAL-*-OAB rastreados.
 
 ## Próxima fatia
 
-**P2 (`/plan`):** gerar `plan.md` + submeter review aos 4 subagentes (tech-lead-saas-regulado, advogado-saas-regulado, corretora-seguros-saas, consultor-rbc-iso17025) em paralelo. Cada review vira `docs/faseamento/M4-calibracao/reviews/{subagente}.md`. Consolidar matriz de reconciliação.
+**P3 (matriz reconciliação + retrofit spec + ADRs novas/retrofitadas + minutas preliminares):** decisões cravadas; agente parte para:
+1. Atualizar spec.md absorvendo 10 BLOQUEANTE + 23 MÉDIO.
+2. Criar ADR-0065 "Concorrência em calibração metrológica".
+3. Retrofit ADR-0024 (6 zonas ILAC G8 + PFA + acordo cliente), ADR-0028 rev 3 (8 cláusulas + Modalidade 8 NOVA), ADR-0063 (Opção A lazy).
+4. 8 entidades novas em spec §3.2.
+5. US-CAL-018 nova (reclamação CDC art. 26).
+6. 24 INVs novos em REGRAS-INEGOCIAVEIS.
+7. 5 minutas canônicas preliminares (OAB-pendente) + 2 matrizes técnicas preliminares (CGCRE-pendente).
+8. `matriz-reconciliacao.md` PRD ↔ spec ↔ plan zero conflito.
+9. `tasks.md` ~150 T-CAL-NNN granulares em 10 fases.
 
-## Pendências Wave A rastreadas (herdadas M3 OS + novas M4)
+## Pendências Wave A rastreadas (herdadas + 32 novas M4)
 
-GATE-OS-* (~20) + GATE-CAL-METODO-VAL + GATE-CAL-EP-TEND + GATE-CAL-VI-POL + GATE-CAL-MIG-CLASSIF + GATE-CAL-MANUAL-QUAL + GATE-CAL-LEITURA-CORR-TAXA + GATE-CAL-DPIA-OAB + GATE-HMAC-RETROFIT-MARCO-2-3 + GATE-KMS-IAM-LOCK + GATE-HMAC-DRILL + GATE-OS-GRANDEZA-EM-ATIVIDADE (M4 P3 ativa) + GATE-SEG-BPT-1 (emergencial corretora SUSEP humana).
+GATE-OS-* (~20) + GATE-CAL-* (~32 novos) + GATE-SEG-* (9 novos) + GATE-CAL-METODO-VAL + GATE-CAL-EP-TEND + GATE-CAL-VI-POL + GATE-CAL-MIG-CLASSIF + GATE-CAL-MANUAL-QUAL + GATE-CAL-LEITURA-CORR-TAXA + GATE-CAL-DPIA-OAB + GATE-HMAC-RETROFIT-MARCO-2-3 + GATE-KMS-IAM-LOCK + GATE-HMAC-DRILL + GATE-OS-GRANDEZA-EM-ATIVIDADE (M4 P3 ativa) + GATE-SEG-BPT-1 (emergencial corretora SUSEP humana).
