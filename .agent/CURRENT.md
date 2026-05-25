@@ -9,7 +9,7 @@
 
 - pytest geral: **905/0/0** em 26min.
 - Suite M3 chave: **89/89 PASS** em 415s (10 arquivos `test_m3_os_*.py` + 13 arquivos `tests/regressao/test_inv_os_*.py`).
-- Hooks `_test-runner.sh`: **309/309** verdes / **42 hooks ativos** (+migration-concorrencia-os-check + sync-merge-foto-appendonly + authz-check predicates M3 do Marco 3 OS Fase 9).
+- Hooks `_test-runner.sh`: **312/312** verdes / **42 hooks ativos** (+migration-concorrencia-os-check + sync-merge-foto-appendonly + authz-check predicates M3 do Marco 3 OS Fase 9).
 - ruff/mypy: limpos nos paths novos.
 
 ## M3 OS — P4 entregue (Fases 1-10)
@@ -30,7 +30,7 @@
 
 INV-RITUAL-001 bloqueia fechamento. Detalhes em `docs/faseamento/M3-os/auditoria-familia5.md`.
 
-## Conserto causa-raiz em curso (2ª passada agendada)
+## Conserto causa-raiz aplicado (2ª passada 2026-05-25: 3 PASS + 2 FAIL consertados)
 
 Ordem batch: **drift-docs → idempotência → qualidade → produto → segurança**. Restantes 11..12 (integração + sagas + carga + drill) ficam como GAP Wave A. Predicates T-OS-050/054 (RT competência) ficam como GATE Wave A.
 

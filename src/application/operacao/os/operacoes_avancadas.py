@@ -265,7 +265,16 @@ def transferir_tecnico(
     payload: TransferirTecnicoInput,
     repository: OSRepository,
 ) -> TransferirTecnicoResultado:
-    """Atualiza tecnico_executor_id em atividade PENDENTE/AGENDADA."""
+    """Atualiza tecnico_executor_id em atividade PENDENTE/AGENDADA.
+
+    AC-OS-012-2 (PRD modificado por ADR-0063): predicate
+    `rt_competencia_cobre` invocado para o NOVO tecnico. Fail-open
+    controlado em Marco 3 (grandeza diferida Marco 4 calibracao).
+    """
+    from src.infrastructure.ordens_servico.predicates_os import (
+        rt_competencia_cobre,
+    )
+
     atividade = repository.get_atividade_by_id(payload.atividade_id)
     if atividade is None:
         raise ErroTransferir("AtividadeNaoEncontrada", 404)
@@ -274,6 +283,21 @@ def transferir_tecnico(
             "AtividadeEmEstadoIncompativel",
             412,
             detalhe=f"estado={atividade.estado.value}; transferencia so em PENDENTE/AGENDADA",
+        )
+
+    # AC-OS-012-2 + ADR-0063: invoca predicate pro novo tecnico.
+    permitido, motivo = rt_competencia_cobre(
+        {
+            "tenant_id": atividade.tenant_id,
+            "executor_user_id": payload.novo_tecnico_id,
+            "grandeza": "",  # ADR-0063 — diferido Marco 4
+        }
+    )
+    if not permitido:
+        raise ErroTransferir(
+            "TecnicoSemCompetencia",
+            422,
+            detalhe=f"predicate rt_competencia_cobre = {motivo}",
         )
 
     motivo_hash = hashlib.sha256(

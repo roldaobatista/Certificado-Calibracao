@@ -71,7 +71,16 @@ def iniciar_atividade(
     payload: IniciarAtividadeInput,
     repository: OSRepository,
 ) -> IniciarAtividadeResultado:
-    """Transiciona atividade PENDENTE/AGENDADA -> EM_EXECUCAO."""
+    """Transiciona atividade PENDENTE/AGENDADA -> EM_EXECUCAO.
+
+    AC-OS-003-6 (PRD modificado por ADR-0063): predicate
+    `rt_competencia_cobre` re-validado na data de inicio. Fail-open
+    controlado em Marco 3 (grandeza nao persistida — diferido Marco 4).
+    """
+    from src.infrastructure.ordens_servico.predicates_os import (
+        rt_competencia_cobre,
+    )
+
     atividade = repository.get_atividade_by_id(payload.atividade_id)
     if atividade is None:
         raise ErroIniciarAtividade("AtividadeNaoEncontrada", 404)
@@ -84,6 +93,21 @@ def iniciar_atividade(
             "AtividadeEmEstadoIncompativel",
             412,
             detalhe=f"estado={atividade.estado.value}",
+        )
+
+    # AC-OS-003-6 + ADR-0063: re-valida predicate na data atual.
+    permitido, motivo = rt_competencia_cobre(
+        {
+            "tenant_id": atividade.tenant_id,
+            "executor_user_id": payload.usuario_id,
+            "grandeza": "",  # ADR-0063 — diferido Marco 4
+        }
+    )
+    if not permitido:
+        raise ErroIniciarAtividade(
+            "ExecutorSemCompetencia",
+            422,
+            detalhe=f"predicate rt_competencia_cobre = {motivo}",
         )
 
     os_snapshot = repository.get_os_by_id(atividade.os_id)

@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado_em: 2026-05-24
-proximo_review: 2026-08-24
+revisado_em: 2026-05-25
+proximo_review: 2026-08-25
 status: draft
 diataxis: explanation
 audiencia: agente
@@ -26,7 +26,7 @@ relacionados:
 ## Pré-requisitos verificados antes da 1ª passada
 
 - Suíte M3 OS chave: **89/89 PASS** em 415s (10 arquivos `tests/test_m3_os_*.py` + 13 arquivos `tests/regressao/test_inv_os_*.py`).
-- Hooks `_test-runner.sh`: **309/309** verdes (~42 hooks ativos; +`migration-concorrencia-os-check`, +`sync-merge-foto-appendonly`, +`authz-check` estendido com 6 predicates M3).
+- Hooks `_test-runner.sh`: **312/312** verdes (~42 hooks ativos; +`migration-concorrencia-os-check`, +`sync-merge-foto-appendonly`, +`authz-check` estendido com 6 predicates M3).
 - `ruff check` nos paths novos: limpo.
 - 18 use cases + 4 query services + 11 endpoints REST + 4 jobs procrastinate + 13 regressões INV-OS = 48 testes.
 
@@ -86,7 +86,7 @@ relacionados:
 - **D6-ALTA-2** `AGENTS.md:213` — ADR-0030 marcada `🟡 proposta` mas frontmatter real é `status: aceito (2026-05-23)`.
 - **D6-ALTA-3** `AGENTS.md:214` — ADR-0031 idem.
 - **D6-ALTA-4** `AGENTS.md:215` — ADR-0032 idem.
-- **D4-ALTA-1** `AGENTS.md:8, 59, 126, 266` — "288/288 verdes" / "~40 hooks" desatualizado vs real 309/309 / 42 hooks.
+- **D4-ALTA-1** `AGENTS.md:8, 59, 126, 266` — "288/288 verdes" / "~40 hooks" desatualizado vs real 312/312 / 42 hooks.
 - **D2-ALTA-1** `AGENTS.md:253` (§12) — diz "Pronto pra arrancar P1" quando P1..P4 + Fases 1-10 entregues.
 - **D2-ALTA-2** `.agent/CURRENT.md` — 71 linhas (regra ≤40 violada); 4 contagens incoerentes (288/295/305/309).
 
@@ -142,7 +142,7 @@ relacionados:
 
 ---
 
-## Plano de conserto causa-raiz (2ª passada agendada)
+## Plano de conserto causa-raiz (2ª passada em execução 2026-05-25)
 
 Ordem de ataque (mais barato → mais caro):
 
@@ -175,13 +175,13 @@ Ordem de ataque (mais barato → mais caro):
 
 | Batch | Lente | Commits | Status |
 |---|---|---|---|
-| 1 | drift-docs (8A + 5M + 1B) | `068ab0e` | ✅ tasks.md Fases 1-10 ✅; AGENTS §11 ADRs 0027/0030/0031/0032 aceitas; §12 reescrito; contagens hooks 309/309; CURRENT.md 39 linhas; diário criado |
+| 1 | drift-docs (8A + 5M + 1B) | `068ab0e` | ✅ tasks.md Fases 1-10 ✅; AGENTS §11 ADRs 0027/0030/0031/0032 aceitas; §12 reescrito; contagens hooks 312/312; CURRENT.md 39 linhas; diário criado |
 | 2 | idempotência (7M + 1B) | `0a5d04d` | ✅ Idempotency-Key obrigatório nos 7 POSTs M3 (cancelar, reabrir, criar atividade, iniciar, concluir, reagendar, transferir); hook `idempotency-key-header-check` detecta @action; +3 testes E2E |
 | 3 | qualidade (4C + 3A + 3M) | `431b89d` | ✅ 30 testes novos (unit MotivoCancelamento + hash canônico + 5000 UUIDs varredura + UUID literal AUD-001 + INV-OS-ATIV-003/NUM-001/DOC-CANON regressões); bug-real consertado em `_SEQ_NUMERICA_RE` (2.6% UUIDs falso-positivo) + `_ENDERECO_RE` (slug `5cj2`); stubs sync_mobile/sucessao/tenant/anonimizacao docstrings reescritas |
 | 4 | produto (1A + 3M) | `1bae3de` | ✅ 7 endpoints REST novos (cancelar/marcar_nc/resolver_nc/aceite/dispensa/no_show atividade + OS avulsa); `criar_os_avulsa` valida analise_critica_inline_*; `concluir_atividade` consulta dispensa via repository; predicates RT competência → GATE-OS-PREDICATE-RT-COMPETENCIA Wave A |
 | 5 | segurança (2A + 4M) | `08bafe6` | ✅ tenant_id explícito em consumer cliente (defesa em profundidade); biometria_key_id formato `BIOMETRIA_KEY_<tenant>`; check tenant_id em retrieve/timeline; helper único `sanitizar_payload_evento_os` criado; INV-OS-ATIV-005 anti-fraude verificado (já implementado); GATE-OS-DEFESA-PROFUNDIDADE-CONSUMERS + GATE-OS-BIOMETRIA-TRAJETORIA + GATE-OS-SANITIZER-HELPER-MIGRACAO + GATE-OS-REPO-GETTER-TENANT-ID rastreados Wave A |
 
-**Estado pós conserto:** suite M3 chave 137/137 PASS; hooks 312/312 PASS; ruff limpo. 2ª passada dos 5 auditores FAIL agendada.
+**Estado pós conserto:** suite M3 chave 137/137 PASS; hooks 312/312 PASS; ruff limpo. **2ª passada dos 5 auditores executada 2026-05-25:** segurança/qualidade/idempotência **PASS**; produto **FAIL→consertado** (PROD-M3-02 invocação real do predicate + ADR-0063 modificando 4 ACs); drift-docs **FAIL→consertado** (sweep 309→312 nos 7 arquivos + CLAUDE.md atualizado + matriz P3 disclaimer + revisado_em). 3ª re-passada produto+drift agendada.
 
 ---
 

@@ -51,11 +51,13 @@ P4 do ritual completado em 22+ commits entre 2026-05-23 e 2026-05-24. Resumo por
 | 11 Integração US | T-OS-121..135 (15 arquivos por US) | GAP (Wave A) | — |
 | 12 Sagas+carga+drill | T-OS-136..147 | GAP (T-OS-146 drill `validar_m3_os` rastreado em GATE-OS-VALIDAR-DRILL) | — |
 
-**Suíte M3 chave verificada 2026-05-24:** 89/89 PASS em 415s. Hooks `_test-runner.sh`: 309/309 verdes / 42 hooks ativos.
+**Suíte M3 chave verificada 2026-05-24:** 89/89 PASS em 415s. Hooks `_test-runner.sh`: 312/312 verdes / 42 hooks ativos.
 
 ---
 
 ## Matriz P3 — AC binários × T-OS-NNN
+
+> **Disclaimer (2026-05-25 — pós batches P5):** esta matriz reflete o **estado de planejamento P3 pré-implementação**. O estado **pós-P4** (entrega) está em §"Status de entrega — Fases 1..10 ENTREGUES" acima. ACs marcados como "GAP" aqui correspondem a T-OS cujas entregas estão listadas como ✅ na tabela de Fases — leitor agente deve consultar §"Status de entrega" primeiro. Sweep `GAP → ✅` desta matriz é GATE-OS-MATRIZ-P3-SWEEP Wave A (baixo valor; matriz P3 vira read-only após P4 fechado).
 
 Mapeamento US ↔ tasks pra rastreabilidade. PRD `docs/dominios/operacao/modulos/os/prd.md` §6 é fonte canônica.
 
@@ -403,7 +405,7 @@ Mapeamento US ↔ tasks pra rastreabilidade. PRD `docs/dominios/operacao/modulos
 
 - Suite M3 chave ≥89 passed (entregue: **89/89 PASS** em 415s — 2026-05-24).
 - Drill `validar_m3_os` 24/24 PASS (GAP — rastreado GATE-OS-VALIDAR-DRILL Wave A).
-- `_test-runner.sh` ≥309/309 (entregue: **309/309 PASS** / 42 hooks ativos — 2026-05-24).
+- `_test-runner.sh` ≥312/312 (entregue: **312/312 PASS** / 42 hooks ativos — 2026-05-24).
 - 10 auditores Família 5 PASS ZERO C/A/M (1ª passada 2026-05-24: 5 PASS / 5 FAIL — conserto causa-raiz em curso; ver `auditoria-familia5.md`).
 - **GATE-SEG-BPT-1** emitido ANTES de entrada em produção dogfooding (feature flag `OS_PRODUTIVO_DOGFOODING_BS` default `False`).
 

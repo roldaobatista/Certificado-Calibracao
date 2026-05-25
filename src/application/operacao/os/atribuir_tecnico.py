@@ -72,10 +72,39 @@ def atribuir_tecnico(
     repository: OSRepository,
 ) -> AtribuirTecnicoResultado:
     """Atribui tecnico_executor a N atividades + transita OS RASCUNHO -> AGENDADA
-    quando todas atividades sao AGENDADA+."""
+    quando todas atividades sao AGENDADA+.
+
+    AC-OS-002b-4 (PRD modificado por ADR-0063): predicate
+    `rt_competencia_cobre` invocado por executor. Fail-open controlado
+    em Marco 3 (grandeza nao persistida em AtividadeDaOS — diferido
+    Marco 4 calibracao via GATE-OS-GRANDEZA-EM-ATIVIDADE). Predicate
+    bloqueia automaticamente quando grandeza for adicionada.
+    """
+    from src.infrastructure.ordens_servico.predicates_os import (
+        rt_competencia_cobre,
+    )
+
     os_snapshot = repository.get_os_by_id(payload.os_id)
     if os_snapshot is None:
         raise ErroAtribuirTecnico("OSNaoEncontrada", 404)
+
+    # AC-OS-002b-4 + ADR-0063: invoca predicate por cada executor.
+    # grandeza="" -> fail-open controlado (M3); Marco 4 calibracao
+    # adiciona grandeza em AtividadeDaOS e predicate passa a bloquear.
+    for _atrib in payload.atribuicoes:
+        permitido, motivo = rt_competencia_cobre(
+            {
+                "tenant_id": os_snapshot.tenant_id,
+                "executor_user_id": _atrib.tecnico_executor_id,
+                "grandeza": "",  # ADR-0063 — diferido Marco 4
+            }
+        )
+        if not permitido:
+            raise ErroAtribuirTecnico(
+                "ExecutorSemCompetencia",
+                422,
+                detalhe=f"predicate rt_competencia_cobre = {motivo}",
+            )
 
     if os_snapshot.estado not in {EstadoOS.RASCUNHO, EstadoOS.AGENDADA}:
         raise ErroAtribuirTecnico(
