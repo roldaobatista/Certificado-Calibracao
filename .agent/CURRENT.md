@@ -2,38 +2,34 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 FECHADAS · **M3 OS P4 entregue / P5 em conserto causa-raiz (2026-05-24)**.
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + **M3 OS FECHADAS** (2026-05-25).
 **Modo:** AUTÔNOMO.
 
-## Estado da suíte (verificado 2026-05-24)
+## Estado da suíte (2026-05-25 pós M3 OS FECHADO)
 
 - pytest geral: **905/0/0** em 26min.
-- Suite M3 chave: **89/89 PASS** em 415s (10 arquivos `test_m3_os_*.py` + 13 arquivos `tests/regressao/test_inv_os_*.py`).
-- Hooks `_test-runner.sh`: **312/312** verdes / **42 hooks ativos** (+migration-concorrencia-os-check + sync-merge-foto-appendonly + authz-check predicates M3 do Marco 3 OS Fase 9).
+- Suite M3 chave: **137/137 PASS** em ~7min (26 arquivos).
+- Hooks `_test-runner.sh`: **312/312** verdes / **42 hooks ativos**.
 - ruff/mypy: limpos nos paths novos.
 
-## M3 OS — P4 entregue (Fases 1-10)
+## M3 OS — P5 ritual concluído (3 passadas)
 
-18 use cases + 4 query services + 11 endpoints REST + 4 jobs procrastinate + 7 consumers + 3 sagas + 13 regressões INV-OS (48 testes) + 3 hooks novos. Diário completo: `docs/faseamento/diario/2026-05-24-marco3-os-fases-1-10.md`.
+| Passada | Resultado | Conserto |
+|---|---|---|
+| 1ª (2026-05-24) | 5 PASS / 5 FAIL — 40 achados C/A/M | 5 batches: drift / idempotência / qualidade / produto / segurança |
+| 2ª (2026-05-25) | 3 PASS (seg/qual/idemp) + 2 FAIL (prod + drift) | ADR-0063 + predicate invocação real + sweep 309→312 |
+| 3ª (2026-05-25) | Produto CONCERN→PASS + drift-docs FAIL→PASS | PRD 4 ACs disclaimer + AGENTS L126 + diário L52 |
 
-## M3 OS — P5 1ª passada (2026-05-24)
+**VEREDITO FINAL: 10/10 PASS ZERO C/A/M** (segurança, qualidade, produto, drift-docs, llm-correctness, performance, observabilidade, idempotência, supplychain, conformidade-lgpd).
 
-| Auditor | Veredito | C | A | M |
-|---|---|---|---|---|
-| LLM-correctness / performance / observabilidade / supplychain / LGPD | **PASS** | 0 | 0 | 0 |
-| Segurança | **FAIL** | 0 | 2 | 4 |
-| Qualidade | **FAIL** | 4 | 3 | 3 |
-| Produto | **FAIL** | 0 | 1 | 3 |
-| Drift-docs | **FAIL** | 0 | 8 | 5 |
-| Idempotência | **FAIL** | 0 | 0 | 7 |
-| **Total** | **5 PASS / 5 FAIL** | **4** | **14** | **22** |
+## M3 OS — entregue
 
-INV-RITUAL-001 bloqueia fechamento. Detalhes em `docs/faseamento/M3-os/auditoria-familia5.md`.
+18 use cases + 4 query services + **18 endpoints REST** (11 batch 8 + 7 batch 4) + 4 jobs procrastinate + 7 consumers + 3 sagas + 22 regressões INV-OS (~70 testes) + 3 hooks novos + helper único `sanitizar_payload_evento_os`. ADR-0063 (RT competência fail-open M3 / bloqueio Marco 4). Detalhes: `docs/faseamento/M3-os/auditoria-familia5.md` §"Veredito FINAL" + `docs/faseamento/diario/2026-05-24-marco3-os-fases-1-10.md`.
 
-## Conserto causa-raiz aplicado (2ª passada 2026-05-25: 3 PASS + 2 FAIL consertados)
+## Próxima fatia (decisão Roldão)
 
-Ordem batch: **drift-docs → idempotência → qualidade → produto → segurança**. Restantes 11..12 (integração + sagas + carga + drill) ficam como GAP Wave A. Predicates T-OS-050/054 (RT competência) ficam como GATE Wave A.
+Wave A pendente autorização: ADRs em proposta a aceitar (0003/0004/0008/0009/0010/0014/0015/0016/0018/0019/0021/0034/0035) + 70+ GATEs Wave A rastreados em AGENTS §status (GATE-OS-GRANDEZA-EM-ATIVIDADE prioritário pra ativar bloqueio efetivo predicate RT competência em Marco 4 calibracao).
 
-## Pendências rastreadas
+## Pendências Wave A rastreadas
 
-70+ GATEs Wave A (5 GATE-OS-PERF + GATE-OS-BUS-BRIDGE-1 + GATE-OBS-LOG-EXTRA-1 + GATE-OBS-METRIC-OS-1 + GATE-IDEMP-HOOK-DETECT-ACTION + GATE-OS-SYNC-WAVE-A + GATE-OS-SUCESSAO-EVIDENCIA + GATE-OS-ANON-RETRY-1 + GATE-OS-VALIDAR-DRILL + GATE-OS-CONSBIO-TEXTO-OAB + GATE-OS-DPIA-OAB + GATE-DEP-001/002 herdados).
+GATE-OS-PERF-1..5 + GATE-OS-BUS-BRIDGE-1 + GATE-OBS-LOG-EXTRA-1 + GATE-OBS-METRIC-OS-1 + GATE-IDEMP-HOOK-DETECT-ACTION (✅ fechado pelo batch 2) + GATE-OS-SYNC-WAVE-A + GATE-OS-SUCESSAO-EVIDENCIA + GATE-OS-ANON-RETRY-1 + GATE-OS-VALIDAR-DRILL + GATE-OS-CONSBIO-TEXTO-OAB + GATE-OS-DPIA-OAB + GATE-OS-GRANDEZA-EM-ATIVIDADE + GATE-OS-SANITIZER-HELPER-MIGRACAO + GATE-OS-REPO-GETTER-TENANT-ID + GATE-OS-DEFESA-PROFUNDIDADE-CONSUMERS + GATE-OS-BIOMETRIA-TRAJETORIA + GATE-OS-MATRIZ-P3-SWEEP + GATE-OS-COV + GATE-OS-TST-ATIV-004 + GATE-OS-TST-LITERAL-FIXO + GATE-OS-REST-SERIALIZER-POLISH.

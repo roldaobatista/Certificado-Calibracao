@@ -2,7 +2,7 @@
 owner: roldao
 revisado_em: 2026-05-25
 proximo_review: 2026-08-25
-status: draft
+status: stable
 diataxis: explanation
 audiencia: agente
 marco: Wave A Marco 3 — ordens_servico (OS)
@@ -181,7 +181,30 @@ Ordem de ataque (mais barato → mais caro):
 | 4 | produto (1A + 3M) | `1bae3de` | ✅ 7 endpoints REST novos (cancelar/marcar_nc/resolver_nc/aceite/dispensa/no_show atividade + OS avulsa); `criar_os_avulsa` valida analise_critica_inline_*; `concluir_atividade` consulta dispensa via repository; predicates RT competência → GATE-OS-PREDICATE-RT-COMPETENCIA Wave A |
 | 5 | segurança (2A + 4M) | `08bafe6` | ✅ tenant_id explícito em consumer cliente (defesa em profundidade); biometria_key_id formato `BIOMETRIA_KEY_<tenant>`; check tenant_id em retrieve/timeline; helper único `sanitizar_payload_evento_os` criado; INV-OS-ATIV-005 anti-fraude verificado (já implementado); GATE-OS-DEFESA-PROFUNDIDADE-CONSUMERS + GATE-OS-BIOMETRIA-TRAJETORIA + GATE-OS-SANITIZER-HELPER-MIGRACAO + GATE-OS-REPO-GETTER-TENANT-ID rastreados Wave A |
 
-**Estado pós conserto:** suite M3 chave 137/137 PASS; hooks 312/312 PASS; ruff limpo. **2ª passada dos 5 auditores executada 2026-05-25:** segurança/qualidade/idempotência **PASS**; produto **FAIL→consertado** (PROD-M3-02 invocação real do predicate + ADR-0063 modificando 4 ACs); drift-docs **FAIL→consertado** (sweep 309→312 nos 7 arquivos + CLAUDE.md atualizado + matriz P3 disclaimer + revisado_em). 3ª re-passada produto+drift agendada.
+**Estado pós conserto:** suite M3 chave 137/137 PASS; hooks 312/312 PASS; ruff limpo. **2ª passada dos 5 auditores executada 2026-05-25:** segurança/qualidade/idempotência **PASS**; produto **FAIL→consertado** (PROD-M3-02 invocação real do predicate + ADR-0063 modificando 4 ACs); drift-docs **FAIL→consertado** (sweep 309→312 nos 7 arquivos + CLAUDE.md atualizado + matriz P3 disclaimer + revisado_em).
+
+**3ª passada (2026-05-25) — produto + drift-docs (apenas os 2 FAIL anteriores):**
+- **Produto: CONCERNS → PASS** após conserto BAIXO (PRD ganhou disclaimer ADR-0063 nos 4 ACs — commit `76614c8`).
+- **Drift-docs: FAIL → PASS** após conserto trivial 1 MÉDIO + 1 BAIXO (AGENTS L126 + diário L52 — commit `8761024`).
+
+## Veredito FINAL (2026-05-25)
+
+**10/10 PASS ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO.**
+
+| # | Lente | Veredito final | Passada |
+|---|---|---|---|
+| 1 | Segurança | **PASS** | 2ª |
+| 2 | Qualidade | **PASS** | 2ª |
+| 3 | Produto | **PASS** | 3ª (CONCERN BAIXO zerado por commit `76614c8`) |
+| 4 | Drift docs | **PASS** | 3ª (MEDIO + BAIXO zerados por commit `8761024`) |
+| 5 | LLM correctness | **PASS** | 1ª |
+| 6 | Performance | **PASS** | 1ª |
+| 7 | Observabilidade | **PASS** | 1ª |
+| 8 | Idempotência | **PASS** | 2ª |
+| 9 | Supply chain | **PASS** | 1ª |
+| 10 | Conformidade LGPD | **PASS** | 1ª |
+
+**Marco 3 `ordens_servico` FECHADO sob INV-RITUAL-001 em 2026-05-25.**
 
 ---
 
