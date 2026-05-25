@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (T-CAL-026..039 em 3 batches — 5 VOs + helpers crypto + 3 predicates; 105 testes verdes).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (T-CAL-026..039 — 105 testes) + P4 Fase 3 ENTREGUE PARCIAL (T-CAL-046..049 + 050..054 + 059..060 — 88 testes; Batch C T-CAL-055..058 Monte Carlo BLOQUEADO DEP-001 numpy).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -69,13 +69,19 @@ T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em
 
 **Decisão de escopo (P4 Fase 2 Batch C):** Entities domain (originalmente T-CAL-040..045) DIFERIDAS para Fase 5 (use cases). Criar dataclasses domain agora sem consumidor seria especulação — quando use case precisar, dataclass nasce alinhada ao consumo real.
 
-**Próxima fatia: P4 Fase 3 — Motor de cálculo §3.3 spec (T-CAL-046..060, 15 tarefas)**
-- `src/domain/metrologia/calibracao/motor_calculo/`:
-  - `gum_classico.py` — Decimal puro, NIT-DICLA-030 rev. 15
-  - `monte_carlo.py` — NumPy, JCGM 101 BIPM, seed em Calibracao.id
-  - `arredondamento.py` — NIT-DICLA-030 §7.5 (2 dígitos significativos)
-  - `validacao_replay.py` — Replay determinístico CI (fixtures `tests/replay_metrologico/`)
-- Algoritmos rodam paralelos; divergência >1% → estado volta `em_execucao` + NC automática.
+**P4 Fase 3 ENTREGUE PARCIAL — 3/4 batches:**
+- Batch A (`98a690b`) — T-CAL-046..049: `arredondamento.py` (NIT-DICLA-030 §7.5 — 2 dígitos significativos com banker's rounding). 33 testes.
+- Batch B (`9bcfdd4`) — T-CAL-050..054: `gum_classico.py` (Decimal puro — combinar_tipo_a, combinar_componentes com correlação, welch_satterthwaite, fator_k tabela GUM G.2, propagar end-to-end). 39 testes.
+- Batch D (`c0d7698`) — T-CAL-059..060: `validacao_replay.py` (comparar_algoritmos GUM vs MC, 3 zonas SILENCIOSO/ALERTA_P3/INACEITAVEL com DivergenciaCalculoInaceitavel). 16 testes.
+
+**Batch C BLOQUEADO (T-CAL-055..058 Monte Carlo NumPy):** dep nova `numpy` não está em pyproject.toml; adição requer DEP-001 (auditor-supplychain — justificativa+CVE+pin+hash). Diferido até review do auditor via Agent. Batch D opera autonomamente sobre ResultadoMC dummies (não bloqueado).
+
+**Total Fase 3: 88 testes verdes** + ruff/mypy limpos + hooks 312/312.
+
+**Próxima fatia: P4 Fase 4 — Predicates + authz (T-CAL-061..075, 15 tarefas)**
+- Predicates de calibração já existem (Batch C da Fase 2 — `predicates_calibracao.py`).
+- Fase 4 expande para authz: action registry, mapping action -> predicate, integração com AuthorizationProvider porta (ADR-0012).
+- 6 actions principais: `calibracao.configurar`, `calibracao.iniciar_leituras`, `calibracao.solicitar_revisao`, `calibracao.aprovar_revisao`, `calibracao.aprovar_2a_conferencia`, `calibracao.subcontratar`.
 
 **Paralelizável (P3.5 — não bloqueia P4 dogfooding):** 14 tarefas T-CAL-P35-* (minutas canônicas OAB + matrizes técnicas CGCRE + ADR-0028 rev 3 + DPIA-calibracao). Bloqueia 1º tenant externo pago.
 
