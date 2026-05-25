@@ -225,6 +225,13 @@ LOCAL_APPS = [
     # sequence global os_numero_seq_global (ADR-0056). RLS+triggers+demais
     # entidades em T-OS-002+.
     "src.infrastructure.ordens_servico.apps.OrdensServicoConfig",
+    # Wave A Marco 4 — Calibracao metrologica (metrologia/calibracao). Coracao
+    # tecnico do produto (ISO/IEC 17025). T-CAL-001 inicial: Calibracao raiz
+    # agregado + sequence global calibracao_numero_seq_global (paralelo ADR-0056
+    # + INV-CAL-NUM-001). Demais entidades em T-CAL-002+. ADRs aplicadas:
+    # 0024 revisado (6 zonas ILAC G8 + PFA/PRA) + 0025 + 0026 + 0040 + 0063
+    # Opcao A + 0064 + 0065 NOVA (concorrencia metrologica).
+    "src.infrastructure.calibracao.apps.CalibracaoConfig",
     # F-C1 P4 — adapter canonico OutboundWebhookProvider (ADR-0054 aceita
     # dentro desta fase). SSRF guard + HMAC canonical + DNS rebinding lock
     # + DPA enforcement (INV-WEBHOOK-OUT-001..005).
