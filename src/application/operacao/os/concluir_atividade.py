@@ -111,8 +111,18 @@ def concluir_atividade(
             detalhe=f"itens_pendentes={[c.ordem for c in pendentes]}",
         )
 
-    # AC-OS-004-1: tipo que exige aceite -> precisa AceiteAtividade OU dispensa.
-    if atividade.tipo in _TIPOS_EXIGEM_ACEITE and not payload.aceite_dispensado:
+# AC-OS-004-1: tipo que exige aceite -> precisa AceiteAtividade OU DispensaAceiteAtividade.
+    # PROD-M3-04 (P5 conserto 2026-05-24): dispensa eh CONSULTADA no repository
+    # em vez de confiar no flag boolean enviado pelo caller. O flag continua
+    # aceito como override explicito (legitimo pra fluxos de retry/dogfooding
+    # onde dispensa ainda nao foi gravada). Padrao recomendado: caller NAO
+    # passa flag — use case consulta dispensa real.
+    aceite_dispensado_efetivo = payload.aceite_dispensado
+    if atividade.tipo in _TIPOS_EXIGEM_ACEITE and not aceite_dispensado_efetivo:
+        dispensa = repository.get_dispensa_por_atividade(payload.atividade_id)
+        if dispensa is not None:
+            aceite_dispensado_efetivo = True
+    if atividade.tipo in _TIPOS_EXIGEM_ACEITE and not aceite_dispensado_efetivo:
         aceite = repository.get_aceite_por_atividade(payload.atividade_id)
         if aceite is None:
             raise ErroConcluirAtividade(

@@ -35,9 +35,16 @@ from src.application.operacao.os.adicionar_atividade import (
     adicionar_atividade,
 )
 from src.application.operacao.os.cancelar import (
+    CancelarAtividadeInput,
     CancelarOSInput,
     ErroCancelar,
+    cancelar_atividade,
     cancelar_os,
+)
+from src.application.operacao.os.coletar_aceite import (
+    ColetarAceiteInput,
+    ErroColetarAceite,
+    coletar_aceite_atividade,
 )
 from src.application.operacao.os.concluir_atividade import (
     ConcluirAtividadeInput,
@@ -49,12 +56,31 @@ from src.application.operacao.os.iniciar_atividade import (
     IniciarAtividadeInput,
     iniciar_atividade,
 )
+from src.application.operacao.os.marcar_nao_conformidade import (
+    ErroMarcarNC,
+    ErroResolverNC,
+    MarcarNCInput,
+    ResolverNCInput,
+    marcar_nao_conformidade,
+    resolver_nc,
+)
 from src.application.operacao.os.operacoes_avancadas import (
+    CriarOSAvulsaInput,
+    DispensarAceiteInput,
+    ErroDispensar,
+    ErroNoShow,
+    ErroOSAvulsa,
     ErroReabrir,
     ErroTransferir,
+    ItemOSAvulsa,
+    MarcarNoShowInput,
+    PrecedenteDispensa,
     ReabrirOSInput,
     ReagendarAtividadeInput,
     TransferirTecnicoInput,
+    criar_os_avulsa,
+    dispensar_aceite_cliente,
+    marcar_no_show,
     reabrir_os,
     reagendar_atividade,
     transferir_tecnico,
@@ -102,6 +128,14 @@ ENDPOINT_OS_ATIVIDADE_INICIAR = "os.atividade.iniciar"
 ENDPOINT_OS_ATIVIDADE_CONCLUIR = "os.atividade.concluir"
 ENDPOINT_OS_ATIVIDADE_REAGENDAR = "os.atividade.reagendar"
 ENDPOINT_OS_ATIVIDADE_TRANSFERIR = "os.atividade.transferir"
+# Endpoints novos M3 P5 (PROD-M3-01 — 6 use cases sem REST + OS avulsa).
+ENDPOINT_OS_ATIVIDADE_CANCELAR = "os.atividade.cancelar"
+ENDPOINT_OS_ATIVIDADE_NC = "os.atividade.marcar_nc"
+ENDPOINT_OS_ATIVIDADE_NC_RESOLVER = "os.atividade.resolver_nc"
+ENDPOINT_OS_ATIVIDADE_ACEITE = "os.atividade.aceite"
+ENDPOINT_OS_ATIVIDADE_DISPENSA = "os.atividade.dispensa"
+ENDPOINT_OS_ATIVIDADE_NO_SHOW = "os.atividade.no_show"
+ENDPOINT_OS_AVULSA = "os.avulsa"
 
 
 def _active_tenant_ou_403() -> UUID:
@@ -176,6 +210,7 @@ class OSViewSet(viewsets.ViewSet):
         "minhas": "os.ler",
         "cancelar": "os.atualizar",
         "reabrir": "os.atualizar",
+        "avulsa": "os.criar",
     }
 
     def get_authz_action(self, request) -> str | None:
@@ -443,6 +478,88 @@ class OSViewSet(viewsets.ViewSet):
         )
         return Response(body, status=status.HTTP_201_CREATED)
 
+    # POST /v1/os/avulsa/ — US-OS-015 (M3 P5 batch 4)
+    @action(detail=False, methods=["post"])
+    def avulsa(self, request):
+        # idempotency-key: required -- IDEMP-001
+        tid = _active_tenant_ou_403()
+        user_id = usuario_id_context.get()
+        d = request.data
+        # Validacao inline minima — schema completo entra em GATE-OS-AVULSA-SCHEMA Wave A.
+        itens_raw = d.get("itens", [])
+        if not itens_raw:
+            return Response({"codigo": "OSSemItens"}, status=400)
+        itens = tuple(
+            ItemOSAvulsa(
+                tipo=TipoAtividade(item["tipo"]),
+                sequencia=int(item["sequencia"]),
+                valor_unitario_snapshot=Decimal(str(item["valor_unitario_snapshot"])),
+                requer_recebimento=bool(item.get("requer_recebimento", False)),
+            )
+            for item in itens_raw
+        )
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tid,
+            usuario_id=user_id or uuid4(),
+            endpoint=ENDPOINT_OS_AVULSA,
+            payload_fingerprint={
+                "cliente_id": str(d.get("cliente_id", "")),
+                "equipamento_id": str(d.get("equipamento_id", "")),
+                "itens_qtd": len(itens),
+                "analise_critica_inline_id": str(d.get("analise_critica_inline_id", "")),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+        repo = DjangoOSRepository()
+        try:
+            with transaction.atomic():
+                res = criar_os_avulsa(
+                    payload=CriarOSAvulsaInput(
+                        tenant_id=tid,
+                        cliente_id=UUID(d["cliente_id"]),
+                        cliente_referencia_hash=str(d.get("cliente_referencia_hash", "")),
+                        cliente_key_id=str(d.get("cliente_key_id", "")),
+                        equipamento_id=UUID(d["equipamento_id"]),
+                        equipamento_recebimento_id=(
+                            UUID(d["equipamento_recebimento_id"])
+                            if d.get("equipamento_recebimento_id")
+                            else None
+                        ),
+                        itens=itens,
+                        analise_critica_inline_id=UUID(d["analise_critica_inline_id"]),
+                        analise_critica_snapshot_hash=str(
+                            d.get("analise_critica_snapshot_hash", "")
+                        ),
+                        regra_decisao_acordada=str(d.get("regra_decisao_acordada", "default")),
+                        correlation_id=uuid4(),
+                        criada_em=datetime.now(UTC),
+                        criada_por_user_id=user_id,
+                    ),
+                    repository=repo,
+                )
+        except ErroOSAvulsa as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
+            return _erro_response(exc)
+        body = {
+            "os_id": str(res.os_id),
+            "numero_os": res.numero_os,
+            "atividades_planejadas": [str(a) for a in res.atividades_planejadas],
+        }
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tid,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
+
 
 # =============================================================
 # Atividade ViewSet (POST adicionar / iniciar / concluir / reagendar / transferir)
@@ -459,6 +576,12 @@ class AtividadeViewSet(viewsets.ViewSet):
         "concluir": "atividade.executar",
         "reagendar": "os.atualizar",
         "transferir": "os.atualizar",
+        "cancelar": "os.atualizar",
+        "marcar_nc": "atividade.executar",
+        "resolver_nc": "atividade.executar",
+        "aceite": "atividade.executar",
+        "dispensa": "os.atualizar",
+        "no_show": "atividade.executar",
     }
 
     def get_authz_action(self, request) -> str | None:
@@ -751,3 +874,356 @@ class AtividadeViewSet(viewsets.ViewSet):
             response_body_resumo=body,
         )
         return Response(body)
+
+    # =============================================================
+    # M3 P5 batch 4 (PROD-M3-01): 6 use cases sem REST -> expostos.
+    # Pra ficar enxuto e nao explodir o arquivo, payloads usam validacao
+    # inline em vez de serializer DRF formal — gate-rest-serializer-polish
+    # Wave A polira validacao de schema.
+    # =============================================================
+
+    @action(detail=True, methods=["post"])
+    def cancelar(self, request, pk=None):
+        # idempotency-key: required -- IDEMP-001
+        tid = _active_tenant_ou_403()
+        user_id = usuario_id_context.get() or uuid4()
+        try:
+            motivo = MotivoCancelamento(request.data.get("motivo", ""))
+        except (ValueError, TypeError) as exc:
+            return Response({"codigo": "MotivoInvalido", "detalhe": str(exc)}, status=400)
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tid,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_OS_ATIVIDADE_CANCELAR,
+            payload_fingerprint={
+                "atividade_id": str(pk),
+                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+        repo = DjangoOSRepository()
+        try:
+            with transaction.atomic():
+                res = cancelar_atividade(
+                    payload=CancelarAtividadeInput(
+                        atividade_id=UUID(pk),
+                        usuario_id=user_id,
+                        motivo=motivo,
+                        correlation_id=uuid4(),
+                        cancelada_em=datetime.now(UTC),
+                    ),
+                    repository=repo,
+                )
+        except ErroCancelar as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
+            return _erro_response(exc)
+        body = {"atividade_id": str(res.atividade_id), "os_id": str(res.os_id)}
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tid,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body)
+
+    @action(detail=True, methods=["post"], url_path="nc")
+    def marcar_nc(self, request, pk=None):
+        tid = _active_tenant_ou_403()
+        user_id = usuario_id_context.get()
+        if user_id is None:
+            return Response({"codigo": "UsuarioAusente"}, status=403)
+        try:
+            razao = MotivoCancelamento(request.data.get("razao", ""))
+        except (ValueError, TypeError) as exc:
+            return Response({"codigo": "RazaoInvalida", "detalhe": str(exc)}, status=400)
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tid,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_OS_ATIVIDADE_NC,
+            payload_fingerprint={
+                "atividade_id": str(pk),
+                "razao_hash": hashlib.sha256(razao.texto.encode()).hexdigest(),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+        repo = DjangoOSRepository()
+        try:
+            with transaction.atomic():
+                res = marcar_nao_conformidade(
+                    payload=MarcarNCInput(
+                        atividade_id=UUID(pk),
+                        usuario_id=user_id,
+                        razao=razao,
+                        correlation_id=uuid4(),
+                        marcada_em=datetime.now(UTC),
+                    ),
+                    repository=repo,
+                )
+        except ErroMarcarNC as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
+            return _erro_response(exc)
+        body = {"nc_id": str(res.nc_id), "atividade_id": str(res.atividade_id)}
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tid,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="resolver-nc")
+    def resolver_nc(self, request, pk=None):
+        tid = _active_tenant_ou_403()
+        user_id = usuario_id_context.get()
+        if user_id is None:
+            return Response({"codigo": "UsuarioAusente"}, status=403)
+        try:
+            causa = MotivoCancelamento(request.data.get("causa_raiz", ""))
+            acao = MotivoCancelamento(request.data.get("acao_corretiva", ""))
+        except (ValueError, TypeError) as exc:
+            return Response({"codigo": "TextoInvalido", "detalhe": str(exc)}, status=400)
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tid,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_OS_ATIVIDADE_NC_RESOLVER,
+            payload_fingerprint={
+                "atividade_id": str(pk),
+                "causa_hash": hashlib.sha256(causa.texto.encode()).hexdigest(),
+                "acao_hash": hashlib.sha256(acao.texto.encode()).hexdigest(),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+        repo = DjangoOSRepository()
+        try:
+            with transaction.atomic():
+                res = resolver_nc(
+                    payload=ResolverNCInput(
+                        atividade_id=UUID(pk),
+                        usuario_id=user_id,
+                        causa_raiz=causa,
+                        acao_corretiva=acao,
+                        correlation_id=uuid4(),
+                        eficacia_verificada_em=datetime.now(UTC),
+                    ),
+                    repository=repo,
+                )
+        except ErroResolverNC as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
+            return _erro_response(exc)
+        body = {"nc_id": str(res.nc_id), "atividade_id": str(res.atividade_id)}
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tid,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body)
+
+    @action(detail=True, methods=["post"])
+    def aceite(self, request, pk=None):
+        tid = _active_tenant_ou_403()
+        user_id = usuario_id_context.get() or uuid4()
+        d = request.data
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tid,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_OS_ATIVIDADE_ACEITE,
+            payload_fingerprint={
+                "atividade_id": str(pk),
+                "cliente_referencia_hash": str(d.get("cliente_referencia_hash", "")),
+                "texto_hash": hashlib.sha256(
+                    str(d.get("texto_aceite_bruto", "")).encode()
+                ).hexdigest(),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+        repo = DjangoOSRepository()
+        try:
+            with transaction.atomic():
+                res = coletar_aceite_atividade(
+                    payload=ColetarAceiteInput(
+                        atividade_id=UUID(pk),
+                        cliente_referencia_hash=str(d.get("cliente_referencia_hash", "")),
+                        cliente_key_id=str(d.get("cliente_key_id", "")),
+                        texto_aceite_bruto=str(d.get("texto_aceite_bruto", "")),
+                        coletado_em=datetime.now(UTC),
+                        correlation_id=uuid4(),
+                    ),
+                    repository=repo,
+                )
+        except ErroColetarAceite as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
+            return _erro_response(exc)
+        body = {
+            "aceite_id": str(res.aceite_id),
+            "atividade_id": str(res.atividade_id),
+            "consentimento_id": (
+                str(res.consentimento_id) if res.consentimento_id else None
+            ),
+        }
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tid,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def dispensa(self, request, pk=None):
+        tid = _active_tenant_ou_403()
+        user_id = usuario_id_context.get() or uuid4()
+        d = request.data
+        try:
+            motivo = MotivoCancelamento(d.get("motivo", ""))
+            precedente_tipo = PrecedenteDispensa(d.get("precedente_tipo", ""))
+        except (ValueError, TypeError) as exc:
+            return Response(
+                {"codigo": "PayloadInvalido", "detalhe": str(exc)}, status=400
+            )
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tid,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_OS_ATIVIDADE_DISPENSA,
+            payload_fingerprint={
+                "atividade_id": str(pk),
+                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),
+                "precedente_tipo": precedente_tipo.value,
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+        repo = DjangoOSRepository()
+        try:
+            with transaction.atomic():
+                res = dispensar_aceite_cliente(
+                    payload=DispensarAceiteInput(
+                        atividade_id=UUID(pk),
+                        motivo=motivo,
+                        autorizado_por_gerente_id=UUID(d["autorizado_por_gerente_id"]),
+                        a3_assinatura_hash=str(d.get("a3_assinatura_hash", "")),
+                        a3_certificado_emissor_hash=str(
+                            d.get("a3_certificado_emissor_hash", "")
+                        ),
+                        a3_assinada_em=datetime.fromisoformat(d["a3_assinada_em"]),
+                        termo_pdf_b2_uri=str(d.get("termo_pdf_b2_uri", "")),
+                        termo_pdf_sha256=str(d.get("termo_pdf_sha256", "")),
+                        precedente_tipo=precedente_tipo,
+                        precedente_evento_id=(
+                            UUID(d["precedente_evento_id"])
+                            if d.get("precedente_evento_id")
+                            else None
+                        ),
+                        correlation_id=uuid4(),
+                        solicitada_em=datetime.now(UTC),
+                    ),
+                    repository=repo,
+                )
+        except ErroDispensar as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
+            return _erro_response(exc)
+        body = {
+            "dispensa_id": str(res.dispensa_id),
+            "atividade_id": str(res.atividade_id),
+        }
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tid,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="no-show")
+    def no_show(self, request, pk=None):
+        tid = _active_tenant_ou_403()
+        user_id = usuario_id_context.get()
+        if user_id is None:
+            return Response({"codigo": "UsuarioAusente"}, status=403)
+        d = request.data
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tid,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_OS_ATIVIDADE_NO_SHOW,
+            payload_fingerprint={
+                "atividade_id": str(pk),
+                "client_event_id": str(d.get("client_event_id", "")),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+        repo = DjangoOSRepository()
+        try:
+            with transaction.atomic():
+                res = marcar_no_show(
+                    payload=MarcarNoShowInput(
+                        atividade_id=UUID(pk),
+                        tecnico_user_id=user_id,
+                        foto_b2_uri=str(d.get("foto_b2_uri", "")),
+                        foto_sha256=str(d.get("foto_sha256", "")),
+                        client_event_id=UUID(d["client_event_id"]),
+                        client_event_created_at=datetime.fromisoformat(
+                            d["client_event_created_at"]
+                        ),
+                        aviso_terceiros_acknowledged=bool(
+                            d.get("aviso_terceiros_acknowledged", False)
+                        ),
+                        correlation_id=uuid4(),
+                        ocorrido_em=datetime.now(UTC),
+                        geo_lat=d.get("geo_lat"),
+                        geo_long=d.get("geo_long"),
+                        geo_municipio_hash=str(d.get("geo_municipio_hash", "")),
+                    ),
+                    repository=repo,
+                )
+        except ErroNoShow as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
+            return _erro_response(exc)
+        body = {"foto_id": str(res.foto_id), "atividade_id": str(res.atividade_id)}
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tid,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)

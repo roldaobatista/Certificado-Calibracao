@@ -712,6 +712,25 @@ def criar_os_avulsa(
     """Cria OS sem orcamento_origem (balcao) + atividades com preco vigente."""
     if not payload.itens:
         raise ErroOSAvulsa("OSSemItens", 400)
+    # PROD-M3-03 (P5 conserto 2026-05-24): valida analise_critica_inline_*
+    # presente + snapshot_hash 64 chars (formato SHA-256 hex). INV-OS-ANAL-001
+    # ISO 17025 cl. 7.1 — sem snapshot probatorio a OS avulsa perde
+    # rastreabilidade.
+    if not payload.analise_critica_inline_id:
+        raise ErroOSAvulsa(
+            "OrcamentoSemAnaliseCritica",
+            412,
+            detalhe="analise_critica_inline_id obrigatorio (INV-OS-ANAL-001 + AC-OS-001-7)",
+        )
+    if (
+        not payload.analise_critica_snapshot_hash
+        or len(payload.analise_critica_snapshot_hash) != 64
+    ):
+        raise ErroOSAvulsa(
+            "AnaliseCriticaSnapshotInvalido",
+            412,
+            detalhe="snapshot_hash deve ter 64 chars hex (SHA-256 do texto canonico)",
+        )
     if any(item.valor_unitario_snapshot <= Decimal("0") for item in payload.itens):
         # AC-OS-015-2: tabela ausente -> caller deve mapear; aqui detectamos
         # valor_unitario_snapshot = 0 como sinal de ausencia.
