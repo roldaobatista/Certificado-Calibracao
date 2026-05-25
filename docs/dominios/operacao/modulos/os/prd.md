@@ -79,7 +79,7 @@ Cobre BIG-01 (não perder informação entre WhatsApp/planilha/sistema), BIG-05 
 
 - **AC-OS-002-1:** GIVEN OS em RASCUNHO/AGENDADA/EM_EXECUCAO + `tipo` válido (INV-OS-ATIV-003) + tenant ativo, WHEN `adicionarAtividade(os_id, tipo, sequencia)` executa, THEN nova atividade em PENDENTE + publica `AtividadeAdicionada`.
 - **AC-OS-002-2:** GIVEN OS em CONCLUIDA/FATURADA/PAGA, WHEN tenta adicionar, THEN 412 `OSEmEstadoTerminal — abra reabertura`.
-- **AC-OS-002-3 (Onda 6 auditor 5 — A6 RT obrigatório):** GIVEN `tipo` com `TipoAtividadeConfig.requer_competencia_rt=true` (calibracao, verificacao_inmetro), WHEN servidor valida, THEN executa predicate `tenant_tem_rt_ativo_competencia(grandeza)` (INV-CAL-RT-001 + ADR-0022); se falso → 422 `TenantSemRTAtivo: [grandeza]`.
+- **AC-OS-002-3 (Onda 6 auditor 5 — A6 RT obrigatório / modificado por ADR-0063 — fail-open Marco 3, bloqueio efetivo Marco 4 com `AtividadeDaOS.grandeza`):** GIVEN `tipo` com `TipoAtividadeConfig.requer_competencia_rt=true` (calibracao, verificacao_inmetro), WHEN servidor valida, THEN executa predicate `tenant_tem_rt_ativo_competencia(grandeza)` (INV-CAL-RT-001 + ADR-0022); se falso → 422 `TenantSemRTAtivo: [grandeza]`. **Marco 3 (M3 OS):** predicate tenant-level NÃO existe — diferido Marco 4 calibracao (GATE-OS-GRANDEZA-EM-ATIVIDADE).
 - **AC-OS-002-4:** GIVEN `sequencia` ≤ menor `sequencia` em estado terminal CONCLUIDA, WHEN servidor recebe, THEN 412 `SequenciaInvalidaPosTerminal` (preserva linearidade).
 - **Invariantes:** INV-OS-ATIV-001, INV-OS-ATIV-003, INV-CAL-RT-001.
 
@@ -91,7 +91,7 @@ Cobre BIG-01 (não perder informação entre WhatsApp/planilha/sistema), BIG-05 
 - **AC-OS-002-2:** GIVEN UMC + agenda viola Lei 13.103, WHEN tenta atribuir, THEN bloqueia com 422 + razão.
 <!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
 - **AC-OS-002-3:** GIVEN atividade com `tecnico_executor_id` definido, WHEN `iniciarAtividade` executa, THEN só o executor designado pode iniciar (RBAC + INV-AUTHZ-001).
-- **AC-OS-002b-4 (P3 RBC P-OS-R1 — cl. 6.2 competência executor):** GIVEN `tipo IN (calibracao, verificacao_inmetro)` no momento da atribuição inicial, WHEN servidor valida `tecnico_executor_id`, THEN executa predicate `rt_competencia_cobre(tecnico_executor_id, grandeza, data_atual)` (ADR-0022); se falso → 422 `ExecutorSemCompetencia: [grandeza]` (INV-OS-ATIV-005-EXEC-COMP).
+- **AC-OS-002b-4 (P3 RBC P-OS-R1 — cl. 6.2 competência executor / modificado por ADR-0063 — fail-open Marco 3, bloqueio efetivo Marco 4 com `AtividadeDaOS.grandeza`):** GIVEN `tipo IN (calibracao, verificacao_inmetro)` no momento da atribuição inicial, WHEN servidor valida `tecnico_executor_id`, THEN executa predicate `rt_competencia_cobre(tecnico_executor_id, grandeza, data_atual)` (ADR-0022); se falso → 422 `ExecutorSemCompetencia: [grandeza]` (INV-OS-ATIV-005-EXEC-COMP). **Marco 3 (M3 OS):** predicate INVOCADO em `atribuir_tecnico.py:94-107` com `grandeza=""` → fail-open controlado (predicate retorna True quando grandeza ausente); bloqueio automático quando Marco 4 calibracao plugar `AtividadeDaOS.grandeza`.
 - **Invariantes:** INV-020, INV-AUTHZ-001, INV-027, INV-OS-ATIV-005-EXEC-COMP.
 
 ### US-OS-003 — Iniciar atividade no mobile (offline-first)
@@ -104,7 +104,7 @@ Cobre BIG-01 (não perder informação entre WhatsApp/planilha/sistema), BIG-05 
 - **AC-OS-003-4:** GIVEN gate de `sequencia` ativo + atividade N-1 não terminal, WHEN tenta iniciar atividade N, THEN 412 `SequenciaPendente`.
 <!-- frontmatter-revisado-em: skip -- edit preserva frontmatter no topo -->
 - **AC-OS-003-5:** GIVEN geo opt-in ativo, WHEN inicia, THEN captura `geo` com precisão limitada (INV-OS-GEO-001).
-- **AC-OS-003-6 (P3 RBC P-OS-R1 — cl. 6.2 competência executor no início):** GIVEN `tipo IN (calibracao, verificacao_inmetro)` no momento de iniciar, WHEN servidor valida, THEN re-executa predicate `rt_competencia_cobre(usuario, grandeza, data_inicio)` (competência pode ter revogado entre atribuição e início — vigência ADR-0030); se falso → 422 `ExecutorSemCompetenciaNaData` (INV-OS-ATIV-005-EXEC-COMP).
+- **AC-OS-003-6 (P3 RBC P-OS-R1 — cl. 6.2 competência executor no início / modificado por ADR-0063 — fail-open Marco 3, bloqueio efetivo Marco 4 com `AtividadeDaOS.grandeza`):** GIVEN `tipo IN (calibracao, verificacao_inmetro)` no momento de iniciar, WHEN servidor valida, THEN re-executa predicate `rt_competencia_cobre(usuario, grandeza, data_inicio)` (competência pode ter revogado entre atribuição e início — vigência ADR-0030); se falso → 422 `ExecutorSemCompetenciaNaData` (INV-OS-ATIV-005-EXEC-COMP). **Marco 3 (M3 OS):** predicate INVOCADO em `iniciar_atividade.py:99-111` com `grandeza=""` → fail-open controlado; bloqueio automático Marco 4.
 - **Invariantes:** INV-OS-ATIV-002, INV-OS-ATIV-005, INV-OS-ATIV-005-EXEC-COMP, IDEMP-001, INV-OS-GEO-001, RAT-07.
 
 ### US-OS-004 — Concluir atividade
@@ -203,7 +203,7 @@ Cobre BIG-01 (não perder informação entre WhatsApp/planilha/sistema), BIG-05 
 **Como** P-OP-04 gerente, **quero** transferir atividade para outro técnico, **para** cobrir falta/redistribuição.
 
 - **AC-OS-012-1:** GIVEN atividade em PENDENTE/AGENDADA + novo técnico com agenda válida (INV-020 UMC se aplicável) + motivo (≥30 chars), WHEN `transferirTecnico(atividade_id, novo_tecnico_id, motivo)` executa, THEN atualiza `tecnico_executor_id` + grava `EventoDeOS.tipo=atividade_tecnico_transferido`.
-- **AC-OS-012-2:** GIVEN `tipo IN (calibracao, verificacao_inmetro)` + novo técnico sem competência ativa pra grandeza, WHEN servidor valida, THEN 422 `TecnicoSemCompetencia` (INV-CAL-RT-001).
+- **AC-OS-012-2 (modificado por ADR-0063 — fail-open Marco 3, bloqueio efetivo Marco 4 com `AtividadeDaOS.grandeza`):** GIVEN `tipo IN (calibracao, verificacao_inmetro)` + novo técnico sem competência ativa pra grandeza, WHEN servidor valida, THEN 422 `TecnicoSemCompetencia` (INV-CAL-RT-001). **Marco 3 (M3 OS):** predicate INVOCADO em `operacoes_avancadas.py:289-299` com `grandeza=""` → fail-open controlado; bloqueio automático Marco 4.
 - **AC-OS-012-3:** GIVEN transferência OK, WHEN portal-cliente plugado, THEN notifica cliente "técnico [hash] atribuído".
 - **Invariantes:** INV-AUTHZ-001, INV-CAL-RT-001, INV-OS-TXT-001.
 
