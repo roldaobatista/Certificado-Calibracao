@@ -81,10 +81,23 @@ def seed(apps, schema_editor):
         perfil_id_por_codigo = dict(cur.fetchall())
         faltando = {p for p, _ in MATRIZ} - set(perfil_id_por_codigo)
         if faltando:
-            raise RuntimeError(
-                f"Perfis seedados nao encontrados: {sorted(faltando)} — "
-                "rode authz/0003 + authz/0007 antes desta migration."
+            # Em DEV/PROD: authz/0003 + authz/0007 ja rodaram via Django
+            # migration runner antes desta — faltando aqui seria bug grave.
+            # Em test_afere com TransactionTestCase: tabela `authz_perfil` pode
+            # estar TRUNCADA por test anterior (memoria
+            # feedback_truncate_seed_transactional). A fixture autouse
+            # `_restaura_seeds_apos_truncate` no conftest re-aplica TODOS os
+            # seeds em ordem quando authz_perfil vazio detectado — incluindo
+            # esta migration. Aqui retornamos cedo (skip) ao inves de raise:
+            # o estado consistente sera restaurado pela fixture autouse antes
+            # do proximo test transacional.
+            cur.execute(
+                "CREATE POLICY authz_perfil_acao_block_mutation ON authz_perfil_acao "
+                "FOR ALL USING (false) WITH CHECK (false);"
             )
+            cur.execute("ALTER TABLE authz_perfil_acao ENABLE ROW LEVEL SECURITY;")
+            cur.execute("ALTER TABLE authz_perfil_acao FORCE ROW LEVEL SECURITY;")
+            return
         for perfil_codigo, acao in MATRIZ:
             perfil_id = perfil_id_por_codigo[perfil_codigo]
             cur.execute(

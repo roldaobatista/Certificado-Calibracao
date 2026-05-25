@@ -14,51 +14,66 @@ class CalibracaoConfig(AppConfig):
     verbose_name = "Calibracao Metrologica (ISO 17025)"
 
     def ready(self) -> None:
-        """Registra predicates ABAC do modulo (T-CAL-061..075 / Fase 4).
+        """Registra predicates ABAC do modulo (T-CAL-069..075 / Fase 4 Batch B).
 
-        ADR-0012 + spec.md secao 16 + ADR-0063 Opcao A.
+        ADR-0012 (AuthorizationProvider) + ADR-0024 + ADR-0026 + ADR-0063.
 
-        Predicates M4 (14 total — invocados nos use cases de Fase 5):
+        Predicates registrados nesta release (Fase 2 Batch C + Fase 4):
+          - `cmc_cobre` — calibracao.configurar + iniciar_leituras
+            (RBC tenant tem CMC cobrindo grandeza+faixa).
+          - `procedimento_vigente_para` — calibracao.configurar
+            (cl. 7.2 — procedimento tecnico vigente na data).
+          - `pode_aprovar_revisao_2a_conferencia` —
+            calibracao.aprovar_revisao + calibracao.aprovar_2a_conferencia
+            (segregacao funcoes cl. 6.2.5 + INV-CAL-FRAUDE-REV-001 +
+            INV-CAL-FRAUDE-CONF-001 + ADR-0026 excecao 4 condicoes).
 
-        - `cmc_cobre`: tenant_id, grandeza, faixa, em_data — INV-002 +
-          INV-CAL-CMC-001 (cl. 6.4.10). RBC obrigatorio.
-        - `padrao_vigente_no_uso`: padrao_id, em_data — INV-PAD-003 +
-          INV-PAD-004 (ADR-0040).
-        - `procedimento_vigente_para`: procedimento_id, em_data —
-          ADR-0030 vigencia temporal.
-        - `regra_decisao_aplicavel`: tenant_id, cliente_id, regra,
-          em_data — ADR-0024.
-        - `regra_decisao_acordada_cobre`: cliente_id, regra, em_data
-          — NOVO P3 (INV-CAL-DEC-006 + cl. 7.1.3). Cobre contrato OU
-          aceite avulso.
-        - `clausula_override_vigente`: cliente_id, em_data — NOVO P3
-          (INV-CAL-DEC-002 + CDC art. 25/51).
-        - `subcontratado_vigente_para`: subcontratado_id, grandeza,
-          em_data — INV-CAL-SUBC-002 + INV-CAL-SUBC-005 (avaliacao
-          periodica vigente).
-        - `rt_competencia_cobre`: invocacao ATIVADA em M4 (ADR-0063
-          Opcao A — lazy em configurar_calibracao + aprovar_revisao +
-          aprovar_2a_conferencia). Predicate ja existe em
-          ordens_servico — M4 apenas invoca.
-        - `pode_aprovar_revisao`: user_id, calibracao_id — papel RT.
-        - `pode_aprovar_2a_conferencia`: user_id, calibracao_id —
-          INV-CAL-FRAUDE-CONF-001 + ADR-0026 (4 condicoes
-          objetivas).
-        - `pode_subcontratar`: user_id, tenant_id — papel
-          gerente_qualidade.
-        - `pode_marcar_nc_calibracao`: user_id, calibracao_id.
-        - `pode_corrigir_leitura`: user_id, leitura_id —
-          INV-CAL-FRAUDE-COR-001.
-        - `pode_registrar_leitura`: user_id, calibracao_id —
-          INV-CAL-FRAUDE-EXEC-001.
-
-        Predicates Fase 4 (T-CAL-061..075) — registro ABAC sera
-        plugado quando arquivos predicates_calibracao.py forem
-        criados. Por enquanto Fase 1 entrega apenas estrutura
-        Django + migrations.
+        Predicates pendentes pra Fase 5+ (use cases que carregam payload
+        ainda nao existem; sao stubs ou diferidos):
+          - `padrao_vigente_no_uso` (INV-PAD-003 + INV-PAD-004 — modulo
+            metrologia/padroes Wave A separado, ADR-0040).
+          - `regra_decisao_acordada_cobre` (cliente_id+regra na data —
+            consulta AceiteRegraDecisao; use case `configurarCalibracao`
+            instancia, predicate puro em Fase 5).
+          - `clausula_override_vigente` (NOVO P-CAL-A3 advogado).
+          - `subcontratado_vigente_para` (avaliacao periodica em dia).
+          - `pode_marcar_nc_calibracao`, `pode_corrigir_leitura`,
+            `pode_registrar_leitura`, `pode_subcontratar` — papeis
+            operacionais; mapeados na matriz authz_perfil_acao (seed
+            0013) e RBAC ja cobre. ABAC predicate so quando houver
+            regra dependente de contexto alem do perfil.
         """
-        # T-CAL-061..075 — register_predicate sera adicionado em Fase 4.
-        # Estrutura intencional: predicates ficam em
-        # src/infrastructure/calibracao/predicates_calibracao.py
-        # (a criar em Fase 4).
-        return None
+        from src.infrastructure.authz.predicates import register_predicate
+        from src.infrastructure.calibracao.predicates_calibracao import (
+            cmc_cobre,
+            pode_aprovar_revisao_2a_conferencia,
+            procedimento_vigente_para,
+        )
+
+        # cmc_cobre — escopo: configurar + iniciar_leituras (CMC vigente
+        # na data da configuracao + persiste cobertura ate execucao).
+        register_predicate(
+            "cmc_cobre",
+            cmc_cobre,
+            actions={"calibracao.configurar", "calibracao.iniciar_leituras"},
+        )
+
+        # procedimento_vigente_para — escopo: configurar
+        # (cl. 7.2 — procedimento documentado vigente NA configuracao;
+        # depois cravado em snapshot de Calibracao).
+        register_predicate(
+            "procedimento_vigente_para",
+            procedimento_vigente_para,
+            actions={"calibracao.configurar"},
+        )
+
+        # pode_aprovar_revisao_2a_conferencia — escopo: aprovar_revisao +
+        # aprovar_2a_conferencia (segregacao funcoes cl. 6.2.5).
+        register_predicate(
+            "pode_aprovar_revisao_2a_conferencia",
+            pode_aprovar_revisao_2a_conferencia,
+            actions={
+                "calibracao.aprovar_revisao",
+                "calibracao.aprovar_2a_conferencia",
+            },
+        )
