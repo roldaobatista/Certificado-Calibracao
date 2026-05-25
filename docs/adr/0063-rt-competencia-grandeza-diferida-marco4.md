@@ -67,3 +67,50 @@ Adicionar campo `grandeza` em `AtividadeDaOS` (migration + retrofit dos use case
 ## Decisão final
 
 **ACEITO 2026-05-25**. Predicate invocado + ADR modifica os 4 ACs + GATE-OS-GRANDEZA-EM-ATIVIDADE Wave A registrado. INV-RITUAL-001 satisfeito.
+
+---
+
+## Atualização M4 P3 — Opção A lazy (2026-05-25)
+
+Review P2 do tech-lead-saas-regulado (P-CAL-T4) e decisão Roldão (D-M4-2 = **Opção A**) refinam o caminho de plug do predicate em Marco 4:
+
+### Inversão temporal identificada
+
+Marco 3 cria `AtividadeDaOS(tipo=calibracao)` em `iniciar_atividade` **antes** de existir `Calibracao` (consumer cria `Calibracao` em resposta a `Atividade.Iniciada`). Logo, no momento de `iniciar_atividade`, **ninguém ainda escolheu a grandeza** — a grandeza só é definida em `configurar_calibracao` (US-CAL-002 do Marco 4). Plug ingênuo de `grandeza` em `iniciar_atividade` resultaria em predicate fail-open eterno.
+
+### Opção A — Lazy em `configurar_calibracao` + 3 use cases pós (ESCOLHIDA)
+
+`AtividadeDaOS.grandeza` é **populada lazy** quando `ConfiguracaoCalibracao` é cravada. Predicate `rt_competencia_cobre` é invocado em **3 pontos**, não em `iniciar_atividade`:
+
+| Use case | Predicate invocado | Comportamento |
+|---|---|---|
+| `configurar_calibracao` (US-CAL-002) | `rt_competencia_cobre(executor_user_id, grandeza_acabou_de_setar, em_data=hoje)` | 1ª chance de saber a grandeza. Falha → 422 `ExecutorSemCompetencia`. |
+| `aprovar_revisao` (US-CAL-007) | `rt_competencia_cobre(revisor_user_id, calibracao.grandeza, em_data=hoje)` | RT 1ª conferência precisa cobrir a grandeza. Falha → 422 `RTSemCompetencia`. |
+| `aprovar_2a_conferencia` (US-CAL-008) | `rt_competencia_cobre(conferente_user_id, calibracao.grandeza, em_data=hoje)` | RT 2ª conferência precisa cobrir a grandeza + ADR-0026 4 condições + `conferente_id != revisor_id`. Falha → 422 `ConferenteSemCompetencia`. |
+
+Em `iniciar_atividade(tipo=calibracao)` o predicate continua sendo invocado com `grandeza=""` (fail-open controlado) — **documentado como proposital, não débito**. A grandeza ainda não foi escolhida; bloquear em `iniciar_atividade` seria semanticamente errado.
+
+### Opção B (descartada) — Grandeza obrigatória em `criar_os`
+
+Exigir grandeza obrigatória em `criar_os(tipo=calibracao)` forçaria análise crítica cl. 7.1 a já ter resultado escolhido — não reflete o fluxo real (cliente apresenta instrumento, RT examina, depois decide grandeza). Requer migration retrofit destrutiva em M3 + backfill de dados existentes. **Custo > benefício; descartado por Roldão (D-M4-2)**.
+
+### Tarefas concretas em M4
+
+- **T-CAL-RT-COMP-1**: migration em `src/infrastructure/ordens_servico/migrations/` (cross-marco — cresce campo M3) — `AtividadeDaOS.grandeza VARCHAR(50) NULL` + backfill default `""` para registros existentes (dogfooding Balanças Solution).
+- **T-CAL-RT-COMP-2**: `configurar_calibracao` (use case M4) faz `UPDATE atividade_da_os SET grandeza=:g WHERE id=:atividade_id` na mesma transação que cria `ConfiguracaoCalibracao`.
+- **T-CAL-RT-COMP-3**: `configurar_calibracao` + `aprovar_revisao` + `aprovar_2a_conferencia` invocam `rt_competencia_cobre` com resource dict completo (`grandeza` populado).
+- **T-CAL-RT-COMP-4**: teste regressão `tests/regressao/test_rt_competencia_bloqueia_grandeza_setada.py` — atividade com `grandeza=MASSA` + RT sem competência massa → 422 `ExecutorSemCompetencia` em `configurar_calibracao`.
+- **T-CAL-RT-COMP-5**: drill `validar_m4_calibracao` item 3 (vide spec §11): valida invocação em 3 use cases + bloqueio efetivo.
+
+### Consequências da Opção A
+
+- ✅ Sem retrofit destrutivo em M3 — `iniciar_atividade` permanece intacto.
+- ✅ Predicate invocado nos 3 pontos onde a grandeza É conhecida — não em ponto onde não é.
+- ✅ Semântica defensável em supervisão CGCRE: "competência validada no momento da configuração técnica + no momento da aprovação técnica + no momento da 2ª conferência".
+- ⚠️ `iniciar_atividade` fail-open documentado proposital — **GATE-OS-PREDICATE-RT-FAIL-OPEN-DOC** rastreado: docstring na função declara explicitamente "fail-open by design quando grandeza='' — válido até configurar_calibracao popular".
+- ✅ `GATE-OS-GRANDEZA-EM-ATIVIDADE Wave A` fechado: tarefas T-CAL-RT-COMP-1..5 entregam o que faltava.
+
+### Status pós-atualização
+
+**ACEITO ORIGINAL 2026-05-25** (predicate invocado fail-open em M3).
+**ESCLARECIDO E APROFUNDADO 2026-05-25 P3 M4** (Opção A lazy — 3 use cases pós, NÃO `iniciar_atividade`). Tasks T-CAL-RT-COMP-1..5 cravadas pra M4 P3+P4.
