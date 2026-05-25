@@ -290,6 +290,12 @@ run_case "AZ3 @public reconhecido (FB-C2)"       PASS  authz-check.sh '{"tool_in
 run_case "AZ4 PublicEndpoint mixin (FB-C2)"      PASS  authz-check.sh '{"tool_input":{"file_path":"src/infrastructure/health/views.py","content":"class HealthView(PublicEndpoint, APIView):\n    def get(self, request):\n        return Response({\"ok\": True})"}}'
 run_case "AZ5 _authz_public=True (FB-C2)"        PASS  authz-check.sh '{"tool_input":{"file_path":"src/infrastructure/health/views.py","content":"class HealthView(APIView):\n    _authz_public = True\n    def get(self, request):\n        return Response({})"}}'
 
+# T-OS-107: predicates M3 registrados.
+run_case "AZ6 predicate M3 conhecido importado PASS"  PASS  authz-check.sh '{"tool_input":{"file_path":"src/application/operacao/os/atribuir_tecnico.py","content":"from src.infrastructure.ordens_servico.predicates_os import rt_competencia_cobre\nclass X(APIView):\n    def post(self, req):\n        get_provider().can(\"os.atribuir\")\n        return Response({})"}}'
+run_case "AZ7 predicate M3 desconhecido BLOQUEIA"     BLOCK authz-check.sh '{"tool_input":{"file_path":"src/application/operacao/os/atribuir_tecnico.py","content":"from src.infrastructure.ordens_servico.predicates_os import rt_competence_cover\nclass X(APIView):\n    def post(self, req):\n        get_provider().can(\"os.atribuir\")\n        return Response({})"}}'
+run_case "AZ8 5 predicates M3 importados em batch PASS" PASS  authz-check.sh '{"tool_input":{"file_path":"src/application/operacao/os/handlers.py","content":"from src.infrastructure.ordens_servico.predicates_os import rt_competencia_cobre, tenant_dentro_escopo_acreditado, pode_estender_janela_cal_link_atividade, pode_dispensar_aceite, pode_criar_os_produtiva_balancas\nclass X(APIView):\n    def post(self, req):\n        get_provider().can(\"a\")\n        return Response({})"}}'
+run_case "AZ9 cliente_tem_os_aberta cross-modulo PASS" PASS  authz-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/saga.py","content":"from src.infrastructure.ordens_servico.predicates_os import cliente_tem_os_aberta\nclass V(APIView):\n    def post(self, req):\n        get_provider().can(\"x\")\n        return Response({})"}}'
+
 echo ""
 echo "===== ritual-gate-check (INV-RITUAL-001 — MEDIO bloqueia fechamento) ====="
 
@@ -674,6 +680,39 @@ run_case "MC6 skip com motivo PASS"                   PASS  migration-concorrenc
 
 # MC7: arquivo fora de migrations -> PASS
 run_case "MC7 fora migrations ignora"                 PASS  migration-concorrencia-os-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"CREATE TABLE atividade_da_os ( id uuid );"}}'
+
+echo ""
+echo "===== sync-merge-foto-appendonly (T-OS-106 / INV-OS-SYNC-001) ====="
+
+# SF1: update() em saga sync mobile -> BLOCK
+run_case "SF1 update em sync_mobile bloqueia"         BLOCK sync-merge-foto-appendonly.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/sagas/sync_mobile.py","content":"EvidenciaFotoAtividade.objects.filter(id=x).update(b2_uri=novo)"}}'
+
+# SF2: delete() em saga sync mobile -> BLOCK
+run_case "SF2 delete em sync_mobile bloqueia"         BLOCK sync-merge-foto-appendonly.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/sagas/sync_mobile.py","content":"EvidenciaFotoAtividade.objects.filter(id=x).delete()"}}'
+
+# SF3: create() em saga sync mobile -> PASS
+run_case "SF3 create em sync_mobile PASS"             PASS  sync-merge-foto-appendonly.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/sagas/sync_mobile.py","content":"EvidenciaFotoAtividade.objects.create(tenant=t, atividade=a, tipo=conclusao)"}}'
+
+# SF4: update(revogado_em=...) sozinho -> PASS (LGPD art. 18)
+run_case "SF4 update revogado_em PASS"                PASS  sync-merge-foto-appendonly.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/sagas/sync_mobile.py","content":"EvidenciaFotoAtividade.objects.filter(id=x).update(revogado_em=agora)"}}'
+
+# SF5: arquivo fora de sync, sem import da entidade -> PASS
+run_case "SF5 fora sync sem import PASS"              PASS  sync-merge-foto-appendonly.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","content":"Cliente.objects.filter(id=x).update(nome=y)"}}'
+
+# SF6: arquivo nao-sync mas que importa entidade + update -> BLOCK
+run_case "SF6 import entidade + update bloqueia"      BLOCK sync-merge-foto-appendonly.sh '{"tool_input":{"file_path":"src/infrastructure/qualquer.py","content":"from src.infrastructure.ordens_servico.models import EvidenciaFotoAtividade\nEvidenciaFotoAtividade.objects.filter(id=x).update(b2_uri=novo)"}}'
+
+# SF7: tests/regressao/test_inv_os_sync_*.py -> PASS (proposital, prova trigger)
+run_case "SF7 teste regressao sync PASS"              PASS  sync-merge-foto-appendonly.sh '{"tool_input":{"file_path":"tests/regressao/test_inv_os_sync_001_fotos.py","content":"EvidenciaFotoAtividade.objects.filter(id=x).update(b2_uri=novo)"}}'
+
+# SF8: migrations -> PASS (cria trigger)
+run_case "SF8 migration cria trigger PASS"            PASS  sync-merge-foto-appendonly.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/migrations/0008_evidenciafotoatividade.py","content":"EvidenciaFotoAtividade.objects.filter().update(x=y)"}}'
+
+# SF9: override com motivo -> PASS
+run_case "SF9 override com motivo PASS"               PASS  sync-merge-foto-appendonly.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/sagas/sync_mobile.py","content":"# sync-foto: skip -- merge legado migrado para append-only em proximo release\nEvidenciaFotoAtividade.objects.filter(id=x).update(b2_uri=novo)"}}'
+
+# SF10: foto.save() sem create no contexto sync -> BLOCK
+run_case "SF10 foto.save() sem create bloqueia"       BLOCK sync-merge-foto-appendonly.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/sagas/sync_mobile.py","content":"foto_existente = EvidenciaFotoAtividade.objects.get(id=x)\nfoto_existente.b2_uri = novo\nfoto_existente.save()"}}'
 
 echo ""
 if [ -n "$FILTER" ]; then

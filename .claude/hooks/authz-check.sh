@@ -107,4 +107,38 @@ if ! printf '%s' "$content" | grep -qE '(AuthorizationProvider\.can|authz\.can|\
     exit 2
 fi
 
+# =============================================================
+# T-OS-107 — predicates novos M3 registrados.
+# Detecta import de predicates_os e valida que o nome importado existe.
+# Tambem aceita predicates F-B (cliente_tem_os_aberta vem do modulo
+# `clientes` no Marco 1). Predicate desconhecido = typo -> BLOCK.
+# =============================================================
+# Lista canonica de predicates conhecidos (Marco 3 + cross-modulo M1):
+#   - rt_competencia_cobre (T-OS-023)
+#   - tenant_dentro_escopo_acreditado (T-OS-024, stub Wave A)
+#   - pode_estender_janela_cal_link_atividade (T-OS-025)
+#   - pode_dispensar_aceite (T-OS-026)
+#   - pode_criar_os_produtiva_balancas (T-OS-027)
+#   - cliente_tem_os_aberta (Marco 1 clientes, consultado por anonimizacao)
+PREDICATES_M3_CONHECIDOS="rt_competencia_cobre|tenant_dentro_escopo_acreditado|pode_estender_janela_cal_link_atividade|pode_dispensar_aceite|pode_criar_os_produtiva_balancas|cliente_tem_os_aberta"
+
+if printf '%s' "$content" | grep -qE 'from[[:space:]]+[^[:space:]]*predicates_os[[:space:]]+import'; then
+    # Captura nomes importados de predicates_os (linha unica ou multilinha simples).
+    importados=$(printf '%s' "$content" \
+        | grep -oE 'from[[:space:]]+[^[:space:]]*predicates_os[[:space:]]+import[[:space:]]+[A-Za-z0-9_,[:space:]]*' \
+        | sed -E 's/.*import[[:space:]]+//; s/[[:space:],]+/ /g')
+    for nome in $importados; do
+        # Pula nomes ocultos (_helper) e nomes em conhecidos.
+        case "$nome" in
+            _*) continue ;;
+        esac
+        if ! printf '%s' "$nome" | grep -qE "^($PREDICATES_M3_CONHECIDOS)$"; then
+            echo "authz-check (T-OS-107): predicate '$nome' importado de predicates_os em $file_path nao esta na lista de predicates M3 conhecidos." >&2
+            echo "Predicates validos: rt_competencia_cobre, tenant_dentro_escopo_acreditado, pode_estender_janela_cal_link_atividade, pode_dispensar_aceite, pode_criar_os_produtiva_balancas, cliente_tem_os_aberta." >&2
+            echo "Se for predicate NOVO: adicione na lista PREDICATES_M3_CONHECIDOS deste hook + comentario em predicates_os.py + teste em tests/test_predicates_os_*.py." >&2
+            exit 2
+        fi
+    done
+fi
+
 exit 0
