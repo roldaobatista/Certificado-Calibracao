@@ -1560,3 +1560,306 @@ class EventoDeCalibracao(models.Model):
 
     def __str__(self) -> str:
         return f"EventoDeCalibracao #{self.sequencia_local} {self.tipo}"
+
+
+# =============================================================
+# NaoConformidade (cl. 7.10 + cl. 8.7 CAPA + P-CAL-R6 RBC + P-CAL-A2 advogado)
+# =============================================================
+
+ESTADO_NC_CHOICES = [
+    ("CONTIDA", "Contida"),
+    ("ACAO_CORRETIVA_DEFINIDA", "Acao corretiva definida"),
+    ("ACAO_EXECUTADA", "Acao executada"),
+    ("EFICACIA_VERIFICADA", "Eficacia verificada"),
+    ("FECHADA", "Fechada"),
+    ("REABERTA", "Reaberta (volta a CONTIDA — cl. 8.7.2)"),
+]
+
+ACAO_CORRETIVA_TIPO_CHOICES = [
+    ("RE_EXECUTAR", "Re-executar (calibracao do zero)"),
+    ("AJUSTE_ADMINISTRATIVO", "Ajuste administrativo"),
+]
+
+DECISAO_CONTINUAR_PARAR_CHOICES = [
+    ("PARAR_TRABALHO", "Parar trabalho"),
+    ("CONTINUAR_COM_CONTROLE", "Continuar com controle"),
+    ("A_DEFINIR", "A definir"),
+]
+
+CLIENTE_NOTIFICADO_VIA_CHOICES = [
+    ("EMAIL_PORTAL", "E-mail / portal cliente"),
+    ("A3_ASSINATURA", "A3 com assinatura"),
+    ("TERMO_PRESENCIAL", "Termo presencial"),
+]
+
+
+class NaoConformidade(models.Model):
+    """Nao-conformidade (cl. 7.10 + cl. 8.7 CAPA — ciclo fechado).
+
+    Origem mutuamente exclusiva: calibracao_id OU origem_proficiencia_id
+    (CHECK XOR na migration). Estado-maquina §4.2 com 6 estados +
+    REABERTA volta sempre a CONTIDA (cl. 8.7.2 — NOVO-1 RBC R2).
+
+    P-CAL-R6 RBC + cl. 7.10.1/2 (INV-CAL-NC-002/003):
+    - decisao_continuar_ou_parar obrigatorio antes ACAO_EXECUTADA.
+    - PARAR_TRABALHO exige cliente_notificado_em NOT NULL.
+
+    P-CAL-A2 advogado: responsavel_acao_user_id_hash CHAR(80) sempre.
+    UUID cru em campo auxiliar ≤90d (job nc-responsavel-pseudonimizacao
+    zera apos prazo).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="naoconformidades",
+    )
+    calibracao = models.ForeignKey(
+        Calibracao,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="naoconformidades",
+        help_text=(
+            "NULL quando NC originada de Proficiencia via "
+            "AnaliseImpactoNCProficiencia (mutuamente exclusivo)."
+        ),
+    )
+    origem_proficiencia_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="FK AnaliseImpactoNCProficiencia (db_constraint=False).",
+    )
+    descricao_canonicalizada = models.TextField(
+        help_text=(
+            ">=30 chars + anti-PII INV-CAL-TXT-001 (regex saude P-CAL-A2) + "
+            "INV-DOC-CANON-001."
+        ),
+    )
+    descricao_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado v<NN>$<base64> (ADR-0064).",
+    )
+    estado = models.CharField(
+        max_length=30,
+        choices=ESTADO_NC_CHOICES,
+        default="CONTIDA",
+    )
+    causa_raiz_canonicalizada = models.TextField(
+        blank=True,
+        default="",
+        help_text="Preenchida em ACAO_CORRETIVA_DEFINIDA.",
+    )
+    causa_raiz_hash = models.CharField(
+        max_length=80,
+        blank=True,
+        default="",
+    )
+    acao_corretiva_descricao_hash = models.CharField(
+        max_length=80,
+        blank=True,
+        default="",
+    )
+    acao_corretiva_tipo = models.CharField(
+        max_length=30,
+        choices=ACAO_CORRETIVA_TIPO_CHOICES,
+        blank=True,
+        default="",
+        help_text="NOVO-2 RBC R2 — explicito sobre o tipo de acao.",
+    )
+    acao_executada_em = models.DateTimeField(null=True, blank=True)
+    eficacia_verificada_em = models.DateTimeField(null=True, blank=True)
+    eficacia_verificada_por_user_id = models.UUIDField(null=True, blank=True)
+    # P-CAL-A2 — UUID cru zona quente ≤90d; hash sempre
+    responsavel_acao_user_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Zona quente (≤90d). Job nc-responsavel-pseudonimizacao zera "
+            "UUID apos prazo (anti-stalking pos retencao 25a)."
+        ),
+    )
+    responsavel_acao_user_id_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado (ADR-0064). Sempre presente.",
+    )
+    # P-CAL-R6 RBC + §16.9 — cl. 7.10.1/2
+    decisao_continuar_ou_parar = models.CharField(
+        max_length=30,
+        choices=DECISAO_CONTINUAR_PARAR_CHOICES,
+        default="A_DEFINIR",
+        help_text=(
+            "INV-CAL-NC-002: obrigatorio (!= A_DEFINIR) antes de "
+            "transitar para ACAO_EXECUTADA."
+        ),
+    )
+    cliente_notificado_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=(
+            "INV-CAL-NC-003: NOT NULL quando decisao_continuar_ou_parar = "
+            "PARAR_TRABALHO."
+        ),
+    )
+    cliente_notificado_via = models.CharField(
+        max_length=20,
+        choices=CLIENTE_NOTIFICADO_VIA_CHOICES,
+        blank=True,
+        default="",
+    )
+    cliente_notificado_documento_id = models.UUIDField(null=True, blank=True)
+    autorizacao_retomada_user_id = models.UUIDField(null=True, blank=True)
+    autorizacao_retomada_em = models.DateTimeField(null=True, blank=True)
+    correlation_id = models.UUIDField(default=uuid.uuid4)
+
+    class Meta:
+        verbose_name = "Nao-Conformidade"
+        verbose_name_plural = "Nao-Conformidades"
+        db_table = "nao_conformidade"
+        ordering = ["-id"]
+        indexes = [
+            models.Index(fields=["tenant", "estado"], name="nc_tenant_estado_idx"),
+            models.Index(fields=["tenant", "calibracao"], name="nc_tenant_cal_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"NaoConformidade {self.id} ({self.estado})"
+
+
+# =============================================================
+# AnaliseImpactoNCProficiencia (cl. 7.7.2 + P-CAL-T8 reescrito P3)
+# =============================================================
+
+STATUS_ANALISE_IMPACTO_CHOICES = [
+    ("RECALL_PENDENTE_M5", "Recall pendente M5 (certificados_no_periodo NULL)"),
+    ("PROCESSADO", "Processado (M5 preencheu certs_no_periodo + decisao)"),
+    ("ARQUIVADO", "Arquivado"),
+]
+
+
+class AnaliseImpactoNCProficiencia(models.Model):
+    """Analise de impacto de proficiencia UNACCEPTABLE (cl. 7.7.2).
+
+    Reescrito em P3 (P-CAL-T8 tech-lead): em vez de armazenar array de
+    certs_no_periodo, armazena janela_inicio + janela_fim. M5
+    (Marco 5 certificados) preenche certificados_no_periodo via consumer
+    `Calibracao.EpUnacceptableImpactoCriado` quando estiver pronto.
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="analises_impacto_nc",
+    )
+    rodada_proficiencia_id = models.UUIDField(
+        help_text="FK RodadaProficiencia (db_constraint=False).",
+    )
+    janela_inicio = models.DateTimeField(
+        help_text=(
+            "Inicio da janela (ultima PT PASSED). Se nunca PT PASSED, "
+            "default = tenant.created_at (documentado em INV-CAL-NC-PT-001)."
+        ),
+    )
+    janela_fim = models.DateTimeField(
+        help_text="Fim da janela (PT atual UNACCEPTABLE).",
+    )
+    certificados_no_periodo = models.JSONField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Preenchido em batch pelo M5 quando consumir "
+            "Calibracao.EpUnacceptableImpactoCriado. NULL ate M5 processar."
+        ),
+    )
+    gestor_qualidade_decisao = models.JSONField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Array por cert: {cert_id, decisao: RECALL | SUSPENSAO | "
+            "SEM_IMPACTO, justificativa_hash}. NULL ate gestor decidir."
+        ),
+    )
+    status = models.CharField(
+        max_length=30,
+        choices=STATUS_ANALISE_IMPACTO_CHOICES,
+        default="RECALL_PENDENTE_M5",
+    )
+    decidida_em = models.DateTimeField(null=True, blank=True)
+    decidida_por_user_id = models.UUIDField(null=True, blank=True)
+    criada_em = models.DateTimeField(auto_now_add=True)
+    correlation_id = models.UUIDField(default=uuid.uuid4)
+
+    class Meta:
+        verbose_name = "Analise de Impacto NC Proficiencia"
+        verbose_name_plural = "Analises de Impacto NC Proficiencia"
+        db_table = "analise_impacto_nc_proficiencia"
+        ordering = ["-criada_em"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "rodada_proficiencia_id"],
+                name="aimpnc_tenant_rod_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"AnaliseImpactoNCProficiencia {self.id} ({self.status})"
+
+
+# =============================================================
+# PlanoAcaoProficienciaWarning (P-CAL-R8 RBC — |z|>2 e <=3 WARNING)
+# =============================================================
+
+
+class PlanoAcaoProficienciaWarning(models.Model):
+    """Plano de acao para resultado proficiencia WARNING (|z|>2 e <=3).
+
+    Paralelo a AnaliseImpactoNCProficiencia mas para WARNING (nao NC
+    formal). NIT-DICLA-026 rev. 15 cl. 5.4 exige documentacao + plano
+    de acao proporcional ao risco. Imutavel pos-INSERT (WORM).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="planos_acao_pt_warning",
+    )
+    rodada_proficiencia_id = models.UUIDField(
+        help_text="FK RodadaProficiencia.",
+    )
+    escore_z = models.DecimalField(
+        max_digits=5,
+        decimal_places=3,
+        help_text="|z|>2 e <=3 (WARNING). |z|>3 vai pra AnaliseImpactoNCProficiencia.",
+    )
+    causa_investigada_canonicalizada = models.TextField(
+        help_text=">=50 chars + anti-PII + INV-DOC-CANON-001.",
+    )
+    causa_investigada_hash = models.CharField(max_length=80)
+    acao_proporcional_canonicalizada = models.TextField()
+    acao_proporcional_hash = models.CharField(max_length=80)
+    eficacia_futura_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Quando eficacia da acao sera verificada.",
+    )
+    responsavel_user_id_hash = models.CharField(max_length=80)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    correlation_id = models.UUIDField(default=uuid.uuid4)
+
+    class Meta:
+        verbose_name = "Plano Acao Proficiencia WARNING"
+        verbose_name_plural = "Planos Acao Proficiencia WARNING"
+        db_table = "plano_acao_proficiencia_warning"
+        ordering = ["-criado_em"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "rodada_proficiencia_id"],
+                name="paw_tenant_rod_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"PlanoAcaoProficienciaWarning z={self.escore_z}"
