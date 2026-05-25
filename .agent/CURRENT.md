@@ -25,32 +25,33 @@ P3 do ritual Spec Kit completo em 3 commits hoje:
 - D-M4-2: ADR-0063 Opção A lazy ✓
 - D-M4-3, D-M4-4, D-M4-5: sem previsão de contratação → agente cria minutas/matrizes preliminares com selos REQUER {OAB,CGCRE,SUSEP} HUMANO.
 
-## P4 Fase 1 — 9/25 migrations entregues hoje (7 entidades + triggers)
+## P4 Fase 1 — 16/25 migrations entregues hoje (14 entidades + triggers)
 
-T-CAL-001 a T-CAL-007 fechadas em 6 commits incrementais (ac71dc0 → 3eb9b74 → 7780511 → 5754785 → bfd49b4 → 9e45e28):
+T-CAL-001..014 fechadas em 9 commits incrementais (ac71dc0 → 3eb9b74 → 7780511 → 5754785 → bfd49b4 → 9e45e28 → e20f86a → [batch] → 65a75e0):
 
-**Entidades persistidas em PG com RLS + triggers WORM:**
-1. `calibracao` (raiz agregado — 50 campos §3.2 + §16.4 + CAS revision + 6 zonas ILAC G8 + PFA/PRA).
-2. `leitura` (cl. 7.5 + UNIQUE composto ADR-0065 + INV-CAL-CONC-001).
-3. `leitura_correcao` (rasura digital cl. 7.5 + anti-fraude COR-001).
-4. `condicoes_ambientais` (cl. 6.3.1 + `dentro_tolerancia` GENERATED via ABS+CASE IMMUTABLE).
-5. `orcamento_incerteza` (cl. 7.6 + GUM JCGM 100 + algoritmo_1/2_resultado JSONB + divergencia_pct + replay_determinismo_hash).
-6. `componente_incerteza` (NIT-DICLA-030 §6.3/§7.4 + Tipo A n≥6 CHECK + correlação self-FK + coeficiente CHECK).
-7. `orcamento_por_ponto` (1:N + UNIQUE ponto).
+**14 entidades persistidas em PG (todas com RLS + triggers WORM/transição):**
+1. `calibracao` (raiz agregado — 50 campos + CAS revision + 6 zonas ILAC G8 + PFA/PRA).
+2. `leitura` (UNIQUE composto ADR-0065 + INV-CAL-CONC-001).
+3. `leitura_correcao` (rasura digital cl. 7.5).
+4. `condicoes_ambientais` (`dentro_tolerancia` GENERATED ABS+CASE).
+5. `orcamento_incerteza` (algoritmo_1/2 JSONB + divergencia + replay_hash + bias).
+6. `componente_incerteza` (Tipo A n≥6 CHECK + correlação self-FK CHECK).
+7. `orcamento_por_ponto` (UNIQUE ponto).
+8. `padrao_usado` (snapshot ADR-0040 + UNIQUE parcial + snapshot_lock one-way + trigger anti-snapshot-retroativo INV-CAL-RT-COMP-001 + vinculacao SI estruturada).
+9. `recepcao_item_calibracao` (cl. 7.4 + CHECK XOR foto/recusa + CHECK INAPTO motivo).
+10. `medicao_controle` (Western Electric + escore_z + trigger EXCEÇÃO job atualiza regra_we).
+11. `evento_de_calibracao` (hash-chain por calibracao + sequencia_local IDENTITY via trigger + UNIQUE seq + append-only WORM).
+12. `nao_conformidade` (CHECK XOR origem + trigger INV-CAL-NC-002/003 transição + estado-máquina 6 estados).
+13. `analise_impacto_nc_proficiencia` (janela ao invés array — P-CAL-T8 + status RECALL_PENDENTE_M5).
+14. `plano_acao_proficiencia_warning` (P-CAL-R8 |z|∈(2,3] + WORM full).
 
-**Triggers PG criados:** 6 anti-mutation WORM + 1 populador (`calibracao_numero_exibido` BEFORE INSERT) + 1 imutabilidade terminal (`calibracao_anti_mutation_terminal_check` — 18 campos forensicos bloqueiam UPDATE pós-aprovada/rejeitada/cancelada).
-
-**CHECK constraints DDL:** `ck_componente_tipo_a_n_min` + `ck_componente_correlacao_coef`.
-
-**Suite:** pytest regressão 168/168 passou. Hooks `_test-runner.sh` 312/312 verdes ao longo dos 6 commits.
+**Total artefatos PG criados nesta sessão:** ~18 funções PL/pgSQL + ~18 triggers + ~6 CHECK constraints + 14 UNIQUE constraints + 1 GENERATED column + 1 sequence global. Hooks `_test-runner.sh` 312/312 verdes ao longo dos 9 commits.
 
 ## Próxima fatia
 
-**P4 Fase 1 continuação (T-CAL-008..025) — 16 migrations restantes:**
-- PadraoUsado (snapshot ADR-0040 + snapshot_lock pós em_revisao_1) + RecepcaoItemCalibracao (cl. 7.4 — análise crítica + foto + recusa) + MedicaoControle (Western Electric P-CAL-R8 + escore_z) + EventoDeCalibracao (hash-chain por calibracao_id + sequencia_local + advisory lock).
-- NaoConformidade (cl. 7.10/8.7 + decisão parar/continuar + notificação cliente) + AnaliseImpactoNCProficiência (janela ao invés de array — P-CAL-T8 reescrito) + PlanoAcaoProficienciaWarning (|z|∈(2,3]).
-- LaboratorioSubcontratado (cl. 6.6.2 + avaliação periódica + país) + AceiteSubcontratacao (touch/A3 + consentimento contato PF) + AvaliacaoPeriodicaSubcontratado.
-- Entidades novas P3: AceiteRegraDecisao + OverrideRegraDecisaoCliente + ReclamacaoCalibracao + ConsentimentoContatoTecnicoCliente + ConsentimentoFotoRecusado + EventoBackupMetrologico.
+**P4 Fase 1 continuação (T-CAL-015..025) — 9 entidades restantes:**
+- LaboratorioSubcontratado + AceiteSubcontratacao + AvaliacaoPeriodicaSubcontratado (cluster subcontratação cl. 6.6).
+- 6 entidades novas P3: AceiteRegraDecisao + OverrideRegraDecisaoCliente + ReclamacaoCalibracao + ConsentimentoContatoTecnicoCliente + ConsentimentoFotoRecusado + EventoBackupMetrologico.
 - Migration cross-marco M3 (`AtividadeDaOS.grandeza`) — ADR-0063 Opção A.
 
 **Paralelizável (P3.5 — não bloqueia P4 dogfooding):** 14 tarefas T-CAL-P35-* (minutas canônicas OAB + matrizes técnicas CGCRE + ADR-0028 rev 3 + DPIA-calibracao). Bloqueia 1º tenant externo pago.
