@@ -258,6 +258,22 @@ class AtividadeDaOS(models.Model):
             "idx_atividade_em_execucao_por_equip (INV-OS-CONC-001 + ADR-0041)."
         ),
     )
+    # ===== ADR-0063 Opcao A lazy (cross-marco M3->M4 calibracao) =====
+    # Plugado por Marco 4 quando tipo='calibracao': predicate
+    # rt_competencia_cobre passa a verificar a grandeza efetiva. Em
+    # Marco 3, fica vazio (fail-open controlado pelos 3 use cases que
+    # carregam executor — atribuir_tecnico/iniciar_atividade/transferir_tecnico).
+    # Bloqueio efetivo automatico quando preenchido por Calibracao.
+    grandeza = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text=(
+            "ADR-0063 Opcao A lazy — preenchido quando tipo='calibracao' por "
+            "Calibracao.grandeza (Marco 4). Vazio em Marco 3 (fail-open). "
+            "Predicate rt_competencia_cobre(grandeza) consulta este campo."
+        ),
+    )
 
     class Meta:
         app_label = "ordens_servico"
