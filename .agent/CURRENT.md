@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (T-CAL-026..039 — 105 testes) + P4 Fase 3 ENTREGUE PARCIAL (T-CAL-046..049 + 050..054 + 059..060 — 88 testes; Batch C T-CAL-055..058 Monte Carlo BLOQUEADO DEP-001 numpy).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO DEP-001 numpy) + P4 Fase 4 FECHADA (T-CAL-061..075 — seed authz 18 linhas + registry 3 predicates ABAC; 8 tests).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -78,10 +78,24 @@ T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em
 
 **Total Fase 3: 88 testes verdes** + ruff/mypy limpos + hooks 312/312.
 
-**Próxima fatia: P4 Fase 4 — Predicates + authz (T-CAL-061..075, 15 tarefas)**
-- Predicates de calibração já existem (Batch C da Fase 2 — `predicates_calibracao.py`).
-- Fase 4 expande para authz: action registry, mapping action -> predicate, integração com AuthorizationProvider porta (ADR-0012).
-- 6 actions principais: `calibracao.configurar`, `calibracao.iniciar_leituras`, `calibracao.solicitar_revisao`, `calibracao.aprovar_revisao`, `calibracao.aprovar_2a_conferencia`, `calibracao.subcontratar`.
+**P4 Fase 4 FECHADA — 2 batches:**
+- Batch A (`653fb74`) — T-CAL-061..068: seed `0013_seed_authz_calibracao.py` com 6 actions × 5 perfis = 18 linhas em `authz_perfil_acao`. Segregação cl. 6.2.5: metrologista_bancada NÃO aprova próprio trabalho (só configurar+iniciar+solicitar); signatario aprova (aprovar_revisao+aprovar_2a_conferencia).
+- Batch B (`73338a4`) — T-CAL-069..075: `CalibracaoConfig.ready()` registra 3 predicates ABAC com escopos declarados (anti-FB-A1). Migration tornada resiliente a `authz_perfil` vazio (test_afere TRUNCATE) — retorna cedo restaurando RLS quando perfis ausentes; fixture autouse re-aplica seeds via conftest atualizado.
+
+**Próxima fatia: P4 Fase 5 — Use cases (T-CAL-076..105, 30 tarefas)**
+- 18 use cases em `src/application/metrologia/calibracao/`:
+  - `configurar_calibracao` (US-CAL-002) — chama AuthorizationProvider.can('calibracao.configurar', resource={cmc, procedimento, ...}).
+  - `iniciar_leituras` (US-CAL-004), `registrar_leitura`, `corrigir_leitura` (rasura digital cl. 7.5).
+  - `calcular_orcamento_incerteza` — chama motor_calculo.gum_classico.propagar + (depois) Monte Carlo.
+  - `solicitar_revisao`, `aprovar_revisao` (cl. 7.8), `aprovar_2a_conferencia` (ADR-0026).
+  - `marcar_nao_conformidade` (cl. 7.10 CAPA), `resolver_nc`.
+  - `subcontratar_calibracao` (US-CAL-017 cl. 6.6).
+  - `registrar_aceite_regra_decisao`, `override_regra_decisao_cliente` (ADR-0024 rev.).
+  - `abrir_reclamacao` (US-CAL-018 CDC art. 26), `responder_reclamacao`.
+  - `consentimento_contato_tecnico_revogar` (LGPD art. 18).
+- Cada use case: dataclass de entrada + função pura ou função+repos + AuthorizationProvider check + persistência via Django models.
+
+**Paralelizável (P3.5 — não bloqueia P4 dogfooding):** 14 tarefas T-CAL-P35-* (minutas OAB + matrizes CGCRE + ADR-0028 rev 3 + DPIA-calibracao). Bloqueia 1º tenant externo pago.
 
 **Paralelizável (P3.5 — não bloqueia P4 dogfooding):** 14 tarefas T-CAL-P35-* (minutas canônicas OAB + matrizes técnicas CGCRE + ADR-0028 rev 3 + DPIA-calibracao). Bloqueia 1º tenant externo pago.
 
