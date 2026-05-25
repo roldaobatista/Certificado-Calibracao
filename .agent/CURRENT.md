@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 primeira fatia ENTREGUE (T-CAL-001/002 em commit `ac71dc0`).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 — 23/25 migrations entregues (T-CAL-001..021+023+024).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -25,11 +25,11 @@ P3 do ritual Spec Kit completo em 3 commits hoje:
 - D-M4-2: ADR-0063 Opção A lazy ✓
 - D-M4-3, D-M4-4, D-M4-5: sem previsão de contratação → agente cria minutas/matrizes preliminares com selos REQUER {OAB,CGCRE,SUSEP} HUMANO.
 
-## P4 Fase 1 — 16/25 migrations entregues hoje (14 entidades + triggers)
+## P4 Fase 1 — 23/25 migrations entregues hoje (23 entidades + triggers + cross-marco M3)
 
-T-CAL-001..014 fechadas em 9 commits incrementais (ac71dc0 → 3eb9b74 → 7780511 → 5754785 → bfd49b4 → 9e45e28 → e20f86a → [batch] → 65a75e0):
+T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em 12 commits incrementais (ac71dc0 → 3eb9b74 → 7780511 → 5754785 → bfd49b4 → 9e45e28 → e20f86a → [batch] → 65a75e0 → 774ba76 → a5aa840 → a40dcdd → 736e61b):
 
-**14 entidades persistidas em PG (todas com RLS + triggers WORM/transição):**
+**23 entidades persistidas em PG (todas com RLS + triggers WORM/transição):**
 1. `calibracao` (raiz agregado — 50 campos + CAS revision + 6 zonas ILAC G8 + PFA/PRA).
 2. `leitura` (UNIQUE composto ADR-0065 + INV-CAL-CONC-001).
 3. `leitura_correcao` (rasura digital cl. 7.5).
@@ -44,15 +44,29 @@ T-CAL-001..014 fechadas em 9 commits incrementais (ac71dc0 → 3eb9b74 → 77805
 12. `nao_conformidade` (CHECK XOR origem + trigger INV-CAL-NC-002/003 transição + estado-máquina 6 estados).
 13. `analise_impacto_nc_proficiencia` (janela ao invés array — P-CAL-T8 + status RECALL_PENDENTE_M5).
 14. `plano_acao_proficiencia_warning` (P-CAL-R8 |z|∈(2,3] + WORM full).
+15. `laboratorio_subcontratado` (Padrão C soft-delete + PII Zona B + CHECK DPA internacional + vigencia ADR-0030).
+16. `aceite_subcontratacao` (WORM + CHECK TOUCH→declaração + INV-CAL-SUBC-001).
+17. `avaliacao_periodica_subcontratado` (WORM 1:N + CHECK score 0-10 + decisão MANTER/ACOMPANHAMENTO/DESCREDENCIAR).
+18. `aceite_regra_decisao` (WORM + CHECK nivel_confianca [0.80, 0.99] + ADR-0024 revisado).
+19. `override_regra_decisao_cliente` (WORM + contrato_clausula_id + justificativa ≥50 chars).
+20. `reclamacao_calibracao` (estado-máquina RECEBIDA→EM_ANALISE→RESPONDIDA→ARQUIVADA + CHECK respondida completa + US-CAL-018 + CDC art. 26).
+21. `consentimento_contato_tecnico_cliente` (WORM parcial + revogado_em LGPD art. 18 + CHECK temporal + trigger des-revogar bloqueado).
+22. `consentimento_foto_recusado` (WORM + motivo ≥30 chars + texto_aviso REQUER OAB + P-CAL-A5).
+23. `evento_backup_metrologico` (WORM append-only + resultado OK/FALHA_PARCIAL/FALHA_TOTAL + INV-CAL-BACKUP-001 retenção 25a).
 
-**Total artefatos PG criados nesta sessão:** ~18 funções PL/pgSQL + ~18 triggers + ~6 CHECK constraints + 14 UNIQUE constraints + 1 GENERATED column + 1 sequence global. Hooks `_test-runner.sh` 312/312 verdes ao longo dos 9 commits.
+**Cross-marco M3 (T-CAL-024):** `AtividadeDaOS.grandeza VARCHAR(50) DEFAULT ''` + index parcial `atv_tenant_grandeza_partial_idx` (ADR-0063 Opção A lazy).
+
+**Total artefatos PG criados nesta sessão (12 commits):** ~27 funções PL/pgSQL + ~27 triggers + ~12 CHECK constraints + ~16 UNIQUE constraints + ~52 policies RLS + 1 GENERATED column + 1 sequence global + 1 index parcial cross-marco. Hooks `_test-runner.sh` 312/312 verdes ao longo dos 12 commits.
 
 ## Próxima fatia
 
-**P4 Fase 1 continuação (T-CAL-015..025) — 9 entidades restantes:**
-- LaboratorioSubcontratado + AceiteSubcontratacao + AvaliacaoPeriodicaSubcontratado (cluster subcontratação cl. 6.6).
-- 6 entidades novas P3: AceiteRegraDecisao + OverrideRegraDecisaoCliente + ReclamacaoCalibracao + ConsentimentoContatoTecnicoCliente + ConsentimentoFotoRecusado + EventoBackupMetrologico.
-- Migration cross-marco M3 (`AtividadeDaOS.grandeza`) — ADR-0063 Opção A.
+**P4 Fase 1 finalização (T-CAL-022+025) — 2 itens restantes:**
+- T-CAL-022 `plano_acao_proficiencia_warning` — ENTREGUE em T-CAL-014 (consolidado na 0010).
+- T-CAL-025 RLS policies finais + seed `app_user` (varredura — entidades já têm RLS inline na migration; verificar grants `app_user` em todas as 23 tabelas).
+
+**Paralelizável (P3.5 — não bloqueia P4 dogfooding):** 14 tarefas T-CAL-P35-* (minutas canônicas OAB + matrizes técnicas CGCRE + ADR-0028 rev 3 + DPIA-calibracao). Bloqueia 1º tenant externo pago.
+
+**Próxima Fase P4 (após T-CAL-025):** Fase 2 — Domain (entities + VOs + helpers crypto), T-CAL-026..045 (20 tarefas).
 
 **Paralelizável (P3.5 — não bloqueia P4 dogfooding):** 14 tarefas T-CAL-P35-* (minutas canônicas OAB + matrizes técnicas CGCRE + ADR-0028 rev 3 + DPIA-calibracao). Bloqueia 1º tenant externo pago.
 
