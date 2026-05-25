@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 Batch A ENTREGUE (T-CAL-026..030 — 5 VOs novos M4 com 36/36 testes verdes).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (T-CAL-026..039 em 3 batches — 5 VOs + helpers crypto + 3 predicates; 105 testes verdes).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -60,16 +60,22 @@ T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em
 
 ## Próxima fatia
 
-**P4 Fase 2 Batch A ENTREGUE (T-CAL-026..030)** — commit `ac33195`. 5 VOs novos puros (Decimal + frozenset whitelist + JanelaVigencia composto): `VersaoMotorCalculo`, `EscoreZ` + `ClassificacaoZ`, `ZonaILACG8`, `HashVersionadoV0`, `IncertezaCombinada`. 36 testes (>=1 happy + >=1 borda explícita por VO — TST-005+TST-006). Ruff+mypy limpos.
+**P4 Fase 2 FECHADA** (3 batches em 3 commits):
+- Batch A (`ac33195`) — T-CAL-026..030: 5 VOs novos M4 — `VersaoMotorCalculo`, `EscoreZ`+`ClassificacaoZ`, `ZonaILACG8`, `HashVersionadoV0`, `IncertezaCombinada`. 36 testes.
+- Batch B (`c8a3710`) — T-CAL-031..036: helpers crypto puros em `src/domain/metrologia/calibracao/hash_versionado.py` — `validar_versao`, `parsear_hash_versionado`, `formatar_hash_versionado`, `canonicalizar_payload_para_hmac`. 46 testes (replay determinístico 50x + 1-bit-diff).
+- Batch C (`7088fc7`) — T-CAL-037..039: 3 predicates ABAC em `src/infrastructure/calibracao/predicates_calibracao.py` — `cmc_cobre` (STUB Wave A), `procedimento_vigente_para` (STUB Wave A), `pode_aprovar_revisao_2a_conferencia` (REAL — segregação funções cl. 6.2.5 + ADR-0026 exceção 4 condições). 23 testes.
 
-**Próxima fatia: P4 Fase 2 Batch B — helpers crypto HashVersionado (T-CAL-031..036)**
-- `src/domain/metrologia/calibracao/hash_versionado.py`: funções puras `parsear_hash_versionado(s)`, `formatar_hash_versionado(versao, hmac_bytes)`, `validar_versao(n)`.
-- Camada de chamada KMS Multi-Region fica em `src/infrastructure/calibracao/hash_kms.py` (Fase 5 use cases).
-- Testes: roundtrip, rejeição base64 inválido, rejeição versão >99, formato canônico ADR-0064.
+**Total Fase 2: 105 testes verdes** + ruff/mypy limpos + hooks 312/312.
 
-**Depois: P4 Fase 2 Batch C — Entities + Predicates (T-CAL-037..045)**
-- 9 dataclasses puras (Calibracao, Leitura, OrcamentoIncerteza, ComponenteIncerteza, PadraoUsado, RecepcaoItemCalibracao, EventoDeCalibracao, NaoConformidade, AceiteRegraDecisao).
-- Predicates puros: `cmc_cobre`, `procedimento_vigente_para`, `rt_competencia_cobre` (ADR-0063 Opção A lazy).
+**Decisão de escopo (P4 Fase 2 Batch C):** Entities domain (originalmente T-CAL-040..045) DIFERIDAS para Fase 5 (use cases). Criar dataclasses domain agora sem consumidor seria especulação — quando use case precisar, dataclass nasce alinhada ao consumo real.
+
+**Próxima fatia: P4 Fase 3 — Motor de cálculo §3.3 spec (T-CAL-046..060, 15 tarefas)**
+- `src/domain/metrologia/calibracao/motor_calculo/`:
+  - `gum_classico.py` — Decimal puro, NIT-DICLA-030 rev. 15
+  - `monte_carlo.py` — NumPy, JCGM 101 BIPM, seed em Calibracao.id
+  - `arredondamento.py` — NIT-DICLA-030 §7.5 (2 dígitos significativos)
+  - `validacao_replay.py` — Replay determinístico CI (fixtures `tests/replay_metrologico/`)
+- Algoritmos rodam paralelos; divergência >1% → estado volta `em_execucao` + NC automática.
 
 **Paralelizável (P3.5 — não bloqueia P4 dogfooding):** 14 tarefas T-CAL-P35-* (minutas canônicas OAB + matrizes técnicas CGCRE + ADR-0028 rev 3 + DPIA-calibracao). Bloqueia 1º tenant externo pago.
 
