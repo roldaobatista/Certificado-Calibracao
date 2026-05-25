@@ -2212,3 +2212,384 @@ class AceiteRegraDecisao(models.Model):
 
     def __str__(self) -> str:
         return f"AceiteRegraDecisao {self.regra_decisao_escolhida}"
+
+
+class OverrideRegraDecisaoCliente(models.Model):
+    """Cliente sobrescreve regra de decisao default do tenant (ADR-0024 + P-CAL-A3).
+
+    Imutavel pos-INSERT (WORM). Vincula calibracao a clausula contratual
+    autorizadora (`contrato_clausula_id`). Usado em US-CAL-007 quando
+    revisor identifica que cliente acordou regra distinta da default.
+
+    Publica `Calibracao.OverrideRegraDecisaoCriado` (§16.15) — Marco 5 +
+    observabilidade consomem.
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="overrides_regra_decisao",
+    )
+    calibracao = models.ForeignKey(
+        Calibracao,
+        on_delete=models.PROTECT,
+        related_name="overrides_regra_decisao",
+    )
+    cliente_referencia_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado cliente_id (ADR-0064 + ADR-0032).",
+    )
+    regra_escolhida = models.CharField(
+        max_length=25,
+        choices=REGRA_DECISAO_CHOICES,
+        help_text="Regra contratualmente acordada (sobrescreve default tenant).",
+    )
+    regra_default_tenant = models.CharField(
+        max_length=25,
+        choices=REGRA_DECISAO_CHOICES,
+        help_text="Snapshot da regra default do tenant no momento do override.",
+    )
+    contrato_clausula_id = models.UUIDField(
+        help_text=(
+            "FK clausula contratual que autoriza o override "
+            "(documento-cliente cl. 7.1.3)."
+        ),
+    )
+    justificativa_canonicalizada = models.TextField(
+        help_text=">=50 chars + anti-PII + INV-DOC-CANON-001.",
+    )
+    justificativa_hash = models.CharField(max_length=80)
+    aprovado_por_user_id_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado (ADR-0064) — gerente qualidade aprova.",
+    )
+    concedido_em = models.DateTimeField()
+    correlation_id = models.UUIDField(default=uuid.uuid4)
+
+    class Meta:
+        verbose_name = "Override Regra Decisao Cliente"
+        verbose_name_plural = "Overrides Regra Decisao Cliente"
+        db_table = "override_regra_decisao_cliente"
+        ordering = ["-concedido_em"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "calibracao"],
+                name="overrd_tenant_cal_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"OverrideRegraDecisaoCliente {self.regra_escolhida}"
+
+
+# Reclamacao — estado-maquina (US-CAL-018 + cl. 7.9)
+ESTADO_RECLAMACAO_CHOICES = [
+    ("RECEBIDA", "Recebida (registrada via portal cliente)"),
+    ("EM_ANALISE", "Em analise (RT independente atribuido)"),
+    ("RESPONDIDA", "Respondida (decisao registrada)"),
+    ("ARQUIVADA", "Arquivada (pos prazo CDC)"),
+]
+
+# Decisao final da reclamacao
+DECISAO_RECLAMACAO_CHOICES = [
+    ("PROCEDENTE_RECALL", "Procedente — recall do certificado (saga ADR-0045)"),
+    ("PROCEDENTE_ERRATA", "Procedente — errata pontual (saga ADR-0045)"),
+    ("IMPROCEDENTE", "Improcedente (justificativa tecnica)"),
+]
+
+
+class ReclamacaoCalibracao(models.Model):
+    """Reclamacao formal do cliente sobre cert emitido (US-CAL-018 + cl. 7.9).
+
+    CDC art. 26 — cliente tem 90 dias apos emissao para reclamar. Estado
+    inicia em RECEBIDA → EM_ANALISE → RESPONDIDA. RT atribuido
+    preferencialmente diferente do revisor + conferente originais.
+
+    Prazo resposta 15 dias uteis (default). AC-CAL-018-3 alerta P1 quando
+    excedido. Decisao PROCEDENTE_RECALL dispara saga recall Marco 5
+    (ADR-0045).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="reclamacoes_calibracao",
+    )
+    calibracao = models.ForeignKey(
+        Calibracao,
+        on_delete=models.PROTECT,
+        related_name="reclamacoes",
+    )
+    certificado_id = models.UUIDField(
+        help_text="FK Certificado (Marco 5 — db_constraint=False).",
+    )
+    cliente_referencia_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado cliente_id (ADR-0064 + ADR-0032).",
+    )
+    relato_canonicalizado = models.TextField(
+        help_text=">=100 chars + anti-PII (INV-CAL-TXT-001) + INV-DOC-CANON-001.",
+    )
+    relato_hash = models.CharField(max_length=80)
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_RECLAMACAO_CHOICES,
+        default="RECEBIDA",
+    )
+    rt_atribuido_user_id_hash = models.CharField(
+        max_length=80,
+        blank=True,
+        default="",
+        help_text="HashVersionado — preenchido em EM_ANALISE.",
+    )
+    resposta_canonicalizada = models.TextField(
+        blank=True,
+        default="",
+        help_text=">=100 chars quando estado=RESPONDIDA + anti-PII.",
+    )
+    resposta_hash = models.CharField(max_length=80, blank=True, default="")
+    decisao = models.CharField(
+        max_length=25,
+        choices=DECISAO_RECLAMACAO_CHOICES,
+        blank=True,
+        default="",
+        help_text="Preenchida em RESPONDIDA (CHECK constraint na migration).",
+    )
+    aberta_em = models.DateTimeField()
+    prazo_resposta_dia_util = models.PositiveSmallIntegerField(
+        default=15,
+        help_text="Default 15 dias uteis (AC-CAL-018-3).",
+    )
+    respondida_em = models.DateTimeField(null=True, blank=True)
+    correlation_id = models.UUIDField(default=uuid.uuid4)
+
+    class Meta:
+        verbose_name = "Reclamacao Calibracao"
+        verbose_name_plural = "Reclamacoes Calibracao"
+        db_table = "reclamacao_calibracao"
+        ordering = ["-aberta_em"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "calibracao"],
+                name="reclcal_tenant_cal_idx",
+            ),
+            models.Index(
+                fields=["tenant", "estado"],
+                name="reclcal_tenant_estado_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"ReclamacaoCalibracao {self.estado}"
+
+
+# Finalidades do consentimento de contato tecnico (P-CAL-A6 advogado)
+FINALIDADE_CONSENTIMENTO_CONTATO_CHOICES = [
+    ("CERTIFICADO_CONTATO_TECNICO", "Aparecer em certificado como contato tecnico"),
+    ("SUBCONTRATACAO_CONTATO", "Ser contatado por subcontratado em escopo da OS"),
+    ("PORTAL_CLIENTE", "Acesso ao portal-cliente em nome do tenant cliente PJ"),
+]
+
+
+class ConsentimentoContatoTecnicoCliente(models.Model):
+    """Consentimento explicito de contato PF de cliente PJ (P-CAL-A6 + LGPD).
+
+    Imutavel pos-INSERT (WORM). Cliente PJ tem empregados PF que aparecem
+    em cert como contato tecnico/responsavel — LGPD art. 7 + art. 9 exige
+    base legal documentada (consentimento explicito ou execucao contratual).
+
+    Pode ser revogado pelo titular via revogado_em (LGPD art. 18); apos
+    revogacao, sistema bloqueia uso em novos cert + propaga `Cliente.ConsentimentoRevogado`.
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="consentimentos_contato_tecnico",
+    )
+    cliente_referencia_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado cliente_id PJ (ADR-0064 + ADR-0032).",
+    )
+    contato_pf_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado da PF que consente (nome + email + CPF se houver).",
+    )
+    finalidade = models.CharField(
+        max_length=40,
+        choices=FINALIDADE_CONSENTIMENTO_CONTATO_CHOICES,
+    )
+    texto_canonico_id = models.UUIDField(
+        help_text="FK consentimento-contato-tecnico-v1.0.md (REQUER OAB).",
+    )
+    texto_hash = models.CharField(max_length=80)
+    assinatura_modo = models.CharField(
+        max_length=10,
+        choices=ASSINATURA_MODO_CHOICES,
+    )
+    assinatura_payload_encrypted = models.BinaryField(null=True, blank=True)
+    ip_hash = models.CharField(max_length=80)
+    concedido_em = models.DateTimeField()
+    # LGPD art. 18 — direito de revogar a qualquer tempo
+    revogado_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Quando titular revoga (LGPD art. 18). Bloqueia uso pos-revogacao.",
+    )
+    motivo_revogacao_canonicalizado = models.TextField(blank=True, default="")
+    correlation_id = models.UUIDField(default=uuid.uuid4)
+
+    class Meta:
+        verbose_name = "Consentimento Contato Tecnico Cliente"
+        verbose_name_plural = "Consentimentos Contato Tecnico Cliente"
+        db_table = "consentimento_contato_tecnico_cliente"
+        ordering = ["-concedido_em"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "contato_pf_hash"],
+                name="conscont_tenant_contato_idx",
+            ),
+            models.Index(
+                fields=["tenant", "revogado_em"],
+                name="conscont_tenant_revog_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"ConsentimentoContatoTecnicoCliente {self.finalidade}"
+
+
+class ConsentimentoFotoRecusado(models.Model):
+    """Cliente recusa foto-evidencia da recepcao (P-CAL-A5 advogado).
+
+    Imutavel pos-INSERT (WORM). Alternativa a `foto_evidencia_id` em
+    `RecepcaoItemCalibracao` (§16.12 — CHECK XOR foto/recusa). Cliente
+    PF/PJ assina termo declarando recusa e motivo; tenant continua
+    recepcao com declaracao escrita ao inves de foto.
+
+    DPIA-calibracao + GATE-SEG-CYBER-PATIENT-1 (R-M4-21) — protege
+    contra captura de PII saude 3rd-party (etiqueta paciente em farma).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="consentimentos_foto_recusado",
+    )
+    cliente_referencia_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado cliente_id (ADR-0064 + ADR-0032).",
+    )
+    motivo_recusa_canonicalizado = models.TextField(
+        help_text=">=30 chars + anti-PII + INV-DOC-CANON-001.",
+    )
+    motivo_recusa_hash = models.CharField(max_length=80)
+    texto_aviso_canonico_id = models.UUIDField(
+        help_text=(
+            "FK aviso-foto-recepcao-v1.0.md (REQUER OAB) — texto que "
+            "cliente leu e recusou."
+        ),
+    )
+    texto_aviso_hash = models.CharField(max_length=80)
+    assinatura_modo = models.CharField(
+        max_length=10,
+        choices=ASSINATURA_MODO_CHOICES,
+    )
+    assinatura_payload_encrypted = models.BinaryField(null=True, blank=True)
+    ip_hash = models.CharField(max_length=80)
+    registrado_em = models.DateTimeField()
+    correlation_id = models.UUIDField(default=uuid.uuid4)
+
+    class Meta:
+        verbose_name = "Consentimento Foto Recusado"
+        verbose_name_plural = "Consentimentos Foto Recusado"
+        db_table = "consentimento_foto_recusado"
+        ordering = ["-registrado_em"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "registrado_em"],
+                name="consfoto_tenant_reg_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"ConsentimentoFotoRecusado {self.registrado_em.isoformat() if self.registrado_em else ''}"
+
+
+# Resultado do backup metrologico (P-CAL-R11 RBC)
+RESULTADO_BACKUP_CHOICES = [
+    ("OK", "OK (todas tabelas exportadas + hash verificado)"),
+    ("FALHA_PARCIAL", "Falha parcial (algumas tabelas exportadas)"),
+    ("FALHA_TOTAL", "Falha total (nenhuma tabela exportada — alerta P1)"),
+]
+
+
+class EventoBackupMetrologico(models.Model):
+    """Registro append-only de cada execucao de backup metrologico (cl. 7.11.6).
+
+    P-CAL-R11 RBC — backup periodico das tabelas WORM exportado p/ B2
+    Backblaze com hash verificado (INV-CAL-BACKUP-001). Job
+    `executar_backup_metrologico` insere registro a cada execucao
+    (default 1x/dia + observabilidade alerta P1 se gap > 25h).
+
+    Imutavel pos-INSERT (WORM). Marco 5 valida que ultimas 25h tem
+    pelo menos 1 registro com resultado=OK antes de emitir certificado.
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="eventos_backup_metrologico",
+    )
+    executado_em = models.DateTimeField(
+        help_text="Inicio da execucao do backup.",
+    )
+    b2_object_key = models.CharField(
+        max_length=512,
+        help_text="Backblaze B2 object key (path WORM).",
+    )
+    hash_arquivo = models.CharField(
+        max_length=80,
+        help_text="HashVersionado v<NN>$<base64> do arquivo exportado (ADR-0064).",
+    )
+    tabelas_count = models.PositiveIntegerField(
+        help_text="Numero de tabelas exportadas (snapshot da migration vigente).",
+    )
+    tamanho_bytes = models.BigIntegerField(
+        help_text="Tamanho do arquivo exportado em bytes.",
+    )
+    duracao_segundos = models.PositiveIntegerField()
+    resultado = models.CharField(
+        max_length=20,
+        choices=RESULTADO_BACKUP_CHOICES,
+    )
+    mensagem_erro_canonicalizada = models.TextField(
+        blank=True,
+        default="",
+        help_text="Vazio quando resultado=OK. Anti-PII + INV-DOC-CANON-001.",
+    )
+    correlation_id = models.UUIDField(default=uuid.uuid4)
+
+    class Meta:
+        verbose_name = "Evento Backup Metrologico"
+        verbose_name_plural = "Eventos Backup Metrologico"
+        db_table = "evento_backup_metrologico"
+        ordering = ["-executado_em"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "executado_em"],
+                name="evbkmet_tenant_exec_idx",
+            ),
+            models.Index(
+                fields=["tenant", "resultado"],
+                name="evbkmet_tenant_result_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"EventoBackupMetrologico {self.resultado}"
