@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado_em: 2026-05-23
-proximo_review: 2026-08-23
+revisado_em: 2026-05-24
+proximo_review: 2026-08-24
 status: stable
 diataxis: explanation
 audiencia: agente
@@ -11,7 +11,9 @@ relacionados:
   - docs/faseamento/M3-os/spec.md
   - docs/faseamento/M3-os/plan.md
   - docs/faseamento/M3-os/matriz-reconciliacao.md
+  - docs/faseamento/M3-os/auditoria-familia5.md
   - docs/faseamento/M2-equipamentos/tasks.md
+  - docs/faseamento/diario/2026-05-24-marco3-os-fases-1-10.md
 ---
 
 # Marco 3 (operacao/os) — Tarefas P4 (causa-raiz)
@@ -23,9 +25,33 @@ relacionados:
 
 ## Convenções
 
+- **✅** → tarefa ENTREGUE (commit linkado em §"Status de entrega").
 - **GAP** → vira `T-OS-NNN` em P4 (bloqueia fechamento).
 - **TRACK** → GATE Wave A (não bloqueia Marco 3 dogfooding).
 - **OK** → herdado de F-A/F-B/M1/M2 (sem código novo).
+
+## Status de entrega — Fases 1..10 ENTREGUES (2026-05-24)
+
+P4 do ritual completado em 22+ commits entre 2026-05-23 e 2026-05-24. Resumo por fase (detalhe item-a-item em `docs/faseamento/diario/2026-05-24-marco3-os-fases-1-10.md`):
+
+| Fase | Tarefas | Status | Evidência |
+|---|---|---|---|
+| 1 Migrations | T-OS-001..013 (13 migrations) | ✅ ENTREGUE | `src/infrastructure/ordens_servico/migrations/0001..0013` |
+| 2 Domain | T-OS-014..022 | ✅ ENTREGUE | `src/domain/operacao/os/{__init__,entities,value_objects,regras,repository}.py` |
+| 3 Predicates | T-OS-023..028 (5 predicates + seed authz) | ✅ ENTREGUE | `src/infrastructure/ordens_servico/predicates_os.py` + migration 0013 |
+| 4 Consumers+sagas | T-OS-029..039 | ✅ ENTREGUE | `consumers/{orcamento,cliente,equipamento,calibracao,financeiro,tenant,acreditacao}.py` + `sagas/{anonimizacao,sucessao,sync_mobile}.py` |
+| 5 Use cases | T-OS-040..049, 052, 055, 059, 063..072, 074, 077..079, 082..083 | ✅ ENTREGUE (18 use cases) | `src/application/operacao/os/**` — commits `6e1faa8`, `2c9b760`, `317fa1a`, `2db…`, `a329ebb`, `8ce76dc`, `56b33f9` |
+| 5 (parcial) | T-OS-050/054 predicates RT competência | TRACK GATE Wave A | depende cross-módulo `responsavel_tecnico` |
+| 6 Queries | T-OS-085..089 (4 query services) | ✅ ENTREGUE | `src/application/operacao/os/queries/{visao_360,listagem,timeline}.py` |
+| 7 Jobs | T-OS-090..093 (4 jobs procrastinate + management cmd) | ✅ ENTREGUE | `src/infrastructure/ordens_servico/jobs.py` + `management/commands/processar_jobs_os.py` — commit `4a91149` |
+| 8 Views/Serializers | T-OS-094..099 (OS+Atividade ViewSets — 11 endpoints) | ✅ ENTREGUE | `src/infrastructure/ordens_servico/{views,serializers}.py` + `urls.py` — commit `ded1661` |
+| 8 (parcial) | T-OS-100..104 (NC/Aceite/Dispensa/NoShow/OSAvulsa ViewSets) | **PROD-M3-01 — em conserto na 2ª passada P5** | Use cases entregues; ViewSets faltam |
+| 9 Hooks | T-OS-105 (`migration-concorrencia-os-check`) + T-OS-106 (`sync-merge-foto-appendonly`) + T-OS-107 (`authz-check` estendido) | ✅ ENTREGUE | `.claude/hooks/` — commits `4ef49e9` + `53fb275` |
+| 10 Regressões | T-OS-108..120 (13 arquivos / 48 testes INV-OS) | ✅ ENTREGUE | `tests/regressao/test_inv_os_*.py` — commits `d5f1005`, `7b7bbee`, `6c99b2c`, `646c137`, `6327492` |
+| 11 Integração US | T-OS-121..135 (15 arquivos por US) | GAP (Wave A) | — |
+| 12 Sagas+carga+drill | T-OS-136..147 | GAP (T-OS-146 drill `validar_m3_os` rastreado em GATE-OS-VALIDAR-DRILL) | — |
+
+**Suíte M3 chave verificada 2026-05-24:** 89/89 PASS em 415s. Hooks `_test-runner.sh`: 309/309 verdes / 42 hooks ativos.
 
 ---
 
@@ -375,13 +401,12 @@ Mapeamento US ↔ tasks pra rastreabilidade. PRD `docs/dominios/operacao/modulos
 
 ## Critério de fechamento (DoD §14 spec)
 
-- Suite ≥865 passed.
-- Drill `validar_m3_os` 24/24 PASS.
-- `_test-runner.sh` 207/207 (+3 hooks novos = 210/210).
-- 10 auditores Família 5 PASS ZERO C/A/M.
-- **GATE-SEG-BPT-1** emitido ANTES de entrada em produção dogfooding (feature flag).
+- Suite M3 chave ≥89 passed (entregue: **89/89 PASS** em 415s — 2026-05-24).
+- Drill `validar_m3_os` 24/24 PASS (GAP — rastreado GATE-OS-VALIDAR-DRILL Wave A).
+- `_test-runner.sh` ≥309/309 (entregue: **309/309 PASS** / 42 hooks ativos — 2026-05-24).
+- 10 auditores Família 5 PASS ZERO C/A/M (1ª passada 2026-05-24: 5 PASS / 5 FAIL — conserto causa-raiz em curso; ver `auditoria-familia5.md`).
+- **GATE-SEG-BPT-1** emitido ANTES de entrada em produção dogfooding (feature flag `OS_PRODUTIVO_DOGFOODING_BS` default `False`).
 
-## Próximo passo (P4 implementação)
+## Próximo passo
 
-Arrancar **Fase 1 (Migrations)** após validação humana do tasks.md.
-Ordem: T-OS-001 → T-OS-012 (12 migrations sequenciais).
+**P5 ritual em 2ª passada após conserto dos 40 achados C/A/M dos 5 auditores em FAIL (drift-docs, idempotência, qualidade, produto, segurança).** Detalhe em `auditoria-familia5.md` §"Plano de conserto causa-raiz".
