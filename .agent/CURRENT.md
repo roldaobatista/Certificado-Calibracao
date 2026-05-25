@@ -46,12 +46,18 @@
 ## Fase 10 cont. (sessão 2026-05-24 noite)
 
 - 2 arquivos regressão adicionais: INV-OS-ATIV-001 (terminal — 3 testes) + INV-OS-ATIV-005 (executor único — 4 testes). 7/7 PASS.
-- **Total Fase 10: 8 arquivos / 30 testes regressão INV-OS.**
+- **Fase 10 fechamento (sessão atual)**: 5 arquivos finais — INV-OS-ANON-001 (3), INV-OS-CAL-LINK-001 (4), INV-OS-GEO-001 (3), INV-OS-SYNC-001 (4), INV-OS-AUD-001 (4). 18/18 PASS.
+- **Total Fase 10: 13 arquivos / 48 testes regressão INV-OS.**
+
+## Fase 9 fechamento (sessão atual)
+
+- **T-OS-106 entregue**: hook `sync-merge-foto-appendonly.sh` — bloqueia UPDATE/DELETE/`.save()` em `EvidenciaFotoAtividade` em código de sync (Padrão B append-only). +10 casos no `_test-runner.sh`. Registrado em `.claude/settings.json` PreToolUse Write|Edit.
+- **T-OS-107 entregue**: `authz-check.sh` estendido com lista canônica de 6 predicates M3 conhecidos (`rt_competencia_cobre`, `tenant_dentro_escopo_acreditado`, `pode_estender_janela_cal_link_atividade`, `pode_dispensar_aceite`, `pode_criar_os_produtiva_balancas`, `cliente_tem_os_aberta`); import de predicate desconhecido em `predicates_os` → BLOCK. +4 casos AZ.
+- **Hooks: 305 → 309 ok / 0 falhas.**
+- **Suíte M3 chave consolidada: 89/89 PASS em 415s.**
 
 ## Próximas fatias (restante M3)
 
-- **Fase 9 restante (T-OS-106/107)**: hook sync-merge-foto-appendonly (Wave A — sync mobile não existe) + authz-check estendido (vigilante).
-- **Fase 10 restante**: regressão para INV-OS-AUD-001, CAL-LINK-001, GEO-001, SYNC-001, ANON-001 (5 INVs — alguns já cobertos implicitamente em jobs/timeline tests).
 - **Predicates no consumer**: T-OS-050/054 (RT competência) — depende de `rt_competencia_cobre`.
 - **P5 ritual Spec Kit M3 OS** (10 auditores Família 5) — gate de fechamento.
 
