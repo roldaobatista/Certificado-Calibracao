@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 — 23/25 migrations entregues (T-CAL-001..021+023+024).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25 — T-CAL-001..025 entregues; drill T-CAL-025 5/5 PASS + 1 SKIP esperado).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -60,13 +60,15 @@ T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em
 
 ## Próxima fatia
 
-**P4 Fase 1 finalização (T-CAL-022+025) — 2 itens restantes:**
-- T-CAL-022 `plano_acao_proficiencia_warning` — ENTREGUE em T-CAL-014 (consolidado na 0010).
-- T-CAL-025 RLS policies finais + seed `app_user` (varredura — entidades já têm RLS inline na migration; verificar grants `app_user` em todas as 23 tabelas).
+**P4 Fase 1 FECHADA (25/25)** — drill T-CAL-025 verde (commit `ade4bee`): 5 PASS (RLS+FORCE+grants+policies em 23 tabelas) + 1 SKIP esperado (app_migrator em test_afere — memória `test_db_owner_app_user`).
+
+**Próxima fatia: P4 Fase 2 — Domain (entities + VOs + helpers crypto)** — T-CAL-026..045, 20 tarefas:
+- VOs: `VersaoMotorCalculo`, `JanelaVigencia` (ADR-0030), `HashVersionado` (ADR-0064), `IncertezaCombinada`, `EscoreZ`, `ZonaILACG8`.
+- Helpers crypto: `hash_versionado(plaintext, key_id)`, `hmac_chain_advance(prev_hash, payload)` (cl. 7.5 hash-chain).
+- Entities Python (dataclasses frozen) mapeadas 1:1 com 23 modelos PG via portas/repositórios.
+- Predicates: `cmc_cobre(grandeza, faixa)`, `procedimento_vigente_para(grandeza, data)`, `rt_competencia_cobre(rt_id, grandeza, data)` — invocados em Fase 5 use cases.
 
 **Paralelizável (P3.5 — não bloqueia P4 dogfooding):** 14 tarefas T-CAL-P35-* (minutas canônicas OAB + matrizes técnicas CGCRE + ADR-0028 rev 3 + DPIA-calibracao). Bloqueia 1º tenant externo pago.
-
-**Próxima Fase P4 (após T-CAL-025):** Fase 2 — Domain (entities + VOs + helpers crypto), T-CAL-026..045 (20 tarefas).
 
 **Paralelizável (P3.5 — não bloqueia P4 dogfooding):** 14 tarefas T-CAL-P35-* (minutas canônicas OAB + matrizes técnicas CGCRE + ADR-0028 rev 3 + DPIA-calibracao). Bloqueia 1º tenant externo pago.
 
