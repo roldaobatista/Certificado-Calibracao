@@ -1100,3 +1100,463 @@ class OrcamentoPorPonto(models.Model):
 
     def __str__(self) -> str:
         return f"OrcamentoPorPonto p={self.ponto_calibracao} U={self.U_expandida_no_ponto}"
+
+
+# =============================================================
+# PadraoUsado (snapshot ADR-0040 + cl. 6.5 rastreabilidade SI)
+# =============================================================
+
+VINCULACAO_SI_TIPO_CHOICES = [
+    ("BIPM_DIRETO", "BIPM direto"),
+    ("INMETRO", "INMETRO (laboratorio nacional)"),
+    ("RBC", "RBC (laboratorio acreditado)"),
+    ("NMI_ESTRANGEIRO", "NMI estrangeiro (NIST, PTB, NPL, ...)"),
+    ("MRC_NIST_PTB_NPL", "Material de Referencia Certificado"),
+    ("INTERNO_DECLARADO", "Interno declarado (proibido em RBC — INV-CAL-RAST-002)"),
+]
+
+
+class PadraoUsado(models.Model):
+    """Snapshot de padrao metrologico usado na calibracao (ADR-0040).
+
+    Imutavel pos-INSERT (INV-CAL-WORM-001 — trigger PG na migration).
+    snapshot_lock vira true automaticamente quando calibracao.status >=
+    em_revisao_1 (trigger via consumer/use case — Fase 5).
+    INV-CAL-RT-COMP-001: snapshot so pode ser feito enquanto
+    calibracao.status IN (recepcionada, configurada). Pos em_revisao_1
+    INSERT bloqueado (trigger).
+    INV-CAL-CONC-002: UNIQUE parcial (tenant, calibracao, padrao_id)
+    WHERE snapshot_lock=false (ADR-0065).
+    INV-CAL-RAST-002: tipo_acreditacao=RBC proibe INTERNO_DECLARADO
+    (CHECK composta com Calibracao — validado em use case).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="padroes_usados",
+    )
+    calibracao = models.ForeignKey(
+        Calibracao,
+        on_delete=models.PROTECT,
+        related_name="padroes_usados",
+    )
+    padrao_id = models.UUIDField(
+        help_text=(
+            "FK PadraoMetrologico (db_constraint=False — modulo "
+            "padroes a criar separadamente conforme ADR-0040)."
+        ),
+    )
+    padrao_id_hash = models.CharField(
+        max_length=80,
+        help_text=(
+            "HashVersionado v<NN>$<base64> (ADR-0064) — protecao "
+            "cross-tenant + preserva audit pos-baixa do padrao."
+        ),
+    )
+    snapshot_padrao_json = models.JSONField(
+        help_text=(
+            "Snapshot imutavel: cert externo, validade, classe, valor "
+            "convencional, incertezas_certificado, vinculacao SI. "
+            "INV-CAL-SNAP-001 + INV-CAL-RAST-001."
+        ),
+    )
+    snapshot_capturado_at = models.DateTimeField(
+        help_text=(
+            "Momento da captura — INV-CAL-RT-COMP-001 (snapshot nao "
+            "retroativo). Trigger PG bloqueia INSERT quando "
+            "calibracao.status NOT IN (recepcionada, configurada)."
+        ),
+    )
+    snapshot_lock = models.BooleanField(
+        default=False,
+        help_text=(
+            "True quando calibracao.status >= em_revisao_1 "
+            "(use case seta via UPDATE). UNIQUE parcial WHERE "
+            "snapshot_lock=false (INV-CAL-CONC-002)."
+        ),
+    )
+    # §16.7 — Rastreabilidade SI estruturada (P-CAL-R9 RBC)
+    vinculacao_si_tipo = models.CharField(
+        max_length=20,
+        choices=VINCULACAO_SI_TIPO_CHOICES,
+        help_text=(
+            "INV-CAL-RAST-002: tenant RBC proibe INTERNO_DECLARADO "
+            "(validado em use case + CHECK composta cross-table)."
+        ),
+    )
+    vinculacao_si_referencia_id = models.CharField(
+        max_length=80,
+        help_text="Ex: 'INMETRO-LAB-METROL-MASSA-CERT-2024-456'.",
+    )
+    cadeia_rastreabilidade_documento_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="FK arquivo do cert do lab emissor (db_constraint=False).",
+    )
+
+    class Meta:
+        verbose_name = "Padrao Usado"
+        verbose_name_plural = "Padroes Usados"
+        db_table = "padrao_usado"
+        ordering = ["-snapshot_capturado_at"]
+        constraints = [
+            # INV-CAL-CONC-002 — UNIQUE parcial WHERE snapshot_lock=false
+            models.UniqueConstraint(
+                fields=["tenant", "calibracao", "padrao_id"],
+                condition=models.Q(snapshot_lock=False),
+                name="uq_padrao_usado_pre_lock",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "calibracao"], name="padusu_tenant_cal_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"PadraoUsado {self.padrao_id} @ {self.snapshot_capturado_at}"
+
+
+# =============================================================
+# RecepcaoItemCalibracao (cl. 7.4 ISO 17025)
+# =============================================================
+
+AVALIACAO_APTIDAO_CHOICES = [
+    ("APTO", "Apto (item em condicoes de calibracao)"),
+    ("APTO_COM_RESSALVA", "Apto com ressalva (condicoes especiais)"),
+    ("INAPTO", "Inapto (item recusado — cliente notificado)"),
+]
+
+
+class RecepcaoItemCalibracao(models.Model):
+    """Recepcao do item para calibracao (cl. 7.4 ISO 17025).
+
+    Imutavel pos-INSERT (INV-CAL-WORM-001). Cliente pode recusar foto
+    (P-CAL-A5 advogado) — quando recusa, foto_evidencia_recusa_id NOT NULL
+    apontando para ConsentimentoFotoRecusado (entidade T-CAL-NNN).
+    CHECK XOR: foto_evidencia_id OR foto_evidencia_recusa_id (na migration).
+    aviso_foto_texto_canonico_id REQUER OAB humana.
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="recepcoes_calibracao",
+    )
+    calibracao = models.ForeignKey(
+        Calibracao,
+        on_delete=models.PROTECT,
+        related_name="recepcoes",
+    )
+    cliente_referencia_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado (ADR-0064) — preservado pos-anonimizacao.",
+    )
+    instrumento_recebido_em = models.DateTimeField(
+        help_text="Momento da recepcao fisica.",
+    )
+    condicoes_recebidas_canonicalizada = models.TextField(
+        help_text=(
+            ">=30 chars + anti-PII INV-CAL-TXT-001 + canonicalizacao "
+            "INV-DOC-CANON-001 (UTF-8 + LF + NFC + marcadores)."
+        ),
+    )
+    condicoes_recebidas_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado do texto canonicalizado (ADR-0064).",
+    )
+    avaliacao_aptidao = models.CharField(
+        max_length=20,
+        choices=AVALIACAO_APTIDAO_CHOICES,
+        help_text="Avaliacao do item (cl. 7.4 — separada de analise critica de pedido cl. 7.1.1).",
+    )
+    motivo_inaptidao_canonicalizada = models.TextField(
+        blank=True,
+        default="",
+        help_text=(
+            "NOT NULL quando avaliacao_aptidao=INAPTO. Texto >=30 chars + "
+            "anti-PII INV-CAL-TXT-001."
+        ),
+    )
+    motivo_inaptidao_hash = models.CharField(
+        max_length=80,
+        blank=True,
+        default="",
+        help_text="HashVersionado quando INAPTO.",
+    )
+    fluxo_subcontratacao_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="FK quando recepcao decide subcontratar (US-CAL-017).",
+    )
+    foto_evidencia_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "FK EvidenciaFotoAtividade (db_constraint=False). NULL quando "
+            "cliente recusa (foto_evidencia_recusa_id NOT NULL). EXIF "
+            "stripado obrigatorio (INV-CAL-FOTO-001 + hook M4 P9)."
+        ),
+    )
+    foto_evidencia_recusa_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="FK ConsentimentoFotoRecusado (T-CAL-NNN). XOR com foto_evidencia_id.",
+    )
+    aviso_foto_texto_canonico_id = models.UUIDField(
+        help_text=(
+            "FK aviso-foto-recepcao-v1.0.md (REQUER OAB — minuta preliminar "
+            "pelo agente). Texto renderizado ao cliente antes da captura."
+        ),
+    )
+    condicoes_ambientais_id = models.ForeignKey(
+        CondicoesAmbientais,
+        on_delete=models.PROTECT,
+        related_name="recepcoes",
+        help_text="Snapshot CondicoesAmbientais no momento da recepcao.",
+    )
+    correlation_id = models.UUIDField(
+        default=uuid.uuid4,
+    )
+
+    class Meta:
+        verbose_name = "Recepcao Item Calibracao"
+        verbose_name_plural = "Recepcoes Item Calibracao"
+        db_table = "recepcao_item_calibracao"
+        ordering = ["-instrumento_recebido_em"]
+        indexes = [
+            models.Index(fields=["tenant", "calibracao"], name="recep_tenant_cal_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Recepcao calibracao={self.calibracao_id} avaliacao={self.avaliacao_aptidao}"
+
+
+# =============================================================
+# MedicaoControle (cl. 7.7.1 — grafico X-R/CUSUM + Western Electric)
+# =============================================================
+
+REGRA_WESTERN_ELECTRIC_CHOICES = [
+    ("RULE_1_3SIGMA", "Rule 1 — 1 ponto fora de 3 sigma"),
+    ("RULE_2_SEVEN_SAME_SIDE", "Rule 2 — 7 pontos seguidos mesmo lado da media"),
+    ("RULE_3_TREND", "Rule 3 — tendencia crescente/decrescente 6+ pontos"),
+    ("RULE_5_TWO_OF_THREE", "Rule 5 — 2 de 3 pontos > 2 sigma"),
+]
+
+
+class MedicaoControle(models.Model):
+    """Medicao de controle de padrao (cl. 7.7.1 — garantia de validade).
+
+    Imutavel pos-INSERT (INV-CAL-WORM-001). Job procrastinate
+    `analisar_padrao_medicoes_controle` recalcula ultimas 30
+    medicoes apos cada INSERT (P-CAL-R8 RBC).
+    Consumer Padrao.IntercomparacaoConcluida com |z|>2 e <=3 (WARNING)
+    cria PlanoAcaoProficienciaWarning automaticamente.
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="medicoes_controle",
+    )
+    padrao_id = models.UUIDField(
+        help_text="FK PadraoMetrologico (db_constraint=False).",
+    )
+    grandeza = models.CharField(
+        max_length=50,
+    )
+    faixa_min = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        null=True,
+        blank=True,
+    )
+    faixa_max = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        null=True,
+        blank=True,
+    )
+    valor_medido = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+    )
+    valor_esperado = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+    )
+    desvio = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        help_text="valor_medido - valor_esperado.",
+    )
+    dentro_2sigma = models.BooleanField()
+    dentro_3sigma = models.BooleanField()
+    escore_z = models.DecimalField(
+        max_digits=5,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="(P-CAL-R8) Quando padrao tem incerteza_referencia conhecida.",
+    )
+    regra_western_electric_violada = models.CharField(
+        max_length=30,
+        choices=REGRA_WESTERN_ELECTRIC_CHOICES,
+        blank=True,
+        default="",
+        help_text=(
+            "Preenchido por job `analisar_padrao_medicoes_controle` "
+            "apos INSERT. Job recalcula ultimas 30 medicoes."
+        ),
+    )
+    executor_id_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado (ADR-0064).",
+    )
+    executado_em = models.DateTimeField()
+    correlation_id = models.UUIDField(
+        default=uuid.uuid4,
+    )
+
+    class Meta:
+        verbose_name = "Medicao de Controle"
+        verbose_name_plural = "Medicoes de Controle"
+        db_table = "medicao_controle"
+        ordering = ["-executado_em"]
+        indexes = [
+            models.Index(fields=["tenant", "padrao_id", "executado_em"], name="medctrl_pad_exec_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"MedicaoControle padrao={self.padrao_id} desvio={self.desvio}"
+
+
+# =============================================================
+# EventoDeCalibracao (audit WORM com hash-chain por calibracao)
+# ADR-0065 + INV-CAL-AUD-001/002 + ADR-0064 HashVersionado.
+# =============================================================
+
+TIPO_EVENTO_CALIBRACAO_CHOICES = [
+    ("CalibracaoRecepcionada", "Calibracao Recepcionada"),
+    ("ConfiguracaoSalva", "Configuracao Salva"),
+    ("LeituraRegistrada", "Leitura Registrada"),
+    ("LeituraCorrigida", "Leitura Corrigida"),
+    ("IncertezaCalculada", "Incerteza Calculada"),
+    ("ConformidadeAvaliada", "Conformidade Avaliada"),
+    ("RevisaoAprovada", "Revisao Aprovada"),
+    ("RevisaoRejeitada", "Revisao Rejeitada"),
+    ("SegundaConferenciaAprovada", "Segunda Conferencia Aprovada"),
+    ("NCAberta", "NC Aberta"),
+    ("NCResolvida", "NC Resolvida"),
+    ("Aprovada", "Aprovada"),
+    ("Rejeitada", "Rejeitada"),
+    ("Cancelada", "Cancelada"),
+    ("SubcontratadaParaLab", "Subcontratada para Lab"),
+    ("RecebidaDoSubcontratado", "Recebida do Subcontratado"),
+    ("EpUnacceptableImpactoCriado", "EP Unacceptable Impacto Criado"),
+    ("CondicoesForaOverride", "Condicoes Fora Override (P2 Qualidade)"),
+    ("ReclamacaoAberta", "Reclamacao Aberta"),
+    ("ReclamacaoRespondida", "Reclamacao Respondida"),
+    ("AceiteRegraDecisaoConcedido", "Aceite Regra Decisao Concedido"),
+    ("OverrideRegraDecisaoCriado", "Override Regra Decisao Criado"),
+    ("BackupExecutado", "Backup Metrologico Executado"),
+]
+
+
+class EventoDeCalibracao(models.Model):
+    """Audit WORM append-only por calibracao (paralelo EventoDeOS M3).
+
+    Hash-chain por (tenant_id, calibracao_id) serializada via
+    advisory lock no use case `append_evento_calibracao` (ADR-0065
+    INV-CAL-AUD-002). Sequencia local `sequencia_local BIGINT NOT NULL`
+    populada por trigger BEFORE INSERT (MAX+1 dentro da calibracao).
+
+    INV-CAL-AUD-001: payload sanitizado via
+    `sanitizar_payload_evento_calibracao()` (helper unico — G2 dossie
+    pre-M4). Nao persistir UUIDs crus de operador (so *_hash).
+    """
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="eventos_calibracao",
+    )
+    calibracao = models.ForeignKey(
+        Calibracao,
+        on_delete=models.PROTECT,
+        related_name="eventos",
+    )
+    sequencia_local = models.BigIntegerField(
+        help_text=(
+            "Sequencia 1, 2, 3 ... por (tenant_id, calibracao_id). "
+            "Populado por trigger BEFORE INSERT (ADR-0065 INV-CAL-AUD-002). "
+            "UNIQUE (tenant, calibracao, sequencia_local)."
+        ),
+    )
+    tipo = models.CharField(
+        max_length=40,
+        choices=TIPO_EVENTO_CALIBRACAO_CHOICES,
+    )
+    payload_sanitizado = models.JSONField(
+        help_text=(
+            "Sanitizado via sanitizar_payload_evento_calibracao() — "
+            "G2 dossie pre-M4 + SEC-SANITIZE-001 + INV-CAL-AUD-001."
+        ),
+    )
+    evento_anterior_hash = models.CharField(
+        max_length=80,
+        blank=True,
+        default="",
+        help_text=(
+            "Hash do evento anterior na cadeia desta calibracao. "
+            "Vazio no 1o evento. Calculado via advisory lock no append."
+        ),
+    )
+    evento_hash = models.CharField(
+        max_length=80,
+        help_text=(
+            "HashVersionado v<NN>$<base64> (ADR-0064) — HMAC do payload + "
+            "evento_anterior_hash + tenant_id + occurred_at."
+        ),
+    )
+    correlation_id = models.UUIDField(
+        default=uuid.uuid4,
+    )
+    causation_id = models.UUIDField(
+        null=True,
+        blank=True,
+    )
+    actor_user_id = models.UUIDField(
+        help_text="Quem disparou (auditoria — UUID cru aqui ok porque pareado com hash).",
+    )
+    actor_user_id_hash = models.CharField(
+        max_length=80,
+        help_text="HashVersionado do actor (ADR-0064).",
+    )
+    occurred_at = models.DateTimeField(
+        help_text="Momento do evento (relogio NTP-sincronizado).",
+    )
+
+    class Meta:
+        verbose_name = "Evento de Calibracao"
+        verbose_name_plural = "Eventos de Calibracao"
+        db_table = "evento_de_calibracao"
+        ordering = ["calibracao", "sequencia_local"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "calibracao", "sequencia_local"],
+                name="uq_evento_calibracao_seq",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["tenant", "calibracao", "occurred_at"],
+                name="evcal_tenant_cal_occ_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"EventoDeCalibracao #{self.sequencia_local} {self.tipo}"
