@@ -167,7 +167,21 @@ Ordem de ataque (mais barato → mais caro):
 
 ## Status (1ª passada encerrada 2026-05-24)
 
-**VEREDITO 1ª PASSADA: FAIL — INV-RITUAL-001 bloqueia fechamento.** 40 achados C/A/M abertos; conserto causa-raiz em ataque sequencial; 2ª passada agendada após batches drift→idemp→qual→prod→seg.
+**VEREDITO 1ª PASSADA: FAIL — INV-RITUAL-001 bloqueia fechamento.** 40 achados C/A/M abertos; conserto causa-raiz em ataque sequencial.
+
+## Resolução de achados em sessão (2026-05-24 → 2026-05-25)
+
+5 batches consecutivos consertaram 100% dos 40 achados C/A/M:
+
+| Batch | Lente | Commits | Status |
+|---|---|---|---|
+| 1 | drift-docs (8A + 5M + 1B) | `068ab0e` | ✅ tasks.md Fases 1-10 ✅; AGENTS §11 ADRs 0027/0030/0031/0032 aceitas; §12 reescrito; contagens hooks 309/309; CURRENT.md 39 linhas; diário criado |
+| 2 | idempotência (7M + 1B) | `0a5d04d` | ✅ Idempotency-Key obrigatório nos 7 POSTs M3 (cancelar, reabrir, criar atividade, iniciar, concluir, reagendar, transferir); hook `idempotency-key-header-check` detecta @action; +3 testes E2E |
+| 3 | qualidade (4C + 3A + 3M) | `431b89d` | ✅ 30 testes novos (unit MotivoCancelamento + hash canônico + 5000 UUIDs varredura + UUID literal AUD-001 + INV-OS-ATIV-003/NUM-001/DOC-CANON regressões); bug-real consertado em `_SEQ_NUMERICA_RE` (2.6% UUIDs falso-positivo) + `_ENDERECO_RE` (slug `5cj2`); stubs sync_mobile/sucessao/tenant/anonimizacao docstrings reescritas |
+| 4 | produto (1A + 3M) | `1bae3de` | ✅ 7 endpoints REST novos (cancelar/marcar_nc/resolver_nc/aceite/dispensa/no_show atividade + OS avulsa); `criar_os_avulsa` valida analise_critica_inline_*; `concluir_atividade` consulta dispensa via repository; predicates RT competência → GATE-OS-PREDICATE-RT-COMPETENCIA Wave A |
+| 5 | segurança (2A + 4M) | `08bafe6` | ✅ tenant_id explícito em consumer cliente (defesa em profundidade); biometria_key_id formato `BIOMETRIA_KEY_<tenant>`; check tenant_id em retrieve/timeline; helper único `sanitizar_payload_evento_os` criado; INV-OS-ATIV-005 anti-fraude verificado (já implementado); GATE-OS-DEFESA-PROFUNDIDADE-CONSUMERS + GATE-OS-BIOMETRIA-TRAJETORIA + GATE-OS-SANITIZER-HELPER-MIGRACAO + GATE-OS-REPO-GETTER-TENANT-ID rastreados Wave A |
+
+**Estado pós conserto:** suite M3 chave 137/137 PASS; hooks 312/312 PASS; ruff limpo. 2ª passada dos 5 auditores FAIL agendada.
 
 ---
 
