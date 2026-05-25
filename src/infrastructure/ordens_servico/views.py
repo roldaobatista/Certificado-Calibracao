@@ -18,6 +18,7 @@ querystring/body — RLS bloqueia se contexto ausente.
 
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -68,6 +69,14 @@ from src.domain.operacao.os.value_objects import (
     MotivoCancelamento,
     TipoAtividade,
 )
+from src.infrastructure.idempotencia.services_idempotencia import (
+    ErroValidacao,
+    NovoProcessamento,
+    Replay,
+    avaliar_chave_idempotencia,
+    concluir_chave,
+    falhar_chave,
+)
 from src.infrastructure.multitenant.context import (
     active_tenant_context,
     usuario_id_context,
@@ -83,6 +92,17 @@ from src.infrastructure.ordens_servico.serializers import (
     TransferirTecnicoRequestSerializer,
 )
 
+# Endpoints registrados pro service de idempotencia (IDEMP-001 / P-EQP-T6
+# horizontal F-A). String estavel — usada como parte da UNIQUE
+# (tenant_id, endpoint, chave). NUNCA renomear sem migration de retrofit.
+ENDPOINT_OS_CANCELAR = "os.cancelar"
+ENDPOINT_OS_REABRIR = "os.reabrir"
+ENDPOINT_OS_ATIVIDADE_CRIAR = "os.atividade.criar"
+ENDPOINT_OS_ATIVIDADE_INICIAR = "os.atividade.iniciar"
+ENDPOINT_OS_ATIVIDADE_CONCLUIR = "os.atividade.concluir"
+ENDPOINT_OS_ATIVIDADE_REAGENDAR = "os.atividade.reagendar"
+ENDPOINT_OS_ATIVIDADE_TRANSFERIR = "os.atividade.transferir"
+
 
 def _active_tenant_ou_403() -> UUID:
     tid = active_tenant_context.get()
@@ -97,6 +117,47 @@ def _erro_response(exc) -> Response:
         {"codigo": exc.codigo, "detalhe": exc.detalhe},
         status=exc.http_status,
     )
+
+
+def _resposta_erro_idempotencia(erro: ErroValidacao) -> Response:
+    """Mapeia ErroValidacao do service de idempotencia -> Response HTTP."""
+    body = {"codigo": erro.codigo, "detalhe": erro.detalhe}
+    if erro.headers:
+        return Response(body, status=erro.http_status, headers=erro.headers)
+    return Response(body, status=erro.http_status)
+
+
+def _aplicar_idempotencia(
+    request,
+    tenant_id: UUID,
+    usuario_id: UUID,
+    endpoint: str,
+    payload_fingerprint: dict,
+) -> tuple[NovoProcessamento | None, Response | None]:
+    """Avalia Idempotency-Key. Retorna (chave_p_concluir, resposta_imediata).
+
+    Caller usa o padrao:
+        novo, resp = _aplicar_idempotencia(...)
+        if resp is not None: return resp
+        # caso novo: executa business + concluir_chave(novo.chave_id, ...)
+    """
+    chave_header = request.META.get("HTTP_IDEMPOTENCY_KEY")
+    avaliacao = avaliar_chave_idempotencia(
+        tenant_id=tenant_id,
+        usuario_id=usuario_id,
+        endpoint=endpoint,
+        chave_header=chave_header,
+        payload=payload_fingerprint,
+    )
+    if isinstance(avaliacao, ErroValidacao):
+        return None, _resposta_erro_idempotencia(avaliacao)
+    if isinstance(avaliacao, Replay):
+        return None, Response(
+            avaliacao.response_body_resumo or {},
+            status=avaliacao.response_status,
+        )
+    assert isinstance(avaliacao, NovoProcessamento)
+    return avaliacao, None
 
 
 # =============================================================
@@ -261,21 +322,35 @@ class OSViewSet(viewsets.ViewSet):
     # POST /v1/os/{id}/cancelar/
     @action(detail=True, methods=["post"])
     def cancelar(self, request, pk=None):
-        _active_tenant_ou_403()
-        user_id = usuario_id_context.get()
+        # idempotency-key: required -- IDEMP-001 retry/duplo-clique
+        tid = _active_tenant_ou_403()
+        user_id = usuario_id_context.get() or uuid4()
         ser = CancelarOSRequestSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         try:
             motivo = MotivoCancelamento(ser.validated_data["motivo"])
         except (ValueError, TypeError) as exc:
             return Response({"codigo": "MotivoInvalido", "detalhe": str(exc)}, status=400)
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tid,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_OS_CANCELAR,
+            payload_fingerprint={
+                "os_id": str(pk),
+                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
         repo = DjangoOSRepository()
         try:
             with transaction.atomic():
                 res = cancelar_os(
                     payload=CancelarOSInput(
                         os_id=UUID(pk),
-                        usuario_id=user_id or uuid4(),
+                        usuario_id=user_id,
                         motivo=motivo,
                         correlation_id=uuid4(),
                         cancelada_em=datetime.now(UTC),
@@ -283,26 +358,53 @@ class OSViewSet(viewsets.ViewSet):
                     repository=repo,
                 )
         except ErroCancelar as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
             return _erro_response(exc)
-        return Response(
-            {
-                "os_id": str(res.os_id),
-                "atividades_canceladas": [str(a) for a in res.atividades_canceladas],
-            },
-            status=status.HTTP_200_OK,
+        body = {
+            "os_id": str(res.os_id),
+            "atividades_canceladas": [str(a) for a in res.atividades_canceladas],
+        }
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tid,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
         )
+        return Response(body, status=status.HTTP_200_OK)
 
     # POST /v1/os/{id}/reabrir/
     @action(detail=True, methods=["post"])
     def reabrir(self, request, pk=None):
-        _active_tenant_ou_403()
-        user_id = usuario_id_context.get()
+        # idempotency-key: required -- IDEMP-001 retry duplica OS-filha
+        tid = _active_tenant_ou_403()
+        user_id = usuario_id_context.get() or uuid4()
         ser = ReabrirOSRequestSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         try:
             motivo = MotivoCancelamento(ser.validated_data["motivo"])
         except (ValueError, TypeError) as exc:
             return Response({"codigo": "MotivoInvalido", "detalhe": str(exc)}, status=400)
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tid,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_OS_REABRIR,
+            payload_fingerprint={
+                "os_origem_id": str(pk),
+                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),
+                "garantia_procedente": ser.validated_data["garantia_procedente"],
+                "sucessao_societaria_id": str(
+                    ser.validated_data.get("sucessao_societaria_id") or ""
+                ),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
         repo = DjangoOSRepository()
         try:
             with transaction.atomic():
@@ -322,15 +424,24 @@ class OSViewSet(viewsets.ViewSet):
                     repository=repo,
                 )
         except ErroReabrir as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
             return _erro_response(exc)
-        return Response(
-            {
-                "os_id_nova": str(res.os_id_nova),
-                "numero_os_nova": res.numero_os_nova,
-                "atividades_clonadas": [str(a) for a in res.atividades_clonadas],
-            },
-            status=status.HTTP_201_CREATED,
+        body = {
+            "os_id_nova": str(res.os_id_nova),
+            "numero_os_nova": res.numero_os_nova,
+            "atividades_clonadas": [str(a) for a in res.atividades_clonadas],
+        }
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tid,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
         )
+        return Response(body, status=status.HTTP_201_CREATED)
 
 
 # =============================================================
@@ -360,10 +471,26 @@ class AtividadeViewSet(viewsets.ViewSet):
     # POST /v1/os/{os_id}/atividades/
     @action(detail=False, methods=["post"], url_path=r"os/(?P<os_id>[^/.]+)/atividades")
     def criar(self, request, os_id=None):
-        _active_tenant_ou_403()
-        user_id = usuario_id_context.get()
+        # idempotency-key: required -- IDEMP-001 retry duplica atividade
+        tid = _active_tenant_ou_403()
+        user_id = usuario_id_context.get() or uuid4()
         ser = AdicionarAtividadeRequestSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tid,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_OS_ATIVIDADE_CRIAR,
+            payload_fingerprint={
+                "os_id": str(os_id),
+                "tipo": str(ser.validated_data["tipo"]),
+                "sequencia": ser.validated_data["sequencia"],
+                "valor_unitario": str(ser.validated_data["valor_unitario"]),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
         repo = DjangoOSRepository()
         try:
             with transaction.atomic():
@@ -382,25 +509,48 @@ class AtividadeViewSet(viewsets.ViewSet):
                     repository=repo,
                 )
         except ErroAdicionarAtividade as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
             return _erro_response(exc)
-        return Response(
-            {
-                "atividade_id": str(res.atividade_id),
-                "os_id": str(res.os_id),
-                "sequencia": res.sequencia,
-            },
-            status=status.HTTP_201_CREATED,
+        body = {
+            "atividade_id": str(res.atividade_id),
+            "os_id": str(res.os_id),
+            "sequencia": res.sequencia,
+        }
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tid,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
         )
+        return Response(body, status=status.HTTP_201_CREATED)
 
     # POST /v1/atividades/{id}/iniciar/
     @action(detail=True, methods=["post"])
     def iniciar(self, request, pk=None):
-        _active_tenant_ou_403()
+        # idempotency-key: required -- IDEMP-001 retry retorna 412 sem replay
+        tid = _active_tenant_ou_403()
         user_id = usuario_id_context.get()
         if user_id is None:
             return Response({"codigo": "UsuarioAusente"}, status=403)
         ser = IniciarAtividadeRequestSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tid,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_OS_ATIVIDADE_INICIAR,
+            payload_fingerprint={
+                "atividade_id": str(pk),
+                "client_event_id": str(ser.validated_data["client_event_id"]),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
         repo = DjangoOSRepository()
         try:
             with transaction.atomic():
@@ -420,24 +570,48 @@ class AtividadeViewSet(viewsets.ViewSet):
                     repository=repo,
                 )
         except ErroIniciarAtividade as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
             return _erro_response(exc)
-        return Response(
-            {
-                "atividade_id": str(res.atividade_id),
-                "os_id": str(res.os_id),
-                "os_transitou_para_em_execucao": res.os_transitou_para_em_execucao,
-            }
+        body = {
+            "atividade_id": str(res.atividade_id),
+            "os_id": str(res.os_id),
+            "os_transitou_para_em_execucao": res.os_transitou_para_em_execucao,
+        }
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tid,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
         )
+        return Response(body)
 
     # POST /v1/atividades/{id}/concluir/
     @action(detail=True, methods=["post"])
     def concluir(self, request, pk=None):
-        _active_tenant_ou_403()
+        # idempotency-key: required -- IDEMP-001 retry retorna 412 sem replay
+        tid = _active_tenant_ou_403()
         user_id = usuario_id_context.get()
         if user_id is None:
             return Response({"codigo": "UsuarioAusente"}, status=403)
         ser = ConcluirAtividadeRequestSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tid,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_OS_ATIVIDADE_CONCLUIR,
+            payload_fingerprint={
+                "atividade_id": str(pk),
+                "aceite_dispensado": ser.validated_data["aceite_dispensado"],
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
         repo = DjangoOSRepository()
         try:
             with transaction.atomic():
@@ -452,23 +626,47 @@ class AtividadeViewSet(viewsets.ViewSet):
                     repository=repo,
                 )
         except ErroConcluirAtividade as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
             return _erro_response(exc)
-        return Response(
-            {
-                "atividade_id": str(res.atividade_id),
-                "os_id": str(res.os_id),
-                "os_transitou_para_concluida": res.os_transitou_para_concluida,
-                "tipo_predominante": res.tipo_predominante,
-            }
+        body = {
+            "atividade_id": str(res.atividade_id),
+            "os_id": str(res.os_id),
+            "os_transitou_para_concluida": res.os_transitou_para_concluida,
+            "tipo_predominante": res.tipo_predominante,
+        }
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tid,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
         )
+        return Response(body)
 
     # POST /v1/atividades/{id}/reagendar/
     @action(detail=True, methods=["post"])
     def reagendar(self, request, pk=None):
-        _active_tenant_ou_403()
-        user_id = usuario_id_context.get()
+        # idempotency-key: required -- IDEMP-001 retry duplica reagendamentos
+        tid = _active_tenant_ou_403()
+        user_id = usuario_id_context.get() or uuid4()
         ser = ReagendarAtividadeRequestSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tid,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_OS_ATIVIDADE_REAGENDAR,
+            payload_fingerprint={
+                "atividade_id": str(pk),
+                "nova_agendada_para": ser.validated_data["nova_agendada_para"].isoformat(),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
         repo = DjangoOSRepository()
         try:
             with transaction.atomic():
@@ -483,20 +681,47 @@ class AtividadeViewSet(viewsets.ViewSet):
                     repository=repo,
                 )
         except ErroTransferir as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
             return _erro_response(exc)
-        return Response({"atividade_id": str(res.atividade_id)})
+        body = {"atividade_id": str(res.atividade_id)}
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tid,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body)
 
     # POST /v1/atividades/{id}/transferir/
     @action(detail=True, methods=["post"])
     def transferir(self, request, pk=None):
-        _active_tenant_ou_403()
-        user_id = usuario_id_context.get()
+        # idempotency-key: required -- IDEMP-001 retry notifica tecnico 2x
+        tid = _active_tenant_ou_403()
+        user_id = usuario_id_context.get() or uuid4()
         ser = TransferirTecnicoRequestSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         try:
             motivo = MotivoCancelamento(ser.validated_data["motivo"])
         except (ValueError, TypeError) as exc:
             return Response({"codigo": "MotivoInvalido", "detalhe": str(exc)}, status=400)
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tid,
+            usuario_id=user_id,
+            endpoint=ENDPOINT_OS_ATIVIDADE_TRANSFERIR,
+            payload_fingerprint={
+                "atividade_id": str(pk),
+                "novo_tecnico_id": str(ser.validated_data["novo_tecnico_id"]),
+                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
         repo = DjangoOSRepository()
         try:
             with transaction.atomic():
@@ -512,5 +737,17 @@ class AtividadeViewSet(viewsets.ViewSet):
                     repository=repo,
                 )
         except ErroTransferir as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
             return _erro_response(exc)
-        return Response({"atividade_id": str(res.atividade_id)})
+        body = {"atividade_id": str(res.atividade_id)}
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tid,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body)

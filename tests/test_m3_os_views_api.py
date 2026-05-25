@@ -212,6 +212,7 @@ def test_post_atividade_iniciar_happy(cenario):
         f"/api/v1/atividades/{atividades[0].id}/iniciar/",
         data={"client_event_id": str(uuid4())},
         format="json",
+        HTTP_IDEMPOTENCY_KEY=str(uuid4()),  # IDEMP-001
     )
     assert resp.status_code == 200, resp.content
     body = resp.json()

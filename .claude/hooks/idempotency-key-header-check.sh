@@ -60,9 +60,16 @@ if printf '%s' "$content" | grep -qE 'idempotency-key:\s*skip\s*--\s*.{10,}'; th
     exit 0
 fi
 
-# Detecta se ha view POST/create
+# Detecta se ha view POST/create:
+#   - def create / def post / def perform_create
+#   - @api_view([POST])
+#   - @action(... methods=["post"] ...) — padrao DRF ViewSet usado em M3 OS
+#     (GATE-IDEMP-HOOK-DETECT-ACTION fechado em P5 conserto 2026-05-24)
 tem_post=0
 if printf '%s' "$content" | grep -qE '(def\s+(create|post|perform_create)\s*\(|@api_view\([^)]*["\047]POST["\047])'; then
+    tem_post=1
+fi
+if printf '%s' "$content" | grep -qE '@action\([^)]*methods\s*=\s*\[[^]]*["\047]post["\047]' ; then
     tem_post=1
 fi
 

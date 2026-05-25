@@ -477,6 +477,18 @@ run_case "IK8 so GET em path critico OK"              PASS  idempotency-key-head
 # Allow inline
 run_case "IK9 skip com motivo"                        PASS  idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/views.py","content":"# idempotency-key: skip -- endpoint internal admin sync sem replay risk\nclass OSSyncView(APIView):\n    def post(self, request): pass"}}'
 
+# GATE-IDEMP-HOOK-DETECT-ACTION (M3 P5 conserto 2026-05-24):
+# detectar @action(methods=["post"]) usado em M3 OS — bug-classe de bypass silencioso
+
+# IK10: @action(methods=POST) sem protecao -> BLOCK
+run_case "IK10 @action POST sem header bloqueia"      BLOCK idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/views.py","content":"class OSViewSet(viewsets.ViewSet):\n    @action(detail=True, methods=[\"post\"])\n    def cancelar(self, request, pk=None):\n        return Response({})"}}'
+
+# IK11: @action(methods=POST) com services_idempotencia -> PASS
+run_case "IK11 @action POST com services_idem PASS"   PASS  idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/views.py","content":"from src.infrastructure.idempotencia.services_idempotencia import avaliar_chave_idempotencia\nclass OSViewSet(viewsets.ViewSet):\n    @action(detail=True, methods=[\"post\"])\n    def cancelar(self, request, pk=None):\n        return Response({})"}}'
+
+# IK12: @action(detail=False, methods=POST) tambem detectado
+run_case "IK12 @action detail=False POST bloqueia"    BLOCK idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/views.py","content":"class AtividadeViewSet(viewsets.ViewSet):\n    @action(detail=False, methods=[\"post\"], url_path=\"x\")\n    def criar(self, request):\n        return Response({})"}}'
+
 echo ""
 echo "===== arquivo-tamanho-aviso (Onda 2 plano-v2 / rede seguranca god-modules) ====="
 
