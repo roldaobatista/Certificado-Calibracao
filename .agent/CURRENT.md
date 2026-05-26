@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 ANDAMENTO Batches A→H (17/18 use cases — + 6 use cases NC ciclo CAPA US-CAL-013/014; 389 tests M4 verdes).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 FECHADA — Batches A→J (21 use cases entregues incluindo NC ciclo CAPA, subcontratação cl. 6.6, reclamação CDC art. 26); 431 tests M4 verdes.**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -117,6 +117,16 @@ T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em
 - CalibracaoSnapshot ampliado com 4 campos (zona_ilac_g8, decisao, pfa_calculada, pra_calculada). _to_snapshot + UPDATE SQL atualizados.
 - 48 tests novos (21 motor decisao + 14 motor PFA/PRA + 13 use case) — todos os 7 zonas cobertas + determinismo replay.
 
+**Batch J entregue (`941ca1f`):**
+- 3 use cases ReclamacaoCalibracao (US-CAL-018 + cl. 7.9 + CDC art. 26): `abrir` (RECEBIDA com janela CDC 90d) + `atribuir_rt` (RECEBIDA→EM_ANALISE com independência AC-CAL-018-2) + `responder` (EM_ANALISE→RESPONDIDA com decisão 3 valores; PROCEDENTE_RECALL sinaliza saga recall M5).
+- Domain: EstadoReclamacao + DecisaoReclamacao + ReclamacaoCalibracaoSnapshot + ReclamacaoCalibracaoRepository Protocol.
+- 23 tests: 7 abrir (janela CDC borda 90/91 + relato + tz) + 6 atribuir_rt (independência + exceção lab pequeno) + 7 responder (3 decisões + recall M5) + conflito estado + smoke E2E.
+
+**Batch I entregue (`d7858d9`):**
+- 2 use cases subcontratação cl. 6.6 (US-CAL-017): `subcontratar_calibracao` (CONFIGURADA→AGUARDANDO_SUBCONTRATADO + AC-CAL-017-1/7/8 + LGPD art. 33 + Lei 14.063 art. 4o) + `registrar_recebimento_subcontratado` (AGUARDANDO→RECEBIDA_DO_SUBCONTRATADO + INV-CAL-FRAUDE-RECEB-001 + AC-CAL-017-3).
+- CalibracaoSnapshot ampliado com 4 campos (subcontratado_id, aceite_subcontratacao_id, certificado_subcontratado_snapshot_json, recebedor_user_id).
+- 19 tests.
+
 **Batch H entregue (`4c0b94b`):**
 - 6 use cases consolidados em `application/metrologia/calibracao/nao_conformidade.py` cobrindo ciclo CAPA cl. 7.10 + cl. 8.7: abrir / definir_acao_corretiva / executar_acao / verificar_eficacia / fechar / reabrir.
 - INV-CAL-NC-002 (decisao != A_DEFINIR antes de ACAO_EXECUTADA) + INV-CAL-NC-003 (PARAR_TRABALHO exige cliente_notificado_em+via) + P-CAL-A2 (responsavel_acao_user_id_hash sempre presente).
@@ -124,13 +134,16 @@ T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em
 - Domain ampliado: 4 enums novos (EstadoNaoConformidade, AcaoCorretivaTipo, DecisaoContinuarOuParar, ClienteNotificadoVia), NaoConformidadeSnapshot (20 campos), NaoConformidadeRepository Protocol.
 - 26 tests novos cobrindo XOR origem + 6 transições + INV-CAL-NC-002/003 + concorrência + smoke E2E.
 
-**Próxima fatia Fase 5 — Batch I: subcontratação cl. 6.6 (US-CAL-017)**
-- `subcontratar_calibracao` — transição CONFIGURADA → AGUARDANDO_SUBCONTRATADO + AceiteSubcontratacao + avaliacao DPA internacional.
-- `registrar_recebimento_subcontratado` — AGUARDANDO_SUBCONTRATADO → RECEBIDA_DO_SUBCONTRATADO + INV-CAL-FRAUDE-RECEB-001 + valida escopo do subcontratado.
-- `avaliar_periodicamente_subcontratado` — score 0-10 + decisão MANTER/ACOMPANHAMENTO/DESCREDENCIAR.
+**P4 Fase 5 FECHADA — 21 use cases entregues, 431 tests verdes.**
 
-**Restantes (Batch J/K — 1 use case):**
-- US-CAL-018 reclamação CDC art. 26.
+**Próxima fatia M4 — P4 Fases 6-10 (queries + jobs + REST views + hooks + regressões):**
+- Fase 6 (T-CAL-104..111): 4 query services (visao_360 calibracao, listagem RT, fila revisor, fila conferente, etc).
+- Fase 7 (T-CAL-112..120): 9 jobs procrastinate (alerta prazo CDC 15d, alerta exceção 2ª conferência 3%/mês, job-pseudonimização-responsavel-NC após 90d, etc).
+- Fase 8 (T-CAL-121..134): 14 endpoints REST views.
+- Fase 9 (T-CAL-135..142): 8 hooks novos (predicate hmac-versao-formato + assinatura A3 e-CPF RT + autorização 2ª conferência etc).
+- Fase 10 (T-CAL-143..160): 16 testes regressão INV-CAL-* + drill `validar_m4_calibracao`.
+
+**Paralelizável P3.5 — 14 tarefas REQUER OAB/CGCRE/SUSEP** (não bloqueia dogfooding; bloqueia 1º tenant externo pago).
 
 **Batches subsequentes (8 use cases restantes — 6 batches estimados):**
 - Batch I-J: aceites regra decisão + override + reclamação CDC.
