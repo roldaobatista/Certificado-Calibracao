@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
-from .entities import CalibracaoSnapshot, LeituraSnapshot
+from .entities import CalibracaoSnapshot, LeituraCorrecaoSnapshot, LeituraSnapshot
 
 
 @runtime_checkable
@@ -105,4 +105,27 @@ class LeituraRepository(Protocol):
     ) -> LeituraSnapshot | None:
         """Idempotencia sync mobile (ADR-0027): se client_event_id ja existe,
         retorna leitura existente em vez de levantar IntegrityError."""
+        ...
+
+
+@runtime_checkable
+class LeituraCorrecaoRepository(Protocol):
+    """Repository de rasuras digitais (cl. 7.5 — append-only WORM).
+
+    Sem UPDATE/DELETE — trigger PG bloqueia mutacao.
+    """
+
+    def salvar_nova(self, snapshot: LeituraCorrecaoSnapshot) -> None:
+        """INSERT da LeituraCorrecao.
+
+        Levanta IntegrityError em violacoes de tenant/RLS — caller
+        traduz pra 404/403.
+        """
+        ...
+
+    def obter_por_id(self, correcao_id: UUID) -> LeituraCorrecaoSnapshot | None:
+        ...
+
+    def listar_por_leitura(self, leitura_id: UUID) -> list[LeituraCorrecaoSnapshot]:
+        """Ordem: corrigido_em ASC (cronologia da rasura)."""
         ...

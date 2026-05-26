@@ -104,6 +104,36 @@ class CalibracaoSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class LeituraCorrecaoSnapshot:
+    """Snapshot de rasura digital sobre uma Leitura (cl. 7.5 ISO 17025).
+
+    Append-only WORM (INV-CAL-WORM-001). NAO muta a Leitura original;
+    grava (valor_original, valor_corrigido, razao_correcao) preservando
+    historico. Auditoria CGCRE retracta a sequencia inteira de correcoes
+    em 25 anos (cl. 8.4).
+
+    AC-CAL-004-7: so permitida quando calibracao.status IN
+    (CONFIGURADA, EM_EXECUCAO). Apos EM_REVISAO_1 a correcao exige
+    reabertura formal via CAPA (gera NaoConformidade — fluxo separado).
+
+    INV-CAL-FRAUDE-COR-001: corretor_id_hash deve ser
+    HashVersionado(request.user.id) — caller calcula e valida que o
+    usuario logado eh quem esta corrigindo.
+    """
+
+    id: UUID
+    tenant_id: UUID
+    leitura_id: UUID  # FK Leitura
+    valor_original: Decimal  # snapshot do valor_lido ANTES da correcao
+    valor_corrigido: Decimal
+    razao_correcao_canonicalizada: str  # >=30 chars + NFC + anti-PII
+    razao_correcao_hash: str  # HashVersionado v<NN>$<base64>
+    corretor_id_hash: str  # HashVersionado(user.id)
+    corrigido_em: datetime  # auto_now_add no PG
+    correlation_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
 class LeituraSnapshot:
     """Snapshot de uma leitura individual em ponto+repeticao (cl. 7.5).
 
