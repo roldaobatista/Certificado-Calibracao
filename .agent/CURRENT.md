@@ -8,7 +8,7 @@
 ## Estado da suíte (2026-05-25)
 
 - pytest geral: **905/0/0** em 26min (último run 2026-05-24).
-- Hooks `_test-runner.sh`: **345/345** verdes / **45 hooks ativos** (+hmac-versao-formato-check.sh + incerteza-versao-motor-check.sh + cmc-binding-check.sh M4 P9).
+- Hooks `_test-runner.sh`: **353/353** verdes / **46 hooks ativos** (M4 P9: +hmac-versao-formato-check.sh +incerteza-versao-motor-check.sh +cmc-binding-check.sh +migration-concorrencia-calibracao-check.sh).
 - ruff/mypy: limpos nos paths novos.
 
 ## M4 calibracao — P3 entregue (matriz reconciliação + tasks.md)
