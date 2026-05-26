@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO DEP-001 numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 INICIADA Batch A (T-CAL-076..080 — domain skeleton + criar_calibracao US-CAL-001; 17 tests).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 ANDAMENTO Batches A+B (2/18 use cases — criar US-CAL-001 + configurar US-CAL-002; 34 tests + CAS optimistic ADR-0065).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -82,20 +82,28 @@ T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em
 - Batch A (`653fb74`) — T-CAL-061..068: seed `0013_seed_authz_calibracao.py` com 6 actions × 5 perfis = 18 linhas em `authz_perfil_acao`. Segregação cl. 6.2.5: metrologista_bancada NÃO aprova próprio trabalho (só configurar+iniciar+solicitar); signatario aprova (aprovar_revisao+aprovar_2a_conferencia).
 - Batch B (`73338a4`) — T-CAL-069..075: `CalibracaoConfig.ready()` registra 3 predicates ABAC com escopos declarados (anti-FB-A1). Migration tornada resiliente a `authz_perfil` vazio (test_afere TRUNCATE) — retorna cedo restaurando RLS quando perfis ausentes; fixture autouse re-aplica seeds via conftest atualizado.
 
-**P4 Fase 5 INICIADA (Batch A — T-CAL-076..080):**
-- Commit `7857a64` (next): domain skeleton (enums + entities + repository Protocol) + use case `criar_calibracao` (US-CAL-001) + adapter Django + 17 tests.
-- Padrão `M3 OS` aplicado: snapshot enxuto (frozen + slots), Protocol no domain, adapter Django em infrastructure, use case puro sem authz check (caller=guard).
+**P4 Fase 5 ANDAMENTO (Batches A + B entregues — 2/18 use cases):**
+- Batch A (`7d4d13a`) — T-CAL-076..080: domain skeleton (enums + entities + repository Protocol) + `criar_calibracao` US-CAL-001 + adapter Django + FakeCalibracaoRepository in-memory. 17 tests.
+- Batch B (`5e8936e`) — T-CAL-081..083: `configurar_calibracao` US-CAL-002 — primeiro CAS optimistic ADR-0065 (RECEPCIONADA → CONFIGURADA). 3 exceções específicas (CalibracaoNaoEncontrada/EstadoInvalido/ConflitoVersao) + validação ADR-0023 (analise crítica coerente com origem) + RBC sem escopo recusa. Snapshot expandido com 6 campos de configuração. 17 tests novos.
 
-**Próxima fatia Fase 5 — Batch B: `configurar_calibracao` (US-CAL-002)**
-- Primeiro CAS real (transição RECEPCIONADA → CONFIGURADA).
-- Cravar grandeza + regra_decisao + analise_critica + procedimento_id + escopo_id (RBC) via ConfiguracaoCalibracao 1:N.
-- Predicates aplicaveis (já registrados na Fase 4): `cmc_cobre` + `procedimento_vigente_para`.
+**Padrão M3 OS estabelecido e aplicado:**
+- Snapshot enxuto (frozen + slots) reflete defaults PG pos-INSERT.
+- Use case puro (sem Django/authz check — caller=guard, use_case=transação).
+- CAS via `repo.atualizar_com_lock(snapshot, revision_anterior)` retorna bool.
+- ConflitoVersao carrega snapshot atualizado pra caller decidir retry/409.
 
-**Batches subsequentes (30 use cases ainda — 13 batches estimados):**
-- Batch C-E: leituras + correção + cálculo de orçamento (chama motor_calculo).
-- Batch F-H: revisão + 2ª conferência + NC + subcontratação.
-- Batch I-K: aceites regra decisão + override + reclamação CDC.
-- Batch L-M: consentimento revogação + analise impacto PT + plano warning.
+**Próxima fatia Fase 5 — Batch C: leituras**
+- `iniciar_leituras` (US-CAL-004) — transição CONFIGURADA → EM_EXECUCAO (CAS).
+- `registrar_leitura` (1:N — entidade Leitura).
+- `corrigir_leitura` (cl. 7.5 rasura digital — entidade LeituraCorrecao).
+- Vai precisar criar `LeituraSnapshot` + repo Leitura.
+
+**Batches subsequentes (16 use cases restantes — 11 batches estimados):**
+- Batch D-E: orçamento incerteza (motor_calculo) + componentes.
+- Batch F-G: revisão + 2ª conferência (ADR-0026 exceção 4 condições).
+- Batch H-I: NC + subcontratação.
+- Batch J-K: aceites regra decisão + override + reclamação CDC.
+- Batch L-M: consentimento revogação + análise impacto PT + plano warning.
 
 **Paralelizável (P3.5 — não bloqueia P4 dogfooding):** 14 tarefas T-CAL-P35-* (minutas OAB + matrizes CGCRE + ADR-0028 rev 3 + DPIA-calibracao). Bloqueia 1º tenant externo pago.
 
