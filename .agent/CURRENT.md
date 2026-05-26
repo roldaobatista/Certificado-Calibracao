@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 ANDAMENTO Batches A+B+C (4/18 use cases — criar US-CAL-001 + configurar US-CAL-002 + iniciar_leituras US-CAL-004 + registrar_leitura; 52 tests).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 ANDAMENTO Batches A→D (5/18 use cases — criar + configurar + iniciar + registrar + corrigir_leitura; 66 tests acumulados).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -98,10 +98,14 @@ T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em
 - `LeituraSnapshot` frozen no domain + `LeituraRepository` Protocol (3 métodos).
 - `OrigemLeitura` enum (MANUAL/INTEGRACAO_SERIAL/INTEGRACAO_USB).
 
-**Próxima fatia Fase 5 — Batch D: rasura digital + orçamento de incerteza**
-- `corrigir_leitura` (cl. 7.5 — INSERT em LeituraCorrecao preservando original).
-- `calcular_orcamento_incerteza` — chama `motor_calculo.gum_classico.propagar` + arredondamento NIT-DICLA-030 + persistência via OrcamentoIncertezaRepository.
-- Precisará: `LeituraCorrecaoSnapshot` + `OrcamentoIncertezaSnapshot` + `ComponenteIncertezaSnapshot`.
+**Batch D entregue (`4c3cab4`):**
+- `corrigir_leitura` (cl. 7.5 — INSERT LeituraCorrecao preservando original) com 14 tests + FakeLeituraCorrecaoRepository.
+- `LeituraCorrecaoSnapshot` + `LeituraCorrecaoRepository` Protocol no domain.
+
+**Próxima fatia Fase 5 — Batch E: orçamento de incerteza**
+- `calcular_orcamento_incerteza` — orquestra `motor_calculo.gum_classico.propagar` + `arredondamento.arredondar_2_digitos_significativos` + persistência via novo `OrcamentoIncertezaRepository`.
+- `OrcamentoIncertezaSnapshot` + `ComponenteIncertezaSnapshot` + Protocol no domain.
+- Use case puro recebe lista de leituras + lista de componentes Tipo B + retorna OrcamentoIncerteza salvo.
 
 **Batches subsequentes (14 use cases restantes — 10 batches estimados):**
 - Batch E-F: revisão (cl. 7.8) + 2ª conferência (ADR-0026 exceção 4 condições).
