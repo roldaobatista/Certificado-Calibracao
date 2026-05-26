@@ -763,6 +763,45 @@ run_case "HV10 SQL hash literal sem prefixo BLOCK"    BLOCK hmac-versao-formato-
 run_case "HV11 docs/ ignora PASS"                     PASS  hmac-versao-formato-check.sh '{"tool_input":{"file_path":"docs/adr/0064.md","content":"evento_hash = \"hash-fake-pra-exemplo\""}}'
 
 echo ""
+echo "===== incerteza-versao-motor-check (M4 P9 INV-CAL-VERSAO-001 / ADR-0025) ====="
+
+# IV1: literal "1.0.0" sem algoritmo+commit -> BLOCK
+run_case "IV1 versao_motor_calculo so semver BLOCK"   BLOCK incerteza-versao-motor-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"versao_motor_calculo = \"1.0.0\""}}'
+
+# IV2: literal sem @commit -> BLOCK
+run_case "IV2 versao sem @commit BLOCK"               BLOCK incerteza-versao-motor-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"versao_motor_calculo = \"GUM_CLASSICO_v1 1.0.0\""}}'
+
+# IV3: literal canonico -> PASS
+run_case "IV3 canonico GUM v1 PASS"                   PASS  incerteza-versao-motor-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"versao_motor_calculo = \"GUM_CLASSICO_v1 1.0.0@a1b2c3d\""}}'
+
+# IV4: literal vazio (RECEPCIONADA default) -> PASS
+run_case "IV4 literal vazio PASS"                     PASS  incerteza-versao-motor-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"versao_motor_calculo = \"\""}}'
+
+# IV5: tests/ auto-allow
+run_case "IV5 tests/ auto-allow PASS"                 PASS  incerteza-versao-motor-check.sh '{"tool_input":{"file_path":"tests/test_foo.py","content":"versao_motor_calculo = \"1.0.0\""}}'
+
+# IV6: migrations/ auto-allow
+run_case "IV6 migrations/ auto-allow PASS"            PASS  incerteza-versao-motor-check.sh '{"tool_input":{"file_path":"src/x/migrations/0001.py","content":"versao_motor_calculo = \"qualquer\""}}'
+
+# IV7: helper unico value_objects.py auto-allow
+run_case "IV7 value_objects.py auto-allow PASS"       PASS  incerteza-versao-motor-check.sh '{"tool_input":{"file_path":"src/domain/metrologia/calibracao/value_objects.py","content":"versao_motor_calculo = \"placeholder\""}}'
+
+# IV8: criar_calibracao.py (default vazio em RECEPCIONADA) auto-allow
+run_case "IV8 criar_calibracao auto-allow PASS"       PASS  incerteza-versao-motor-check.sh '{"tool_input":{"file_path":"src/application/metrologia/calibracao/criar_calibracao.py","content":"versao_motor_calculo = \"\""}}'
+
+# IV9: override skip com motivo
+run_case "IV9 override skip PASS"                     PASS  incerteza-versao-motor-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"versao_motor_calculo = \"x\"  # incerteza-versao: skip -- placeholder antes do helper rodar"}}'
+
+# IV10: OrcamentoIncertezaSnapshot com versao vazia -> BLOCK
+run_case "IV10 OrcamentoSnapshot vazio BLOCK"         BLOCK incerteza-versao-motor-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"orcamento = OrcamentoIncertezaSnapshot(\n    id=x,\n    versao_motor_calculo=\"\",\n)"}}'
+
+# IV11: MONTE_CARLO commit 40 hex -> PASS
+run_case "IV11 MONTE_CARLO commit 40 hex PASS"        PASS  incerteza-versao-motor-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"versao_motor_calculo = \"MONTE_CARLO_v1 2.1.3@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""}}'
+
+# IV12: docs/ ignora exemplos
+run_case "IV12 docs/ ignora PASS"                     PASS  incerteza-versao-motor-check.sh '{"tool_input":{"file_path":"docs/adr/0025.md","content":"versao_motor_calculo = \"exemplo-pra-doc\""}}'
+
+echo ""
 if [ -n "$FILTER" ]; then
     echo "===== resumo (filtro='$FILTER'): $pass ok, $fail falhas, $skipped pulados ====="
 else
