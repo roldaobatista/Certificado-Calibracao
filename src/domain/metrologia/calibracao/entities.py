@@ -38,8 +38,10 @@ from .enums import (
     AcaoCorretivaTipo,
     ClienteNotificadoVia,
     DecisaoContinuarOuParar,
+    DecisaoReclamacao,
     EstadoCalibracao,
     EstadoNaoConformidade,
+    EstadoReclamacao,
     OrigemRecepcao,
     RegraDecisao,
     TipoAcreditacao,
@@ -312,4 +314,45 @@ class NaoConformidadeSnapshot:
     autorizacao_retomada_em: datetime | None
 
     # Auditoria
+    correlation_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class ReclamacaoCalibracaoSnapshot:
+    """Snapshot de ReclamacaoCalibracao (US-CAL-018 + cl. 7.9 + CDC art. 26).
+
+    Estado-maquina: RECEBIDA -> EM_ANALISE -> RESPONDIDA / ARQUIVADA.
+
+    Imutaveis pos-INSERT: calibracao_id, certificado_id, cliente_referencia_hash,
+    relato_canonicalizado, relato_hash, aberta_em.
+
+    Resposta (resposta_canonicalizada + resposta_hash + decisao + respondida_em)
+    preenchida em RESPONDIDA.
+
+    CDC art. 26 (90d janela) eh checado pelo CALLER antes de invocar abrir.
+    """
+
+    id: UUID
+    tenant_id: UUID
+    calibracao_id: UUID  # FK Calibracao (a reclamacao sempre tem cal origem)
+    certificado_id: UUID  # FK Certificado M5 (db_constraint=False)
+    cliente_referencia_hash: str  # HashVersionado ADR-0064 + ADR-0032
+
+    relato_canonicalizado: str  # >=100 chars + anti-PII
+    relato_hash: str
+
+    estado: EstadoReclamacao  # default RECEBIDA
+
+    # Preenchidos em EM_ANALISE (atribuir_rt)
+    rt_atribuido_user_id_hash: str  # default "" em RECEBIDA
+
+    # Preenchidos em RESPONDIDA (responder)
+    resposta_canonicalizada: str  # default "" em RECEBIDA / EM_ANALISE
+    resposta_hash: str
+    decisao: DecisaoReclamacao | None  # None ate RESPONDIDA
+
+    aberta_em: datetime  # tz-aware
+    prazo_resposta_dia_util: int  # default 15 (AC-CAL-018-3)
+    respondida_em: datetime | None
+
     correlation_id: UUID

@@ -132,3 +132,37 @@ class ClienteNotificadoVia(str, Enum):
     EMAIL_PORTAL = "EMAIL_PORTAL"
     A3_ASSINATURA = "A3_ASSINATURA"
     TERMO_PRESENCIAL = "TERMO_PRESENCIAL"
+
+
+class EstadoReclamacao(str, Enum):
+    """4 estados da ReclamacaoCalibracao — US-CAL-018 + cl. 7.9 + CDC art. 26."""
+
+    RECEBIDA = "RECEBIDA"
+    EM_ANALISE = "EM_ANALISE"
+    RESPONDIDA = "RESPONDIDA"
+    ARQUIVADA = "ARQUIVADA"
+
+    @property
+    def terminal(self) -> bool:
+        """RESPONDIDA + ARQUIVADA sao terminais."""
+        return self in {EstadoReclamacao.RESPONDIDA, EstadoReclamacao.ARQUIVADA}
+
+
+class DecisaoReclamacao(str, Enum):
+    """3 decisoes finais da reclamacao (US-CAL-018 + ADR-0045 saga recall)."""
+
+    PROCEDENTE_RECALL = "PROCEDENTE_RECALL"
+    PROCEDENTE_ERRATA = "PROCEDENTE_ERRATA"
+    IMPROCEDENTE = "IMPROCEDENTE"
+
+    @property
+    def dispara_recall_m5(self) -> bool:
+        """PROCEDENTE_RECALL aciona saga recall Marco 5 (ADR-0045)."""
+        return self == DecisaoReclamacao.PROCEDENTE_RECALL
+
+    @property
+    def procedente(self) -> bool:
+        return self in {
+            DecisaoReclamacao.PROCEDENTE_RECALL,
+            DecisaoReclamacao.PROCEDENTE_ERRATA,
+        }

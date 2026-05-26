@@ -20,8 +20,9 @@ from .entities import (
     LeituraSnapshot,
     NaoConformidadeSnapshot,
     OrcamentoIncertezaSnapshot,
+    ReclamacaoCalibracaoSnapshot,
 )
-from .enums import EstadoNaoConformidade
+from .enums import EstadoNaoConformidade, EstadoReclamacao
 
 
 @runtime_checkable
@@ -214,4 +215,34 @@ class NaoConformidadeRepository(Protocol):
           True  - update aplicou (linhas afetadas == 1).
           False - estado mudou concorrentemente OU id nao existe.
         """
+        ...
+
+
+@runtime_checkable
+class ReclamacaoCalibracaoRepository(Protocol):
+    """Repository de ReclamacaoCalibracao (US-CAL-018 + cl. 7.9 + CDC art. 26).
+
+    Estado-maquina: RECEBIDA -> EM_ANALISE -> RESPONDIDA / ARQUIVADA.
+
+    Convencao:
+    - `obter_*` retorna snapshot ou None.
+    - `salvar_nova` insere em RECEBIDA.
+    - `transitar_estado` UPDATE atomico WHERE estado=esperado.
+    """
+
+    def obter_por_id(
+        self, reclamacao_id: UUID
+    ) -> ReclamacaoCalibracaoSnapshot | None:
+        ...
+
+    def salvar_nova(self, snapshot: ReclamacaoCalibracaoSnapshot) -> None:
+        """INSERT em estado RECEBIDA. Levanta IntegrityError em violacao RLS."""
+        ...
+
+    def transitar_estado(
+        self,
+        snapshot: ReclamacaoCalibracaoSnapshot,
+        estado_anterior: EstadoReclamacao,
+    ) -> bool:
+        """UPDATE atomico com guard de estado. Retorna False se mudou concorrentemente."""
         ...
