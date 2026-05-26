@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 ANDAMENTO Batches A→E (6/18 use cases — criar + configurar + iniciar + registrar + corrigir + calcular_orcamento; 83 tests acumulados).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 ANDAMENTO Batches A→F (10/18 use cases — criar + configurar + iniciar + registrar + corrigir + calcular_orcamento + solicitar_revisao + aprovar_revisao + rejeitar_revisao + aprovar_2a_conferencia; 100 tests acumulados).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -104,15 +104,19 @@ T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em
 - 17 tests novos (FakeOrcamentoIncertezaRepository in-memory).
 - Algoritmo 2 (Monte Carlo) NULL — BLOQUEADO DEP-001 numpy.
 
-**Próxima fatia Fase 5 — Batch F: revisão + 2ª conferência**
-- `solicitar_revisao` (US-CAL-006) — transição EM_EXECUCAO → EM_REVISAO_1 via CAS.
-- `aprovar_revisao` (US-CAL-007 cl. 7.8) — transição EM_REVISAO_1 → AGUARDANDO_2A_CONFERENCIA + snapshot_competencia_revisor capturado.
-- `aprovar_2a_conferencia` (US-CAL-008 cl. 6.2.5 + ADR-0026) — transição AGUARDANDO_2A_CONFERENCIA → APROVADA + snapshot_competencia_conferente + bloqueio se revisor=conferente (sem exceção ADR-0026).
-- Predicate `pode_aprovar_revisao_2a_conferencia` (Fase 2 Batch C + Fase 4) será invocado pelo caller antes do use case.
+**Batch F entregue (`8cec1f4`):**
+- 4 use cases novos (T-CAL-087..090): `solicitar_revisao` (EM_EXECUCAO → EM_REVISAO_1) + `aprovar_revisao` (EM_REVISAO_1 → AGUARDANDO_2A_CONFERENCIA + snapshot_competencia_revisor + INV-CAL-FRAUDE-REV-001) + `rejeitar_revisao` (EM_REVISAO_1 → EM_EXECUCAO, motivo ≥30 chars, não queima revisor_id) + `aprovar_2a_conferencia` (AGUARDANDO_2A_CONFERENCIA → APROVADA + INV-CAL-FRAUDE-CONF-001 + ADR-0026 4 condições + excecao_2a_conf_id FK obrigatória quando conferente colide).
+- `CalibracaoSnapshot` ampliado: executor_id + revisor_id + conferente_id + snapshot_competencia_revisor_json + snapshot_competencia_conferente_json + excecao_2a_conf_id (6 campos).
+- `iniciar_leituras` agora exige `executor_id` obrigatório (INV-CAL-FRAUDE-EXEC-001 cravado na transição CONFIGURADA → EM_EXECUCAO). Adapter `repositories.py` SQL UPDATE estendido com os 6 campos.
+- Predicate `pode_aprovar_revisao_2a_conferencia` (Fase 2 Batch C) invocado dentro do use case com `action=revisao` / `action=2a_conferencia` — não fora do escopo (mais defensivo que o esperado do padrão "caller=guard"; padrão de segurança).
+- 17 tests novos em `test_m4_uc_revisao_conferencia.py` (smoke E2E recepção→APROVADA com 3 atores distintos). 312/312 tests M4; hooks 312/312; ruff limpo.
 
-**Batches subsequentes (14 use cases restantes — 10 batches estimados):**
-- Batch E-F: revisão (cl. 7.8) + 2ª conferência (ADR-0026 exceção 4 condições).
-- Batch G-H: NC ciclo CAPA + subcontratação cl. 6.6.
+**Próxima fatia Fase 5 — Batch G/H: avaliação de conformidade + NC ciclo CAPA**
+- `avaliar_conformidade` (US-CAL-006 + AC-CAL-006-1/4 + ADR-0024) — motor §3.3 já entregue Fase 3 (validacao_replay.py); use case dedicado inclui 6 zonas ILAC G8 + PFA/PRA + decisao_lock pós-aprovação.
+- NC ciclo CAPA (US-CAL-013..014) — abrir/analisar/encerrar com estado-máquina 6 estados + INV-CAL-NC-002/003.
+- Subcontratação cl. 6.6 (US-CAL-017) — `subcontratar_calibracao` + `registrar_recebimento_subcontratado` + DPA internacional CHECK.
+
+**Batches subsequentes (8 use cases restantes — 6 batches estimados):**
 - Batch I-J: aceites regra decisão + override + reclamação CDC.
 - Batch K-L: consentimento revogação + análise impacto PT + plano warning.
 - Batch M: NC analise impacto PT + recall (cross-marco M5).
