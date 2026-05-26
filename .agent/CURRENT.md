@@ -8,7 +8,7 @@
 ## Estado da suíte (2026-05-25)
 
 - pytest geral: **905/0/0** em 26min (último run 2026-05-24).
-- Hooks `_test-runner.sh`: **365/365** verdes / **47 hooks ativos** (M4 P9: +hmac-versao-formato-check.sh +incerteza-versao-motor-check.sh +cmc-binding-check.sh +migration-concorrencia-calibracao-check.sh +migration-metrology-classifier.sh).
+- Hooks `_test-runner.sh`: **377/377** verdes / **48 hooks ativos** (M4 P9 FECHADA — 6 hooks: +hmac-versao-formato +incerteza-versao-motor +cmc-binding +migration-concorrencia-calibracao +migration-metrology-classifier +metrology-replay-fixtures-versionadas).
 - ruff/mypy: limpos nos paths novos.
 
 ## M4 calibracao — P3 entregue (matriz reconciliação + tasks.md)
