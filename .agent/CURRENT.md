@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 ANDAMENTO Batches A→G (11/18 use cases — + avaliar_conformidade US-CAL-006 com 6 zonas ILAC G8 + PFA/PRA; 363 tests M4 verdes).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 ANDAMENTO Batches A→H (17/18 use cases — + 6 use cases NC ciclo CAPA US-CAL-013/014; 389 tests M4 verdes).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -117,9 +117,20 @@ T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em
 - CalibracaoSnapshot ampliado com 4 campos (zona_ilac_g8, decisao, pfa_calculada, pra_calculada). _to_snapshot + UPDATE SQL atualizados.
 - 48 tests novos (21 motor decisao + 14 motor PFA/PRA + 13 use case) — todos os 7 zonas cobertas + determinismo replay.
 
-**Próxima fatia Fase 5 — Batch H: NC ciclo CAPA + subcontratação cl. 6.6**
-- NC ciclo CAPA (US-CAL-013..014) — abrir/analisar/encerrar com estado-máquina 6 estados + INV-CAL-NC-002/003.
-- Subcontratação cl. 6.6 (US-CAL-017) — `subcontratar_calibracao` + `registrar_recebimento_subcontratado` + DPA internacional CHECK.
+**Batch H entregue (`4c0b94b`):**
+- 6 use cases consolidados em `application/metrologia/calibracao/nao_conformidade.py` cobrindo ciclo CAPA cl. 7.10 + cl. 8.7: abrir / definir_acao_corretiva / executar_acao / verificar_eficacia / fechar / reabrir.
+- INV-CAL-NC-002 (decisao != A_DEFINIR antes de ACAO_EXECUTADA) + INV-CAL-NC-003 (PARAR_TRABALHO exige cliente_notificado_em+via) + P-CAL-A2 (responsavel_acao_user_id_hash sempre presente).
+- Reabertura cl. 8.7.2: FECHADA → CONTIDA limpa campos do ciclo anterior.
+- Domain ampliado: 4 enums novos (EstadoNaoConformidade, AcaoCorretivaTipo, DecisaoContinuarOuParar, ClienteNotificadoVia), NaoConformidadeSnapshot (20 campos), NaoConformidadeRepository Protocol.
+- 26 tests novos cobrindo XOR origem + 6 transições + INV-CAL-NC-002/003 + concorrência + smoke E2E.
+
+**Próxima fatia Fase 5 — Batch I: subcontratação cl. 6.6 (US-CAL-017)**
+- `subcontratar_calibracao` — transição CONFIGURADA → AGUARDANDO_SUBCONTRATADO + AceiteSubcontratacao + avaliacao DPA internacional.
+- `registrar_recebimento_subcontratado` — AGUARDANDO_SUBCONTRATADO → RECEBIDA_DO_SUBCONTRATADO + INV-CAL-FRAUDE-RECEB-001 + valida escopo do subcontratado.
+- `avaliar_periodicamente_subcontratado` — score 0-10 + decisão MANTER/ACOMPANHAMENTO/DESCREDENCIAR.
+
+**Restantes (Batch J/K — 1 use case):**
+- US-CAL-018 reclamação CDC art. 26.
 
 **Batches subsequentes (8 use cases restantes — 6 batches estimados):**
 - Batch I-J: aceites regra decisão + override + reclamação CDC.
