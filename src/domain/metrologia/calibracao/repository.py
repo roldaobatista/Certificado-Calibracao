@@ -18,8 +18,10 @@ from .entities import (
     ComponenteIncertezaSnapshot,
     LeituraCorrecaoSnapshot,
     LeituraSnapshot,
+    NaoConformidadeSnapshot,
     OrcamentoIncertezaSnapshot,
 )
+from .enums import EstadoNaoConformidade
 
 
 @runtime_checkable
@@ -168,4 +170,48 @@ class OrcamentoIncertezaRepository(Protocol):
     def listar_componentes(
         self, orcamento_id: UUID
     ) -> list[ComponenteIncertezaSnapshot]:
+        ...
+
+
+@runtime_checkable
+class NaoConformidadeRepository(Protocol):
+    """Repository de Nao-Conformidade (cl. 7.10 + cl. 8.7 CAPA).
+
+    Use cases consomem este Protocol; adapter Django concreto vive em
+    src/infrastructure/calibracao/repositories.py.
+
+    Convencao:
+    - Metodos `obter_*` retornam snapshot ou None (sem levantar excecao).
+    - `salvar_novo` insere em estado inicial (CONTIDA).
+    - `transitar_estado` faz UPDATE atomico WHERE estado=esperado;
+      rowcount=0 -> estado mudou concorrentemente (caller decide 409).
+    """
+
+    def obter_por_id(self, nc_id: UUID) -> NaoConformidadeSnapshot | None:
+        """Retorna snapshot da NC se existir no tenant ativo (RLS aplicado)."""
+        ...
+
+    def salvar_novo(self, snapshot: NaoConformidadeSnapshot) -> None:
+        """INSERT em estado CONTIDA.
+
+        Levanta IntegrityError em violacao XOR origem (CHECK migration 0002)
+        ou em violacao de tenant RLS.
+        """
+        ...
+
+    def transitar_estado(
+        self,
+        snapshot: NaoConformidadeSnapshot,
+        estado_anterior: EstadoNaoConformidade,
+    ) -> bool:
+        """UPDATE atomico com guard de estado.
+
+        UPDATE nao_conformidade
+          SET <campos do snapshot> ...
+          WHERE id = %s AND estado = estado_anterior.value
+
+        Retorna:
+          True  - update aplicou (linhas afetadas == 1).
+          False - estado mudou concorrentemente OU id nao existe.
+        """
         ...

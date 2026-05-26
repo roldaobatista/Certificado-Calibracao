@@ -34,7 +34,16 @@ from decimal import Decimal
 from enum import Enum
 from uuid import UUID
 
-from .enums import EstadoCalibracao, OrigemRecepcao, RegraDecisao, TipoAcreditacao
+from .enums import (
+    AcaoCorretivaTipo,
+    ClienteNotificadoVia,
+    DecisaoContinuarOuParar,
+    EstadoCalibracao,
+    EstadoNaoConformidade,
+    OrigemRecepcao,
+    RegraDecisao,
+    TipoAcreditacao,
+)
 from .value_objects import ZonaILACG8
 
 
@@ -232,4 +241,68 @@ class LeituraSnapshot:
     timestamp: datetime  # momento da leitura no instrumento (UTC-aware)
     executor_id_hash: str  # HashVersionado v<NN>$<base64>
     client_event_id: UUID | None  # ADR-0027 — idempotencia sync mobile
+    correlation_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class NaoConformidadeSnapshot:
+    """Snapshot de Nao-Conformidade (cl. 7.10 + cl. 8.7 CAPA).
+
+    Origem mutuamente exclusiva (XOR via CHECK PG):
+      - calibracao_id NOT NULL + origem_proficiencia_id NULL, OU
+      - origem_proficiencia_id NOT NULL + calibracao_id NULL.
+
+    Estado-maquina §4.2: CONTIDA -> ACAO_CORRETIVA_DEFINIDA -> ACAO_EXECUTADA
+      -> EFICACIA_VERIFICADA -> FECHADA. REABERTA volta a CONTIDA
+      (cl. 8.7.2 — NOVO-1 RBC R2).
+
+    Anti-PII P-CAL-A2: responsavel_acao_user_id eh "zona quente" (UUID cru
+    ≤90d); responsavel_acao_user_id_hash eh sempre presente (HashVersionado).
+    Job nc-responsavel-pseudonimizacao zera UUID cru pos prazo.
+    """
+
+    id: UUID
+    tenant_id: UUID
+
+    # Origem XOR
+    calibracao_id: UUID | None
+    origem_proficiencia_id: UUID | None
+
+    # Descricao + hash imutaveis pos-INSERT (INV-CAL-WORM-001)
+    descricao_canonicalizada: str  # >=30 chars + anti-PII + INV-DOC-CANON-001
+    descricao_hash: str  # HashVersionado v<NN>$<base64> ADR-0064
+
+    # Estado
+    estado: EstadoNaoConformidade
+
+    # Acao corretiva (preenchida em CONTIDA -> ACAO_CORRETIVA_DEFINIDA)
+    causa_raiz_canonicalizada: str  # default "" antes de definir
+    causa_raiz_hash: str  # default ""
+    acao_corretiva_descricao_hash: str  # default ""
+    acao_corretiva_tipo: AcaoCorretivaTipo | None  # None ate definir
+
+    # Execucao da acao (preenchida em ACAO_CORRETIVA_DEFINIDA -> ACAO_EXECUTADA)
+    acao_executada_em: datetime | None
+
+    # Verificacao de eficacia (preenchida em ACAO_EXECUTADA -> EFICACIA_VERIFICADA)
+    eficacia_verificada_em: datetime | None
+    eficacia_verificada_por_user_id: UUID | None
+
+    # Responsavel (P-CAL-A2 — UUID ≤90d + hash sempre)
+    responsavel_acao_user_id: UUID | None
+    responsavel_acao_user_id_hash: str  # NOT NULL (default "" so apos pseudonimizacao)
+
+    # Decisao continuar/parar (cl. 7.10.1/2 + INV-CAL-NC-002)
+    decisao_continuar_ou_parar: DecisaoContinuarOuParar
+
+    # Notificacao cliente (INV-CAL-NC-003 quando PARAR_TRABALHO)
+    cliente_notificado_em: datetime | None
+    cliente_notificado_via: ClienteNotificadoVia | None
+    cliente_notificado_documento_id: UUID | None
+
+    # Autorizacao de retomada (apos PARAR_TRABALHO -> CONTINUAR_COM_CONTROLE)
+    autorizacao_retomada_user_id: UUID | None
+    autorizacao_retomada_em: datetime | None
+
+    # Auditoria
     correlation_id: UUID

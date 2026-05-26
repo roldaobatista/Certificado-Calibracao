@@ -90,3 +90,45 @@ class OrigemRecepcao(str, Enum):
 
     ATIVIDADE_OS = "ATIVIDADE_OS"  # acoplada em AtividadeDaOS (campo atividade_os_id NOT NULL)
     AVULSA = "AVULSA"  # recepcao direta (US-CAL-001 — sem OS por tras)
+
+
+class EstadoNaoConformidade(str, Enum):
+    """6 estados da NaoConformidade — cl. 7.10 + cl. 8.7 CAPA (INV-CAL-NC-002/003).
+
+    Maquina de estados §4.2 spec — REABERTA volta sempre a CONTIDA (cl. 8.7.2).
+    """
+
+    CONTIDA = "CONTIDA"
+    ACAO_CORRETIVA_DEFINIDA = "ACAO_CORRETIVA_DEFINIDA"
+    ACAO_EXECUTADA = "ACAO_EXECUTADA"
+    EFICACIA_VERIFICADA = "EFICACIA_VERIFICADA"
+    FECHADA = "FECHADA"
+    REABERTA = "REABERTA"
+
+    @property
+    def terminal(self) -> bool:
+        """FECHADA eh o unico terminal de fato — REABERTA volta a CONTIDA."""
+        return self == EstadoNaoConformidade.FECHADA
+
+
+class AcaoCorretivaTipo(str, Enum):
+    """Tipo de acao corretiva (NOVO-2 RBC R2)."""
+
+    RE_EXECUTAR = "RE_EXECUTAR"
+    AJUSTE_ADMINISTRATIVO = "AJUSTE_ADMINISTRATIVO"
+
+
+class DecisaoContinuarOuParar(str, Enum):
+    """Decisao cl. 7.10.1/2 — INV-CAL-NC-002 (default A_DEFINIR pre-acao)."""
+
+    PARAR_TRABALHO = "PARAR_TRABALHO"
+    CONTINUAR_COM_CONTROLE = "CONTINUAR_COM_CONTROLE"
+    A_DEFINIR = "A_DEFINIR"
+
+
+class ClienteNotificadoVia(str, Enum):
+    """Canal de notificacao ao cliente quando PARAR_TRABALHO (INV-CAL-NC-003)."""
+
+    EMAIL_PORTAL = "EMAIL_PORTAL"
+    A3_ASSINATURA = "A3_ASSINATURA"
+    TERMO_PRESENCIAL = "TERMO_PRESENCIAL"
