@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 ANDAMENTO Batches A→D (5/18 use cases — criar + configurar + iniciar + registrar + corrigir_leitura; 66 tests acumulados).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 ANDAMENTO Batches A→E (6/18 use cases — criar + configurar + iniciar + registrar + corrigir + calcular_orcamento; 83 tests acumulados).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -98,14 +98,17 @@ T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em
 - `LeituraSnapshot` frozen no domain + `LeituraRepository` Protocol (3 métodos).
 - `OrigemLeitura` enum (MANUAL/INTEGRACAO_SERIAL/INTEGRACAO_USB).
 
-**Batch D entregue (`4c3cab4`):**
-- `corrigir_leitura` (cl. 7.5 — INSERT LeituraCorrecao preservando original) com 14 tests + FakeLeituraCorrecaoRepository.
-- `LeituraCorrecaoSnapshot` + `LeituraCorrecaoRepository` Protocol no domain.
+**Batch E entregue (`6d3ff98`):**
+- `calcular_orcamento_incerteza` — orquestra `motor_calculo.gum_classico.propagar` + `arredondamento.arredondar_2_digitos_significativos` + `canonicalizar_payload_para_hmac` + persistência atômica.
+- `OrcamentoIncertezaSnapshot` (17 campos) + `ComponenteIncertezaSnapshot` (12 campos) + `OrcamentoIncertezaRepository` Protocol no domain.
+- 17 tests novos (FakeOrcamentoIncertezaRepository in-memory).
+- Algoritmo 2 (Monte Carlo) NULL — BLOQUEADO DEP-001 numpy.
 
-**Próxima fatia Fase 5 — Batch E: orçamento de incerteza**
-- `calcular_orcamento_incerteza` — orquestra `motor_calculo.gum_classico.propagar` + `arredondamento.arredondar_2_digitos_significativos` + persistência via novo `OrcamentoIncertezaRepository`.
-- `OrcamentoIncertezaSnapshot` + `ComponenteIncertezaSnapshot` + Protocol no domain.
-- Use case puro recebe lista de leituras + lista de componentes Tipo B + retorna OrcamentoIncerteza salvo.
+**Próxima fatia Fase 5 — Batch F: revisão + 2ª conferência**
+- `solicitar_revisao` (US-CAL-006) — transição EM_EXECUCAO → EM_REVISAO_1 via CAS.
+- `aprovar_revisao` (US-CAL-007 cl. 7.8) — transição EM_REVISAO_1 → AGUARDANDO_2A_CONFERENCIA + snapshot_competencia_revisor capturado.
+- `aprovar_2a_conferencia` (US-CAL-008 cl. 6.2.5 + ADR-0026) — transição AGUARDANDO_2A_CONFERENCIA → APROVADA + snapshot_competencia_conferente + bloqueio se revisor=conferente (sem exceção ADR-0026).
+- Predicate `pode_aprovar_revisao_2a_conferencia` (Fase 2 Batch C + Fase 4) será invocado pelo caller antes do use case.
 
 **Batches subsequentes (14 use cases restantes — 10 batches estimados):**
 - Batch E-F: revisão (cl. 7.8) + 2ª conferência (ADR-0026 exceção 4 condições).
