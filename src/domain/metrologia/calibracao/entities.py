@@ -96,6 +96,20 @@ class CalibracaoSnapshot:
     analise_critica_pedido_inline_hash: str  # nao-vazio em recepcao avulsa
     capacidade_tecnica_confirmada_por_user_id: UUID | None  # cl. 7.1.1 avulsa
 
+    # Atores cl. 6.2 (preenchidos progressivamente) — INV-CAL-FRAUDE-EXEC/REV/CONF-001
+    executor_id: UUID | None  # metrologista que iniciou as leituras (US-CAL-004)
+    revisor_id: UUID | None  # RT que aprovou a 1a conferencia (US-CAL-007)
+    conferente_id: UUID | None  # RT que aprovou a 2a conferencia (US-CAL-008)
+
+    # Snapshots de competencia (cl. 6.2 + AC-CAL-007-5/008-4 + INV-CAL-RT-002)
+    # Imutaveis pos-aprovacao. JSONB no PG. None ate aprovacao acontecer.
+    snapshot_competencia_revisor_json: dict[str, object] | None
+    snapshot_competencia_conferente_json: dict[str, object] | None
+
+    # Excecao 2a conferencia (ADR-0026 4 condicoes objetivas + 5%/mes)
+    # FK para Excecao2aConferencia quando conferente_id == revisor_id (excecao registrada).
+    excecao_2a_conf_id: UUID | None
+
     # Auditoria forense (correlation + causation cross-marco)
     correlation_id: UUID
     causation_id: UUID | None  # nova calibracao apos rejeicao/recall (US-CAL-007)

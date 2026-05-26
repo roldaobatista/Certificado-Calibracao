@@ -128,7 +128,9 @@ def _setup_com_leitura(
         cal_repo,
     )
     iniciar_executar(
-        IniciarLeiturasInput(calibracao_id=cal_id, revision_esperada=1),
+        IniciarLeiturasInput(
+            calibracao_id=cal_id, revision_esperada=1, executor_id=uuid4()
+        ),
         cal_repo,
     )
     out = registrar_executar(

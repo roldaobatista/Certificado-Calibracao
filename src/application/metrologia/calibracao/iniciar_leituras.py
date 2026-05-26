@@ -37,6 +37,7 @@ class EstadoInvalidoParaIniciarLeituras(Exception):
 class IniciarLeiturasInput:
     calibracao_id: UUID
     revision_esperada: int  # CAS
+    executor_id: UUID  # metrologista que iniciou (INV-CAL-FRAUDE-EXEC-001)
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,7 +49,13 @@ def executar(
     inp: IniciarLeiturasInput,
     repo: CalibracaoRepository,
 ) -> IniciarLeiturasOutput:
-    """Avanca status: CONFIGURADA -> EM_EXECUCAO via CAS."""
+    """Avanca status: CONFIGURADA -> EM_EXECUCAO via CAS. Crava executor_id.
+
+    INV-CAL-FRAUDE-EXEC-001: executor_id capturado AQUI (na transicao para
+    EM_EXECUCAO) congela a identidade do metrologista responsavel pelas
+    leituras. Caller assegura que `executor_id == request.user.id` antes
+    de invocar (predicate fora deste use case).
+    """
     atual = repo.obter_por_id(inp.calibracao_id)
     if atual is None:
         raise CalibracaoNaoEncontrada(str(inp.calibracao_id))
@@ -63,6 +70,7 @@ def executar(
         atual,
         status=EstadoCalibracao.EM_EXECUCAO,
         revision=atual.revision + 1,
+        executor_id=inp.executor_id,
     )
 
     ok = repo.atualizar_com_lock(novo, inp.revision_esperada)

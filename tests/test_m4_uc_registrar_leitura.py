@@ -132,7 +132,11 @@ def _calibracao_em_execucao(repo: FakeCalibracaoRepository) -> UUID:
         repo,
     )
     iniciar_executar(
-        IniciarLeiturasInput(calibracao_id=criada.snapshot.id, revision_esperada=1),
+        IniciarLeiturasInput(
+            calibracao_id=criada.snapshot.id,
+            revision_esperada=1,
+            executor_id=uuid4(),
+        ),
         repo,
     )
     return criada.snapshot.id

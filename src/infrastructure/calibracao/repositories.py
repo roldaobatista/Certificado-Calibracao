@@ -105,7 +105,13 @@ class DjangoCalibracaoRepository:
                     escopo_id = %s,
                     analise_critica_pedido_id = %s,
                     analise_critica_pedido_inline_hash = %s,
-                    capacidade_tecnica_confirmada_por_user_id = %s
+                    capacidade_tecnica_confirmada_por_user_id = %s,
+                    executor_id = %s,
+                    revisor_id = %s,
+                    conferente_id = %s,
+                    snapshot_competencia_revisor_json = %s::jsonb,
+                    snapshot_competencia_conferente_json = %s::jsonb,
+                    excecao_2a_conf_id = %s
                 WHERE id = %s
                   AND revision = %s
                 """,
@@ -121,6 +127,20 @@ class DjangoCalibracaoRepository:
                     snapshot.analise_critica_pedido_id,
                     snapshot.analise_critica_pedido_inline_hash,
                     snapshot.capacidade_tecnica_confirmada_por_user_id,
+                    snapshot.executor_id,
+                    snapshot.revisor_id,
+                    snapshot.conferente_id,
+                    (
+                        _json.dumps(snapshot.snapshot_competencia_revisor_json)
+                        if snapshot.snapshot_competencia_revisor_json is not None
+                        else None
+                    ),
+                    (
+                        _json.dumps(snapshot.snapshot_competencia_conferente_json)
+                        if snapshot.snapshot_competencia_conferente_json is not None
+                        else None
+                    ),
+                    snapshot.excecao_2a_conf_id,
                     str(snapshot.id),
                     revision_anterior,
                 ],
@@ -159,6 +179,12 @@ class DjangoCalibracaoRepository:
             analise_critica_pedido_id=obj.analise_critica_pedido_id,
             analise_critica_pedido_inline_hash=obj.analise_critica_pedido_inline_hash or "",
             capacidade_tecnica_confirmada_por_user_id=obj.capacidade_tecnica_confirmada_por_user_id,
+            executor_id=obj.executor_id,
+            revisor_id=obj.revisor_id,
+            conferente_id=obj.conferente_id,
+            snapshot_competencia_revisor_json=obj.snapshot_competencia_revisor_json,
+            snapshot_competencia_conferente_json=obj.snapshot_competencia_conferente_json,
+            excecao_2a_conf_id=obj.excecao_2a_conf_id,
             correlation_id=obj.correlation_id,
             causation_id=obj.causation_id,
             criada_em=obj.criada_em,

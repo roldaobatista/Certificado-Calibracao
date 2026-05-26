@@ -136,6 +136,13 @@ def executar(
         analise_critica_pedido_id=None,
         analise_critica_pedido_inline_hash="",
         capacidade_tecnica_confirmada_por_user_id=None,
+        # Atores cl. 6.2 — preenchidos em use cases posteriores
+        executor_id=None,
+        revisor_id=None,
+        conferente_id=None,
+        snapshot_competencia_revisor_json=None,
+        snapshot_competencia_conferente_json=None,
+        excecao_2a_conf_id=None,
         correlation_id=inp.correlation_id,
         causation_id=inp.causation_id,
         criada_em=inp.recepcionada_em,

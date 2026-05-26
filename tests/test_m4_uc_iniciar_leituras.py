@@ -82,7 +82,7 @@ def _calibracao_configurada(repo: FakeCalibracaoRepository) -> UUID:
 def test_happy_configurada_para_em_execucao() -> None:
     repo = FakeCalibracaoRepository()
     cal_id = _calibracao_configurada(repo)
-    out = executar(IniciarLeiturasInput(calibracao_id=cal_id, revision_esperada=1), repo)
+    out = executar(IniciarLeiturasInput(calibracao_id=cal_id, revision_esperada=1, executor_id=uuid4()), repo)
     assert out.snapshot.status == EstadoCalibracao.EM_EXECUCAO
     assert out.snapshot.revision == 2  # configurar incrementou pra 1; iniciar pra 2
 
@@ -91,7 +91,9 @@ def test_calibracao_nao_encontrada() -> None:
     repo = FakeCalibracaoRepository()
     with pytest.raises(CalibracaoNaoEncontrada):
         executar(
-            IniciarLeiturasInput(calibracao_id=uuid4(), revision_esperada=0),
+            IniciarLeiturasInput(
+                calibracao_id=uuid4(), revision_esperada=0, executor_id=uuid4()
+            ),
             repo,
         )
 
@@ -117,7 +119,11 @@ def test_estado_recepcionada_recusa() -> None:
     # Esta em RECEPCIONADA, nao CONFIGURADA — iniciar_leituras deve recusar
     with pytest.raises(EstadoInvalidoParaIniciarLeituras, match="CONFIGURADA"):
         executar(
-            IniciarLeiturasInput(calibracao_id=criada.snapshot.id, revision_esperada=0),
+            IniciarLeiturasInput(
+                calibracao_id=criada.snapshot.id,
+                revision_esperada=0,
+                executor_id=uuid4(),
+            ),
             repo,
         )
 
@@ -128,7 +134,9 @@ def test_conflito_versao_revision_errada() -> None:
     # Revision real eh 1 (apos configurar); passar 99 perde CAS
     with pytest.raises(ConflitoVersaoCalibracao):
         executar(
-            IniciarLeiturasInput(calibracao_id=cal_id, revision_esperada=99),
+            IniciarLeiturasInput(
+                calibracao_id=cal_id, revision_esperada=99, executor_id=uuid4()
+            ),
             repo,
         )
 
@@ -137,6 +145,11 @@ def test_segunda_chamada_em_em_execucao_recusa() -> None:
     """Apos iniciar uma vez, segunda chamada falha em EstadoInvalido (ja EM_EXECUCAO)."""
     repo = FakeCalibracaoRepository()
     cal_id = _calibracao_configurada(repo)
-    executar(IniciarLeiturasInput(calibracao_id=cal_id, revision_esperada=1), repo)
+    executar(IniciarLeiturasInput(calibracao_id=cal_id, revision_esperada=1, executor_id=uuid4()), repo)
     with pytest.raises(EstadoInvalidoParaIniciarLeituras):
-        executar(IniciarLeiturasInput(calibracao_id=cal_id, revision_esperada=2), repo)
+        executar(
+            IniciarLeiturasInput(
+                calibracao_id=cal_id, revision_esperada=2, executor_id=uuid4()
+            ),
+            repo,
+        )
