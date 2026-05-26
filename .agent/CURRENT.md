@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 ANDAMENTO Batches A+B (2/18 use cases — criar US-CAL-001 + configurar US-CAL-002; 34 tests + CAS optimistic ADR-0065).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 ANDAMENTO Batches A+B+C (4/18 use cases — criar US-CAL-001 + configurar US-CAL-002 + iniciar_leituras US-CAL-004 + registrar_leitura; 52 tests).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -92,18 +92,23 @@ T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em
 - CAS via `repo.atualizar_com_lock(snapshot, revision_anterior)` retorna bool.
 - ConflitoVersao carrega snapshot atualizado pra caller decidir retry/409.
 
-**Próxima fatia Fase 5 — Batch C: leituras**
-- `iniciar_leituras` (US-CAL-004) — transição CONFIGURADA → EM_EXECUCAO (CAS).
-- `registrar_leitura` (1:N — entidade Leitura).
-- `corrigir_leitura` (cl. 7.5 rasura digital — entidade LeituraCorrecao).
-- Vai precisar criar `LeituraSnapshot` + repo Leitura.
+**Batch C entregue (`46c5c79` next):**
+- `iniciar_leituras` US-CAL-004 (CONFIGURADA → EM_EXECUCAO via CAS) — 5 tests.
+- `registrar_leitura` (INSERT 1:N + idempotência sync mobile ADR-0027) — 13 tests + FakeLeituraRepository.
+- `LeituraSnapshot` frozen no domain + `LeituraRepository` Protocol (3 métodos).
+- `OrigemLeitura` enum (MANUAL/INTEGRACAO_SERIAL/INTEGRACAO_USB).
 
-**Batches subsequentes (16 use cases restantes — 11 batches estimados):**
-- Batch D-E: orçamento incerteza (motor_calculo) + componentes.
-- Batch F-G: revisão + 2ª conferência (ADR-0026 exceção 4 condições).
-- Batch H-I: NC + subcontratação.
-- Batch J-K: aceites regra decisão + override + reclamação CDC.
-- Batch L-M: consentimento revogação + análise impacto PT + plano warning.
+**Próxima fatia Fase 5 — Batch D: rasura digital + orçamento de incerteza**
+- `corrigir_leitura` (cl. 7.5 — INSERT em LeituraCorrecao preservando original).
+- `calcular_orcamento_incerteza` — chama `motor_calculo.gum_classico.propagar` + arredondamento NIT-DICLA-030 + persistência via OrcamentoIncertezaRepository.
+- Precisará: `LeituraCorrecaoSnapshot` + `OrcamentoIncertezaSnapshot` + `ComponenteIncertezaSnapshot`.
+
+**Batches subsequentes (14 use cases restantes — 10 batches estimados):**
+- Batch E-F: revisão (cl. 7.8) + 2ª conferência (ADR-0026 exceção 4 condições).
+- Batch G-H: NC ciclo CAPA + subcontratação cl. 6.6.
+- Batch I-J: aceites regra decisão + override + reclamação CDC.
+- Batch K-L: consentimento revogação + análise impacto PT + plano warning.
+- Batch M: NC analise impacto PT + recall (cross-marco M5).
 
 **Paralelizável (P3.5 — não bloqueia P4 dogfooding):** 14 tarefas T-CAL-P35-* (minutas OAB + matrizes CGCRE + ADR-0028 rev 3 + DPIA-calibracao). Bloqueia 1º tenant externo pago.
 
