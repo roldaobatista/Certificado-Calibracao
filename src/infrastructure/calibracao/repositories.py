@@ -116,7 +116,11 @@ class DjangoCalibracaoRepository:
                     zona_ilac_g8 = %s,
                     decisao = %s,
                     pfa_calculada = %s,
-                    pra_calculada = %s
+                    pra_calculada = %s,
+                    subcontratado_id = %s,
+                    aceite_subcontratacao_id = %s,
+                    certificado_subcontratado_snapshot_json = %s::jsonb,
+                    recebedor_user_id = %s
                 WHERE id = %s
                   AND revision = %s
                 """,
@@ -150,6 +154,14 @@ class DjangoCalibracaoRepository:
                     snapshot.decisao,
                     snapshot.pfa_calculada,
                     snapshot.pra_calculada,
+                    snapshot.subcontratado_id,
+                    snapshot.aceite_subcontratacao_id,
+                    (
+                        _json.dumps(snapshot.certificado_subcontratado_snapshot_json)
+                        if snapshot.certificado_subcontratado_snapshot_json is not None
+                        else None
+                    ),
+                    snapshot.recebedor_user_id,
                     str(snapshot.id),
                     revision_anterior,
                 ],
@@ -198,6 +210,10 @@ class DjangoCalibracaoRepository:
             decisao=obj.decisao or "NA",
             pfa_calculada=obj.pfa_calculada,
             pra_calculada=obj.pra_calculada,
+            subcontratado_id=obj.subcontratado_id,
+            aceite_subcontratacao_id=obj.aceite_subcontratacao_id,
+            certificado_subcontratado_snapshot_json=obj.certificado_subcontratado_snapshot_json,
+            recebedor_user_id=obj.recebedor_user_id,
             correlation_id=obj.correlation_id,
             causation_id=obj.causation_id,
             criada_em=obj.criada_em,

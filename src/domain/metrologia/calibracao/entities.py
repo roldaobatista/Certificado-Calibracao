@@ -127,6 +127,13 @@ class CalibracaoSnapshot:
     pfa_calculada: Decimal | None  # NOT NULL quando regra=BANDA_GUARDA_30 (INV-CAL-DEC-004)
     pra_calculada: Decimal | None  # NOT NULL quando regra=RISCO_COMPARTILHADO (INV-CAL-DEC-004)
 
+    # Subcontratacao US-CAL-017 (cl. 6.6 + INV-CAL-SUBC-001..006)
+    # Preenchidos quando fluxo subcontratacao ativo. None na criacao.
+    subcontratado_id: UUID | None  # FK LaboratorioSubcontratado
+    aceite_subcontratacao_id: UUID | None  # FK AceiteSubcontratacao (INV-CAL-SUBC-001)
+    certificado_subcontratado_snapshot_json: dict[str, object] | None  # cert recebido
+    recebedor_user_id: UUID | None  # INV-CAL-FRAUDE-RECEB-001 (quem registrou recebimento)
+
     # Auditoria forense (correlation + causation cross-marco)
     correlation_id: UUID
     causation_id: UUID | None  # nova calibracao apos rejeicao/recall (US-CAL-007)

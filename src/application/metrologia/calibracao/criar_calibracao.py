@@ -149,6 +149,11 @@ def executar(
         decisao="NA",
         pfa_calculada=None,
         pra_calculada=None,
+        # Subcontratacao — None ate fluxo subcontratacao ativar (US-CAL-017)
+        subcontratado_id=None,
+        aceite_subcontratacao_id=None,
+        certificado_subcontratado_snapshot_json=None,
+        recebedor_user_id=None,
         correlation_id=inp.correlation_id,
         causation_id=inp.causation_id,
         criada_em=inp.recepcionada_em,
