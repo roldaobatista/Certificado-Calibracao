@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
-from .entities import CalibracaoSnapshot
+from .entities import CalibracaoSnapshot, LeituraSnapshot
 
 
 @runtime_checkable
@@ -69,4 +69,40 @@ class CalibracaoRepository(Protocol):
           - retry com obter_por_id + recomputar (default optimistic).
           - falhar com 409 Conflict (em endpoints POST sem idempotencia).
         """
+        ...
+
+
+@runtime_checkable
+class LeituraRepository(Protocol):
+    """Repository de Leituras (1:N de Calibracao).
+
+    Imutaveis pos-INSERT — trigger PG bloqueia UPDATE/DELETE
+    (INV-CAL-WORM-001). Por isso so ha `salvar_nova` + `obter_*`.
+    Correcoes acontecem via LeituraCorrecao (rasura digital cl. 7.5).
+    """
+
+    def salvar_nova(self, snapshot: LeituraSnapshot) -> None:
+        """INSERT da Leitura.
+
+        Levanta:
+          - IntegrityError em violacao da UNIQUE composta
+            (tenant, calibracao, ponto, repeticao) — INV-CAL-CONC-001.
+            Caller traduz para 409 Conflict (corrida ADR-0065).
+          - IntegrityError em violacao da UNIQUE client_event_id (sync
+            mobile ADR-0027) — caller trata como idempotencia (200/OK).
+        """
+        ...
+
+    def obter_por_id(self, leitura_id: UUID) -> LeituraSnapshot | None:
+        """Retorna snapshot da Leitura (RLS aplicado)."""
+        ...
+
+    def obter_por_client_event(
+        self,
+        tenant_id: UUID,
+        calibracao_id: UUID,
+        client_event_id: UUID,
+    ) -> LeituraSnapshot | None:
+        """Idempotencia sync mobile (ADR-0027): se client_event_id ja existe,
+        retorna leitura existente em vez de levantar IntegrityError."""
         ...

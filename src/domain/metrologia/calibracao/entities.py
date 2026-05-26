@@ -30,9 +30,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
+from enum import Enum
 from uuid import UUID
 
 from .enums import EstadoCalibracao, OrigemRecepcao, RegraDecisao, TipoAcreditacao
+
+
+class OrigemLeitura(str, Enum):
+    """Origem da leitura (cl. 7.5 ISO 17025 + INV-CAL-FRAUDE-EXEC-001)."""
+
+    MANUAL = "MANUAL"
+    INTEGRACAO_SERIAL = "INTEGRACAO_SERIAL"
+    INTEGRACAO_USB = "INTEGRACAO_USB"
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,3 +101,31 @@ class CalibracaoSnapshot:
     causation_id: UUID | None  # nova calibracao apos rejeicao/recall (US-CAL-007)
     criada_em: datetime  # auto_now_add no PG
     criada_por_user_id: UUID | None
+
+
+@dataclass(frozen=True, slots=True)
+class LeituraSnapshot:
+    """Snapshot de uma leitura individual em ponto+repeticao (cl. 7.5).
+
+    1:N de Calibracao. Imutavel pos-INSERT (INV-CAL-WORM-001). Correcoes
+    via LeituraCorrecao (rasura digital — entidade separada).
+
+    UNIQUE composto (tenant, calibracao, ponto_calibracao, numero_repeticao)
+    impede leituras duplicadas concorrentes (ADR-0065 + INV-CAL-CONC-001).
+
+    `executor_id_hash` substitui UUID cru — INV-CAL-FRAUDE-EXEC-001 +
+    anti-stalking pos retencao 25a.
+    """
+
+    id: UUID
+    tenant_id: UUID
+    calibracao_id: UUID
+    ponto_calibracao: Decimal
+    numero_repeticao: int  # 1, 2, 3, ...
+    valor_lido: Decimal
+    unidade: str
+    origem: OrigemLeitura
+    timestamp: datetime  # momento da leitura no instrumento (UTC-aware)
+    executor_id_hash: str  # HashVersionado v<NN>$<base64>
+    client_event_id: UUID | None  # ADR-0027 — idempotencia sync mobile
+    correlation_id: UUID
