@@ -104,6 +104,58 @@ class CalibracaoSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class ComponenteIncertezaSnapshot:
+    """Componente individual do orcamento (1:N de OrcamentoIncerteza).
+
+    Imutavel pos-INSERT (INV-CAL-WORM-001). Tipo A exige n_amostras >=6
+    + s_x NOT NULL (INV-CAL-INC-003 + NIT-DICLA-030 §7.4).
+    """
+
+    id: UUID
+    tenant_id: UUID
+    orcamento_incerteza_id: UUID
+    nome_componente: str
+    tipo_componente: str  # 'A' ou 'B'
+    valor_estimativa: Decimal
+    contribuicao: Decimal  # u_i^2 ponderado (depois aplicado coeficiente sensibilidade)
+    grau_liberdade: Decimal | None  # NULL pra Tipo B com dof=infinito
+    n_amostras: int | None  # NOT NULL quando Tipo A (>=6)
+    s_x: Decimal | None  # desvio-padrao amostral (NOT NULL quando Tipo A)
+    correlacao_com_componente_id: UUID | None
+    coeficiente_correlacao: Decimal | None  # -1 a 1
+
+
+@dataclass(frozen=True, slots=True)
+class OrcamentoIncertezaSnapshot:
+    """Orcamento de incerteza (NIT-DICLA-030 rev. 15 + GUM JCGM 100:2008).
+
+    Imutavel pos-EM_REVISAO_1 (INV-CAL-WORM-001 — trigger PG).
+    Algoritmo 1 (GUM Decimal) obrigatorio; algoritmo 2 (Monte Carlo)
+    opcional dependendo da grandeza.
+    """
+
+    id: UUID
+    tenant_id: UUID
+    calibracao_id: UUID
+    u_combinada: Decimal  # u_c (cl. 5.1.2 GUM)
+    grau_liberdade_efetivo: Decimal  # Welch-Satterthwaite (G.4)
+    k: Decimal  # fator de cobertura (default 2.0)
+    U_expandida: Decimal  # - U eh notacao metrologica canonica
+    nivel_confianca: Decimal  # default 0.9545
+    documentacao_agregacao: str  # >=50 chars (INV-CAL-INC-001)
+    versao_motor_calculo: str  # semver + commit (ADR-0025 + INV-CAL-VERSAO-001)
+    algoritmo_1_resultado: dict[str, object]  # GUM Decimal completo
+    algoritmo_2_resultado: dict[str, object] | None  # Monte Carlo NumPy
+    divergencia_pct: Decimal | None  # NULL se algoritmo_2 nao rodou
+    replay_determinismo_hash: str  # HashVersionado v<NN>$<base64>
+    bias_orcado: Decimal | None
+    bias_origem: str  # vazio se sem bias
+    arredondamento_aplicado_regra: str  # default 'NIT_DICLA_030_2_DIGITOS_SIG'
+    calculado_em: datetime  # auto_now_add no PG
+    correlation_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
 class LeituraCorrecaoSnapshot:
     """Snapshot de rasura digital sobre uma Leitura (cl. 7.5 ISO 17025).
 

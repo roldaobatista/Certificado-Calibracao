@@ -13,7 +13,13 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
-from .entities import CalibracaoSnapshot, LeituraCorrecaoSnapshot, LeituraSnapshot
+from .entities import (
+    CalibracaoSnapshot,
+    ComponenteIncertezaSnapshot,
+    LeituraCorrecaoSnapshot,
+    LeituraSnapshot,
+    OrcamentoIncertezaSnapshot,
+)
 
 
 @runtime_checkable
@@ -128,4 +134,38 @@ class LeituraCorrecaoRepository(Protocol):
 
     def listar_por_leitura(self, leitura_id: UUID) -> list[LeituraCorrecaoSnapshot]:
         """Ordem: corrigido_em ASC (cronologia da rasura)."""
+        ...
+
+
+@runtime_checkable
+class OrcamentoIncertezaRepository(Protocol):
+    """Repository do orcamento de incerteza (1:1 ou 1:N de Calibracao —
+    ha cenarios onde a Calibracao tem orcamento global + orcamento por
+    ponto). Aqui cobrimos o orcamento global (snapshot agregado).
+
+    Imutavel pos-EM_REVISAO_1 — trigger PG bloqueia mutacao.
+    Persistencia atomica: orcamento + componentes em mesma transacao;
+    caller envolve em transaction.atomic.
+    """
+
+    def salvar_orcamento_com_componentes(
+        self,
+        orcamento: OrcamentoIncertezaSnapshot,
+        componentes: list[ComponenteIncertezaSnapshot],
+    ) -> None:
+        """INSERT atomico do orcamento + N componentes (1:N).
+
+        Levanta IntegrityError em violacoes (RLS / CHECK Tipo A n>=6 /
+        FK self-correlacao circular).
+        """
+        ...
+
+    def obter_por_id(
+        self, orcamento_id: UUID
+    ) -> OrcamentoIncertezaSnapshot | None:
+        ...
+
+    def listar_componentes(
+        self, orcamento_id: UUID
+    ) -> list[ComponenteIncertezaSnapshot]:
         ...
