@@ -198,6 +198,11 @@
           },
           {
             "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/metrology-replay-fixtures-versionadas.sh\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/equipamento-imutabilidade-check.sh\"",
             "timeout": 5
           },

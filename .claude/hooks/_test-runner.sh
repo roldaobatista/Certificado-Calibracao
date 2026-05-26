@@ -901,6 +901,45 @@ run_case "MM11 override skip PASS"                    PASS  migration-metrology-
 run_case "MM12 classificacao invalida BLOCK"          BLOCK migration-metrology-classifier.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099_x.py","content":"# metrologia-classificacao: XQ\n# replay-fixture: none\noperations = [migrations.AddField()]"}}'
 
 echo ""
+echo "===== metrology-replay-fixtures-versionadas (M4 P9 T-CAL-142 / INV-CAL-VERSAO-001) ====="
+
+# MF1: JSON sem aceite -> BLOCK
+run_case "MF1 JSON sem aceite BLOCK"                  BLOCK metrology-replay-fixtures-versionadas.sh '{"tool_input":{"file_path":"tests/replay_metrologico/massa.json","content":"{\"resultado\": 1.23}"}}'
+
+# MF2: JSON com aceite -> PASS
+run_case "MF2 JSON com aceite PASS"                   PASS  metrology-replay-fixtures-versionadas.sh '{"tool_input":{"file_path":"tests/replay_metrologico/massa.json","content":"{\"_aceite_motivo\": \"atualizacao motor v1.2.0 commit abc123 — ADR-0025 cl. 7.11\", \"resultado\": 1.23}"}}'
+
+# MF3: .py com aceite -> PASS
+run_case "MF3 py com aceite PASS"                     PASS  metrology-replay-fixtures-versionadas.sh '{"tool_input":{"file_path":"tests/replay_metrologico/massa.py","content":"# replay-fixture-aceite: atualizacao motor v1.2.0 commit abc — ADR-0025\nFIXTURE = {}"}}'
+
+# MF4: .py sem aceite -> BLOCK
+run_case "MF4 py sem aceite BLOCK"                    BLOCK metrology-replay-fixtures-versionadas.sh '{"tool_input":{"file_path":"tests/replay_metrologico/massa.py","content":"FIXTURE = {}"}}'
+
+# MF5: README admin -> PASS
+run_case "MF5 README admin PASS"                      PASS  metrology-replay-fixtures-versionadas.sh '{"tool_input":{"file_path":"tests/replay_metrologico/README.md","content":"# Fixtures de replay"}}'
+
+# MF6: fora replay_metrologico -> PASS
+run_case "MF6 fora replay_metrologico PASS"           PASS  metrology-replay-fixtures-versionadas.sh '{"tool_input":{"file_path":"tests/test_foo.py","content":"x = 1"}}'
+
+# MF7: init da pasta -> PASS
+run_case "MF7 init pasta PASS"                        PASS  metrology-replay-fixtures-versionadas.sh '{"tool_input":{"file_path":"tests/replay_metrologico/seed.json","content":"# replay-fixture-init\n{\"placeholder\": true}"}}'
+
+# MF8: override skip
+run_case "MF8 override skip PASS"                     PASS  metrology-replay-fixtures-versionadas.sh '{"tool_input":{"file_path":"tests/replay_metrologico/massa.json","content":"# replay-fixture: skip -- emergencia bug critico ZE-12345 documentado"}}'
+
+# MF9: extensao desconhecida (.csv) -> BLOCK
+run_case "MF9 extensao csv desconhecida BLOCK"        BLOCK metrology-replay-fixtures-versionadas.sh '{"tool_input":{"file_path":"tests/replay_metrologico/massa.csv","content":"col1,col2"}}'
+
+# MF10: __init__.py auto-allow
+run_case "MF10 __init__.py auto-allow PASS"           PASS  metrology-replay-fixtures-versionadas.sh '{"tool_input":{"file_path":"tests/replay_metrologico/__init__.py","content":""}}'
+
+# MF11: YAML com aceite -> PASS
+run_case "MF11 YAML com aceite PASS"                  PASS  metrology-replay-fixtures-versionadas.sh '{"tool_input":{"file_path":"tests/replay_metrologico/massa.yaml","content":"# replay-fixture-aceite: atualizacao motor v1.2.0 commit abc — ADR-0025\nfixture:\n  resultado: 1.23"}}'
+
+# MF12: aceite curto (<20 chars) -> BLOCK
+run_case "MF12 aceite curto JSON BLOCK"               BLOCK metrology-replay-fixtures-versionadas.sh '{"tool_input":{"file_path":"tests/replay_metrologico/massa.json","content":"{\"_aceite_motivo\": \"curto\"}"}}'
+
+echo ""
 if [ -n "$FILTER" ]; then
     echo "===== resumo (filtro='$FILTER'): $pass ok, $fail falhas, $skipped pulados ====="
 else
