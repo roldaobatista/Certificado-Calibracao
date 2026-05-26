@@ -20,6 +20,7 @@ from src.domain.metrologia.calibracao.enums import (
     RegraDecisao,
     TipoAcreditacao,
 )
+from src.domain.metrologia.calibracao.value_objects import ZonaILACG8
 from src.infrastructure.calibracao.models import Calibracao
 
 
@@ -111,7 +112,11 @@ class DjangoCalibracaoRepository:
                     conferente_id = %s,
                     snapshot_competencia_revisor_json = %s::jsonb,
                     snapshot_competencia_conferente_json = %s::jsonb,
-                    excecao_2a_conf_id = %s
+                    excecao_2a_conf_id = %s,
+                    zona_ilac_g8 = %s,
+                    decisao = %s,
+                    pfa_calculada = %s,
+                    pra_calculada = %s
                 WHERE id = %s
                   AND revision = %s
                 """,
@@ -141,6 +146,10 @@ class DjangoCalibracaoRepository:
                         else None
                     ),
                     snapshot.excecao_2a_conf_id,
+                    snapshot.zona_ilac_g8.value,
+                    snapshot.decisao,
+                    snapshot.pfa_calculada,
+                    snapshot.pra_calculada,
                     str(snapshot.id),
                     revision_anterior,
                 ],
@@ -185,6 +194,10 @@ class DjangoCalibracaoRepository:
             snapshot_competencia_revisor_json=obj.snapshot_competencia_revisor_json,
             snapshot_competencia_conferente_json=obj.snapshot_competencia_conferente_json,
             excecao_2a_conf_id=obj.excecao_2a_conf_id,
+            zona_ilac_g8=ZonaILACG8(obj.zona_ilac_g8),
+            decisao=obj.decisao or "NA",
+            pfa_calculada=obj.pfa_calculada,
+            pra_calculada=obj.pra_calculada,
             correlation_id=obj.correlation_id,
             causation_id=obj.causation_id,
             criada_em=obj.criada_em,

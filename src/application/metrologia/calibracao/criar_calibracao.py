@@ -41,6 +41,7 @@ from src.domain.metrologia.calibracao.enums import (
     TipoAcreditacao,
 )
 from src.domain.metrologia.calibracao.repository import CalibracaoRepository
+from src.domain.metrologia.calibracao.value_objects import ZonaILACG8
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,6 +144,11 @@ def executar(
         snapshot_competencia_revisor_json=None,
         snapshot_competencia_conferente_json=None,
         excecao_2a_conf_id=None,
+        # Avaliacao de conformidade — default NA ate avaliar_conformidade rodar
+        zona_ilac_g8=ZonaILACG8.NA,
+        decisao="NA",
+        pfa_calculada=None,
+        pra_calculada=None,
         correlation_id=inp.correlation_id,
         causation_id=inp.causation_id,
         criada_em=inp.recepcionada_em,

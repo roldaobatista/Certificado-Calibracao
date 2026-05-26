@@ -35,6 +35,7 @@ from enum import Enum
 from uuid import UUID
 
 from .enums import EstadoCalibracao, OrigemRecepcao, RegraDecisao, TipoAcreditacao
+from .value_objects import ZonaILACG8
 
 
 class OrigemLeitura(str, Enum):
@@ -109,6 +110,13 @@ class CalibracaoSnapshot:
     # Excecao 2a conferencia (ADR-0026 4 condicoes objetivas + 5%/mes)
     # FK para Excecao2aConferencia quando conferente_id == revisor_id (excecao registrada).
     excecao_2a_conf_id: UUID | None
+
+    # Avaliacao de conformidade (US-CAL-006 + ADR-0024 revisado + ILAC G8:2019 §4)
+    # Preenchidos por avaliar_conformidade; default NA na criacao (PG: default 'NA').
+    zona_ilac_g8: ZonaILACG8  # default ZonaILACG8.NA
+    decisao: str  # default "NA"; CONFORME / NAO_CONFORME / NA (derivada da zona)
+    pfa_calculada: Decimal | None  # NOT NULL quando regra=BANDA_GUARDA_30 (INV-CAL-DEC-004)
+    pra_calculada: Decimal | None  # NOT NULL quando regra=RISCO_COMPARTILHADO (INV-CAL-DEC-004)
 
     # Auditoria forense (correlation + causation cross-marco)
     correlation_id: UUID
