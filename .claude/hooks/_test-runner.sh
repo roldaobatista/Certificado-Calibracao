@@ -862,6 +862,45 @@ run_case "MC7 calibracao migration neutra PASS"       PASS  migration-concorrenc
 run_case "MC8 nao-migration ignora PASS"              PASS  migration-concorrencia-calibracao-check.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/models.py","content":"class Leitura(models.Model):\n    revision = None"}}'
 
 echo ""
+echo "===== migration-metrology-classifier (M4 P9 ADR-0025 cl. 7.11.3) ====="
+
+# MM1: migration calibracao sem cabecalho -> BLOCK
+run_case "MM1 sem cabecalho BLOCK"                    BLOCK migration-metrology-classifier.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099_x.py","content":"operations = [migrations.AddField(model_name=\"calibracao\", name=\"x\", field=models.IntegerField())]"}}'
+
+# MM2: IQ + replay-fixture: none -> PASS
+run_case "MM2 IQ + none PASS"                         PASS  migration-metrology-classifier.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099_x.py","content":"# metrologia-classificacao: IQ\n# replay-fixture: none\noperations = [migrations.AddField()]"}}'
+
+# MM3: OQ + replay-fixture path -> PASS
+run_case "MM3 OQ + path PASS"                         PASS  migration-metrology-classifier.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099_x.py","content":"# metrologia-classificacao: OQ\n# replay-fixture: tests/replay_metrologico/massa.json\noperations = [migrations.AlterField()]"}}'
+
+# MM4: OQ + replay-fixture=none SEM aceite -> BLOCK
+run_case "MM4 OQ + none sem aceite BLOCK"             BLOCK migration-metrology-classifier.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099_x.py","content":"# metrologia-classificacao: OQ\n# replay-fixture: none\noperations = [migrations.AlterField()]"}}'
+
+# MM5: OQ + replay-fixture=none + aceite -> PASS
+run_case "MM5 OQ + none + aceite PASS"                PASS  migration-metrology-classifier.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099_x.py","content":"# metrologia-classificacao: OQ\n# replay-fixture: none\n# replay-fixture-aceite: tabela auxiliar de configuracao sem dado metrologico afetado\noperations = [migrations.AlterField()]"}}'
+
+# MM6: PQ + replay-fixture path -> PASS
+run_case "MM6 PQ + path PASS"                         PASS  migration-metrology-classifier.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099_x.py","content":"# metrologia-classificacao: PQ\n# replay-fixture: tests/replay_metrologico/temperatura.json\noperations = [migrations.RunPython(motor_atualizar)]"}}'
+
+# MM7: PQ + replay=none sem aceite -> BLOCK
+run_case "MM7 PQ + none sem aceite BLOCK"             BLOCK migration-metrology-classifier.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099_x.py","content":"# metrologia-classificacao: PQ\n# replay-fixture: none\noperations = [migrations.RunPython(motor)]"}}'
+
+# MM8: migration neutra sem operations -> PASS (so docstring/imports)
+run_case "MM8 neutra docstring PASS"                  PASS  migration-metrology-classifier.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099_x.py","content":"# apenas docstring de explicacao\n\nfrom django.db import migrations\n\nclass Migration(migrations.Migration):\n    dependencies = []"}}'
+
+# MM9: 0001_initial.py auto-allow
+run_case "MM9 0001_initial auto-allow PASS"           PASS  migration-metrology-classifier.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0001_initial.py","content":"operations = [migrations.CreateModel()]"}}'
+
+# MM10: fora calibracao/migrations ignora
+run_case "MM10 fora calibracao ignora PASS"           PASS  migration-metrology-classifier.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/migrations/0099_x.py","content":"operations = [migrations.AddField()]"}}'
+
+# MM11: override skip
+run_case "MM11 override skip PASS"                    PASS  migration-metrology-classifier.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099.py","content":"# mig-classif: skip -- backfill emergencial de tenant unico, registrado em ata\noperations = [migrations.RunSQL(\"UPDATE x SET y=1\")]"}}'
+
+# MM12: classificacao invalida (XQ — fora da whitelist) -> BLOCK
+run_case "MM12 classificacao invalida BLOCK"          BLOCK migration-metrology-classifier.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099_x.py","content":"# metrologia-classificacao: XQ\n# replay-fixture: none\noperations = [migrations.AddField()]"}}'
+
+echo ""
 if [ -n "$FILTER" ]; then
     echo "===== resumo (filtro='$FILTER'): $pass ok, $fail falhas, $skipped pulados ====="
 else
