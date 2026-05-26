@@ -802,6 +802,39 @@ run_case "IV11 MONTE_CARLO commit 40 hex PASS"        PASS  incerteza-versao-mot
 run_case "IV12 docs/ ignora PASS"                     PASS  incerteza-versao-motor-check.sh '{"tool_input":{"file_path":"docs/adr/0025.md","content":"versao_motor_calculo = \"exemplo-pra-doc\""}}'
 
 echo ""
+echo "===== cmc-binding-check (M4 P9 INV-CAL-CMC-001 / INV-002 / cl. 6.4.10) ====="
+
+# CB1: RBC + escopo_id=None na mesma construcao -> BLOCK
+run_case "CB1 RBC + escopo_id=None BLOCK"             BLOCK cmc-binding-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"x = Calibracao(tipo_acreditacao=TipoAcreditacao.RBC, escopo_id=None)"}}'
+
+# CB2: RBC + escopo_id=uuid -> PASS
+run_case "CB2 RBC + escopo_id setado PASS"            PASS  cmc-binding-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"x = Calibracao(tipo_acreditacao=TipoAcreditacao.RBC, escopo_id=algum_uuid)"}}'
+
+# CB3: NAO_RBC + escopo_id=None -> PASS (esperado — NAO_RBC nao exige CMC)
+run_case "CB3 NAO_RBC + escopo_id=None PASS"          PASS  cmc-binding-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"x = Calibracao(tipo_acreditacao=TipoAcreditacao.NAO_RBC, escopo_id=None)"}}'
+
+# CB4: String "RBC" em payload JSON-like + escopo_id=None -> BLOCK
+run_case "CB4 string RBC payload JSON BLOCK"          BLOCK cmc-binding-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"payload = {\"tipo_acreditacao\": \"RBC\", \"escopo_id\": None}"}}'
+
+# CB5: tests/ auto-allow
+run_case "CB5 tests/ auto-allow PASS"                 PASS  cmc-binding-check.sh '{"tool_input":{"file_path":"tests/test_foo.py","content":"Calibracao(tipo_acreditacao=TipoAcreditacao.RBC, escopo_id=None)"}}'
+
+# CB6: migrations/ auto-allow
+run_case "CB6 migrations/ auto-allow PASS"            PASS  cmc-binding-check.sh '{"tool_input":{"file_path":"src/x/migrations/0001.py","content":"Calibracao(tipo_acreditacao=TipoAcreditacao.RBC, escopo_id=None)"}}'
+
+# CB7: value_objects.py helper auto-allow
+run_case "CB7 value_objects.py auto-allow PASS"       PASS  cmc-binding-check.sh '{"tool_input":{"file_path":"src/domain/metrologia/calibracao/value_objects.py","content":"# enum TipoAcreditacao.RBC + escopo_id=None"}}'
+
+# CB8: override skip com motivo
+run_case "CB8 override skip PASS"                     PASS  cmc-binding-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"# cmc-binding: skip -- helper de migracao de tenant existente\nCalibracao(tipo_acreditacao=TipoAcreditacao.RBC, escopo_id=None)"}}'
+
+# CB9: RBC sozinho sem escopo_id=None na mesma construcao -> PASS
+run_case "CB9 RBC sem escopo_id=None PASS"            PASS  cmc-binding-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"x = Calibracao(tipo_acreditacao=TipoAcreditacao.RBC)"}}'
+
+# CB10: docs/ ignora exemplos
+run_case "CB10 docs/ ignora PASS"                     PASS  cmc-binding-check.sh '{"tool_input":{"file_path":"docs/foo.md","content":"Calibracao(tipo_acreditacao=TipoAcreditacao.RBC, escopo_id=None)"}}'
+
+echo ""
 if [ -n "$FILTER" ]; then
     echo "===== resumo (filtro='$FILTER'): $pass ok, $fail falhas, $skipped pulados ====="
 else
