@@ -128,6 +128,14 @@ def executar(
         regra_decisao_acordada_em=None,
         regra_decisao_acordada_documento_id=None,
         versao_motor_calculo="",
+        # Campos de configuracao — vazios em RECEPCIONADA; configurar_calibracao
+        # US-CAL-002 preenche na transicao RECEPCIONADA -> CONFIGURADA.
+        procedimento_id=None,
+        procedimento_versao_snapshot={},
+        escopo_id=None,
+        analise_critica_pedido_id=None,
+        analise_critica_pedido_inline_hash="",
+        capacidade_tecnica_confirmada_por_user_id=None,
         correlation_id=inp.correlation_id,
         causation_id=inp.causation_id,
         criada_em=inp.recepcionada_em,

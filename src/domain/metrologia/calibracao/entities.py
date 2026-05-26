@@ -77,6 +77,15 @@ class CalibracaoSnapshot:
     # Validacao software (ADR-0025 cl. 7.11 + INV-CAL-VERSAO-001)
     versao_motor_calculo: str  # vazio em RECEPCIONADA; semver+commit em calcular
 
+    # Configuracao (preenchida em configurar_calibracao US-CAL-002 — RECEPCIONADA -> CONFIGURADA)
+    # Cl. 7.2 (procedimento) + cl. 7.1.1 (analise critica) + cl. 7.1.3 (capacidade).
+    procedimento_id: UUID | None  # FK ProcedimentoCalibracao; NOT NULL pos-CONFIGURADA
+    procedimento_versao_snapshot: dict[str, object]  # codigo + versao + hash anexo
+    escopo_id: UUID | None  # FK Escopo CMC (NULL se NAO_RBC)
+    analise_critica_pedido_id: UUID | None  # FK orcamento.AnaliseCritica (origem=OS)
+    analise_critica_pedido_inline_hash: str  # nao-vazio em recepcao avulsa
+    capacidade_tecnica_confirmada_por_user_id: UUID | None  # cl. 7.1.1 avulsa
+
     # Auditoria forense (correlation + causation cross-marco)
     correlation_id: UUID
     causation_id: UUID | None  # nova calibracao apos rejeicao/recall (US-CAL-007)

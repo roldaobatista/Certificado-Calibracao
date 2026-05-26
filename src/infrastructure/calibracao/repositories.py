@@ -66,6 +66,12 @@ class DjangoCalibracaoRepository:
             regra_decisao_acordada_em=snapshot.regra_decisao_acordada_em,
             regra_decisao_acordada_documento_id=snapshot.regra_decisao_acordada_documento_id,
             versao_motor_calculo=snapshot.versao_motor_calculo,
+            procedimento_id=snapshot.procedimento_id,
+            procedimento_versao_snapshot=snapshot.procedimento_versao_snapshot,
+            escopo_id=snapshot.escopo_id,
+            analise_critica_pedido_id=snapshot.analise_critica_pedido_id,
+            analise_critica_pedido_inline_hash=snapshot.analise_critica_pedido_inline_hash,
+            capacidade_tecnica_confirmada_por_user_id=snapshot.capacidade_tecnica_confirmada_por_user_id,
             correlation_id=snapshot.correlation_id,
             causation_id=snapshot.causation_id,
             criada_por_user_id=snapshot.criada_por_user_id,
@@ -82,6 +88,8 @@ class DjangoCalibracaoRepository:
         cliente_hash, criada_em, correlation_id) sao imutaveis — trigger PG
         bloqueia ALTER em status terminal.
         """
+        import json as _json
+
         with connection.cursor() as cur:
             cur.execute(
                 """
@@ -91,7 +99,13 @@ class DjangoCalibracaoRepository:
                     regra_decisao = %s,
                     regra_decisao_acordada_em = %s,
                     regra_decisao_acordada_documento_id = %s,
-                    versao_motor_calculo = %s
+                    versao_motor_calculo = %s,
+                    procedimento_id = %s,
+                    procedimento_versao_snapshot = %s::jsonb,
+                    escopo_id = %s,
+                    analise_critica_pedido_id = %s,
+                    analise_critica_pedido_inline_hash = %s,
+                    capacidade_tecnica_confirmada_por_user_id = %s
                 WHERE id = %s
                   AND revision = %s
                 """,
@@ -101,6 +115,12 @@ class DjangoCalibracaoRepository:
                     snapshot.regra_decisao_acordada_em,
                     snapshot.regra_decisao_acordada_documento_id,
                     snapshot.versao_motor_calculo,
+                    snapshot.procedimento_id,
+                    _json.dumps(snapshot.procedimento_versao_snapshot),
+                    snapshot.escopo_id,
+                    snapshot.analise_critica_pedido_id,
+                    snapshot.analise_critica_pedido_inline_hash,
+                    snapshot.capacidade_tecnica_confirmada_por_user_id,
                     str(snapshot.id),
                     revision_anterior,
                 ],
@@ -133,6 +153,12 @@ class DjangoCalibracaoRepository:
             regra_decisao_acordada_em=obj.regra_decisao_acordada_em,
             regra_decisao_acordada_documento_id=obj.regra_decisao_acordada_documento_id,
             versao_motor_calculo=obj.versao_motor_calculo or "",
+            procedimento_id=obj.procedimento_id,
+            procedimento_versao_snapshot=obj.procedimento_versao_snapshot or {},
+            escopo_id=obj.escopo_id,
+            analise_critica_pedido_id=obj.analise_critica_pedido_id,
+            analise_critica_pedido_inline_hash=obj.analise_critica_pedido_inline_hash or "",
+            capacidade_tecnica_confirmada_por_user_id=obj.capacidade_tecnica_confirmada_por_user_id,
             correlation_id=obj.correlation_id,
             causation_id=obj.causation_id,
             criada_em=obj.criada_em,
