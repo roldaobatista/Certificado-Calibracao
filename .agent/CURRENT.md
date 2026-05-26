@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 ANDAMENTO Batches A→F (10/18 use cases — criar + configurar + iniciar + registrar + corrigir + calcular_orcamento + solicitar_revisao + aprovar_revisao + rejeitar_revisao + aprovar_2a_conferencia; 100 tests acumulados).**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 ANDAMENTO Batches A→G (11/18 use cases — + avaliar_conformidade US-CAL-006 com 6 zonas ILAC G8 + PFA/PRA; 363 tests M4 verdes).**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
@@ -111,8 +111,13 @@ T-CAL-001..014 + T-CAL-015..017+021 + T-CAL-018..020+023 + T-CAL-024 fechadas em
 - Predicate `pode_aprovar_revisao_2a_conferencia` (Fase 2 Batch C) invocado dentro do use case com `action=revisao` / `action=2a_conferencia` — não fora do escopo (mais defensivo que o esperado do padrão "caller=guard"; padrão de segurança).
 - 17 tests novos em `test_m4_uc_revisao_conferencia.py` (smoke E2E recepção→APROVADA com 3 atores distintos). 312/312 tests M4; hooks 312/312; ruff limpo.
 
-**Próxima fatia Fase 5 — Batch G/H: avaliação de conformidade + NC ciclo CAPA**
-- `avaliar_conformidade` (US-CAL-006 + AC-CAL-006-1/4 + ADR-0024) — motor §3.3 já entregue Fase 3 (validacao_replay.py); use case dedicado inclui 6 zonas ILAC G8 + PFA/PRA + decisao_lock pós-aprovação.
+**Batch G entregue (commit subsequente):**
+- 2 motores novos (Decimal puro / IEEE 754): `motor_calculo/decisao_ilac.py` (classificar_zona_ilac_g8 - 7 zonas + 3 regras) + `motor_calculo/pfa_pra.py` (PFA/PRA via math.erf stdlib - sem numpy/DEP-001).
+- Use case `avaliar_conformidade` (T-CAL-086 / US-CAL-006 + AC-CAL-006-1/4): EM_EXECUCAO/EM_REVISAO_1, CAS, classifica zona + decisao + PFA (BANDA_GUARDA_30) / PRA (RISCO_COMPARTILHADO).
+- CalibracaoSnapshot ampliado com 4 campos (zona_ilac_g8, decisao, pfa_calculada, pra_calculada). _to_snapshot + UPDATE SQL atualizados.
+- 48 tests novos (21 motor decisao + 14 motor PFA/PRA + 13 use case) — todos os 7 zonas cobertas + determinismo replay.
+
+**Próxima fatia Fase 5 — Batch H: NC ciclo CAPA + subcontratação cl. 6.6**
 - NC ciclo CAPA (US-CAL-013..014) — abrir/analisar/encerrar com estado-máquina 6 estados + INV-CAL-NC-002/003.
 - Subcontratação cl. 6.6 (US-CAL-017) — `subcontratar_calibracao` + `registrar_recebimento_subcontratado` + DPA internacional CHECK.
 
