@@ -835,6 +835,33 @@ run_case "CB9 RBC sem escopo_id=None PASS"            PASS  cmc-binding-check.sh
 run_case "CB10 docs/ ignora PASS"                     PASS  cmc-binding-check.sh '{"tool_input":{"file_path":"docs/foo.md","content":"Calibracao(tipo_acreditacao=TipoAcreditacao.RBC, escopo_id=None)"}}'
 
 echo ""
+echo "===== migration-concorrencia-calibracao-check (M4 P9 INV-CAL-CONC-001..003) ====="
+
+# MC1: Leitura sem UNIQUE composto -> BLOCK
+run_case "MC1 Leitura sem UNIQUE BLOCK"               BLOCK migration-concorrencia-calibracao-check.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0002_leitura.py","content":"operations = [migrations.CreateModel(name=\"Leitura\", fields=[(\"id\", models.UUIDField())])]"}}'
+
+# MC2: Leitura COM UNIQUE composto -> PASS
+run_case "MC2 Leitura com UNIQUE PASS"                PASS  migration-concorrencia-calibracao-check.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0002_leitura.py","content":"operations = [migrations.CreateModel(name=\"Leitura\"),migrations.AddConstraint(constraint=UniqueConstraint(fields=[\"tenant_id\",\"calibracao_id\",\"ponto_calibracao\",\"numero_repeticao\"]))]"}}'
+
+# MC3: migration fora calibracao -> PASS (ignorado)
+run_case "MC3 outro modulo PASS"                      PASS  migration-concorrencia-calibracao-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/migrations/0002.py","content":"migrations.CreateModel(name=\"Leitura\")"}}'
+
+# MC4: RemoveField revision em calibracao -> BLOCK
+run_case "MC4 RemoveField revision BLOCK"             BLOCK migration-concorrencia-calibracao-check.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099.py","content":"operations = [migrations.RemoveField(model_name=\"calibracao\", name=\"revision\")]"}}'
+
+# MC5: SQL DROP COLUMN revision em calibracao -> BLOCK
+run_case "MC5 SQL DROP revision BLOCK"                BLOCK migration-concorrencia-calibracao-check.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099.py","content":"migrations.RunSQL(\"ALTER TABLE calibracao DROP COLUMN revision\")"}}'
+
+# MC6: override skip com motivo
+run_case "MC6 override skip PASS"                     PASS  migration-concorrencia-calibracao-check.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099.py","content":"# cal-conc: skip -- refatoracao planejada para v3 com nova estrategia\nmigrations.RemoveField(model_name=\"calibracao\", name=\"revision\")"}}'
+
+# MC7: outra calibracao migration sem Leitura/revision -> PASS
+run_case "MC7 calibracao migration neutra PASS"       PASS  migration-concorrencia-calibracao-check.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/migrations/0099.py","content":"operations = [migrations.AddField(model_name=\"orcamentoincerteza\", name=\"bias_orcado\", field=models.DecimalField())]"}}'
+
+# MC8: arquivo nao-migration ignora
+run_case "MC8 nao-migration ignora PASS"              PASS  migration-concorrencia-calibracao-check.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/models.py","content":"class Leitura(models.Model):\n    revision = None"}}'
+
+echo ""
 if [ -n "$FILTER" ]; then
     echo "===== resumo (filtro='$FILTER'): $pass ok, $fail falhas, $skipped pulados ====="
 else
