@@ -727,6 +727,42 @@ run_case "SF9 override com motivo PASS"               PASS  sync-merge-foto-appe
 run_case "SF10 foto.save() sem create bloqueia"       BLOCK sync-merge-foto-appendonly.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/sagas/sync_mobile.py","content":"foto_existente = EvidenciaFotoAtividade.objects.get(id=x)\nfoto_existente.b2_uri = novo\nfoto_existente.save()"}}'
 
 echo ""
+echo "===== hmac-versao-formato-check (M4 P9 INV-HMAC-001 / ADR-0064) ====="
+
+# HV1: literal *_hash sem prefixo v<NN>$ em src/ -> BLOCK
+run_case "HV1 hash literal sem prefixo BLOCK"         BLOCK hmac-versao-formato-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"snapshot.evento_hash = \"abc123\""}}'
+
+# HV2: literal canonico v01$abc= -> PASS
+run_case "HV2 formato canonico v01\$abc= PASS"        PASS  hmac-versao-formato-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"snapshot.evento_hash = \"v01$abc=\""}}'
+
+# HV3: literal vazio (default snapshot) -> PASS
+run_case "HV3 literal vazio (default) PASS"           PASS  hmac-versao-formato-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"snapshot.evento_hash = \"\""}}'
+
+# HV4: tests/ auto-allow
+run_case "HV4 tests/ auto-allow PASS"                 PASS  hmac-versao-formato-check.sh '{"tool_input":{"file_path":"tests/test_foo.py","content":"snapshot.evento_hash = \"abc123\""}}'
+
+# HV5: migrations/ auto-allow
+run_case "HV5 migrations/ auto-allow PASS"            PASS  hmac-versao-formato-check.sh '{"tool_input":{"file_path":"src/x/migrations/0003.py","content":"snapshot.evento_hash = \"abc123\""}}'
+
+# HV6: helper unico hash_versionado.py auto-allow
+run_case "HV6 hash_versionado.py auto-allow PASS"     PASS  hmac-versao-formato-check.sh '{"tool_input":{"file_path":"src/domain/metrologia/calibracao/hash_versionado.py","content":"raw = \"abc123\""}}'
+
+# HV7: override com motivo
+run_case "HV7 override skip PASS"                     PASS  hmac-versao-formato-check.sh '{"tool_input":{"file_path":"src/foo.py","content":"x_hash = \"abc\"  # hmac-versao: skip -- mock para teste de fixture local"}}'
+
+# HV8: hmac.new().hexdigest() sem formatar_hash_versionado no arquivo -> BLOCK
+run_case "HV8 hmac.new hexdigest sem helper BLOCK"    BLOCK hmac-versao-formato-check.sh '{"tool_input":{"file_path":"src/infrastructure/x.py","content":"import hmac\nh = hmac.new(chave, msg, hashlib.sha256).hexdigest()"}}'
+
+# HV9: hmac.new() COM formatar_hash_versionado no arquivo -> PASS (helper sendo usado)
+run_case "HV9 hmac.new + formatar_hash_versionado PASS" PASS  hmac-versao-formato-check.sh '{"tool_input":{"file_path":"src/infrastructure/x.py","content":"import hmac\ndigest = hmac.new(chave, msg, hashlib.sha256).digest()\nreturn formatar_hash_versionado(versao, digest)"}}'
+
+# HV10: SQL hash literal sem prefixo -> BLOCK
+run_case "HV10 SQL hash literal sem prefixo BLOCK"    BLOCK hmac-versao-formato-check.sh '{"tool_input":{"file_path":"src/x.sql","content":"UPDATE calibracao SET evento_hash = '"'"'abc123'"'"' WHERE id = 1;"}}'
+
+# HV11: docs/ ignora (exemplos em ADR/PRD)
+run_case "HV11 docs/ ignora PASS"                     PASS  hmac-versao-formato-check.sh '{"tool_input":{"file_path":"docs/adr/0064.md","content":"evento_hash = \"hash-fake-pra-exemplo\""}}'
+
+echo ""
 if [ -n "$FILTER" ]; then
     echo "===== resumo (filtro='$FILTER'): $pass ok, $fail falhas, $skipped pulados ====="
 else
