@@ -24,6 +24,23 @@ from src.infrastructure.usuario.models import Usuario, UsuarioPerfilTenant
 
 
 class TenantFactory(DjangoModelFactory):
+    """Factory canonica do Tenant.
+
+    T-SAN-PERFIL-023 (Sprint 2 ADR-0067): aceita trait/param `perfil` em
+    {'A', 'B', 'C', 'D'} via TenantFactory(perfil='A') OU TenantFactory.perfil_a().
+
+    Default: perfil='D' (conservador — sem rituais ISO 17025). Use traits
+    explicitos pra testes que validam comportamento por perfil. Bug que so
+    aparece em perfil 'A' (5% do ICP) escapava da suite quando default era
+    implicitamente 'D' (FAIL L9 da auditoria 10 lentes 2026-05-27).
+
+    Uso pra cenarios regulados:
+        tenant_acreditado = TenantFactory.perfil_a()  # com numero RBC fake
+        tenant_balancas = TenantFactory.perfil_b()    # rastreavel — caminho Roldao
+        tenant_trilha = TenantFactory.perfil_c()      # em preparacao
+        tenant_simples = TenantFactory.perfil_d()     # comercial puro (default)
+    """
+
     class Meta:
         model = Tenant
         django_get_or_create = ("slug",)
@@ -32,6 +49,25 @@ class TenantFactory(DjangoModelFactory):
     nome_fantasia = factory.LazyAttribute(lambda obj: f"Empresa {obj.slug.title()}")
     plano = "placeholder"
     status_lifecycle = StatusLifecycle.ATIVO
+
+    # Default conservador — perfil D (sem ISO 17025).
+    perfil_regulatorio = "D"
+
+    class Params:
+        # Trait .perfil_a() — laboratorio acreditado RBC.
+        perfil_a = factory.Trait(
+            perfil_regulatorio="A",
+            acreditacao_cgcre_numero=factory.LazyFunction(
+                lambda: f"CRL {1000 + (uuid4().int % 9000):04d}"
+            ),
+            ilac_mra_aderido=True,
+        )
+        # Trait .perfil_b() — rastreavel nao-acreditado (caminho Roldao/Balancas Solution).
+        perfil_b = factory.Trait(perfil_regulatorio="B")
+        # Trait .perfil_c() — em preparacao para acreditar (trilha D->A).
+        perfil_c = factory.Trait(perfil_regulatorio="C")
+        # Trait .perfil_d() — comercial puro (explicito; equivale ao default).
+        perfil_d = factory.Trait(perfil_regulatorio="D")
 
 
 class UsuarioFactory(DjangoModelFactory):

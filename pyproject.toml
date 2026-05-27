@@ -227,6 +227,7 @@ markers = [
     "slow: testes que demoram (fuzzing, drill)",
     "integration: testes que precisam de banco real",
     "tenant_isolation: testes de isolamento cross-tenant (criticos)",
+    "perfil: testes condicionados a perfil regulatorio do tenant (A/B/C/D). Use como @pytest.mark.perfil('A'). T-SAN-PERFIL-027 ADR-0067 — habilita parametrize matrix por perfil no futuro.",
 ]
 testpaths = ["tests"]
 

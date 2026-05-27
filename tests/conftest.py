@@ -24,6 +24,59 @@ def fase_atual() -> str:
 
 
 # =============================================================
+# T-SAN-PERFIL-023 (Sprint 2 ADR-0067) — fixtures parametrizadas por perfil.
+#
+# 4 fixtures explicitas pra cenarios regulados — eliminam o "perfil D default
+# silencioso" que mascarava bug que so aparece em perfil A (FAIL L9 da auditoria
+# 10 lentes 2026-05-27).
+#
+# Uso:
+#     def test_emissao_certificado_acreditado(tenant_a):
+#         # tenant_a ja tem perfil='A' + numero RBC fake + ilac_mra_aderido=True
+#         ...
+#
+#     def test_balancas_solution_caminho(tenant_b):
+#         # tenant_b = caminho Roldao/dogfooding
+#         ...
+#
+# Marcador pytest correspondente (T-SAN-PERFIL-027):
+#     @pytest.mark.perfil("A")        # documentacao + parametrize matrix futura
+# =============================================================
+
+
+@pytest.fixture
+def tenant_a(db):
+    """Tenant acreditado RBC/CGCRE — perfil A + numero RBC fake + ILAC-MRA."""
+    from tests.factories import TenantFactory
+
+    return TenantFactory(perfil_a=True)
+
+
+@pytest.fixture
+def tenant_b(db):
+    """Tenant rastreavel nao-acreditado — caminho Balancas Solution dogfooding (Roldao)."""
+    from tests.factories import TenantFactory
+
+    return TenantFactory(perfil_b=True)
+
+
+@pytest.fixture
+def tenant_c(db):
+    """Tenant em preparacao para acreditar — trilha D->A (BIG-03 do discovery)."""
+    from tests.factories import TenantFactory
+
+    return TenantFactory(perfil_c=True)
+
+
+@pytest.fixture
+def tenant_d(db):
+    """Tenant comercial puro — sem rituais ISO 17025 (PII retencao 5a)."""
+    from tests.factories import TenantFactory
+
+    return TenantFactory(perfil_d=True)
+
+
+# =============================================================
 # TASK #9 (2026-05-24) — restaura seeds apos limpeza transacional.
 #
 # Problema: pytest-django com `@pytest.mark.django_db(transaction=True)`

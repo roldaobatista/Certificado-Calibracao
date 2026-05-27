@@ -28,6 +28,7 @@ from .connection import run_in_user_context, setar_contexto_pg_na_conexao
 from .context import (
     active_tenant_context,
     ip_hash_context,
+    perfil_tenant_context,
     tenant_ids_context,
     usuario_id_context,
 )
@@ -109,10 +110,19 @@ class TenantMiddleware:
         # do usuario_id; via contexto, não parâmetro de can() — NG-FB-1).
         from src.infrastructure.audit.services import hashear_ip
 
+        # T-SAN-PERFIL-016 (Sprint 2 ADR-0067 / AC-SAN-PERFIL-003-5):
+        # Resolve perfil regulatorio do active_tenant a partir do banco e cacheia
+        # no ContextVar. Leitura barata (1 SELECT por request) — predicate
+        # tenant_perfil_e usa este cache, eliminando N+1 (AC-002-8).
+        # Falha de DB / tenant ausente / perfil NULL = "" (predicate decide
+        # fail-closed downstream).
+        perfil_atual = self._resolver_perfil_active_tenant(active_tenant)
+
         token_list = tenant_ids_context.set(tenant_ids)
         token_active = active_tenant_context.set(active_tenant)
         token_user = usuario_id_context.set(usuario_id)
         token_ip = ip_hash_context.set(hashear_ip(_extrair_ip(request)))
+        token_perfil = perfil_tenant_context.set(perfil_atual)
         try:
             with transaction.atomic():
                 setar_contexto_pg_na_conexao(
@@ -126,6 +136,7 @@ class TenantMiddleware:
             active_tenant_context.reset(token_active)
             usuario_id_context.reset(token_user)
             ip_hash_context.reset(token_ip)
+            perfil_tenant_context.reset(token_perfil)
 
     def _resolver_tenants_permitidos(self, usuario_id: UUID) -> list[UUID]:
         """Consulta UsuarioPerfilTenant filtrando por janela de validade.
@@ -147,6 +158,38 @@ class TenantMiddleware:
                 .values_list("tenant_id", flat=True)
                 .distinct()
             )
+
+    def _resolver_perfil_active_tenant(self, active_tenant: UUID) -> str:
+        """T-SAN-PERFIL-016 / AC-SAN-PERFIL-003-5.
+
+        Le `tenants.perfil_regulatorio` do banco para popular o ContextVar
+        `perfil_tenant_context`. Predicate `tenant_perfil_e` (Sprint 2)
+        consulta este ContextVar — eliminando N+1 por request.
+
+        Returns:
+            - "A" / "B" / "C" / "D" se tenant encontrado e perfil setado.
+            - "" se tenant nao encontrado OU perfil NULL (estado invalido
+              pos-backfill).
+
+        Predicate downstream decide fail-closed em "" (AC-SAN-PERFIL-002-5).
+        Esta funcao NAO levanta excecao — falha silenciosa pra "" e o caller
+        decide gravidade.
+
+        Tabela `tenants` e SHARED ACROSS TENANTS (ADR-0002 §8) — sem RLS — entao
+        o SELECT funciona mesmo antes do `setar_contexto_pg_na_conexao` ser
+        chamado (que e o que ativa policies RLS pra demais tabelas).
+        """
+        from src.infrastructure.tenant.models import Tenant
+
+        try:
+            perfil = (
+                Tenant.objects.filter(id=active_tenant)
+                .values_list("perfil_regulatorio", flat=True)
+                .first()
+            )
+            return perfil or ""
+        except Exception:  # noqa: BLE001 — defensivo, predicate decide
+            return ""
 
     def _extrair_active_tenant(self, request: HttpRequest, tenant_ids: list[UUID]) -> UUID | None:
         """Header > query param > default (se so 1 tenant)."""

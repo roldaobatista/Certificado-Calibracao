@@ -1,11 +1,24 @@
 """Testes dos 3 predicates ABAC M4 calibracao (T-CAL-037..039).
 
 Cobre:
-  - cmc_cobre (STUB Wave A — fail-open RBC; DENY se grandeza faltar)
+  - cmc_cobre (RETROFIT Sprint 2 ADR-0067 — le perfil de Tenant via ContextVar)
   - procedimento_vigente_para (STUB Wave A — fail-open;
     DENY se tenant_id ausente)
   - pode_aprovar_revisao_2a_conferencia (REAL — segregacao funcoes
     cl. 6.2.5 + ADR-0026 excecao 4 condicoes)
+
+**RETROFIT 2026-05-27 (T-SAN-PERFIL-018 / Sprint 2 ADR-0067):**
+`cmc_cobre` deixou de ler `tipo_acreditacao` do payload (FAIL L6 — fraude
+documental viavel) e passou a consultar `Tenant.perfil_regulatorio` via
+ContextVar `perfil_tenant_context`. Os testes precisam popular o ContextVar
+ANTES de chamar o predicate. Pattern:
+
+    from src.infrastructure.multitenant.context import perfil_tenant_context
+    token = perfil_tenant_context.set("A")
+    try:
+        ok, motivo = cmc_cobre({...})
+    finally:
+        perfil_tenant_context.reset(token)
 
 Padroes:
   - TST-005: >=1 happy + >=1 borda por predicate.
@@ -14,6 +27,7 @@ Padroes:
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from uuid import uuid4
 
 from src.infrastructure.calibracao.predicates_calibracao import (
@@ -22,74 +36,136 @@ from src.infrastructure.calibracao.predicates_calibracao import (
     pode_aprovar_revisao_2a_conferencia,
     procedimento_vigente_para,
 )
+from src.infrastructure.multitenant.context import perfil_tenant_context
+
+
+@contextmanager
+def _perfil(perfil: str):
+    """Helper context manager pra popular `perfil_tenant_context` em teste."""
+    token = perfil_tenant_context.set(perfil)
+    try:
+        yield
+    finally:
+        perfil_tenant_context.reset(token)
+
 
 # =====================================================================
-# cmc_cobre (T-CAL-037)
+# cmc_cobre (T-CAL-037 + RETROFIT T-SAN-PERFIL-018)
 # =====================================================================
 
 
 class TestCmcCobre:
     def test_nao_aplica_em_tenant_nao_rbc(self) -> None:
-        # NAO_RBC nao tem CMC pra validar
-        ok, motivo = cmc_cobre(
-            {
-                "tenant_id": uuid4(),
-                "tipo_acreditacao": "NAO_RBC",
-                "grandeza": "massa",
-            }
-        )
+        """Perfil B (rastreavel nao-acreditado) — predicate nao aplica CMC."""
+        with _perfil("B"):
+            ok, motivo = cmc_cobre(
+                {
+                    "tenant_id": uuid4(),
+                    "grandeza": "massa",
+                }
+            )
         assert ok is True
         assert motivo == ""
 
-    def test_nao_aplica_em_tenant_sem_tipo_acreditacao(self) -> None:
-        # Ausente => trata como NAO_RBC
-        ok, motivo = cmc_cobre({"tenant_id": uuid4()})
+    def test_nao_aplica_em_tenant_perfil_d(self) -> None:
+        """Perfil D (comercial puro) — predicate nao aplica CMC."""
+        with _perfil("D"):
+            ok, motivo = cmc_cobre({"tenant_id": uuid4()})
         assert ok is True
         assert motivo == ""
 
     def test_rbc_sem_grandeza_recusa(self) -> None:
-        ok, motivo = cmc_cobre(
-            {
-                "tenant_id": uuid4(),
-                "tipo_acreditacao": "RBC",
-                "grandeza": "",
-            }
-        )
+        """Tenant Perfil A precisa declarar grandeza pra validar CMC."""
+        with _perfil("A"):
+            ok, motivo = cmc_cobre(
+                {
+                    "tenant_id": uuid4(),
+                    "grandeza": "",
+                }
+            )
         assert ok is False
         assert motivo == "cmc_grandeza_resource_ausente"
 
     def test_resource_invalido_sem_tenant_id(self) -> None:
-        ok, motivo = cmc_cobre({"tipo_acreditacao": "RBC", "grandeza": "massa"})
+        with _perfil("A"):
+            ok, motivo = cmc_cobre({"grandeza": "massa"})
         assert ok is False
         assert motivo == "cmc_resource_invalido"
 
     def test_rbc_com_grandeza_passa_stub_wave_a(self) -> None:
-        # STUB Wave A: fail-open ate modulo `escopo_acreditado` chegar
-        ok, motivo = cmc_cobre(
-            {
-                "tenant_id": uuid4(),
-                "tipo_acreditacao": "RBC",
-                "grandeza": "massa",
-                "faixa_min": "0",
-                "faixa_max": "200",
-                "data": "2026-05-25",
-            }
-        )
+        """Perfil A — STUB ADR-0066: fail-open lazy ate modulo `escopos-cmc`."""
+        with _perfil("A"):
+            ok, motivo = cmc_cobre(
+                {
+                    "tenant_id": uuid4(),
+                    "grandeza": "massa",
+                    "faixa_min": "0",
+                    "faixa_max": "200",
+                    "data": "2026-05-25",
+                }
+            )
         assert ok is True
         assert motivo == ""
 
-    def test_tipo_acreditacao_normalizado_uppercase(self) -> None:
-        # Defensivo: "rbc" lowercase tambem reconhecido
+    def test_perfil_indisponivel_bloqueia(self) -> None:
+        """T-SAN-PERFIL-018 / INV-TENANT-PERFIL-004 — sem ContextVar nem DB,
+        predicate fail-closed."""
+        # NAO popular o ContextVar — fora de request middleware ele fica vazio.
+        # Sem active_tenant_context tambem, helper retorna "" e predicate DENY.
         ok, motivo = cmc_cobre(
             {
                 "tenant_id": uuid4(),
-                "tipo_acreditacao": "rbc",
-                "grandeza": "",
+                "grandeza": "massa",
             }
         )
-        # Deve aplicar regra RBC e bloquear por grandeza vazia
         assert ok is False
-        assert motivo == "cmc_grandeza_resource_ausente"
+        assert motivo == "tenant_perfil_indisponivel"
+
+    def test_fraude_payload_rbc_em_tenant_nao_a_bloqueia(self) -> None:
+        """T-SAN-PERFIL-018 / AC-002-2 — FAIL L6 fechado.
+
+        Operador autenticado em tenant Perfil B envia payload com
+        `tipo_acreditacao=RBC` (compat-shim legacy). Sistema detecta divergencia
+        e responde DENY com reason `tipo_acreditacao_divergente_do_tenant`.
+        View handler grava evento WORM `tentativa_downgrade_perfil`.
+        """
+        with _perfil("B"):
+            ok, motivo = cmc_cobre(
+                {
+                    "tenant_id": uuid4(),
+                    "tipo_acreditacao": "RBC",
+                    "grandeza": "massa",
+                }
+            )
+        assert ok is False
+        assert motivo == "tipo_acreditacao_divergente_do_tenant"
+
+    def test_fraude_payload_rbc_em_tenant_d_bloqueia(self) -> None:
+        """T-SAN-PERFIL-018 — perfil D nao pode emitir RBC mesmo com payload."""
+        with _perfil("D"):
+            ok, motivo = cmc_cobre(
+                {
+                    "tenant_id": uuid4(),
+                    "tipo_acreditacao": "RBC",
+                    "grandeza": "massa",
+                }
+            )
+        assert ok is False
+        assert motivo == "tipo_acreditacao_divergente_do_tenant"
+
+    def test_payload_rbc_em_tenant_a_continua_aceito(self) -> None:
+        """T-SAN-PERFIL-018 — payload com tipo_acreditacao=RBC em tenant
+        Perfil A nao quebra (compat-shim emite WARN log mas aceita)."""
+        with _perfil("A"):
+            ok, motivo = cmc_cobre(
+                {
+                    "tenant_id": uuid4(),
+                    "tipo_acreditacao": "RBC",  # divergencia OK
+                    "grandeza": "massa",
+                }
+            )
+        assert ok is True
+        assert motivo == ""
 
 
 # =====================================================================

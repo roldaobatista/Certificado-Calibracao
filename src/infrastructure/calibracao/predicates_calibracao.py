@@ -87,42 +87,94 @@ def _coerce_uuid(raw: object) -> UUID | None:
 def cmc_cobre(resource: dict[str, Any]) -> tuple[bool, str]:
     """Predicate ABAC — CMC do tenant RBC cobre grandeza + faixa solicitada.
 
+    **RETROFIT 2026-05-27 (T-SAN-PERFIL-018 / Sprint 2 ADR-0067):**
+    Antes da auditoria 10 lentes, este predicate lia `tipo_acreditacao` do
+    PAYLOAD da request — vulneravel a fraude documental (FAIL L6 da auditoria
+    2026-05-27). Operador autenticado em qualquer tenant podia mandar
+    `tipo_acreditacao=RBC` no JSON e gerar certificado fraudulento.
+
+    Solucao canonica:
+    1. Le perfil regulatorio do TENANT via ContextVar (nao do payload).
+    2. Tenant nao-A (B/C/D) tentando submeter `tipo_acreditacao=RBC` no
+       payload = 412 `tipo_acreditacao_divergente_do_tenant` + evento
+       `tentativa_downgrade_perfil` (AC-SAN-PERFIL-002-2). View handler
+       captura o reason e grava evento WORM.
+    3. Compat-shim: se payload mandar `tipo_acreditacao` (legado), o valor e
+       IGNORADO + WARN log `payload_tipo_acreditacao_obsoleto` (AC-006-3).
+       Compat-shim vigora ate fim de Wave A modulo `certificados`.
+
     Resource esperado:
         tenant_id: UUID (obrigatorio).
-        tipo_acreditacao: str — "RBC" | "NAO_RBC". Predicate NAO aplica
-          quando tipo_acreditacao != "RBC" (fail-open semantico — tenant
-          fora do escopo CGCRE nao tem CMC pra validar).
         grandeza: str — slug da grandeza (lowercase). Ausente => DENY
-          quando tipo_acreditacao=RBC (CMC exige declarar grandeza).
+          quando perfil='A' (CMC exige declarar grandeza).
         faixa_min: str | Decimal — limite inferior da faixa solicitada.
         faixa_max: str | Decimal — limite superior.
         data: ISO date "YYYY-MM-DD" — data alvo (CMC vigente em).
+        tipo_acreditacao: **DEPRECATED**. Compat-shim ate fim de Wave A:
+          se presente E divergente do tenant, retorna DENY com reason
+          `tipo_acreditacao_divergente_do_tenant`.
 
     Reasons estaveis:
-        cmc_fora_do_escopo — tenant RBC com grandeza+faixa fora do CMC.
-        cmc_grandeza_resource_ausente — RBC sem campo grandeza no resource.
+        cmc_fora_do_escopo — tenant A com grandeza+faixa fora do CMC.
+        cmc_grandeza_resource_ausente — A sem campo grandeza no resource.
         cmc_resource_invalido — tenant_id ausente.
+        tipo_acreditacao_divergente_do_tenant — payload tenta RBC em tenant
+          nao-A (fraude tentada — FAIL L6 fechado).
+        tenant_perfil_indisponivel — ContextVar vazio E DB falhou (fail-closed).
     """
+    import logging
+
+    from src.infrastructure.authz.perfil_tenant_helper import (
+        obter_perfil_tenant_corrente,
+    )
+
+    log = logging.getLogger(__name__)
+
     tenant_id = _coerce_uuid(resource.get("tenant_id"))
     if tenant_id is None:
         return False, "cmc_resource_invalido"
 
-    tipo = (resource.get("tipo_acreditacao") or "").strip().upper()
-    if tipo != "RBC":
-        # NAO_RBC ou ausente — predicate nao aplica (CMC so vale RBC).
+    perfil = obter_perfil_tenant_corrente()
+    if not perfil:
+        # Fail-closed: ContextVar vazio + DB falhou (job sem middleware OU
+        # tenant em estado invalido). Loga ERROR pra alerta.
+        log.error(
+            "cmc_cobre: perfil_regulatorio indisponivel para tenant=%s "
+            "(ContextVar vazio + fallback DB falhou). Bloqueando.",
+            tenant_id,
+        )
+        return False, "tenant_perfil_indisponivel"
+
+    # Compat-shim: payload legado mandando `tipo_acreditacao`. Detecta divergencia.
+    # AC-006-3 + AC-002-2 — fraude tentada quando perfil!=A mas payload diz RBC.
+    payload_tipo = (resource.get("tipo_acreditacao") or "").strip().upper()
+    if payload_tipo:
+        log.warning(
+            "payload_tipo_acreditacao_obsoleto: campo `tipo_acreditacao` no "
+            "payload e DEPRECATED (T-SAN-PERFIL-018). Perfil canonico vem de "
+            "Tenant.perfil_regulatorio via ContextVar. Removendo no fim de Wave A."
+        )
+        if payload_tipo == "RBC" and perfil != "A":
+            # Fraude tentada — operador em tenant B/C/D enviou tipo_acreditacao=RBC
+            # no payload. Bloqueia + reason estavel (view registra evento WORM).
+            return False, "tipo_acreditacao_divergente_do_tenant"
+
+    # Perfil != A nao precisa validar CMC (CMC so vale para acreditados RBC).
+    if perfil != "A":
         return True, ""
 
     grandeza = (resource.get("grandeza") or "").strip().lower()
     if not grandeza:
         return False, "cmc_grandeza_resource_ausente"
 
-    # GATE-CAL-CMC-1 STUB: modulo `escopo_acreditado` ainda nao existe.
-    # Quando entrar em Wave A:
-    #   from src.infrastructure.escopo_acreditado.repository import escopo_repo
+    # GATE-CAL-CMC-PREDICATE STUB Wave A (ADR-0066 — paralelo a ADR-0063 do M3 OS).
+    # Modulo `metrologia/escopos-cmc` ainda nao existe. Fail-open lazy controlado:
+    # quando modulo entrar em Wave A:
+    #   from src.infrastructure.metrologia.escopos_cmc.repository import escopo_repo
     #   if not escopo_repo.cobre(tenant_id, grandeza, faixa_min, faixa_max, data):
     #       return False, "cmc_fora_do_escopo"
-    # Ate la, fail-open com log consultivo (EventoDeCalibracao tipo
-    # fora_escopo_consultivo registrado pelo use case caller).
+    # Ate la, fail-open com log consultivo. Bloqueio efetivo entra automaticamente
+    # quando modulo for criado.
     return True, ""
 
 

@@ -210,6 +210,39 @@ run_case "CCa modulo clientes ORM OK"      PASS  cliente-canonico-imutavel.sh '{
 run_case "CCb modulo clientes SQL cru NO"  BLOCK cliente-canonico-imutavel.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/services.py","content":"cursor.execute(\"UPDATE clientes SET cliente_canonico_id = $1\", [x])"}}'
 
 echo ""
+echo "===== tenant-perfil-imutavel-check (T-SAN-PERFIL-013 / INV-TENANT-PERFIL-002) ====="
+
+run_case "TP1 UPDATE perfil_regulatorio NO"  BLOCK tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"src/x.py","content":"cursor.execute(\"UPDATE tenants SET perfil_regulatorio = '\''A'\'' WHERE id = $1\")"}}'
+run_case "TP2 DROP TRIGGER anti-mutacao NO"  BLOCK tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"x.sql","content":"DROP TRIGGER tph_anti_update_trigger ON tenant_perfil_historico;"}}'
+run_case "TP3 DROP FUNCTION SECURITY DEFINER NO" BLOCK tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"x.sql","content":"DROP FUNCTION aplicar_evento_cgcre(text);"}}'
+run_case "TP4 ALTER DROP COLUMN perfil NO"   BLOCK tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"x.sql","content":"ALTER TABLE tenants DROP COLUMN perfil_regulatorio;"}}'
+run_case "TP5 DELETE historico append-only NO" BLOCK tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"x.py","content":"cursor.execute(\"DELETE FROM tenant_perfil_historico WHERE tenant_id = $1\")"}}'
+run_case "TP6 UPDATE historico append-only NO" BLOCK tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"x.py","content":"cursor.execute(\"UPDATE tenant_perfil_historico SET motivo = '\''x'\'' WHERE id = $1\")"}}'
+run_case "TP7 migration ADD COLUMN OK"       PASS  tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"src/infrastructure/tenant/migrations/0003_perfil_regulatorio_add_nullable.py","content":"migrations.AddField(name=\"perfil_regulatorio\", field=models.CharField())"}}'
+run_case "TP8 migration CREATE TRIGGER OK"   PASS  tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"src/infrastructure/tenant/migrations/0007.py","content":"CREATE TRIGGER tph_anti_update_trigger BEFORE UPDATE ON tenant_perfil_historico"}}'
+run_case "TP9 override com motivo"           PASS  tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"x.sql","content":"# tenant-perfil-imutavel: skip -- manutencao planejada autorizada DR-2026-TP-001\nUPDATE tenants SET perfil_regulatorio = '\''B'\''"}}'
+run_case "TPa tests ignora"                  PASS  tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"tests/test_perfil.py","content":"UPDATE tenants SET perfil_regulatorio = '\''A'\''"}}'
+run_case "TPb .md ignora"                    PASS  tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"docs/x.md","content":"DROP TRIGGER tph_anti_update_trigger"}}'
+run_case "TPc caminho oficial aplicar_evento OK" PASS tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"src/application/tenant/aplicar_evento_cgcre.py","content":"cursor.execute(\"SELECT aplicar_evento_cgcre($1, $2)\", [d, m])"}}'
+run_case "TPd migration backfill 0004 OK"    PASS  tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"src/infrastructure/tenant/migrations/0004_perfil_regulatorio_backfill.py","content":"tenant.perfil_regulatorio = '\''B'\''\ntenant.save()"}}'
+run_case "TPe DISABLE TRIGGER historico NO"  BLOCK tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"x.sql","content":"ALTER TABLE tenant_perfil_historico DISABLE TRIGGER tph_anti_update_trigger;"}}'
+
+echo ""
+echo "===== payload-tipo-acreditacao-obsoleto (T-SAN-PERFIL-026 / AC-006-4) ====="
+
+run_case "PT1 resource get tipo_acreditacao NO" BLOCK payload-tipo-acreditacao-obsoleto-check.sh '{"tool_input":{"file_path":"src/x.py","content":"tipo = resource.get(\"tipo_acreditacao\", \"\").upper()"}}'
+run_case "PT2 request.data tipo_acreditacao NO" BLOCK payload-tipo-acreditacao-obsoleto-check.sh '{"tool_input":{"file_path":"src/y/views.py","content":"if request.data.get(\"tipo_acreditacao\") == \"RBC\": ..."}}'
+run_case "PT3 validated_data NO"               BLOCK payload-tipo-acreditacao-obsoleto-check.sh '{"tool_input":{"file_path":"src/y/serializers.py","content":"tipo = serializer.validated_data[\"tipo_acreditacao\"]"}}'
+run_case "PT4 payload dict tipo_acreditacao NO" BLOCK payload-tipo-acreditacao-obsoleto-check.sh '{"tool_input":{"file_path":"src/y/handler.py","content":"if payload[\"tipo_acreditacao\"] == \"RBC\": send_event(payload)"}}'
+run_case "PT5 dados dict tipo_acreditacao NO"  BLOCK payload-tipo-acreditacao-obsoleto-check.sh '{"tool_input":{"file_path":"src/y/use_case.py","content":"tipo = dados.get(\"tipo_acreditacao\")"}}'
+run_case "PT6 compat-shim predicates_calibracao OK" PASS payload-tipo-acreditacao-obsoleto-check.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/predicates_calibracao.py","content":"payload_tipo = (resource.get(\"tipo_acreditacao\") or \"\").strip().upper()"}}'
+run_case "PT7 test mantem compat-shim"          PASS payload-tipo-acreditacao-obsoleto-check.sh '{"tool_input":{"file_path":"tests/test_compat.py","content":"resource = {\"tipo_acreditacao\": \"RBC\"}"}}'
+run_case "PT8 migration legacy OK"             PASS payload-tipo-acreditacao-obsoleto-check.sh '{"tool_input":{"file_path":"src/x/migrations/0001_initial.py","content":"if dados.get(\"tipo_acreditacao\"): pass"}}'
+run_case "PT9 override skip"                   PASS payload-tipo-acreditacao-obsoleto-check.sh '{"tool_input":{"file_path":"src/y.py","content":"# payload-tipo-acreditacao: skip -- consumidor legado bus mensagem cross-tenant aprovado DR-2026-PT-001\nif payload.get(\"tipo_acreditacao\"): pass"}}'
+run_case "PTa .md ignora"                      PASS payload-tipo-acreditacao-obsoleto-check.sh '{"tool_input":{"file_path":"docs/x.md","content":"resource[\"tipo_acreditacao\"]"}}'
+run_case "PTb codigo limpo OK"                 PASS payload-tipo-acreditacao-obsoleto-check.sh '{"tool_input":{"file_path":"src/y.py","content":"perfil = obter_perfil_tenant_corrente()"}}'
+
+echo ""
 echo "===== event-helper-unico (T-CLI-105 / SANEA-08) ====="
 
 run_case "EH1 fora-allowlist registrar_em_cadeia"  BLOCK event-helper-unico.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/services.py","content":"registrar_em_cadeia(Auditoria, ...)"}}'

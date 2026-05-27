@@ -24,37 +24,55 @@ rejeita ausencia de cobertura) — aceite manual + atualizacao dos GATEs.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from uuid import uuid4
 
 from src.infrastructure.calibracao.predicates_calibracao import (
     cmc_cobre,
     procedimento_vigente_para,
 )
+from src.infrastructure.multitenant.context import perfil_tenant_context
+
+
+@contextmanager
+def _perfil(perfil: str):
+    """T-SAN-PERFIL-018 retrofit: `cmc_cobre` agora le perfil via ContextVar,
+    nao mais do payload da request. Helper popula o ContextVar pelo teste."""
+    token = perfil_tenant_context.set(perfil)
+    try:
+        yield
+    finally:
+        perfil_tenant_context.reset(token)
 
 
 class TestInvCalCmc001FailOpenLazy:
-    """ADR-0066: `cmc_cobre` retorna (True, '') hoje pra RBC com grandeza
+    """ADR-0066: `cmc_cobre` retorna (True, '') hoje pra perfil 'A' com grandeza
     declarada — modulo `escopos-cmc` ainda nao plugado.
 
     Quando GATE-CAL-CMC-PREDICATE acender, este teste DEVE QUEBRAR (sinal de
     que a regressao silenciosa foi fechada). Aceite manual + remover este
     arquivo de regressao + adicionar testes positivos contra
     `escopo_cmc_repo`.
+
+    **2026-05-27 — retrofit T-SAN-PERFIL-018:** `cmc_cobre` deixou de ler
+    `tipo_acreditacao` do payload (FAIL L6) e passou a consultar perfil
+    canonico via ContextVar. Teste populado com perfil 'A' equivale ao
+    cenario anterior (`tipo_acreditacao=RBC` no payload de tenant A).
     """
 
     def test_predicate_retorna_true_em_wave_a(self) -> None:
-        ok, motivo = cmc_cobre(
-            {
-                "tenant_id": uuid4(),
-                "tipo_acreditacao": "RBC",
-                "grandeza": "massa",
-                "faixa_min": "0",
-                "faixa_max": "200",
-                "data": "2026-05-27",
-            }
-        )
+        with _perfil("A"):
+            ok, motivo = cmc_cobre(
+                {
+                    "tenant_id": uuid4(),
+                    "grandeza": "massa",
+                    "faixa_min": "0",
+                    "faixa_max": "200",
+                    "data": "2026-05-27",
+                }
+            )
         assert ok is True, (
-            "ADR-0066 fail-open lazy quebrado — RBC com grandeza declarada "
+            "ADR-0066 fail-open lazy quebrado — perfil A com grandeza declarada "
             "estava retornando True hoje. Se GATE-CAL-CMC-PREDICATE acendeu, "
             "remova este arquivo + atualize tests positivos."
         )

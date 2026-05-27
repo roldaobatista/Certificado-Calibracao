@@ -34,6 +34,20 @@ usuario_id_context: ContextVar[UUID | None] = ContextVar("usuario_id_context", d
 # (NG-FB-1 / BLOQ-3 tech-lead).
 ip_hash_context: ContextVar[str] = ContextVar("ip_hash_context", default="")
 
+# T-SAN-PERFIL-015 (Sprint 2 saneamento ADR-0067): perfil regulatorio do
+# tenant ATIVO. Resolvido em TenantMiddleware quando active_tenant_context
+# e setado. Usado por:
+# - Predicate `tenant_perfil_e(perfis_aceitos)` em authz (elimina N+1 — AC-002-8)
+# - Snapshot `perfil_no_evento` em registrar_auditoria (Sprint 4 — AC-003-2)
+# - Helpers WORM em evento_de_calibracao / evento_de_os (Sprint 4 — AC-003-2b)
+#
+# Valor "" (string vazia) significa "tenant nao ativado ou perfil indisponivel".
+# Predicate decide fail-closed neste caso (AC-SAN-PERFIL-002-5).
+# Nunca usar None como default — diferenciar "nao setado" (default="") de
+# "tenant existe mas perfil NULL" (estado invalido pos-backfill — AC-002-5
+# loga ERROR + alerta).
+perfil_tenant_context: ContextVar[str] = ContextVar("perfil_tenant_context", default="")
+
 # FA-M3: `limpar_contexto()` foi REMOVIDA (armadilha plantada). Fazia
 # `.set([])` num `finally` — padrão ERRADO pra ContextVar em fronteira de
 # request: cria um valor "limpo" no contexto atual em vez de restaurar o
