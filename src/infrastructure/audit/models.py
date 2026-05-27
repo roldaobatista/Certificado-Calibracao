@@ -76,6 +76,23 @@ class Auditoria(models.Model):
         editable=False,
         db_default=models.Func(models.Value("auditoria_seq"), function="nextval"),
     )
+    # T-SAN-PERFIL-041 (Sprint 4 ADR-0067 / INV-TENANT-PERFIL-003):
+    # snapshot do perfil regulatorio do tenant NO MOMENTO do INSERT.
+    # `registrar_auditoria()` preenche via ContextVar; trigger BEFORE INSERT
+    # `audit_perfil_no_evento_default_trigger` (migration audit/0019)
+    # popula via current_setting('app.perfil_tenant') quando NULL no INSERT
+    # (defesa em camadas). NULLABLE durante janela de backfill — SET NOT NULL
+    # em Sprint Wave A pos validacao de cobertura.
+    perfil_no_evento = models.CharField(
+        max_length=1,
+        null=True,
+        blank=True,
+        choices=[("A", "A"), ("B", "B"), ("C", "C"), ("D", "D")],
+        help_text=(
+            "Snapshot perfil regulatorio tenant no momento do INSERT "
+            "(ADR-0067). NULLABLE durante backfill."
+        ),
+    )
 
     class Meta:
         app_label = "audit"

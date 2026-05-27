@@ -62,6 +62,22 @@ def criar_equipamento(
     PG; IntegrityError vira `TagDuplicada` com referencia ao existente.
     """
     causation_id = causation_id or uuid4()
+    # T-SAN-PERFIL-044 (Sprint 4 ADR-0067): se caller nao forneceu `perfil`
+    # no snapshot, derivar de Tenant.perfil_regulatorio. Snapshot vira COPY
+    # canonica no momento do INSERT — elimina FAIL L5 (snapshot no nivel errado
+    # com default silencioso 'D' que podia marcar Balancas Solution errado).
+    snapshot = dict(dados.perfil_tenant_snapshot or {})
+    if not snapshot.get("perfil"):
+        from src.infrastructure.tenant.models import Tenant
+
+        perfil_atual = (
+            Tenant.objects.filter(id=tenant_id)
+            .values_list("perfil_regulatorio", flat=True)
+            .first()
+        )
+        if perfil_atual:
+            snapshot["perfil"] = perfil_atual
+
     with transaction.atomic():
         # Savepoint pra capturar UNIQUE violation sem invalidar a transacao
         # externa (queremos consultar `existente` ainda dentro do contexto).
@@ -75,7 +91,7 @@ def criar_equipamento(
                     modelo=dados.modelo.strip(),
                     cliente_atual_id=dados.cliente_atual_id,
                     localizacao_fisica=dados.localizacao_fisica.strip(),
-                    perfil_tenant_snapshot=dados.perfil_tenant_snapshot or {},
+                    perfil_tenant_snapshot=snapshot,
                     snapshot_schema_version=dados.snapshot_schema_version,
                 )
         except IntegrityError as exc:

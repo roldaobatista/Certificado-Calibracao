@@ -340,6 +340,16 @@ def registrar_auditoria(
     cadeia_filtro: dict[str, Any] = (
         {"tenant_id__isnull": True} if tenant_id is None else {"tenant_id": tenant_id}
     )
+
+    # T-SAN-PERFIL-045 (Sprint 4 ADR-0067): perfil_no_evento lido do ContextVar
+    # (populado pelo TenantMiddleware). Defesa em camadas — trigger BEFORE INSERT
+    # tambem popula via current_setting('app.perfil_tenant') se campo NULL.
+    # Aqui preferimos passar explicito pra evitar trigger fallback (audit-trail
+    # mais rastreavel — quem populou o snapshot foi a aplicacao).
+    from src.infrastructure.multitenant.context import perfil_tenant_context
+
+    perfil_atual = perfil_tenant_context.get() or None  # "" vira None
+
     return registrar_em_cadeia(  # type: ignore[return-value]
         Auditoria,
         classe_lock=_ADVISORY_LOCK_CLASSE_AUDIT,
@@ -351,6 +361,7 @@ def registrar_auditoria(
             "action": action,
             "resource_summary": resource_summary,
             "payload_jsonb": payload,
+            "perfil_no_evento": perfil_atual,
         },
     )
 

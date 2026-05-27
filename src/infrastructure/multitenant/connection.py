@@ -61,6 +61,7 @@ def setar_contexto_pg_na_conexao(
     usuario_id: UUID | None,
     using: str = "default",
     modo_sistema: bool = False,
+    perfil_tenant: str = "",
 ) -> None:
     """SET LOCAL nas GUCs PG. Exige transacao aberta — chamador garante.
 
@@ -100,13 +101,18 @@ def setar_contexto_pg_na_conexao(
 
     with conn.cursor() as cur:
         # set_config(name, value, is_local=true) = SET LOCAL — vive ate COMMIT
+        # T-SAN-PERFIL-045 (Sprint 4 ADR-0067): app.perfil_tenant adiciona
+        # contexto regulatorio. Triggers BEFORE INSERT em audit/calibracao/os
+        # leem este GUC pra popular perfil_no_evento quando registrar_auditoria
+        # nao preencheu explicitamente (defesa em profundidade).
         cur.execute(
             "SELECT set_config('app.tenant_ids', %s, true), "
             "set_config('app.active_tenant_id', %s, true), "
             "set_config('app.usuario_id', %s, true), "
             "set_config('app.modo_sistema', %s, true), "
             "set_config('app.pii_hash_key_ativa', %s, true), "
-            "set_config('app.pii_hash_key_ativa_id', %s, true);",
+            "set_config('app.pii_hash_key_ativa_id', %s, true), "
+            "set_config('app.perfil_tenant', %s, true);",
             [
                 tenant_ids_csv,
                 active_str,
@@ -114,6 +120,7 @@ def setar_contexto_pg_na_conexao(
                 modo_sistema_str,
                 pii_hash_key_hex,
                 pii_hash_key_id,
+                perfil_tenant,
             ],
         )
 

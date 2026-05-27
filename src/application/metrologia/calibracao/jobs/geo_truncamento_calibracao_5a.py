@@ -91,6 +91,17 @@ def executar(
             continue
         if snap.criada_em > corte:
             continue
+        # T-SAN-PERFIL-050 (Sprint 4 ADR-0067 / R10 plan.md / AC-005-6):
+        # Perfil A (acreditado RBC) NUNCA trunca geo — CGCRE pode pedir
+        # coordenadas exatas em supervisao retroativa (NIT-DICLA-016 +
+        # ISO 17025 cl. 8.4.2). Perfis B/C/D trunca normalmente. Snapshot
+        # `perfil_no_evento` (cravado no momento da calibracao via trigger
+        # BEFORE INSERT) e o canonico — preserva contexto temporal.
+        # Fallback (perfil_no_evento ausente — pre-saneamento) = trunca
+        # como antes (estado pre-ADR-0067 nao tinha A em producao).
+        perfil_no_momento = getattr(snap, "perfil_no_evento", None)
+        if perfil_no_momento == "A":
+            continue  # AC-005-6 — A jamais trunca
         novo_json, removidas = _truncar(snap.snapshot_equipamento_json)
         if not removidas:
             continue  # nada a truncar

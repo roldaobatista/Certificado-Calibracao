@@ -129,6 +129,7 @@ class TenantMiddleware:
                     tenant_ids=tenant_ids,
                     active_tenant=active_tenant,
                     usuario_id=usuario_id,
+                    perfil_tenant=perfil_atual,
                 )
                 return self.get_response(request)
         finally:

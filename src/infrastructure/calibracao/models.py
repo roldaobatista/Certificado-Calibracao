@@ -1545,6 +1545,26 @@ class EventoDeCalibracao(models.Model):
     occurred_at = models.DateTimeField(
         help_text="Momento do evento (relogio NTP-sincronizado).",
     )
+    # T-SAN-PERFIL-042 (Sprint 4 ADR-0067 / INV-TENANT-PERFIL-003):
+    # snapshot do perfil regulatorio + escopos vigentes no momento do evento.
+    perfil_no_evento = models.CharField(
+        max_length=1,
+        null=True,
+        blank=True,
+        choices=[("A", "A"), ("B", "B"), ("C", "C"), ("D", "D")],
+        help_text=(
+            "Snapshot perfil tenant no momento. Trigger BEFORE INSERT popula "
+            "via current_setting('app.perfil_tenant') quando NULL. ADR-0067."
+        ),
+    )
+    escopos_acreditados_vigentes_no_momento = models.JSONField(
+        default=list,
+        help_text=(
+            "R7 plan.md — escopos CGCRE vigentes no momento (perfil A). "
+            "Fail-open lazy `[]` ate modulo metrologia/escopos-cmc Wave A. "
+            "NIT-DICLA-030 item 8.2.6 — defesa em auditoria CGCRE retroativa."
+        ),
+    )
 
     class Meta:
         verbose_name = "Evento de Calibracao"

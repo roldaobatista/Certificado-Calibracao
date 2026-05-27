@@ -713,6 +713,18 @@ class EventoDeOS(models.Model):
         help_text="Timestamp do evento de negocio (pode preceder criado_em em sync mobile).",
     )
     criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+    # T-SAN-PERFIL-043 (Sprint 4 ADR-0067 / INV-TENANT-PERFIL-003).
+    perfil_no_evento = models.CharField(
+        max_length=1,
+        null=True,
+        blank=True,
+        choices=[("A", "A"), ("B", "B"), ("C", "C"), ("D", "D")],
+        help_text=(
+            "Snapshot perfil regulatorio tenant no momento do evento OS. "
+            "Trigger BEFORE INSERT popula via current_setting('app.perfil_tenant'). "
+            "ADR-0067."
+        ),
+    )
 
     class Meta:
         app_label = "ordens_servico"
