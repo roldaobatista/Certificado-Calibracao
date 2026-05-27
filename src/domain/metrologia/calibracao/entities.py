@@ -164,6 +164,9 @@ class ComponenteIncertezaSnapshot:
     s_x: Decimal | None  # desvio-padrao amostral (NOT NULL quando Tipo A)
     correlacao_com_componente_id: UUID | None
     coeficiente_correlacao: Decimal | None  # -1 a 1
+    # INV-CAL-INC-004: 2+ componentes com mesma fonte_default_padrao_id
+    # sem correlacao_com_componente_id geram alerta P2 (job T-CAL-119).
+    fonte_default_padrao_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
