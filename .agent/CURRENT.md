@@ -2,35 +2,34 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`. **Modo:** AUTÔNOMO.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS + **M4 calibracao FECHADO 2026-05-27** ✅. 1ª passada (41 C/A/M) → 6 batches S1..S6.1 conserto causa-raiz → 2ª passada Família 5 (10 auditores): 8 PASS + 2 CONCERNS BAIXO carryover (seguranca GATE-KMS; drift-docs CONCERNS→PASS pós-S6.1). LLM-correctness subiu CONCERNS→PASS. Próximo: Wave A (autorização Roldão).
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS + M4 calibracao + **SAN-PERFIL-TENANT Sprints 1-4 FECHADOS 2026-05-27 noite** ✅. Saneamento puro 100% entregue em sessão única após auditoria 10 lentes detectar FAIL L6 (fraude documental viável — `cmc_cobre` lia tipo_acreditacao do payload). ADR-0067 aceita. Próximo: Wave A propriamente (autorização Roldão).
 
-## Estado da suíte (2026-05-27)
+## Estado da suíte (2026-05-27 noite)
 
-- pytest M4 chave: **629/629** verde em ~27s.
-- pytest geral: 905/0/0 (último full run 2026-05-24).
-- Hooks `_test-runner.sh`: **379/379** verdes / **48 hooks ativos**.
-- ruff/mypy: limpos nos paths novos.
+- Drill `validar_san_perfil_tenant_migrations`: **17/17 PASS** (PG real).
+- Drill `validar_san_perfil_tenant_snapshots`: **6/6 PASS** (PG real, Sprint 4).
+- Relatório evidência defensiva A4: 1 evento pré-saneamento exportado.
+- Suite ampla regression+audit+M3+M4: **exit 0** (todos verdes).
+- Hooks `_test-runner.sh`: **414/414** verdes / **51 hooks ativos** (+3 ADR-0067).
+- pytest geral: 905/0/0 (último full run 2026-05-24; pós-saneamento exige re-run).
 
-## Histórico em `docs/faseamento/diario/`: 2026-05-25-{saneamento,marco4-p2-4-reviews,marco4-p3-matriz-e-tasks}.md + 2026-05-26-marco4-p4-fases5-10.md + 2026-05-27-marco4-p5-auditoria-1a-passada.md.
+## Sessão SAN-PERFIL-TENANT (2026-05-27 — 6 commits)
 
-## Sessão pós-M4 (2026-05-27 — 11 commits)
-
-- S1..S6.1 conserto causa-raiz Marco 4 P5 (consolidados em diário do dia).
-- `8e8017a` FECHAMENTO M4 — INV-RITUAL-001 satisfeito (10/10 auditores PASS).
-- `1b8f71c` + `4b63ee4` S7+S7.1 drift cross-marco (19 itens zerados; revalidação PASS).
-- `5ab78cb` diário consolidado.
-- Detalhe em `docs/faseamento/diario/2026-05-27-marco4-fechamento-e-housekeeping.md`.
-
-## Estado pós-fechamento (limpo)
-
-10 auditores Família 5 PASS (2ª passada M4 + revalidação drift cross-marco PASS). Zero achado bloqueante aberto. GATEs Wave A rastreados em `docs/faseamento/M4-calibracao/auditoria-familia5.md` §6.
+- `de229b8` docs(SAN-PERFIL-TENANT) — ADR-0067 aceita + spec/plan/tasks ritual Spec Kit + drift geografia MT (1032 linhas).
+- `87bbc64` feat Sprints 1+2 — schema multi-step (migrations 0003-0010) + funções SECURITY DEFINER + predicate canônico `tenant_perfil_e` fecha FAIL L6 + 23 testes regressão.
+- `de5877f` fix débitos pré-existentes M4 — `subcontratacao.actor_user_id` (7 testes) + `ClienteNotificadoVia.NAO_APLICA`.
+- `f51fe47` feat Sprint 3 — `provisionar_tenant` + matriz feature×perfil + job vigência + emenda ADR-0015 + runbook DPO.
+- `694ce27` feat Sprint 4 — snapshot `perfil_no_evento` WORM via trigger BEFORE INSERT + GUC `app.perfil_tenant` + retrofit equipamento + retrofit geo_truncamento (perfil A nunca trunca) + drill snapshots + relatório evidência A4.
+- `aa56cdf` docs consolida tasks.md status Sprints 1-4 FECHADOS.
 
 ## Próxima ação (escolha Roldão)
 
-1. **Wave A**: promover 12 ADRs propostas + drill PG real + plugar 7 ViewSets restantes.
-2. **Marco 5** (certificados emitidos): próximo módulo natural após M4.
-3. **F-C2** (observabilidade) / **F-C3** (resiliência): pré-1º deploy externo.
+1. **Wave A propriamente** — Sprints 5-6 do saneamento (módulos novos `certificados`, `onboarding`, `direitos-titular`) + 12 ADRs propostas para promover + Marco 5 OU outros módulos do faseamento.
+2. **Auditoria 10 lentes pré-Wave A** — antes de codar, checar se planejado tem mesma lacuna estrutural que SAN-PERFIL-TENANT pegou.
+3. **Suite total** (905+629 ~26min) pra confirmar regressão global pós-saneamento.
 
-## ADRs M4 e GATEs Wave A
+## ADRs novas e GATEs SAN-PERFIL-TENANT
 
-ADRs aceitas: **0040** (padrão metrológico entidade separada), **0064** (HMAC anual + KMS 25a), **0065** (concorrência: UNIQUE + CAS + advisory lock), **0066** (fail-open lazy `cmc_cobre` + `procedimento_vigente_para`). 33 GATE-CAL-* + GATE-OS-* (~20) + 3 GATE-DEP rastreados em `docs/faseamento/M4-calibracao/auditoria-familia5.md` §5.
+ADR-0067 aceita (perfil regulatório do tenant como entidade temporal 1ª classe). 7 GATEs Wave A rastreados em `docs/adr/0067-perfil-regulatorio-tenant-entidade-temporal.md` §"Gates Wave A":
+GATE-TENANT-PERFIL-{SCHEMA, PROVISIONING, TEMPLATES-CERT, MATRIZ-RETENCAO, AUTHZ-PREDICATE, TESTES-MATRIZ, OBSERVABILIDADE}.
+INV-TENANT-PERFIL-001..007 declaradas em `REGRAS-INEGOCIAVEIS.md`.
