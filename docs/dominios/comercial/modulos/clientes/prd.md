@@ -1,12 +1,15 @@
 ---
 owner: roldao
-revisado_em: 2026-05-22
-proximo_review: 2026-08-22
-status: draft
+revisado_em: 2026-05-27
+proximo_review: 2026-08-27
+status: stable
 modulo: clientes
 dominio: comercial
 diataxis: explanation
 audiencia: agente
+historico:
+  - "2026-05-21: Marco 1 FECHADO (18 T-CLI + drill PASS + 10 auditores Família 5 ZERO C/A/M)"
+  - "2026-05-27: promoção draft→stable após drift detectado pela auditoria 10 lentes pré-Wave A"
 ---
 
 # PRD — Módulo Clientes

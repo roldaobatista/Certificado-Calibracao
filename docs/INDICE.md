@@ -4,7 +4,7 @@
 >
 > Para versão lida por agente (machine-readable com tokens estimados), ver `docs/INDEX.yaml`.
 >
-> **Atualizado v10 (2026-05-27 — pós F-A+F-B+M1+M2+F-C1+M3-OS+M4 calibração FECHADOS):** 7 Foundations/Marcos fechados com 10/10 auditores Família 5 PASS ZERO C/A/M; **61 ADRs ativas** (0000..0058 + 0062..0066 — ADR-0064/0065/0066 do Marco 4); ~480 docs estruturais + Family 0 Discovery STABLE; **48 hooks ativos / 379/379 casos verdes**; 10 auditores Família 5 stable após 5+ ciclos PASS.
+> **Atualizado v11 (2026-05-27 noite — pós F-A+F-B+M1+M2+F-C1+M3-OS+M4 + SAN-PERFIL-TENANT Sprints 1-4 FECHADOS + auditoria 10 lentes pré-Wave A):** 7 Foundations/Marcos fechados com 10/10 auditores Família 5 PASS ZERO C/A/M; **65 ADRs ativas** (0000..0058 + 0062..0067 — ADR-0067 entidade temporal perfil regulatório do tenant); ~480 docs estruturais + Family 0 Discovery STABLE; **51 hooks ativos / 413/413 casos verdes**; 10 auditores Família 5 stable após 5+ ciclos PASS; auditoria 10 lentes pré-Wave A consolidada em `docs/faseamento/auditorias/PRE-WAVE-A-CONSOLIDADO-rodada-1.md` (5 ondas de execução).
 
 ---
 
@@ -40,7 +40,7 @@
 - `../REGRAS-INEGOCIAVEIS.md`
 - `comum/glossario.md` (a criar)
 - `comum/automacoes-catalogo.md` — 13 ações do engine de automação
-- `adr/*.md` (**61 ADRs ativas — 0000..0058 + 0062..0066**; últimas batches Marco 4 calibração: ADR-0064 rotação HMAC + KMS 25a, ADR-0065 concorrência calibração UNIQUE+CAS+advisory lock, ADR-0066 fail-open lazy `cmc_cobre` + `procedimento_vigente_para`)
+- `adr/*.md` (**65 ADRs ativas — 0000..0058 + 0062..0067**; última batch SAN-PERFIL-TENANT 2026-05-27: ADR-0067 perfil regulatório do tenant como entidade temporal A/B/C/D + 7 GATEs Wave A `GATE-TENANT-PERFIL-*`)
 - `orcamento-financeiro.md` — projeção ano 1/3/5
 - `dominios/financeiro/modulos/billing-saas/calculadora-fatura.md` — algoritmo de fatura composicional + 30 casos
 

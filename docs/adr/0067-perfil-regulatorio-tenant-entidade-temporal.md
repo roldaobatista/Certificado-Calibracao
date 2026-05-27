@@ -5,7 +5,7 @@ revisado-em: 2026-05-27
 adr: 0067
 titulo: Perfil regulatório do tenant como entidade temporal de 1ª classe (4 perfis A/B/C/D)
 data: 2026-05-27
-aceito-em: 2026-05-27 (decisão Roldão via AskUserQuestion + comando "continui")
+aceito-em: 2026-05-27 (decisão Roldão via AskUserQuestion + comando "continua")
 proposto-por: agente (auditoria 10 lentes — pedido do Roldão "ver se o sistema grava o tipo de empresa")
 revisado-por: 10/10 auditores Família 5 (auditoria 2026-05-27) — convergência total
 bloqueia-fase: Wave A (1º tenant externo pago)
@@ -175,4 +175,4 @@ Cada Sprint passa pelo ritual Spec Kit obrigatório (INV-RITUAL-001) com 10 audi
 
 - **2026-05-27 manhã** — Auditoria 10 lentes (pedido Roldão "ver se o sistema grava o tipo de empresa") detecta gap em 10/10 vereditos. Roldão decide via AskUserQuestion: manter 4 perfis + consertar antes de Wave A.
 - **2026-05-27 tarde** — ADR redigida em proposta.
-- **2026-05-27 tarde** — ADR aceita por decisão Roldão ("continui" = aceite). Status: aceito. Próximo passo: spec do Sprint 1 em `docs/faseamento/SAN-PERFIL-TENANT/spec.md` seguindo ritual Spec Kit (INV-RITUAL-001).
+- **2026-05-27 tarde** — ADR aceita por decisão Roldão ("continua" = aceite). Status: aceito. Próximo passo: spec do Sprint 1 em `docs/faseamento/SAN-PERFIL-TENANT/spec.md` seguindo ritual Spec Kit (INV-RITUAL-001).

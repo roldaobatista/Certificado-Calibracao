@@ -1,11 +1,13 @@
-# Documentos do projeto Aferê (v10)
+# Documentos do projeto Aferê (v11)
 
 > **Pra que serve:** mapa de TODOS os documentos que o projeto precisa pra funcionar 100% tocado por agentes de IA, sem o Roldão precisar virar programador.
 >
 > **Status:** ✅ existe | ⏳ falta criar | 🟡 parcial | ❌ removido
 > **Prioridade:** 🔴 MVP-obrigatório | 🟡 próximo | ⚪ lazy
 >
-> **Atualização v10 (2026-05-27 — pós F-A+F-B+M1+M2+F-C1+M3-OS+M4 calibração TODOS FECHADOS):** Família 0 Discovery STABLE v1.0. Família 1 stable (**48 hooks ativos / 379 casos verdes**, 10 auditores Família 5 com 5+ ciclos PASS, 4 humano-substitutos). Família 2 stable (PRD raiz stable; 7 marcos com PRD entregue+auditado — Marco 4 calibração fechado 2026-05-27 com ADRs 0040/0064/0065/0066). Família 3 stable (**61 ADRs ativas 0000..0058 + 0062..0066**; anti-corrosion-layer v3 18 portas). Família 5 stable (10 auditores). Famílias 4, 6, 7, 8 parciais (pré-Wave A).
+> **Atualização v11 (2026-05-27 noite — pós F-A+F-B+M1+M2+F-C1+M3-OS+M4 + SAN-PERFIL-TENANT Sprints 1-4 TODOS FECHADOS + auditoria 10 lentes pré-Wave A):** Família 0 Discovery STABLE v1.0. Família 1 stable (**51 hooks ativos / 413 casos verdes**, 10 auditores Família 5 com 5+ ciclos PASS, 4 humano-substitutos). Família 2 stable (PRD raiz stable; 7 marcos + saneamento SAN-PERFIL com PRD entregue+auditado — Marco 4 fechado 2026-05-27 com ADRs 0040/0064/0065/0066; SAN-PERFIL fechado 2026-05-27 noite com ADR-0067). Família 3 stable (**65 ADRs ativas 0000..0058 + 0062..0067**; anti-corrosion-layer v3 18 portas). Família 5 stable (10 auditores + auditoria 10 lentes pré-Wave A consolidada). Famílias 4, 6, 7, 8 parciais (pré-Wave A). Plano de 5 ondas de execução em `docs/faseamento/auditorias/PRE-WAVE-A-CONSOLIDADO-rodada-1.md`.
+>
+> **Adições SAN-PERFIL-TENANT 2026-05-27 noite:** `docs/faseamento/SAN-PERFIL-TENANT/{spec,plan,tasks}.md` + `docs/adr/0067-perfil-regulatorio-tenant-entidade-temporal.md` + `docs/conformidade/comum/matriz-feature-perfil.md` + `docs/conformidade/comum/runbook-dpo-encarregado.md` + memória `project_perfil_regulatorio_tenant.md` + memória `project_sem_contratacoes_externas_ate_producao.md`.
 >
 > **Atualização v8 anterior:** 2026-05-17 noite+12h (incorpora 25 módulos adicionais; total ~480 docs).
 >

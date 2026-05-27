@@ -22,11 +22,15 @@
 - `694ce27` feat Sprint 4 — snapshot `perfil_no_evento` WORM via trigger BEFORE INSERT + GUC `app.perfil_tenant` + retrofit equipamento + retrofit geo_truncamento (perfil A nunca trunca) + drill snapshots + relatório evidência A4.
 - `aa56cdf` docs consolida tasks.md status Sprints 1-4 FECHADOS.
 
-## Próxima ação (escolha Roldão)
+## Próxima ação (em execução)
 
-1. **Wave A propriamente** — Sprints 5-6 do saneamento (módulos novos `certificados`, `onboarding`, `direitos-titular`) + 12 ADRs propostas para promover + Marco 5 OU outros módulos do faseamento.
-2. **Auditoria 10 lentes pré-Wave A** — antes de codar, checar se planejado tem mesma lacuna estrutural que SAN-PERFIL-TENANT pegou.
-3. **Suite total** (905+629 ~26min) pra confirmar regressão global pós-saneamento.
+**Auditoria 10 lentes pré-Wave A CONCLUÍDA 2026-05-27 madrugada.** Roldão decidiu "resolver TUDO — críticos, altos, médios, baixos". Plano consolidado em `docs/faseamento/auditorias/PRE-WAVE-A-CONSOLIDADO-rodada-1.md` (5 ondas).
+
+**Em execução:** Onda PRE-A.1 (drift docs ~2h) — AGENTS.md/CLAUDE.md/INDICE.md/memory/clientes-prd/faseamento-FW corrigidos. Falta validar `_test-runner.sh`.
+
+**Próximas ondas:** PRE-A.2 (promover/emenda ADRs ~25h + sessões Roldão) → PRE-A.3 (saneamento 16 PRDs Wave A ~130h em 4 batches paralelos) → PRE-A.4 (bus M3/M4 retrofit + TRACKs + F-C3 ~20d) → PRE-A.5 (F-C2 + drills internos — SEM contratações externas).
+
+**Decisões Roldão 2026-05-27 noite:** HTMX+5 SPAs (ADR-0010); Aferê PJ separada DEPOIS; Onda 3 com 4 agentes paralelos; **zero contratações externas até produção real** (memória `project_sem_contratacoes_externas_ate_producao`).
 
 ## ADRs novas e GATEs SAN-PERFIL-TENANT
 

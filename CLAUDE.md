@@ -2,7 +2,7 @@
 
 @AGENTS.md
 
-> **Status (2026-05-17):** ambiente Claude Code operacional. Discovery 15/15 artefatos concluída (síntese final em DRAFT v3). Stack candidata cravada na ADR-0001 (Django + Flutter + PostgreSQL — 3 portões, 2 fechados). Decisões fundadoras D1–D5 + ADRs 0000, 0001, 0002, 0007, 0008, 0009 ativas. Este arquivo é adendo do harness Claude Code; produto/arquitetura ficam em `AGENTS.md` (importado acima).
+> **Status (2026-05-27 noite):** 7 Foundations/Marcos FECHADOS (F-A, F-B, M1, M2, F-C1, M3 OS, M4 calibração) + SAN-PERFIL-TENANT Sprints 1-4 FECHADOS (perfil regulatório do tenant A/B/C/D — ADR-0067). 65 ADRs ativas (0000..0058 + 0062..0067). 51 hooks ativos / 413 casos verdes em `_test-runner`. Suite M4 chave 629/629; suite ampla regression+audit+M3+M4 exit 0 pós-saneamento. Auditoria 10 lentes pré-Wave A em execução (`docs/faseamento/auditorias/PRE-WAVE-A-CONSOLIDADO-rodada-1.md` — 5 ondas, ~150 achados). Este arquivo é adendo do harness Claude Code; produto/arquitetura ficam em `AGENTS.md` (importado acima).
 
 ---
 
