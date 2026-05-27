@@ -10,6 +10,9 @@ INVs cobertas neste arquivo:
 - INV-CAL-RT-002: snapshot_competencia_revisor_json IMUTÁVEL pós-aprovação.
 - INV-CAL-IDEMP-001: idempotência forte registrar_leitura (+ documenta GAP
   IdempotencyPayloadMismatch que precisa de validação adicional Wave A).
+- INV-CAL-CONF-001: 2ª conferência exige estado AGUARDANDO_2A_CONFERENCIA
+  + conferente != revisor != executor (exceção ADR-0026 4 condições).
+- INV-CAL-DEC-001: avaliar_conformidade bloqueado pós-APROVADA (lock).
 """
 
 from __future__ import annotations
@@ -615,3 +618,230 @@ class TestINV_CAL_IDEMP_001:
         )
         assert l1.id != l2.id
         assert len(leitura_repo.leituras) == 2
+
+
+# =====================================================================
+# INV-CAL-CONF-001 — 2a conferencia + independencia RT
+# =====================================================================
+
+
+class TestINV_CAL_CONF_001:
+    """ISO 17025 cl. 6.2 + 7.7 + ADR-0026:
+    2a conferencia exige status AGUARDANDO_2A_CONFERENCIA + segregacao
+    funcoes (conferente != revisor != executor) salvo excecao ADR-0026
+    (4 condicoes objetivas + 5%/mes + excecao_2a_conf_id FK).
+    """
+
+    def _competencia(self) -> dict[str, object]:
+        return {
+            "grandeza": "massa",
+            "faixa_min": "0",
+            "faixa_max": "10000",
+            "vigencia_inicio": "2025-01-01",
+            "vigencia_fim": "2027-12-31",
+            "rt_competencia_id": str(uuid4()),
+        }
+
+    def _cal_aguardando_2a(
+        self, *, executor: UUID, revisor: UUID
+    ) -> CalibracaoSnapshot:
+        base = _calibracao_em_execucao(tenant=uuid4())
+        return replace(
+            base,
+            status=EstadoCalibracao.AGUARDANDO_2A_CONFERENCIA,
+            executor_id=executor,
+            revisor_id=revisor,
+            snapshot_competencia_revisor_json=self._competencia(),
+        )
+
+    def test_recusa_estado_diferente_de_aguardando(self) -> None:
+        from src.application.metrologia.calibracao.aprovar_2a_conferencia import (
+            Aprovar2aConferenciaInput,
+            EstadoInvalidoParaAprovar2aConferencia,
+        )
+        from src.application.metrologia.calibracao.aprovar_2a_conferencia import (
+            executar as aprovar_2a,
+        )
+
+        executor = uuid4()
+        revisor = uuid4()
+        conferente = uuid4()
+
+        cal = replace(
+            self._cal_aguardando_2a(executor=executor, revisor=revisor),
+            status=EstadoCalibracao.EM_REVISAO_1,
+        )
+        repo = FakeCalibracaoRepoMin()
+        repo.salvar(cal)
+        with pytest.raises(EstadoInvalidoParaAprovar2aConferencia):
+            aprovar_2a(
+                Aprovar2aConferenciaInput(
+                    calibracao_id=cal.id,
+                    revision_esperada=cal.revision,
+                    conferente_id=conferente,
+                    snapshot_competencia_conferente_json=self._competencia(),
+                ),
+                repo,
+            )
+
+    def test_recusa_conferente_igual_revisor_sem_excecao(self) -> None:
+        from src.application.metrologia.calibracao.aprovar_2a_conferencia import (
+            Aprovar2aConferenciaInput,
+            FraudeConferenteEhRevisorOuExecutor,
+        )
+        from src.application.metrologia.calibracao.aprovar_2a_conferencia import (
+            executar as aprovar_2a,
+        )
+
+        executor = uuid4()
+        revisor = uuid4()
+        cal = self._cal_aguardando_2a(executor=executor, revisor=revisor)
+        repo = FakeCalibracaoRepoMin()
+        repo.salvar(cal)
+
+        with pytest.raises(FraudeConferenteEhRevisorOuExecutor):
+            aprovar_2a(
+                Aprovar2aConferenciaInput(
+                    calibracao_id=cal.id,
+                    revision_esperada=cal.revision,
+                    conferente_id=revisor,
+                    snapshot_competencia_conferente_json=self._competencia(),
+                ),
+                repo,
+            )
+
+    def test_excecao_motivo_exige_fk_2a_conf_id(self) -> None:
+        """ADR-0026: excecao_motivo sem excecao_2a_conf_id e configuracao
+        incompleta — validado no __post_init__ (ValueError no Input)."""
+        from src.application.metrologia.calibracao.aprovar_2a_conferencia import (
+            Aprovar2aConferenciaInput,
+        )
+
+        with pytest.raises(ValueError, match="excecao_2a_conf_id"):
+            Aprovar2aConferenciaInput(
+                calibracao_id=uuid4(),
+                revision_esperada=2,
+                conferente_id=uuid4(),
+                snapshot_competencia_conferente_json=self._competencia(),
+                excecao_motivo="lab_unico_rt_disponivel",
+                excecao_2a_conf_id=None,
+            )
+
+    def test_fk_2a_conf_id_exige_motivo(self) -> None:
+        from src.application.metrologia.calibracao.aprovar_2a_conferencia import (
+            Aprovar2aConferenciaInput,
+        )
+
+        with pytest.raises(ValueError, match="excecao_motivo"):
+            Aprovar2aConferenciaInput(
+                calibracao_id=uuid4(),
+                revision_esperada=2,
+                conferente_id=uuid4(),
+                snapshot_competencia_conferente_json=self._competencia(),
+                excecao_motivo=None,
+                excecao_2a_conf_id=uuid4(),
+            )
+
+
+# =====================================================================
+# INV-CAL-DEC-001 — avaliar_conformidade bloqueado pos-APROVADA (LOCK)
+# =====================================================================
+
+
+class TestINV_CAL_DEC_001:
+    """ISO 17025 cl. 7.8.6 + ADR-0024:
+    Regra de decisao LOCK pos-APROVADA — nao permite reavaliacao.
+    Aceita reavaliacao so em EM_EXECUCAO e EM_REVISAO_1.
+    """
+
+    def test_avaliar_em_status_aprovada_recusa(self) -> None:
+        from src.application.metrologia.calibracao.avaliar_conformidade import (
+            AvaliarConformidadeInput,
+            CalibracaoEstadoNaoPermiteAvaliar,
+        )
+        from src.application.metrologia.calibracao.avaliar_conformidade import (
+            executar as avaliar,
+        )
+
+        cal = replace(
+            _calibracao_em_execucao(tenant=uuid4()),
+            status=EstadoCalibracao.APROVADA,
+        )
+        repo = FakeCalibracaoRepoMin()
+        repo.salvar(cal)
+
+        with pytest.raises(CalibracaoEstadoNaoPermiteAvaliar):
+            avaliar(
+                AvaliarConformidadeInput(
+                    calibracao_id=cal.id,
+                    revision_esperada=cal.revision,
+                    valor_medido=Decimal("10.05"),
+                    U_expandida=Decimal("0.10"),
+                    k=Decimal("2.0"),
+                    lsl=Decimal("9.9"),
+                    usl=Decimal("10.1"),
+                ),
+                repo,
+            )
+
+    def test_avaliar_em_status_recepcionada_recusa(self) -> None:
+        from src.application.metrologia.calibracao.avaliar_conformidade import (
+            AvaliarConformidadeInput,
+            CalibracaoEstadoNaoPermiteAvaliar,
+        )
+        from src.application.metrologia.calibracao.avaliar_conformidade import (
+            executar as avaliar,
+        )
+
+        cal = replace(
+            _calibracao_em_execucao(tenant=uuid4()),
+            status=EstadoCalibracao.RECEPCIONADA,
+        )
+        repo = FakeCalibracaoRepoMin()
+        repo.salvar(cal)
+
+        with pytest.raises(CalibracaoEstadoNaoPermiteAvaliar):
+            avaliar(
+                AvaliarConformidadeInput(
+                    calibracao_id=cal.id,
+                    revision_esperada=cal.revision,
+                    valor_medido=Decimal("10"),
+                    U_expandida=Decimal("0.1"),
+                    k=Decimal("2.0"),
+                    lsl=None,
+                    usl=None,
+                ),
+                repo,
+            )
+
+    def test_input_recusa_U_expandida_negativa(self) -> None:
+        from src.application.metrologia.calibracao.avaliar_conformidade import (
+            AvaliarConformidadeInput,
+        )
+
+        with pytest.raises(ValueError, match="U_expandida"):
+            AvaliarConformidadeInput(
+                calibracao_id=uuid4(),
+                revision_esperada=2,
+                valor_medido=Decimal("10"),
+                U_expandida=Decimal("-0.1"),
+                k=Decimal("2.0"),
+                lsl=None,
+                usl=None,
+            )
+
+    def test_input_recusa_k_zero(self) -> None:
+        from src.application.metrologia.calibracao.avaliar_conformidade import (
+            AvaliarConformidadeInput,
+        )
+
+        with pytest.raises(ValueError, match="k deve ser"):
+            AvaliarConformidadeInput(
+                calibracao_id=uuid4(),
+                revision_esperada=2,
+                valor_medido=Decimal("10"),
+                U_expandida=Decimal("0.1"),
+                k=Decimal("0"),
+                lsl=None,
+                usl=None,
+            )

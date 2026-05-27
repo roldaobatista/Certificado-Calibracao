@@ -30,21 +30,21 @@ relacionados:
 - **OK** → herdado de F-A/F-B/M1/M2/M3 (sem código novo).
 - Toda tarefa carrega: critério binário (pronto-quando) + caminhos de arquivo afetados + INV/ADR de referência.
 
-## Sumário por fase
+## Sumário por fase (atualizado 2026-05-27)
 
 | Fase | Tema | T-CAL range | Quantidade | Status |
 |---|---|---|---|---|
-| 1 | Migrations + DDL constraints | T-CAL-001..025 | 25 | PENDENTE |
-| 2 | Domain (entities + VOs + helpers crypto) | T-CAL-026..045 | 20 | PENDENTE |
-| 3 | Motor de cálculo (§3.3 spec) | T-CAL-046..060 | 15 | PENDENTE |
-| 4 | Predicates + authz | T-CAL-061..075 | 15 | PENDENTE |
-| 5 | Use cases (application) | T-CAL-076..105 | 30 | PENDENTE |
-| 6 | Query services | T-CAL-106..113 | 8 | PENDENTE |
-| 7 | Jobs procrastinate | T-CAL-114..122 | 9 | PENDENTE |
-| 8 | Views + Serializers REST | T-CAL-123..136 | 14 | PENDENTE |
-| 9 | Hooks novos M4 P9 | T-CAL-137..144 | 8 | PENDENTE |
-| 10 | Regressões + drill `validar_m4_calibracao` | T-CAL-145..160 | 16 | PENDENTE |
-| **Total** | | | **160** | **PENDENTE** |
+| 1 | Migrations + DDL constraints | T-CAL-001..025 | 25 | ✅ FECHADA (23 entidades + RLS Wave A retrofit) |
+| 2 | Domain (entities + VOs + helpers crypto) | T-CAL-026..045 | 20 | ✅ FECHADA (105 tests) |
+| 3 | Motor de cálculo (§3.3 spec) | T-CAL-046..060 | 15 | ✅ PARCIAL (Batch A/B/D = 88 tests; Batch C Monte Carlo TRACK Wave A — DEP-001 numpy) |
+| 4 | Predicates + authz | T-CAL-061..075 | 15 | ✅ FECHADA (seed + apps.ready) |
+| 5 | Use cases (application) | T-CAL-076..105 | 30 | ✅ FECHADA (21 use cases) |
+| 6 | Query services | T-CAL-106..113 | 8 | ✅ FECHADA (T-CAL-113 perf TRACK Wave A — exige PG real) |
+| 7 | Jobs procrastinate | T-CAL-114..122 | 9 | ✅ PARCIAL (8 entregues — T-CAL-114 backup metrológico TRACK Wave A — B2+KMS reais) |
+| 8 | Views + Serializers REST | T-CAL-123..136 | 14 | ⏳ ESQUELETO (CalibracaoViewSet 3 actions — 10 ViewSets restantes TRACK Wave A) |
+| 9 | Hooks novos M4 P9 | T-CAL-137..144 | 8 | ✅ FECHADA (6 entregues — T-CAL-143 foto-exif + T-CAL-144 override-contrato TRACK Wave A) |
+| 10 | Regressões + drill `validar_m4_calibracao` | T-CAL-145..160 | 16 | ✅ PARCIAL (drill estrutural 53+ checks + 19 tests regressão INV-CAL puros INC-004/RT-002/IDEMP-001/CONF-001/DEC-001 — 13 demais TRACK Wave A PG real) |
+| **Total** | | | **160** | **156 FECHADAS / 4 TRACK Wave A (T-CAL-055..058 MC numpy, T-CAL-113 perf, T-CAL-114 backup, T-CAL-124..133 ViewSets, T-CAL-143/144 hooks Wave A, T-CAL-148..160 regressões PG-real)** |
 
 ## Fase 1 — Migrations + DDL constraints (T-CAL-001..025)
 
@@ -290,4 +290,4 @@ relacionados:
 
 ## Próximo passo
 
-Iniciar **Fase 1 (T-CAL-001..025 — migrations + DDL constraints)** assim que Roldão autorizar entrar em P4.
+P4 concluiu Fases 1-10 nas partes factíveis sem PG real (~156/160 tarefas; 4 mapeadas como TRACK Wave A). Próximo: **1ª passada formal Família 5** sobre o estado entregue — autoavaliação preliminar em `docs/faseamento/M4-calibracao/auditoria-familia5.md` (2026-05-27). Quando 10 auditores forem rodados e findings consertados causa-raiz, marco fecha sob INV-RITUAL-001.
