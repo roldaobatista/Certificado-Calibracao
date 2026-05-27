@@ -54,6 +54,11 @@ from src.domain.metrologia.calibracao.enums import (
     RegraDecisao,
     TipoAcreditacao,
 )
+from src.infrastructure.calibracao.lgpd import (
+    derivar_cliente_key_id,
+    derivar_cliente_referencia_hash,
+    derivar_hash_texto_canonicalizado,
+)
 from src.infrastructure.calibracao.repositories import DjangoCalibracaoRepository
 from src.infrastructure.calibracao.serializers import (
     CancelarCalibracaoSerializer,
@@ -115,6 +120,13 @@ class CalibracaoViewSet(viewsets.ViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        # SEG-CAL-01: derivar PII server-side (ADR-0032 + ADR-0064).
+        cliente_id = dados.get("cliente_id")
+        cliente_referencia_hash = derivar_cliente_referencia_hash(
+            cliente_id=cliente_id, tenant_id=tenant_id
+        )
+        cliente_key_id = derivar_cliente_key_id(tenant_id=tenant_id)
+
         repo = DjangoCalibracaoRepository()
         try:
             inp = CriarCalibracaoInput(
@@ -123,9 +135,9 @@ class CalibracaoViewSet(viewsets.ViewSet):
                 atividade_os_id=dados.get("atividade_os_id"),
                 instrumento_id=dados["instrumento_id"],
                 snapshot_equipamento_json=dados["snapshot_equipamento_json"],
-                cliente_id=dados.get("cliente_id"),
-                cliente_referencia_hash=dados["cliente_referencia_hash"],
-                cliente_key_id=dados["cliente_key_id"],
+                cliente_id=cliente_id,
+                cliente_referencia_hash=cliente_referencia_hash,
+                cliente_key_id=cliente_key_id,
                 tipo_acreditacao=TipoAcreditacao(dados["tipo_acreditacao"]),
                 recepcionada_em=datetime.now(UTC),
                 correlation_id=dados["correlation_id"],
@@ -159,6 +171,22 @@ class CalibracaoViewSet(viewsets.ViewSet):
         except (ValueError, TypeError) as exc:
             raise NotFound(f"id invalido: {exc}") from exc
 
+        # SEG-CAL-08: derivar hash server-side a partir do texto inline.
+        tenant_id_ctx = active_tenant_context.tenant_id
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        texto_inline = dados.get("analise_critica_pedido_inline_texto", "") or ""
+        analise_inline_hash = (
+            derivar_hash_texto_canonicalizado(
+                texto=texto_inline, tenant_id=tenant_id_ctx
+            )
+            if texto_inline
+            else ""
+        )
+
         repo = DjangoCalibracaoRepository()
         try:
             inp = ConfigurarCalibracaoInput(
@@ -177,9 +205,7 @@ class CalibracaoViewSet(viewsets.ViewSet):
                 analise_critica_pedido_id=dados.get(
                     "analise_critica_pedido_id"
                 ),
-                analise_critica_pedido_inline_hash=dados.get(
-                    "analise_critica_pedido_inline_hash", ""
-                ),
+                analise_critica_pedido_inline_hash=analise_inline_hash,
                 capacidade_tecnica_confirmada_por_user_id=dados.get(
                     "capacidade_tecnica_confirmada_por_user_id"
                 ),

@@ -17,7 +17,14 @@ from rest_framework import serializers
 
 
 class RecepcionarCalibracaoSerializer(serializers.Serializer):
-    """POST /api/v1/calibracoes/recepcionar — cria Calibracao em RECEPCIONADA."""
+    """POST /api/v1/calibracoes/recepcionar — cria Calibracao em RECEPCIONADA.
+
+    SEG-CAL-01 (2026-05-27 — 1a passada Familia 5): `cliente_referencia_hash`
+    e `cliente_key_id` REMOVIDOS do body — derivados server-side via
+    `lgpd.derivar_cliente_referencia_hash/_key_id` a partir de
+    (tenant_id, cliente_id). Cliente nao pode mais spoofar referencia
+    de outro cliente.
+    """
 
     origem_recepcao = serializers.ChoiceField(
         choices=["ATIVIDADE_OS", "AVULSA"],
@@ -26,11 +33,6 @@ class RecepcionarCalibracaoSerializer(serializers.Serializer):
     instrumento_id = serializers.UUIDField()
     snapshot_equipamento_json = serializers.JSONField()
     cliente_id = serializers.UUIDField(required=False, allow_null=True)
-    cliente_referencia_hash = serializers.RegexField(
-        regex=r"^v\d{2}\$[A-Za-z0-9+/=]+$",
-        max_length=80,
-    )
-    cliente_key_id = serializers.CharField(max_length=64)
     tipo_acreditacao = serializers.ChoiceField(choices=["RBC", "NAO_RBC"])
     correlation_id = serializers.UUIDField()
 
@@ -50,7 +52,13 @@ class RecepcionarCalibracaoSerializer(serializers.Serializer):
 
 
 class ConfigurarCalibracaoSerializer(serializers.Serializer):
-    """POST /api/v1/calibracoes/{id}/configurar — RECEPCIONADA -> CONFIGURADA."""
+    """POST /api/v1/calibracoes/{id}/configurar — RECEPCIONADA -> CONFIGURADA.
+
+    SEG-CAL-08 (2026-05-27): `analise_critica_pedido_inline_hash` REMOVIDO
+    do body. Body envia `analise_critica_pedido_inline_texto` (texto livre
+    >=10 chars OU vazio); view deriva hash server-side via
+    `lgpd.derivar_hash_texto_canonicalizado`.
+    """
 
     revision_esperada = serializers.IntegerField(min_value=0)
     procedimento_id = serializers.UUIDField()
@@ -64,8 +72,8 @@ class ConfigurarCalibracaoSerializer(serializers.Serializer):
     analise_critica_pedido_id = serializers.UUIDField(
         required=False, allow_null=True
     )
-    analise_critica_pedido_inline_hash = serializers.CharField(
-        required=False, allow_blank=True, default="", max_length=80
+    analise_critica_pedido_inline_texto = serializers.CharField(
+        required=False, allow_blank=True, default="", max_length=2000
     )
     capacidade_tecnica_confirmada_por_user_id = serializers.UUIDField(
         required=False, allow_null=True
@@ -73,14 +81,14 @@ class ConfigurarCalibracaoSerializer(serializers.Serializer):
 
 
 class CancelarCalibracaoSerializer(serializers.Serializer):
-    """POST /api/v1/calibracoes/{id}/cancelar."""
+    """POST /api/v1/calibracoes/{id}/cancelar.
+
+    SEG-CAL-07 (2026-05-27): `motivo_hash` REMOVIDO do body — derivado
+    server-side a partir de `motivo_cancelamento_canonicalizado`.
+    """
 
     revision_esperada = serializers.IntegerField(min_value=0)
     motivo_cancelamento_canonicalizado = serializers.CharField(min_length=30)
-    motivo_hash = serializers.RegexField(
-        regex=r"^v\d{2}\$[A-Za-z0-9+/=]+$",
-        max_length=80,
-    )
 
 
 class CalibracaoOutSerializer(serializers.Serializer):

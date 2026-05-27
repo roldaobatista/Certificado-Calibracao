@@ -18,14 +18,14 @@ from src.infrastructure.calibracao.serializers import (
 
 class TestRecepcionarSerializer:
     def _payload_valido(self) -> dict:
+        # SEG-CAL-01 (2026-05-27): cliente_referencia_hash + cliente_key_id
+        # REMOVIDOS — derivados server-side em views.py.
         return {
             "origem_recepcao": "AVULSA",
             "atividade_os_id": None,
             "instrumento_id": str(uuid4()),
             "snapshot_equipamento_json": {"nome": "Balanca AS6000"},
             "cliente_id": str(uuid4()),
-            "cliente_referencia_hash": "v01$aGVsbG8=",
-            "cliente_key_id": "cliente-key-v1",
             "tipo_acreditacao": "NAO_RBC",
             "correlation_id": str(uuid4()),
         }
@@ -55,11 +55,17 @@ class TestRecepcionarSerializer:
         s = RecepcionarCalibracaoSerializer(data=payload)
         assert not s.is_valid()
 
-    def test_hash_invalido_recusa(self) -> None:
+    def test_seg_cal_01_serializer_ignora_hash_no_body(self) -> None:
+        """SEG-CAL-01 (1a passada Familia 5): mesmo se cliente mandar
+        cliente_referencia_hash no body, serializer NAO declara o campo
+        — `validated_data` nao carrega referencia falsificada."""
         payload = self._payload_valido()
-        payload["cliente_referencia_hash"] = "hash-sem-prefixo-canonico"
+        payload["cliente_referencia_hash"] = "v01$ATACANTE_PROIBIDO"
+        payload["cliente_key_id"] = "key-roubada"
         s = RecepcionarCalibracaoSerializer(data=payload)
-        assert not s.is_valid()
+        assert s.is_valid(), s.errors
+        assert "cliente_referencia_hash" not in s.validated_data
+        assert "cliente_key_id" not in s.validated_data
 
     def test_tipo_acreditacao_fora_whitelist_recusa(self) -> None:
         payload = self._payload_valido()
@@ -83,7 +89,7 @@ class TestConfigurarSerializer:
             "regra_decisao_acordada_documento_id": str(uuid4()),
             "escopo_id": None,
             "analise_critica_pedido_id": None,
-            "analise_critica_pedido_inline_hash": "v01$" + "a" * 16,
+            "analise_critica_pedido_inline_texto": "Cliente confirmou necessidade de calibracao RBC em 2026-06-30.",
             "capacidade_tecnica_confirmada_por_user_id": str(uuid4()),
         }
 
@@ -105,6 +111,9 @@ class TestConfigurarSerializer:
 
 
 class TestCancelarSerializer:
+    """SEG-CAL-07 (2026-05-27): motivo_hash REMOVIDO do body — derivado
+    server-side em views.py via derivar_hash_texto_canonicalizado."""
+
     def test_payload_valido(self) -> None:
         s = CancelarCalibracaoSerializer(
             data={
@@ -112,7 +121,6 @@ class TestCancelarSerializer:
                 "motivo_cancelamento_canonicalizado": (
                     "cliente desistiu do servico apos analise critica"
                 ),
-                "motivo_hash": "v01$abc=",
             }
         )
         assert s.is_valid(), s.errors
@@ -122,17 +130,18 @@ class TestCancelarSerializer:
             data={
                 "revision_esperada": 1,
                 "motivo_cancelamento_canonicalizado": "curto",
-                "motivo_hash": "v01$abc=",
             }
         )
         assert not s.is_valid()
 
-    def test_hash_formato_errado_recusa(self) -> None:
+    def test_motivo_hash_no_body_eh_ignorado(self) -> None:
+        """SEG-CAL-07: cliente nao pode mais mandar motivo_hash."""
         s = CancelarCalibracaoSerializer(
             data={
                 "revision_esperada": 1,
                 "motivo_cancelamento_canonicalizado": "x" * 50,
-                "motivo_hash": "sem-prefixo-canonico",
+                "motivo_hash": "v01$ATACANTE",
             }
         )
-        assert not s.is_valid()
+        assert s.is_valid(), s.errors
+        assert "motivo_hash" not in s.validated_data
