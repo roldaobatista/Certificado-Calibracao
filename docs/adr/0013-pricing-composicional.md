@@ -1,6 +1,16 @@
 # ADR-0013 — Modelo de pricing composicional pra billing-saas (planos flexíveis com componentes)
 
-> **Status:** **PROPOSTA** (17/05/2026, madrugada). Cobre exigência explícita do Roldão: "preço por conjunto de módulos, por quantidade de usuários, adicional por usuário, vários tipos de configurações". Substitui o modelo de pricing simples (preço fixo mensal/anual) da v1 do modelo de domínio do `billing-saas`.
+> **Status:** **PROPOSTA + EMENDA PERFIL-AWARE ADR-0067** (emenda 2026-05-27 — auditoria 10 lentes pré-Wave A Onda PRE-A.2). Promoção formal pra `aceito` DIFERIDA pra Wave B (módulo `billing-saas` full). Mas emenda hoje pra modelo de dados não nascer drift.
+>
+> **Emenda 2026-05-27:** componente OBRIGATÓRIO `perfil_regulatorio` na composição. Mesmo plano pode ter DAP (Demanda Anual Paga) diferente por perfil:
+> - Perfil A (RBC acreditado): R$ 1.500-3.000/mês — surface regulatória + suporte CGCRE + apólice maior + retenção 25a.
+> - Perfil B (rastreável): R$ 800-1.500/mês.
+> - Perfil C (em preparação RBC): R$ 1.000-1.800/mês (preço A com desconto temporário).
+> - Perfil D (comercial puro): R$ 300-500/mês — sem ISO 17025, retenção 5a.
+>
+> Modelo `Plano` ganha `componente_perfil_obrigatorio` boolean + tabela `PlanoPrecoPorPerfil(plano_id, perfil ENUM, preco_mensal, preco_anual)`. Sem isso, billing-saas Wave B vai cobrar mesmo R$ pra perfil A e D — desproporcional e potencialmente abusivo CDC art. 39 V (lente 2 L2#4 advogado).
+>
+> Cobre exigência explícita do Roldão: "preço por conjunto de módulos, por quantidade de usuários, adicional por usuário, vários tipos de configurações". Substitui o modelo de pricing simples (preço fixo mensal/anual) da v1 do modelo de domínio do `billing-saas`.
 > **Autor:** Claude Code (orquestrador) + Roldão (decisor)
 > **Origem:** Roldão sinalizou diretamente (sessão 17/05/2026 madrugada) que o modelo atual (`Plano.preco_mensal` + `Plano.preco_anual` + `Plano.limite_usuarios` simples) **não cobre** os cenários comerciais que ele quer suportar.
 > **Depende de:** ADR-0001 (stack — Django), ADR-0002 (multi-tenancy — assinatura é por tenant), ADR-0006 (feature flags — módulos liberados vinculam ao plano), ADR-0012 (autorização — limite contratado vira regra de autorização).

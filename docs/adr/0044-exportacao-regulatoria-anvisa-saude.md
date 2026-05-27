@@ -1,15 +1,18 @@
 ---
 adr: 0044
 titulo: Exportação regulatória de certificado (ANVISA / SAÚDE / INMETRO) — PDF/A-3 com XML embedded
-status: proposta
+status: aceito
 data: 2026-05-23
+aceito-em: 2026-05-27
 proposto-por: agente (Onda 7 — auditor 6, achado C2-CAL)
 revisado-por: tech-lead-saas-regulado + advogado-saas-regulado + consultor-rbc-iso17025
-bloqueia-fase: Wave A Marco 5 (certificados) + 1º tenant setorial regulado (farma/hospital/medicamento)
-depende-de: ADR-0007 (camada domínio + gerador spec→código), ADR-0009 (A3 client-side), ADR-0029 (canonicalização texto probatório)
+bloqueia-fase: Wave A `certificados` + 1º tenant setorial regulado (farma/hospital/medicamento)
+depende-de: ADR-0007 (camada domínio + gerador spec→código), ADR-0009 (A3 client-side), ADR-0029 (canonicalização texto probatório), ADR-0067 (perfil regulatório do tenant)
 ---
 
 # ADR-0044 — Exportação regulatória ANVISA/SAÚDE/INMETRO — PDF/A-3 longa duração
+
+> **Emenda 2026-05-27 (Onda PRE-A.2 auditoria 10 lentes pré-Wave A — L10#5):** export regulatório com selo CGCRE+ILAC-MRA só perfil A. Predicate `tenant_perfil_e({"A"})` consultado ANTES de gerar PDF/A-3 com seal regulatório. Tentativa de export por perfil B/C/D → erro 403 + evento `Certificado.ExportRegulatorioBloqueado` (defesa probatória anti-fraude documental). Hook `feature-perfil-matriz-validator` valida call-site cita perfil.
 
 ## Contexto
 

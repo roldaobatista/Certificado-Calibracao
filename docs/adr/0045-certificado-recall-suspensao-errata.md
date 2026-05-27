@@ -1,15 +1,24 @@
 ---
 adr: 0045
 titulo: Ciclo de vida pós-emissão — Recall, Suspensão, Errata (além de Reemissão/Cancelamento)
-status: proposta
+status: aceito
 data: 2026-05-23
+aceito-em: 2026-05-27
 proposto-por: agente (Onda 7 — auditor 6, achado C3-CAL)
 revisado-por: tech-lead-saas-regulado + advogado-saas-regulado + consultor-rbc-iso17025
-bloqueia-fase: Wave A Marco 5 (certificados) + 1º tenant externo pago
-depende-de: ADR-0021 (anonimização vs retenção), ADR-0025 (validação software ISO 17025), ADR-0029 (canonicalização texto probatório), INV-CAL-VERSAO-001
+bloqueia-fase: Wave A `certificados` + 1º tenant externo pago
+depende-de: ADR-0021 (anonimização vs retenção), ADR-0025 (validação software ISO 17025), ADR-0029 (canonicalização texto probatório), ADR-0067 (perfil regulatório do tenant), INV-CAL-VERSAO-001
 ---
 
 # ADR-0045 — Recall, Suspensão e Errata de certificado
+
+> **Emenda 2026-05-27 (Onda PRE-A.2 auditoria 10 lentes pré-Wave A — L10#6):** ciclo pós-emissão diferenciado por perfil ADR-0067:
+> - **Perfil A (RBC acreditado):** **Recall** completo + suspensão + errata. Recall dispara consumer `Certificado.Recalled → NotificacaoCGCRE` síncrona (≤24h) + notificação titular ANPD se PII envolvida (≤24h LGPD). Errata exige A3 do RT + comitê interno de imparcialidade (cl. 4.1).
+> - **Perfil B (rastreável):** errata simples + suspensão. Sem recall formal CGCRE (não há acreditação).
+> - **Perfil C (em preparação RBC):** errata + suspensão em modo "treinamento" (registro mas notificação CGCRE OPCIONAL).
+> - **Perfil D (comercial puro):** errata simples (correção de dado). Sem suspensão formal nem recall.
+>
+> Predicate `acao_pos_emissao_permitida_por_perfil(tenant_id, acao_enum)` consultado ANTES de qualquer mudança de estado. Tentativa fora do perfil → erro 403 + evento `Certificado.AcaoPosEmissaoBloqueada`.
 
 ## Contexto
 

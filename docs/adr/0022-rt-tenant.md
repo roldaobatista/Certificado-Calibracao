@@ -2,15 +2,49 @@
 adr: 0022
 titulo: Gestão do Responsável Técnico do tenant (RT — NIT-DICLA-021)
 status: aceito
+versao: v2 (2026-05-27 — RT competência por método específico, não só grandeza)
 data: 2026-05-22
 aceito-em: 2026-05-22 (Marco 2 entregue T-EQP-061..065 + tests/regressao/test_inv_eqp_rt_001.py)
+v2-aceito-em: 2026-05-27 (auditoria 10 lentes pré-Wave A — L3#4 NIT-DICLA-021 exige método, não grandeza)
 proposto-por: agente
 revisado-por: consultor-rbc-iso17025, tech-lead-saas-regulado, advogado-saas-regulado
-bloqueia-fase: Wave A (1ª supervisão CGCRE — laboratório acreditado precisa de RT credenciado)
-depende-de: ADR-0002 (multi-tenancy + RLS), ADR-0009 (A3 cliente-side Lacuna), ADR-0012 (authz)
+bloqueia-fase: Wave A (1ª supervisão CGCRE — laboratório acreditado precisa de RT credenciado por método)
+depende-de: ADR-0002 (multi-tenancy + RLS), ADR-0009 (A3 cliente-side Lacuna), ADR-0012 (authz), ADR-0068 (sucessão RT)
 ---
 
 # ADR-0022 — Gestão do Responsável Técnico do tenant
+
+## Emenda v2 (2026-05-27) — Competência por método específico
+
+> Auditoria 10 lentes pré-Wave A L3#4 detectou que `RTCompetencia` modelava só `grandeza` (massa/comprimento/temperatura/pressão) — NIT-DICLA-021 exige declaração **por método específico** (ex: "Massa **classe E2 OIML R111 método de subdivisão**"). RT "massa balança comum" hoje pode assinar cert RBC de massa padrão E1 sem barreira.
+>
+> **Decisão v2:** `RTCompetencia` ganha 3 campos novos:
+>
+> ```
+> RTCompetencia(
+>   ...
+>   grandeza ENUM,               -- preservado v1
+>   metodo_id UUID NOT NULL,     -- v2 NOVO — FK → ProcedimentoCalibracao
+>   faixa_min DECIMAL NULL,      -- v2 NOVO — faixa inferior (ex: 1 mg)
+>   faixa_max DECIMAL NULL,      -- v2 NOVO — faixa superior (ex: 50 kg)
+>   ...
+> )
+> UNIQUE(tenant_id, rt_id, grandeza, metodo_id, faixa_min, faixa_max)
+> ```
+>
+> **Predicate `rt_competencia_cobre` v2:** consulta `(grandeza, metodo_id, faixa)` na ordem — match exato OR match por faixa sobreposta OR fail-closed. Predicate continua paralelo a ADR-0066 (lazy fail-open) até Wave A criar `metrologia/procedimentos-calibracao` e plugar `Atividade.metodo_id` + `Atividade.faixa_medida`.
+>
+> **Retrofit RTCompetencia existente (Marco 2):** migration adicional. Para registros existentes (vindos de M2), `metodo_id` recebe valor seed `METODO_GENERICO_HISTORICO` com flag `precisa_revisao=true`. Hook bloqueia novo `RTCompetencia` sem `metodo_id`.
+>
+> **Tarefas Wave A bloqueantes (T-RT-V2-001..006):**
+> 1. Migration adicionando 3 colunas + seed METODO_GENERICO_HISTORICO.
+> 2. Use case `declarar_competencia_rt(rt_id, grandeza, metodo_id, faixa_min, faixa_max)`.
+> 3. Predicate `rt_competencia_cobre` v2.
+> 4. Hook `rt-competencia-metodo-obrigatorio-check`.
+> 5. Admin Django + endpoint REST.
+> 6. 10 testes regressão (match exato/faixa/fail-closed/registros históricos).
+
+## Contexto
 
 ## Contexto
 

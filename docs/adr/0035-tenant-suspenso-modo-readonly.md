@@ -2,13 +2,22 @@
 adr: 0035
 titulo: Tenant suspenso — matriz módulos param/continuam + direitos LGPD preservados
 owner: roldao
-revisado-em: 2026-05-22
-status: proposta
+revisado-em: 2026-05-27
+status: aceito
+aceito-em: 2026-05-27
 proposto-por: agente (auditoria projeto-inteiro 10 lentes — Onda 1 transversal, C-INT-02)
 revisado-por: tech-lead-saas-regulado + advogado-saas-regulado
-bloqueia-fase: Wave A Marco 3 + 1º caso real de inadimplência pós-cliente externo
-depende-de: ADR-0015 (lifecycle tenant — INV-INT-009), ADR-0021 (anonimização vs retenção)
+bloqueia-fase: Wave A — billing-saas suspensão + 1º caso real de inadimplência
+depende-de: ADR-0015 (lifecycle tenant — INV-INT-009), ADR-0021 (anonimização vs retenção), ADR-0067 (perfil regulatório do tenant)
 ---
+
+> **Emenda 2026-05-27 (Onda PRE-A.2 auditoria 10 lentes pré-Wave A — L10#3):** matriz "param/continuam" agora é **perfil-aware** (ADR-0067). Perfil A suspenso preserva continuamente:
+> - Acesso read-only ao certificado emitido (cl. 8.4 ISO 17025 retenção 25a obrigatória — não pode desligar acesso retroativo).
+> - Notificação CGCRE síncrona (perda de acreditação por suspensão prolongada é risco regulatório).
+> - Direitos LGPD do titular (rota `/privacidade` sempre ativa — INV-DPO-001 ADR-0061).
+>
+> Perfil D suspenso pode bloquear acesso a TUDO (5a Receita preservada em backup); risco regulatório nulo.
+> Política de bloqueio dura ≤ 30 dias perfil A (após disparar notificação CGCRE); ≤ 180 dias perfis B/C/D.
 
 # ADR-0035 — Tenant suspenso: matriz "param/continuam"
 

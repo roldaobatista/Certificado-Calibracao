@@ -1,15 +1,24 @@
 ---
 adr: 0043
 titulo: Integração Certificado.Emitido → Financeiro + bloqueio de emissão por inadimplência dura
-status: proposta
+status: aceito
 data: 2026-05-23
+aceito-em: 2026-05-27
 proposto-por: agente (Onda 7 — auditor 6, achado C1-CAL)
 revisado-por: tech-lead-saas-regulado + advogado-saas-regulado + consultor-rbc-iso17025
-bloqueia-fase: Wave A Marco 4 (calibracao) + Wave A Marco 5 (certificados) + 1º tenant externo pago
-depende-de: ADR-0015 (lifecycle tenant — inadimplência), ADR-0023 (OS com atividades), INV-CLI-BLOQ-001
+bloqueia-fase: Wave A Marco 4 (calibracao) + Wave A `certificados` + 1º tenant externo pago
+depende-de: ADR-0015 (lifecycle tenant — inadimplência), ADR-0023 (OS com atividades), ADR-0067 (perfil regulatório), INV-CLI-BLOQ-001
 ---
 
 # ADR-0043 — Faturamento de certificado + bloqueio de emissão por inadimplência dura
+
+> **Emenda 2026-05-27 (Onda PRE-A.2 auditoria 10 lentes pré-Wave A — L10#4):** política de bloqueio dura por inadimplência é **perfil-aware** (ADR-0067):
+> - **Perfil A (RBC acreditado):** grace period D+45 antes do bloqueio (perda de janela CGCRE é catastrófico — risco regulatório > recuperação de R$). Notificação obrigatória D+30 e D+45 antes do bloqueio.
+> - **Perfil B (rastreável):** grace D+20.
+> - **Perfil C (em preparação):** grace D+30 (igual A em vigência, mas sem CGCRE risk).
+> - **Perfil D (comercial puro):** grace D+7 (bloqueio agressivo aceito — sem risco regulatório).
+>
+> Override A3 do dono Aferê (Roldão) pode estender grace caso-a-caso até D+90 — registrado em `OverrideBloqueio.justificativa` + A3 obrigatório + auditoria WORM.
 
 ## Contexto
 
