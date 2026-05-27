@@ -489,6 +489,13 @@ run_case "IK11 @action POST com services_idem PASS"   PASS  idempotency-key-head
 # IK12: @action(detail=False, methods=POST) tambem detectado
 run_case "IK12 @action detail=False POST bloqueia"    BLOCK idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/views.py","content":"class AtividadeViewSet(viewsets.ViewSet):\n    @action(detail=False, methods=[\"post\"], url_path=\"x\")\n    def criar(self, request):\n        return Response({})"}}'
 
+# IDEMP-CAL-02 (M4 P5 Batch S3 conserto 2026-05-27):
+# allowlist estendida para src/infrastructure/calibracao/
+run_case "IK13 calibracao views.py @action sem header BLOCK"  BLOCK idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/views.py","content":"class CalibracaoViewSet(viewsets.ViewSet):\n    @action(detail=False, methods=[\"post\"])\n    def recepcionar(self, request):\n        return Response({})"}}'
+
+# IK14: calibracao views.py com avaliar_chave_idempotencia -> PASS
+run_case "IK14 calibracao com services_idem PASS"     PASS  idempotency-key-header-check.sh '{"tool_input":{"file_path":"src/infrastructure/calibracao/views.py","content":"from src.infrastructure.idempotencia.services_idempotencia import avaliar_chave_idempotencia\nclass CalibracaoViewSet(viewsets.ViewSet):\n    @action(detail=False, methods=[\"post\"])\n    def recepcionar(self, request):\n        return Response({})"}}'
+
 echo ""
 echo "===== arquivo-tamanho-aviso (Onda 2 plano-v2 / rede seguranca god-modules) ====="
 

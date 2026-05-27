@@ -47,6 +47,8 @@ case "$file_path_norm" in
     */src/infrastructure/ordens_servico/views.py|src/infrastructure/ordens_servico/views.py) ;;
     */src/infrastructure/contas_receber/*/views.py|src/infrastructure/contas_receber/*/views.py) ;;
     */src/infrastructure/pagamentos/*/views.py|src/infrastructure/pagamentos/*/views.py) ;;
+    */src/infrastructure/calibracao/*/views.py|src/infrastructure/calibracao/*/views.py) ;;
+    */src/infrastructure/calibracao/views.py|src/infrastructure/calibracao/views.py) ;;
     *) exit 0 ;;
 esac
 

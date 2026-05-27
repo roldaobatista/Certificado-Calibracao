@@ -53,6 +53,28 @@ class ConflitoLeituraExistente(Exception):
         )
 
 
+class IdempotencyPayloadMismatch(Exception):
+    """INV-CAL-IDEMP-001 (IDEMP-CAL-03 1a passada Familia 5 2026-05-27):
+    `client_event_id` reusado com payload divergente. Caller retorna 422.
+
+    Carrega a leitura existente (snapshot armazenado) + um descritor do
+    diff pra debug do cliente — sem expor PII.
+    """
+
+    def __init__(
+        self,
+        leitura_existente: LeituraSnapshot,
+        campos_divergentes: tuple[str, ...],
+    ) -> None:
+        self.leitura_existente = leitura_existente
+        self.campos_divergentes = campos_divergentes
+        super().__init__(
+            f"IdempotencyPayloadMismatch leitura_id={leitura_existente.id} "
+            f"client_event_id={leitura_existente.client_event_id} "
+            f"campos_divergentes={list(campos_divergentes)} — INV-CAL-IDEMP-001"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class RegistrarLeituraInput:
     """Payload de registro de leitura individual."""
@@ -130,7 +152,10 @@ def executar(
             f"EM_EXECUCAO (INV-CAL-WORM-001)"
         )
 
-    # Idempotencia sync mobile (ADR-0027)
+    # Idempotencia sync mobile (ADR-0027 + INV-CAL-IDEMP-001).
+    # IDEMP-CAL-03 (2026-05-27): mismatch payload no replay com mesmo
+    # client_event_id => 422 IdempotencyPayloadMismatch (em vez de silent
+    # stale read antes do conserto).
     if inp.client_event_id is not None:
         existente = leitura_repo.obter_por_client_event(
             tenant_id=calibracao.tenant_id,
@@ -138,6 +163,21 @@ def executar(
             client_event_id=inp.client_event_id,
         )
         if existente is not None:
+            divergentes: list[str] = []
+            if existente.ponto_calibracao != inp.ponto_calibracao:
+                divergentes.append("ponto_calibracao")
+            if existente.numero_repeticao != inp.numero_repeticao:
+                divergentes.append("numero_repeticao")
+            if existente.valor_lido != inp.valor_lido:
+                divergentes.append("valor_lido")
+            if existente.unidade != inp.unidade:
+                divergentes.append("unidade")
+            if existente.origem != inp.origem:
+                divergentes.append("origem")
+            if existente.executor_id_hash != inp.executor_id_hash:
+                divergentes.append("executor_id_hash")
+            if divergentes:
+                raise IdempotencyPayloadMismatch(existente, tuple(divergentes))
             return RegistrarLeituraOutput(snapshot=existente, idempotente=True)
 
     snapshot = LeituraSnapshot(

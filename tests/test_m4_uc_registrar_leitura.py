@@ -176,8 +176,14 @@ class TestHappyPath:
         assert out.snapshot.numero_repeticao == 1
         assert out.snapshot.valor_lido == Decimal("10.001")
 
-    def test_idempotencia_client_event(self) -> None:
-        """Mesmo client_event_id -> retorna leitura existente (idempotente)."""
+    def test_idempotencia_client_event_payload_identico(self) -> None:
+        """Mesmo client_event_id + payload IDENTICO -> idempotente.
+
+        IDEMP-CAL-03 conserto (2026-05-27 Batch S3): payload divergente
+        passou a levantar IdempotencyPayloadMismatch (em vez do "silent
+        stale read" anterior). Este teste cobre o caso happy:
+        replay legitimo do cliente mobile.
+        """
         cal_repo = FakeCalibracaoRepository()
         leit_repo = FakeLeituraRepository()
         cal_id = _calibracao_em_execucao(cal_repo)
@@ -187,16 +193,44 @@ class TestHappyPath:
             cal_repo,
             leit_repo,
         )
-        # Segunda chamada com mesmo client_event — idempotente
+        # Replay com payload IDENTICO -> idempotente
         segundo = executar(
-            _input_leitura(cal_id, client_event_id=evt_id, valor_lido=Decimal("99")),
+            _input_leitura(cal_id, client_event_id=evt_id),
             cal_repo,
             leit_repo,
         )
         assert segundo.idempotente is True
-        # Retorna a primeira leitura (NAO a segunda com valor=99)
         assert segundo.snapshot.id == primeiro.snapshot.id
-        assert segundo.snapshot.valor_lido == Decimal("10.001")
+        assert segundo.snapshot.valor_lido == primeiro.snapshot.valor_lido
+
+    def test_idempotencia_payload_divergente_recusa(self) -> None:
+        """IDEMP-CAL-03 (1a passada Familia 5): replay com valor diferente
+        levanta IdempotencyPayloadMismatch (INV-CAL-IDEMP-001)."""
+        from src.application.metrologia.calibracao.registrar_leitura import (
+            IdempotencyPayloadMismatch,
+        )
+
+        cal_repo = FakeCalibracaoRepository()
+        leit_repo = FakeLeituraRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        evt_id = uuid4()
+        executar(
+            _input_leitura(cal_id, client_event_id=evt_id),
+            cal_repo,
+            leit_repo,
+        )
+        # Segundo replay com valor diferente -> mismatch
+        with pytest.raises(IdempotencyPayloadMismatch) as exc_info:
+            executar(
+                _input_leitura(
+                    cal_id,
+                    client_event_id=evt_id,
+                    valor_lido=Decimal("99"),
+                ),
+                cal_repo,
+                leit_repo,
+            )
+        assert "valor_lido" in exc_info.value.campos_divergentes
 
     def test_multiplas_repeticoes_mesmo_ponto(self) -> None:
         cal_repo = FakeCalibracaoRepository()

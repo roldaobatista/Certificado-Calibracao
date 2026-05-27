@@ -504,10 +504,11 @@ class TestINV_CAL_RT_002:
 
 
 class TestINV_CAL_IDEMP_001:
-    """ADR-0027 + IDEMP-001: replay com mesmo client_event_id retorna
-    leitura existente (idempotente). NOTA: detecção de
-    `IdempotencyPayloadMismatch` (payload diferente no replay) é GAP
-    Wave A — não testado aqui."""
+    """ADR-0027 + IDEMP-001 + IDEMP-CAL-03 (2026-05-27 Batch S3):
+    - Replay com mesmo client_event_id + payload IDÊNTICO -> idempotente.
+    - Replay com payload DIVERGENTE -> 422 IdempotencyPayloadMismatch
+      (em vez do "silent stale read" anterior ao conserto).
+    """
 
     def _registra(
         self,
@@ -538,7 +539,7 @@ class TestINV_CAL_IDEMP_001:
         )
         return out.snapshot
 
-    def test_replay_mesmo_client_event_retorna_existente(self) -> None:
+    def test_replay_payload_identico_retorna_existente(self) -> None:
         cal_repo = FakeCalibracaoRepoMin()
         leitura_repo = FakeLeituraRepoMin()
         tenant = uuid4()
@@ -552,19 +553,80 @@ class TestINV_CAL_IDEMP_001:
             cal_id=cal.id,
             client_event_id=evt,
         )
+        # Replay com payload IDÊNTICO -> idempotente
         segunda = self._registra(
             cal_repo=cal_repo,
             leitura_repo=leitura_repo,
             cal_id=cal.id,
             client_event_id=evt,
-            # payload diferente — comportamento atual: ignora e retorna existente
-            valor=Decimal("99"),
         )
-        # Mesma leitura (idempotência forte)
         assert primeira.id == segunda.id
-        assert segunda.valor_lido == Decimal("10.1")  # valor da PRIMEIRA mantido
-        # Apenas 1 registro persistido
         assert len(leitura_repo.leituras) == 1
+
+    def test_replay_payload_divergente_levanta_mismatch(self) -> None:
+        """IDEMP-CAL-03 conserto: replay com valor_lido diferente -> 422."""
+        from src.application.metrologia.calibracao.registrar_leitura import (
+            IdempotencyPayloadMismatch,
+        )
+
+        cal_repo = FakeCalibracaoRepoMin()
+        leitura_repo = FakeLeituraRepoMin()
+        tenant = uuid4()
+        cal = _calibracao_em_execucao(tenant=tenant)
+        cal_repo.salvar(cal)
+        evt = uuid4()
+
+        self._registra(
+            cal_repo=cal_repo,
+            leitura_repo=leitura_repo,
+            cal_id=cal.id,
+            client_event_id=evt,
+            valor=Decimal("10.1"),
+        )
+        with pytest.raises(IdempotencyPayloadMismatch) as exc_info:
+            self._registra(
+                cal_repo=cal_repo,
+                leitura_repo=leitura_repo,
+                cal_id=cal.id,
+                client_event_id=evt,
+                valor=Decimal("99"),  # payload divergente
+            )
+        # Carrega leitura existente + campos divergentes pra caller decidir
+        assert "valor_lido" in exc_info.value.campos_divergentes
+        # Apenas 1 registro persistido (mismatch NÃO sobrescreve)
+        assert len(leitura_repo.leituras) == 1
+        assert leitura_repo.leituras[
+            exc_info.value.leitura_existente.id
+        ].valor_lido == Decimal("10.1")
+
+    def test_replay_payload_divergente_em_ponto_levanta_mismatch(self) -> None:
+        from src.application.metrologia.calibracao.registrar_leitura import (
+            IdempotencyPayloadMismatch,
+        )
+
+        cal_repo = FakeCalibracaoRepoMin()
+        leitura_repo = FakeLeituraRepoMin()
+        tenant = uuid4()
+        cal = _calibracao_em_execucao(tenant=tenant)
+        cal_repo.salvar(cal)
+        evt = uuid4()
+
+        self._registra(
+            cal_repo=cal_repo,
+            leitura_repo=leitura_repo,
+            cal_id=cal.id,
+            client_event_id=evt,
+            ponto=Decimal("10"),
+        )
+        with pytest.raises(IdempotencyPayloadMismatch) as exc_info:
+            self._registra(
+                cal_repo=cal_repo,
+                leitura_repo=leitura_repo,
+                cal_id=cal.id,
+                client_event_id=evt,
+                ponto=Decimal("20"),
+            )
+        assert "ponto_calibracao" in exc_info.value.campos_divergentes
 
     def test_sem_client_event_id_nao_eh_idempotente(self) -> None:
         """Sem chave idempotência, duas chamadas com mesmo ponto+repetição
