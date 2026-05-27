@@ -154,7 +154,42 @@ relacionados:
 - Sprints 5-6 dependem de módulos Wave A que ainda não arrancaram (`certificados`, `onboarding`, `direitos-titular`). Estimativa placeholder até esses módulos terem PRD `stable`.
 - 9 tasks na zona crítica (causa-raiz dos 13 BLOQUEANTES): T-SAN-PERFIL-008, 010, 011, 017, 018, 023, 024, 041, 044.
 
+## Status de implementação (atualizado 2026-05-27 noite)
+
+| Sprint | Tasks | Status | Commit |
+|---|---|---|---|
+| **Sprint 1** Schema + funções SECURITY DEFINER | T-001..T-014 | ✅ FECHADO | `87bbc64` |
+| **Sprint 2** Predicate + retrofit cmc_cobre (FAIL L6) | T-015..T-018, T-023, T-025..T-030 | ✅ FECHADO | `87bbc64` |
+| **Sprint 3** Provisioning + matriz + job vigência | T-031..T-040 | ✅ FECHADO | `f51fe47` |
+| **Sprint 4** Snapshot WORM + retrofit equipamento + evidência | T-041..T-050 | ✅ FECHADO | `694ce27` |
+| **Sprint 5** Wave A módulo `certificados` | T-051..T-054 | ⬜ Wave A | — |
+| **Sprint 6** Wave A `onboarding` + `direitos-titular` + LGPD | T-055..T-062 | ⬜ Wave A | — |
+
+**Tasks pendentes não-críticas (podem entrar em qualquer Sprint Wave A):**
+
+- T-019: predicate `emitir_certificado_rbc` — pertence ao módulo `certificados` Wave A (Sprint 5).
+- T-020: predicate `requer_segunda_conferencia` — pode entrar em Sprint 4.5 standalone OU Sprint 5.
+- T-022: consumer `notifica_d_e_o` — depende de `OutboundWebhookProvider` (ADR-0054) já operacional.
+- T-024: retrofit dos ~63 testes M4 que ainda mencionam `tipo_acreditacao` na construção de objetos do dominio (não na request) — esses não quebraram porque testam o campo `Calibracao.tipo_acreditacao` direto, não o predicate. Pode ser refactor cosmético em qualquer Sprint Wave A.
+- T-046: estender hook `metrology-replay-fixtures-versionadas` para validar `perfil_no_evento` em fixtures — pequeno refinamento Sprint 5.
+- T-048: arquivar dossiê A4 em B2 WORM + assinatura A3 — Sprint 5 Wave A (depende de módulo certificados).
+
+## Validações cumulativas (PG real)
+
+- **Drill `validar_san_perfil_tenant_migrations`:** 17/17 PASS
+- **Drill `validar_san_perfil_tenant_snapshots`:** 6/6 PASS (Sprint 4)
+- **Relatório evidência defensiva A4:** 1 evento pré-saneamento exportado
+- **Suite regression+audit+M3+M4:** exit 0 (todos verdes)
+- **Hooks `_test-runner.sh`:** 414/414 PASS / 51 hooks ativos
+- **Smoke `provisionar_tenant` Perfil A:** tenant `smoke-a-real` criado com PDF + auditor + ILAC; trigger anti-mutation bloqueou DELETE no histórico (defesa em camadas funcionando)
+
 ## Histórico
 
-- **2026-05-27** — tasks.md P4 criado a partir de spec.md P3 (382 linhas) + plan.md P3 (295 linhas).
-- **Próximo:** P5 implementação — começar pela task T-SAN-PERFIL-001 (enum `PerfilRegulatorio` em domínio). Cada Sprint passa pelos 10 auditores Família 5 antes do próximo iniciar (mini-ritual por Sprint).
+- **2026-05-27 manhã** — Auditoria 10 lentes detectou gap; Roldão decidiu manter 4 perfis + consertar antes Wave A; ADR-0067 aceita.
+- **2026-05-27 tarde** — P1 spec → P2 4 reviews paralelos (41 achados) → P3 plan.md + spec.md reescrita → P4 tasks.md (62 tasks).
+- **2026-05-27 tarde-noite** — P5 Sprint 1 implementado (schema + SECURITY DEFINER + drill 17/17 PASS).
+- **2026-05-27 noite** — P5 Sprint 2 implementado (predicate canonico + retrofit `cmc_cobre` fecha FAIL L6 + 23 testes regressão).
+- **2026-05-27 noite** — 8 débitos pré-existentes M4 corrigidos (subcontratacao test + ClienteNotificadoVia.NAO_APLICA).
+- **2026-05-27 noite** — P5 Sprint 3 implementado (`provisionar_tenant` + job vigência + matriz feature×perfil + hook validator + emenda ADR-0015 + runbook DPO).
+- **2026-05-27 noite tarde** — P5 Sprint 4 implementado (snapshot `perfil_no_evento` WORM via trigger BEFORE INSERT + GUC `app.perfil_tenant` + retrofit equipamento snapshot + retrofit geo_truncamento perfil A nunca trunca + drill snapshots 6/6 PASS + relatório evidência defensiva A4).
+- **Saneamento puro = 4 Sprints FECHADOS. Aguarda autorização Roldão para Wave A (Sprints 5-6 dependem de módulos `certificados`, `onboarding`, `direitos-titular` ainda inexistentes).**
