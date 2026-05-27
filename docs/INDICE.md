@@ -4,7 +4,7 @@
 >
 > Para versão lida por agente (machine-readable com tokens estimados), ver `docs/INDEX.yaml`.
 >
-> **Atualizado v9 (2026-05-23 — pós Foundation F-A+F-B + Marco 1 + Marco 2 fechados, auditoria projeto-inteiro 10 lentes):** Foundation entregue; 30 ADRs ativas (0000..0032 com 3 novas Onda 1 saneamento); ~480 docs estruturais + Family 0 Discovery STABLE; 25 hooks ativos / 207 casos verdes; 10 auditores Família 5.
+> **Atualizado v10 (2026-05-27 — pós F-A+F-B+M1+M2+F-C1+M3-OS+M4 calibração FECHADOS):** 7 Foundations/Marcos fechados com 10/10 auditores Família 5 PASS ZERO C/A/M; **61 ADRs ativas** (0000..0058 + 0062..0066 — ADR-0064/0065/0066 do Marco 4); ~480 docs estruturais + Family 0 Discovery STABLE; **48 hooks ativos / 379/379 casos verdes**; 10 auditores Família 5 stable após 5+ ciclos PASS.
 
 ---
 
@@ -40,7 +40,7 @@
 - `../REGRAS-INEGOCIAVEIS.md`
 - `comum/glossario.md` (a criar)
 - `comum/automacoes-catalogo.md` — 13 ações do engine de automação
-- `adr/*.md` (**32 ADRs ativas — 0000 a 0032**; última batch Onda 1 saneamento 2026-05-23: ADR-0030 vigência temporal, ADR-0031 soft-delete em 3 padrões, ADR-0032 FK cross-módulo + ReferenciaPIIAnonimizavel)
+- `adr/*.md` (**61 ADRs ativas — 0000..0058 + 0062..0066**; últimas batches Marco 4 calibração: ADR-0064 rotação HMAC + KMS 25a, ADR-0065 concorrência calibração UNIQUE+CAS+advisory lock, ADR-0066 fail-open lazy `cmc_cobre` + `procedimento_vigente_para`)
 - `orcamento-financeiro.md` — projeção ano 1/3/5
 - `dominios/financeiro/modulos/billing-saas/calculadora-fatura.md` — algoritmo de fatura composicional + 30 casos
 
@@ -58,9 +58,9 @@
 | Família | Pasta | Status |
 |---|---|---|
 | 0 — Discovery | `discovery/` | ✅ STABLE v1.0 (sintese-final fechada 2026-05-17; Caminho A diferido pra V2) |
-| 1 — Contrato dos agentes | `../CLAUDE.md`, `../AGENTS.md`, `../.claude/`, `roteamento-dual.md`, `orcamento-contexto.md`, `INDEX.yaml` | ✅ stable (25 hooks ativos, 10 auditores Família 5, 4 humano-substitutos) |
-| 2 — Produto | `comum/`, `dominios/` (48 módulos com 8 docs cada), `prd.md` (stable), `glossario-roldao.md` | ✅ stable (PRD raiz stable 2026-05-23; 46/48 PRDs ainda draft preenchimento US/AC Onda 5) |
-| 3 — Arquitetura + Segurança | `adr/` (30 ADRs), `arquitetura/`, `seguranca/`, `comum/integracoes-inter-modulos.md` v10 | ✅ stable (Foundation F-A+F-B fechadas; anti-corrosion-layer.md v3 com 18 portas) |
+| 1 — Contrato dos agentes | `../CLAUDE.md`, `../AGENTS.md`, `../.claude/`, `roteamento-dual.md`, `orcamento-contexto.md`, `INDEX.yaml` | ✅ stable (**48 hooks ativos**, 10 auditores Família 5 com 5+ ciclos PASS, 4 humano-substitutos) |
+| 2 — Produto | `comum/`, `dominios/` (48 módulos com 8 docs cada), `prd.md` (stable), `glossario-roldao.md` | ✅ stable (PRD raiz stable; 7 marcos com PRD do módulo entregue e auditado) |
+| 3 — Arquitetura + Segurança | `adr/` (**61 ADRs ativas**), `arquitetura/`, `seguranca/`, `comum/integracoes-inter-modulos.md` v10 | ✅ stable (F-A+F-B+M1+M2+F-C1+M3+M4 fechados; anti-corrosion-layer.md v3 com 18 portas) |
 | 4 — Operação | `operacao/` | 🟡 parcial (setup-local.md ✅; runbook/dr-plan pendentes pré-Wave A produção) |
 | 5 — Governança IA | `governanca/` (10 auditores Família 5 stable), `plano-defesas-anti-erros-ia.md`, `../.specify/memory/constitution.md` | ✅ stable |
 | 6 — Conformidade | `conformidade/comum/` (LGPD-RAT, retenção, DPA modelo, transferência internacional, papéis multi-tenant, 4-party, finalidades, DPIA modelos), `dominios/metrologia/modulos/calibracao/` (conformidade-iso-17025, garantia-validade-7.7, validacao-software, registros-tecnicos-7.5, responsabilidade-tecnica) | 🟡 parcial (Onda 7 pré-1º tenant externo: ToU/PoP/DPO/DPAs sub-operadores) |

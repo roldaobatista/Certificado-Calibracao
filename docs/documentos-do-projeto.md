@@ -1,11 +1,11 @@
-# Documentos do projeto Aferê (v9)
+# Documentos do projeto Aferê (v10)
 
 > **Pra que serve:** mapa de TODOS os documentos que o projeto precisa pra funcionar 100% tocado por agentes de IA, sem o Roldão precisar virar programador.
 >
 > **Status:** ✅ existe | ⏳ falta criar | 🟡 parcial | ❌ removido
 > **Prioridade:** 🔴 MVP-obrigatório | 🟡 próximo | ⚪ lazy
 >
-> **Atualização v9 (2026-05-23 — pós Foundation F-A+F-B + Marco 1 + Marco 2 fechados; auditoria projeto-inteiro 10 lentes Onda 1):** Família 0 Discovery STABLE v1.0 (sintese-final fechada 2026-05-17; Caminho A diferido pra V2). Família 1 stable (25 hooks ativos, 10 auditores Família 5, 4 humano-substitutos). Família 2 stable (PRD raiz stable; 48 PRDs draft no preenchimento US/AC — Onda 5). Família 3 stable (30 ADRs ativas 0000..0032; anti-corrosion-layer v3 18 portas; Foundation FECHADA). Família 5 stable (10 auditores). Famílias 4, 6, 7, 8 parciais (pré-Wave A). CODEOWNERS retrofit para paths reais `src/infrastructure/*` (2026-05-23).
+> **Atualização v10 (2026-05-27 — pós F-A+F-B+M1+M2+F-C1+M3-OS+M4 calibração TODOS FECHADOS):** Família 0 Discovery STABLE v1.0. Família 1 stable (**48 hooks ativos / 379 casos verdes**, 10 auditores Família 5 com 5+ ciclos PASS, 4 humano-substitutos). Família 2 stable (PRD raiz stable; 7 marcos com PRD entregue+auditado — Marco 4 calibração fechado 2026-05-27 com ADRs 0040/0064/0065/0066). Família 3 stable (**61 ADRs ativas 0000..0058 + 0062..0066**; anti-corrosion-layer v3 18 portas). Família 5 stable (10 auditores). Famílias 4, 6, 7, 8 parciais (pré-Wave A).
 >
 > **Atualização v8 anterior:** 2026-05-17 noite+12h (incorpora 25 módulos adicionais; total ~480 docs).
 >

@@ -4,18 +4,20 @@
 
 ---
 
-## Status atual (2026-05-23)
+## Status atual (2026-05-27)
 
 - **Foundation F-A FECHADA** (multi-tenant + RLS + audit imutável + 4 entidades núcleo) — 10/10 auditores Família 5 PASS ZERO CRÍTICO/ALTO/MÉDIO
 - **Foundation F-B FECHADA** (auth + RBAC + AuthorizationProvider + MFA TOTP) — 10/10 PASS ZERO C/A/M
 - **Marco 1 `clientes` FECHADO** (Wave A) — cadastro PF/PJ, visão 360, importação CSV, bloqueio, dedup
 - **Marco 2 `equipamentos` FECHADO** (Wave A) — equipamentos, RT, vigência, competências por grandeza
-- **Marco 3 `os` em curso** — spec FORWARD em P1; consumers + sagas OS Fase 4 entregues (T-OS-029..039)
-- **Foundation F-C reservada** (3 sub-foundations sequenciais: F-C1 hardening, F-C2 observabilidade, F-C3 instrumentação+resiliência) — bloqueia Wave A; pré-requisito do 1º deploy externo
+- **Foundation F-C1 FECHADA** — hardening (admin, prod-settings, webhook-out, break-glass U2F)
+- **Marco 3 `ordens_servico` FECHADO 2026-05-25** — OS com Atividades (ADR-0023), saga compensação, sync mobile (ADR-0027), append-only WORM
+- **Marco 4 `metrologia/calibracao` FECHADO 2026-05-27** — ISO 17025 (recepção, configuração, leituras, NC, subcontratação, hash-chain WORM ADR-0064/0065, fail-open lazy ADR-0066)
+- **Foundation F-C2/F-C3 reservadas** (observabilidade + instrumentação+resiliência) — pré-requisito do 1º deploy externo
 - **Stack ativa:** Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry + Docker Compose
 - **LICENSE:** BUSL-1.1 aplicada na Onda 0 do plano-v2 (parecer subagente `advogado-saas-regulado`; confirmação OAB humano pendente)
-- **57 ADRs aceitas/propostas + 6 reservadas** (ADR-0057..0062 — a11y, ProductAnalytics, LLMProvider, EmailTemplate, DPO, Devcontainer; ADR-0056 = numeração OS Marco 3 P3, já aceita)
-- **Suite:** 621 testes verdes em 37 min; 32 hooks ativos; 207/207 casos no `_test-runner.sh`
+- **61 ADRs aceitas/propostas** (0000..0058 + 0062..0066) — ADR-0064/0065/0066 do Marco 4; ADR-0063 do Marco 3
+- **Suite:** pytest M4 chave 629/629 verde em ~27s; pytest geral 905/0/0 (último full run 2026-05-24); 48 hooks ativos; 379/379 casos no `_test-runner.sh`
 
 > Detalhamento vivo: `docs/faseamento-foundation-waves.md` + `.agent/CURRENT.md`.
 

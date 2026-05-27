@@ -1,7 +1,7 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
-status: draft
+revisado-em: 2026-05-27
+status: stable
 auditor: drift-docs
 versao_prompt: 1.0.0
 modelo_padrao: claude-sonnet-4-6

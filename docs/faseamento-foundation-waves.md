@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado_em: 2026-05-18
-proximo_review: 2026-08-18
+revisado_em: 2026-05-27
+proximo_review: 2026-08-27
 status: stable
 diataxis: reference
 audiencia: agente
@@ -282,11 +282,11 @@ Pra cada um dos **18 módulos** da Wave A (lista em `faseamento-modulos.md` §"W
 7. Eventos do bus publicados/consumidos conforme catálogo `docs/comum/automacoes-catalogo.md`
 
 **Os 18 módulos (referência rápida — fonte: `faseamento-modulos.md` v8):**
-- **operação:** `os`, `chamados`, `agenda`, `app-tecnico`, `base-conhecimento`
-- **metrologia:** `calibracao`, `certificados`, `licencas-acreditacoes`
+- **operação:** `os` ✅ Marco 3 FECHADO 2026-05-25, `chamados`, `agenda`, `app-tecnico`, `base-conhecimento`
+- **metrologia:** `calibracao` ✅ Marco 4 FECHADO 2026-05-27, `certificados`, `licencas-acreditacoes`
 - **rh-frota-qualidade:** `treinamentos`, `seguranca-trabalho`
-- **suporte-plataforma:** `estoque`, `equipamentos`, `acesso-seguranca`
-- **comercial:** `clientes` ✅ Marco 1 FECHADO 2026-05-18 (5/5 US verdes — cadastro PF/PJ, visão 360, importação CSV, bloqueio, dedup; 3 auditores Família 5 aprovaram), `orcamentos`
+- **suporte-plataforma:** `estoque`, `equipamentos` ✅ Marco 2 FECHADO 2026-05-23, `acesso-seguranca`
+- **comercial:** `clientes` ✅ Marco 1 FECHADO 2026-05-21, `orcamentos`
 - **financeiro:** `fiscal`, `contas-receber`, `caixa-tecnico`
 
 ### Critérios de saída (mortalidade)
@@ -453,6 +453,11 @@ Este documento **NÃO** é:
 | **2026-05-18 (mesma noite)** | **Foundation F-B FECHADA** (verde) — entregue em ~3h em modo autônomo (Roldão "pode fazer fundacao f-b completa em modo autonomo"). **ADR-0012 + ADR-0006 promovidas proposta→aceita** com 3 ajustes na aceitação: django-allauth diferido pra Wave A, cache `LocMemCache` (Redis em Wave A), 4 perfis seed (12 restantes destravam por módulo). **Entregas:** app `authz` (porta `AuthorizationProvider` em `domain/` + adapter Django + 3 tabelas + 4 perfis seed) + `RequireAuthz` DRF permission deny-by-default + decorators `@public`/`@requires_authz` + `MfaRequiredMiddleware` (SEC-MFA-001). **INVs cravadas:** INV-AUTHZ-001 (hook+permission+decorator), INV-AUTHZ-002 (5 testes audit imutável: commit-before-response, trigger PG anti-UPDATE/DELETE, hash chain), INV-AUTHZ-003 (3 testes isolamento + fuzzing 500 cross-tenant zero vazamento). **Drill 7/7 verde** via `manage.py validar_f_b`. **Suite total:** 88 passed, 1 skipped (58 F-A + 30 F-B). **Hooks:** 103/103 mantidos. Detalhes em `docs/faseamento/drill-f-b-saida.md`. |
 | **2026-05-18 (saneamento concluído)** | **F-A SANEADA E FECHADA (rodada 2 verde)** — loop auditar→corrigir→reauditar completo. Reauditoria rodada 2 com 3 lentes (segurança `auditor-seguranca`, arquitetura `tech-lead-saas-regulado`, qualidade `auditor-qualidade`) verificou o código real: **ZERO CRÍTICO / ZERO ALTO**. Suite 259 passed (0 skip), cobertura 84.84%, hooks 113/113, drill robusto com guarda anti-falso-verde testada. Resíduo só MÉDIO/BAIXO → backlog Wave-A (`F-A-CONSOLIDADO-rodada-2.md`). Próxima fase: saneamento F-B (mesmo loop). |
 | **2026-05-18 (saneamento)** | **F-A REABERTA EM SANEAMENTO** — auditoria 10 lentes (`docs/faseamento/auditorias/F-A-CONSOLIDADO-rodada-1.md`) achou débitos CRÍTICO/ALTO; o "F-A FECHADA 5/5" acima foi prematuro (drill fraco: 1 tenant/5 linhas/só feliz, fuzzing 50×100, p99 1 tenant — FA-A5). Loop auditar→corrigir→reauditar: **FA-A4** (rede migration mentirosa), **FA-C1** (hash chain por-tenant + Q-02 + lock por-tenant), **FA-A2** (template RLS único + fail-loud clientes), **FA-A1+FA-M2** (PII_HASH_KEY versionada + hardening prod), **FA-A5+FA-M1** (drill robusto: 3 tenants intercalados + detecção de adulteração + concorrência + fuzzing **50×1000** + benchmark multi-tenant; números/status sincronizados) — todos fechados verdes com review subagente. **Suite real pós-saneamento: 259 passed, cobertura ~85%, hooks 113/113** (drift dos números "295/88/103/86.01" corrigido — FA-M1). Pendente: FA-M3 + **reauditoria F-A rodada 2**. F-B/Marco 2 só retomam após rodada 2 sem CRÍTICO/ALTO. |
+| **2026-05-21** | **Marco 1 `clientes` FECHADO** (Wave A) — 18 T-CLI + drill `validar_m1_clientes` PASS + 4 testes regressão. 10/10 auditores Família 5 PASS ZERO C/A/M. GATE-CLI-1..8 rastreados Wave A. |
+| **2026-05-23** | **Marco 2 `equipamentos` FECHADO** — 65 T-EQP em 12 fases + drill `validar_m2_equipamentos` 18/18 PASS. CVE-2025-68616 WeasyPrint mitigado in-app; GATE-EQP-DEP-WEASYPRINT-UPGRADE Wave A. |
+| **2026-05-24** | **Foundation F-C1 FECHADA** — hardening: admin-hardening + prod-settings + outbound-webhook SSRF + break-glass U2F + 9 INVs novas (INV-ADMIN-001..003, INV-PROD-SET-001, INV-WEBHOOK-OUT-001..005). ADR-0054 aceita. 14 T-FC1. |
+| **2026-05-25** | **Marco 3 `ordens_servico` FECHADO** — 147 T-OS (Fases 1-10 entregues; 11-12 GAP Wave A). P5 ritual: 1ª passada (5 PASS / 5 FAIL — 40 C/A/M) → 5 batches causa-raiz → 2ª passada → 3ª passada PASS. 10/10 PASS ZERO C/A/M. ADRs aceitas: 0023, 0027, 0029, 0030, 0031, 0032, 0033, 0041, 0042, 0056, 0063. |
+| **2026-05-27** | **Marco 4 `metrologia/calibracao` FECHADO** — 160 T-CAL (~156 entregues; 4 grupos TRACK Wave A). P5 ritual: 1ª passada (2 PASS / 1 CONCERNS / 7 FAIL — 41 C/A/M) → 6 batches conserto causa-raiz S1..S6.1 → 2ª passada (8 PASS + 2 CONCERNS BAIXO carryover) → 3ª/4ª passada drift-docs PASS. ADRs aceitas: 0040 (padrão metrológico), 0064 (HMAC rotação anual + KMS 25a), 0065 (concorrência calibração UNIQUE+CAS+advisory lock), 0066 (fail-open lazy `cmc_cobre` + `procedimento_vigente_para`). Suite M4 chave 629/629, hooks 379/379. |
 
 ---
 

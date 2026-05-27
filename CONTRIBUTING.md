@@ -1,6 +1,6 @@
 # CONTRIBUTING.md — fluxo do agente
 
-> Este documento descreve o **fluxo de trabalho do AGENTE de IA** (não de humano contribuidor externo). Roldão é o dono não-técnico; contribuidores são agentes (Claude Code, Codex CLI) + 3 auditores-agentes.
+> Este documento descreve o **fluxo de trabalho do AGENTE de IA** (não de humano contribuidor externo). Roldão é o dono não-técnico; contribuidores são agentes (Claude Code, Codex CLI) + **10 auditores Família 5** (catálogo em `docs/governanca/catalogo-auditores.md`) + 1 transversal Tier 4 `bus-integrity` + 4 humanos-substitutos (`.claude/agents/`).
 
 ---
 
@@ -18,7 +18,9 @@
 
 ---
 
-## Regras de commit (Conventional Commits)
+## Regras de commit
+
+> **Conflito reconciliado (2026-05-27):** AGENTS.md §7 diz "padrão livre — decisão deferida". Na prática, os commits dos 7 marcos fechados usam **Conventional Commits relaxado** — prefixo (`feat:`, `fix:`, `docs:`, `chore:`) com escopo livre (ex.: `fix(M4 P5 batch S4+S5-restante): ...`). Adotar esse padrão de fato; decisão formal via ADR fica como Wave A.
 
 - `feat:` nova feature
 - `fix:` correção
@@ -29,6 +31,7 @@
 - `compliance:` mudança regulatória (LGPD, ISO, fiscal)
 - Cada commit cita ≥1 ID (`US-`, `T-`, `INV-`, `ADR-`, `SEC-`).
 - Commits atômicos: 1 propósito por commit. Nunca misturar `feat + fix + refactor`.
+- `Co-Authored-By: Claude <noreply@anthropic.com>` quando agente gera o commit.
 
 ---
 

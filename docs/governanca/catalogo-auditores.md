@@ -2,7 +2,9 @@
 
 > **Pra quê:** materializar os auditores que substituem reviewers humanos. Auditor 10 v2 alertou: sem operacionalização, "Família 5 é vaporware".
 >
-> **Status atual (2026-05-19):** **10 auditores em operação** — 4 originais + 6 novos criados em 2026-05-19 (escolha Roldão: Tier 1 + 2 + 3 completo, MÉDIO bloqueia consistente com INV-RITUAL-001, bump prompts existentes para 1.1.0 stable).
+> **Inventário atual: 11 prompts** em `docs/governanca/auditor-*-prompt.md` — os **10 da Família 5** invocados no ritual fim-de-fase (seguranca, qualidade, produto, drift-docs, llm-correctness, performance, observabilidade, idempotencia, supplychain, conformidade-lgpd) + **1 transversal Tier 4** (`bus-integrity` v1.0.0 stable, criado 2026-05-22 — bloqueia commit no mesmo nível de idempotencia/supplychain; rastreado separadamente porque cobre INV-INT cross-módulo, não escopo de uma fase).
+>
+> **Status atual (2026-05-27):** **10 auditores em operação stable** — provados em 5+ ciclos PASS (F-A, F-B, M1 clientes, M2 equipamentos, F-C1, M3 OS, M4 calibração). Marco 4 (2026-05-27) exercitou os 10 em 2 passadas completas: 1ª passada 2 PASS / 1 CONCERNS / 7 FAIL (41 C/A/M) → 6 batches conserto causa-raiz → 2ª passada 8 PASS + 2 CONCERNS BAIXO carryover. LLM-correctness subiu CONCERNS→PASS. Convergência observada após o ritual S1..S6.1.
 >
 > **Motivação do Tier 1+2+3:** o bug 2026-05-19 do `sanitizar_payload_audit` (UUID redigido como PII em ~8% dos clientes) **passou em PASS dos 3 auditores 1.0.0** porque a função era exercitada só via teste de integração com input aleatório. Lacuna concreta provou que precisamos endurecer (Tier 1: TST-005..007 + SEC-SANITIZE-001) e expandir cobertura (Tier 2: LLM correctness; Tier 3: performance, observabilidade, idempotência, supply chain, LGPD mecânico).
 

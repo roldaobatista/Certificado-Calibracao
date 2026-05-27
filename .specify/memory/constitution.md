@@ -16,7 +16,7 @@
 
 2. **Spec gera código (spec-as-source).** A especificação em PT é a fonte da verdade. Agente traduz spec → código. Mudou código sem atualizar spec no mesmo commit = bug, não funcionalidade nova.
 
-3. **Conciso vence completo.** Se o agente faz pergunta respondida em `CLAUDE.md` ou `AGENTS.md`, o arquivo está longo demais. Tetos: `CLAUDE.md ≤ 150 linhas`, `AGENTS.md ≤ 250 linhas`, `REGRAS-INEGOCIAVEIS.md ≤ 120 linhas`. Hooks contam tokens (não linhas) e falham acima.
+3. **Conciso vence completo.** Se o agente faz pergunta respondida em `CLAUDE.md` ou `AGENTS.md`, o arquivo está longo demais. **Tetos orientativos** (não enforced por hook — métrica real é `context-budget` em tokens, não linhas): `CLAUDE.md ≤ 150 linhas`, `AGENTS.md ≤ 300 linhas`, `REGRAS-INEGOCIAVEIS.md` cresce com IDs novos por marco (sem teto absoluto — IDs INV-/SEC- são contrato; ler só seções relevantes via `paths:` frontmatter quando hook lazy chegar). **Drift atual aceito (2026-05-27):** AGENTS=295 (dentro), CLAUDE=126 (dentro), REGRAS=647 (livre). Decisão Roldão: D5/ADR-0020 (CODEOWNERS expandido) cobre o anti-bypass dos arquivos críticos.
 
 4. **Fases de 5–15 minutos** com critério de aceite binário (passou / não passou). Agentes performam mal em feature holística; bem em fases sequenciais.
 

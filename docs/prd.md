@@ -1,6 +1,6 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-23
+revisado-em: 2026-05-27
 status: stable
 ---
 
