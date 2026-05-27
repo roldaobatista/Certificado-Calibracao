@@ -1,7 +1,11 @@
 # Dockerfile para a aplicacao Django (Foundation F-A em diante).
 # Imagem base alinhada com .devcontainer/devcontainer.json (Python 3.12 bookworm).
+#
+# SUPPLY-1 pin SHA (Onda PRE-A.4 auditoria 10 lentes pré-Wave A — fecha L8#7 ALTO):
+# Dependabot atualiza este SHA semanalmente via .github/dependabot.yml.
+# Tag mutável `python:3.12-slim-bookworm` resolvida em 2026-05-27 → SHA pinado abaixo.
 
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-bookworm@sha256:5f55cdf0c5d9dc1a415637a5ccc4a9e18663ad203673173b8cda8f8dcacef689
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

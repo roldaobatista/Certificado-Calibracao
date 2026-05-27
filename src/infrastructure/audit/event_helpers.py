@@ -185,6 +185,7 @@ def _inserir_no_outbox(
     event_id = uuid4()
     occurred_at = datetime.now(UTC)
     correlation_id = _obter_correlation_id()
+    perfil_no_evento = _obter_perfil_tenant()  # INT-03 Onda PRE-A.4 — SAN-PERFIL Sprint 4 propaga pro bus
     actor = str(usuario_id) if usuario_id else "sistema"
 
     envelope = {
@@ -194,6 +195,7 @@ def _inserir_no_outbox(
         "occurred_at": occurred_at.isoformat(),
         "correlation_id": correlation_id,
         "actor": actor,
+        "perfil_no_evento": perfil_no_evento,  # INT-03 — A/B/C/D ou None (sistema/sem perfil)
         "acao": acao,  # compat M1/M2 — manter durante 1 release
         "payload": payload_sanitizado,
         "causation_id": str(causation_id),
@@ -234,6 +236,33 @@ def _obter_correlation_id() -> str | None:
         # Outras exceptions sao bugs reais — propagar (nao mascarar).
         logger.warning(
             "correlation_id indisponivel via current_setting: %s (%s)",
+            exc.__class__.__name__,
+            exc,
+        )
+        return None
+
+
+def _obter_perfil_tenant() -> str | None:
+    """INT-03 (Onda PRE-A.4 — auditoria 10 lentes pré-Wave A).
+
+    Le perfil_regulatorio do tenant ATUAL via current_setting('app.perfil_tenant', true).
+    Sprint 4 SAN-PERFIL setou esse GUC em `setar_contexto_pg_na_conexao`.
+    Retorna 'A'|'B'|'C'|'D'|None. None aceito em modo sistema OU em contextos
+    pre-SAN-PERFIL onde tenant ainda nao tem perfil (migration historica).
+
+    Defesa probatoria: snapshot do perfil no MOMENTO da publicacao do evento —
+    consumer cross-modulo Wave A nao precisa consultar tenant atual (que pode
+    ter mudado em transicao D→C→B→A).
+    """
+    try:
+        with connection.cursor() as cur:
+            cur.execute("SELECT current_setting('app.perfil_tenant', true)")
+            row = cur.fetchone()
+            valor = row[0] if row else None
+            return valor if valor in ("A", "B", "C", "D") else None
+    except (DatabaseError, OperationalError) as exc:
+        logger.warning(
+            "perfil_tenant indisponivel via current_setting: %s (%s)",
             exc.__class__.__name__,
             exc,
         )

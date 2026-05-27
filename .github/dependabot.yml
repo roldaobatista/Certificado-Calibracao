@@ -1,0 +1,81 @@
+# Dependabot — controle de atualização de dependências.
+# Criado 2026-05-27 (Onda PRE-A.4 auditoria 10 lentes pré-Wave A — fecha L8#7 ALTO supply-chain).
+# Política completa em docs/governanca/dependabot-policy.md (a criar em F-C3).
+#
+# Estratégia:
+# - patch + security: auto-merge (humano = Claude Code agente IA via revisão automática).
+# - minor: humano (Claude Code) avalia.
+# - major: humano avalia + auditoria de breaking changes.
+
+version: 2
+updates:
+  # GitHub Actions — auto-merge security + patch
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Cuiaba"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  # Docker (Dockerfile base + devcontainer)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Cuiaba"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  # Python via Poetry (pyproject.toml)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Cuiaba"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+    # Ignora versões major automaticamente — humano avalia
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+    # Grupos: agrupa updates relacionados em 1 PR
+    groups:
+      django-stack:
+        patterns:
+          - "django*"
+          - "drf*"
+          - "djangorestframework*"
+      auditoria-stack:
+        patterns:
+          - "ruff*"
+          - "mypy*"
+          - "pytest*"
+          - "factory-boy*"
+      crypto-stack:
+        patterns:
+          - "cryptography*"
+          - "argon2*"
+          - "pyhanko*"

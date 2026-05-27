@@ -99,23 +99,26 @@ if printf '%s' "$content" | grep -qE 'Cliente\.Anonimizado'; then
     fi
 fi
 
-# Regras 5-8 (CONCERN — Onda 3 saneamento): publish DIRETO (nao via helper publicar_evento)
-# deve carregar event_id, _schema_version, occurred_at, correlation_id pos-2026-05-23.
-# Promovido a BLOCK em Onda 4 quando GATE-CLI-MIGRATE-OUTBOX-V2 fechar.
-# Helper `publicar_evento` (audit/event_helpers.py) ja injeta automaticamente.
+# Regras 5-8 (BLOCK — Onda PRE-A.4 auditoria 10 lentes pré-Wave A): publish DIRETO (nao via helper
+# publicar_evento) deve carregar envelope canonico v11 inteiro.
+# Promovido de CONCERN→BLOCK 2026-05-27 (auditoria L7#4 detectou "hook eh teatro").
+# Helper `publicar_evento` (audit/event_helpers.py) injeta automaticamente — esse e o caminho canonico.
 case "$content" in
     *publicar_evento*) ;;  # via helper canonico — OK
     *)
-        warnings=()
-        printf '%s' "$content" | grep -qE '(event_id|"event_id")' || warnings+=("event_id (UUID idempotencia cross-consumer)")
-        printf '%s' "$content" | grep -qE '(_schema_version|"_schema_version")' || warnings+=("_schema_version (envelope canonico v10)")
-        printf '%s' "$content" | grep -qE '(occurred_at|"occurred_at")' || warnings+=("occurred_at (timezone-aware)")
-        printf '%s' "$content" | grep -qE '(correlation_id|"correlation_id")' || warnings+=("correlation_id (cadeia forense TEMA-E.5)")
-        if [ ${#warnings[@]} -gt 0 ]; then
-            echo "bus-envelope-validator (CONCERN — Onda 3 saneamento envelope v10): publish direto em $file_path falta:" >&2
-            for w in "${warnings[@]}"; do echo "  - $w" >&2; done
-            echo "Use helper publicar_evento (src/infrastructure/audit/event_helpers.py) que injeta automaticamente." >&2
-            # CONCERN — nao bloqueia ainda. Promover para BLOCK em Onda 4.
+        missing=()
+        printf '%s' "$content" | grep -qE '(event_id|"event_id")' || missing+=("event_id (UUID idempotencia cross-consumer)")
+        printf '%s' "$content" | grep -qE '(_schema_version|"_schema_version")' || missing+=("_schema_version (envelope canonico v11)")
+        printf '%s' "$content" | grep -qE '(occurred_at|"occurred_at")' || missing+=("occurred_at (timezone-aware)")
+        printf '%s' "$content" | grep -qE '(correlation_id|"correlation_id")' || missing+=("correlation_id (cadeia forense TEMA-E.5)")
+        printf '%s' "$content" | grep -qE '(event_name|"event_name")' || missing+=("event_name (PascalCase canonico)")
+        printf '%s' "$content" | grep -qE '(actor|"actor")' || missing+=("actor (usuario_id ou sistema)")
+        printf '%s' "$content" | grep -qE '(perfil_no_evento|"perfil_no_evento")' || missing+=("perfil_no_evento (INT-03 ADR-0067 Sprint 4 SAN-PERFIL)")
+        if [ ${#missing[@]} -gt 0 ]; then
+            echo "bus-envelope-validator (BLOCK — envelope v11 Onda PRE-A.4): publish direto em $file_path falta:" >&2
+            for w in "${missing[@]}"; do echo "  - $w" >&2; done
+            echo "Use helper publicar_evento (src/infrastructure/audit/event_helpers.py) que injeta automaticamente o envelope completo." >&2
+            exit 2
         fi
         ;;
 esac
