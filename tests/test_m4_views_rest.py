@@ -12,7 +12,9 @@ from uuid import uuid4
 from src.infrastructure.calibracao.serializers import (
     CancelarCalibracaoSerializer,
     ConfigurarCalibracaoSerializer,
+    CorrigirLeituraSerializer,
     RecepcionarCalibracaoSerializer,
+    RegistrarLeituraSerializer,
 )
 
 
@@ -145,3 +147,84 @@ class TestCancelarSerializer:
         )
         assert s.is_valid(), s.errors
         assert "motivo_hash" not in s.validated_data
+
+
+class TestRegistrarLeituraSerializer:
+    """T-CAL-124 — LeituraViewSet.registrar."""
+
+    def _payload(self) -> dict:
+        return {
+            "ponto_calibracao": "10.000",
+            "numero_repeticao": 1,
+            "valor_lido": "10.001",
+            "unidade": "kg",
+            "origem": "MANUAL",
+            "timestamp": "2026-06-30T12:00:00Z",
+            "correlation_id": str(uuid4()),
+        }
+
+    def test_payload_valido(self) -> None:
+        s = RegistrarLeituraSerializer(data=self._payload())
+        assert s.is_valid(), s.errors
+
+    def test_client_event_id_opcional(self) -> None:
+        payload = self._payload()
+        payload["client_event_id"] = str(uuid4())
+        s = RegistrarLeituraSerializer(data=payload)
+        assert s.is_valid(), s.errors
+        assert s.validated_data["client_event_id"] is not None
+
+    def test_executor_id_hash_no_body_eh_ignorado(self) -> None:
+        """SEG-CAL-09: cliente nao pode spoofar executor."""
+        payload = self._payload()
+        payload["executor_id_hash"] = "v01$ATACANTE"
+        s = RegistrarLeituraSerializer(data=payload)
+        assert s.is_valid(), s.errors
+        assert "executor_id_hash" not in s.validated_data
+
+    def test_numero_repeticao_zero_recusa(self) -> None:
+        payload = self._payload()
+        payload["numero_repeticao"] = 0
+        s = RegistrarLeituraSerializer(data=payload)
+        assert not s.is_valid()
+
+    def test_origem_fora_whitelist_recusa(self) -> None:
+        payload = self._payload()
+        payload["origem"] = "INSTRUMENTO_DESCONHECIDO"
+        s = RegistrarLeituraSerializer(data=payload)
+        assert not s.is_valid()
+
+
+class TestCorrigirLeituraSerializer:
+    """T-CAL-124 — LeituraViewSet.corrigir (rasura cl. 7.5)."""
+
+    def _payload(self) -> dict:
+        return {
+            "valor_corrigido": "10.005",
+            "razao_correcao_canonicalizada": (
+                "valor lido com casa decimal trocada — releitura confirmada"
+            ),
+            "corrigido_em": "2026-06-30T12:05:00Z",
+            "correlation_id": str(uuid4()),
+        }
+
+    def test_payload_valido(self) -> None:
+        s = CorrigirLeituraSerializer(data=self._payload())
+        assert s.is_valid(), s.errors
+
+    def test_razao_curta_recusa(self) -> None:
+        payload = self._payload()
+        payload["razao_correcao_canonicalizada"] = "curto"
+        s = CorrigirLeituraSerializer(data=payload)
+        assert not s.is_valid()
+
+    def test_hashes_no_body_sao_ignorados(self) -> None:
+        """SEG-CAL-08/09: razao_correcao_hash + corretor_id_hash sao
+        derivados server-side; valores no body sao descartados."""
+        payload = self._payload()
+        payload["razao_correcao_hash"] = "v01$ATACANTE_HASH"
+        payload["corretor_id_hash"] = "v01$ATACANTE_USER"
+        s = CorrigirLeituraSerializer(data=payload)
+        assert s.is_valid(), s.errors
+        assert "razao_correcao_hash" not in s.validated_data
+        assert "corretor_id_hash" not in s.validated_data

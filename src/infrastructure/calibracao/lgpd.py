@@ -124,6 +124,23 @@ def derivar_hash_texto_canonicalizado(
     return formatar_hash_versionado(VERSAO_HMAC_ATUAL, mac.digest())
 
 
+def derivar_user_id_hash(
+    *,
+    usuario_id: UUID,
+    tenant_id: UUID,
+) -> str:
+    """HMAC server-side de (tenant_id, usuario_id) — INV-CAL-FRAUDE-EXEC-001
+    + INV-CAL-FRAUDE-COR-001 + ADR-0064.
+
+    Substitui UUID cru de executor / corretor / revisor / conferente em
+    snapshots WORM (anti-stalking pos retencao 25a). View deriva no
+    momento do request a partir do usuario autenticado.
+    """
+    payload = f"{tenant_id}|{usuario_id}|user_id"
+    mac = hmac.new(_CHAVE_HMAC_WAVE_A, payload.encode("utf-8"), hashlib.sha256)
+    return formatar_hash_versionado(VERSAO_HMAC_ATUAL, mac.digest())
+
+
 def _eh_uuid_estrutural(chave: str) -> bool:
     chave_lower = chave.lower()
     return any(chave_lower.endswith(suf) for suf in _SUFIXOS_UUID_ESTRUTURAL)
@@ -188,5 +205,6 @@ __all__ = [
     "derivar_cliente_key_id",
     "derivar_cliente_referencia_hash",
     "derivar_hash_texto_canonicalizado",
+    "derivar_user_id_hash",
     "sanitizar_payload_evento_calibracao",
 ]

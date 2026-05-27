@@ -105,3 +105,67 @@ class CalibracaoOutSerializer(serializers.Serializer):
     revision = serializers.IntegerField()
     tipo_acreditacao = serializers.CharField()
     criada_em = serializers.DateTimeField()
+
+
+# =============================================================
+# Leitura / LeituraCorrecao (T-CAL-124)
+# =============================================================
+
+
+class RegistrarLeituraSerializer(serializers.Serializer):
+    """POST /api/v1/calibracoes/{id}/registrar-leitura.
+
+    SEG-CAL-09: `executor_id_hash` derivado server-side a partir do
+    `usuario_id` autenticado — NUNCA aceita no body.
+    """
+
+    ponto_calibracao = serializers.DecimalField(
+        max_digits=20, decimal_places=8
+    )
+    numero_repeticao = serializers.IntegerField(min_value=1)
+    valor_lido = serializers.DecimalField(max_digits=20, decimal_places=8)
+    unidade = serializers.CharField(max_length=20, min_length=1)
+    origem = serializers.ChoiceField(
+        choices=["MANUAL", "INSTRUMENTO_INTEGRADO", "IMPORT_CSV"]
+    )
+    timestamp = serializers.DateTimeField()
+    correlation_id = serializers.UUIDField()
+    client_event_id = serializers.UUIDField(required=False, allow_null=True)
+
+
+class CorrigirLeituraSerializer(serializers.Serializer):
+    """POST /api/v1/leituras/{id}/corrigir — rasura digital cl. 7.5.
+
+    SEG-CAL-09/SEG-CAL-08: `razao_correcao_hash` + `corretor_id_hash`
+    derivados server-side. Body envia `razao_correcao_canonicalizada`
+    (>=30 chars) — view hasheia + injeta hash do usuario logado.
+    """
+
+    valor_corrigido = serializers.DecimalField(
+        max_digits=20, decimal_places=8
+    )
+    razao_correcao_canonicalizada = serializers.CharField(min_length=30)
+    corrigido_em = serializers.DateTimeField()
+    correlation_id = serializers.UUIDField()
+
+
+class LeituraOutSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    calibracao_id = serializers.UUIDField()
+    ponto_calibracao = serializers.DecimalField(max_digits=20, decimal_places=8)
+    numero_repeticao = serializers.IntegerField()
+    valor_lido = serializers.DecimalField(max_digits=20, decimal_places=8)
+    unidade = serializers.CharField()
+    origem = serializers.CharField()
+    timestamp = serializers.DateTimeField()
+    correlation_id = serializers.UUIDField()
+    idempotente = serializers.BooleanField(required=False)
+
+
+class LeituraCorrecaoOutSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    leitura_id = serializers.UUIDField()
+    valor_original = serializers.DecimalField(max_digits=20, decimal_places=8)
+    valor_corrigido = serializers.DecimalField(max_digits=20, decimal_places=8)
+    corrigido_em = serializers.DateTimeField()
+    correlation_id = serializers.UUIDField()

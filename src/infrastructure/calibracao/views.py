@@ -35,8 +35,6 @@ from typing import Any
 from uuid import UUID
 
 from django.db import transaction
-
-logger = logging.getLogger(__name__)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
@@ -58,12 +56,30 @@ from src.application.metrologia.calibracao.configurar_calibracao import (
 from src.application.metrologia.calibracao.configurar_calibracao import (
     executar as configurar_executar,
 )
+from src.application.metrologia.calibracao.corrigir_leitura import (
+    CalibracaoEstadoNaoPermiteCorrigir,
+    CorrigirLeituraInput,
+    LeituraNaoEncontrada,
+)
+from src.application.metrologia.calibracao.corrigir_leitura import (
+    executar as corrigir_leitura_executar,
+)
 from src.application.metrologia.calibracao.criar_calibracao import (
     CriarCalibracaoInput,
 )
 from src.application.metrologia.calibracao.criar_calibracao import (
     executar as criar_executar,
 )
+from src.application.metrologia.calibracao.registrar_leitura import (
+    ConflitoLeituraExistente,
+    EstadoInvalidoParaRegistrarLeitura,
+    IdempotencyPayloadMismatch,
+    RegistrarLeituraInput,
+)
+from src.application.metrologia.calibracao.registrar_leitura import (
+    executar as registrar_leitura_executar,
+)
+from src.domain.metrologia.calibracao.entities import OrigemLeitura
 from src.domain.metrologia.calibracao.enums import (
     OrigemRecepcao,
     RegraDecisao,
@@ -73,15 +89,20 @@ from src.infrastructure.calibracao.lgpd import (
     derivar_cliente_key_id,
     derivar_cliente_referencia_hash,
     derivar_hash_texto_canonicalizado,
+    derivar_user_id_hash,
 )
 from src.infrastructure.calibracao.repositories import (
     DjangoCalibracaoRepository,
     DjangoEventoDeCalibracaoRepository,
+    DjangoLeituraCorrecaoRepository,
+    DjangoLeituraRepository,
 )
 from src.infrastructure.calibracao.serializers import (
     CancelarCalibracaoSerializer,
     ConfigurarCalibracaoSerializer,
+    CorrigirLeituraSerializer,
     RecepcionarCalibracaoSerializer,
+    RegistrarLeituraSerializer,
 )
 from src.infrastructure.idempotencia.services_idempotencia import (
     ErroValidacao,
@@ -96,6 +117,8 @@ from src.infrastructure.multitenant.context import (
     usuario_id_context,
 )
 
+logger = logging.getLogger(__name__)
+
 # Endpoints registrados pro service de idempotencia (IDEMP-001 +
 # INV-CAL-IDEMP-001 + IDEMP-CAL-01 conserto 2026-05-27).
 # String estavel — UNIQUE (tenant_id, endpoint, chave). NUNCA renomear
@@ -103,6 +126,8 @@ from src.infrastructure.multitenant.context import (
 ENDPOINT_CAL_RECEPCIONAR = "calibracao.recepcionar"
 ENDPOINT_CAL_CONFIGURAR = "calibracao.configurar"
 ENDPOINT_CAL_CANCELAR = "calibracao.cancelar"
+ENDPOINT_CAL_REGISTRAR_LEITURA = "calibracao.registrar_leitura"
+ENDPOINT_CAL_CORRIGIR_LEITURA = "calibracao.corrigir_leitura"
 
 
 def _resposta_erro_idempotencia(erro: ErroValidacao) -> Response:
@@ -667,3 +692,397 @@ class CalibracaoViewSet(viewsets.ViewSet):
             response_body_resumo=body,
         )
         return Response(body)
+
+
+def _serializar_leitura(snapshot: Any, idempotente: bool = False) -> dict[str, Any]:
+    return {
+        "id": str(snapshot.id),
+        "calibracao_id": str(snapshot.calibracao_id),
+        "ponto_calibracao": str(snapshot.ponto_calibracao),
+        "numero_repeticao": snapshot.numero_repeticao,
+        "valor_lido": str(snapshot.valor_lido),
+        "unidade": snapshot.unidade,
+        "origem": snapshot.origem.value,
+        "timestamp": snapshot.timestamp.isoformat(),
+        "correlation_id": str(snapshot.correlation_id),
+        "idempotente": idempotente,
+    }
+
+
+def _serializar_leitura_correcao(snapshot: Any) -> dict[str, Any]:
+    return {
+        "id": str(snapshot.id),
+        "leitura_id": str(snapshot.leitura_id),
+        "valor_original": str(snapshot.valor_original),
+        "valor_corrigido": str(snapshot.valor_corrigido),
+        "corrigido_em": snapshot.corrigido_em.isoformat(),
+        "correlation_id": str(snapshot.correlation_id),
+    }
+
+
+# authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+class LeituraViewSet(viewsets.ViewSet):
+    """ViewSet REST de Leitura (T-CAL-124 — registrar + corrigir).
+
+      POST /api/v1/calibracoes/{calibracao_pk}/registrar-leitura
+      POST /api/v1/leituras/{leitura_pk}/corrigir
+    """
+
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="calibracoes/(?P<calibracao_pk>[^/.]+)/registrar-leitura",
+    )
+    def registrar(
+        self, request: Request, calibracao_pk: str | None = None
+    ) -> Response:
+        """POST /api/v1/calibracoes/{calibracao_pk}/registrar-leitura/.
+
+        US-CAL-003. Calibracao precisa estar em EM_EXECUCAO.
+        Idempotency-Key obrigatoria + UNIQUE composto (tenant, calibracao,
+        ponto, repeticao) garante atomicidade. `client_event_id` opcional
+        habilita sync mobile (ADR-0027).
+        """
+        serializer = RegistrarLeituraSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+
+        try:
+            cal_id = UUID(str(calibracao_pk))
+        except (ValueError, TypeError) as exc:
+            raise NotFound(f"calibracao_id invalido: {exc}") from exc
+
+        tenant_id_ctx = active_tenant_context.get()
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        # SEG-CAL-09: executor_id_hash server-side a partir do usuario logado.
+        executor_id_hash = derivar_user_id_hash(
+            usuario_id=usuario_id, tenant_id=tenant_id_ctx
+        )
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id_ctx,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_CAL_REGISTRAR_LEITURA,
+            payload_fingerprint={
+                "calibracao_id": str(cal_id),
+                "ponto_calibracao": str(dados["ponto_calibracao"]),
+                "numero_repeticao": dados["numero_repeticao"],
+                "valor_lido": str(dados["valor_lido"]),
+                "unidade": dados["unidade"],
+                "origem": dados["origem"],
+                "client_event_id": str(dados.get("client_event_id") or ""),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+
+        cal_repo = DjangoCalibracaoRepository()
+        leitura_repo = DjangoLeituraRepository()
+        evento_repo = DjangoEventoDeCalibracaoRepository()
+        try:
+            inp = RegistrarLeituraInput(
+                calibracao_id=cal_id,
+                ponto_calibracao=dados["ponto_calibracao"],
+                numero_repeticao=dados["numero_repeticao"],
+                valor_lido=dados["valor_lido"],
+                unidade=dados["unidade"],
+                origem=OrigemLeitura(dados["origem"]),
+                timestamp=dados["timestamp"],
+                executor_id_hash=executor_id_hash,
+                correlation_id=dados["correlation_id"],
+                client_event_id=dados.get("client_event_id"),
+            )
+        except (TypeError, ValueError) as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response(
+                {"erro": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                out = registrar_leitura_executar(inp, cal_repo, leitura_repo)
+                if not out.idempotente:
+                    append_evento_executar(
+                        AppendEventoCalibracaoInput(
+                            tenant_id=tenant_id_ctx,
+                            calibracao_id=cal_id,
+                            tipo="LeituraRegistrada",
+                            payload_raw={
+                                "leitura_id": str(out.snapshot.id),
+                                "calibracao_id": str(cal_id),
+                                "ponto_calibracao": str(
+                                    out.snapshot.ponto_calibracao
+                                ),
+                                "numero_repeticao": out.snapshot.numero_repeticao,
+                                "unidade": out.snapshot.unidade,
+                                "origem": out.snapshot.origem.value,
+                            },
+                            finalidade="leitura_registrada",
+                            actor_user_id=usuario_id,
+                            occurred_at=datetime.now(UTC),
+                            correlation_id=out.snapshot.correlation_id,
+                            causation_id=novo.chave_id,  # type: ignore[arg-type]
+                        ),
+                        evento_repo,
+                    )
+        except CalibracaoNaoEncontrada as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
+            raise NotFound(str(exc)) from exc
+        except EstadoInvalidoParaRegistrarLeitura as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "EstadoInvalido"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except ConflitoLeituraExistente as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "LeituraDuplicada",
+                    "leitura_id_existente": str(exc.leitura_existente.id),
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        except IdempotencyPayloadMismatch as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "IdempotencyPayloadMismatch",
+                    "campos_divergentes": list(exc.campos_divergentes),
+                    "leitura_id_existente": str(exc.leitura_existente.id),
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        body = _serializar_leitura(out.snapshot, idempotente=out.idempotente)
+        http_status = (
+            status.HTTP_200_OK if out.idempotente else status.HTTP_201_CREATED
+        )
+        logger.info(
+            "calibracao.registrar_leitura OK leitura_id=%s calibracao_id=%s idempotente=%s",
+            out.snapshot.id,
+            cal_id,
+            out.idempotente,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_CAL_REGISTRAR_LEITURA,
+                "calibracao_id": str(cal_id),
+                "usuario_id": str(usuario_id),
+            },
+        )
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id_ctx,
+            response_status=http_status,
+            response_body_resumo=body,
+        )
+        return Response(body, status=http_status)
+
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="leituras/(?P<leitura_pk>[^/.]+)/corrigir",
+    )
+    def corrigir(
+        self, request: Request, leitura_pk: str | None = None
+    ) -> Response:
+        """POST /api/v1/leituras/{leitura_pk}/corrigir/.
+
+        US-CAL-004 / AC-CAL-004-7 — rasura digital cl. 7.5 ISO 17025.
+        SEG-CAL-09 + SEG-CAL-08: `razao_correcao_hash` + `corretor_id_hash`
+        derivados server-side. Calibracao precisa estar em CONFIGURADA
+        ou EM_EXECUCAO.
+        """
+        serializer = CorrigirLeituraSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+
+        try:
+            leitura_id = UUID(str(leitura_pk))
+        except (ValueError, TypeError) as exc:
+            raise NotFound(f"leitura_id invalido: {exc}") from exc
+
+        tenant_id_ctx = active_tenant_context.get()
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        razao_hash = derivar_hash_texto_canonicalizado(
+            texto=dados["razao_correcao_canonicalizada"],
+            tenant_id=tenant_id_ctx,
+        )
+        corretor_id_hash = derivar_user_id_hash(
+            usuario_id=usuario_id, tenant_id=tenant_id_ctx
+        )
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id_ctx,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_CAL_CORRIGIR_LEITURA,
+            payload_fingerprint={
+                "leitura_id": str(leitura_id),
+                "valor_corrigido": str(dados["valor_corrigido"]),
+                "razao_hash_fingerprint": hashlib.sha256(
+                    razao_hash.encode()
+                ).hexdigest(),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+
+        cal_repo = DjangoCalibracaoRepository()
+        leitura_repo = DjangoLeituraRepository()
+        correcao_repo = DjangoLeituraCorrecaoRepository()
+        evento_repo = DjangoEventoDeCalibracaoRepository()
+
+        leitura_atual = leitura_repo.obter_por_id(leitura_id)
+        if leitura_atual is None:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
+            raise NotFound(f"leitura_id={leitura_id} nao encontrada")
+        calibracao_id_leitura = leitura_atual.calibracao_id
+
+        try:
+            inp = CorrigirLeituraInput(
+                leitura_id=leitura_id,
+                valor_corrigido=dados["valor_corrigido"],
+                razao_correcao_canonicalizada=dados[
+                    "razao_correcao_canonicalizada"
+                ],
+                razao_correcao_hash=razao_hash,
+                corretor_id_hash=corretor_id_hash,
+                corrigido_em=dados["corrigido_em"],
+                correlation_id=dados["correlation_id"],
+            )
+        except (TypeError, ValueError) as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response(
+                {"erro": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                out = corrigir_leitura_executar(
+                    inp, cal_repo, leitura_repo, correcao_repo
+                )
+                append_evento_executar(
+                    AppendEventoCalibracaoInput(
+                        tenant_id=tenant_id_ctx,
+                        calibracao_id=calibracao_id_leitura,
+                        tipo="LeituraCorrigida",
+                        payload_raw={
+                            "correcao_id": str(out.snapshot.id),
+                            "leitura_id": str(out.snapshot.leitura_id),
+                            "valor_original": str(out.snapshot.valor_original),
+                            "valor_corrigido": str(
+                                out.snapshot.valor_corrigido
+                            ),
+                            "razao_correcao_hash": (
+                                out.snapshot.razao_correcao_hash
+                            ),
+                        },
+                        finalidade="leitura_corrigida",
+                        actor_user_id=usuario_id,
+                        occurred_at=datetime.now(UTC),
+                        correlation_id=out.snapshot.correlation_id,
+                        causation_id=novo.chave_id,  # type: ignore[arg-type]
+                    ),
+                    evento_repo,
+                )
+        except LeituraNaoEncontrada as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
+            raise NotFound(str(exc)) from exc
+        except CalibracaoEstadoNaoPermiteCorrigir as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "EstadoInvalido"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except ValueError as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "RasuraInocua"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        body = _serializar_leitura_correcao(out.snapshot)
+        logger.info(
+            "calibracao.corrigir_leitura OK correcao_id=%s leitura_id=%s",
+            out.snapshot.id,
+            out.snapshot.leitura_id,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_CAL_CORRIGIR_LEITURA,
+                "leitura_id": str(out.snapshot.leitura_id),
+                "usuario_id": str(usuario_id),
+            },
+        )
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id_ctx,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)

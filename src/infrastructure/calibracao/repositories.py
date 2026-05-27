@@ -23,6 +23,9 @@ from django.db import connection
 from src.domain.metrologia.calibracao.entities import (
     CalibracaoSnapshot,
     EventoDeCalibracaoSnapshot,
+    LeituraCorrecaoSnapshot,
+    LeituraSnapshot,
+    OrigemLeitura,
 )
 from src.domain.metrologia.calibracao.enums import (
     EstadoCalibracao,
@@ -37,7 +40,12 @@ from src.domain.metrologia.calibracao.hash_versionado import (
 )
 from src.domain.metrologia.calibracao.value_objects import ZonaILACG8
 from src.infrastructure.calibracao.lgpd import _CHAVE_HMAC_WAVE_A
-from src.infrastructure.calibracao.models import Calibracao, EventoDeCalibracao
+from src.infrastructure.calibracao.models import (
+    Calibracao,
+    EventoDeCalibracao,
+    Leitura,
+    LeituraCorrecao,
+)
 
 # Classe de lock por tabela — namespace de 2 args
 # (pg_advisory_xact_lock(int4, int4)). Isola hash-chain de calibracao de
@@ -368,4 +376,133 @@ class DjangoEventoDeCalibracaoRepository:
             sequencia_local=obj.sequencia_local,
             evento_anterior_hash=evento_anterior_hash,
             evento_hash=evento_hash,
+        )
+
+
+class DjangoLeituraRepository:
+    """Implementa `LeituraRepository` (P4 Fase 8 Wave A — T-CAL-124).
+
+    Append-only WORM (INV-CAL-WORM-001) — trigger PG bloqueia UPDATE/DELETE.
+    UNIQUE composto (tenant, calibracao, ponto, repeticao) enforce idempotencia
+    forte (ADR-0065). UNIQUE parcial em (tenant, calibracao, client_event_id)
+    enforce idempotencia sync mobile (ADR-0027).
+    """
+
+    def salvar_nova(self, snapshot: LeituraSnapshot) -> None:
+        Leitura.objects.create(
+            id=snapshot.id,
+            tenant_id=snapshot.tenant_id,
+            calibracao_id=snapshot.calibracao_id,
+            ponto_calibracao=snapshot.ponto_calibracao,
+            numero_repeticao=snapshot.numero_repeticao,
+            valor_lido=snapshot.valor_lido,
+            unidade=snapshot.unidade,
+            origem=snapshot.origem.value,
+            timestamp=snapshot.timestamp,
+            executor_id_hash=snapshot.executor_id_hash,
+            client_event_id=snapshot.client_event_id,
+            correlation_id=snapshot.correlation_id,
+        )
+
+    def obter_por_id(self, leitura_id: UUID) -> LeituraSnapshot | None:
+        from src.infrastructure.multitenant.context import active_tenant_context
+
+        tenant_id = active_tenant_context.get()
+        if tenant_id is None:
+            return None
+        try:
+            obj = Leitura.objects.get(id=leitura_id, tenant_id=tenant_id)
+        except Leitura.DoesNotExist:
+            return None
+        return self._to_snapshot(obj)
+
+    def obter_por_client_event(
+        self,
+        tenant_id: UUID,
+        calibracao_id: UUID,
+        client_event_id: UUID,
+    ) -> LeituraSnapshot | None:
+        try:
+            obj = Leitura.objects.get(
+                tenant_id=tenant_id,
+                calibracao_id=calibracao_id,
+                client_event_id=client_event_id,
+            )
+        except Leitura.DoesNotExist:
+            return None
+        return self._to_snapshot(obj)
+
+    @staticmethod
+    def _to_snapshot(obj: Leitura) -> LeituraSnapshot:
+        return LeituraSnapshot(
+            id=obj.id,
+            tenant_id=obj.tenant_id,
+            calibracao_id=obj.calibracao_id,
+            ponto_calibracao=obj.ponto_calibracao,
+            numero_repeticao=obj.numero_repeticao,
+            valor_lido=obj.valor_lido,
+            unidade=obj.unidade,
+            origem=OrigemLeitura(obj.origem),
+            timestamp=obj.timestamp,
+            executor_id_hash=obj.executor_id_hash,
+            client_event_id=obj.client_event_id,
+            correlation_id=obj.correlation_id,
+        )
+
+
+class DjangoLeituraCorrecaoRepository:
+    """Implementa `LeituraCorrecaoRepository` (rasura digital cl. 7.5 — T-CAL-124)."""
+
+    def salvar_nova(self, snapshot: LeituraCorrecaoSnapshot) -> None:
+        # `corrigido_em` no model usa auto_now_add; ignoramos `snapshot.corrigido_em`
+        # aqui pra preservar autoridade do clock PG (cl. 7.5 — momento da rasura).
+        LeituraCorrecao.objects.create(
+            id=snapshot.id,
+            tenant_id=snapshot.tenant_id,
+            leitura_id=snapshot.leitura_id,
+            valor_original=snapshot.valor_original,
+            valor_corrigido=snapshot.valor_corrigido,
+            razao_correcao_canonicalizada=snapshot.razao_correcao_canonicalizada,
+            razao_correcao_hash=snapshot.razao_correcao_hash,
+            corretor_id_hash=snapshot.corretor_id_hash,
+            correlation_id=snapshot.correlation_id,
+        )
+
+    def obter_por_id(
+        self, correcao_id: UUID
+    ) -> LeituraCorrecaoSnapshot | None:
+        from src.infrastructure.multitenant.context import active_tenant_context
+
+        tenant_id = active_tenant_context.get()
+        if tenant_id is None:
+            return None
+        try:
+            obj = LeituraCorrecao.objects.get(
+                id=correcao_id, tenant_id=tenant_id
+            )
+        except LeituraCorrecao.DoesNotExist:
+            return None
+        return self._to_snapshot(obj)
+
+    def listar_por_leitura(
+        self, leitura_id: UUID
+    ) -> list[LeituraCorrecaoSnapshot]:
+        qs = LeituraCorrecao.objects.filter(leitura_id=leitura_id).order_by(
+            "corrigido_em"
+        )
+        return [self._to_snapshot(obj) for obj in qs]
+
+    @staticmethod
+    def _to_snapshot(obj: LeituraCorrecao) -> LeituraCorrecaoSnapshot:
+        return LeituraCorrecaoSnapshot(
+            id=obj.id,
+            tenant_id=obj.tenant_id,
+            leitura_id=obj.leitura_id,
+            valor_original=obj.valor_original,
+            valor_corrigido=obj.valor_corrigido,
+            razao_correcao_canonicalizada=obj.razao_correcao_canonicalizada,
+            razao_correcao_hash=obj.razao_correcao_hash,
+            corretor_id_hash=obj.corretor_id_hash,
+            corrigido_em=obj.corrigido_em,
+            correlation_id=obj.correlation_id,
         )
