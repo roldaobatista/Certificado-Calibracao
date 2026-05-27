@@ -379,3 +379,32 @@ class AvaliacaoPeriodicaSubcontratadoSnapshot:
     decisao: DecisaoAvaliacaoSubcontratado
     proxima_avaliacao_em: datetime  # default avaliado_em + 12 meses
     correlation_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class MedicaoControleSnapshot:
+    """Medicao de controle de padrao metrologico (cl. 7.7.1 + P-CAL-R8 RBC).
+
+    1:N de PadraoMetrologico — uma medicao por ponto+timestamp. Imutavel
+    pos-INSERT (INV-CAL-WORM-001). Job `analisar_padrao_medicoes_controle`
+    consome as ultimas 30 e roda Western Electric (4 regras) para detectar
+    desvio sistematico.
+
+    `regra_western_electric_violada` eh string ('' = nenhuma; valores em
+    REGRAS_WESTERN_ELECTRIC_ACEITAS).
+    """
+
+    id: UUID
+    tenant_id: UUID
+    padrao_id: UUID
+    grandeza: str
+    valor_medido: Decimal
+    valor_esperado: Decimal
+    desvio: Decimal  # valor_medido - valor_esperado
+    dentro_2sigma: bool
+    dentro_3sigma: bool
+    escore_z: Decimal | None  # NULL quando padrao sem incerteza_referencia
+    regra_western_electric_violada: str  # '' = nenhuma
+    executor_id_hash: str  # HashVersionado v<NN>$<base64>
+    executado_em: datetime  # tz-aware
+    correlation_id: UUID
