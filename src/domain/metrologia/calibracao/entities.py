@@ -37,6 +37,7 @@ from uuid import UUID
 from .enums import (
     AcaoCorretivaTipo,
     ClienteNotificadoVia,
+    DecisaoAvaliacaoSubcontratado,
     DecisaoContinuarOuParar,
     DecisaoReclamacao,
     EstadoCalibracao,
@@ -355,4 +356,26 @@ class ReclamacaoCalibracaoSnapshot:
     prazo_resposta_dia_util: int  # default 15 (AC-CAL-018-3)
     respondida_em: datetime | None
 
+    correlation_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class AvaliacaoPeriodicaSubcontratadoSnapshot:
+    """Avaliacao periodica anual de LaboratorioSubcontratado (cl. 6.6.2 + P-CAL-R5).
+
+    1:N de LaboratorioSubcontratado — uma avaliacao por ciclo anual.
+    Imutavel pos-INSERT (WORM trigger PG). Snapshot enxuto: campos que
+    use cases + jobs atualmente consomem.
+
+    Job `verificar_avaliacoes_subcontratados_vencendo` (T-CAL-115) consome
+    `proxima_avaliacao_em` para alerta P2 30d antes de vencer.
+    """
+
+    id: UUID
+    tenant_id: UUID
+    laboratorio_id: UUID  # FK LaboratorioSubcontratado
+    avaliado_em: datetime  # tz-aware
+    score: Decimal  # 0-10 (cl. 6.6.2)
+    decisao: DecisaoAvaliacaoSubcontratado
+    proxima_avaliacao_em: datetime  # default avaliado_em + 12 meses
     correlation_id: UUID

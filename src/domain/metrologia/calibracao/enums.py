@@ -148,6 +148,22 @@ class EstadoReclamacao(str, Enum):
         return self in {EstadoReclamacao.RESPONDIDA, EstadoReclamacao.ARQUIVADA}
 
 
+class DecisaoAvaliacaoSubcontratado(str, Enum):
+    """3 decisoes da avaliacao periodica de subcontratado (cl. 6.6.2 + P-CAL-R5)."""
+
+    MANTER = "MANTER"
+    ACOMPANHAMENTO = "ACOMPANHAMENTO"
+    DESCREDENCIAR = "DESCREDENCIAR"
+
+    @property
+    def aprovado(self) -> bool:
+        """MANTER + ACOMPANHAMENTO continuam operando (com vigilancia)."""
+        return self in {
+            DecisaoAvaliacaoSubcontratado.MANTER,
+            DecisaoAvaliacaoSubcontratado.ACOMPANHAMENTO,
+        }
+
+
 class DecisaoReclamacao(str, Enum):
     """3 decisoes finais da reclamacao (US-CAL-018 + ADR-0045 saga recall)."""
 
