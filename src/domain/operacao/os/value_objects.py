@@ -115,6 +115,43 @@ class TipoEventoDeOS(str, Enum):
     SLA_BREACH = "sla_breach"
 
 
+# INT-01 Onda PRE-A.4 (auditoria 10 lentes pré-Wave A) — mapa de Integration Events.
+# Mapeia evento LOCAL (`EventoDeOS` timeline interna) para acao canonica do BUS
+# (`bus_outbox` cross-modulo). None = puramente local (sem interesse cross-modulo).
+#
+# Quem consome cada Integration Event vive em outro modulo e foi registrado em
+# `ordens_servico/apps.py:_MAPA_CONSUMERS` ou sera registrado em Wave A.
+#
+# Fecha L7#1 — antes M3 OS gravava timeline mas nunca cruzava o bus.
+MAPA_TIPO_EVENTO_OS_PARA_ACAO_BUS: dict[TipoEventoDeOS, str | None] = {
+    # Eventos de OS — disparam saga 1 (Orçamento→OS→Cert→NF→CR→Pgto) + LGPD
+    TipoEventoDeOS.OS_ABERTA: "os.aberta",
+    TipoEventoDeOS.OS_CONCLUIDA: "os.concluida",
+    TipoEventoDeOS.OS_CANCELADA: "os.cancelada",
+    TipoEventoDeOS.OS_REABERTA: "os.reaberta",
+    TipoEventoDeOS.OS_ESCOPO_ALTERADO: "os.escopo_alterado",
+    # Eventos de Atividade — disparam M4 calibracao + qualidade + financeiro
+    # Prefixo `os.` mantido (acoes_canonicas.py ACOES_OS) — Atividade e filha de OS.
+    TipoEventoDeOS.ATIVIDADE_INICIADA: "os.atividade_iniciada",
+    TipoEventoDeOS.ATIVIDADE_CONCLUIDA: "os.atividade_concluida",
+    TipoEventoDeOS.ATIVIDADE_NAO_CONFORME: "os.atividade_nao_conforme",
+    TipoEventoDeOS.ATIVIDADE_NC_RESOLVIDA: "os.atividade_nc_resolvida",
+    TipoEventoDeOS.ATIVIDADE_CANCELADA: "os.atividade_cancelada",
+    # SLA breach — local (jobs leem direto; consumer comunicacao-omnichannel
+    # Wave A pode promover a Integration Event quando precisar)
+    TipoEventoDeOS.SLA_BREACH: None,  # Wave A promove se precisar dashboard
+    # Eventos puramente LOCAIS (timeline interna sem interesse cross-modulo) = None
+    TipoEventoDeOS.ATIVIDADE_ADICIONADA: None,  # cabe em OS_ESCOPO_ALTERADO downstream
+    TipoEventoDeOS.OS_ATRIBUIDA: None,  # delegacao interna; consumer pode ler query
+    TipoEventoDeOS.ATIVIDADE_REAGENDADA: None,  # interno; agenda consome via DB
+    TipoEventoDeOS.ATIVIDADE_TECNICO_TRANSFERIDO: None,  # interno; saga sucessao independente
+    TipoEventoDeOS.NO_SHOW_CLIENTE: None,  # interno; SLA breach captura externo
+    TipoEventoDeOS.DISPENSA_ACEITE_EMITIDA: None,  # interno LGPD audit
+    TipoEventoDeOS.FOTO_EVIDENCIA_TARDIA: None,  # interno LGPD audit
+    TipoEventoDeOS.WATCHDOG_ESTENDIDO: None,  # interno; jobs leem direto
+}
+
+
 class EstadoChecklistItem(str, Enum):
     """Estado de cada item do ChecklistDaAtividade."""
 

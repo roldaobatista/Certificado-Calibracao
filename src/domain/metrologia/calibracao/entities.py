@@ -418,6 +418,40 @@ class MedicaoControleSnapshot:
     correlation_id: UUID
 
 
+# INT-02 Onda PRE-A.4 (auditoria 10 lentes pré-Wave A) — mapa Integration Events M4.
+# Mapeia tipo (string da migration 0009 — 23 choices) → acao canonica do bus_outbox.
+# None = puramente local (timeline interna hash-chain WORM sem interesse cross-modulo).
+# Fecha L7#2 — antes M4 calibração gravava só EventoDeCalibracao local e
+# consumer Wave A `metrologia/certificados` esperava `Calibracao.Aprovada` que nunca chegava.
+MAPA_TIPO_EVENTO_CALIBRACAO_PARA_ACAO_BUS: dict[str, str | None] = {
+    # Eventos críticos cross-módulo (saga 1 Orçamento→OS→Cert→NF→CR)
+    "calibracao_aprovada": "calibracao.aprovada",  # Marco 5 certificados consome
+    "calibracao_rejeitada": "calibracao.rejeitada",  # qualidade abre NC ISO cl. 8.7
+    "calibracao_cancelada": "calibracao.cancelada",
+    "revisao_aprovada": "calibracao.revisada_primeira",
+    "revisao_rejeitada": "calibracao.revisao_rejeitada",
+    "segunda_conferencia_aprovada": "calibracao.segunda_conferencia_aprovada",
+    "nc_aberta": "calibracao.nc_aberta",  # qualidade + comunicacao-omnichannel
+    "nc_resolvida": "calibracao.nc_resolvida",
+    "reclamacao_aberta": "calibracao.reclamacao_aberta",  # cl. 7.9
+    "reclamacao_respondida": "calibracao.reclamacao_respondida",
+    "subcontratada_para_lab": "calibracao.subcontratada",  # cl. 6.6
+    "recebida_do_lab": "calibracao.recebida_do_lab",
+    # Eventos LOCAIS (so trilha WORM hash-chain — sem consumer cross-modulo)
+    "recepcao": None,
+    "configuracao": None,
+    "leitura_registrada": None,
+    "correcao_leitura": None,
+    "incerteza_calculada": None,
+    "conformidade_avaliada": None,
+    "ep_unacceptable_impacto": None,
+    "condicoes_fora_override": None,
+    "aceite_regra_decisao": None,
+    "override_regra_decisao": None,
+    "backup_executado": None,
+}
+
+
 @dataclass(frozen=True, slots=True)
 class EventoDeCalibracaoSnapshot:
     """Snapshot WORM da trilha hash-chain por calibracao (OBS-CAL-01 conserto P5).

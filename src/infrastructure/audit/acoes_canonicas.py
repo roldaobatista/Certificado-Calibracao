@@ -214,6 +214,34 @@ ACOES_OS: Final[frozenset[str]] = frozenset(
 )
 
 
+# Marco 4 `metrologia/calibracao` — Integration Events (INT-02 Onda PRE-A.4
+# auditoria 10 lentes pré-Wave A). Subset dos 23 TIPO_EVENTO_CALIBRACAO_CHOICES
+# da migration 0009 que cruzam pro `bus_outbox` (consumer cross-modulo).
+# Eventos puramente locais (recepcao, configuracao, leitura_registrada, etc.)
+# nao entram aqui — vivem so na trilha WORM `evento_de_calibracao` hash-chain.
+ACOES_CALIBRACAO: Final[frozenset[str]] = frozenset(
+    {
+        # Estados-finais — disparam Marco 5 certificados + qualidade NC + financeiro
+        "calibracao.aprovada",
+        "calibracao.rejeitada",
+        "calibracao.cancelada",
+        # Revisao + 2a conferencia (cl. 7.8.6 + ADR-0026)
+        "calibracao.revisada_primeira",
+        "calibracao.revisao_rejeitada",
+        "calibracao.segunda_conferencia_aprovada",
+        # NC ISO 17025 cl. 7.10 — qualidade + comunicacao-omnichannel consomem
+        "calibracao.nc_aberta",
+        "calibracao.nc_resolvida",
+        # Reclamacao cl. 7.9
+        "calibracao.reclamacao_aberta",
+        "calibracao.reclamacao_respondida",
+        # Subcontratacao cl. 6.6 (US-CAL-017)
+        "calibracao.subcontratada",
+        "calibracao.recebida_do_lab",
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -221,6 +249,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_EQUIPAMENTOS
     | ACOES_ADMIN_BREAK_GLASS
     | ACOES_OS
+    | ACOES_CALIBRACAO
 )
 
 

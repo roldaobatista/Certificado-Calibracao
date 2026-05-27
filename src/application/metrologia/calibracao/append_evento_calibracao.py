@@ -146,4 +146,34 @@ def executar(
         evento_hash="",
     )
     snapshot_final = repo.salvar_em_cadeia(snapshot_entrada)
+
+    # INT-02 Onda PRE-A.4 (auditoria 10 lentes pré-Wave A — fecha L7#2):
+    # se evento M4 e Integration Event (consumer cross-modulo registrado),
+    # cruza pro bus_outbox na MESMA transaction.atomic do caller.
+    # Antes: M4 gravava EventoDeCalibracao local; consumer Wave A `metrologia/certificados`
+    # esperava `Calibracao.Aprovada` que nunca chegava → produto travado.
+    from src.domain.metrologia.calibracao.entities import (
+        MAPA_TIPO_EVENTO_CALIBRACAO_PARA_ACAO_BUS,
+    )
+    acao_bus = MAPA_TIPO_EVENTO_CALIBRACAO_PARA_ACAO_BUS.get(inp.tipo)
+    if acao_bus is not None:
+        from src.infrastructure.audit.event_helpers import publicar_evento
+
+        payload_bus = {
+            "calibracao_id": str(inp.calibracao_id),
+            "tipo_evento_calibracao": inp.tipo,
+            **(payload_sanitizado or {}),
+        }
+        resource_summary = f"Calibracao#{inp.calibracao_id} {inp.tipo}"
+        publicar_evento(
+            acao=acao_bus,
+            payload=payload_bus,
+            causation_id=snapshot_final.id,
+            tenant_id=inp.tenant_id,
+            usuario_id=inp.actor_user_id,
+            resource_summary=resource_summary,
+            cadeia=False,  # hash-chain ja mora em evento_de_calibracao local
+            outbox=True,
+        )
+
     return AppendEventoCalibracaoOutput(snapshot=snapshot_final)

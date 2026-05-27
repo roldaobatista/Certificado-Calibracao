@@ -583,12 +583,15 @@ class DjangoOSRepository:
     def publicar_evento(self, snapshot: EventoDeOSSnapshot, /) -> EventoDeOSSnapshot:
         """INSERT em `evento_de_os` (timeline da OS). Trigger PG enforca append-only.
 
-        NOTA: para eventos que precisam atravessar o bus de modulos (ex.:
-        `OS.Aberta`, `AtividadeConcluida`), o caller deve invocar
-        `src.infrastructure.audit.event_helpers.publicar_evento(...)` separadamente
-        — esse helper cuida da cadeia auditavel + outbox transacional. Este metodo
-        cuida apenas da TIMELINE local da OS.
+        INT-01 Onda PRE-A.4 (auditoria 10 lentes pré-Wave A — fecha L7#1):
+        eventos mapeados em `MAPA_TIPO_EVENTO_OS_PARA_ACAO_BUS` cruzam pro `bus_outbox`
+        na MESMA `transaction.atomic` do caller. Antes M3 OS gravava so timeline
+        e Saga 1 (Orçamento→OS→Cert→NF→CR) quebrava no passo 2-3.
         """
+        from src.domain.operacao.os.value_objects import (
+            MAPA_TIPO_EVENTO_OS_PARA_ACAO_BUS,
+        )
+
         obj = EventoDeOS.objects.create(
             id=snapshot.id,
             tenant_id=snapshot.tenant_id,
@@ -601,6 +604,33 @@ class DjangoOSRepository:
             actor_user_id=snapshot.actor_user_id,
             occurred_at=snapshot.occurred_at,
         )
+
+        # INT-01: se evento eh Integration Event, cruza pro bus_outbox.
+        # causation_id reusa o ID do snapshot — idempotente em (causation_id, acao)
+        # via ON CONFLICT DO NOTHING no INSERT do outbox.
+        acao_bus = MAPA_TIPO_EVENTO_OS_PARA_ACAO_BUS.get(snapshot.tipo)
+        if acao_bus is not None:
+            # Import diferido pra evitar ciclo modulo (audit -> ordens_servico)
+            from src.infrastructure.audit.event_helpers import publicar_evento
+
+            payload_bus = {
+                "os_id": str(snapshot.os_id),
+                "atividade_id": str(snapshot.atividade_id) if snapshot.atividade_id else None,
+                "tipo_evento_os": snapshot.tipo.value,
+                **(snapshot.payload_data or {}),
+            }
+            resource_summary = f"OS#{snapshot.os_id} {snapshot.tipo.value}"
+            publicar_evento(
+                acao=acao_bus,
+                payload=payload_bus,
+                causation_id=snapshot.id,
+                tenant_id=snapshot.tenant_id,
+                usuario_id=snapshot.actor_user_id,
+                resource_summary=resource_summary,
+                cadeia=False,  # cadeia hash-chain mora em evento_de_os local
+                outbox=True,
+            )
+
         return _evento_to_snapshot(obj)
 
     def listar_eventos_por_os(

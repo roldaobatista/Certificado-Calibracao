@@ -37,7 +37,7 @@ from src.application.operacao.os.abrir_os_via_orcamento import (
     abrir_os_via_orcamento,
 )
 from src.domain.operacao.os.value_objects import TipoAtividade
-from src.infrastructure.audit.event_helpers import publicar_evento as publicar_evento_bus
+# Onda PRE-A.4: import publicar_evento_bus removido — repository.publicar_evento agora cruza pro bus via INT-01.
 from src.infrastructure.bus.consumer_base import consumer_idempotente
 from src.infrastructure.equipamentos.models import Equipamento, EquipamentoStatus
 from src.infrastructure.multitenant.connection import run_in_tenant_context
@@ -184,30 +184,11 @@ def handle_orcamento_aprovado(envelope: dict[str, Any]) -> None:
                 payload=os_input,
                 repository=repository,
             )
-            # Bus publish (cadeia auditavel + outbox transacional) — mesmo
-            # transaction.atomic do use case. Helper sanitiza payload.
-            publicar_evento_bus(
-                acao="os.aberta",
-                payload={
-                    "os_id": str(resultado.os_id),
-                    "numero_os": resultado.numero_os,
-                    "orcamento_id": str(os_input.orcamento_id),
-                    "tenant_id": str(os_input.tenant_id),
-                    "cliente_referencia_hash": os_input.cliente_referencia_hash,
-                    "atividades_planejadas": [
-                        {
-                            "atividade_id": str(p.atividade_id),
-                            "tipo": p.tipo,
-                            "sequencia": p.sequencia,
-                        }
-                        for p in resultado.atividades_planejadas
-                    ],
-                },
-                causation_id=resultado.correlation_id,
-                tenant_id=os_input.tenant_id,
-                usuario_id=os_input.criada_por_user_id,
-                resource_summary=f"OS {resultado.numero_os}",
-            )
+            # INT-01 Onda PRE-A.4 (auditoria 10 lentes pré-Wave A): publicar_evento_bus
+            # redundante removido — agora `repository.publicar_evento(OS_ABERTA)` dentro
+            # do use case `abrir_os_via_orcamento` ja cruza pro bus_outbox via mapa
+            # MAPA_TIPO_EVENTO_OS_PARA_ACAO_BUS (`os.aberta` -> bus). Mantinha aqui
+            # produzia duplicacao (2 linhas em bus_outbox por OS aberta).
     except (ErroAbrirOS, EquipamentoBaixadoEmOSError) as exc:
         logger.warning(
             "os.consumer.orcamento_aprovado: regra violada correlation_id=%s codigo=%s http=%s",
