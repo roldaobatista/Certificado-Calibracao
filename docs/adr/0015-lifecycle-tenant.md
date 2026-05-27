@@ -49,17 +49,27 @@ Cravar **3 fluxos de lifecycle de tenant** com eventos novos, checkpoints atômi
 
 **Antes (status quo):** `BillingSaas.AssinaturaCriada` publica → cada consumer reage independentemente → nenhum checkpoint atômico → falha silenciosa possível.
 
-**Depois (decisão):** Provisioning vira **state machine explícita** em `suporte-plataforma/onboarding` com 7 etapas, cada uma idempotente, todas precisam completar antes do tenant ser considerado "pronto".
+**Depois (decisão):** Provisioning vira **state machine explícita** em `suporte-plataforma/onboarding` com **8 etapas** (era 7 — emenda Sprint 3 P5 saneamento ADR-0067 adicionou etapa 0 `COLETA_PERFIL_REGULATORIO`), cada uma idempotente, todas precisam completar antes do tenant ser considerado "pronto".
 
 **Estados:**
 ```
 NAO_INICIADO
   ↓ (recebe BillingSaas.AssinaturaCriada)
-TENANT_DB_CRIADO       (cria registro em `tenants`, configura RLS app.tenant_id)
+COLETA_PERFIL_REGULATORIO  (NOVA — Sprint 3 ADR-0067 / INV-TENANT-PERFIL-005:
+                            wizard pede perfil A/B/C/D + motivo >=100 chars +
+                            evidência CGCRE se perfil A. Sem perfil = bloqueia
+                            avanço. Comando `provisionar_tenant` é o atalho CLI
+                            para esta etapa em uso operacional.)
+  ↓
+TENANT_DB_CRIADO       (cria registro em `tenants` com `perfil_regulatorio`
+                        cravado + RLS app.tenant_id + 1 linha em
+                        TenantPerfilHistorico direção PROVISIONAMENTO_INICIAL)
   ↓
 ADMIN_PROVISIONADO     (cria User admin do tenant + senha temporária + MFA obrigatório no 1º login)
   ↓
-FEATURES_ATIVADAS      (sincroniza `tenant_features` com `Plano.componentes.bundle + addons`)
+FEATURES_ATIVADAS      (sincroniza `tenant_features` com `Plano.componentes.bundle + addons`
+                        + matriz feature×perfil de docs/conformidade/comum/matriz-feature-perfil.md
+                        — features marcadas DESABILITADO no perfil são removidas)
   ↓
 CONFIG_INICIAL_CRIADA  (cria registros default em `configuracoes-sistema` — empresa, série fiscal placeholder, papel admin)
   ↓

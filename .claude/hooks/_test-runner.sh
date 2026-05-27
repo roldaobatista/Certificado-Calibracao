@@ -243,6 +243,19 @@ run_case "PTa .md ignora"                      PASS payload-tipo-acreditacao-obs
 run_case "PTb codigo limpo OK"                 PASS payload-tipo-acreditacao-obsoleto-check.sh '{"tool_input":{"file_path":"src/y.py","content":"perfil = obter_perfil_tenant_corrente()"}}'
 
 echo ""
+echo "===== feature-perfil-matriz-validator (T-SAN-PERFIL-038 / AC-005-3) ====="
+
+run_case "FP1 PRD com 2a conferencia sem perfil NO"  BLOCK feature-perfil-matriz-validator.sh '{"tool_input":{"file_path":"docs/dominios/metrologia/modulos/calibracao/prd.md","content":"## US-CAL-NOVO\n2a conferencia obrigatoria em todo certificado RBC.\nAC-NOVO-1: predicate bloqueia"}}'
+run_case "FP2 ADR com TSA-ITI sem perfil NO"         BLOCK feature-perfil-matriz-validator.sh '{"tool_input":{"file_path":"docs/adr/0099-tsa-novo.md","content":"## Decisao\nTSA-ITI qualificado obrigatorio em todas calibracoes. AC-XYZ-1."}}'
+run_case "FP3 PRD com perfil explicito OK"            PASS feature-perfil-matriz-validator.sh '{"tool_input":{"file_path":"docs/dominios/x/modulos/y/prd.md","content":"## US-Y-001\n2a conferencia obrigatoria para perfil A. AC-Y-001-1."}}'
+run_case "FP4 ADR referencia matriz OK"               PASS feature-perfil-matriz-validator.sh '{"tool_input":{"file_path":"docs/adr/0098-x.md","content":"## Decisao\nGUM obrigatorio. Detalhes em docs/conformidade/comum/matriz-feature-perfil.md."}}'
+run_case "FP5 PRD sem tema sensivel OK"               PASS feature-perfil-matriz-validator.sh '{"tool_input":{"file_path":"docs/dominios/x/modulos/y/prd.md","content":"## US-Y-002\nPaginacao no listing. AC-Y-002-1: 20 itens por pagina."}}'
+run_case "FP6 a propria matriz OK"                    PASS feature-perfil-matriz-validator.sh '{"tool_input":{"file_path":"docs/conformidade/comum/matriz-feature-perfil.md","content":"# nova feature 2a conferencia ..."}}'
+run_case "FP7 override com motivo OK"                 PASS feature-perfil-matriz-validator.sh '{"tool_input":{"file_path":"docs/adr/0097-x.md","content":"# feature-perfil-matriz: skip -- migracao interna sem impacto externo aprovada DR-2026-FP-001\nTSA-ITI obrigatorio em transicao interna."}}'
+run_case "FP8 spec faseamento com perfil B OK"        PASS feature-perfil-matriz-validator.sh '{"tool_input":{"file_path":"docs/faseamento/M5/spec.md","content":"## US-NOVA\nGUM para perfil B. AC-NOVA-1: caminho rastreavel."}}'
+run_case "FP9 path nao-monitorado OK"                 PASS feature-perfil-matriz-validator.sh '{"tool_input":{"file_path":"src/x/services.py","content":"def calcular_gum(): ..."}}'
+
+echo ""
 echo "===== event-helper-unico (T-CLI-105 / SANEA-08) ====="
 
 run_case "EH1 fora-allowlist registrar_em_cadeia"  BLOCK event-helper-unico.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/services.py","content":"registrar_em_cadeia(Auditoria, ...)"}}'

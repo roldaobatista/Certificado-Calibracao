@@ -1,0 +1,101 @@
+---
+owner: roldao
+status: stable
+revisado-em: 2026-05-27
+proximo_review: 2026-08-27
+diataxis: reference
+audiencia: agente
+tipo: matriz-feature-perfil
+origem: ADR-0067 §"Decisao" item 4 — Sprint 3 P5 saneamento
+relacionados:
+  - docs/adr/0067-perfil-regulatorio-tenant-entidade-temporal.md
+  - docs/adr/0021-anonimizacao-vs-retencao.md
+  - docs/adr/0024-regra-de-decisao-iso-17025.md
+  - docs/adr/0025-validacao-software-iso-17025.md
+  - docs/adr/0026-segunda-conferencia-independencia.md
+  - docs/adr/0047-carimbo-tsa-iti-pades-ltv.md
+  - docs/adr/0064-rotacao-chave-hmac-retencao-metrologica-25a.md
+  - docs/adr/0009-onde-a3-assina.md
+  - REGRAS-INEGOCIAVEIS.md
+---
+
+# Matriz canônica feature × perfil regulatório
+
+> **Origem:** ADR-0067 §"Decisão" item 4 + T-SAN-PERFIL-037 + AC-SAN-PERFIL-005-1..7.
+>
+> Este documento é fonte da verdade para todo predicate / use case / job que decide se uma feature está **obrigatória / parcial / opcional / desabilitada** por perfil do tenant.
+>
+> Hook `feature-perfil-matriz-validator.sh` (Sprint 3 — T-SAN-PERFIL-038) bloqueia commit de novo PRD/ADR que adicione US-* ou AC binário em feature listada aqui sem registrar a linha correspondente.
+
+## Convenções
+
+| Símbolo | Significado |
+|---|---|
+| `✅ OBRIGATÓRIO` | Predicate bloqueia operação se feature ausente. |
+| `🟡 OBRIGATÓRIO_PARCIAL` | Versão reduzida obrigatória; versão completa opcional. |
+| `🟢 OPCIONAL_RECOMENDADO` | Predicate aceita ausência mas operador recebe warning. |
+| `⚪ OPCIONAL` | Sem warning; tenant decide livremente. |
+| `❌ DESABILITADO` | Feature não disponível no plano; UI esconde + predicate bloqueia. |
+
+## Matriz núcleo
+
+| Feature | A — Acreditado RBC | B — Rastreável | C — Em preparação D→A | D — Comercial puro |
+|---|---|---|---|---|
+| **Regra de decisão ISO 17025 cl. 7.8.6** (ADR-0024) — 3 modos + aceite cliente | ✅ OBRIGATÓRIO | ⚪ OPCIONAL | ⚪ OPCIONAL | ❌ DESABILITADO |
+| **2ª conferência** (ADR-0026 + cl. 6.2.5) — segregação RT vs conferente | ✅ OBRIGATÓRIO se `regra_decisao.modo != NENHUMA` (R5 plan.md) | ⚪ OPCIONAL | ⚪ OPCIONAL | ❌ DESABILITADO |
+| **Validação software 7.11** (ADR-0025) URS+IQ+OQ+PQ | ✅ OBRIGATÓRIO_FULL (URS+IQ+OQ+PQ) | 🟢 OPCIONAL_RECOMENDADO (URS apenas) | 🟡 OBRIGATÓRIO_PARCIAL (URS+OQ — gate trilha D→A, R6 plan.md) | ❌ DESABILITADO |
+| **TSA-ITI qualificado PAdES-LTV** (ADR-0047) — 25a longa duração | ✅ OBRIGATÓRIO | ⚪ OPCIONAL (ICP-Brasil simples basta) | ⚪ OPCIONAL | ❌ DESABILITADO |
+| **Selo ILAC-MRA no certificado** (R9 plan.md) | ✅ OBRIGATÓRIO se `tenant.ilac_mra_aderido=TRUE` / ❌ DESABILITADO se FALSE | ❌ DESABILITADO | ❌ DESABILITADO | ❌ DESABILITADO |
+| **A3 ICP-Brasil obrigatório** (ADR-0009) | ✅ OBRIGATÓRIO | 🟢 OPCIONAL_RECOMENDADO (A1 aceito) | 🟢 OPCIONAL_RECOMENDADO | 🟢 OPCIONAL_RECOMENDADO |
+| **GUM clássico** (ADR-0067 §1 Perfil A docstring) | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ⚪ OPCIONAL |
+| **Monte Carlo BIPM JCGM 101** (2º caminho de cálculo) | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ⚪ OPCIONAL | ❌ DESABILITADO |
+| **Snapshot RT competência por grandeza** (ADR-0022 + ADR-0063) | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ⚪ OPCIONAL |
+| **Template certificado com selo CGCRE + RBC** (Sprint 5 Wave A) | ✅ OBRIGATÓRIO | ❌ DESABILITADO (hook bloqueia) | ❌ DESABILITADO | ❌ DESABILITADO |
+| **Documento "Certificado de Calibração ISO 17025"** | ✅ OBRIGATÓRIO | 🟢 OPCIONAL_RECOMENDADO (com bloco "rastreabilidade declarada") | 🟢 OPCIONAL_RECOMENDADO | ❌ DESABILITADO (renomeado "Relatório de Aferição") |
+| **Subcontratação cl. 6.6 (US-CAL-017)** | ✅ OBRIGATÓRIO (predicate + avaliação periódica) | ⚪ OPCIONAL | ⚪ OPCIONAL | ⚪ OPCIONAL |
+| **Reclamação cliente CDC art. 26 (US-CAL-018)** | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO |
+| **Verificação periódica vigência acreditação** (S5 plan.md — job mensal) | ✅ OBRIGATÓRIO (job alerta 60d antes) | ⚪ N/A | ⚪ N/A | ⚪ N/A |
+
+## Matriz de retenção em camadas (AC-SAN-PERFIL-005-5 + R10 plan.md)
+
+> **Conflito ADR-0064 (HMAC 25a invariante) vs PII por perfil:** resolvido em 2 camadas. Hash-chain WORM sempre 25a; PII de cliente segue regra por perfil.
+
+| Camada de dado | A | B | C | D |
+|---|---|---|---|---|
+| **PII cliente / titular** (ADR-0021 zonas) | 25a (ISO 8.4 obrigação legal) | 25a (recomendado — preparação para A) | 25a (mesmo) | **5a (Receita)** + anonimização agressiva |
+| **Eventos WORM hash-chain** (INV-HMAC-001..005) | 25a INVARIANTE | 25a INVARIANTE | 25a INVARIANTE | **25a INVARIANTE** |
+| **Job `geo_truncamento_calibracao_5a`** | NUNCA trunca | 5a (trunca preservando hash-chain) | 5a | 5a + anonimização agressiva |
+| **Backup B2 WORM** (ADR-0064) | 25a | 25a | 25a | 25a (hash-chain) + 5a (PII) |
+
+**Regra-mestre:** dados de PII de cliente podem ser anonimizados; hash-chain WORM e evento de calibração NUNCA podem ser apagados (vence INV-HMAC-001..005).
+
+## Matriz de operações de mudança de perfil
+
+> Quem pode disparar qual transição. Detalhe técnico em `aplicar_evento_cgcre()` (migration 0008) e `rebaixar_perfil_tenant_voluntario_cliente()` (migration 0009).
+
+| Direção | A | B | C | D | Quem dispara |
+|---|---|---|---|---|---|
+| **Promoção monotônica** (D→C, C→B, B→A) | — | → A | → B | → C | Admin Aferê + A3 + PDF CGCRE (perfil A apenas) |
+| **Rebaixamento voluntário cliente** (B→D, B→C, C→D) | ❌ (perda voluntária de A não permitida — use cancelamento_cgcre) | → D ou C | → D | — | Cliente com cooldown 30d + pré-aviso 7d |
+| **Suspensão temporária CGCRE** | A → A (com flag) | ❌ | ❌ | ❌ | Admin Aferê em resposta a notificação CGCRE |
+| **Cancelamento CGCRE** | A → B | ❌ | ❌ | ❌ | Admin Aferê em resposta a cancelamento formal CGCRE |
+| **Redução de escopo CGCRE** (não muda perfil) | A → A (escopos em `licencas-acreditacoes` Wave A) | ❌ | ❌ | ❌ | Admin Aferê |
+| **Correção administrativa** (qualquer direção) | qualquer | qualquer | qualquer | qualquer | Aprovação Roldão + motivo ≥100 chars + revisão jurídica |
+
+## Cross-reference
+
+- Predicate canônico que consulta esta matriz: `src/infrastructure/authz/perfil_tenant_helper.py::tenant_perfil_e()`.
+- Função de mutação: `aplicar_evento_cgcre()` (migration 0008) + `rebaixar_perfil_tenant_voluntario_cliente()` (migration 0009).
+- Hook validador desta matriz: `.claude/hooks/feature-perfil-matriz-validator.sh` (T-SAN-PERFIL-038).
+- INVs: `REGRAS-INEGOCIAVEIS.md` §INV-TENANT-PERFIL-001..007.
+
+## Como atualizar
+
+1. Toda nova feature crítica que entrar em PRD/ADR DEVE adicionar uma linha aqui ANTES do merge (hook valida).
+2. Mudança de comportamento em feature existente (ex: GUM passa de OBRIGATÓRIO para OPCIONAL em algum perfil) exige ADR de remediação + aprovação Roldão.
+3. Hook `feature-perfil-matriz-validator.sh` faz grep no diff procurando `US-*` ou `AC-*-N` em paths de PRD/ADR e verifica que a feature está nesta matriz.
+
+## Histórico
+
+- **2026-05-27** — Documento criado em Sprint 3 P5 do saneamento ADR-0067. Cobertura inicial: 14 features-núcleo + 4 camadas de retenção + 6 direções de mudança de perfil.
+- Próximas revisões cobrirão features Wave A à medida que módulos `certificados`, `licencas-acreditacoes`, `onboarding`, `direitos-titular` forem entregues.

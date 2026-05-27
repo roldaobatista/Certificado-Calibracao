@@ -46,6 +46,11 @@ class Command(BaseCommand):
                 t = Tenant.objects.create(
                     slug=f"drill-pop-{uid}",
                     nome_fantasia=f"Drill Populator {uid}",
+                    # T-SAN-PERFIL-034 (Sprint 3 ADR-0067): drill tenants
+                    # recebem perfil B explicito (mesmo Balancas Solution
+                    # dogfooding) — sem default silencioso. Drill quer
+                    # cenario realista de tenant rastreavel.
+                    perfil_regulatorio="B",
                 )
                 u = Usuario.objects.create_user(
                     email=f"drill-pop-{uid}@x.com",
