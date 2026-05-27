@@ -13,22 +13,23 @@
 
 ## Histórico em `docs/faseamento/diario/`: 2026-05-25-{saneamento,marco4-p2-4-reviews,marco4-p3-matriz-e-tasks}.md + 2026-05-26-marco4-p4-fases5-10.md + 2026-05-27-marco4-p5-auditoria-1a-passada.md.
 
-## Batches conserto P5 (todos commitados)
+## Sessão pós-M4 (2026-05-27 — 11 commits)
 
-- S1 `7c06411` drift-docs (13 C/A/M).
-- S2 `146ef9b` segurança+LGPD parcial (1C + 1A + 3M; SEG-CAL-01 CRÍTICO).
-- S3 `4b58c24` idempotência (1C + 2A; IDEMP-CAL-01 CRÍTICO).
-- S5-inicial `ae524e5` ADR-0066 fail-open lazy (2 ALTOs PROD-CAL-01/02).
-- S4+S5-restante `6464dfe` observabilidade + SEG-CAL-02/04/05/06 + PROD-CAL-03 + Q-CAL-01/03/04 (1 ALTO + 13 MÉDIO).
-- S6 corrente — drift-docs sync 377→379 + ADR-0066 no header + auditoria L33 + CURRENT compactado.
+- S1..S6.1 conserto causa-raiz Marco 4 P5 (consolidados em diário do dia).
+- `8e8017a` FECHAMENTO M4 — INV-RITUAL-001 satisfeito (10/10 auditores PASS).
+- `1b8f71c` + `4b63ee4` S7+S7.1 drift cross-marco (19 itens zerados; revalidação PASS).
+- `5ab78cb` diário consolidado.
+- Detalhe em `docs/faseamento/diario/2026-05-27-marco4-fechamento-e-housekeeping.md`.
 
-## 2ª passada Família 5 — 2026-05-27
+## Estado pós-fechamento (limpo)
 
-10 auditores em paralelo: 8 PASS limpo (seg→CONCERNS BAIXO carryover; supplychain; idempotencia; observabilidade; llm-correctness — subiu de CONCERNS pra PASS; qualidade; lgpd; performance; produto — 1 CONCERN BAIXO docstring já consertado nesta sessão) + 1 CONCERNS drift-docs (resolvido em S6).
+10 auditores Família 5 PASS (2ª passada M4 + revalidação drift cross-marco PASS). Zero achado bloqueante aberto. GATEs Wave A rastreados em `docs/faseamento/M4-calibracao/auditoria-familia5.md` §6.
 
-## Próxima ação
+## Próxima ação (escolha Roldão)
 
-**Wave A** — aguardando autorização Roldão. Pré-requisitos: PRDs `stable`, ADRs propostas (0003/0004/0008/0009/0010/0014/0015/0016/0018/0019/0034/0035) viram aceitas.
+1. **Wave A**: promover 12 ADRs propostas + drill PG real + plugar 7 ViewSets restantes.
+2. **Marco 5** (certificados emitidos): próximo módulo natural após M4.
+3. **F-C2** (observabilidade) / **F-C3** (resiliência): pré-1º deploy externo.
 
 ## ADRs M4 e GATEs Wave A
 
