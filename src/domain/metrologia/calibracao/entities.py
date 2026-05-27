@@ -143,6 +143,11 @@ class CalibracaoSnapshot:
     criada_em: datetime  # auto_now_add no PG
     criada_por_user_id: UUID | None
 
+    # Cancelamento (T-CAL-095 PROD-CAL-03 conserto P5 — ADR-0064)
+    # HashVersionado v<NN>$<base64> derivado do motivo canonicalizado.
+    # Vazio quando status != CANCELADA.
+    motivo_cancelamento_hash: str = ""
+
 
 @dataclass(frozen=True, slots=True)
 class ComponenteIncertezaSnapshot:
@@ -411,3 +416,34 @@ class MedicaoControleSnapshot:
     executor_id_hash: str  # HashVersionado v<NN>$<base64>
     executado_em: datetime  # tz-aware
     correlation_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class EventoDeCalibracaoSnapshot:
+    """Snapshot WORM da trilha hash-chain por calibracao (OBS-CAL-01 conserto P5).
+
+    Cobre os 23 tipos `TIPO_EVENTO_CALIBRACAO_CHOICES` declarados na migration
+    0009. Persistencia atomica via use case `append_evento_calibracao` (ADR-0065
+    advisory lock + ADR-0064 HMAC versionado). Cada elo encadeia no anterior
+    via `evento_anterior_hash`; `evento_hash` cobre payload + anterior +
+    tenant + occurred_at.
+
+    sequencia_local + evento_hash sao OUTPUT do append (trigger PG popula
+    sequencia_local; helper crypto calcula evento_hash dentro do lock).
+    Caller passa snapshot SEM esses campos; recebe snapshot completo.
+    """
+
+    id: UUID
+    tenant_id: UUID
+    calibracao_id: UUID
+    tipo: str  # uma das constantes TIPO_EVENTO_CALIBRACAO_CHOICES
+    payload_sanitizado: dict[str, object]
+    actor_user_id: UUID
+    actor_user_id_hash: str  # HashVersionado v<NN>$<base64>
+    occurred_at: datetime  # tz-aware
+    correlation_id: UUID
+    causation_id: UUID | None
+    # Campos abaixo populados pelo append (None na entrada):
+    sequencia_local: int | None = None  # trigger PG seta MAX+1
+    evento_anterior_hash: str = ""  # vazio = primeiro elo
+    evento_hash: str = ""  # HashVersionado calculado dentro do advisory lock

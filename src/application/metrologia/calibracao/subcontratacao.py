@@ -180,11 +180,19 @@ def subcontratar_calibracao(
 
 @dataclass(frozen=True, slots=True)
 class RegistrarRecebimentoSubcontratadoInput:
-    """Payload AGUARDANDO_SUBCONTRATADO -> RECEBIDA_DO_SUBCONTRATADO."""
+    """Payload AGUARDANDO_SUBCONTRATADO -> RECEBIDA_DO_SUBCONTRATADO.
+
+    SEG-CAL-04 conserto P5 2026-05-27: agora exige `actor_user_id` (vem do
+    contexto auth do caller — NUNCA do body) E enforce no use case que
+    `recebedor_user_id == actor_user_id` (cliente nao pode spoofar outro
+    usuario como recebedor). Adicionalmente: separacao de funcoes
+    (INV-CAL-FRAUDE-RECEB-001) — recebedor != executor da calibracao.
+    """
 
     calibracao_id: UUID
     revision_esperada: int
-    recebedor_user_id: UUID  # INV-CAL-FRAUDE-RECEB-001 (caller checou == user)
+    recebedor_user_id: UUID  # INV-CAL-FRAUDE-RECEB-001 — enforced no use case
+    actor_user_id: UUID  # SEG-CAL-04 — vem do contexto auth (auth_user_id_context)
     # Snapshot imutavel do cert externo (AC-CAL-017-3 + INV-CAL-SUBC-003).
     # Caller monta a partir do PDF anexo + num cert externo + escopo declarado.
     # Deve incluir pelo menos: numero_cert_externo, data_servico, grandeza,
@@ -225,11 +233,41 @@ class RegistrarRecebimentoSubcontratadoOutput:
     snapshot: CalibracaoSnapshot
 
 
+class RecebedorSpoofingProibido(Exception):
+    """SEG-CAL-04 — recebedor_user_id != actor_user_id (caller spoofando)."""
+
+
+class RecebedorIgualExecutorProibido(Exception):
+    """INV-CAL-FRAUDE-RECEB-001 — separacao de funcoes ISO 17025 cl. 6.2.5.
+
+    Quem executou a calibracao subcontratada (registrou padrao usado, etc.)
+    NAO pode ser o mesmo que registra o recebimento do certificado externo.
+    Cobre fraude classica de "uma pessoa fecha o ciclo todo".
+    """
+
+
 def registrar_recebimento_subcontratado(
     inp: RegistrarRecebimentoSubcontratadoInput,
     repo: CalibracaoRepository,
 ) -> RegistrarRecebimentoSubcontratadoOutput:
-    """AGUARDANDO_SUBCONTRATADO -> RECEBIDA_DO_SUBCONTRATADO via CAS."""
+    """AGUARDANDO_SUBCONTRATADO -> RECEBIDA_DO_SUBCONTRATADO via CAS.
+
+    SEG-CAL-04 conserto P5: enforce INV-CAL-FRAUDE-RECEB-001 no use case
+    (nao mais "caller checou"):
+      1. recebedor_user_id == actor_user_id (anti-spoofing).
+      2. recebedor_user_id != executor_id (separacao de funcoes cl. 6.2.5).
+    """
+    # SEG-CAL-04 (1): anti-spoofing — caller nao pode declarar outro user
+    # como recebedor. actor_user_id vem do contexto auth (View pega de
+    # usuario_id_context.get()).
+    if inp.recebedor_user_id != inp.actor_user_id:
+        raise RecebedorSpoofingProibido(
+            f"recebedor_user_id={inp.recebedor_user_id} != "
+            f"actor_user_id={inp.actor_user_id} (SEG-CAL-04 + "
+            "INV-CAL-FRAUDE-RECEB-001 — caller nao pode declarar outro "
+            "usuario como recebedor)"
+        )
+
     atual = repo.obter_por_id(inp.calibracao_id)
     if atual is None:
         raise CalibracaoNaoEncontrada(str(inp.calibracao_id))
@@ -246,6 +284,18 @@ def registrar_recebimento_subcontratado(
         raise EstadoInvalidoParaRegistrarRecebimento(
             "registrar_recebimento_subcontratado: calibracao sem subcontratado_id "
             "(fluxo subcontratacao nao iniciado — INV-CAL-SUBC-001)"
+        )
+
+    # SEG-CAL-04 (2): separacao de funcoes — recebedor != executor.
+    # Se executor_id for None (subcontratacao sem executor interno), o check
+    # nao se aplica; caso contrario, bloqueio rigido.
+    if (
+        atual.executor_id is not None
+        and inp.recebedor_user_id == atual.executor_id
+    ):
+        raise RecebedorIgualExecutorProibido(
+            f"recebedor_user_id={inp.recebedor_user_id} igual a "
+            f"executor_id da calibracao (INV-CAL-FRAUDE-RECEB-001 — cl. 6.2.5)"
         )
 
     novo = replace(

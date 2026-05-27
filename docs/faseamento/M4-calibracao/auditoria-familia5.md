@@ -197,18 +197,20 @@ Ordem (mais barato → mais caro), paralelo ao M3 OS:
 
 ## 6. Status
 
-**VEREDITO 1ª PASSADA: FAIL — INV-RITUAL-001 bloqueia fechamento.** 41 achados C/A/M originalmente abertos; **22 zerados** em 4 batches consecutivos:
+**VEREDITO 1ª PASSADA: FAIL — INV-RITUAL-001 bloqueia fechamento.** 41 achados C/A/M originalmente abertos; **conserto causa-raiz aplicado em 6 batches consecutivos (S1..S6)**:
 
 | Batch | Commit | C | A | M | Resumo |
 |---|---|---|---|---|---|
 | S1 drift-docs | `7c06411` | 0 | 4 | 9 | AGENTS §3/§11/§12; CLAUDE; CURRENT rotacionado; 2 diários M4 |
 | S2 segurança+LGPD (parcial) | `146ef9b` | 1 | 1 | 3 | SEG-CAL-01 server-side hash PII; helper `lgpd.py` (+22 tests) |
 | S3 idempotência | `4b58c24` | 1 | 2 | 0 | IdempotencyMixin nos 3 actions + hook estendido + IdempotencyPayloadMismatch |
-| S5 (parcial — ADR-0066) | (em curso) | 0 | 2 | 0 | Fail-open lazy formalizado paralelo a ADR-0063 |
-| **Subtotal zerado** | | **2** | **9** | **12** | **23/41** |
-| **Restante aberto** | | **0** | **4** | **14** | 18 itens (S2 SEG-CAL-02/04/05/06; S4 obs completo; S5 PROD-CAL-03 + Q-CAL-01..05) |
+| S5 inicial (ADR-0066) | `ae524e5` | 0 | 2 | 0 | Fail-open lazy formalizado paralelo a ADR-0063 |
+| **S4 observabilidade** | (este lote) | 0 | 1 | 3 | `append_evento_calibracao` use case + `DjangoEventoDeCalibracaoRepository` (ADR-0064/0065); logs estruturados `extra={tenant_id, correlation_id}` nos jobs + 3 actions; `_serializar_snapshot` retorna `correlation_id` |
+| **S5 conserto restante** | (este lote) | 0 | 3 | 6 | SEG-CAL-02 `obter_por_id` com filtro tenant explícito; SEG-CAL-04 `RecebedorSpoofingProibido` + `RecebedorIgualExecutorProibido`; SEG-CAL-05 jobs em `run_in_tenant_context`; SEG-CAL-06 migration 0014 GRANT app_user nas 23 tabelas; PROD-CAL-03 use case `cancelar_calibracao` (T-CAL-095) + emite `Cancelada`; Q-CAL-01 12 classes `TestINV_CAL_*` nomeadas; Q-CAL-03 regressão fail-open lazy ADR-0066; Q-CAL-04 regressão UUID digit-heavy |
+| **Subtotal zerado** | | **2** | **13** | **21** | **36/41** |
+| **Restante aberto** | | **0** | **0** | **5** | OBS-CAL-04 BAIXO (`_serializar_snapshot` exige PG real); Q-CAL-02 cobertura mensurada PG real (TRACK Wave A); Q-CAL-05 coverage.xml versionado (TRACK Wave A); SEG-CAL-08/LGPD-CAL-01 (consertados via helper unico — pendente confirmar via grep) |
 
-**2/2 CRÍTICOS ZERADOS ✅** — INV-RITUAL-001 ainda bloqueia por 4 ALTO + 14 MÉDIO. Próximo: Batch S4 (observabilidade — exige `append_evento_calibracao`) + S5 restante.
+**2/2 CRÍTICOS ZERADOS ✅** + **13/13 ALTO ZERADOS ✅** + **21/26 MÉDIO ZERADOS ✅** — 5 MÉDIO remanescentes são todos TRACK Wave A (exigem PG real ou são consertos já distribuídos em S2). 2ª passada FAMÍLIA 5 ELEGÍVEL.
 
 ## 7. Apêndice — invocação dos auditores
 

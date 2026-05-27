@@ -16,6 +16,7 @@ from uuid import UUID
 from .entities import (
     CalibracaoSnapshot,
     ComponenteIncertezaSnapshot,
+    EventoDeCalibracaoSnapshot,
     LeituraCorrecaoSnapshot,
     LeituraSnapshot,
     NaoConformidadeSnapshot,
@@ -214,6 +215,46 @@ class NaoConformidadeRepository(Protocol):
         Retorna:
           True  - update aplicou (linhas afetadas == 1).
           False - estado mudou concorrentemente OU id nao existe.
+        """
+        ...
+
+
+@runtime_checkable
+class EventoDeCalibracaoRepository(Protocol):
+    """Repository de EventoDeCalibracao — trilha WORM hash-chain (OBS-CAL-01).
+
+    Cobre OBS-CAL-01 (ALTO) 1a passada Familia 5: tabela `evento_de_calibracao`
+    declarada em migration 0009 mas nunca emitida pelos 16 use cases M4.
+
+    Convencao:
+    - `salvar_em_cadeia` faz advisory lock (`pg_advisory_xact_lock`) por
+      `(tenant_id, calibracao_id)` ADR-0065, SELECT MAX(sequencia_local) +1,
+      calcula `evento_hash` HMAC versionado ADR-0064 e INSERT — TUDO dentro
+      do atomic do CALLER (use case envolvedor mantem rollback unificado).
+    - `obter_ultimo_hash` retorna hash do ultimo elo (string vazia = sem
+      eventos ainda). Usado por validador de cadeia (replay determinístico).
+    """
+
+    def salvar_em_cadeia(
+        self, snapshot: EventoDeCalibracaoSnapshot
+    ) -> EventoDeCalibracaoSnapshot:
+        """Append-only WORM dentro de advisory lock por calibracao.
+
+        Caller passa snapshot com `sequencia_local=None`, `evento_anterior_hash=""`,
+        `evento_hash=""` — adapter preenche os 3 dentro do lock e retorna
+        snapshot final encadeado. Levanta IntegrityError em violacao RLS
+        ou UPDATE/DELETE (trigger PG bloqueia).
+        """
+        ...
+
+    def obter_ultimo_hash(
+        self, *, tenant_id: UUID, calibracao_id: UUID
+    ) -> str:
+        """Retorna hash do ultimo elo encadeado da calibracao.
+
+        Returns:
+          String vazia se nao ha eventos ainda; senao evento_hash do
+          ultimo elo (ordem por sequencia_local DESC).
         """
         ...
 

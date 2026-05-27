@@ -1,27 +1,48 @@
-"""Adapter Django do CalibracaoRepository (P4 Fase 5 Batch A — T-CAL-079).
+"""Adapter Django dos repositorios M4 calibracao.
 
-Implementa o Protocol src.domain.metrologia.calibracao.repository.CalibracaoRepository
-sobre Django ORM + raw SQL (sequence global).
+Implementa Protocols em src.domain.metrologia.calibracao.repository sobre
+Django ORM + raw SQL (sequence global + advisory lock hash-chain).
 
-Use cases (src/application/metrologia/calibracao/*) recebem este adapter
+Use cases (src/application/metrologia/calibracao/*) recebem estes adapters
 via DI e ignoram Django (ADR-0007 spec-as-source).
+
+Conteudo:
+- DjangoCalibracaoRepository — raiz agregado (P4 Fase 5 Batch A T-CAL-079).
+- DjangoEventoDeCalibracaoRepository — trilha WORM hash-chain (OBS-CAL-01
+  conserto P5 2026-05-27 — ADR-0064 HMAC + ADR-0065 advisory lock).
 """
 
 from __future__ import annotations
 
+import hashlib
+import hmac as _hmac
 from uuid import UUID
 
 from django.db import connection
 
-from src.domain.metrologia.calibracao.entities import CalibracaoSnapshot
+from src.domain.metrologia.calibracao.entities import (
+    CalibracaoSnapshot,
+    EventoDeCalibracaoSnapshot,
+)
 from src.domain.metrologia.calibracao.enums import (
     EstadoCalibracao,
     OrigemRecepcao,
     RegraDecisao,
     TipoAcreditacao,
 )
+from src.domain.metrologia.calibracao.hash_versionado import (
+    VERSAO_HMAC_ATUAL,
+    canonicalizar_payload_para_hmac,
+    formatar_hash_versionado,
+)
 from src.domain.metrologia.calibracao.value_objects import ZonaILACG8
-from src.infrastructure.calibracao.models import Calibracao
+from src.infrastructure.calibracao.lgpd import _CHAVE_HMAC_WAVE_A
+from src.infrastructure.calibracao.models import Calibracao, EventoDeCalibracao
+
+# Classe de lock por tabela — namespace de 2 args
+# (pg_advisory_xact_lock(int4, int4)). Isola hash-chain de calibracao de
+# qualquer outro advisory lock (paralelo audit/services.py _ADVISORY_LOCK_*).
+_ADVISORY_LOCK_CLASSE_EVENTO_CAL = 0x_CA1_AED  # 'cal aed' — eventos calibracao
 
 
 class DjangoCalibracaoRepository:
@@ -37,8 +58,23 @@ class DjangoCalibracaoRepository:
         return int(row[0])
 
     def obter_por_id(self, calibracao_id: UUID) -> CalibracaoSnapshot | None:
+        """Le snapshot (RLS aplicado + filtro tenant_id EXPLICITO).
+
+        SEG-CAL-02 conserto P5 2026-05-27: defesa em profundidade — alem da
+        RLS (politica `calibracao_tenant_isolation_select`), filtramos
+        tenant_id no ORM tambem. Se contexto multitenant ausente (sessao
+        sem `app.tenant_ids` setado), retorna None em vez de aceitar leitura
+        confiando 100% na RLS (paralelo INV-TENANT-001).
+        """
+        from src.infrastructure.multitenant.context import active_tenant_context
+
+        tenant_id = active_tenant_context.get()
+        if tenant_id is None:
+            return None
         try:
-            obj = Calibracao.objects.get(id=calibracao_id)
+            obj = Calibracao.objects.get(
+                id=calibracao_id, tenant_id=tenant_id
+            )
         except Calibracao.DoesNotExist:
             return None
         return self._to_snapshot(obj)
@@ -120,7 +156,8 @@ class DjangoCalibracaoRepository:
                     subcontratado_id = %s,
                     aceite_subcontratacao_id = %s,
                     certificado_subcontratado_snapshot_json = %s::jsonb,
-                    recebedor_user_id = %s
+                    recebedor_user_id = %s,
+                    motivo_cancelamento_hash = %s
                 WHERE id = %s
                   AND revision = %s
                 """,
@@ -162,6 +199,7 @@ class DjangoCalibracaoRepository:
                         else None
                     ),
                     snapshot.recebedor_user_id,
+                    snapshot.motivo_cancelamento_hash,
                     str(snapshot.id),
                     revision_anterior,
                 ],
@@ -218,4 +256,116 @@ class DjangoCalibracaoRepository:
             causation_id=obj.causation_id,
             criada_em=obj.criada_em,
             criada_por_user_id=obj.criada_por_user_id,
+            motivo_cancelamento_hash=obj.motivo_cancelamento_hash or "",
+        )
+
+
+class DjangoEventoDeCalibracaoRepository:
+    """Implementa EventoDeCalibracaoRepository — trilha WORM hash-chain.
+
+    OBS-CAL-01 conserto P5 2026-05-27. ADR-0064 (HMAC versionado v<NN>$<base64>)
+    + ADR-0065 (advisory lock por calibracao). Trigger PG popula sequencia_local
+    BEFORE INSERT (migration 0009).
+
+    Concorrencia:
+    - `pg_advisory_xact_lock(_ADVISORY_LOCK_CLASSE_EVENTO_CAL, hashtext(...))`
+      serializa escritores da MESMA calibracao. Sob `ATOMIC_REQUESTS=True`
+      e dentro do atomic do CALLER, o lock vive ate o COMMIT do request.
+    - Hash anterior eh lido DENTRO do lock; INSERT acontece DENTRO do lock;
+      garante ordem total da cadeia.
+    - Caller responsavel por envolver em `transaction.atomic` (rollback
+      unificado com use case de negocio que disparou o evento).
+
+    Imutabilidade:
+    - Trigger `evento_de_calibracao_append_only_trg` (migration 0009) bloqueia
+      UPDATE + DELETE — append-only WORM ate 25a (ISO 17025 cl. 8.4).
+    """
+
+    def obter_ultimo_hash(
+        self, *, tenant_id: UUID, calibracao_id: UUID
+    ) -> str:
+        """Hash do ultimo elo da cadeia desta calibracao (vazio se nenhum)."""
+        ultimo = (
+            EventoDeCalibracao.objects.filter(
+                tenant_id=tenant_id, calibracao_id=calibracao_id
+            )
+            .order_by("-sequencia_local")
+            .values_list("evento_hash", flat=True)
+            .first()
+        )
+        return ultimo or ""
+
+    def salvar_em_cadeia(
+        self, snapshot: EventoDeCalibracaoSnapshot
+    ) -> EventoDeCalibracaoSnapshot:
+        """Advisory lock + SELECT MAX hash + INSERT — tudo no atomic do caller.
+
+        Caller passa snapshot com `sequencia_local=None`, `evento_anterior_hash=""`,
+        `evento_hash=""`. Retorna snapshot encadeado completo.
+
+        Hash calculado: HMAC-SHA256(
+          canonicalize({
+            "tenant_id": str,
+            "calibracao_id": str,
+            "tipo": str,
+            "payload_sanitizado": dict,
+            "evento_anterior_hash": str,
+            "occurred_at": isoformat str,
+            "correlation_id": str,
+          }),
+          chave_v<VERSAO_HMAC_ATUAL>,
+        ) formatado v<NN>$<base64> (ADR-0064 + INV-HMAC-002).
+        """
+        chave_cadeia = f"{snapshot.tenant_id}|{snapshot.calibracao_id}"
+        with connection.cursor() as cur:
+            cur.execute(
+                "SELECT pg_advisory_xact_lock(%s, hashtext(%s));",
+                [_ADVISORY_LOCK_CLASSE_EVENTO_CAL, chave_cadeia],
+            )
+
+        evento_anterior_hash = self.obter_ultimo_hash(
+            tenant_id=snapshot.tenant_id, calibracao_id=snapshot.calibracao_id
+        )
+
+        payload_canonico = {
+            "tenant_id": str(snapshot.tenant_id),
+            "calibracao_id": str(snapshot.calibracao_id),
+            "tipo": snapshot.tipo,
+            "payload_sanitizado": snapshot.payload_sanitizado,
+            "evento_anterior_hash": evento_anterior_hash,
+            "occurred_at": snapshot.occurred_at.isoformat(),
+            "correlation_id": str(snapshot.correlation_id),
+        }
+        bytes_canon = canonicalizar_payload_para_hmac(payload_canonico)
+        mac = _hmac.new(_CHAVE_HMAC_WAVE_A, bytes_canon, hashlib.sha256)
+        evento_hash = formatar_hash_versionado(VERSAO_HMAC_ATUAL, mac.digest())
+
+        # INSERT — trigger PG `evento_de_calibracao_seq_populator` popula
+        # sequencia_local BEFORE INSERT (MAX+1 dentro da calibracao).
+        obj = EventoDeCalibracao.objects.create(
+            id=snapshot.id,
+            tenant_id=snapshot.tenant_id,
+            calibracao_id=snapshot.calibracao_id,
+            tipo=snapshot.tipo,
+            payload_sanitizado=snapshot.payload_sanitizado,
+            evento_anterior_hash=evento_anterior_hash,
+            evento_hash=evento_hash,
+            correlation_id=snapshot.correlation_id,
+            causation_id=snapshot.causation_id,
+            actor_user_id=snapshot.actor_user_id,
+            actor_user_id_hash=snapshot.actor_user_id_hash,
+            occurred_at=snapshot.occurred_at,
+        )
+
+        # Trigger populou sequencia_local; recarrega o campo
+        # (Django nao trouxe de volta no create — RETURNING incompleto).
+        obj.refresh_from_db(fields=["sequencia_local"])
+
+        # Snapshot atualizado: copia + 3 campos encadeados.
+        from dataclasses import replace
+        return replace(
+            snapshot,
+            sequencia_local=obj.sequencia_local,
+            evento_anterior_hash=evento_anterior_hash,
+            evento_hash=evento_hash,
         )

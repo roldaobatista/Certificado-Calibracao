@@ -24,17 +24,26 @@ body ou querystring — RLS bloqueia se contexto ausente.
 from __future__ import annotations
 
 import hashlib
+import logging
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 from django.db import transaction
+
+logger = logging.getLogger(__name__)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from src.application.metrologia.calibracao.append_evento_calibracao import (
+    AppendEventoCalibracaoInput,
+)
+from src.application.metrologia.calibracao.append_evento_calibracao import (
+    executar as append_evento_executar,
+)
 from src.application.metrologia.calibracao.configurar_calibracao import (
     CalibracaoNaoEncontrada,
     ConfigurarCalibracaoInput,
@@ -60,7 +69,10 @@ from src.infrastructure.calibracao.lgpd import (
     derivar_cliente_referencia_hash,
     derivar_hash_texto_canonicalizado,
 )
-from src.infrastructure.calibracao.repositories import DjangoCalibracaoRepository
+from src.infrastructure.calibracao.repositories import (
+    DjangoCalibracaoRepository,
+    DjangoEventoDeCalibracaoRepository,
+)
 from src.infrastructure.calibracao.serializers import (
     CancelarCalibracaoSerializer,
     ConfigurarCalibracaoSerializer,
@@ -131,7 +143,12 @@ def _aplicar_idempotencia(
 
 
 def _serializar_snapshot(snapshot: Any) -> dict[str, Any]:
-    """Converte CalibracaoSnapshot em dict serializavel (Wave A)."""
+    """Converte CalibracaoSnapshot em dict serializavel (Wave A).
+
+    OBS-CAL-03 conserto P5: inclui `correlation_id` no payload pra rastreio
+    cross-request (paralelo M3 OS). Logs estruturados nas actions tambem
+    propagam o mesmo correlation_id via `extra=` (OBS-002).
+    """
     return {
         "id": str(snapshot.id),
         "numero_interno": snapshot.numero_interno,
@@ -140,6 +157,7 @@ def _serializar_snapshot(snapshot: Any) -> dict[str, Any]:
         "revision": snapshot.revision,
         "tipo_acreditacao": snapshot.tipo_acreditacao.value,
         "criada_em": snapshot.criada_em.isoformat(),
+        "correlation_id": str(snapshot.correlation_id),
     }
 
 
@@ -237,10 +255,51 @@ class CalibracaoViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        evento_repo = DjangoEventoDeCalibracaoRepository()
         with transaction.atomic():
             out = criar_executar(inp, repo)
+            # OBS-CAL-01 conserto P5: emite elo WORM da recepcao no mesmo
+            # atomic — rollback unificado. Payload sanitizado pelo use case.
+            append_evento_executar(
+                AppendEventoCalibracaoInput(
+                    tenant_id=tenant_id,
+                    calibracao_id=out.snapshot.id,
+                    tipo="CalibracaoRecepcionada",
+                    payload_raw={
+                        "numero_interno": out.snapshot.numero_interno,
+                        "numero_exibido": out.snapshot.numero_exibido,
+                        "origem_recepcao": out.snapshot.origem_recepcao.value,
+                        "atividade_os_id": str(
+                            out.snapshot.atividade_os_id
+                        ) if out.snapshot.atividade_os_id else "",
+                        "instrumento_id": str(out.snapshot.instrumento_id),
+                        "cliente_referencia_hash": out.snapshot.cliente_referencia_hash,
+                        "tipo_acreditacao": out.snapshot.tipo_acreditacao.value,
+                        "status": out.snapshot.status.value,
+                    },
+                    finalidade="recepcao_calibracao",
+                    actor_user_id=usuario_id,
+                    occurred_at=out.snapshot.criada_em,
+                    correlation_id=out.snapshot.correlation_id,
+                    causation_id=novo.chave_id,  # type: ignore[arg-type]
+                ),
+                evento_repo,
+            )
 
         body = _serializar_snapshot(out.snapshot)
+        # OBS-CAL-03 conserto P5: log estruturado em endpoint sensivel.
+        logger.info(
+            "calibracao.recepcionar OK calibracao_id=%s numero=%s",
+            out.snapshot.id,
+            out.snapshot.numero_exibido,
+            extra={
+                "tenant_id": str(tenant_id),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_CAL_RECEPCIONAR,
+                "calibracao_id": str(out.snapshot.id),
+                "usuario_id": str(usuario_id),
+            },
+        )
         concluir_chave(
             chave_id=novo.chave_id,  # type: ignore[arg-type]
             tenant_id=tenant_id,
@@ -344,9 +403,48 @@ class CalibracaoViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        evento_repo = DjangoEventoDeCalibracaoRepository()
         try:
             with transaction.atomic():
                 out = configurar_executar(inp, repo)
+                # OBS-CAL-01: elo WORM da configuracao (cl. 7.2 + ADR-0024).
+                append_evento_executar(
+                    AppendEventoCalibracaoInput(
+                        tenant_id=tenant_id_ctx,
+                        calibracao_id=out.snapshot.id,
+                        tipo="ConfiguracaoSalva",
+                        payload_raw={
+                            "calibracao_id": str(out.snapshot.id),
+                            "revision": out.snapshot.revision,
+                            "procedimento_id": str(
+                                out.snapshot.procedimento_id or ""
+                            ),
+                            "procedimento_versao_snapshot": (
+                                out.snapshot.procedimento_versao_snapshot
+                            ),
+                            "regra_decisao": out.snapshot.regra_decisao.value,
+                            "regra_decisao_acordada_em": (
+                                out.snapshot.regra_decisao_acordada_em.isoformat()
+                                if out.snapshot.regra_decisao_acordada_em
+                                else ""
+                            ),
+                            "escopo_id": str(out.snapshot.escopo_id or ""),
+                            "analise_critica_pedido_id": str(
+                                out.snapshot.analise_critica_pedido_id or ""
+                            ),
+                            "analise_critica_pedido_inline_hash": (
+                                out.snapshot.analise_critica_pedido_inline_hash
+                            ),
+                            "status": out.snapshot.status.value,
+                        },
+                        finalidade="configuracao_calibracao",
+                        actor_user_id=usuario_id,
+                        occurred_at=datetime.now(UTC),
+                        correlation_id=out.snapshot.correlation_id,
+                        causation_id=novo.chave_id,  # type: ignore[arg-type]
+                    ),
+                    evento_repo,
+                )
         except CalibracaoNaoEncontrada as exc:
             falhar_chave(
                 chave_id=novo.chave_id,  # type: ignore[arg-type]
@@ -380,6 +478,21 @@ class CalibracaoViewSet(viewsets.ViewSet):
             )
 
         body = _serializar_snapshot(out.snapshot)
+        # OBS-CAL-03: log estruturado pos-configurar (cl. 7.2 + ADR-0024).
+        logger.info(
+            "calibracao.configurar OK calibracao_id=%s revision=%d procedimento_id=%s",
+            out.snapshot.id,
+            out.snapshot.revision,
+            out.snapshot.procedimento_id,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_CAL_CONFIGURAR,
+                "calibracao_id": str(out.snapshot.id),
+                "usuario_id": str(usuario_id),
+                "revision": out.snapshot.revision,
+            },
+        )
         concluir_chave(
             chave_id=novo.chave_id,  # type: ignore[arg-type]
             tenant_id=tenant_id_ctx,
@@ -436,18 +549,112 @@ class CalibracaoViewSet(viewsets.ViewSet):
             return resp
         assert novo is not None
 
-        # GATE-CAL-CANCELAR-USE-CASE Wave A — T-CAL-095 pendente.
-        body = {
-            "codigo": "NaoImplementado",
-            "detalhe": (
-                "Cancelamento de calibracao ainda nao disponivel nesta "
-                "versao. Use case sera entregue em Wave A "
-                "(GATE-CAL-CANCELAR-USE-CASE)."
-            ),
-        }
-        falhar_chave(
+        # PROD-CAL-03 conserto P5: use case `cancelar_calibracao` plugado;
+        # emite EventoDeCalibracao(tipo=Cancelada) no mesmo atomic
+        # (OBS-CAL-01 conserto P5).
+        from src.application.metrologia.calibracao.cancelar_calibracao import (
+            CalibracaoNaoEncontrada as CancelarCalNaoEncontrada,
+        )
+        from src.application.metrologia.calibracao.cancelar_calibracao import (
+            CancelarCalibracaoInput,
+            ConflitoVersaoCalibracaoCancelar,
+            EstadoInvalidoParaCancelar,
+        )
+        from src.application.metrologia.calibracao.cancelar_calibracao import (
+            executar as cancelar_executar,
+        )
+
+        repo = DjangoCalibracaoRepository()
+        evento_repo = DjangoEventoDeCalibracaoRepository()
+        try:
+            inp_cancelar = CancelarCalibracaoInput(
+                calibracao_id=cal_id,
+                revision_esperada=dados["revision_esperada"],
+                motivo_cancelamento_hash=motivo_hash,
+            )
+        except ValueError as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response(
+                {"erro": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                out_cancelar = cancelar_executar(inp_cancelar, repo)
+                append_evento_executar(
+                    AppendEventoCalibracaoInput(
+                        tenant_id=tenant_id_ctx,
+                        calibracao_id=out_cancelar.snapshot.id,
+                        tipo="Cancelada",
+                        payload_raw={
+                            "calibracao_id": str(out_cancelar.snapshot.id),
+                            "revision": out_cancelar.snapshot.revision,
+                            "motivo_hash": motivo_hash,
+                            "status": out_cancelar.snapshot.status.value,
+                        },
+                        finalidade="cancelamento_calibracao",
+                        actor_user_id=usuario_id,
+                        occurred_at=datetime.now(UTC),
+                        correlation_id=out_cancelar.snapshot.correlation_id,
+                        causation_id=novo.chave_id,  # type: ignore[arg-type]
+                    ),
+                    evento_repo,
+                )
+        except CancelarCalNaoEncontrada as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
+            raise NotFound(str(exc)) from exc
+        except EstadoInvalidoParaCancelar as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "EstadoInvalido"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except ConflitoVersaoCalibracaoCancelar as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "ConflitoVersao",
+                    "revision_atual": exc.snapshot_atual.revision,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        body = _serializar_snapshot(out_cancelar.snapshot)
+        logger.info(
+            "calibracao.cancelar OK calibracao_id=%s revision=%d",
+            out_cancelar.snapshot.id,
+            out_cancelar.snapshot.revision,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out_cancelar.snapshot.correlation_id),
+                "endpoint": ENDPOINT_CAL_CANCELAR,
+                "calibracao_id": str(out_cancelar.snapshot.id),
+                "usuario_id": str(usuario_id),
+                "revision": out_cancelar.snapshot.revision,
+            },
+        )
+        concluir_chave(
             chave_id=novo.chave_id,  # type: ignore[arg-type]
             tenant_id=tenant_id_ctx,
-            response_status=status.HTTP_501_NOT_IMPLEMENTED,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
         )
-        return Response(body, status=status.HTTP_501_NOT_IMPLEMENTED)
+        return Response(body)

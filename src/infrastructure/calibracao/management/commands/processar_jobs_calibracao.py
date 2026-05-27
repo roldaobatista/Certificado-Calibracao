@@ -36,14 +36,31 @@ import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from django.core.management.base import BaseCommand, CommandError
 
 logger = logging.getLogger(__name__)
 
 
-def _stub_alertar_reclamacao_vencendo(tenant_id: UUID, agora: datetime) -> dict[str, int]:
+def _log_extra(tenant_id: UUID, correlation_id: UUID, **kw: Any) -> dict[str, Any]:
+    """Monta dict canonico de campos estruturados (OBS-CAL-02 conserto P5).
+
+    Garante `tenant_id` + `correlation_id` em TODO log de job M4 (OBS-002).
+    Filtros downstream (Grafana / Axiom) usam esses 2 campos como dimensoes
+    canonicas pra rastrear execucao por tenant + por correlacao cross-job.
+    """
+    base: dict[str, Any] = {
+        "tenant_id": str(tenant_id),
+        "correlation_id": str(correlation_id),
+    }
+    base.update(kw)
+    return base
+
+
+def _stub_alertar_reclamacao_vencendo(
+    tenant_id: UUID, agora: datetime, correlation_id: UUID
+) -> dict[str, int]:
     """STUB Wave A — quando DjangoReclamacaoCalibracaoRepository existir,
     carrega `ReclamacaoCalibracao.objects.filter(tenant_id=t, estado__in=[RECEBIDA, EM_ANALISE])`
     + chama `alertar_reclamacao_vencendo.executar(reclamacoes_abertas=qs, agora=agora)`.
@@ -54,16 +71,17 @@ def _stub_alertar_reclamacao_vencendo(tenant_id: UUID, agora: datetime) -> dict[
 
     alertas = executar(reclamacoes_abertas=[], agora=agora)
     logger.info(
-        "processar_jobs_calibracao: alertar_reclamacao_vencendo tenant=%s "
-        "alertas=%d (STUB Wave A)",
-        tenant_id,
+        "processar_jobs_calibracao job=alertar_reclamacao_vencendo alertas=%d (STUB Wave A)",
         len(alertas),
+        extra=_log_extra(
+            tenant_id, correlation_id, job="alertar_reclamacao_vencendo"
+        ),
     )
     return {"alertas_emitidos": len(alertas)}
 
 
 def _stub_pseudonimizar_responsavel_nc(
-    tenant_id: UUID, agora: datetime
+    tenant_id: UUID, agora: datetime, correlation_id: UUID
 ) -> dict[str, int]:
     from src.application.metrologia.calibracao.jobs.pseudonimizar_responsavel_nc import (
         executar,
@@ -71,16 +89,17 @@ def _stub_pseudonimizar_responsavel_nc(
 
     acoes = executar(ncs_com_responsavel=[], agora=agora)
     logger.info(
-        "processar_jobs_calibracao: pseudonimizar_responsavel_nc tenant=%s "
-        "acoes=%d (STUB Wave A)",
-        tenant_id,
+        "processar_jobs_calibracao job=pseudonimizar_responsavel_nc acoes=%d (STUB Wave A)",
         len(acoes),
+        extra=_log_extra(
+            tenant_id, correlation_id, job="pseudonimizar_responsavel_nc"
+        ),
     )
     return {"pseudonimizacoes": len(acoes)}
 
 
 def _stub_analisar_uso_excecao_2a_conferencia(
-    tenant_id: UUID, agora: datetime
+    tenant_id: UUID, agora: datetime, correlation_id: UUID
 ) -> dict[str, str]:
     from src.application.metrologia.calibracao.jobs.analisar_uso_excecao_2a_conferencia import (
         executar,
@@ -92,17 +111,22 @@ def _stub_analisar_uso_excecao_2a_conferencia(
         agora=agora,
     )
     logger.info(
-        "processar_jobs_calibracao: analisar_uso_excecao_2a_conferencia "
-        "tenant=%s severidade=%s percentual=%s (STUB Wave A)",
-        tenant_id,
+        "processar_jobs_calibracao job=analisar_uso_excecao_2a_conferencia "
+        "severidade=%s percentual=%s (STUB Wave A)",
         analise.severidade,
         analise.percentual,
+        extra=_log_extra(
+            tenant_id,
+            correlation_id,
+            job="analisar_uso_excecao_2a_conferencia",
+            severidade=analise.severidade,
+        ),
     )
     return {"severidade": analise.severidade}
 
 
 def _stub_verificar_avaliacoes_subcontratados_vencendo(
-    tenant_id: UUID, agora: datetime
+    tenant_id: UUID, agora: datetime, correlation_id: UUID
 ) -> dict[str, int]:
     from src.application.metrologia.calibracao.jobs.verificar_avaliacoes_subcontratados_vencendo import (
         executar,
@@ -110,42 +134,52 @@ def _stub_verificar_avaliacoes_subcontratados_vencendo(
 
     alertas = executar(ultimas_avaliacoes=[], agora=agora)
     logger.info(
-        "processar_jobs_calibracao: verificar_avaliacoes_subcontratados_vencendo "
-        "tenant=%s alertas=%d (STUB Wave A)",
-        tenant_id,
+        "processar_jobs_calibracao job=verificar_avaliacoes_subcontratados_vencendo "
+        "alertas=%d (STUB Wave A)",
         len(alertas),
+        extra=_log_extra(
+            tenant_id,
+            correlation_id,
+            job="verificar_avaliacoes_subcontratados_vencendo",
+        ),
     )
     return {"alertas_emitidos": len(alertas)}
 
 
 def _stub_analisar_padrao_medicoes_controle(
-    tenant_id: UUID, agora: datetime
+    tenant_id: UUID, agora: datetime, correlation_id: UUID
 ) -> dict[str, int]:
     """Trigger por evento. No management command, opera em modo varredura
     (revalida ultimas 30 medicoes de cada padrao) — Wave A consumer real
     eh procrastinate listener de MedicaoControle.Inserida."""
     logger.info(
-        "processar_jobs_calibracao: analisar_padrao_medicoes_controle "
-        "tenant=%s (STUB Wave A - trigger por evento)",
-        tenant_id,
+        "processar_jobs_calibracao job=analisar_padrao_medicoes_controle "
+        "(STUB Wave A - trigger por evento)",
+        extra=_log_extra(
+            tenant_id,
+            correlation_id,
+            job="analisar_padrao_medicoes_controle",
+        ),
     )
     return {"medicoes_analisadas": 0}
 
 
 def _stub_analisar_correlacao_componentes(
-    tenant_id: UUID, agora: datetime
+    tenant_id: UUID, agora: datetime, correlation_id: UUID
 ) -> dict[str, int]:
     """Trigger por evento OrcamentoIncerteza.ComponenteInserido."""
     logger.info(
-        "processar_jobs_calibracao: analisar_correlacao_componentes "
-        "tenant=%s (STUB Wave A - trigger por evento)",
-        tenant_id,
+        "processar_jobs_calibracao job=analisar_correlacao_componentes "
+        "(STUB Wave A - trigger por evento)",
+        extra=_log_extra(
+            tenant_id, correlation_id, job="analisar_correlacao_componentes"
+        ),
     )
     return {"alertas_emitidos": 0}
 
 
 def _stub_geo_truncamento_calibracao_5a(
-    tenant_id: UUID, agora: datetime
+    tenant_id: UUID, agora: datetime, correlation_id: UUID
 ) -> dict[str, int]:
     from src.application.metrologia.calibracao.jobs.geo_truncamento_calibracao_5a import (
         executar,
@@ -153,10 +187,11 @@ def _stub_geo_truncamento_calibracao_5a(
 
     acoes = executar(calibracoes_aprovadas=[], agora=agora)
     logger.info(
-        "processar_jobs_calibracao: geo_truncamento_calibracao_5a "
-        "tenant=%s acoes=%d (STUB Wave A)",
-        tenant_id,
+        "processar_jobs_calibracao job=geo_truncamento_calibracao_5a acoes=%d (STUB Wave A)",
         len(acoes),
+        extra=_log_extra(
+            tenant_id, correlation_id, job="geo_truncamento_calibracao_5a"
+        ),
     )
     return {"truncamentos_geo": len(acoes)}
 
@@ -210,11 +245,25 @@ class Command(BaseCommand):
         jobs_a_rodar = [job_filter] if job_filter else list(JOBS.keys())
         agora = datetime.now(UTC)
 
+        # Correlation ID unico por execucao do command (OBS-CAL-02 conserto
+        # P5 — todo log emitido nesta varredura compartilha o mesmo ID, o
+        # que permite agregar metricas / trail por execucao no Grafana).
+        correlation_id = uuid4()
+
+        # SEG-CAL-05 conserto P5: cada job roda em `run_in_tenant_context`
+        # — `app.tenant_ids` setado na sessao PG (RLS ativa) + ContextVars
+        # `active_tenant_context` / `tenant_ids_context` setados (defesa em
+        # profundidade SEG-CAL-02 / INV-TENANT-001).
+        from src.infrastructure.multitenant.connection import (
+            run_in_tenant_context,
+        )
+
         for tenant in tenants:
             for nome in jobs_a_rodar:
                 fn = JOBS[nome]
                 try:
-                    resultado = fn(tenant.id, agora)
+                    with run_in_tenant_context(tenant.id):
+                        resultado = fn(tenant.id, agora, correlation_id)
                     self.stdout.write(
                         self.style.SUCCESS(
                             f"  OK  {nome} tenant={tenant.id} -> {resultado}"
@@ -227,7 +276,9 @@ class Command(BaseCommand):
                         )
                     )
                     logger.exception(
-                        "processar_jobs_calibracao falhou em %s tenant=%s",
+                        "processar_jobs_calibracao falhou em job=%s",
                         nome,
-                        tenant.id,
+                        extra=_log_extra(
+                            tenant.id, correlation_id, job=nome
+                        ),
                     )
