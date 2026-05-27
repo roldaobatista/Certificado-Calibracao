@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`. **Modo:** AUTÔNOMO.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P5 — 2ª passada Família 5 EM CONSOLIDAÇÃO 2026-05-27.** 1ª passada (41 C/A/M) → 6 batches S1..S6 conserto causa-raiz → 2ª passada: 8 PASS (seg/sup/idemp/obs/qual/lgpd/produto/llm/perf) + 1 CONCERNS (drift-docs: 1 ALTO + 3 MÉDIO 377→379 sync) sendo zerado no batch S6 corrente.
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS + **M4 calibracao FECHADO 2026-05-27** ✅. 1ª passada (41 C/A/M) → 6 batches S1..S6.1 conserto causa-raiz → 2ª passada Família 5 (10 auditores): 8 PASS + 2 CONCERNS BAIXO carryover (seguranca GATE-KMS; drift-docs CONCERNS→PASS pós-S6.1). LLM-correctness subiu CONCERNS→PASS. Próximo: Wave A (autorização Roldão).
 
 ## Estado da suíte (2026-05-27)
 
@@ -28,7 +28,7 @@
 
 ## Próxima ação
 
-3ª passada parcial só auditor-drift-docs após commit do S6 → fechamento M4 quando PASS ZERO C/A/M.
+**Wave A** — aguardando autorização Roldão. Pré-requisitos: PRDs `stable`, ADRs propostas (0003/0004/0008/0009/0010/0014/0015/0016/0018/0019/0034/0035) viram aceitas.
 
 ## ADRs M4 e GATEs Wave A
 

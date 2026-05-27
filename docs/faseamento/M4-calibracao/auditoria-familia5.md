@@ -2,7 +2,7 @@
 owner: roldao
 revisado_em: 2026-05-27
 proximo_review: 2026-08-27
-status: in-progress
+status: stable
 diataxis: explanation
 audiencia: agente
 marco: Wave A Marco 4 — metrologia/calibracao
@@ -20,7 +20,7 @@ relacionados:
   - docs/faseamento/M3-os/auditoria-familia5.md
 ---
 
-# Marco 4 (`metrologia/calibracao`) — Auditoria Família 5 (P5) — 1ª passada CONCLUÍDA
+# Marco 4 (`metrologia/calibracao`) — Auditoria Família 5 (P5) — FECHADO 2026-05-27
 
 > Loop do ritual: spec → plan + 4 reviews (tech-lead, advogado, corretora, RBC) → tasks → reconciliar código (P4) → **10 auditores Família 5 sobre o estado reconciliado**. Marco 4 só fecha com ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO nas 10 lentes (INV-RITUAL-001).
 
@@ -197,7 +197,15 @@ Ordem (mais barato → mais caro), paralelo ao M3 OS:
 
 ## 6. Status
 
-**VEREDITO 1ª PASSADA: FAIL — INV-RITUAL-001 bloqueia fechamento.** 41 achados C/A/M originalmente abertos; **conserto causa-raiz aplicado em 6 batches consecutivos (S1..S6)**:
+**VEREDITO FINAL: M4 FECHADO 2026-05-27 — INV-RITUAL-001 SATISFEITO** (zero CRÍTICO / zero ALTO / zero MÉDIO nas 10 lentes da 2ª passada após batches S1..S6.1; 5 MÉDIO remanescentes são TRACK Wave A — exigem PG real / coverage mensurado; 2 CONCERNS BAIXO carryover viram GATEs Wave A).
+
+**Linha do tempo P5:**
+- 1ª passada (2026-05-27): 2 PASS / 1 CONCERNS / 7 FAIL — 41 achados C/A/M.
+- Batches S1..S6.1 conserto causa-raiz.
+- 2ª passada (2026-05-27): 8 PASS + 2 CONCERNS.
+- 3ª/4ª passada drift-docs: PASS limpo.
+
+**Linha conserto causa-raiz (6 batches):**
 
 | Batch | Commit | C | A | M | Resumo |
 |---|---|---|---|---|---|
