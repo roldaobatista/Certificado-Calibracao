@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 FECHADA (21 use cases) + P4 Fase 7 PARCIAL (5 de 9 jobs entregues — alertar_reclamacao_vencendo + pseudonimizar_responsavel_nc + analisar_uso_excecao_2a_conferencia + verificar_avaliacoes_subcontratados_vencendo + analisar_padrao_medicoes_controle [Western Electric 4 regras]) + P4 Fase 9 FECHADA (6 hooks); 508 tests M4 verdes.**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 FECHADA (21 use cases) + P4 Fase 6 PARCIAL (3 query services: visao_360 + reclamacoes_abertas + fila_revisor_conferente) + P4 Fase 7 ENTREGUE (7 de 9 jobs + management cmd; T-CAL-114 backup Wave A) + P4 Fase 8 ESQUELETO (CalibracaoViewSet 3 actions + serializers + urls) + P4 Fase 10 ESTRUTURAL (drill validar_m4_calibracao com 53+ checks) + P4 Fase 9 FECHADA (6 hooks); 563 tests M4 verdes.**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
