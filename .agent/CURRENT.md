@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 FECHADA (21 use cases) + P4 Fase 7 PARCIAL (3 de 9 jobs entregues — alertar_reclamacao_vencendo + pseudonimizar_responsavel_nc + analisar_uso_excecao_2a_conferencia) + P4 Fase 9 FECHADA (6 hooks); 462 tests M4 verdes.**
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 Fase 1 FECHADA (25/25) + P4 Fase 2 FECHADA (105 tests) + P4 Fase 3 PARCIAL (88 tests; Batch C BLOQUEADO numpy) + P4 Fase 4 FECHADA (8 tests) + P4 Fase 5 FECHADA (21 use cases) + P4 Fase 7 PARCIAL (4 de 9 jobs entregues — alertar_reclamacao_vencendo + pseudonimizar_responsavel_nc + analisar_uso_excecao_2a_conferencia + verificar_avaliacoes_subcontratados_vencendo) + P4 Fase 9 FECHADA (6 hooks); 474 tests M4 verdes.**
 **Modo:** AUTÔNOMO.
 
 ## Estado da suíte (2026-05-25)
