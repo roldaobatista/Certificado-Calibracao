@@ -2,8 +2,9 @@
 adr: 0036
 titulo: Replay determinístico + versionamento fim-a-fim de schema de evento
 owner: roldao
-revisado-em: 2026-05-22
-status: proposta
+revisado-em: 2026-05-27
+status: aceito
+aceito-em: 2026-05-27
 proposto-por: agente (auditoria projeto-inteiro 10 lentes — Onda 1 transversal, A-INT-03 + A-INT-10)
 revisado-por: tech-lead-saas-regulado
 bloqueia-fase: Wave A Marco 4 (calibração — replay forense exigido por cl. 7.11)

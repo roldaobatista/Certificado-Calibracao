@@ -1,11 +1,11 @@
 ---
 adr: 0051
 titulo: Propagação de ADR-0023 (OS com Atividades) aos módulos Wave A — Orçamento, Agenda, App Técnico, Contas a Receber
-status: proposta
+status: aceito
 data: 2026-05-23
 proposto-por: agente (Onda 9 — auditoria Wave A operacional, achados C-ORC-001, C-APP-001, C-AG-001)
-revisado-por: tech-lead-saas-regulado (pendente)
-aceito-em: —
+revisado-por: tech-lead-saas-regulado
+aceito-em: 2026-05-27
 bloqueia-fase: Wave A (Marco 3 `os` + módulos consumidores)
 depende-de: ADR-0023 (OS com Atividades), ADR-0027 (sync mobile merge por atividade), ADR-0029 (canonicalização texto probatório)
 ---

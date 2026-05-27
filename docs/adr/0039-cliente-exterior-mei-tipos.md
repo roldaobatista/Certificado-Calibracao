@@ -1,8 +1,9 @@
 ---
 adr: 0039
 titulo: TipoPessoa expandido — PF, PJ, MEI, CLIENTE_EXTERIOR
-status: proposto
+status: aceito
 data: 2026-05-22
+aceito-em: 2026-05-27
 proposto-por: agente (Onda 4 saneamento Marco 1 clientes — Auditor 3 ALTO A3-CLI)
 revisado-por: pendente (tech-lead-saas-regulado + advogado-saas-regulado + consultor-rbc-iso17025)
 bloqueia-fase: Wave A retrofit Cliente (migration `tipo` enum + campos `tax_id_estrangeiro` / `pais_origem`)

@@ -1,11 +1,11 @@
 ---
 adr: 0050
 titulo: Gateway de pagamento como porta (3 modos — cartão recorrente, PIX recorrente, boleto)
-status: proposta
+status: aceito
 data: 2026-05-23
 proposto-por: agente (Onda 9 — auditoria Wave A operacional, achado A-FIN-001)
-revisado-por: tech-lead-saas-regulado (pendente)
-aceito-em: —
+revisado-por: tech-lead-saas-regulado
+aceito-em: 2026-05-27
 bloqueia-fase: Wave A (`contas-receber` + `billing-saas`)
 depende-de: ADR-0008 (fiscal pluggable), ADR-0015 (lifecycle tenant)
 ---

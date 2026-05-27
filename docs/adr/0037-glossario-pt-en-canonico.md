@@ -2,8 +2,9 @@
 adr: 0037
 titulo: Glossário PT-EN canônico — termos do produto + traduções para libs
 owner: roldao
-revisado-em: 2026-05-22
-status: proposta
+revisado-em: 2026-05-27
+status: aceito
+aceito-em: 2026-05-27
 proposto-por: agente (auditoria projeto-inteiro 10 lentes — Onda 1 transversal, M-INT-02)
 revisado-por: tech-lead-saas-regulado
 bloqueia-fase: Wave A (canonicalização de nomes em código novo)

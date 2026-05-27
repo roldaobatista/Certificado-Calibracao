@@ -2,8 +2,9 @@
 adr: 0034
 titulo: Saga + compensação cross-módulo (Orquestrada vs Coreografia)
 owner: roldao
-revisado-em: 2026-05-22
-status: proposta
+revisado-em: 2026-05-27
+status: aceito
+aceito-em: 2026-05-27
 proposto-por: agente (auditoria projeto-inteiro 10 lentes — Onda 1 transversal, C-INT-03)
 revisado-por: tech-lead-saas-regulado
 bloqueia-fase: Wave A Marco 3 (`os`) — primeira saga real Orçamento→OS→Cert→NF→CR

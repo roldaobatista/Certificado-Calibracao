@@ -1,8 +1,9 @@
 ---
 adr: 0038
 titulo: Família INV-AUTH-* — invariantes de autenticação (lockout, política de senha, sessão, troca forçada, retenção tentativas)
-status: proposto
+status: aceito
 data: 2026-05-23
+aceito-em: 2026-05-27
 proposto-por: agente (Onda 3 saneamento F-B pré-Marco 3 OS — Auditor 2 achado F-B-A4)
 revisado-por: tech-lead-saas-regulado + advogado-saas-regulado + auditor-conformidade-lgpd
 revisado-em: 2026-05-23
