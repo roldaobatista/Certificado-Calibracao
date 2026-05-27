@@ -30,7 +30,7 @@ relacionados:
 |---|---|---|
 | Suíte M4 chave | **629/629 PASS** em ~27s | 12 arquivos `test_m4_uc_*` + 5 `test_m4_motor_*` + `test_m4_jobs_fase7` + `test_m4_queries_fase6{,_extra}` + `test_m4_vos_calibracao` + regressões |
 | pytest geral | 905/0/0 (último full run 2026-05-24) | reports/pytest-run8.log |
-| Hooks `_test-runner.sh` | **377/377** verdes / **48 hooks ativos** | M4 P9 FECHADA |
+| Hooks `_test-runner.sh` | **379/379** verdes / **48 hooks ativos** (377 na 1ª passada → +2 cases hash-versionado pós-S4) | M4 P9 FECHADA |
 | ruff/mypy paths novos | limpo | M4 P6 extra + Batch X/Y regressões |
 | Auditoria-DRAFT | substituída por dados reais | este arquivo |
 
@@ -210,8 +210,25 @@ Ordem (mais barato → mais caro), paralelo ao M3 OS:
 | **Subtotal zerado** | | **2** | **13** | **21** | **36/41** |
 | **Restante aberto** | | **0** | **0** | **5** | OBS-CAL-04 BAIXO (`_serializar_snapshot` exige PG real); Q-CAL-02 cobertura mensurada PG real (TRACK Wave A); Q-CAL-05 coverage.xml versionado (TRACK Wave A); SEG-CAL-08/LGPD-CAL-01 (consertados via helper unico — pendente confirmar via grep) |
 
-**2/2 CRÍTICOS ZERADOS ✅** + **13/13 ALTO ZERADOS ✅** + **21/26 MÉDIO ZERADOS ✅** — 5 MÉDIO remanescentes são todos TRACK Wave A (exigem PG real ou são consertos já distribuídos em S2). 2ª passada FAMÍLIA 5 ELEGÍVEL.
+**2/2 CRÍTICOS ZERADOS ✅** + **13/13 ALTO ZERADOS ✅** + **21/26 MÉDIO ZERADOS ✅** — 5 MÉDIO remanescentes são todos TRACK Wave A (exigem PG real ou são consertos já distribuídos em S2). 2ª passada FAMÍLIA 5 EXECUTADA — ver §7.
 
-## 7. Apêndice — invocação dos auditores
+## 7. 2ª passada Família 5 — 2026-05-27 (10 auditores em paralelo)
 
-Prompts versionados em `docs/governanca/auditor-*-prompt.md`. 2ª passada formal roda após Batch S1..S5 entregar conserto causa-raiz.
+| Lente | Auditor | Veredito 2ª | Detalhe |
+|---|---|---|---|
+| Segurança | `auditor-seguranca` | **CONCERNS** | 8 SEG-CAL-* da 1ª passada **fechados**; 2 BAIXO carryover: chave HMAC hardcoded em `lgpd.py` (já rastreado GATE-CAL-HMAC-RETENCAO + GATE-CAL-KMS-MRK) + texto canonicalizado em `motivo_cancelamento` sem denylist anti-PII (texto livre — overlap com Qualidade). Nenhum CRÍTICO/ALTO/MÉDIO aberto. |
+| Qualidade | `auditor-qualidade` | **PASS** | Q-CAL-01..04 fechados. 12 classes `TestINV_CAL_*` reais (primitivas de domínio invocadas; sem stub vazio). Cancelar retorna 200 com snapshot; tratamento explícito 404/409. Q-CAL-05 TRACK Wave A esperado. |
+| Produto | `auditor-produto` | **PASS** | PROD-CAL-01..03 fechados. ACs reescritos no PRD com nota ADR-0066. Nenhum jargão "Wave A" / "T-CAL-095" vaza em response (corrigido em S6 nos docstrings). |
+| Observabilidade | `auditor-observabilidade` | **PASS** | OBS-CAL-01/02/03 zerados. Trilha WORM emitida nas 3 actions HTTP; logs estruturados em jobs + views; correlation_id no body. OBS-003 métrica permanece CONCERN BAIXO até F-C (rastreado GATE-OBS-METRIC-CAL-1). |
+| Idempotência | `auditor-idempotencia` | **PASS** | IDEMP-CAL-01 fechado. 3 actions exigem header + payload fingerprint; service de idempotência detecta mismatch (422). IDEMP-002 N/A (consumer real só em Wave A). |
+| Supply chain | `auditor-supplychain` | **PASS** | Sem mutação em deps/Dockerfile/workflows desde a 1ª passada. PASS mantido. |
+| LLM correctness | `auditor-llm-correctness` | **PASS** | Subiu de CONCERNS (1ª passada). Docstrings vs corpo coerentes; `Any` apenas em fronteira REST/CLI; spec-as-source preservado em todos use cases novos. |
+| LGPD | `auditor-conformidade-lgpd` | **PASS** | LGPD-CAL-01 fechado. `sanitizar_payload_evento_calibracao` é caminho único; `salvar_em_cadeia` recebe payload já sanitizado. Hashes server-side ADR-0064. |
+| Performance | `auditor-performance` | **PASS** | Mantido. Advisory lock estreito por `(tenant, calibracao)` — não serializa cross-tenant; sem N+1; HMAC local (não rede). |
+| Drift docs | `auditor-drift-docs` | **CONCERNS → PASS pós-S6** | DRIFT-CAL-01..13 da 1ª passada fechados; DRIFT-CAL-14..17 novos (377→379 + ADR-0066 no header + auditoria L33 + CURRENT 41 linhas) zerados no batch S6 corrente. |
+
+**Veredito consolidado 2ª passada: 8 PASS + 2 CONCERNS (Seguranca BAIXO carryover Wave A; Drift-docs ALTO/MÉDIO consertado em S6).** 3ª passada parcial só drift-docs após commit do S6 fechará INV-RITUAL-001.
+
+## 8. Apêndice — invocação dos auditores
+
+Prompts versionados em `docs/governanca/auditor-*-prompt.md`. 10 auditores invocados em paralelo via Agent tool com prompts self-contained referenciando achados específicos da 1ª passada + arquivos dos batches S1..S5.

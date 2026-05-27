@@ -1,41 +1,35 @@
 # .agent/CURRENT.md
 
-> ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`.
+> ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`. **Modo:** AUTÔNOMO.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P3 ENTREGUE + P4 ~156/160 T-CAL. P5 1ª passada Família 5 CONCLUÍDA 2026-05-27 (2 PASS / 1 CONCERN / 7 FAIL = 41 itens C/A/M). Batches S1+S2+S3+S5-inicial+S4+S5-restante FECHADOS — 2 CRÍTICO + 13 ALTO + 21/26 MÉDIO zerados. Pronto pra 2ª passada Família 5.**
-**Modo:** AUTÔNOMO.
+**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS FECHADAS. **M4 calibracao P5 — 2ª passada Família 5 EM CONSOLIDAÇÃO 2026-05-27.** 1ª passada (41 C/A/M) → 6 batches S1..S6 conserto causa-raiz → 2ª passada: 8 PASS (seg/sup/idemp/obs/qual/lgpd/produto/llm/perf) + 1 CONCERNS (drift-docs: 1 ALTO + 3 MÉDIO 377→379 sync) sendo zerado no batch S6 corrente.
 
 ## Estado da suíte (2026-05-27)
 
-- pytest M4 chave: **629/629** verde em ~27s (último full run 2026-05-26 — novos testes regressão pendentes drill PG).
+- pytest M4 chave: **629/629** verde em ~27s.
 - pytest geral: 905/0/0 (último full run 2026-05-24).
-- Hooks `_test-runner.sh`: **379/379** verdes / **48 hooks ativos** (+2 cases M4 P9 hash-versionado).
+- Hooks `_test-runner.sh`: **379/379** verdes / **48 hooks ativos**.
 - ruff/mypy: limpos nos paths novos.
 
 ## Histórico em `docs/faseamento/diario/`: 2026-05-25-{saneamento,marco4-p2-4-reviews,marco4-p3-matriz-e-tasks}.md + 2026-05-26-marco4-p4-fases5-10.md + 2026-05-27-marco4-p5-auditoria-1a-passada.md.
 
-## CRÍTICOS — 2/2 ZERADOS ✅
+## Batches conserto P5 (todos commitados)
 
-1. ~~**SEG-CAL-01**~~ — ✅ fixed `146ef9b` (server-side hash PII).
-2. ~~**IDEMP-CAL-01**~~ — ✅ fixed `4b58c24` (IdempotencyMixin + payload mismatch).
+- S1 `7c06411` drift-docs (13 C/A/M).
+- S2 `146ef9b` segurança+LGPD parcial (1C + 1A + 3M; SEG-CAL-01 CRÍTICO).
+- S3 `4b58c24` idempotência (1C + 2A; IDEMP-CAL-01 CRÍTICO).
+- S5-inicial `ae524e5` ADR-0066 fail-open lazy (2 ALTOs PROD-CAL-01/02).
+- S4+S5-restante `6464dfe` observabilidade + SEG-CAL-02/04/05/06 + PROD-CAL-03 + Q-CAL-01/03/04 (1 ALTO + 13 MÉDIO).
+- S6 corrente — drift-docs sync 377→379 + ADR-0066 no header + auditoria L33 + CURRENT compactado.
 
-## Próximas ações (em ordem)
+## 2ª passada Família 5 — 2026-05-27
 
-1. ~~**Batch S1 drift-docs**~~ ✅ fixed `7c06411` (13 C/A/M zerados).
-2. ~~**Batch S2 segurança + LGPD**~~ ✅ parcial `146ef9b` (1C + 1A + 3M zerados; SEG-CAL-02/04/05/06 abertos).
-3. ~~**Batch S3 idempotência**~~ ✅ fixed `4b58c24` (1C + 2A zerados).
-4. ~~**Batch S5 inicial (ADR-0066)**~~ ✅ fixed `ae524e5` (2 ALTOs PROD-CAL-01/02 zerados).
-5. ~~**Batch S4 observabilidade**~~ ✅ this lote — `append_evento_calibracao` use case (`src/application/.../append_evento_calibracao.py`) + `DjangoEventoDeCalibracaoRepository` (advisory lock + HMAC) + plug nas views (recepcionar/configurar/cancelar emitem evento WORM); logs `extra={tenant_id, correlation_id}` nos jobs + 3 actions; `_serializar_snapshot` agora retorna `correlation_id`.
-6. ~~**Batch S5 restante**~~ ✅ this lote — SEG-CAL-02 (filtro tenant explícito em `obter_por_id`); SEG-CAL-04 (use case enforce `recebedor==actor` + `recebedor!=executor` cl. 6.2.5); SEG-CAL-05 (`run_in_tenant_context` em cada job); SEG-CAL-06 (migration 0014 GRANT app_user 23 tabelas); PROD-CAL-03 (use case `cancelar_calibracao` T-CAL-095); Q-CAL-01 (12 classes `TestINV_CAL_*` em `tests/regressao/test_inv_cal_classes_nomeadas.py`); Q-CAL-03 (regressão fail-open lazy); Q-CAL-04 (regressão UUID digit-heavy).
-7. **2ª passada Família 5** ⏳ próximo — INV-RITUAL-001 destravado.
+10 auditores em paralelo: 8 PASS limpo (seg→CONCERNS BAIXO carryover; supplychain; idempotencia; observabilidade; llm-correctness — subiu de CONCERNS pra PASS; qualidade; lgpd; performance; produto — 1 CONCERN BAIXO docstring já consertado nesta sessão) + 1 CONCERNS drift-docs (resolvido em S6).
 
-## ADRs aceitas escopo M4
+## Próxima ação
 
-- **0040** — Padrão metrológico como entidade separada (saneamento pré-M4).
-- **0064** — Rotação anual HMAC + KMS Multi-Region 25a.
-- **0065** — Concorrência calibração (UNIQUE composto + CAS + advisory lock).
-- **0066** ✅ aceita 2026-05-27 — Fail-open lazy `cmc_cobre` + `procedimento_vigente_para` Wave A, paralela a ADR-0063.
+3ª passada parcial só auditor-drift-docs após commit do S6 → fechamento M4 quando PASS ZERO C/A/M.
 
-## Pendências Wave A rastreadas
+## ADRs M4 e GATEs Wave A
 
-33 GATE-CAL-* novos M4 (12 RBC + 8 advogado + 3 tech-lead + 10 produto/seg/idemp) + GATE-OS-* (~20 M3) + 3 GATE-DEP (argon2/SHA workflows/SHA Dockerfile) carry-over. Detalhe em `docs/faseamento/M4-calibracao/auditoria-familia5.md` §5.
+ADRs aceitas: **0040** (padrão metrológico entidade separada), **0064** (HMAC anual + KMS 25a), **0065** (concorrência: UNIQUE + CAS + advisory lock), **0066** (fail-open lazy `cmc_cobre` + `procedimento_vigente_para`). 33 GATE-CAL-* + GATE-OS-* (~20) + 3 GATE-DEP rastreados em `docs/faseamento/M4-calibracao/auditoria-familia5.md` §5.

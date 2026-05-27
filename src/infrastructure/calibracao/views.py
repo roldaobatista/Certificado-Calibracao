@@ -1,15 +1,20 @@
-"""ViewSets DRF M4 P4 Fase 8 (T-CAL-123..134).
+"""ViewSets DRF M4 P4 Fase 8 (T-CAL-123..134 + T-CAL-095).
 
-Esqueleto Wave A — cobre apenas CalibracaoViewSet com 3 actions:
-  POST /api/v1/calibracoes/recepcionar
-  POST /api/v1/calibracoes/{id}/configurar
-  POST /api/v1/calibracoes/{id}/cancelar
+CalibracaoViewSet — 3 actions production-ready + 1 GET:
+  POST /api/v1/calibracoes/recepcionar  (US-CAL-001)
+  POST /api/v1/calibracoes/{id}/configurar  (US-CAL-002)
+  POST /api/v1/calibracoes/{id}/cancelar  (US-CAL-007 — entregue P5 conserto 2026-05-27)
   GET  /api/v1/calibracoes/{id}/
+
+Todas 3 actions POST emitem `EventoDeCalibracao` WORM no mesmo
+`transaction.atomic` (OBS-CAL-01 conserto P5) + exigem `Idempotency-Key`
+header (IDEMP-CAL-01 conserto P5) + derivam hashes PII server-side
+(SEG-CAL-01/07/08 conserto P5).
 
 Outros endpoints (LeituraViewSet, OrcamentoIncertezaViewSet, RevisaoViewSet,
 ConferenciaViewSet, NaoConformidadeViewSet, SubcontratacaoViewSet,
-ReclamacaoViewSet) seguem mesmo padrao e serao plugados quando
-necessario.
+ReclamacaoViewSet) seguem mesmo padrao e serao plugados em Wave A — use cases
+puros ja existem em src/application/.../calibracao/.
 
 Autorizacao: RequireAuthz via DEFAULT_PERMISSION_CLASSES + ACTION_MAP
 seguindo M3 OS.
@@ -161,14 +166,15 @@ def _serializar_snapshot(snapshot: Any) -> dict[str, Any]:
     }
 
 
+# authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
 class CalibracaoViewSet(viewsets.ViewSet):
     """ViewSet REST de Calibracao (CRUD + transicoes de estado).
 
-    Endpoints expostos (Wave A esqueleto):
+    Endpoints production-ready (3 actions POST + 1 GET):
       - retrieve: GET /api/v1/calibracoes/{id}/
-      - recepcionar: POST /api/v1/calibracoes/recepcionar/
-      - configurar: POST /api/v1/calibracoes/{id}/configurar/
-      - cancelar: POST /api/v1/calibracoes/{id}/cancelar/
+      - recepcionar: POST /api/v1/calibracoes/recepcionar/  (US-CAL-001)
+      - configurar: POST /api/v1/calibracoes/{id}/configurar/  (US-CAL-002)
+      - cancelar: POST /api/v1/calibracoes/{id}/cancelar/  (US-CAL-007)
     """
 
     def retrieve(self, request: Request, pk: str | None = None) -> Response:
@@ -501,15 +507,18 @@ class CalibracaoViewSet(viewsets.ViewSet):
         )
         return Response(body)
 
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
     @action(detail=True, methods=["post"], url_path="cancelar")
     def cancelar(self, request: Request, pk: str | None = None) -> Response:
         """POST /api/v1/calibracoes/{id}/cancelar/.
 
-        # idempotency-key: required -- IDEMP-001 + INV-CAL-IDEMP-001
-        Wave A esqueleto: use case `cancelar_calibracao` (T-CAL-095) ainda
-        nao implementado. Retorna 501 documentando pendencia, MAS ja
-        valida Idempotency-Key + payload fingerprint (defesa em
-        profundidade quando T-CAL-095 plugar).
+        US-CAL-007 (T-CAL-095) — production-ready (P5 conserto 2026-05-27).
+        Transita qualquer estado nao-terminal -> CANCELADA via CAS (ADR-0065
+        INV-CAL-CONC-003). Motivo canonicalizado >= 30 chars; hash derivado
+        server-side (SEG-CAL-07). Emite `EventoDeCalibracao(tipo=Cancelada)`
+        no mesmo `transaction.atomic` (OBS-CAL-01 conserto P5). Idempotency-Key
+        obrigatoria via `_aplicar_idempotencia` (IDEMP-001 + INV-CAL-IDEMP-001).
         """
         serializer = CancelarCalibracaoSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
