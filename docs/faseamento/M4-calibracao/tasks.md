@@ -1,8 +1,8 @@
 ---
 owner: roldao
-revisado_em: 2026-05-25
-proximo_review: 2026-08-25
-status: stable
+revisado_em: 2026-05-27
+proximo_review: 2026-08-27
+status: in-progress
 diataxis: explanation
 audiencia: agente
 marco: Wave A Marco 4 — metrologia/calibracao

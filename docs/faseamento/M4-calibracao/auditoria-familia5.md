@@ -2,7 +2,7 @@
 owner: roldao
 revisado_em: 2026-05-27
 proximo_review: 2026-08-27
-status: draft
+status: in-progress
 diataxis: explanation
 audiencia: agente
 marco: Wave A Marco 4 — metrologia/calibracao
@@ -20,149 +20,185 @@ relacionados:
   - docs/faseamento/M3-os/auditoria-familia5.md
 ---
 
-# Marco 4 (`metrologia/calibracao`) — Auditoria Família 5 (P5) — DRAFT pré-1ª passada
+# Marco 4 (`metrologia/calibracao`) — Auditoria Família 5 (P5) — 1ª passada CONCLUÍDA
 
-> **Status (2026-05-27):** P4 reconciliação parcialmente entregue. Este doc é a **autoavaliação preliminar** antes da 1ª passada formal dos 10 auditores; lista escopo entregue, GAPs conhecidos, achados esperados e GATEs Wave A. A 1ª passada formal só roda quando P4 estiver fechado nas fases bloqueantes (1, 2, 3 sem Batch C, 4, 5, 6, 9) **e** Fase 10 tiver pelo menos o drill estrutural rodando.
->
 > Loop do ritual: spec → plan + 4 reviews (tech-lead, advogado, corretora, RBC) → tasks → reconciliar código (P4) → **10 auditores Família 5 sobre o estado reconciliado**. Marco 4 só fecha com ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO nas 10 lentes (INV-RITUAL-001).
 
----
-
-## 1. Pré-requisitos verificados (P4 em execução)
+## 1. Pré-requisitos verificados antes da 1ª passada
 
 | Item | Estado | Evidência |
 |---|---|---|
-| Suíte M4 chave | **621/621 PASS** em ~27s | 11 arquivos test_m4_uc_*.py + 5 arquivos test_m4_motor_*.py + test_m4_queries_fase6{,_extra}.py + test_m4_jobs_fase7.py + test_m4_vos_calibracao.py + test_inv_cal_rls_grants_completos.py + test_inv_cal_pure_invariantes.py |
-| pytest geral | 905/0/0 (último run pré-Fase 6 extra; ≥916 esperado pós-último commit) | reports/pytest-run8.log |
-| Hooks `_test-runner.sh` | **377/377** verdes / **48 hooks ativos** | M4 Fase 9 FECHADA (+6 hooks novos) |
-| `ruff check` paths novos | limpo | M4 Fase 6 extra + regressões |
-| `mypy` paths novos | limpo | idem |
+| Suíte M4 chave | **629/629 PASS** em ~27s | 12 arquivos `test_m4_uc_*` + 5 `test_m4_motor_*` + `test_m4_jobs_fase7` + `test_m4_queries_fase6{,_extra}` + `test_m4_vos_calibracao` + regressões |
+| pytest geral | 905/0/0 (último full run 2026-05-24) | reports/pytest-run8.log |
+| Hooks `_test-runner.sh` | **377/377** verdes / **48 hooks ativos** | M4 P9 FECHADA |
+| ruff/mypy paths novos | limpo | M4 P6 extra + Batch X/Y regressões |
+| Auditoria-DRAFT | substituída por dados reais | este arquivo |
 
-## 2. Escopo entregue até esta sessão
+## 2. Veredito 1ª passada (2026-05-27)
 
-| Fase | T-CAL range | Entregue | Status |
-|---|---|---|---|
-| 1 | 001..025 | Migrations 1-13 + cross-marco M3 (T-CAL-024) + RLS Wave A retrofit (T-CAL-025) | **FECHADA (23 entidades + 19 RLS)** |
-| 2 | 026..045 | 5 VOs + helpers crypto + 3 predicates ABAC + entities domain skeleton | **FECHADA (105 tests)** |
-| 3 | 046..060 | Arredondamento + GUM clássico + validação replay | **PARCIAL (Batch C Monte Carlo BLOQUEADO numpy DEP-001)** |
-| 4 | 061..075 | Seed authz + predicates registrados em `apps.ready()` | **FECHADA (8 tests)** |
-| 5 | 076..105 | 21 use cases (criar/configurar/iniciar/registrar/corrigir/calcular/avaliar/solicitar/aprovar/rejeitar revisão/2ª conferência/NC ciclo CAPA/subcontratar/registrar recebimento/reclamação RECEBER+EM_ANALISE+RESPONDER) | **FECHADA** |
-| 6 | 106..113 | 8 query services puros (visao_360 + reclamacoes_abertas + fila_revisor_conferente + orcamento + historico + escopo + proficiencia + subcontratacao) | **FECHADA exceto T-CAL-113 (assertNumQueries — TRACK Wave A PG real)** |
-| 7 | 114..122 | 7 jobs procrastinate + management cmd processar_jobs_calibracao | **PARCIAL — T-CAL-114 backup metrológico TRACK Wave A (B2 + KMS reais)** |
-| 8 | 123..136 | CalibracaoViewSet 3 actions (recepcionar/configurar/cancelar) + serializers básicos + urls | **ESQUELETO — 10 ViewSets restantes TRACK Wave A** |
-| 9 | 137..144 | 6 hooks (hmac-versao-formato + incerteza-versao-motor + cmc-binding + migration-concorrencia-calibracao + migration-metrology-classifier + metrology-replay-fixtures-versionadas) | **FECHADA — T-CAL-143/144 (foto-exif + override-contrato) TRACK Wave A** |
-| 10 | 145..160 | drill estrutural validar_m4_calibracao (53+ checks) + 11 tests regressão INV-CAL puros (INC-004 + RT-002 + IDEMP-001) | **PARCIAL — 13 regressões restantes (T-CAL-148..160) TRACK Wave A** |
+| Lente | Auditor | Veredito | CRÍTICO | ALTO | MÉDIO | BAIXO/CONCERN |
+|---|---|---|---|---|---|---|
+| Segurança | `auditor-seguranca` | **FAIL** | 1 | 3 | 4 | 3 |
+| Qualidade | `auditor-qualidade` | **FAIL** | 0 | 1 | 4 | 1 + 3 CONCERN |
+| Produto | `auditor-produto` | **FAIL** | 0 | 3 | 3 | 1 |
+| Drift docs | `auditor-drift-docs` | **FAIL** | 0 | 4 | 9 | 4 |
+| LLM correctness | `auditor-llm-correctness` | **CONCERNS** | 0 | 0 | 0 | 1 |
+| Performance | `auditor-performance` | **PASS** | 0 | 0 | 0 | 2 |
+| Observabilidade | `auditor-observabilidade` | **FAIL** | 0 | 0 | 3 | 1 |
+| Idempotência | `auditor-idempotencia` | **FAIL** | 1 | 2 | 2 | 0 |
+| Supply chain | `auditor-supplychain` | **PASS** | 0 | 0 | 0 | 2 |
+| Conformidade LGPD | `auditor-conformidade-lgpd` | **FAIL** | 0 | 0 | 1 | 1 |
+| **Total** | | **7 FAIL / 1 CONCERN / 2 PASS** | **2** | **13** | **26** | **~18** |
 
-**Total atual P4:** 156 T-CAL fechadas + 4 T-CAL TRACK Wave A documentadas; 0 T-CAL totalmente abertas.
-
-## 3. Autoavaliação preliminar — achados esperados na 1ª passada
-
-> Baseada em paralelo com M3 OS (5 PASS / 5 FAIL na 1ª passada, 40 itens C/A/M). Marco 4 tem **MENOS superfície REST** (1 ViewSet vs 5 do M3) mas **MAIS superfície domínio puro** (motor GUM + 23 entidades + 24 INVs) — distribuição de findings prováveis muda.
-
-### 3.1 Lentes com PASS esperado (4)
-
-| Lente | Justificativa preliminar |
-|---|---|
-| `auditor-llm-correctness` | Use cases entregues com docstring espelhando AC; helpers crypto puros 100% testáveis; padrão M3 OS replicado; Fakes in-memory respeitam Protocol. |
-| `auditor-supplychain` | Sem dep nova M4 (numpy diferido DEP-001 ainda não adicionado em pyproject); `procrastinate`/`psycopg`/`weasyprint` herdados Marco 3. |
-| `auditor-observabilidade` | Eventos PG via trigger `evento_de_calibracao` com hash-chain (T-CAL-011); WORM append-only valida cl. 8.4 ISO 17025. Métrica produto via `MEDICAO_CONTROLE` + job Western Electric. |
-| `auditor-conformidade-lgpd` | ADR-0021 Zona A/B/C aplicada; `ReferenciaPIIAnonimizavel` + `hash` cravado em 6 entidades (recepcao/medicao/eventos/NC/reclamacao/aceite). Consentimentos canônicos (P-CAL-A5 foto / A6 contato técnico) com texto em SELO OAB. |
-
-### 3.2 Lentes com FAIL provável (6)
-
-| Lente | Achados esperados | Severidade estimada |
-|---|---|---|
-| `auditor-seguranca` | (1) `tenant_id` defesa em profundidade nos use cases; (2) RLS Wave A retrofit em 19 tabelas (Batch K T-CAL-025) mas testes que exercitam policy podem estar ausentes; (3) helper `sanitizar_payload_evento_calibracao` único TODO. | 2 ALTO + 3 MÉDIO |
-| `auditor-qualidade` | (1) Cobertura `src/application/metrologia/calibracao/**` (sem PG fica em ~30%); (2) 13 INVs ainda sem teste explícito (CONC-002..004, AMB-001, ANAL-001, BACKUP-001, etc — listadas em §6); (3) Stubs `cmc_cobre` / `procedimento_vigente_para` (predicates Wave A) sem promoção GATE doc explícita. | 0 CRÍTICO + 4 ALTO + 5 MÉDIO |
-| `auditor-produto` | (1) 17 ViewSets do plan §"ACTION_IDEMPOTENT" não entregues (mapped pra Wave A); ACs do PRD com STUB `cmc_cobre`/`procedimento_vigente_para` retornam OK fail-open — análogo a PROD-M3-02 (ADR-0063 retrofit M3) — exige **ADR-0066 paralelo** para fail-open documentado em M4; (2) US-CAL-008 2ª conferência exige `excecao_2a_conf_id` quando colide — predicate existe mas use case `aprovar_2a_conferencia` pode confiar em flag caller (revisar). | 1 ALTO + 3 MÉDIO |
-| `auditor-drift-docs` | (1) tasks.md ainda tem 4 T-CAL TRACK Wave A confundidas com PENDENTE; (2) AGENTS.md §11 — ADRs 0040, 0064, 0065 marcadas aceitas mas tabela `Bloqueia/Depende` pode estar drift; (3) CURRENT.md vai estourar 40 linhas (precisará rotacionar pra `docs/faseamento/diario/`); (4) §12 atualização. | 0 CRÍTICO + 3 ALTO + 4 MÉDIO |
-| `auditor-idempotencia` | (1) **18 POSTs M4 mapeados em plan.md §"ACTION_IDEMPOTENT"** — apenas 3 endpoints existem hoje no esqueleto. Idempotency-Key precisa ser obrigatória nos 18 quando ViewSets nascerem. Mixin DRF aplicado idêntico ao M3 (T-CAL-136 hook estendido OK na Fase 9). | 0 CRÍTICO + 0 ALTO + 5 MÉDIO (placeholder até ViewSets) |
-| `auditor-performance` | N+1 esperado em CalibracaoViewSet.retrieve (snapshot equipamento + cliente + revisor + conferente); paliativo `select_related` Wave A. Job `analisar_padrao_medicoes_controle` consome últimas 30 medições — `LIMIT 30 ORDER BY` pode evitar full scan; index parcial GATE. | 0 CRÍTICO + 0 ALTO + 3 MÉDIO (todos viram GATE-CAL-PERF-N Wave A) |
-
-### 3.3 Total preliminar de findings (extrapolação M3)
-
-| Severidade | Estimativa M4 | Comparativo M3 |
-|---|---|---|
-| CRÍTICO | 0–1 | 4 |
-| ALTO | 6–8 | 14 |
-| MÉDIO | 18–22 | 22 |
-| BAIXO (GATE Wave A) | 25–30 | 19 |
-| **Total esperado C/A/M** | **~25–30** | 40 |
-
-**Razão M4 estimar menos C/A/M:** maior parte do código que não existe está rastreada como TRACK Wave A explícito (10 ViewSets + 18 idempotencies + T-CAL-148..160 PG-real + T-CAL-114 backup); auditores tendem a aceitar TRACK documentado em vez de marcar achado novo.
+**INV-RITUAL-001 bloqueia fechamento — 41 itens C/A/M em aberto.**
 
 ---
 
-## 4. GATEs Wave A rastreados (esperados — não bloqueiam fechamento M4 dogfooding)
+## 3. Achados estruturados (1ª passada — 2026-05-27)
+
+### CRÍTICO (2)
+
+#### auditor-seguranca (1)
+
+- **SEG-CAL-01 — Spoofing de identidade do cliente em recepcionar** (SEC-003 + INV-TENANT-001 defesa em profundidade). `src/infrastructure/calibracao/serializers.py:29-33` + `views.py:127-128`. `RecepcionarCalibracaoSerializer` aceita `cliente_referencia_hash` e `cliente_key_id` direto do body do request. Cliente autenticado em tenant T pode enviar hash apontando para PII anonimizada de outro cliente; calibração nasce com referência falsificada. **Correção:** derivar server-side a partir de `cliente_id` + tenant via `ReferenciaPIIAnonimizavel` (ADR-0032); body só envia `cliente_id` (UUID) ou nada (recepção avulsa). Remover ambos os campos do serializer.
+
+#### auditor-idempotencia (1)
+
+- **IDEMP-CAL-01 — 3 POSTs entregues sem `Idempotency-Key`** (IDEMP-001 + INV-CAL-IDEMP-001). `CalibracaoViewSet.recepcionar/configurar/cancelar` não lêem `HTTP_IDEMPOTENCY_KEY` nem invocam `services_idempotencia.avaliar_chave_idempotencia`. `recepcionar` cria entidade WORM em `transaction.atomic` — clique duplo = 2 calibrações com mesmo `correlation_id`. `configurar` tem optimistic lock mas erro vira 409 ConflitoVersao em vez de 200 idempotente. **Correção:** aplicar `IdempotencyMixin`/`_aplicar_idempotencia` padrão M3 OS + declarar `ACTION_IDEMPOTENT` map.
+
+### ALTO (13)
+
+#### auditor-seguranca (3)
+
+- **SEG-CAL-02 — `obter_por_id` sem filtro tenant explícito (defesa em profundidade)** (INV-TENANT-001). `repositories.py:39-44`. Confia 100% em RLS; sessão PG sem `app.tenant_ids` vaza cross-tenant.
+- **SEG-CAL-03 — Helper único `sanitizar_payload_evento_calibracao` AUSENTE** (SEC-SANITIZE-001). Docstring `models.py:1482-1484` refere o helper mas grep confirma que NÃO existe — risco idêntico ao bug `sanitizar_payload_audit` 2026-05-19.
+- **SEG-CAL-04 — `registrar_recebimento_subcontratado` confia em `recebedor_user_id` do caller** (INV-CAL-FRAUDE-RECEB-001). `subcontratacao.py:187`. Anti-fraude RECEB-001 não enforced no use case.
+
+#### auditor-qualidade (1)
+
+- **Q-CAL-01 — TST-004 — Classes `def test_<INV>_*` cobrem só 5 INVs literais** (INC-004, RT-002, IDEMP-001, CONF-001, DEC-001). As 12 INVs M4 que a autoavaliação declarou "cobertas" via docstring (CMC-001, CONC-001, DEC-004/005, INC-001/003, NC-002/003, SUBC-001/005, VERSAO-001, WORM-001) NÃO têm classe nominada — TST-004 do prompt exige literal `def test_<INV>_*`. Total: 5/41 INVs M4 com nome rastreável.
+
+#### auditor-produto (3)
+
+- **PROD-CAL-01 — `cmc_cobre` STUB declarado mas NÃO invocado** em `configurar_calibracao`/`iniciar_leituras`. Viola AC-CAL-002-2 + AC-CAL-001-2 + AC-CAL-015-1. Sem ADR equivalente a ADR-0063 documentando fail-open lazy.
+- **PROD-CAL-02 — `procedimento_vigente_para` STUB declarado mas NÃO invocado** em `configurar_calibracao`. Viola AC-CAL-016-1/2/3 (US-CAL-016 inteira).
+- **PROD-CAL-03 — `CalibracaoViewSet.cancelar` retorna 501 com mensagem expondo `T-CAL-095 Wave A`**. Spec §4.1 lista `cancelada` como transição válida; bloqueio operacional pra dogfooding (recepcionou errado → não consegue cancelar). PT-BR sem jargão violado.
+
+#### auditor-drift-docs (4)
+
+- **D4-HOOKS-1** `AGENTS.md:8` — status "hooks 312/312 verdes em 42 hooks ativos". Real = **377/377 / 48 ativos** (M4 P9). Listar 6 hooks novos M4.
+- **D4-HOOKS-2** `AGENTS.md:126, 270` — mesmas contagens drift.
+- **D7-AGENTS-1** `AGENTS.md:§12` — atualizado pós-M3 OS; sem menção a M4 P1-P10 entregues.
+- **D4-HOOKS-3** `CLAUDE.md:67, 110, 126` — três menções "42 hooks ativos / 312 casos".
+
+#### auditor-idempotencia (2)
+
+- **IDEMP-CAL-02 — Hook `idempotency-key-header-check` NÃO cobre `calibracao/`**. `idempotency-key-header-check.sh:41-49` allowlist sem `calibracao/`. T-CAL-136 declarado mas não implementado — commits passaram sem defesa.
+- **IDEMP-CAL-03 — `registrar_leitura` ignora mismatch payload** (INV-CAL-IDEMP-001 parcial). `registrar_leitura.py:133-141` retorna leitura existente silenciosamente quando `client_event_id` reusado com valor_lido diferente. Comportamento atual = "silent stale read"; INV exige 422 `IdempotencyPayloadMismatch`.
+
+### MÉDIO (26) — INV-RITUAL-001 bloqueia
+
+#### auditor-seguranca (4)
+
+- **SEG-CAL-05** Jobs M4 não enforce contexto tenant (`processar_jobs_calibracao` precisa setar `active_tenant_context` antes de cada job).
+- **SEG-CAL-06** `GRANT app_user` ausente em 19 tabelas M4 — funciona em test (OWNER=app_user) mas em PROD `app_user` não terá privilege.
+- **SEG-CAL-07** `cancelar` action recebe `motivo_hash` do body sem validação cruzada server-side.
+- **SEG-CAL-08** `analise_critica_pedido_inline_hash` aceito do body — mesma classe vetor SEG-CAL-01.
+
+#### auditor-qualidade (4)
+
+- **Q-CAL-02 — Mascaramento — `cancelar` retorna 501 com payload validado** (`views.py:215-234`). Endpoint registrado em URL + serializer real — equivalente a handler vazio.
+- **Q-CAL-03 — TST-005 — `cmc_cobre`/`procedimento_vigente_para` STUB fail-open sem teste explícito do caso "fail-open Wave A retorna True hoje"** (regressão silenciosa quando módulo entrar).
+- **Q-CAL-04 — TST-006 — Testes M4 usam `uuid4()` aleatório sem teste-irmão com UUID literal digit-heavy** (paralelo Q-OS-04, ≥30 ocorrências).
+- **Q-CAL-05 — Cobertura `application/metrologia/calibracao/**` sem PG real ~30%** (estimativa autoavaliação) — sem `coverage.xml` versionado pra confirmar.
+
+#### auditor-produto (3)
+
+- **PROD-CAL-04** 10 ViewSets prometidos no plan.md não entregues (Leitura/Orcamento/Revisao/Conferencia/NC/Subcontratacao/Reclamacao/Padrao/Escopo/Proficiencia/VI). TRACK Wave A mas produto invisível pro usuário.
+- **PROD-CAL-05** AC-CAL-001-3 + 002-3 + 004-8 + 007-5 declarados em PRD §11 mas use cases não os enforçam — drift PRD-vs-código de 4 ACs.
+- **PROD-CAL-06** `dispara_recall_m5` no output de `responder` é boolean inerte — nenhum publisher de evento `Calibracao.ReclamacaoRespondida`.
+
+#### auditor-drift-docs (9)
+
+- **D6-ADR-1** `AGENTS.md:§11` — **ADR-0065 ausente** (frontmatter aceito 2026-05-25).
+- **D2-CURRENT-1** `.agent/CURRENT.md` — **163 linhas vs limite ≤40**; 4 linhas duplicadas; rotacionar pra diário.
+- **D2-DIARIO-1** `docs/faseamento/diario/` — última entrada 2026-05-25; faltam 3 dias.
+- **D7-AGENTS-2** `AGENTS.md:8` — "905/0/0" vs ≥916 esperado pós-M4.
+- **D4-AGENTS-1** `AGENTS.md` — drills `validar_*` lista F-A/B + M1/M2 + F-C1 mas omite `validar_m4_calibracao` (existe — T-CAL-159).
+- **D1-TASKS-1** `tasks.md frontmatter` — `status: stable` mas Fase 8 ESQUELETO + Fase 10 PARCIAL.
+- **D7-AGENTS-3** `AGENTS.md:262` — texto §12 M3 OS "P5 EM CONSERTO" contradiz header "FECHADO 2026-05-25".
+- **D6-ADR-2** `AGENTS.md:§11 ADR-0034..0042` — várias `🟡 proposta` que spec/PRD M4 já tratam como aceitas.
+- **D7-DATAS-1** `.agent/CURRENT.md:16,28,59` — "hoje"/"esta sessão" sem âncora data.
+
+#### auditor-observabilidade (3)
+
+- **OBS-CAL-01 — Trilha hash-chain WORM declarada mas NUNCA emitida** (OBS-001). 23 tipos de evento na migration 0009 ficam letra morta; nenhum use case M4 chama `EventoDeCalibracao.salvar_em_cadeia`. Auditor CGCRE pede "quem aprovou Cal-2026/1234?" → tabela vazia.
+- **OBS-CAL-02 — Logs jobs sem `extra={"tenant_id", "correlation_id"}`** (OBS-002). 8 `logger.info` + 1 `logger.exception` em `processar_jobs_calibracao` com interpolação posicional; LogRecord não-filtrável.
+- **OBS-CAL-03 — Views não logam em endpoints sensíveis** (OBS-002). 3 actions sem `logger.<level>`; `_serializar_snapshot` não retorna `correlation_id`.
+
+#### auditor-idempotencia (2)
+
+- **IDEMP-CAL-04** 15 ViewSets faltantes carregam débito IDEMP-001 — nascer copiando esqueleto atual propaga gap.
+- **IDEMP-CAL-05** Jobs trigger-por-evento (`analisar_padrao_medicoes_controle`, `analisar_correlacao_componentes`) precisarão `@consumer_idempotente` ao virarem consumers reais — gate explícito ausente.
+
+#### auditor-conformidade-lgpd (1)
+
+- **LGPD-CAL-01 — Helper `sanitizar_payload_evento_calibracao` ausente** (LGPD-MEC-002 + paralelo SEG-CAL-03). `_serializar_snapshot` Wave A não vaza UUID de ator hoje, mas ampliação futura vaza sem helper.
+
+### BAIXO/CONCERN (~18) — viram GATE Wave A
+
+- 2 GATE-CAL-PERF (visão 360 N+1 + ListCalibracoes paginação) — Wave A explícito.
+- 1 CONCERN LLM (`_serializar_snapshot(snapshot: Any)` — trocar para CalibracaoSnapshot).
+- 1 CONCERN qualidade (skip `test_inv_cal_rls_grants_completos.py:172-175` sem data+dono).
+- 3 GATE-DEP (argon2 pin + 4 actions SHA + Dockerfile imagem) — carry-over.
+- 4 GATE-CAL-IDEMP (3 novos: Mixin nos 3 entregues + Hook estendido + IdempotencyPayloadMismatch + CONSUMER-WAVE-A).
+- 3 BAIXO drift (4 linhas duplicadas CURRENT, frontmatter draft auditoria, "3 auditores" em AGENTS:79).
+- 1 BAIXO LGPD GATE-LGPD-MEC-001 (atores `executor_id` etc sem citação artigo).
+- 3 GATE-CAL-SEG (10 ViewSets ACTION_MAP, rate-limit recepcionar, IDEMP-18-POSTS).
+
+---
+
+## 4. Plano de conserto causa-raiz (em execução 2026-05-27)
+
+Ordem (mais barato → mais caro), paralelo ao M3 OS:
+
+1. **Batch S1 — drift-docs** (4 ALTO + 9 MÉDIO + 4 BAIXO). Editar AGENTS.md (§3 hooks 377/48 + §11 +ADR-0065 + §12 +M4); CLAUDE.md (numerais); rotacionar CURRENT.md (≤40 linhas) + criar `docs/faseamento/diario/2026-05-26-marco4-p4.md` + `2026-05-27-marco4-p10.md`; tasks.md frontmatter draft.
+2. **Batch S2 — segurança + LGPD** (1 CRÍTICO + 3 ALTO + 4 MÉDIO + 1 MÉDIO LGPD). Server-side derivation `cliente_referencia_hash`/`cliente_key_id` em serializer; defesa em profundidade `obter_por_id(.., tenant_id=)`; criar `event_helpers.py::sanitizar_payload_evento_calibracao`; INV-CAL-FRAUDE-RECEB-001 enforced em `subcontratacao.registrar_recebimento`; migration `0014_grants_app_user`; tenant guard nos 7 jobs.
+3. **Batch S3 — idempotência** (1 CRÍTICO + 2 ALTO + 2 MÉDIO). `IdempotencyMixin` nas 3 actions Wave A + `ACTION_IDEMPOTENT` map; T-CAL-136 hook estendido para `calibracao/views.py`; `registrar_leitura` retorna 422 `IdempotencyPayloadMismatch` quando payload divergente.
+4. **Batch S4 — observabilidade** (3 MÉDIO + 1 BAIXO). Criar `application/metrologia/calibracao/append_evento_calibracao.py` (ADR-0065); retrofit 16 use cases para emitir `EventoDeCalibracao` na mesma `transaction.atomic`; logs estruturados com `extra=` nos jobs + views; `_serializar_snapshot` retorna `correlation_id`.
+5. **Batch S5 — produto + qualidade** (3 ALTO produto + 1 ALTO qualidade + 7 MÉDIO). **ADR-0066** (paralelo ADR-0063): `cmc_cobre`/`procedimento_vigente_para` fail-open lazy Wave A com GATEs explícitos + modificar AC-CAL-002-2/015-1/016-1..3 do PRD; implementar use case `cancelar_calibracao` (T-CAL-095); renomear 12 classes de teste para `TestINV_CAL_<ID>`; criar fixture UUID digit-heavy regression; coverage M4 mensurado em `reports/coverage-m4-p4.log`.
+
+## 5. GATEs Wave A rastreados (não bloqueiam fechamento — viram BAIXO)
 
 | GATE | Origem | Bloqueia |
 |---|---|---|
-| `GATE-CAL-CMC-PREDICATE` | T-CAL-038 stub `cmc_cobre` | 1º tenant RBC externo |
-| `GATE-CAL-PROC-VIGENTE-PREDICATE` | T-CAL-039 stub `procedimento_vigente_para` | 1º tenant externo |
-| `GATE-CAL-MC-NUMPY` | T-CAL-055..058 Batch C diferido (DEP-001 numpy) | tenants que exigem Monte Carlo (massa < 1mg, RF, calorimetria) |
-| `GATE-CAL-VIEWSETS-WAVE-A` | T-CAL-124..133 (10 ViewSets) | 1º tenant externo (uso operacional via REST) |
-| `GATE-CAL-IDEMP-18-POSTS` | T-CAL-123..133 + hook estendido | dogfooding via REST |
-| `GATE-CAL-BACKUP-METROLOGICO` | T-CAL-114 — B2 + KMS reais + cron | 1º tenant externo (cl. 7.11.6 ISO 17025) |
-| `GATE-CAL-DRILL-LOCAL` | T-CAL-159 — drill PASS em ambiente Balanças Solution | dogfooding antes 1º tenant externo |
-| `GATE-CAL-CARGA-50T` | T-CAL-152 (50 threads concorrentes) | dogfooding |
-| `GATE-CAL-REPLAY-30FIX` | T-CAL-153 (30 fixtures replay determinístico) | dogfooding (cl. 7.11.3 software) |
-| `GATE-CAL-PERF-N+1-VISAO360` | auditor-performance esperado | dogfooding |
-| `GATE-CAL-HOOK-FOTO-EXIF` | T-CAL-143 — exige Pillow ou exiftool | 1º tenant externo (foto recepção) |
-| `GATE-CAL-HOOK-OVERRIDE-CONTRATO` | T-CAL-144 | 1º tenant externo |
-| `GATE-CAL-COMPONENTES-CGCRE` | T-CAL-P35-7/8 matrizes em PT precisam SELO CGCRE | 1º tenant externo RBC |
-| `GATE-CAL-OAB-MINUTAS` | 6 minutas DPA/aceites/cláusulas T-CAL-P35-1..6 | 1º tenant externo |
-| `GATE-CAL-ADR-0028-REV3` | T-CAL-P35-11 (modalidade 8 — Property metrológico) | dogfooding seguro |
-| `GATE-CAL-DPIA` | T-CAL-P35-12 | 1º tenant externo |
+| GATE-CAL-CMC-PREDICATE | PROD-CAL-01 stub `cmc_cobre` (será ADR-0066) | 1º tenant RBC externo |
+| GATE-CAL-PROC-VIGENTE-PREDICATE | PROD-CAL-02 stub idem | 1º tenant externo |
+| GATE-CAL-MC-NUMPY | T-CAL-055..058 Batch C diferido (DEP-001) | Tenants Monte Carlo |
+| GATE-CAL-VIEWSETS-WAVE-A | 10 ViewSets restantes | 1º tenant externo |
+| GATE-CAL-IDEMP-1/2/3 | IDEMP-CAL-01..03 (entrarão no Batch S3) | dogfooding |
+| GATE-CAL-IDEMP-CONSUMER-WAVE-A | IDEMP-CAL-05 | Wave A bus |
+| GATE-CAL-BACKUP-METROLOGICO | T-CAL-114 — B2+KMS | 1º tenant externo |
+| GATE-CAL-DRILL-LOCAL | T-CAL-159 PASS em Balanças Solution | dogfooding |
+| GATE-CAL-CARGA-50T | T-CAL-152 | dogfooding |
+| GATE-CAL-REPLAY-30FIX | T-CAL-153 | dogfooding |
+| GATE-CAL-PERF-1/2/3 | auditor-performance | dogfooding/1º tenant |
+| GATE-CAL-HOOK-FOTO-EXIF | T-CAL-143 | 1º tenant externo |
+| GATE-CAL-HOOK-OVERRIDE-CONTRATO | T-CAL-144 | 1º tenant externo |
+| GATE-CAL-COMPONENTES-CGCRE | T-CAL-P35-7/8 SELO CGCRE | 1º tenant RBC |
+| GATE-CAL-OAB-MINUTAS | 6 minutas DPA/aceites/cláusulas | 1º tenant externo |
+| GATE-CAL-ADR-0028-REV3 | T-CAL-P35-11 Modalidade 8 (Property metrológico) | dogfooding seguro |
+| GATE-CAL-DPIA | T-CAL-P35-12 | 1º tenant externo |
+| GATE-CAL-SANITIZER-HELPER | SEG-CAL-03 (entrará no Batch S2) | dogfooding |
+| GATE-CAL-GRANTS-APP-USER | SEG-CAL-06 (entrará no Batch S2 — migration 0014) | dogfooding |
+| GATE-DEP-PIN-ARGON2 / SHA-WORKFLOWS / SHA-DOCKERFILE | carry-over | Wave A start |
 
 ---
 
-## 5. Status (autoavaliação 2026-05-27 — pré 1ª passada)
+## 6. Status
 
-**VEREDITO PRELIMINAR: PROVISÓRIO PASS/FAIL — execução formal pendente.**
-
-P4 ainda tem trabalho factível sem PG real:
-- Atualização §11 AGENTS.md com ADRs aceitas no M4 + §12 status atualizado.
-- Sweep drift `tasks.md` marcando T-CAL ✅/TRACK conforme entrega real.
-- Adicionar `docs/faseamento/diario/2026-05-26-marco4-calibracao-sessao-autonoma.md` documentando 6 fases entregues.
-
-Após esses 3 itens + 1ª passada formal dos 10 auditores, este documento sai de `draft` → `stable` com seção "Veredito FINAL" análoga ao M3.
-
----
-
-## 6. Apêndice — INVs M4 sem teste explícito (input pra auditor-qualidade)
-
-INVs ainda sem `def test_<INV>_*`:
-
-| INV | Onde validar |
-|---|---|
-| INV-CAL-CONC-002 | Trigger PG snapshot_lock one-way em `padrao_usado` — exige PG (TRACK Wave A) |
-| INV-CAL-CONC-003 | Advisory lock + UNIQUE composto `(tenant, calibracao, seq_local)` em `evento_de_calibracao` — PG (TRACK) |
-| INV-CAL-CONC-004 | Hash-chain encadeado — PG (TRACK) |
-| INV-CAL-AMB-001 | GENERATED column `dentro_tolerancia` em `condicoes_ambientais` — PG (TRACK) |
-| INV-CAL-ANAL-001 | CHECK composta recepção avulsa — PG (TRACK) |
-| INV-CAL-AUD-001 | Append-only WORM em `evento_de_calibracao` — PG (TRACK) |
-| INV-CAL-AUD-002 | Imutabilidade pós-INSERT em todas as 19 tabelas — PG (TRACK) |
-| INV-CAL-BACKUP-001 | Cron diário + `EventoBackupMetrologico` — exige B2 (GATE Wave A) |
-| INV-CAL-CONF-001 | Use case `aprovar_2a_conferencia` + ADR-0026 4 condições — testável puro (TODO Batch Y) |
-| INV-CAL-CONT-001 | `subcontratar` + consentimento contato técnico cliente — testável puro (TODO Batch Y) |
-| INV-CAL-DEC-001 | Avaliação conformidade zonas ILAC G8 — testável puro (TODO Batch Y) |
-| INV-CAL-DEC-006 | AceiteRegraDecisao captura nivel_confianca + ADR-0024 revisado — testável puro (TODO Batch Y) |
-| INV-CAL-FIN-001/002 | Consumer `Certificado.Emitido → CR` — Marco 5 (TRACK) |
-| INV-CAL-FOTO-001 | EXIF strip + hash original — exige Pillow/exiftool (GATE Wave A) |
-| INV-CAL-INC-002 | Matriz componentes obrigatórios por grandeza — SELO CGCRE (GATE Wave A) |
-| INV-CAL-PAD-CASCADE-001 | Consumer `Padrao.Baixado` → marca cal `em_execucao` NC — PG bus (TRACK Wave A) |
-| INV-CAL-RAST-001 | Cadeia rastreabilidade SI documentada — testável puro (TODO Batch Y) |
-| INV-CAL-RAST-002 | CHECK composta `(tipo_acreditacao, vinculacao_si_tipo)` — PG (TRACK) |
-| INV-CAL-RT-001 | RTCompetencia carta vigente — testado em M2 + retrofit pendente em `solicitar_revisao` — TODO Batch Y |
-| INV-CAL-SNAP-001 | snapshot equipamento imutável pós-recepção — PG trigger (TRACK) |
-| INV-CAL-SUBC-006 | Snapshot enviado a M5 inclui `declaracao_subcontratacao_texto_id` — Marco 5 (TRACK) |
-| INV-CAL-TXT-001 | Canonicalização ADR-0029 — testado em Marco 3 OS (compartilhado) + escopo M4 |
-| INV-CAL-VI-001 | Verificação intermediária US-CAL-012 — Wave A (TRACK) |
-
-**TODOs Batch Y (testes puros possíveis sem PG):** INV-CAL-CONF-001 + CONT-001 + DEC-001 + DEC-006 + RAST-001 + RT-001 (6 INVs).
-
----
+**VEREDITO 1ª PASSADA: FAIL — INV-RITUAL-001 bloqueia fechamento.** 41 achados C/A/M abertos; 5 batches de conserto causa-raiz em ataque sequencial (S1 em execução).
 
 ## 7. Apêndice — invocação dos auditores
 
-Quando P4 fechar nas fases bloqueantes (1, 2, 3 sem Batch C, 4, 5, 6, 9 + drill estrutural Fase 10), executar prompts em `docs/governanca/auditor-*-prompt.md` sobre o estado deste marco. Atualizar §1 com vereditos da 1ª passada + tabela §3 com achados reais; iniciar conserto causa-raiz idêntico ao loop M3.
+Prompts versionados em `docs/governanca/auditor-*-prompt.md`. 2ª passada formal roda após Batch S1..S5 entregar conserto causa-raiz.
