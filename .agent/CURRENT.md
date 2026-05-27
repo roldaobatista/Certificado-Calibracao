@@ -2,38 +2,35 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`. **Modo:** AUTÔNOMO.
 
-**Fase:** F-A+F-B + M1 + M2 + F-C1 + M3 OS + M4 calibracao + **SAN-PERFIL-TENANT Sprints 1-4 FECHADOS 2026-05-27 noite** ✅. Saneamento puro 100% entregue em sessão única após auditoria 10 lentes detectar FAIL L6 (fraude documental viável — `cmc_cobre` lia tipo_acreditacao do payload). ADR-0067 aceita. Próximo: Wave A propriamente (autorização Roldão).
+**Fase:** Auditoria 10 lentes pré-Wave A em execução — **Ondas 1+2+3 FECHADAS; Onda 4 PARCIAL (4 de 9 itens); Onda 5 PENDENTE.** 11 commits em 2026-05-27 noite (`27dd0d5`..`32c9b1d`). Consolidado em `docs/faseamento/auditorias/PRE-WAVE-A-CONSOLIDADO-rodada-1.md`.
 
-## Estado da suíte (2026-05-27 noite)
+## Estado da suíte (2026-05-27 noite pós Onda 4 batch 2)
 
-- Drill `validar_san_perfil_tenant_migrations`: **17/17 PASS** (PG real).
-- Drill `validar_san_perfil_tenant_snapshots`: **6/6 PASS** (PG real, Sprint 4).
-- Relatório evidência defensiva A4: 1 evento pré-saneamento exportado.
-- Suite ampla regression+audit+M3+M4: **exit 0** (todos verdes).
-- Hooks `_test-runner.sh`: **414/414** verdes / **51 hooks ativos** (+3 ADR-0067).
-- pytest geral: 905/0/0 (último full run 2026-05-24; pós-saneamento exige re-run).
+- pytest M3+M4 chave: **786 passed / 1 skip** (regressão INV-OS-* + INV-CAL-* + consumers + use cases) em ~8min.
+- Hooks `_test-runner.sh`: **413/413 PASS / 51 hooks ativos**.
+- Drills PG real SAN-PERFIL: 17/17 migrations + 6/6 snapshots PASS.
+- ruff/mypy: limpos.
 
-## Sessão SAN-PERFIL-TENANT (2026-05-27 — 6 commits)
+## Ondas executadas 2026-05-27 noite
 
-- `de229b8` docs(SAN-PERFIL-TENANT) — ADR-0067 aceita + spec/plan/tasks ritual Spec Kit + drift geografia MT (1032 linhas).
-- `87bbc64` feat Sprints 1+2 — schema multi-step (migrations 0003-0010) + funções SECURITY DEFINER + predicate canônico `tenant_perfil_e` fecha FAIL L6 + 23 testes regressão.
-- `de5877f` fix débitos pré-existentes M4 — `subcontratacao.actor_user_id` (7 testes) + `ClienteNotificadoVia.NAO_APLICA`.
-- `f51fe47` feat Sprint 3 — `provisionar_tenant` + matriz feature×perfil + job vigência + emenda ADR-0015 + runbook DPO.
-- `694ce27` feat Sprint 4 — snapshot `perfil_no_evento` WORM via trigger BEFORE INSERT + GUC `app.perfil_tenant` + retrofit equipamento + retrofit geo_truncamento (perfil A nunca trunca) + drill snapshots + relatório evidência A4.
-- `aa56cdf` docs consolida tasks.md status Sprints 1-4 FECHADOS.
+- ✅ **Onda PRE-A.1** drift docs — 5 CRÍT + 5 ALTO + 14 MÉD resolvidos.
+- ✅ **Onda PRE-A.2** ADRs — 37 ADRs processadas: 24 promovidas + 5 emendas perfil + ADR-0022 v2 + ADR-0025 v2 + ADR-0068 (sucessão RT, novo) + ADR-0069 (bypass cl. 6.2, novo) + ADR-0019 superseded-by 0028 + 3 reservadas (0059/0060/0061).
+- ✅ **Onda PRE-A.3** PRDs — 16 PRDs Wave A draft→stable via 4 agentes paralelos. 6 FAIL L6 fechadas + 15 US novas + 20 INVs novas.
+- 🟡 **Onda PRE-A.4** bus + TRACKs + F-C3 — INT-01 retrofit M3 OS + INT-02 retrofit M4 calibração (786 testes verdes) + INT-03 perfil_no_evento no envelope + INT-04 hook BLOCK + F-C3 supply-chain (dependabot.yml + pin SHA Dockerfile + 3 workflows).
 
-## Próxima ação (em execução)
+## Pendente Onda 4 (~8-10d trabalho restante)
 
-**Auditoria 10 lentes pré-Wave A CONCLUÍDA 2026-05-27 madrugada.** Roldão decidiu "resolver TUDO — críticos, altos, médios, baixos". Plano consolidado em `docs/faseamento/auditorias/PRE-WAVE-A-CONSOLIDADO-rodada-1.md` (5 ondas).
+- T-CAL-124..133 **10 ViewSets REST M4** (5d — torna produto visível).
+- F-C3 paginação DRF + retrofit 621 testes (3d).
+- Retrofit Sprint 4 `perfil_no_evento` em `contas-receber` + `fiscal` (1d).
+- Limpa-mesa: GATE-FB-4 + GATE-FC1-CRIAR-RECOVERY-SENHA-COMPLEXA + GATE-EQP-RT-AUTHZ + GATE-DEP-001/002 + GATE-EQP-DEP-WEASYPRINT (2.5d).
+- GATE-OS-VALIDAR-DRILL + GATE-CAL-DRILL-LOCAL drills PG real (1d).
+- GATE-OS-GRANDEZA-EM-ATIVIDADE — retrofit `AtividadeDaOS.grandeza` plugado nos 3 use cases M3 (1.5d, fecha ADR-0063 fail-open).
 
-**Em execução:** Onda PRE-A.1 (drift docs ~2h) — AGENTS.md/CLAUDE.md/INDICE.md/memory/clientes-prd/faseamento-FW corrigidos. Falta validar `_test-runner.sh`.
+## Pendente Onda 5 (sem contratações externas)
 
-**Próximas ondas:** PRE-A.2 (promover/emenda ADRs ~25h + sessões Roldão) → PRE-A.3 (saneamento 16 PRDs Wave A ~130h em 4 batches paralelos) → PRE-A.4 (bus M3/M4 retrofit + TRACKs + F-C3 ~20d) → PRE-A.5 (F-C2 + drills internos — SEM contratações externas).
+F-C2 dev (structlog real + INV-LOG + endpoints health/ready/deep + SIGTERM + correlation_id contextvar) + drills internos estruturais. GATEs externos rastreados como `GATE-EXTERNO-PRODUCAO` em `docs/conformidade/comum/gates-externos-pre-producao.md` (a criar).
 
-**Decisões Roldão 2026-05-27 noite:** HTMX+5 SPAs (ADR-0010); Aferê PJ separada DEPOIS; Onda 3 com 4 agentes paralelos; **zero contratações externas até produção real** (memória `project_sem_contratacoes_externas_ate_producao`).
+## Decisões Roldão 2026-05-27 noite
 
-## ADRs novas e GATEs SAN-PERFIL-TENANT
-
-ADR-0067 aceita (perfil regulatório do tenant como entidade temporal 1ª classe). 7 GATEs Wave A rastreados em `docs/adr/0067-perfil-regulatorio-tenant-entidade-temporal.md` §"Gates Wave A":
-GATE-TENANT-PERFIL-{SCHEMA, PROVISIONING, TEMPLATES-CERT, MATRIZ-RETENCAO, AUTHZ-PREDICATE, TESTES-MATRIZ, OBSERVABILIDADE}.
-INV-TENANT-PERFIL-001..007 declaradas em `REGRAS-INEGOCIAVEIS.md`.
+HTMX + 5 SPAs / Aferê PJ separada DEPOIS / Onda 3 com 4 agentes paralelos / **zero contratações externas até produção real** (memória `project_sem_contratacoes_externas_ate_producao`) / **resolver TUDO — críticos, altos, médios, baixos**.
