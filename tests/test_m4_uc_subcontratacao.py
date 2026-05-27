@@ -257,6 +257,7 @@ class TestRegistrarRecebimento:
                 calibracao_id=cal_id,
                 revision_esperada=2,
                 recebedor_user_id=recebedor,
+                actor_user_id=recebedor,  # SEG-CAL-04: anti-spoofing — caller == recebedor
                 certificado_subcontratado_snapshot_json=_cert_externo_padrao(),
             ),
             repo,
@@ -270,28 +271,33 @@ class TestRegistrarRecebimento:
         )
 
     def test_certificado_sem_chaves_obrigatorias_recusa(self) -> None:
+        actor = uuid4()
         with pytest.raises(ValueError, match="AC-CAL-017-3"):
             RegistrarRecebimentoSubcontratadoInput(
                 calibracao_id=uuid4(),
                 revision_esperada=0,
-                recebedor_user_id=uuid4(),
+                recebedor_user_id=actor,
+                actor_user_id=actor,
                 certificado_subcontratado_snapshot_json={
                     "numero_cert_externo": "X"  # falta resto
                 },
             )
 
     def test_certificado_vazio_recusa(self) -> None:
+        actor = uuid4()
         with pytest.raises(ValueError, match="certificado_subcontratado_snapshot_json"):
             RegistrarRecebimentoSubcontratadoInput(
                 calibracao_id=uuid4(),
                 revision_esperada=0,
-                recebedor_user_id=uuid4(),
+                recebedor_user_id=actor,
+                actor_user_id=actor,
                 certificado_subcontratado_snapshot_json={},
             )
 
     def test_estado_configurada_recusa(self) -> None:
         repo = FakeCalibracaoRepository()
         cal_id = _ate_configurada(repo)  # nao subcontratou
+        actor = uuid4()
         with pytest.raises(
             EstadoInvalidoParaRegistrarRecebimento, match="AGUARDANDO_SUBCONTRATADO"
         ):
@@ -299,7 +305,8 @@ class TestRegistrarRecebimento:
                 RegistrarRecebimentoSubcontratadoInput(
                     calibracao_id=cal_id,
                     revision_esperada=1,
-                    recebedor_user_id=uuid4(),
+                    recebedor_user_id=actor,
+                    actor_user_id=actor,
                     certificado_subcontratado_snapshot_json=_cert_externo_padrao(),
                 ),
                 repo,
@@ -307,12 +314,14 @@ class TestRegistrarRecebimento:
 
     def test_calibracao_nao_encontrada(self) -> None:
         repo = FakeCalibracaoRepository()
+        actor = uuid4()
         with pytest.raises(CalibracaoNaoEncontrada):
             registrar_recebimento_subcontratado(
                 RegistrarRecebimentoSubcontratadoInput(
                     calibracao_id=uuid4(),
                     revision_esperada=0,
-                    recebedor_user_id=uuid4(),
+                    recebedor_user_id=actor,
+                    actor_user_id=actor,
                     certificado_subcontratado_snapshot_json=_cert_externo_padrao(),
                 ),
                 repo,
@@ -321,12 +330,14 @@ class TestRegistrarRecebimento:
     def test_conflito_versao(self) -> None:
         repo = FakeCalibracaoRepository()
         cal_id = self._ate_aguardando(repo)
+        actor = uuid4()
         with pytest.raises(ConflitoVersaoCalibracao):
             registrar_recebimento_subcontratado(
                 RegistrarRecebimentoSubcontratadoInput(
                     calibracao_id=cal_id,
                     revision_esperada=99,
-                    recebedor_user_id=uuid4(),
+                    recebedor_user_id=actor,
+                    actor_user_id=actor,
                     certificado_subcontratado_snapshot_json=_cert_externo_padrao(),
                 ),
                 repo,
@@ -363,6 +374,7 @@ def test_fluxo_completo_configurada_ate_recebida() -> None:
             calibracao_id=cal_id,
             revision_esperada=2,
             recebedor_user_id=recebedor,
+            actor_user_id=recebedor,  # SEG-CAL-04 anti-spoofing
             certificado_subcontratado_snapshot_json=_cert_externo_padrao(),
         ),
         repo,

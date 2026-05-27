@@ -127,8 +127,17 @@ class DecisaoContinuarOuParar(str, Enum):
 
 
 class ClienteNotificadoVia(str, Enum):
-    """Canal de notificacao ao cliente quando PARAR_TRABALHO (INV-CAL-NC-003)."""
+    """Canal de notificacao ao cliente quando PARAR_TRABALHO (INV-CAL-NC-003).
 
+    Valor NAO_APLICA representa explicitamente "nao notificar" — usado em
+    NaoConformidade quando decisao != PARAR_TRABALHO (ex: CONTINUAR_COM_CONTROLE
+    ou A_DEFINIR; nesses casos a notificacao formal nao e obrigatoria).
+    Quando decisao == PARAR_TRABALHO, o use case `executar_acao` valida que
+    canal != NAO_APLICA (regra INV-CAL-NC-003 — cliente precisa ser notificado
+    via meio rastreavel).
+    """
+
+    NAO_APLICA = "NAO_APLICA"
     EMAIL_PORTAL = "EMAIL_PORTAL"
     A3_ASSINATURA = "A3_ASSINATURA"
     TERMO_PRESENCIAL = "TERMO_PRESENCIAL"
