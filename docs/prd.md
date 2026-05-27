@@ -22,6 +22,8 @@ Diferencial central: **calibração ISO 17025 com cálculo de incerteza nativo +
 
 ## 2. Pra quem (ICP)
 
+> **🔴 Saneamento pré-Wave A (ADR-0067 aceita 2026-05-27):** auditoria 10 lentes de 2026-05-27 detectou que a promessa "cada tenant escolhe o seu na ativação" estava sem implementação técnica — campo `Tenant.perfil_regulatorio` não existia no schema, e Marcos F-A/M1/M2/F-C1/M3/M4 fecharam tratando todo tenant como genérico (default implícito = Perfil B, perfil da Balanças Solution dogfooding). **7 GATEs Wave A bloqueantes** (`GATE-TENANT-PERFIL-*`) retrofitam o gap antes do 1º tenant externo pago. Ver `docs/adr/0067-perfil-regulatorio-tenant-entidade-temporal.md` + saneamento em `docs/faseamento/SAN-PERFIL-TENANT/`.
+
 **4 perfis configuráveis** — cada tenant escolhe o seu na ativação:
 
 | Perfil | Descrição | % do ICP | DAP hipótese |
@@ -31,7 +33,8 @@ Diferencial central: **calibração ISO 17025 com cálculo de incerteza nativo +
 | **C** | Lab em preparação pra acreditar (trilha D→A) | ~30% | R$ 500-800/mês |
 | **D** | Calibração comercial pura (sem rituais 17025) | Raro nuclear | R$ 300-500/mês |
 
-**Geografia núcleo MVP-1:** SP + RS + MG + SC (eixo industrial onde Roldão opera).
+**Geografia núcleo MVP-1:** MT + MS + GO + DF (Centro-Oeste — onde Roldão opera, cruzando fronteira para estados vizinhos quando atende cliente).
+**Alvo secundário (sem peso de prioridade):** SP + RS + MG + SC — mercado convertível listado, mas não dirige roadmap MVP-1.
 **TAM ICP convertível estimado:** 1.500-2.000 empresas (não os 5.000 brutos do setor).
 
 ### Sinais de "ESTE é o ICP" (validados documentalmente)

@@ -57,7 +57,8 @@ O Auditor 10 da 2ª auditoria de 10 agentes (17/05/2026) levantou que aceitar st
 
 ### Geografia (validação documental Bucket D)
 
-- **Núcleo MVP-1:** SP + RS + MG + SC (eixo industrial onde Roldão opera)
+- **Núcleo MVP-1:** MT + MS + GO + DF (Centro-Oeste — onde Roldão opera, cruzando fronteira para estados vizinhos quando atende cliente)
+- **Alvo secundário (sem peso de prioridade):** SP + RS + MG + SC — mercado convertível listado, mas não dirige roadmap MVP-1
 - **TAM ICP convertível estimado:** 1.500-2.000 (não os 5.000 brutos)
 - **Validar via LAI INMETRO/CGCRE:** número de RBC ativos por estado (lacuna estatística confirmada)
 
