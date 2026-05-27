@@ -1,12 +1,14 @@
 ---
 owner: claude-code
-revisado-em: 2026-05-18
-status: proposta
+revisado-em: 2026-05-27
+status: aceito
+superseded-by: 0028
+aceito-em: 2026-05-27
 ---
 
 # ADR-0019 — Responsabilidade civil + segurabilidade de código gerado por agentes IA
 
-> **Status:** **proposta** (18/05/2026 — aceitar antes do 1º tenant pago).
+> **Status:** **ACEITO + SUPERSEDED-BY ADR-0028** (2026-05-27 — auditoria 10 lentes pré-Wave A, Onda PRE-A.2). Conteúdo desta ADR foi integrado na ADR-0028 (mapa coberturas Wave A) que é mais ampla (7 modalidades). Mantida como referência histórica + base conceitual de "cláusula afirmativa IA-affirmative coverage" que vai pra DPA-modelo-cap-responsabilidade.md cláusula 11. Ações concretas (apólice + minutas) ficam DIFERIDAS até produção real (memória `project_sem_contratacoes_externas_ate_producao`).
 > **Autor:** Claude Code (orquestrador) + parecer subagente `corretora-seguros-saas`
 > **Origem:** auditoria PRD `equipamentos` Wave A Marco 2 — parecer corretora B2: "modelo 100% agentes IA é diferencial mas vira **causa de exclusão clássica em RC profissional** se for tratado como atos dolosos do segurado. Seguradora pode argumentar 'ausência de revisão humana = neglect' e negar sinistro."
 > **Depende de:** ADR-0000 (uso de IA)

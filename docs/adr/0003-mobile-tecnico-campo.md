@@ -1,9 +1,14 @@
 # ADR-0003 — Mobile do técnico de campo
 
-> **Status:** ⏳ **stub reservado** — ADR ainda não escrita.
-> **Decisão prévia (ADR-0001 candidata, 17/05/2026):** Flutter offline-first como direção provisória.
-> **Bloqueia:** especificação do módulo de Ordens de Serviço + Calibração em campo.
-> **Quando escrever:** após sintese-final discovery sair de DRAFT v3 e PRD do MVP-1 definir se mobile entra na 1ª onda.
+> **Status:** **ACEITO** (2026-05-27 noite — auditoria 10 lentes pré-Wave A, Onda PRE-A.2). Decisão cravada: **Flutter offline-first** (alinhado com ADR-0001 candidata) + sync por atividade (ADR-0027 — aceita 2026-05-23) + assinatura A3 cliente-side via Web PKI Lacuna (ADR-0009 + ADR-0048).
+> **Aceito-em:** 2026-05-27.
+> **Decisões cravadas:**
+> - **Framework:** Flutter (decidido em ADR-0001 candidata — sobrevive 3 portões). Razão: 1 codebase iOS+Android, offline-first nativo, suporte FFI pra Web PKI Lacuna.
+> - **Offline-first:** sync por atividade ADR-0027 (LWW por `atividade_id` + IDEMP-001 + backlog visível ao técnico). Modelo NÃO é CRDT puro — é evento por atividade com idempotência.
+> - **Captura em campo:** fotos com EXIF segregado (ADR-0029 §"FotoComExifSegregado") + GPS com consentimento `Colaborador.consente_gps_em` persistido (não payload) + assinatura touch (DPIA `dpia-assinatura-touch.md`).
+> - **A3 cliente-side:** via Lacuna Web PKI no PC + FFI Flutter no mobile pra leitor token físico USB-C (ADR-0009 + ADR-0048). Mobile NÃO assina A3 in-app (limite Lacuna SDK).
+> - **Distribuição:** Play Store + TestFlight (sideload Android pra desenvolvimento). Suporte mínimo iOS 14 / Android 9 (cobertura ~95% técnicos de campo BR).
+> - **Bloqueio Wave A:** módulo `operacao/app-tecnico` consome esta ADR + ADR-0004 (sync) + ADR-0067 (perfil tenant — perfil A obriga A3; perfil D dispensa).
 
 ---
 

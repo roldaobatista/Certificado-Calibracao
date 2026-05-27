@@ -1,8 +1,10 @@
 # ADR-0004 — Sincronização offline-first do app técnico
 
-> **Status:** proposta (2026-05-17 noite final). Substitui o stub anterior "0004-reservado".
+> **Status:** **ACEITO + REFINADA POR ADR-0027** (2026-05-27 noite — auditoria 10 lentes pré-Wave A, Onda PRE-A.2). ADR-0027 (sync mobile merge por atividade — aceita 2026-05-23) é a refinamento canônico cravando LWW por `atividade_id` + IDEMP-001 + backlog visível. ADR-0004 mantida como design conceitual de alto nível.
+> **Aceito-em:** 2026-05-27.
+> **Refinada por:** ADR-0027 (canônico operacional).
 > **Bloqueia:** F-D (mobile shell) da Foundation; OP3.1 (app de campo) na Wave A.
-> **Depende de:** ADR-0001 (stack — Flutter), ADR-0002 (multi-tenancy + tenant_id), ADR-0003 (mobile-tecnico-campo — stub).
+> **Depende de:** ADR-0001 (stack — Flutter), ADR-0002 (multi-tenancy + tenant_id), ADR-0003 (mobile-tecnico-campo — aceita 2026-05-27).
 
 ---
 

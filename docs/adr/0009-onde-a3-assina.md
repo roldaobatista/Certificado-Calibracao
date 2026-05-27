@@ -1,10 +1,18 @@
 # ADR-0009 — Onde a assinatura digital A3 (token físico ICP-Brasil) acontece
 
-> **Status:** proposta (17/05/2026 noite final) — aguardando aprovação do Roldão. Bloqueante do Portão 2 da ADR-0001 candidata.
+> **Status:** **ACEITO** (2026-05-27 noite — auditoria 10 lentes pré-Wave A, Onda PRE-A.2). Estava em proposta desde 17/05/2026. Aceita com emenda perfil-aware (matriz feature×perfil ADR-0067).
 > **Autor:** Claude Code (orquestrador) + Roldão (decisor)
 > **Origem:** Parecer 1 da 2ª auditoria de 10 agentes — *"nenhuma stack faz A3 server-side bonito; padrão de mercado em ERP regulado é assinar A3 no cliente"*. ADR-0001 v2 propôs `python-pkcs11` server-side sem confrontar a opção cliente-side.
-> **Depende de:** ADR-0001 v2 (stack Django + Flutter), `docs/arquitetura/anti-corrosion-layer.md` (porta `SignatureProvider`)
-> **Relacionado:** R-018 score 25 (certificado sem cadeia rejeitado por CGCRE — INV-002 deve estar atendida)
+> **Depende de:** ADR-0001 v2 (stack Django + Flutter), `docs/arquitetura/anti-corrosion-layer.md` (porta `SignatureProvider`), ADR-0067 (perfil regulatório do tenant).
+> **Relacionado:** R-018 score 25 (certificado sem cadeia rejeitado por CGCRE — INV-002 deve estar atendida).
+> **Aceito-em:** 2026-05-27.
+>
+> **Emenda 2026-05-27 (A3 obrigatório por perfil regulatório):**
+> - **Perfil A (RBC acreditado):** A3 ICP-Brasil **OBRIGATÓRIO** pra emissão de certificado RBC (cl. 8.4 ISO 17025 + NIT-DICLA-016). Predicate `tenant_perfil_e({"A"})` no use case `emitir_certificado`. Sem A3 vigente do signatário RT → bloqueio 409 + evento `Certificado.EmissaoBloqueadaSemA3`.
+> - **Perfil B (rastreável):** A3 RECOMENDADO; aceita assinatura simples persistida em `EventoDeCalibracao.assinatura_simples` se A3 indisponível.
+> - **Perfil C (em preparação RBC):** A3 OBRIGATÓRIO em modo "treinamento" (registra mas não bloqueia se inválido — flag `em_preparacao` no envelope).
+> - **Perfil D (comercial puro):** A3 OPCIONAL; declaração de calibração básica aceita assinatura simples.
+> - Predicate `documento_a3_obrigatorio_por_perfil(tenant_id, tipo_documento)` consultado pelo `SignatureProvider` antes de emitir. Hook `feature-perfil-matriz-validator` valida que call-site cita perfil.
 
 ---
 
