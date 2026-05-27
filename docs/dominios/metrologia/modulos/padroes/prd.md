@@ -1,221 +1,352 @@
 ---
-owner: Roldão
-revisado-em: 2026-05-23
-status: draft
+owner: roldao
+revisado-em: 2026-05-27
+proximo-review: 2026-08-27
+status: stable
+diataxis: explanation
+audiencia: agente
 modulo: padroes
 dominio: metrologia
-versao: 1
+versao: 2
+historico:
+  - 2026-05-27 — Onda PRE-A.3 saneamento pré-Wave A (BATCH B3): frontmatter canônico
+    (revisado-em + proximo-review hífen); perfil ADR-0067 reforçado em US-PAD-001/005
+    com predicate `tenant_perfil_e([...])` e matriz feature×perfil; ADR-0025 v2 estendida
+    (URS/IQ/OQ/PQ específicos do módulo padrões + 2º caminho de cálculo do valor
+    convencional + cartas controle Shewhart adiantadas Wave A em perfil A — L3#A9);
+    nova US-PAD-007 (equipamentos auxiliares cl. 6.4.5 — L3#7 crítico); ADR-0068 sucessão
+    RT; ADR-0064 HMAC; matriz feature×perfil; non-objetivos atualizados; status →
+    stable.
+  - 2026-05-23 — versão inicial Onda 5 saneamento pós-auditoria projeto-inteiro 10 lentes.
+relacionados:
+  - docs/dominios/metrologia/modulos/calibracao/prd.md
+  - docs/dominios/metrologia/modulos/calibracao/validacao-software.md
+  - docs/dominios/metrologia/modulos/procedimentos/prd.md
+  - docs/adr/0002-multi-tenancy.md
+  - docs/adr/0007-camada-dominio-gerador.md
+  - docs/adr/0022-rt-tenant.md
+  - docs/adr/0025-validacao-software-iso-17025.md
+  - docs/adr/0030-vigencia-temporal-canonica.md
+  - docs/adr/0031-soft-delete-3-padroes.md
+  - docs/adr/0040-padrao-metrologico-entidade-separada.md
+  - docs/adr/0064-rotacao-chave-hmac-retencao-metrologica-25a.md
+  - docs/adr/0066-predicates-cmc-procedimento-fail-open-lazy-wave-a.md
+  - docs/adr/0067-perfil-regulatorio-tenant-entidade-temporal.md
+  - docs/adr/0068-sucessao-substituicao-rt.md
+  - docs/conformidade/comum/matriz-feature-perfil.md
 ---
 
 # PRD — Módulo Padrões Metrológicos do laboratório
 
-> **v1 (draft 2026-05-23):** criado na Onda 5 saneamento pós-auditoria
-> projeto-inteiro 10 lentes (G2 CRÍTICO). Módulo era apenas non-goal
-> em `equipamentos` (NG-EQP-6); ADR-0040 cravou separação. Pendente
-> revisão dos 4 subagentes (`tech-lead-saas-regulado`,
-> `advogado-saas-regulado`, `corretora-seguros-saas`,
-> `consultor-rbc-iso17025`) antes de virar `stable`.
+> **v2 (stable 2026-05-27):** Onda PRE-A.3 fechou o ritual pré-Wave A. ADR-0040
+> (padrão metrológico como entidade separada de `equipamentos`) referenciada;
+> ADR-0067 (perfil regulatório) declarada em US; ADR-0025 v2 estendida ao módulo
+> com URS/IQ/OQ/PQ próprios + 2º caminho de cálculo de valor convencional;
+> equipamentos auxiliares cl. 6.4.5 incluídos como US nova; cartas controle
+> Shewhart adiantadas Wave A em perfil A (L3#A9).
 
 ## 1. O que este módulo é
 
-Cadastro dos **padrões metrológicos do laboratório do tenant** —
-pesos padrão classe E1/E2/F1/F2 (OIML R111), termômetros padrão,
-manômetros padrão, conjuntos de massas, blocos padrão, padrões
-elétricos — que são usados para calibrar os equipamentos dos
-clientes finais. Cada padrão tem cert de rastreabilidade externo
-vigente (rastreável a INMETRO/RBC/BIPM), classe declarada, faixas e
-incertezas; participa de **recal externo periódico** e de
-**intercomparações (PT — proficiency testing)** em perfil A
-(INV-023). Persona principal: gestor de qualidade (P-OP-04 novo) +
-metrologista de bancada (P-OP-02).
+Cadastro dos **padrões metrológicos do laboratório do tenant** — pesos padrão
+classe E1/E2/F1/F2 (OIML R111), termômetros padrão, manômetros padrão,
+conjuntos de massas, blocos padrão, padrões elétricos — que são usados para
+calibrar os equipamentos dos clientes finais. Cada padrão tem cert de
+rastreabilidade externo vigente (rastreável a INMETRO/RBC/BIPM), classe
+declarada, faixas e incertezas; participa de **recal externo periódico**,
+**verificação intermediária** (cl. 6.4.10), **intercomparações (PT —
+proficiency testing)** em perfil A (INV-023) e — quando aplicável —
+**cartas controle Shewhart** (perfil A).
+
+Inclui também (US-PAD-007 nova) **equipamentos auxiliares do laboratório** —
+termo-higrômetro de sala, fonte de tensão estável, banho termostático —
+exigidos por ISO 17025 cl. 6.4.5 e flagrados como gap CRÍTICO L3#7 na
+auditoria projeto-inteiro.
+
+Persona principal: gestor de qualidade (P-OP-04) + metrologista de bancada
+(P-OP-02).
 
 **Wave A · módulo paralelo ao Marco 4 (`calibracao`)** — destrava
-INV-002 (cadeia de rastreabilidade na emissão de cert),
-INV-011 (cert bloqueia se padrão tem cal vencida), INV-021..023
-(controle de classe + verificação intermediária + PT) e ADR-0040.
+INV-002 (cadeia de rastreabilidade na emissão de cert), INV-011 (cert
+bloqueia se padrão tem cal vencida), INV-021..023 (controle de classe +
+verificação intermediária + PT) e ADR-0040.
 
 ## 2. Por que existe (problema a resolver)
 
-- BIG-04 (rastreabilidade ao SI) — sem padrão canônico, certificado
-  emitido vira fraude regulatória.
+- BIG-04 (rastreabilidade ao SI) — sem padrão canônico, certificado emitido
+  vira fraude regulatória.
 - OP14 (recal externo do padrão é evento agendado, não improviso) —
   laboratórios perdem prazo de recal e operam com padrão vencido.
-- Dor #04 (padrão derivou e ninguém percebeu — verificação
-  intermediária ausente).
-- Conformidade ISO 17025 cl. 6.5 (rastreabilidade metrológica) +
-  cl. 6.4.10 (verificação intermediária) + cl. 6.6 (PT em A) +
-  NIT-DICLA-030 rev. 15 item 8.2.6 (incerteza + valor convencional
-  obrigatórios no cert aceito).
+- Dor #04 (padrão derivou e ninguém percebeu — verificação intermediária
+  ausente).
+- L3#7 (CRÍTICO) — equipamentos auxiliares cl. 6.4.5 (termo-higrômetro,
+  fonte tensão, banho) eram non-goal sem cadastro mínimo; supervisão CGCRE
+  flagra em 1ª visita.
+- L3#A9 — perfil A exige cartas controle Shewhart por padrão desde a 1ª
+  supervisão CGCRE; estava postergado para MVP-2 → adiantado para Wave A.
+- Conformidade ISO 17025 cl. 6.4.5 (equipamentos auxiliares) + cl. 6.5
+  (rastreabilidade metrológica) + cl. 6.4.10 (verificação intermediária)
+  + cl. 6.6 (PT em A) + NIT-DICLA-030 rev. 15 item 8.2.6 (incerteza +
+  valor convencional obrigatórios no cert aceito).
 
 ## 3. Personas
 
-- **P-OP-04 — Gestor de qualidade do tenant** (principal —
-  promovido): cadastra padrão, gerencia recal, registra PT,
-  aprova baixa.
-- **P-OP-02 — Metrologista de bancada**: seleciona padrão na
-  calibração (Marco 4), registra verificação intermediária.
-- **P-COM-02 — Consultor RBC** (V2): consulta padrões para
-  preparar dossiê CGCRE.
+- **P-OP-04 — Gestor de qualidade do tenant** (principal): cadastra padrão,
+  gerencia recal, registra PT, aprova baixa, mantém cartas controle.
+- **P-OP-02 — Metrologista de bancada**: seleciona padrão na calibração
+  (Marco 4), registra verificação intermediária, plota carta controle.
+- **P-OP-03 — RT do tenant** (ADR-0022 v2 + ADR-0068): aprova baixa
+  definitiva, assina dossiê CGCRE com A3.
+- **P-COM-02 — Consultor RBC / supervisor CGCRE** (perfil A): consulta
+  padrões para preparar dossiê CGCRE; revisa cartas controle.
 
 Detalhes em `personas.md` (do domínio metrologia).
 
-## 4. Escopo (o que ESTÁ)
+## 4. Perfil regulatório (ADR-0067)
 
-- CRUD de `PadraoMetrologico` (UNIQUE por tenant + número de
-  série) com grandezas + faixas + incertezas tipadas (VOs em
+| Perfil | Status do módulo | Predicate de entrada |
+|---|---|---|
+| **A — Acreditado RBC** | ✅ OBRIGATÓRIO_FULL (recal + VI + PT + cartas Shewhart + dossiê CGCRE) | `tenant_perfil_e(["A"])` em US-PAD-005 (PT) + US-PAD-008 (Shewhart) + US-PAD-006 (dossiê) |
+| **B — Rastreável** | ✅ OBRIGATÓRIO (recal + VI; PT opcional; sem selo RBC) | `tenant_perfil_e(["A", "B"])` em US-PAD-001 com `vinculacao` restrita |
+| **C — Em preparação D→A** | ✅ OBRIGATÓRIO_PARCIAL (recal + VI; PT recomendado; cartas Shewhart opcionais) | mesmo que B + warning em UI |
+| **D — Comercial puro** | 🟢 OPCIONAL_RECOMENDADO (cadastro de padrão mas sem fluxo PT/RBC) | sem bloqueio |
+
+Linha "Padrão metrológico (recal externo + VI + PT)" da matriz
+`docs/conformidade/comum/matriz-feature-perfil.md` é fonte da verdade.
+
+## 5. Escopo (o que ESTÁ)
+
+- CRUD de `PadraoMetrologico` (UNIQUE por tenant + número de série) com
+  grandezas + faixas + incertezas tipadas (VOs em
   `src/domain/metrologia/value_objects.py`).
-- Vinculação à cadeia (BIPM, INMETRO, RBC, INTERNACIONAL) +
-  validade do cert externo.
-- Fluxo **recal externo**: envio ao lab credenciado → recebimento
-  do novo cert → atualização de `incertezas_certificado` +
+- Vinculação à cadeia (BIPM, INMETRO, RBC, INTERNACIONAL) + validade do
+  cert externo.
+- Fluxo **recal externo**: envio ao lab credenciado → recebimento do novo
+  cert → atualização de `incertezas_certificado` +
   `validade_certificado_rastreabilidade` (transacional com evento
   `padrao.recal_externo_concluido`).
-- **Verificação intermediária** (cl. 6.4.10) entre recals
-  externos — INV-022 + INV-CAL-VI-001.
-- **Intercomparação / PT** (perfil A — INV-023) com resultado
-  registrado.
-- **Baixa / sucatamento** (estado terminal) preservando
-  histórico WORM.
-- **Exportação dossiê CGCRE** (Wave B+ — gera PDF/A com cadeia
-  completa para supervisão).
+- **Verificação intermediária** (cl. 6.4.10) entre recals externos —
+  INV-022 + INV-CAL-VI-001.
+- **Intercomparação / PT** (perfil A — INV-023) com resultado registrado.
+- **Cartas controle Shewhart** (perfil A — US-PAD-008) com pontos +
+  limites estatísticos.
+- **Equipamentos auxiliares cl. 6.4.5** (US-PAD-007) — cadastro mínimo +
+  calibração + VI.
+- **Baixa / sucatamento** (estado terminal) preservando histórico WORM.
+- **Exportação dossiê CGCRE** (Wave B+ — gera PDF/A com cadeia completa
+  para supervisão).
 - Estado: `EM_USO` / `EM_RECAL_EXTERNO` / `INTERCOMPARACAO_PT_EM_CURSO`
   / `BAIXADO` / `SUCATEADO`.
 
-## 5. Non-goals
+## 6. Não-objetivos
 
-- NÃO calibra outro padrão (lab interno calibrando padrão do
-  próprio lab — caso "calibração interna" exige ADR adicional
-  Wave B+).
+- NÃO calibra outro padrão (lab interno calibrando padrão do próprio lab —
+  caso "calibração interna" exige ADR adicional Wave B+).
 - NÃO trata padrão emprestado/alugado (Wave B+).
-- NÃO emite cert (cert é Marco 4 calibração + módulo
-  `certificados`).
+- NÃO emite cert (cert é Marco 4 calibração + módulo `certificados`).
 - NÃO modela equipamento do cliente (módulo `equipamentos`).
-- NÃO entrega exportação dossiê CGCRE no Wave A (gera dados
-  estruturados; PDF/A dossiê é Wave B+).
-- NÃO entrega scanner de padrão por QR (padrão fica fisicamente
-  no lab — não circula).
+- NÃO entrega exportação PDF/A dossiê CGCRE no Wave A (gera dados
+  estruturados; PDF/A é Wave B+).
+- NÃO entrega scanner de padrão por QR (padrão fica fisicamente no lab —
+  não circula).
+- NÃO substitui sistema de gestão da qualidade ISO 9001.
 
-## 6. User Stories
+## 7. User Stories
 
 ### US-PAD-001 — Cadastrar padrão metrológico
 
-**Como** gestor de qualidade, **quero** cadastrar um padrão com
-cert externo, **para** começar a usá-lo em calibrações.
+**Como** gestor de qualidade, **quero** cadastrar um padrão com cert
+externo, **para** começar a usá-lo em calibrações.
 
-- **AC-PAD-001-1**: GIVEN tenho tenant ativo, WHEN preencho NS +
-  fabricante + modelo + ≥1 grandeza + ≥1 faixa + ≥1 incerteza +
-  vinculacao + cert externo PDF + validade, THEN `PadraoMetrologico`
-  salvo com `estado=EM_USO`; evento `padrao.cadastrado` publicado.
-- **AC-PAD-001-2**: GIVEN tento cadastrar sem incerteza ou sem
-  valor convencional no cert externo, THEN sistema retorna 422
-  citando NIT-DICLA-030 item 8.2.6 (INV-014 reusado / INV-PAD-002).
-- **AC-PAD-001-3**: GIVEN preencho `vinculacao=RBC`, WHEN tenant
-  não está em perfil A, THEN sistema retorna 422 com mensagem
-  "padrão RBC exige tenant perfil A" (INV-015 + INV-PAD-005).
-- **AC-PAD-001-4**: GIVEN tento cadastrar NS já existente no
-  mesmo tenant, THEN sistema retorna 409.
+- **AC-PAD-001-1**: GIVEN tenant ativo + gestor de qualidade autenticado,
+  WHEN preencho NS + fabricante + modelo + ≥1 grandeza + ≥1 faixa + ≥1
+  incerteza + vinculacao + cert externo PDF + validade, THEN
+  `PadraoMetrologico` salvo com `estado=EM_USO`; evento `padrao.cadastrado`
+  publicado em hash-chain HMAC ADR-0064.
+- **AC-PAD-001-2**: GIVEN tento cadastrar sem incerteza OU sem valor
+  convencional no cert externo, THEN sistema retorna 422 citando
+  NIT-DICLA-030 item 8.2.6 (INV-014 reusado / INV-PAD-002).
+- **AC-PAD-001-3**: GIVEN preencho `vinculacao=RBC`, WHEN
+  `tenant_perfil_e(["A"])` retorna FALSE (perfil B/C/D), THEN sistema
+  retorna 422 com mensagem "padrão RBC exige tenant perfil A acreditado
+  CGCRE" (INV-015 + INV-PAD-005 + ADR-0067 §"Decisão" item 4).
+- **AC-PAD-001-4**: GIVEN tento cadastrar NS já existente no mesmo tenant,
+  THEN sistema retorna 409 `PadraoDuplicado`.
 
 **Invariantes:** INV-021, INV-PAD-001, INV-PAD-002, INV-PAD-005,
 INV-TENANT-001.
 
 ### US-PAD-002 — Registrar recal externo (envio + retorno)
 
-**Como** gestor de qualidade, **quero** registrar envio do padrão
-ao lab externo e a chegada do novo cert, **para** manter cadeia de
+**Como** gestor de qualidade, **quero** registrar envio do padrão ao lab
+externo e a chegada do novo cert, **para** manter cadeia de
 rastreabilidade.
 
-- **AC-PAD-002-1**: GIVEN padrão `EM_USO`, WHEN registro envio ao
-  lab externo com data + lab destinatário + responsável envio,
-  THEN `estado=EM_RECAL_EXTERNO`; evento
-  `padrao.recal_externo_iniciado`.
-- **AC-PAD-002-2**: GIVEN padrão `EM_RECAL_EXTERNO`, WHEN
-  registro retorno com novo cert externo PDF + nova incerteza +
-  nova validade + data recal, THEN
-  `incertezas_certificado` + `validade_certificado_rastreabilidade`
-  atualizados em transação atômica; evento
-  `padrao.recal_externo_concluido`; `estado=EM_USO`.
-- **AC-PAD-002-3**: GIVEN padrão em recal há > 90 dias sem
-  retorno, THEN alerta P2 no painel-do-dono ("padrão pendente de
-  retorno").
-- **AC-PAD-002-4**: GIVEN tento UPDATE direto em
-  `incertezas_certificado` SEM passar pelo fluxo de
-  `padrao.recal_externo_concluido`, THEN trigger PG bloqueia
-  (INV-PAD-006).
+- **AC-PAD-002-1**: GIVEN padrão `EM_USO`, WHEN registro envio ao lab
+  externo com data + lab destinatário + responsável envio, THEN
+  `estado=EM_RECAL_EXTERNO`; evento `padrao.recal_externo_iniciado`.
+- **AC-PAD-002-2**: GIVEN padrão `EM_RECAL_EXTERNO`, WHEN registro retorno
+  com novo cert externo PDF + nova incerteza + nova validade + data recal,
+  THEN `incertezas_certificado` + `validade_certificado_rastreabilidade`
+  atualizados em transação atômica; evento `padrao.recal_externo_concluido`;
+  `estado=EM_USO`; hash-chain HMAC ADR-0064 emendado.
+- **AC-PAD-002-3**: GIVEN padrão em recal há > 90 dias sem retorno, THEN
+  alerta P2 no painel-do-dono ("padrão pendente de retorno").
+- **AC-PAD-002-4**: GIVEN tento UPDATE direto em `incertezas_certificado`
+  SEM passar pelo fluxo de `padrao.recal_externo_concluido`, THEN trigger
+  PG bloqueia (INV-PAD-006).
 
-**Invariantes:** INV-021, INV-PAD-006, INV-CAL-RAST-001.
+**Invariantes:** INV-021, INV-PAD-006, INV-CAL-RAST-001, INV-HMAC-001..005.
 
 ### US-PAD-003 — Verificação intermediária periódica
 
-**Como** metrologista, **quero** registrar verificação
-intermediária (entre recals externos), **para** detectar drift
-antes do recal seguinte.
+**Como** metrologista, **quero** registrar verificação intermediária (entre
+recals externos), **para** detectar drift antes do recal seguinte.
 
-- **AC-PAD-003-1**: GIVEN padrão `EM_USO`, WHEN registro VI com
-  resultado (aprovado/reprovado) + método + responsável + data,
-  THEN `VerificacaoIntermediaria` criada; evento
+- **AC-PAD-003-1**: GIVEN padrão `EM_USO`, WHEN registro VI com resultado
+  (aprovado/reprovado) + método + responsável + data, THEN
+  `VerificacaoIntermediaria` criada; evento
   `padrao.verificacao_intermediaria_registrada`.
-- **AC-PAD-003-2**: GIVEN VI reprovada, WHEN salvo, THEN padrão
-  passa pra `estado=EM_RECAL_EXTERNO` automaticamente + bloqueia
-  uso até nova VI aprovada (INV-CAL-VI-001).
-- **AC-PAD-003-3**: GIVEN classe E1/E2/F1/F2 + sem VI nos últimos
-  N meses (configurável por classe), THEN alerta P2 + dashboard
-  marca padrão como "VI pendente".
+- **AC-PAD-003-2**: GIVEN VI reprovada, WHEN salvo, THEN padrão passa pra
+  `estado=EM_RECAL_EXTERNO` automaticamente + bloqueia uso até nova VI
+  aprovada (INV-CAL-VI-001).
+- **AC-PAD-003-3**: GIVEN classe E1/E2/F1/F2 + sem VI nos últimos N meses
+  (configurável por classe), THEN alerta P2 + dashboard marca padrão como
+  "VI pendente".
 
 **Invariantes:** INV-022, INV-CAL-VI-001.
 
 ### US-PAD-004 — Baixar / sucatar padrão (terminal)
 
-**Como** gestor de qualidade, **quero** baixar padrão (fim de
-vida útil ou perda), **para** removê-lo do pool ativo.
+**Como** gestor de qualidade, **quero** baixar padrão (fim de vida útil ou
+perda), **para** removê-lo do pool ativo.
 
-- **AC-PAD-004-1**: GIVEN padrão `EM_USO` sem calibração em
-  curso usando ele, WHEN baixo com motivo (≥30 chars) + tipo
-  (`fim_vida_util`/`extraviado`/`danificado_irrecuperavel`/`vendido`),
-  THEN `estado=BAIXADO` (não terminal — pode reaparecer) ou
-  `SUCATEADO` (terminal); `revogado_em` + `motivo_revogacao`
-  preenchidos (ADR-0030 + INV-SOFT-002).
-- **AC-PAD-004-2**: GIVEN há calibração em curso usando padrão,
-  THEN bloqueia baixa com mensagem citando IDs de calibração.
-- **AC-PAD-004-3**: GIVEN tento DELETE direto, THEN trigger PG
-  bloqueia (INV-SOFT-002 padrão B WORM).
+- **AC-PAD-004-1**: GIVEN padrão `EM_USO` sem calibração em curso usando
+  ele, WHEN baixo com motivo (≥30 chars) + tipo (`fim_vida_util` /
+  `extraviado` / `danificado_irrecuperavel` / `vendido`) + assinatura A3
+  do RT (ADR-0022 v2 + ADR-0068), THEN `estado=BAIXADO` (não terminal —
+  pode reaparecer) ou `SUCATEADO` (terminal); `revogado_em` +
+  `motivo_revogacao` preenchidos (ADR-0030 + INV-SOFT-002).
+- **AC-PAD-004-2**: GIVEN há calibração em curso usando padrão, THEN
+  bloqueia baixa com mensagem citando IDs de calibração.
+- **AC-PAD-004-3**: GIVEN tento DELETE direto, THEN trigger PG bloqueia
+  (INV-SOFT-002 padrão B WORM).
 
-**Invariantes:** INV-PAD-003, INV-SOFT-002, INV-VIG-002.
+**Invariantes:** INV-PAD-003, INV-SOFT-002, INV-VIG-002, INV-017.
 
 ### US-PAD-005 — Intercomparação (PT) em perfil A
 
-**Como** gestor de qualidade de tenant em perfil A, **quero**
-registrar participação em comparação interlaboratorial, **para**
-atender INV-023 (cl. 6.6 + ISO/IEC 17043).
+**Como** gestor de qualidade de tenant em perfil A, **quero** registrar
+participação em comparação interlaboratorial, **para** atender INV-023
+(cl. 6.6 + ISO/IEC 17043).
 
-- **AC-PAD-005-1**: GIVEN tenant perfil A + padrão `EM_USO`, WHEN
-  registro participação em PT com lab organizador + protocolo +
-  data início, THEN `estado=INTERCOMPARACAO_PT_EM_CURSO`; evento
-  `padrao.intercomparacao_iniciada`.
+- **AC-PAD-005-1**: GIVEN `tenant_perfil_e(["A"])` retorna TRUE + padrão
+  `EM_USO`, WHEN registro participação em PT com lab organizador +
+  protocolo + data início, THEN `estado=INTERCOMPARACAO_PT_EM_CURSO`;
+  evento `padrao.intercomparacao_iniciada`.
 - **AC-PAD-005-2**: GIVEN PT em curso, WHEN registro resultado
-  (aprovado/rejeitado/sob_revisão) + relatório PT + zeta-score,
-  THEN evento `padrao.intercomparacao_concluida`; padrão volta a
-  `EM_USO`.
-- **AC-PAD-005-3**: GIVEN resultado rejeitado, THEN bloqueia uso
-  do padrão até NC ser tratada (INV-012 + INV-CAL-WORM-001).
+  (aprovado/rejeitado/sob_revisao) + relatório PT + zeta-score, THEN
+  evento `padrao.intercomparacao_concluida`; padrão volta a `EM_USO`.
+- **AC-PAD-005-3**: GIVEN resultado rejeitado, THEN bloqueia uso do
+  padrão até NC ser tratada (INV-012 + INV-CAL-WORM-001).
+- **AC-PAD-005-4**: GIVEN `tenant_perfil_e(["A"])` retorna FALSE, WHEN
+  gestor tenta abrir tela US-PAD-005, THEN UI esconde + endpoint retorna
+  403 `RecursoExclusivoPerfilA`.
 
-**Invariantes:** INV-023.
+**Invariantes:** INV-023, INV-PERFIL-001 (ADR-0067).
 
-### US-PAD-006 — Exportar dossiê CGCRE (Wave B+ — stub no Wave A)
+### US-PAD-006 — Exportar dossiê CGCRE (Wave A — dados; PDF Wave B+)
 
-**Como** gestor de qualidade preparando supervisão CGCRE,
-**quero** exportar dossiê com cadeia metrológica completa,
-**para** entregar ao supervisor.
+**Como** gestor de qualidade preparando supervisão CGCRE, **quero**
+exportar dossiê com cadeia metrológica completa, **para** entregar ao
+supervisor.
 
-- **AC-PAD-006-1** (Wave A): GIVEN padrão `EM_USO`, WHEN clico
-  "exportar dossiê", THEN sistema gera JSON estruturado com toda
-  cadeia (cert externo histórico + VIs + PTs + uso em
-  calibrações) — PDF/A é Wave B+.
-- **AC-PAD-006-2** (Wave B+): PDF/A com selo CGCRE + assinatura
-  A3 do RT.
+- **AC-PAD-006-1 (Wave A)**: GIVEN `tenant_perfil_e(["A"])` retorna TRUE +
+  padrão `EM_USO`, WHEN clico "exportar dossiê", THEN sistema gera JSON
+  estruturado com toda cadeia (cert externo histórico + VIs + PTs + cartas
+  Shewhart + uso em calibrações) + hash-chain HMAC ADR-0064 incluído.
+- **AC-PAD-006-2 (Wave B+)**: PDF/A com selo CGCRE + assinatura A3 do RT
+  + TSA-ITI PAdES-LTV (ADR-0047).
 
-**Invariantes:** INV-CAL-WORM-001.
+**Invariantes:** INV-CAL-WORM-001, INV-HMAC-001..005.
 
-## 7. Bases legais LGPD (art. 7º)
+### US-PAD-007 — Equipamentos auxiliares cl. 6.4.5 (gap crítico L3#7)
+
+**Como** gestor de qualidade, **quero** cadastrar e controlar
+equipamentos auxiliares do laboratório (termo-higrômetro de sala, fonte
+de tensão estável, banho termostático), **para** atender ISO 17025
+cl. 6.4.5 (equipamentos auxiliares também precisam estar em controle
+metrológico).
+
+- **AC-PAD-007-1**: GIVEN gestor autenticado, WHEN cadastra equipamento
+  auxiliar (categoria `AUXILIAR_AMBIENTAL` / `AUXILIAR_ELETRICO` /
+  `AUXILIAR_TERMOMETRICO`) + NS + fabricante + modelo + faixa de uso +
+  validade da calibração interna, THEN registro persistido como
+  `PadraoMetrologico.subtipo=AUXILIAR`.
+- **AC-PAD-007-2**: GIVEN equipamento auxiliar com calibração vencida,
+  WHEN sistema valida pré-calibração de algum padrão principal que
+  consome esse auxiliar (ex: VI de peso padrão na sala usa
+  termo-higrômetro), THEN bloqueia execução até auxiliar dentro da
+  validade (INV-PAD-007 nova).
+- **AC-PAD-007-3**: GIVEN tenant `perfil_regulatorio = A`, WHEN supervisão
+  CGCRE consulta dossiê, THEN equipamentos auxiliares aparecem listados
+  com vínculo aos padrões principais que dependem deles (cadeia
+  documental cl. 6.4.5).
+- **AC-PAD-007-4**: GIVEN `subtipo=AUXILIAR`, WHEN sistema cria, THEN
+  fluxo de recal externo opcional (auxiliar pode ter calibração interna);
+  porém VI obrigatória nos mesmos intervalos do padrão principal.
+
+**Invariantes:** INV-PAD-007 (nova — auxiliar em controle antes de uso),
+INV-021, INV-TENANT-001.
+
+### US-PAD-008 — Cartas controle Shewhart por padrão (perfil A — L3#A9 adiantado Wave A)
+
+**Como** gestor de qualidade de tenant em perfil A, **quero** plotar
+cartas controle estatístico (Shewhart) por padrão a partir das VIs e
+recals, **para** detectar drift / shift / runs / trends antes da
+supervisão CGCRE (perfil A exige desde a 1ª supervisão — L3#A9).
+
+- **AC-PAD-008-1**: GIVEN `tenant_perfil_e(["A"])` retorna TRUE + padrão
+  com ≥ 10 pontos de VI/recal nos últimos 24 meses, WHEN gestor abre tela
+  "Carta Controle", THEN sistema plota carta Shewhart com linha central
+  (média móvel) + UCL/LCL (±3σ) + zona de alerta (±2σ) + pontos
+  observados.
+- **AC-PAD-008-2**: GIVEN regra Western Electric detectada (1 ponto fora
+  ±3σ; 2 de 3 fora ±2σ; 4 de 5 fora ±1σ; 8 pontos sequenciais do mesmo
+  lado da média), WHEN próxima VI registrada, THEN sistema dispara
+  alerta P1 + bloqueia uso do padrão até RT analisar e
+  aceitar/recalibrar.
+- **AC-PAD-008-3**: GIVEN carta controle, WHEN export pra dossiê CGCRE
+  (US-PAD-006), THEN imagem PNG + dados CSV incluídos.
+- **AC-PAD-008-4**: GIVEN tenant `perfil_regulatorio != A`, WHEN abre
+  tela US-PAD-008, THEN UI mostra "Feature exclusiva perfil A
+  acreditado" + link de promoção para perfil A.
+
+**Invariantes:** INV-PAD-008 (nova — perfil A obrigatório), INV-PERFIL-001.
+
+### US-PAD-009 — 2º caminho de cálculo do valor convencional (ADR-0025 v2)
+
+**Como** RT do tenant em perfil A ou B, **quero** que o sistema calcule o
+valor convencional do padrão por 2 caminhos independentes (peso médio
+dos certificados externos anteriores VS GUM completo com modelo de
+incerteza) e compare desvio, **para** atender ADR-0025 v2 §"Extensão
+módulo padrões" (validação software 7.11 — 2º caminho de cálculo).
+
+- **AC-PAD-009-1**: GIVEN padrão `EM_USO` com ≥ 2 recals externos no
+  histórico, WHEN sistema calcula valor convencional, THEN executa
+  Caminho A (média ponderada por incerteza dos certs anteriores) +
+  Caminho B (GUM completo com modelo de variação temporal).
+- **AC-PAD-009-2**: GIVEN desvio entre Caminho A e Caminho B >
+  `k * u_combined` (k=2 — coverage factor 95%), THEN dispara investigação
+  (alerta P1 ao RT) + bloqueia uso até RT registrar análise (similar
+  AC-PAD-005-3).
+- **AC-PAD-009-3**: GIVEN tenant `perfil_regulatorio = A`, WHEN dossiê
+  CGCRE exportado, THEN ambos caminhos aparecem documentados (cadeia
+  ADR-0025 v2 cl. 7.11.3).
+
+**Invariantes:** INV-PAD-009 (nova — 2º caminho de cálculo), INV-VAL-001
+(ADR-0025 v2).
+
+## 8. Bases legais LGPD (art. 7º)
 
 | Finalidade | Base legal | Justificativa |
 |---|---|---|
@@ -223,37 +354,70 @@ atender INV-023 (cl. 6.6 + ISO/IEC 17043).
 | Recal externo (cert externo PDF) | art. 7º II | Obrigação regulatória |
 | Verificação intermediária | art. 7º II | Obrigação regulatória cl. 6.4.10 |
 | Intercomparação PT | art. 7º II | Obrigação regulatória cl. 6.6 |
+| Cartas controle Shewhart | art. 7º II | Obrigação regulatória cl. 7.7 |
+| Equipamentos auxiliares | art. 7º II | Obrigação regulatória cl. 6.4.5 |
 | Dossiê CGCRE | art. 7º II | Supervisão regulatória |
 
-> Padrão metrológico **não contém PII direta** (é instrumento físico
-> do laboratório). Responsável envio recal externo é dado funcional
-> (não cliente final).
+> Padrão metrológico **não contém PII direta** (é instrumento físico do
+> laboratório). Responsável envio recal externo é dado funcional (não
+> cliente final).
 
-## 8. Métricas (ver `metricas.md`)
+## 9. Métricas (ver `metricas.md`)
 
 - % padrões em uso com cert externo dentro da validade ≥ 100% (em A)
 - % padrões com VI dentro do prazo declarado ≥ 95% (em A)
 - Tempo médio recal externo (envio → retorno) ≤ 60 dias
 - % padrões em A com PT ativo no ciclo declarado ≥ 100%
+- **% padrões em A com carta controle Shewhart ativa ≥ 100%** (nova — L3#A9)
+- **% equipamentos auxiliares com calibração vigente = 100%** (nova — L3#7)
+- Zero desvios não investigados entre Caminho A e Caminho B (US-PAD-009)
 
-## 9. NFR
+## 10. NFR
 
-- Performance: listagem de padrões p95 ≤ 1.0s
+- Performance: listagem de padrões p95 ≤ 1.0s; plot carta Shewhart p95
+  ≤ 2.0s para 24 meses de pontos.
 - Segurança: padrão é "do tenant"; RLS por `tenant_id` obrigatório
-- Auditoria: WORM em VI + PT + recal (INV-CAL-WORM-001 estendido)
+  (ADR-0002); evento `padrao.*` em hash-chain HMAC ADR-0064.
+- Auditoria: WORM em VI + PT + recal + cartas Shewhart (INV-CAL-WORM-001
+  estendido).
+- Acessibilidade: WCAG 2.1 AA (ADR-0057).
 
-## 10. ADRs e INVs aplicáveis
+## 11. ADRs e INVs aplicáveis
 
-- ADR-0040 (esta separação), ADR-0007 (codegen), ADR-0002 (RLS),
-  ADR-0022 (RT — gestor de qualidade pode acumular ou ser RT),
-  ADR-0030 (vigência canônica), ADR-0031 (soft-delete padrão B)
-- INVs: INV-021..023, INV-PAD-001..006, INV-CAL-SNAP-001,
-  INV-CAL-RAST-001, INV-CAL-VI-001, INV-CAL-WORM-001,
-  INV-VIG-001..004, INV-SOFT-001/002
+- **ADRs:** 0002 (RLS), 0007 (codegen), 0022 v2 (RT competência por método),
+  0025 v2 (validação software estendida ao módulo padrões — URS/IQ/OQ/PQ +
+  2º caminho de cálculo), 0030 (vigência canônica), 0031 (soft-delete
+  padrão B), 0040 (padrão como entidade separada), 0064 (HMAC 25a),
+  0066 (fail-open lazy), 0067 (perfil), 0068 (sucessão RT).
+- **INVs:** INV-021..023, INV-PAD-001..009, INV-CAL-SNAP-001,
+  INV-CAL-RAST-001, INV-CAL-VI-001, INV-CAL-WORM-001, INV-VIG-001..004,
+  INV-SOFT-001/002, INV-HMAC-001..005, INV-PERFIL-001, INV-VAL-001.
 
-## 11. Glossário e referências
+## 12. Glossário e referências
 
-- `modelo-de-dominio.md` — entidades, agregados, portas, eventos
-- VOs metrológicos: `src/domain/metrologia/value_objects.py`
+- **CMC** — Capacidade de Medição e Calibração; o que o lab pode oferecer
+  com selo RBC (ver `metrologia/escopos-cmc` Wave A).
+- **Rastreabilidade ao SI** — cadeia documentada até INMETRO/BIPM
+  (cl. 6.5).
+- **U (Uncertainty)** — incerteza expandida (GUM) — coverage factor k=2.
+- **Faixa** — intervalo `[min, max]` em uma grandeza para o qual o
+  padrão é válido.
+- **Método** — procedimento técnico aplicado (ex: comparação direta /
+  substituição / curva de calibração).
+- **Carta Shewhart** — gráfico de controle estatístico com linha central
+  + UCL/LCL (±3σ) + regras Western Electric.
+- **PT (Proficiency Testing)** — ISO/IEC 17043 — comparação
+  interlaboratorial.
+- **Equipamento auxiliar** — instrumento que apoia a calibração mas não
+  é o padrão principal (cl. 6.4.5).
+- `modelo-de-dominio.md` — entidades, agregados, portas, eventos.
+- VOs metrológicos: `src/domain/metrologia/value_objects.py`.
 - `docs/conformidade/comum/retencao-matriz.md` — padrão é registro
-  ISO 17025 cl. 8.4 (25 anos)
+  ISO 17025 cl. 8.4 (25 anos).
+- Glossário metrologia: `../glossario.md`.
+
+## 13. Como este PRD evolui
+
+- US nova → próximo `US-PAD-NNN`.
+- Mudança em AC implementado → ADR + novo teste de regressão.
+- Mudança no schema → ADR + migration.

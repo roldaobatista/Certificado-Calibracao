@@ -1,9 +1,16 @@
 ---
-owner: Roldão
-revisado-em: 2026-05-23
+owner: roldao
+revisado-em: 2026-05-27
+proximo-review: 2026-08-27
 status: stable
 modulo: fiscal
 dominio: financeiro
+diataxis: explanation
+audiencia: agente
+historico:
+  - 2026-05-23 — Onda 5 saneamento AC binário GIVEN-WHEN-THEN (US-FIS-001..010 + US-FIS-CUT-001).
+  - 2026-05-23 — Onda 8 fluxo corrigido Cert/OS → NF → CR (INV-FIS-CR-001).
+  - 2026-05-27 — Onda PRE-A.3 BATCH B1 saneamento perfil ADR-0067 (matriz NFS-e × perfil + INV-INT-001 perfil + AC-FIS-001-1 cita perfil + emendas ADR-0008/0009 explicitadas).
 ---
 
 # PRD — Fiscal (NFS-e + NFe)
@@ -20,9 +27,26 @@ Wave A #1 absoluto. Top 3 lock obrigatório.
 
 ## 3. Personas
 
-P-FIN-01 (emite NFS-e), P-FIN-02 (dono — vê emissões/cancelamentos), P-FIN-05 (contador externo — V2 SPED), P-FIN-06 (auditor fiscal — V2 acesso indireto).
+**Persona dominante:** P-FIN-01 (operador financeiro do tenant — emite NFS-e diariamente).
+Outras: P-FIN-02 (dono — vê emissões/cancelamentos), P-FIN-05 (contador externo — V2 SPED), P-FIN-06 (auditor fiscal — V2 acesso indireto). Detalhes em `../personas.md`.
 
-## 4. Escopo MVP-1 (Wave A)
+## 3.1 Perfil regulatório (ADR-0067)
+
+> **Matriz feature × perfil canônica:** `docs/conformidade/comum/matriz-feature-perfil.md`.
+
+Predicate canônico consumido por todas as US fiscais que dependem de documento metrológico: **`documento_metrologico_obrigatorio_por_perfil(tenant_id, tipo_servico)`** — declarado na emenda ADR-0008 (matriz perfil × NFS-e). Lê `Tenant.perfil_regulatorio` (ContextVar `perfil_tenant_context` populada pelo middleware Sprint 2 SAN-PERFIL-TENANT), **NUNCA do payload**. Fail-closed timeout 50ms.
+
+| US fiscal | Perfil A — RBC acreditado | Perfil B — Rastreável | Perfil C — Em preparação D→A | Perfil D — Comercial puro |
+|---|---|---|---|---|
+| **US-FIS-001** (emitir NFS-e calibração) | ✅ OBRIGATÓRIO `certificado_id` apontando cert RBC vigente | ✅ OBRIGATÓRIO `certificado_id` simples (rastreabilidade) | ✅ OBRIGATÓRIO `certificado_id` + flag `em_preparacao_para_rbc` | ✅ OBRIGATÓRIO `declaracao_calibracao_basica_id` (sem cert emitido) |
+| **US-FIS-001** (NFS-e manutenção/OS sem cert) | ⚪ OPCIONAL doc metrológico | ⚪ OPCIONAL | ⚪ OPCIONAL | ⚪ OPCIONAL |
+| **US-FIS-001** (cert A3 do tenant) | ✅ OBRIGATÓRIO ICP-Brasil A3 vigente + OCSP good (ADR-0009 emenda perfil A) | 🟢 RECOMENDADO A1 ou A3 | 🟢 RECOMENDADO | 🟢 RECOMENDADO |
+| **US-FIS-002** (contingência) | ✅ OBRIGATÓRIO (vai pra rascunho postergado 48h) | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO |
+| **US-FIS-003** (cancelamento <24h) | ✅ OBRIGATÓRIO motivo ≥30 chars | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO |
+
+**Onde o predicate é invocado:** `Fiscal.gerar_nfse_de_servico_concluido(origem_id, tipo_servico)` (US-FIS-001 AC-1) consulta `documento_metrologico_obrigatorio_por_perfil(tenant_id, tipo_servico="calibracao")` ANTES de aceitar payload; tentativa de emitir NFS-e calibração sem doc compatível com o perfil → 422 + evento `Fiscal.EmissaoBloqueadaPerfilSemDoc{tenant_id, perfil, tipo_servico, motivo}`.
+
+## 4. Escopo Wave A
 
 - Emitir NFS-e em ≥ 70% dos municípios via BaaS (cobertura ABRASF + grandes capitais)
 - Cancelar NFS-e (< 24h)
@@ -43,7 +67,7 @@ P-FIN-01 (emite NFS-e), P-FIN-02 (dono — vê emissões/cancelamentos), P-FIN-0
 - Suporte estendido
 - Postmortem
 
-## 6. Non-goals MVP-1 (explícitos)
+## 6. Não-objetivos (Wave A — explícitos)
 
 - **Aferê NÃO calcula imposto** — só exibe campos pra preenchimento orientado pelo contador.
 - Cálculo de ISS/ICMS automático.
@@ -57,7 +81,7 @@ P-FIN-01 (emite NFS-e), P-FIN-02 (dono — vê emissões/cancelamentos), P-FIN-0
 - **CT-e (Conhecimento de Transporte) — Wave B sob demanda** (ADR-0049). Recoleta de instrumento dispensa via NFS-e/NFA-e (regulamento UF).
 - **NFC-e (NF Consumidor — varejo) — Wave B sob demanda** (ADR-0049). Calibração não vende em varejo.
 - **Inutilização de NFS-e municipal — Wave B sob demanda** (cada município mecanismo próprio; modelo 55 coberto em US-FIS-005).
-- **DCTF-Web / EFD-Reinf — V2** (responsabilidade contador externo no MVP-1).
+- **DCTF-Web / EFD-Reinf — V2** (responsabilidade contador externo no Wave A).
 
 ## 7. User Stories + AC binários (BDD GIVEN-WHEN-THEN — Onda 5 saneamento 2026-05-23)
 
@@ -66,13 +90,15 @@ P-FIN-01 (emite NFS-e), P-FIN-02 (dono — vê emissões/cancelamentos), P-FIN-0
 **Persona:** P-FIN-01 (operador financeiro do tenant)
 **Gatilho correto (Onda 8 — auditor regulatório 7 corrigiu inversão):** **Certificado calibração emitido OU OS concluída → emite NFS-e → cria ContasReceber.TituloEmitido**. ContasReceber.Pago é evento POSTERIOR (pagamento da fatura emitida), NÃO gatilho de emissão.
 
-- **AC-FIS-001-1 (happy):** GIVEN Certificado#C emitido (`Certificados.CertificadoEmitido`) OR OS#X concluída sem cert (manutenção) AND tenant tem cert A1/A3 vigente AND BaaS PlugNotas respondendo AND verificação OCSP do A3 retornou `good` (ADR-0046), WHEN consumer `Fiscal.gerar_nfse_de_servico_concluido(origem_id, tipo_servico)` é invocado, THEN endpoint POST `/api/v1/fiscal/nfse` retorna 201 com payload `{nfse_id, numero, chave_acesso_44, xml_url, pdf_url, status: "emitida"}` em p95 ≤ 5s AND evento `Fiscal.NFSeEmitida{nfse_id, cliente_referencia_hash, certificado_id, tipo_servico, valor_centavos}` publicado AND INV-INT-001 satisfeito (`tipo_servico=calibracao` → `certificado_id OR declaracao_id` NOT NULL — DeclaracaoCalibracaoBasica do `calibracao/prd.md` Onda 7) AND **INV-FIS-CR-001 satisfeito** (US-FIS-007 cria ContasReceber.TituloEmitido em ≤ 5s do `Fiscal.NFSeEmitida`).
+- **AC-FIS-001-1 (happy):** GIVEN Certificado#C emitido (`Certificados.CertificadoEmitido`) OR OS#X concluída sem cert (manutenção) AND `Tenant.cert_a3_e_cnpj_id` FK NOT NULL apontando para A1/A3 vigente persistido em `seguranca/certificados-digitais` (ADR-0048) AND BaaS PlugNotas respondendo AND verificação OCSP do A3 retornou `good` (ADR-0046) AND **predicate `documento_metrologico_obrigatorio_por_perfil(tenant_id, tipo_servico)` satisfeito** (perfil A exige cert RBC vigente; B cert simples; C cert + flag; D `declaracao_calibracao_basica_id` — emenda ADR-0008) AND **predicate `documento_a3_obrigatorio_por_perfil(tenant_id, "nfse")` satisfeito** (perfil A obriga A3 ICP-Brasil; B/C/D recomenda — emenda ADR-0009), WHEN consumer `Fiscal.gerar_nfse_de_servico_concluido(origem_id, tipo_servico)` é invocado, THEN endpoint POST `/api/v1/fiscal/nfse` retorna 201 com payload `{nfse_id, numero, chave_acesso_44, xml_url, pdf_url, status: "emitida", perfil_no_evento}` em p95 ≤ 5s AND evento `Fiscal.NFSeEmitida{nfse_id, cliente_referencia_hash, certificado_id_OR_declaracao_id, tipo_servico, valor_centavos, perfil_no_evento}` publicado (snapshot perfil ADR-0067 §3) AND INV-INT-001 satisfeito (matriz perfil) AND INV-FIS-CR-001 satisfeito (US-FIS-007 cria ContasReceber.TituloEmitido em ≤ 5s) AND **INV-A3-OCSP-001** (cert OCSP-verificado == `Tenant.cert_a3_e_cnpj_id` persistido).
 - **AC-FIS-001-2 (cert vencido):** GIVEN cert digital tenant `vigencia_fim < now()`, WHEN POST `/api/v1/fiscal/nfse`, THEN retorna 422 com `{erro: "CERT_VENCIDO", detalhe, link_renovacao}` AND NENHUMA emissão.
 - **AC-FIS-001-3 (BaaS down):** GIVEN PlugNotas timeout > 10s, WHEN POST `/api/v1/fiscal/nfse`, THEN sistema dispara contingência (AC-FIS-002) automaticamente em < 60s.
 - **AC-FIS-001-4 (cross-tenant):** GIVEN consumer recebe evento `Certificados.CertificadoEmitido` de tenant A, WHEN tenta emitir NFS-e referenciando cliente de tenant B, THEN bloqueia hard com 422 anti-oracle (INV-TENANT-001).
 - **AC-FIS-001-5 (idempotência):** WHEN POST com mesmo `Idempotency-Key: {causation_id}` 2 vezes em 24h, THEN retorna mesmo `nfse_id` ambas as vezes (IDEMP-001).
 - **AC-FIS-001-6 (OCSP revoked — ADR-0046):** GIVEN A3 do tenant revogado pela AC (OCSP `revoked`), WHEN POST, THEN retorna 409 `{erro: "CERT_REVOGADO"}` + publica `A3.RevogacaoDetectada` + escalação P1.
 - **AC-FIS-001-7 (município sem cobertura BaaS):** GIVEN onboarding de tenant em município sem cobertura BaaS declarada em `fiscal-contingencia.md`, WHEN tenant tenta ativar fiscal, THEN bloqueia ativação com 422 + mensagem clara + opção "cadastrar mecanismo manual" (V2).
+- **AC-FIS-001-8 (perfil incompatível com documento):** GIVEN tenant `perfil=B` envia payload com `certificado_id` apontando para cert emitido com `tipo_acreditacao=RBC` (perfil B não pode emitir RBC), WHEN POST `/api/v1/fiscal/nfse`, THEN predicate `documento_metrologico_obrigatorio_por_perfil` rejeita com 403 `{erro: "DOC_INCOMPATIVEL_COM_PERFIL", perfil: "B", esperado: "cert_simples", recebido: "cert_RBC"}` AND publica `Fiscal.EmissaoBloqueadaPerfilSemDoc` AND NENHUMA emissão (defesa anti-fraude documental L6 SAN-PERFIL-TENANT).
+- **AC-FIS-001-9 (perfil D + declaração):** GIVEN tenant `perfil=D` envia `declaracao_calibracao_basica_id` (sem certificado emitido), WHEN POST, THEN predicate aceita, emissão prossegue com `tipo_servico=calibracao_basica` + retém 5a (matriz retenção perfil D — `matriz-feature-perfil.md`).
 - **Teste:** `tests/test_fiscal_us_001*.py`
 
 ### US-FIS-002 — Contingência automática SEFAZ/município fora
@@ -159,25 +185,54 @@ Enum `regime_tributario`: `NORMAL`, `SIMPLES_NACIONAL`, `MEI`, `ST_INDICADOR` (i
 - Contingência automática: detecção < 60s, troca de modo sem intervenção
 - WORM: imutabilidade verificável por hash
 
+## 8.1 Métricas inline (Wave A)
+
+> Detalhe completo em `metricas.md`. Resumo executivo:
+
+- **Taxa de emissão sucesso primeira tentativa:** ≥ 95% (alvo Wave A); split por perfil para detectar drift.
+- **Tempo médio Cert/OS → NFS-e emitida (INV-FIS-CR-001):** mediana ≤ 30s; p95 ≤ 120s.
+- **Cobertura BaaS:** ≥ 70% dos municípios-alvo dos tenants ativos.
+- **Inadequação fiscal (gap de numeração > 30d):** target 0 incidentes/tenant/mês.
+
 ## 9. Invariantes
 
 - **INV-007 — NF-e contingência desde dia 0** (inegociável; sem contingência = não vai pra produção)
 - INV-008 — audit log obrigatório de cada emissão/cancelamento/correção
 - XML original preservado em WORM 5 anos
-- **INV-INT-001 (corrigida Onda 8)** — NFS-e `tipo_servico=calibracao` exige `certificado_id OR declaracao_id NOT NULL` (DeclaracaoCalibracaoBasica não-RBC do `calibracao/prd.md` Onda 7)
+- **INV-INT-001 (corrigida Onda 8 + emenda perfil 2026-05-27)** — NFS-e `tipo_servico=calibracao` exige documento metrológico compatível com `Tenant.perfil_regulatorio` (ADR-0067 + ADR-0008 emenda): perfil A → `certificado_id` cert RBC vigente; B → `certificado_id` cert simples; C → `certificado_id` + flag `em_preparacao_para_rbc`; D → `declaracao_calibracao_basica_id`. Predicate canônico `documento_metrologico_obrigatorio_por_perfil(tenant_id, tipo_servico)` lê tenant via ContextVar `perfil_tenant_context` (NUNCA payload). Fail-closed timeout 50ms.
 - **INV-FIS-CR-001** (nova Onda 8) — `Fiscal.NFSeEmitida` cria `ContasReceber.TituloEmitido` em ≤ 5s (US-FIS-007). Fluxo correto: Cert/OS → NF → CR. `ContasReceber.Pago` é evento posterior do pagamento.
 - **INV-A3-OCSP-001** (ADR-0046) — emissão NF bloqueia se A3 do tenant revogado (verificação OCSP/CRL online)
 
-## 10. Dependências
+## 10. Dependências (ADRs + módulos)
+
+**Módulos:**
 
 - **Cert/OS concluído (Onda 8 fluxo corrigido)** — gatilho de emissão. Consome `Certificados.CertificadoEmitido` e `OperacaoOS.OSConcluida`.
-- Contas a Receber (consumer downstream de `Fiscal.NFSeEmitida` — US-FIS-007 cria título)
-- OP-FIN (módulo financeiro mínimo)
-- `certificados-digitais` (Onda 8 — porta `verificar_status` OCSP/CRL — ADR-0046)
-- ADR-0008 (FiscalProvider — fiscal pluggable; extende pra CT-e/NFC-e Wave B per ADR-0049)
-- ADR-0009 (onde A3 assina)
-- ADR-0046 (OCSP/CRL revogação online)
-- ADR-0047 (LTV em cert calibração; NF não exige)
-- ADR-0048 (cadastro segregado A3 — uso de e-CNPJ p/ NF, não e-CPF)
-- ADR-0049 (CT-e/NFC-e/devolução)
-- BaaS escolhido (PlugNotas ou Focus — abstraído)
+- `financeiro/contas-receber` — consumer downstream de `Fiscal.NFSeEmitida` (US-FIS-007 cria título).
+- `seguranca/certificados-digitais` (Onda 8) — porta `verificar_status` OCSP/CRL.
+- `infrastructure/tenant` — fornece `perfil_regulatorio` via ContextVar (ADR-0067 Sprint 2 SAN-PERFIL-TENANT).
+- BaaS escolhido (PlugNotas ou Focus — abstraído via porta `FiscalProvider`).
+
+**ADRs aceitas Onda 2/PRE-A.2:**
+
+- **ADR-0008** — FiscalProvider pluggable (emenda 2026-05-27 matriz perfil × NFS-e — predicate `documento_metrologico_obrigatorio_por_perfil`).
+- **ADR-0009** — A3 cliente-side (emenda 2026-05-27 perfil A obrigatório — predicate `documento_a3_obrigatorio_por_perfil`).
+- **ADR-0046** — OCSP/CRL revogação online (timeout 3s + fallback CRL 1h).
+- **ADR-0047** — TSA-ITI PAdES-LTV (LTV em cert calibração; NF não exige).
+- **ADR-0048** — cadastro segregado A3 (e-CNPJ p/ NF, não e-CPF).
+- **ADR-0049** — CT-e/NFC-e/devolução (Wave B).
+- **ADR-0050** — PaymentGatewayProvider (downstream em contas-receber).
+- **ADR-0053** — SPED contábil (V2; layout pré-mapeado).
+- **ADR-0067** — perfil regulatório do tenant entidade temporal (canônico do predicate de perfil).
+- **ADR-0015** — lifecycle tenant (provisioning coleta perfil — etapa 0).
+
+## 11. Glossário
+
+Ver `glossario.md` do módulo + `docs/comum/glossario.md`. Termos canônicos adicionados nesta sanação:
+
+- **Perfil regulatório:** atributo `Tenant.perfil_regulatorio` enum `{A_ACREDITADO_RBC, B_RASTREAVEL, C_EM_PREPARACAO, D_COMERCIAL_PURO}` — fonte única consultada por todo predicate fiscal (ADR-0067).
+- **Predicate `documento_metrologico_obrigatorio_por_perfil`:** função canônica em `src/infrastructure/authz/predicates.py` que decide qual documento (cert RBC/cert simples/declaração) é obrigatório por perfil. Lê tenant, nunca payload.
+- **ContextVar `perfil_tenant_context`:** variável Python isolada por request (populada pelo middleware Sprint 2 SAN-PERFIL-TENANT) — fonte de leitura do perfil para predicate `documento_metrologico_obrigatorio_por_perfil`.
+- **GUC `app.perfil_tenant`:** seção `current_setting()` no PostgreSQL setada por `setar_contexto_pg_na_conexao` — usada por triggers BEFORE INSERT que preenchem `perfil_no_evento`.
+- **DeclaracaoCalibracaoBasica:** documento metrológico não-RBC emitido por perfil D (sem rituais 17025) — entidade no módulo `metrologia/calibracao`.
+- **BaaS fiscal:** Backend-as-a-Service de emissão de NF (PlugNotas / Focus NFe / TecnoSpeed) — abstrai 5500+ municípios.

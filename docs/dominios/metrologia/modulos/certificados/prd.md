@@ -1,8 +1,10 @@
 ---
 owner: roldao
-revisado_em: 2026-05-23
-proximo_review: 2026-08-23
-status: draft
+revisado-em: 2026-05-27
+proximo-review: 2026-08-27
+status: stable
+modulo: certificados
+dominio: metrologia
 diataxis: explanation
 audiencia: agente
 relacionados:
@@ -12,10 +14,19 @@ relacionados:
   - docs/dominios/metrologia/modulos/calibracao/garantia-validade-7.7.md
   - docs/dominios/metrologia/modulos/licencas-acreditacoes/prd.md
   - docs/dominios/metrologia/modulos/procedimentos/prd.md
+  - docs/conformidade/comum/matriz-feature-perfil.md
+  - docs/adr/0009-onde-a3-assina.md
   - docs/adr/0021-anonimizacao-vs-retencao-regulatoria.md
+  - docs/adr/0025-validacao-software-iso-17025.md
   - docs/adr/0043-calibracao-faturamento-bloqueio-inadimplencia.md
   - docs/adr/0044-exportacao-regulatoria-anvisa-saude.md
   - docs/adr/0045-certificado-recall-suspensao-errata.md
+  - docs/adr/0046-ocsp-crl-revogacao-online.md
+  - docs/adr/0047-carimbo-tsa-iti-pades-ltv.md
+  - docs/adr/0067-perfil-regulatorio-tenant-entidade-temporal.md
+historico:
+  - 2026-05-23 — versão draft com US-CER-001..010 + US-CER-013/016..020 (Onda 7 saneamento + ADRs 0021/0043/0044/0045).
+  - 2026-05-27 — Onda PRE-A.3 BATCH B1 saneamento perfil ADR-0067 (§6.1 corrigido lê Tenant.perfil_regulatorio do banco — FAIL L6 fraude documental fechada — + matriz por perfil + AC binário GIVEN-WHEN-THEN + emendas ADRs 0009/0044/0045/0047 explicitadas + status promovido para stable).
 ---
 
 # PRD — Módulo Certificados, Relatórios e Documentos Técnicos
@@ -34,7 +45,29 @@ Certificado é o produto-final entregue ao cliente — vale dinheiro, vale audit
 
 ## 3. Personas
 
-Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`.
+**Persona dominante:** P-MET-02 (responsável técnico RT — emite, assina e supervisiona certificados) + P-OP-05 (cliente final — consulta no portal). Detalhe completo em `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`.
+
+## 3.1 Perfil regulatório do tenant (ADR-0067 — CRÍTICO)
+
+> **Matriz feature × perfil canônica:** `docs/conformidade/comum/matriz-feature-perfil.md` (Sprint 3 SAN-PERFIL-TENANT).
+>
+> **Atenção L6:** PRD anterior tinha `cert.tipo_acreditacao == "RBC"` no template (§6.1) — campo lido do payload da request, **vetor de fraude documental viável** (qualquer call-site podia mentir o `tipo_acreditacao` e burlar selo RBC). Reescrito 2026-05-27 para `tenant_perfil_e(['A'])` lendo `Tenant.perfil_regulatorio` do banco via ContextVar.
+
+Predicate canônico: **`tenant_perfil_e(perfis_aceitos: list[str])`** em `src/infrastructure/authz/predicates.py`. Lê `Tenant.perfil_regulatorio` (ContextVar `perfil_tenant_context` populada por middleware Sprint 2 SAN-PERFIL-TENANT). **Fail-closed timeout 50ms**, jamais payload.
+
+| US / Feature do módulo | Perfil A — RBC acreditado | Perfil B — Rastreável | Perfil C — Em preparação D→A | Perfil D — Comercial puro |
+|---|---|---|---|---|
+| **US-CER-001** emitir certificado | ✅ Template RBC obrigatório + selo CGCRE + ILAC-MRA (se aderido) + cert OCSP good | ✅ Template "rastreabilidade declarada (não-acreditado)" obrigatório | ✅ Template "em preparação RBC" + flag `em_preparacao` no envelope | ✅ Documento renomeado para "**Relatório de Aferição/Verificação**" — palavra "ISO 17025" e "RBC" proibidas no PDF (hook `template-perfil-d-anti-iso`) |
+| **US-CER-002** assinatura A3 (ADR-0009 emenda perfil) | ✅ OBRIGATÓRIO A3 ICP-Brasil do RT signatário + OCSP good (ADR-0046) | 🟢 RECOMENDADO (A1 aceito) | 🟢 RECOMENDADO em modo treinamento | 🟢 OPCIONAL (assinatura simples aceita) |
+| **US-CER-002** carimbo TSA-ITI PAdES-LTV (ADR-0047) | ✅ OBRIGATÓRIO qualificado (25a longa duração) | ⚪ OPCIONAL (ICP-Brasil simples basta) | ⚪ OPCIONAL | ❌ DESABILITADO |
+| **US-CER-003** numeração sequencial inviolável | ✅ Tipo `CERT_CALIBRACAO_RBC` separado | ✅ Tipo `CERT_CALIBRACAO` | ✅ Tipo `CERT_CALIBRACAO` (mesma sequência B) | ✅ Tipo `RELATORIO_AFERICAO` (sequência distinta) |
+| **US-CER-016/017** export regulatório ANVISA + PDF/A-3 com selo CGCRE (ADR-0044 emenda) | ✅ OBRIGATÓRIO disponível (predicate `tenant_perfil_e(['A'])`) | ❌ DESABILITADO (403 + evento `Certificado.ExportRegulatorioBloqueado`) | ❌ DESABILITADO | ❌ DESABILITADO |
+| **US-CER-018** recall com notificação CGCRE em ≤24h (ADR-0045 emenda) | ✅ OBRIGATÓRIO `Certificado.Recalled → NotificacaoCGCRE` síncrona | ⚪ Errata + suspensão (sem recall formal CGCRE) | ⚪ Errata + suspensão em modo treinamento (notificação CGCRE opcional) | ⚪ Errata simples (sem suspensão nem recall) |
+| **US-CER-019** suspensão temporária (ADR-0045 emenda) | ✅ DISPONÍVEL | ✅ DISPONÍVEL | ✅ DISPONÍVEL | ❌ DESABILITADO |
+| **US-CER-020** errata simples (ADR-0045 emenda) | ✅ DISPONÍVEL + A3 RT + comitê imparcialidade (cl. 4.1) | ✅ DISPONÍVEL | ✅ DISPONÍVEL | ✅ DISPONÍVEL |
+| **Retenção PDF + WORM** (ADR-0021 + matriz-feature-perfil §retenção) | 25a B2 WORM | 25a (recomendado preparação A) | 25a | 5a (Receita) + anonimização agressiva |
+
+**Predicate adicional perfil-aware específico do módulo:** `acao_pos_emissao_permitida_por_perfil(tenant_id, acao_enum)` — invocado por US-CER-018/019/020 ANTES de qualquer mudança de estado pós-emissão. Tentativa fora do perfil → 403 + evento `Certificado.AcaoPosEmissaoBloqueada{tenant_id, perfil, acao, motivo}`.
 
 ## 4. Escopo (o que ESTÁ neste módulo)
 
@@ -72,13 +105,15 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 **Como** responsável técnico, **quero** gerar certificado a partir de uma calibração revisada e aprovada, **para** entregar o resultado ao cliente conforme ISO 17025 7.8.
 
 **Critérios de aceite:**
-- **AC-CER-001-1**: GIVEN calibração com status APROVADO e segunda conferência concluída, WHEN RT solicita emissão, THEN sistema gera certificado com numeração sequencial próxima, snapshot de dados (cliente, instrumento, padrões, leituras, incerteza), template aplicado.
-- **AC-CER-001-2**: GIVEN calibração não aprovada (rejeitada/pendente), WHEN tenta emitir, THEN sistema bloqueia com mensagem "calibração precisa estar aprovada + 2ª conferência".
-- **AC-CER-001-3**: GIVEN acreditação CGCRE vencida e marcada bloqueante (módulo Licenças), WHEN tenta emitir certificado RBC, THEN sistema bloqueia citando documento bloqueante.
+- **AC-CER-001-1**: GIVEN calibração com status APROVADO AND segunda conferência concluída (perfil A obrigatório; B/C opcional; D N/A — matriz §3.1) AND `Tenant.perfil_regulatorio` resolvido via ContextVar `perfil_tenant_context`, WHEN RT solicita emissão via POST `/api/v1/certificados/{calibracao_id}/emitir`, THEN sistema gera certificado com numeração sequencial próxima (tipo per perfil — §6.1.b), snapshot imutável de dados (cliente, instrumento, padrões, leituras, incerteza), `Certificado.perfil_emissor_no_momento` cravado = `Tenant.perfil_regulatorio` (ADR-0067 §3 snapshot WORM), template aplicado conforme perfil (§3.1) AND publica evento `Certificados.CertificadoEmitido{cert_id, perfil_emissor_no_momento, ...}`.
+- **AC-CER-001-2**: GIVEN calibração não aprovada (rejeitada/pendente), WHEN tenta emitir, THEN sistema bloqueia com 422 `{erro: "CALIBRACAO_NAO_APROVADA", detalhe: "exige status APROVADO + 2ª conferência (perfil A) ou APROVADO (B/C)"}`.
+- **AC-CER-001-3 (perfil-aware — ADR-0067 + ADR-0044 emenda)**: GIVEN tenant `perfil_regulatorio != 'A'` (B, C ou D), WHEN tenta emitir certificado com template RBC ou marcar `tipo_acreditacao=RBC` no payload, THEN predicate `tenant_perfil_e(['A'])` rejeita com 403 `{erro: "PERFIL_NAO_AUTORIZA_RBC", perfil_atual, tentativa: "template_rbc"}` AND publica evento `Certificado.EmissaoBloqueadaPorPerfil{tenant_id, perfil, motivo: "template_rbc_em_perfil_nao_acreditado"}` AND NENHUMA emissão (defesa anti-fraude documental — fecha FAIL L6 SAN-PERFIL-TENANT).
+- **AC-CER-001-4 (perfil A + CGCRE vencida — composição com US-LIC-003)**: GIVEN tenant `perfil=A` AND `Tenant.acreditacao_vigencia_fim < today` (acreditação CGCRE vencida — `licencas-acreditacoes` US-LIC-003), WHEN tenta emitir cert RBC, THEN sistema bloqueia com 409 `{erro: "ACREDITACAO_CGCRE_VENCIDA", venceu_em: DD/MM/AAAA, link_renovacao}` AND publica `Certificado.EmissaoBloqueadaCGCREVencida`.
+- **AC-CER-001-5 (perfil D — relatório de aferição)**: GIVEN tenant `perfil=D`, WHEN emite, THEN template aplicado é `RELATORIO_AFERICAO` (sem palavra "ISO 17025" nem "RBC" nem "calibração acreditada") AND `Certificado.tipo = RELATORIO_AFERICAO` AND retenção 5a (Receita) — `matriz-feature-perfil.md` §retenção.
 
-**Invariantes:** `INV-032` (acreditação vigente — doc bloqueante vencido impede emissão), `INV-034` (numeração sequencial inviolável), `INV-001` (WORM + snapshot imutável), `INV-019` (RT habilitado quando aplicável), `INV-TENANT-001`.
+**Invariantes:** `INV-032` (acreditação vigente — doc bloqueante vencido impede operação dependente), `INV-034` (numeração sequencial inviolável), `INV-001` (WORM + snapshot imutável), `INV-019` (RT habilitado quando aplicável), `INV-TENANT-001`, **`INV-CER-PERFIL-001`** (novo Onda PRE-A.3: template aplicado MATCH `Tenant.perfil_regulatorio` vigente; mismatch = bloqueio 403 + evento), **`INV-CER-SNAPSHOT-PERFIL-001`** (novo: `Certificado.perfil_emissor_no_momento` cravado no INSERT, imutável pós-emissão — defesa CGCRE retroativa cl. 8.4).
 
-**Dependências:** Bloqueado por: US-CAL (calibração aprovada), US-LIC-003 (bloqueio CGCRE).
+**Dependências:** Bloqueado por: US-CAL (calibração aprovada), US-LIC-003 (bloqueio CGCRE). Predicate `tenant_perfil_e` (ADR-0067 Sprint 2 SAN-PERFIL-TENANT).
 
 ---
 
@@ -87,9 +122,10 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 **Como** RT, **quero** assinar digitalmente o certificado gerado com meu token A3, **para** atender ISO 17025 7.8.2.1 (assinatura autorizada) e LGPD/ICP-Brasil.
 
 **Critérios de aceite:**
-- **AC-CER-002-1**: GIVEN certificado gerado em status PENDENTE_ASSINATURA, WHEN RT inicia assinatura, THEN sistema gera hash do PDF, envia nonce + signing-time controlado pelo servidor pro Web PKI Lacuna, recebe assinatura PKCS#7, anexa ao PDF, marca status ASSINADO.
-- **AC-CER-002-2**: GIVEN tentativa de replay (mesmo nonce reusado), WHEN servidor verifica, THEN rejeita + log incidente segurança.
-- **AC-CER-002-3**: GIVEN ART/RRT do RT vencida (módulo Licenças), WHEN inicia assinatura, THEN sistema bloqueia.
+- **AC-CER-002-1 (perfil A — A3 obrigatório + OCSP — ADR-0009 emenda + ADR-0046)**: GIVEN certificado em status `PENDENTE_ASSINATURA` AND `tenant_perfil_e(['A'])` AND `documento_a3_obrigatorio_por_perfil(tenant_id, "certificado_rbc") == True` AND `verificar_status_a3_via_ocsp()` retornou `good` (timeout 3s + fallback CRL 1h), WHEN RT inicia assinatura via Web PKI Lacuna, THEN sistema gera hash do PDF, envia nonce + signing-time controlado pelo servidor, recebe assinatura PKCS#7, anexa ao PDF, aplica carimbo TSA-ITI PAdES-LTV (ADR-0047 obrigatório perfil A), marca status `ASSINADO`, publica `Certificado.Assinado{cert_id, perfil_emissor_no_momento, signatario_rt_id, tsa_carimbo_id}`.
+- **AC-CER-002-1b (perfil B/C/D — A3 recomendado/opcional)**: GIVEN `Tenant.perfil_regulatorio ∈ {B,C,D}` AND `documento_a3_obrigatorio_por_perfil(tenant_id, "certificado") == False`, WHEN RT assina, THEN sistema aceita A1 (perfil B/C) OU assinatura simples persistida em `Certificado.assinatura_simples` (perfil D) AND carimbo TSA-ITI opcional (B/C) ou desabilitado (D — matriz §3.1).
+- **AC-CER-002-2 (replay)**: GIVEN tentativa de replay (mesmo nonce reusado em 24h), WHEN servidor verifica, THEN rejeita com 409 `{erro: "NONCE_REUSED"}` + log incidente segurança SEC-001 + publica `Seguranca.IncidenteReplayDetectado`.
+- **AC-CER-002-3 (ART/RRT vencida + OCSP revoked)**: GIVEN ART/RRT do RT vencida E marcada bloqueante (módulo `licencas-acreditacoes` US-LIC-005) OR `verificar_status_a3_via_ocsp()` retornou `revoked` (ADR-0046), WHEN inicia assinatura, THEN sistema bloqueia com 409 `{erro: "RT_BLOQUEADO_PARA_ASSINAR", motivo: "ART_VENCIDA" | "A3_REVOGADO_OCSP"}` AND publica evento correspondente (`A3.RevogacaoDetectada` se OCSP) + escalação P1.
 - **AC-CER-002-4 (novo Onda 7 — A1-CAL preservar cert pós-anonimização):** GIVEN cliente em Zona B do `ADR-0021` (anonimização-em-lugar com retenção regulatória), WHEN cliente é anonimizado pós-emissão do cert, THEN sistema:
   - (a) preserva o cert em status `ASSINADO`/`ENVIADO` (vigência inalterada);
   - (b) **mantém `Certificado.cliente_nome_snapshot` imutável** (campo capturado em `gerarCertificado` — fonte única para visualização auditor CGCRE em 2050);
@@ -232,9 +268,10 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 **Como** RT de tenant farma/hospital, **quero** marcar cert como destino regulatório (ANVISA/SAÚDE/INMETRO), **para** que sistema gere PDF/A-3 com XML estruturado anexo + carimbo TSA-ITI atendendo RDC 658/2022 + Portaria INMETRO 157/2022.
 
 **Critérios de aceite:**
-- **AC-CER-016-1**: GIVEN cert em status ASSINADO + tenant declara setor (farma/hospital/inmetro) em onboarding, WHEN RT marca "destino regulatório", THEN sistema gera PDF/A-3 com XML embedded validado contra XSD setorial (`anvisa-ext-v1.xsd`/`inmetro-ext-v1.xsd`/`saude-ext-v1.xsd`).
-- **AC-CER-016-2**: GIVEN PDF/A-3 gerado, WHEN sistema processa, THEN aplica carimbo TSA-ITI (latência aceita 1-3s assíncrona) + hash SHA-256 do XML embedded salvo em `Certificado.xml_embedded_hash` (probatório).
-- **AC-CER-016-3**: GIVEN cert regulatório sem TSA-ITI carimbado, WHEN tenant tenta marcar como "entregue ao auditor", THEN sistema bloqueia com 412 `CertRegulatorioSemTSA`.
+- **AC-CER-016-1 (perfil A obrigatório — ADR-0044 emenda)**: GIVEN cert em status `ASSINADO` AND `tenant_perfil_e(['A'])` AND `Tenant.acreditacao_vigencia_fim > today` AND tenant declara setor (farma/hospital/inmetro) em onboarding, WHEN RT marca "destino regulatório" via POST `/api/v1/certificados/{id}/export-regulatorio`, THEN sistema gera PDF/A-3 com XML embedded validado contra XSD setorial (`anvisa-ext-v1.xsd`/`inmetro-ext-v1.xsd`/`saude-ext-v1.xsd`) AND aplica selo CGCRE+ILAC-MRA no PDF/A-3.
+- **AC-CER-016-1b (perfil != A — bloqueio defesa)**: GIVEN `Tenant.perfil_regulatorio ∈ {B,C,D}`, WHEN tenta marcar destino regulatório, THEN predicate `tenant_perfil_e(['A'])` rejeita com 403 `{erro: "EXPORT_REGULATORIO_EXIGE_PERFIL_A", perfil_atual}` AND publica `Certificado.ExportRegulatorioBloqueado{tenant_id, perfil, cert_id}` (defesa probatória anti-fraude — ADR-0044 emenda §15).
+- **AC-CER-016-2**: GIVEN PDF/A-3 gerado, WHEN sistema processa, THEN aplica carimbo TSA-ITI **qualificado** PAdES-LTV (ADR-0047 — latência aceita 1-3s assíncrona) + hash SHA-256 do XML embedded salvo em `Certificado.xml_embedded_hash` (probatório).
+- **AC-CER-016-3**: GIVEN cert regulatório sem TSA-ITI carimbado, WHEN tenant tenta marcar como "entregue ao auditor", THEN sistema bloqueia com 412 `{erro: "CertRegulatorioSemTSA"}`.
 
 **Invariantes:** `INV-CER-EXP-001`, `INV-001` (WORM), ADR-0044.
 
@@ -257,11 +294,13 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 **Como** RT/gestor qualidade, **quero** disparar Recall em batch de cert que usaram versão buggy do motor de cálculo, **para** atender ISO 17025 cl. 7.10 + 7.11 + LGPD art. 48.
 
 **Critérios de aceite:**
-- **AC-CER-018-1**: GIVEN bug confirmado em `versao_motor_calculo=X.Y.Z` via replay determinístico (ADR-0025), WHEN gestor dispara Recall, THEN sistema identifica TODOS os cert com aquela versão + cria evento `CertificadoRecallEmitido(certificado_id, motivo_bug, replay_validacao_id, correlation_id)` por cert.
-- **AC-CER-018-2**: GIVEN evento publicado, WHEN consumer `notificar-cliente-recall` recebe, THEN envia notificação ao cliente em ≤24h (canal preferencial + e-mail) + audit no `EventoDeCertificado`.
-- **AC-CER-018-3**: GIVEN bug afetou decisão sobre titular (cert farma usado pra liberar lote), WHEN flag `impacto_titular=true`, THEN consumer `notificar-anpd-recall` notifica ANPD em ≤24h via canal LGPD `docs/conformidade/comum/incidente-anpd-modelo.md`.
-- **AC-CER-018-4**: GIVEN Recall ativo, WHEN página pública (US-CER-009) resolve QR Code, THEN exibe "este cert foi objeto de Recall em DD/MM/AAAA — contate o laboratório emissor" + nº cert + status `RECALL_ATIVO`.
-- **AC-CER-018-5**: GIVEN notificação CGCRE em ≤30d, WHEN gestor qualidade dispara, THEN gera dossiê via `consultor-rbc-iso17025` template + audit imutável.
+- **AC-CER-018-1 (perfil A — recall completo — ADR-0045 emenda)**: GIVEN `tenant_perfil_e(['A'])` AND bug confirmado em `versao_motor_calculo=X.Y.Z` via replay determinístico (ADR-0025), WHEN gestor dispara Recall via POST `/api/v1/certificados/recall` + A3 do RT + comitê interno de imparcialidade (cl. 4.1), THEN predicate `acao_pos_emissao_permitida_por_perfil(tenant_id, 'RECALL') == True` AND sistema identifica TODOS os cert com aquela versão + cria evento `Certificado.Recalled{certificado_id, motivo_bug, replay_validacao_id, correlation_id, perfil_no_evento}` por cert.
+- **AC-CER-018-1b (perfil B/C/D — recall bloqueado)**: GIVEN `Tenant.perfil_regulatorio ∈ {B,C,D}`, WHEN tenta disparar recall, THEN predicate `acao_pos_emissao_permitida_por_perfil(tenant_id, 'RECALL') == False` AND retorna 403 `{erro: "RECALL_EXIGE_PERFIL_A", alternativa: "use_errata_us_cer_020 OR suspensao_us_cer_019"}` AND publica `Certificado.AcaoPosEmissaoBloqueada`.
+- **AC-CER-018-2 (notificação cliente — todos os perfis com recall ativo)**: GIVEN evento `Certificado.Recalled` publicado, WHEN consumer `notificar-cliente-recall` recebe, THEN envia notificação ao cliente em ≤24h (canal preferencial + e-mail — ADR-0060 `EmailTemplateProvider`) + audit no `EventoDeCertificado`.
+- **AC-CER-018-3 (notificação CGCRE — perfil A apenas, síncrona ≤24h)**: GIVEN evento `Certificado.Recalled` AND `tenant_perfil_e(['A'])`, WHEN consumer `notificar-cgcre-recall` recebe, THEN dispara `NotificacaoCGCRE` síncrona em ≤24h via canal regulatório + audit imutável (ADR-0045 emenda).
+- **AC-CER-018-4 (notificação ANPD)**: GIVEN bug afetou decisão sobre titular (cert farma usado pra liberar lote — `impacto_titular=true`), WHEN consumer `notificar-anpd-recall` recebe, THEN notifica ANPD em ≤24h via canal LGPD `docs/conformidade/comum/incidente-anpd-modelo.md`.
+- **AC-CER-018-5 (QR público)**: GIVEN Recall ativo, WHEN página pública (US-CER-009) resolve QR Code, THEN exibe "este cert foi objeto de Recall em DD/MM/AAAA — contate o laboratório emissor" + nº cert + status `RECALL_ATIVO`.
+- **AC-CER-018-6 (dossiê CGCRE perfil A em ≤30d)**: GIVEN `tenant_perfil_e(['A'])` AND notificação CGCRE precisa ser formal em ≤30d, WHEN gestor qualidade dispara via UI, THEN gera dossiê via `consultor-rbc-iso17025` template + audit imutável.
 
 **Invariantes:** `INV-CER-RECALL-001`, `INV-CAL-WORM-001`, `INV-005` (incidente ANPD em ≤3d quando aplicável), ADR-0045.
 
@@ -293,30 +332,39 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 
 ---
 
-## 6.1 Campos do certificado — RBC vs não-RBC (novo Onda 7 — A2-CAL)
+## 6.1 Campos do certificado — por perfil regulatório do tenant (corrigido Onda PRE-A.3 — fecha FAIL L6 SAN-PERFIL-TENANT)
 
-> Tabela canônica de quais campos aparecem no PDF condicional ao escopo de acreditação. Templates US-CER-010 usam esta tabela como contrato.
+> **Mudança crítica 2026-05-27:** este documento **NÃO LÊ MAIS `cert.tipo_acreditacao` do payload da request** (era vetor de fraude documental — qualquer call-site podia mentir). A condicional do template lê o **perfil regulatório do tenant persistido no banco** (`Tenant.perfil_regulatorio`) via predicate canônico `tenant_perfil_e(['A'])` consumido pelo helper de template.
+>
+> Tabela canônica de quais campos aparecem no PDF, condicional ao `Tenant.perfil_regulatorio` vigente. Templates US-CER-010 usam esta tabela como contrato e validam que `template.perfil_alvo == tenant.perfil_regulatorio` ANTES de renderizar.
 
-| Campo | RBC obrigatório | Não-RBC | Observação |
-|---|---|---|---|
-| Selo CGCRE com nº acreditação | Sim | Não | RBC sem selo = NC supervisão |
-| Declaração ILAC-MRA | Sim | Não | Cabeçalho do PDF |
-| Número da acreditação CGCRE | Sim | Não | Vinculado a `Tenant.acreditacao_cgcre_id` (módulo Licenças) |
-| Escopo CGCRE da grandeza | Sim | Não | Cita ID e versão do escopo aprovado (Marco 5 módulo Licenças) |
-| Declaração de rastreabilidade ao SI | Sim | Recomendado | Cadeia INMETRO → padrão usado |
-| Resultado de medição | Sim | Sim | Núcleo técnico |
-| Incerteza de medição (U, k, nível confiança) | Sim | Sim | NIT-DICLA-030 rev. 15 item 8.2.6 |
-| Regra de decisão (ADR-0024) | Sim (quando declarada) | Sim (quando declarada) | ILAC G8 |
-| Condições ambientais | Sim | Recomendado | cl. 7.5 |
-| Padrões utilizados (cadeia + cert externo) | Sim | Recomendado | cl. 6.5 |
-| Validade da recalibração (sugestão) | Opcional (cliente decide) | Opcional | Não é obrigatória cl. 7.8 |
-| Selo "NÃO RBC" | Não | Sim | Diferenciação visual obrigatória |
-| Assinatura A3 + carimbo ITI | Sim | Sim | INV-017 |
+| Campo | Perfil A (RBC) | Perfil B (rastreável) | Perfil C (em preparação) | Perfil D (comercial puro) | Observação |
+|---|---|---|---|---|---|
+| Selo CGCRE com nº acreditação | ✅ Obrigatório | ❌ Proibido | ❌ Proibido | ❌ Proibido | A sem selo = NC supervisão; B/C/D com selo = fraude documental (bloqueio 403) |
+| Declaração ILAC-MRA | ✅ Obrigatório se `tenant.ilac_mra_aderido=TRUE` | ❌ Proibido | ❌ Proibido | ❌ Proibido | Matriz §3.1 |
+| Bloco "Certificado com rastreabilidade declarada (não-acreditado)" | ❌ Proibido | ✅ Obrigatório | ✅ Obrigatório | ❌ Proibido (renomeação para "Relatório de Aferição") | Diferenciação visual obrigatória |
+| Selo "EM PREPARAÇÃO RBC" | ❌ Proibido | ❌ Proibido | ✅ Obrigatório | ❌ Proibido | Flag `em_preparacao` |
+| Documento renomeado para "Relatório de Aferição/Verificação" + palavra "ISO 17025" proibida + "RBC" proibida | ❌ | ❌ | ❌ | ✅ Obrigatório (hook `template-perfil-d-anti-iso`) | Perfil D |
+| Número da acreditação CGCRE | ✅ Obrigatório (`Tenant.acreditacao_cgcre_numero`) | ❌ N/A | ❌ N/A | ❌ N/A | NULL em B/C/D |
+| Escopo CGCRE da grandeza | ✅ Obrigatório | — | — | — | Cita ID e versão do escopo aprovado |
+| Declaração de rastreabilidade ao SI | ✅ Obrigatório | ✅ Recomendado | ✅ Recomendado | ⚪ Opcional | Cadeia INMETRO → padrão usado |
+| Resultado de medição | ✅ | ✅ | ✅ | ✅ | Núcleo técnico |
+| Incerteza de medição (U, k, nível confiança) | ✅ | ✅ | ✅ | ⚪ Opcional | NIT-DICLA-030 rev. 15 item 8.2.6 |
+| Regra de decisão (ADR-0024) | ✅ Obrigatório quando declarada | ⚪ Opcional quando declarada | ⚪ Opcional | ❌ Desabilitado | Matriz §3.1 |
+| Condições ambientais | ✅ Obrigatório | ✅ Recomendado | ✅ Recomendado | ⚪ Opcional | cl. 7.5 |
+| Padrões utilizados (cadeia + cert externo) | ✅ Obrigatório | ✅ Recomendado | ✅ Recomendado | ⚪ Opcional | cl. 6.5 |
+| Validade da recalibração (sugestão) | ⚪ Opcional (cliente decide) | ⚪ Opcional | ⚪ Opcional | ⚪ Opcional | Não é obrigatória cl. 7.8 |
+| Assinatura A3 ICP-Brasil | ✅ Obrigatório RT signatário + OCSP good | 🟢 Recomendado | 🟢 Recomendado treinamento | 🟢 Opcional | INV-017 + ADR-0009 emenda perfil |
+| Carimbo TSA-ITI PAdES-LTV qualificado | ✅ Obrigatório (25a longa duração) | ⚪ Opcional | ⚪ Opcional | ❌ Desabilitado | ADR-0047 |
 
-**Regra do template (US-CER-010):**
-- Template tem fields condicionais `{% if cert.tipo_acreditacao == "RBC" %}` que controlam blocos de selo+declaração.
-- Tentativa de gerar cert RBC sem `Tenant.acreditacao_cgcre_id` vigente bloqueia com 412 (`INV-032`).
-- Tentativa de gerar cert não-RBC com selo RBC no template bloqueia em validação de template (US-CER-010 AC-3).
+### Regra do template (US-CER-010) — versão pós-correção L6
+
+- Template Jinja2 tem fields condicionais **`{% if tenant_perfil_e(['A']) %}`** (helper canônico injetado pelo motor de template) — controla blocos selo+declaração RBC. **Não usa `cert.tipo_acreditacao` nunca.**
+- **Pre-flight check em `emitir_certificado`** (ADR-0067 §8): valida que `template.perfil_alvo == tenant.perfil_regulatorio_vigente` ANTES de renderizar; mismatch → 403 `{erro: "TEMPLATE_PERFIL_MISMATCH"}` + evento `Certificado.EmissaoBloqueadaPorPerfil`.
+- Tentativa de gerar cert com template RBC em tenant `perfil != A` bloqueia com 403 (predicate `tenant_perfil_e(['A'])` rejeita — `INV-CER-PERFIL-001`).
+- Tentativa de gerar cert perfil A sem `Tenant.acreditacao_cgcre_numero` NOT NULL OU `Tenant.acreditacao_vigencia_fim > today` bloqueia com 412 (`INV-032`).
+- Tentativa de inserir selo RBC em template não-A bloqueia em validação de template (US-CER-010 AC-3) — defesa em profundidade.
+- **Hook `payload-tipo-acreditacao-obsoleto-check`** (Sprint 2 SAN-PERFIL-TENANT) bloqueia commit que reintroduza `tipo_acreditacao` lido do payload.
 
 ---
 
@@ -342,26 +390,92 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 
 ---
 
-## 7. Métricas de sucesso
+## 7. Métricas de sucesso (inline + detalhe em `metricas.md`)
 
-Ver `metricas.md`. Resumo:
-- Zero gaps de numeração (target: 100%).
-- Tempo médio emissão→assinatura ≤ 5 min.
-- Taxa de entrega de e-mail ≥ 98%.
+- **Zero gaps de numeração** (target: 100%) — `INV-034` + `INV-CER-NUM-002`.
+- **Tempo médio emissão → assinatura ≤ 5 min** (mediana); p95 ≤ 15 min.
+- **Taxa de entrega de e-mail ≥ 98%** (US-CER-005 — ADR-0060).
+- **Tempo médio QR público p95 < 800ms** (US-CER-009 + SEC-QR-001).
+- **% certificados perfil A com TSA-ITI ≥ 99,9%** (ADR-0047 cl. 8.4 longa duração).
+- **% recall notificado a cliente em ≤24h = 100%** (perfil A — ADR-0045 emenda).
+- **Drift de perfil (tentativa de emissão `template_rbc` em tenant não-A) = 0/mês** (defesa L6 SAN-PERFIL-TENANT).
 
 ## 8. NFR
 
-- **Performance:** geração PDF < 3s p95; assinatura A3 (round-trip) < 10s p95.
+- **Performance:** geração PDF < 3s p95; assinatura A3 (round-trip) < 10s p95; OCSP verify < 3s + fallback CRL 1h (ADR-0046).
 - **Disponibilidade:** 99.9% (certificado pendente é dinheiro parado).
-- **Segurança:** SEC-001, SEC-002; A3 cliente-side; URL pública verificadora não expõe PII além do mínimo.
-- **Acessibilidade:** WCAG AA; certificado PDF tagueado (PDF/UA).
+- **Segurança:** SEC-001, SEC-002; A3 cliente-side (ADR-0009); URL pública verificadora não expõe PII além do mínimo (allowlist `docs/conformidade/calibracao/qr-publico-allowlist.md` Wave A).
+- **Acessibilidade:** WCAG AA (ADR-0057); certificado PDF tagueado (PDF/UA).
+- **Retenção (matriz-feature-perfil §retenção):** perfil A/B/C 25a B2 WORM; perfil D 5a (Receita) + anonimização agressiva.
 
-## 9. Glossário
+## 8.1 Não-objetivos (Wave A — explícitos)
 
-Ver `glossario.md`.
+- NÃO executa a CALIBRAÇÃO em si — apenas consome dados consolidados do módulo `metrologia/calibracao`.
+- NÃO emite NF-e nem documento fiscal — isso é módulo `financeiro/fiscal` (consumer downstream).
+- NÃO gerencia a acreditação CGCRE da empresa — isso é módulo `metrologia/licencas-acreditacoes`.
+- NÃO substitui Word/Adobe — templates são engine própria (Jinja2 → HTML → PDF), sem editor visual de Word.
+- NÃO armazena chave privada do A3 — assinatura sempre client-side (ADR-0009).
+- NÃO permite editar certificado emitido — só reemissão versionada (`INV-001` + `INV-034`) ou errata em campo descritivo allowlist (US-CER-020).
+- NÃO emite cert RBC em tenant não-A — bloqueio defesa em profundidade (`INV-CER-PERFIL-001`).
+- **Editor visual WYSIWYG de template** — Wave B (V2).
+- **OCR de PDF externo pra extrair leitura** — Wave B.
+- **Assinatura por múltiplos signatários simultâneos no mesmo cert** — Wave B (V2 — multi-sig).
+- **Reabertura de certificado emitido para edição** — proibido permanentemente (`INV-001` WORM).
 
-## 10. Como este PRD evolui
+## 9. Dependências (ADRs + módulos)
+
+**Módulos consumidos:**
+
+- `metrologia/calibracao` — fornece `Calibracao.aprovada()` + dados de medição (US-CER-001).
+- `metrologia/licencas-acreditacoes` — fornece `Tenant.acreditacao_cgcre_*` + ART/RRT do RT (US-CER-001/002).
+- `seguranca/certificados-digitais` (ADR-0048) — porta `verificar_status` OCSP/CRL (ADR-0046).
+- `infrastructure/tenant` — fornece `Tenant.perfil_regulatorio` via ContextVar (ADR-0067).
+- `metrologia/responsabilidade-tecnica` (ADR-0022) — competência RT por grandeza.
+
+**Módulos consumers downstream:**
+
+- `financeiro/fiscal` — consome `Certificados.CertificadoEmitido` (gera NFS-e — INV-FIS-CR-001).
+- `financeiro/contas-receber` — consome `Certificados.CertificadoEmitido` → cria título (ADR-0043 emenda perfil — grace D+45/20/30/7).
+- `notificacoes/cliente` — consumer US-CER-005 + US-CER-018 (ADR-0060 `EmailTemplateProvider`).
+
+**ADRs aceitas Onda 2/PRE-A.2:**
+
+- **ADR-0009** — A3 cliente-side via Web PKI Lacuna (emenda 2026-05-27 perfil A obrigatório).
+- **ADR-0021** — anonimização vs retenção (3 zonas — preserva `cliente_nome_snapshot` imutável pós-emissão).
+- **ADR-0022** — RT do tenant + competência por grandeza.
+- **ADR-0024** — regra de decisão ISO 17025 cl. 7.8.6 (3 modos).
+- **ADR-0025 v2** — validação software ISO 17025 cl. 7.11 (URS/IQ/OQ/PQ + replay determinístico). Wave A planeja URS/IQ/OQ/PQ específicos do módulo certificados — incluir testes de regressão de template + replay de geração de PDF.
+- **ADR-0029** — canonicalização texto probatório (UTF-8 NFC + LF + sem BOM).
+- **ADR-0044** — exportação regulatória ANVISA/SAÚDE/INMETRO (emenda 2026-05-27 perfil A único — `tenant_perfil_e(['A'])` no export).
+- **ADR-0045** — recall + suspensão + errata (emenda 2026-05-27 perfil-aware — predicate `acao_pos_emissao_permitida_por_perfil`).
+- **ADR-0046** — OCSP/CRL revogação online (timeout 3s + fallback CRL 1h).
+- **ADR-0047** — TSA-ITI PAdES-LTV qualificado 25a (perfil A obrigatório).
+- **ADR-0048** — cadastro segregado A3 (e-CNPJ + e-CPF RT + demais).
+- **ADR-0054** — `OutboundWebhookProvider` HMAC para integrações.
+- **ADR-0057** — Acessibilidade WCAG 2.1 AA.
+- **ADR-0060** — `EmailTemplateProvider` (US-CER-005 + US-CER-018).
+- **ADR-0061** — canal do titular + DPO (US-CER-018 notificação ANPD).
+- **ADR-0067** — perfil regulatório do tenant entidade temporal (canônico — fonte L6 fix).
+
+## 10. Glossário
+
+Ver `glossario.md` do módulo + `docs/comum/glossario.md`. Termos canônicos adicionados nesta sanação:
+
+- **Perfil regulatório do tenant:** atributo `Tenant.perfil_regulatorio` enum `{A_ACREDITADO_RBC, B_RASTREAVEL, C_EM_PREPARACAO, D_COMERCIAL_PURO}` — fonte ÚNICA consultada por templates e predicates do módulo (ADR-0067).
+- **Predicate `tenant_perfil_e(perfis_aceitos)`:** função canônica `src/infrastructure/authz/predicates.py` que lê `Tenant.perfil_regulatorio` via ContextVar `perfil_tenant_context`. Fail-closed timeout 50ms.
+- **Predicate `acao_pos_emissao_permitida_por_perfil(tenant_id, acao_enum)`:** função decisora de US-CER-018/019/020 — recall/suspensão/errata por perfil (ADR-0045 emenda).
+- **Predicate `documento_a3_obrigatorio_por_perfil(tenant_id, tipo_doc)`:** função decisora de US-CER-002 (assinatura A3 — ADR-0009 emenda).
+- **ContextVar `perfil_tenant_context`:** variável Python isolada por request — populada por middleware Sprint 2 SAN-PERFIL-TENANT.
+- **`Certificado.perfil_emissor_no_momento`:** coluna `CHAR(1) NOT NULL` cravada no INSERT — snapshot WORM imutável pós-emissão (ADR-0067 §3 + `INV-CER-SNAPSHOT-PERFIL-001`).
+- **`Tenant.acreditacao_cgcre_numero` / `acreditacao_vigencia_inicio/fim`:** campos preenchidos apenas em perfil A (ADR-0067 §1).
+- **Relatório de Aferição/Verificação:** documento renomeado para perfil D — palavra "ISO 17025" e "RBC" PROIBIDAS (hook `template-perfil-d-anti-iso`).
+- **TSA-ITI qualificado:** carimbo de tempo emitido por Autoridade de Carimbo de Tempo do ITI — obrigatório perfil A para longa duração 25a (ADR-0047).
+- **OCSP `good` / `revoked` / `unknown`:** estados de verificação online de certificado digital (ADR-0046).
+- **Errata vs Reemissão:** errata = correção de campo descritivo (allowlist) sem reemitir (US-CER-020); reemissão = nova versão completa (US-CER-004).
+
+## 11. Como este PRD evolui
 
 - US nova → próximo `US-CER-NNN`.
 - US deprecada → `@deprecated` + ADR.
 - Mudança no template default → ADR + janela.
+- Mudança em campo da §6.1 (perfil × campo) → emenda ADR-0067 + atualização `matriz-feature-perfil.md` + hook `feature-perfil-matriz-validator` valida.

@@ -1,8 +1,10 @@
 ---
 owner: roldao
-revisado-em: 2026-05-23
-proximo_review: 2026-08-23
-status: draft
+revisado-em: 2026-05-27
+proximo-review: 2026-08-27
+status: stable
+modulo: licencas-acreditacoes
+dominio: metrologia
 diataxis: explanation
 audiencia: agente
 relacionados:
@@ -10,9 +12,20 @@ relacionados:
   - docs/dominios/metrologia/modulos/calibracao/prd.md
   - docs/dominios/metrologia/modulos/calibracao/conformidade-iso-17025.md
   - docs/dominios/metrologia/modulos/calibracao/responsabilidade-tecnica.md
+  - docs/dominios/metrologia/modulos/certificados/prd.md
   - docs/dominios/seguranca/modulos/certificados-digitais/prd.md
+  - docs/conformidade/comum/matriz-feature-perfil.md
+  - docs/adr/0009-onde-a3-assina.md
   - docs/adr/0014-transicoes-regulatorias.md
+  - docs/adr/0022-rt-tenant.md
+  - docs/adr/0025-validacao-software-iso-17025.md
+  - docs/adr/0046-ocsp-crl-revogacao-online.md
+  - docs/adr/0047-carimbo-tsa-iti-pades-ltv.md
   - docs/adr/0048-a3-ecpf-rt-cadastro.md
+  - docs/adr/0067-perfil-regulatorio-tenant-entidade-temporal.md
+historico:
+  - 2026-05-23 — versão draft com US-LIC-001..013 + ADR-0014 (transições regulatórias) + ADR-0048 (cadastro A3 segregado).
+  - 2026-05-27 — Onda PRE-A.3 BATCH B1 saneamento perfil ADR-0067 (AC-LIC-001-3 perfil-aware fecha FAIL L6 + matriz perfil + AC binário GIVEN-WHEN-THEN + ADR-0025 v2 planejamento URS/IQ/OQ/PQ + status promovido para stable).
 ---
 
 # PRD — Módulo Licenças, Acreditações e Autorizações da Empresa
@@ -31,7 +44,30 @@ Empresa que opera sem documento válido sofre multa, suspensão da acreditação
 
 ## 3. Personas
 
-Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/personas.md`.
+**Persona dominante:** P-MET-01 (responsável administrativo da empresa — gestor de documentação regulatória; também P-FIN-02 — dono, em laboratórios pequenos). Para acreditação RBC entra P-MET-02 (RT signatário). Detalhe em `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`.
+
+## 3.1 Perfil regulatório (ADR-0067 — CRÍTICO)
+
+> **Matriz feature × perfil canônica:** `docs/conformidade/comum/matriz-feature-perfil.md`.
+>
+> **Atenção L6:** versão anterior do AC-LIC-001-3 marcava cadastro CGCRE bloqueante sem checar `Tenant.perfil_regulatorio` — perfil D (comercial puro) podia cadastrar acreditação CGCRE e burlar matriz. Corrigido 2026-05-27 com predicate `tenant_perfil_e(['A','B','C'])` como pré-condição.
+
+Predicates canônicos consumidos por este módulo (`src/infrastructure/authz/predicates.py`):
+
+- **`tenant_perfil_e(perfis_aceitos)`** — fail-closed timeout 50ms. Lê `Tenant.perfil_regulatorio` via ContextVar `perfil_tenant_context`.
+- **`acreditacao_cgcre_aplicavel_por_perfil(tenant_id) -> bool`** — retorna `True` somente para perfil A. Consumido por job `verificar_vigencia_acreditacao_perfil_a` (Sprint 3 SAN-PERFIL-TENANT — mensal).
+
+| Feature do módulo | Perfil A — RBC acreditado | Perfil B — Rastreável | Perfil C — Em preparação | Perfil D — Comercial puro |
+|---|---|---|---|---|
+| **US-LIC-001** cadastrar acreditação CGCRE com flag bloqueante | ✅ OBRIGATÓRIO + escopo CGCRE preenchido | ⚪ OPCIONAL (rastreabilidade simples) | ✅ OBRIGATÓRIO em modo preparatório (gate trilha D→A) | ❌ DESABILITADO (predicate `tenant_perfil_e(['A','B','C'])` rejeita) |
+| **US-LIC-002** alertas vencimento 90/60/30/15/7d | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ⚪ OPCIONAL (licenças sanitárias/ambientais comuns; sem CGCRE) |
+| **US-LIC-003** bloqueio operação por doc vencido | ✅ OBRIGATÓRIO (acreditação CGCRE bloqueia emissão RBC) | ⚪ OPCIONAL (sem CGCRE) | ✅ OBRIGATÓRIO (ART/RRT do RT) | ⚪ OPCIONAL |
+| **US-LIC-010** ampliação de escopo CGCRE | ✅ OBRIGATÓRIO disponível | ❌ DESABILITADO | ⚪ Wave B (caminho trilha D→A) | ❌ DESABILITADO |
+| **US-LIC-011** responder NC CGCRE | ✅ OBRIGATÓRIO (≤30d) | ❌ DESABILITADO | ⚪ OPCIONAL (supervisão pré-A) | ❌ DESABILITADO |
+| **US-LIC-012** revisão CGCRE quinquenal | ✅ OBRIGATÓRIO | ❌ DESABILITADO | ❌ DESABILITADO | ❌ DESABILITADO |
+| **US-LIC-013** dossiê pré-auditoria CGCRE | ✅ OBRIGATÓRIO | ❌ DESABILITADO | ⚪ OPCIONAL (preparação) | ❌ DESABILITADO |
+| **Job mensal `verificar_vigencia_acreditacao_perfil_a`** (Sprint 3) | ✅ OBRIGATÓRIO (alerta 60d antes) | ⚪ N/A | ⚪ N/A | ⚪ N/A |
+| **Retenção (matriz-feature-perfil §retenção)** | 25a (ISO 8.4 obrigação legal) | 25a recomendado | 25a | 5a (Receita) + anonimização agressiva |
 
 ## 4. Escopo (o que ESTÁ neste módulo)
 
@@ -46,13 +82,27 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 - Trilha de auditoria imutável de alterações (WORM).
 - Relatório consolidado para auditoria externa (CGCRE, fisco, ANVISA).
 
-## 5. Non-goals (o que NÃO está neste módulo)
+## 5. Não-objetivos (Wave A — explícitos)
 
-- NÃO emite os documentos regulatórios (isso é processo externo no órgão competente).
+- NÃO emite os documentos regulatórios (isso é processo externo no órgão competente — CGCRE, ANVISA, CREA, CRQ).
 - NÃO gerencia documentos de CLIENTES (isso é módulo CRM/clientes).
 - NÃO gerencia licenças de SOFTWARE (chaves de produto, SaaS — isso é módulo TI/infra).
 - NÃO substitui o processo legal de renovação — apenas alerta e bloqueia.
-- NÃO armazena certificado digital A3 (token físico fica com o titular; aqui só registra metadados + validade).
+- NÃO armazena certificado digital A3 (token físico fica com o titular; aqui só registra metadados + validade — cadastro físico migrou para `seguranca/certificados-digitais` ADR-0048).
+- NÃO promove perfil regulatório do tenant automaticamente — promoção exige A3 + admin Aferê + PDF CGCRE (ADR-0067 + função SECURITY DEFINER `aplicar_evento_cgcre`).
+- **Integração API com CGCRE** — V2 (sem API pública estável hoje).
+- **Auto-renovação via portal do órgão** — V2.
+
+## 5.1 Validação software (ADR-0025 v2 — planejamento Wave A)
+
+ADR-0025 v2 estende validação ISO 17025 cl. 7.11 para módulos não-laboratoriais que afetam decisão regulatória. Para `licencas-acreditacoes` em Wave A devem ser planejados:
+
+- **URS (User Requirements Specification):** documento `docs/dominios/metrologia/modulos/licencas-acreditacoes/urs.md` (a criar) — vigência + bloqueio + notificação D-30/D-15/D-0 + matriz perfil.
+- **IQ (Installation Qualification):** automatizado via teste de smoke + migration drill `validar_licencas_acreditacoes`.
+- **OQ (Operational Qualification):** testes regressão `tests/test_licencas_us_*.py` cobrindo todos os AC binários (perfil A/B/C/D) + drill UNHAPPY (perfil D tenta cadastrar CGCRE → 403).
+- **PQ (Performance Qualification):** smoke periódico em produção pós-cutover (Wave A — `GATE-LIC-PQ`).
+
+Matriz §3.1 — perfil A obrigatório URS+IQ+OQ+PQ; B opcional; C obrigatório parcial (URS+OQ — gate trilha D→A); D desabilitado.
 
 ## 6. User Stories
 
@@ -61,15 +111,17 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 **Como** responsável administrativo, **quero** cadastrar uma licença da empresa com tipo, número, órgão emissor, data emissão, data validade e anexo PDF, **para** ter controle centralizado dos documentos regulatórios.
 
 **Critérios de aceite:**
-- **AC-LIC-001-1**: GIVEN usuário admin autenticado no tenant, WHEN cadastra licença com campos obrigatórios (tipo, número, órgão emissor, data emissão, data validade, anexo), THEN sistema persiste com status calculado e data próximo alerta.
-- **AC-LIC-001-2**: GIVEN documento sem anexo PDF/imagem, WHEN tenta salvar, THEN sistema bloqueia com mensagem "anexo obrigatório para evidência de auditoria".
-- **AC-LIC-001-3**: GIVEN tipo "acreditação CGCRE", WHEN cadastra, THEN sistema exige campo "escopo da acreditação" e marca documento como "bloqueante para emissão RBC" por padrão.
+- **AC-LIC-001-1**: GIVEN usuário admin autenticado no tenant AND `Tenant.perfil_regulatorio` resolvido via ContextVar, WHEN cadastra licença via POST `/api/v1/licencas` com campos obrigatórios (tipo, número, órgão emissor, data emissão, data validade, anexo), THEN sistema valida tipo × perfil (matriz §3.1), persiste `Licenca{licenca_id, tipo, numero, orgao_emissor, vigencia_inicio, vigencia_fim, status_calculado, proximo_alerta_em, perfil_no_evento}` AND publica `Licencas.LicencaCadastrada{licenca_id, tipo, perfil_no_evento}`.
+- **AC-LIC-001-2**: GIVEN documento sem anexo PDF/imagem, WHEN tenta salvar, THEN sistema bloqueia com 422 `{erro: "ANEXO_OBRIGATORIO", detalhe: "evidência probatória obrigatória para auditoria"}` (`INV-046`).
+- **AC-LIC-001-3 (perfil-aware — corrige FAIL L6 SAN-PERFIL-TENANT — ADR-0067)**: GIVEN admin tenta cadastrar `tipo="acreditacao_cgcre"` AND `Tenant.perfil_regulatorio ∈ {A,B,C}` (B/C aceitos pois B pode evoluir para A e C está em preparação — gate trilha D→A), WHEN POST `/api/v1/licencas`, THEN predicate `tenant_perfil_e(['A','B','C'])` aceita; sistema exige campos adicionais `{escopo_acreditacao, numero_cgcre, ilac_mra_aderido_bool}`, marca `bloqueante_para_emissao_rbc=True` por padrão (apenas perfil A), persiste, publica `Licencas.AcreditacaoCGCRECadastrada{perfil_no_evento, escopo}`.
+- **AC-LIC-001-3b (perfil D rejeitado)**: GIVEN admin tenant `perfil=D` tenta cadastrar `tipo="acreditacao_cgcre"`, WHEN POST, THEN predicate `tenant_perfil_e(['A','B','C'])` rejeita com 403 `{erro: "ACREDITACAO_CGCRE_EXIGE_PERFIL_ABC", perfil_atual: "D", alternativa: "promova_para_C_via_admin_afere"}` AND publica `Licencas.AcreditacaoCGCRECadastroBloqueado{tenant_id, perfil}` (defesa anti-fraude documental L6 — perfil D não pode burlar matriz cadastrando CGCRE).
+- **AC-LIC-001-4 (perfil A — promoção obrigatória sincroniza Tenant)**: GIVEN admin Aferê cadastra acreditação CGCRE como bloqueante AND tenant `perfil_regulatorio=B|C`, WHEN POST com flag `promove_para_A=True` + A3 admin + PDF CGCRE, THEN sistema dispara `aplicar_evento_cgcre(tenant_id, "PROMOCAO_REGULATORIA", perfil_novo='A', ...)` (função SECURITY DEFINER Sprint 1 SAN-PERFIL-TENANT) AND atualiza `Tenant.perfil_regulatorio = 'A'` + `Tenant.acreditacao_cgcre_numero` + `Tenant.acreditacao_vigencia_inicio/fim` AND publica `Tenant.PerfilPromovido{tenant_id, anterior, novo, auditor_cgcre}`.
 
-**Non-goals desta story:** integração com órgão emissor.
+**Não-objetivos desta US:** integração com órgão emissor (API CGCRE).
 
-**Invariantes:** `INV-046` (anexo de evidência obrigatório), `INV-001` (trilha imutável WORM), `INV-TENANT-001`.
+**Invariantes:** `INV-046` (anexo de evidência obrigatório), `INV-001` (trilha imutável WORM), `INV-TENANT-001`, **`INV-LIC-PERFIL-001`** (novo Onda PRE-A.3: cadastro de acreditação CGCRE exige `tenant_perfil_e(['A','B','C'])`; perfil D rejeitado).
 
-**Dependências:** Bloqueado por: ADR-0002 (multi-tenancy).
+**Dependências:** Bloqueado por: ADR-0002 (multi-tenancy), ADR-0067 (perfil tenant). Predicate `tenant_perfil_e` (Sprint 2 SAN-PERFIL-TENANT).
 
 ---
 
@@ -78,9 +130,10 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 **Como** responsável administrativo, **quero** receber alertas em 90/60/30/15/7 dias antes do vencimento, **para** iniciar a renovação a tempo.
 
 **Critérios de aceite:**
-- **AC-LIC-002-1**: GIVEN documento com data validade D, WHEN data atual = D-90, D-60, D-30, D-15 ou D-7, THEN sistema dispara notificação por e-mail + dashboard + app pra responsável do documento + admin do tenant.
-- **AC-LIC-002-2**: GIVEN documento vencido sem renovação, WHEN passa 1 dia da validade, THEN sistema escalona alerta (severidade alta) e marca documento como "vencido".
-- **AC-LIC-002-3**: GIVEN documento renovado dentro da janela, WHEN nova data validade > atual, THEN sistema cancela alertas pendentes e reagenda baseado na nova data.
+- **AC-LIC-002-1**: GIVEN documento com `vigencia_fim = D`, WHEN job diário `verificar_alertas_licencas` (07:00 BRT) detecta `today ∈ {D-90, D-60, D-30, D-15, D-7}`, THEN dispara notificação via `EmailTemplateProvider` (ADR-0060) + dashboard + push app para `responsavel_documento_id` + admin do tenant AND publica `Licencas.AlertaVencimentoDisparado{licenca_id, dia_relativo, canal}`.
+- **AC-LIC-002-2**: GIVEN documento vencido sem renovação (`vigencia_fim < today`), WHEN job roda no D+1, THEN escala alerta (severidade alta) + atualiza `status_calculado='vencido'` + publica `Licencas.LicencaVencida{licenca_id, dias_vencido, eh_bloqueante}`.
+- **AC-LIC-002-3**: GIVEN documento renovado dentro da janela (nova `vigencia_fim > today`), WHEN admin cadastra renovação, THEN sistema cancela alertas pendentes E reagenda baseado na nova `vigencia_fim` AND publica `Licencas.LicencaRenovada{licenca_id, nova_vigencia_fim}`.
+- **AC-LIC-002-4 (perfil A — job dedicado mensal Sprint 3 SAN-PERFIL)**: GIVEN `tenant_perfil_e(['A'])` AND `Tenant.acreditacao_vigencia_fim` < `today + 60d`, WHEN job mensal `verificar_vigencia_acreditacao_perfil_a` roda dia 1 às 02:00 BRT, THEN dispara alerta P1 ao dono Aferê + admin tenant + RT (CGCRE risk catastrófico) AND publica `Tenant.AcreditacaoVigenciaProximaDoFim{tenant_id, dias_restantes}`.
 
 **Invariantes:** `INV-001` (trilha WORM em alertas e renovações).
 
@@ -91,13 +144,14 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 **Como** sistema, **quero** impedir operação dependente quando documento "bloqueante" estiver vencido, **para** evitar emissão ilegal/inválida (ex: certificado RBC sem acreditação vigente).
 
 **Critérios de aceite:**
-- **AC-LIC-003-1**: GIVEN acreditação CGCRE marcada como bloqueante e vencida, WHEN técnico tenta emitir certificado RBC, THEN sistema bloqueia com mensagem clara "acreditação vencida em DD/MM — renovar antes de emitir" e cita o documento bloqueante.
-- **AC-LIC-003-2**: GIVEN documento bloqueante vencido, WHEN admin marca "operação em modo emergencial" (com justificativa), THEN sistema libera operação MAS registra evento auditável "operação com documento vencido" e exige assinatura A3 do admin.
-- **AC-LIC-003-3**: GIVEN documento bloqueante NÃO marcado como tal, WHEN vence, THEN sistema só alerta — não bloqueia.
+- **AC-LIC-003-1 (perfil A — bloqueio efetivo emissão RBC)**: GIVEN `tenant_perfil_e(['A'])` AND acreditação CGCRE marcada `bloqueante=True` AND `vigencia_fim < today`, WHEN técnico tenta emitir certificado RBC (US-CER-001 AC-4 referencia este AC), THEN sistema bloqueia com 409 `{erro: "ACREDITACAO_CGCRE_VENCIDA", venceu_em: DD/MM/AAAA, licenca_id, link_renovacao}` AND publica `Licencas.OperacaoBloqueadaDocVencido{tenant_id, perfil, operacao, licenca_id}`.
+- **AC-LIC-003-2 (modo emergencial — qualquer perfil — INV-033)**: GIVEN documento bloqueante vencido, WHEN admin Aferê (Roldão) marca "operação em modo emergencial" via POST `/api/v1/licencas/{id}/modo-emergencial` com `justificativa ≥100 chars + A3`, THEN sistema libera operação dependente MAS registra evento auditável `Licencas.ModoEmergencialAtivado{licenca_id, justificativa_hash, a3_id, expira_em}` + audit WORM AND expira em até 7 dias (sem renovação automática).
+- **AC-LIC-003-3 (doc não-bloqueante)**: GIVEN documento bloqueante=False, WHEN vence, THEN sistema apenas alerta (AC-LIC-002) — NÃO bloqueia operação.
+- **AC-LIC-003-4 (perfil != A tentando se aproveitar de US-LIC-003)**: GIVEN tenant `perfil != A` AND tenta cadastrar acreditação CGCRE bloqueante, WHEN POST, THEN AC-LIC-001-3b rejeita previamente (defesa em profundidade).
 
-**Invariantes:** `INV-032` (doc bloqueante vencido impede operação dependente), `INV-033` (modo emergencial exige justificativa + A3 + WORM), `INV-001`.
+**Invariantes:** `INV-032` (doc bloqueante vencido impede operação dependente), `INV-033` (modo emergencial exige justificativa + A3 + WORM + expira em 7d), `INV-001`, `INV-LIC-PERFIL-001`.
 
-**Dependências:** Bloqueia módulos: Certificados (US-CER-001), Calibração (US-CAL-emissão).
+**Dependências:** Bloqueia módulos: `metrologia/certificados` (US-CER-001 AC-4), `metrologia/calibracao` (US-CAL emissão).
 
 ---
 
@@ -212,25 +266,61 @@ Ver `personas.md` deste módulo + `../../personas.md` (domínio) + `docs/comum/p
 
 ---
 
-## 7. Métricas de sucesso
+## 7. Métricas de sucesso (inline + detalhe em `metricas.md`)
 
-Ver `metricas.md`. Resumo:
-- Zero operações executadas com documento bloqueante vencido (target: 100%).
-- Renovações iniciadas em janela ≥30 dias antes do vencimento (target: ≥90%).
+- **Zero operações executadas com documento bloqueante vencido** (target: 100%) — `INV-032`.
+- **Renovações iniciadas em janela ≥30 dias antes do vencimento** (target: ≥90%).
+- **% perfil A com acreditação CGCRE vigente** (target: 100%) — job mensal `verificar_vigencia_acreditacao_perfil_a` (Sprint 3 SAN-PERFIL-TENANT).
+- **Tempo médio de alerta D-60 até renovação concluída** (mediana): ≤ 45 dias.
+- **% NCs CGCRE respondidas dentro do SLA 30d** (perfil A): 100% (`INV-INT-002`).
+- **% tentativas perfil D cadastrar CGCRE bloqueadas pelo predicate** = 100% (defesa anti-fraude L6).
+- **Drift `Tenant.perfil_regulatorio` vs licenças cadastradas** = 0 incidentes (validação cruzada mensal — Wave A `GATE-LIC-DRIFT`).
 
 ## 8. NFR
 
 - **Performance:** consulta dashboard < 500ms p95.
-- **Disponibilidade:** SLO 99.9% (módulo crítico — bloqueia operações).
-- **Segurança:** anexos PDF criptografados em repouso (B2 + KMS); trilha WORM imutável; SEC-001/SEC-002.
-- **Acessibilidade:** WCAG AA.
+- **Disponibilidade:** SLO 99,9% (módulo crítico — bloqueia operações dependentes).
+- **Segurança:** anexos PDF criptografados em repouso (B2 + KMS Multi-Region); trilha WORM imutável; SEC-001/SEC-002.
+- **Acessibilidade:** WCAG 2.1 AA (ADR-0057).
+- **Retenção (matriz-feature-perfil §retenção):** perfil A/B/C 25a; perfil D 5a.
 
-## 9. Glossário
+## 9. Dependências (ADRs + módulos)
 
-Ver `glossario.md`.
+**Módulos:**
 
-## 10. Como este PRD evolui
+- `metrologia/responsabilidade-tecnica` (ADR-0022) — fornece RT designado para vínculo ART/RRT.
+- `metrologia/certificados` — consumer downstream de `Licencas.AcreditacaoCGCREVencida` (US-CER-001 AC-4 bloqueia emissão RBC).
+- `seguranca/certificados-digitais` (ADR-0048) — cadastro físico A3 (US-LIC-006/008/009 reposicionadas).
+- `infrastructure/tenant` — fornece `Tenant.perfil_regulatorio` + recebe atualização via `aplicar_evento_cgcre` (ADR-0067 Sprint 1).
+- `notificacoes/cliente` — consumer alertas (ADR-0060 `EmailTemplateProvider`).
+
+**ADRs aceitas:**
+
+- **ADR-0009** — A3 cliente-side (US-LIC-003 modo emergencial exige A3).
+- **ADR-0014** — transições regulatórias (US-LIC-010/011/012 — fluxos 7/8/9).
+- **ADR-0022** — RT do tenant (vínculo ART/RRT).
+- **ADR-0025 v2** — validação software ISO 17025 cl. 7.11 (URS/IQ/OQ/PQ — §5.1).
+- **ADR-0046** — OCSP/CRL revogação online (US-LIC-006 A3 ICP-Brasil).
+- **ADR-0047** — PAdES-LTV (PDF longa duração 25a — US-LIC-011 resposta NC).
+- **ADR-0048** — cadastro segregado A3 (US-LIC-006/008/009 delegadas).
+- **ADR-0060** — `EmailTemplateProvider` (US-LIC-002 alertas + Sprint 3 job).
+- **ADR-0067** — perfil regulatório do tenant entidade temporal (canônico — fonte L6 fix).
+
+## 10. Glossário
+
+Ver `glossario.md` + `docs/comum/glossario.md`. Termos canônicos adicionados nesta sanação:
+
+- **Perfil regulatório:** `Tenant.perfil_regulatorio` enum `{A_ACREDITADO_RBC, B_RASTREAVEL, C_EM_PREPARACAO, D_COMERCIAL_PURO}` — pré-condição de cadastro CGCRE (ADR-0067).
+- **Predicate `tenant_perfil_e(perfis_aceitos)`:** função canônica `src/infrastructure/authz/predicates.py` — fail-closed timeout 50ms. Lê ContextVar `perfil_tenant_context`.
+- **Predicate `acreditacao_cgcre_aplicavel_por_perfil(tenant_id) -> bool`:** retorna `True` somente perfil A. Consumido pelo job mensal Sprint 3.
+- **`aplicar_evento_cgcre(tenant_id, direcao, ...)`:** função SECURITY DEFINER (Sprint 1 SAN-PERFIL-TENANT) — única forma de UPDATE em `tenants.perfil_regulatorio`. Hook `tenant-perfil-imutavel-check` bloqueia UPDATE direto.
+- **Doc bloqueante:** flag em licença que, quando vencida, impede operação dependente (`INV-032`).
+- **Modo emergencial:** mecanismo de exceção auditada do dono Aferê — libera operação por até 7d com A3 + justificativa ≥100 chars (`INV-033`).
+- **Trilha D→A:** caminho de evolução de tenant `perfil D → C → B → A` ao longo de meses/anos (BIG-03 discovery — diferencial competitivo). Codificada via ADR-0067 + comando `provisionar_tenant`.
+
+## 11. Como este PRD evolui
 
 - US nova → próximo ID `US-LIC-NNN`.
 - US deprecada → `@deprecated` + ADR.
 - Novo tipo de documento regulatório → adicionar em catálogo + AC novo.
+- Mudança em matriz perfil × tipo de licença → emenda ADR-0067 + atualização `matriz-feature-perfil.md` + hook `feature-perfil-matriz-validator`.
