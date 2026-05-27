@@ -1,6 +1,7 @@
 # ADR-0010 — Estratégia de tela (UI): HTMX para o operacional, SPA isolada para 5 módulos visuais
 
-> **Status:** **PROPOSTA** (17/05/2026, noite). Resolve achado da auditoria de 10 agentes (Auditor 3 — Frontend HTMX vs SPA) que apontou que HTMX puro **não cobre** Editor BPM, Portal Cliente, Marketplace, BI e Omnichannel. Decisão é "manter HTMX no núcleo, abrir 5 exceções controladas", não "trocar tudo por SPA".
+> **Status:** **ACEITO** (2026-05-27 noite — auditoria 10 lentes pré-Wave A, Onda PRE-A.2). Decisão Roldão via AskUserQuestion: HTMX núcleo + 5 SPAs isoladas. Estava em proposta desde 17/05/2026. Destrava geração de UI Wave A. Resolve achado da auditoria de 10 agentes (Auditor 3 — Frontend HTMX vs SPA) que apontou que HTMX puro **não cobre** Editor BPM, Portal Cliente, Marketplace, BI e Omnichannel. Decisão é "manter HTMX no núcleo, abrir 5 exceções controladas", não "trocar tudo por SPA".
+> **Aceito-em:** 2026-05-27 (decisão Roldão via AskUserQuestion durante Onda PRE-A.2).
 > **Autor:** Claude Code (orquestrador) + Roldão (decisor)
 > **Origem:** Auditoria 10 agentes da ADR-0001 v3 (17/05/2026 noite). Consenso 3 auditores (Frontend, Backend, Anti-corrosion) que ADR-0001 v2 deixou estratégia de tela ambígua entre HTMX (escolhido) e "outros casos" (não definidos).
 > **Depende de:** ADR-0001 (stack) — não revoga, complementa.

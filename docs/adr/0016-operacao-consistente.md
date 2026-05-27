@@ -1,6 +1,7 @@
 # ADR-0016 — Operação consistente: desligamento síncrono + BOM/orçamento + NC notifica cliente + 10 gaps médios
 
-> **Status:** **PROPOSTA** (17/05/2026, madrugada). Resolve 3 gaps críticos restantes da Onda 3 + 10 gaps médios identificados pela auditoria de 10 agentes.
+> **Status:** **ACEITO** (2026-05-27 noite — auditoria 10 lentes pré-Wave A, Onda PRE-A.2). Estava em proposta desde 17/05/2026. INV-INT-011..013 destravadas pra Wave A. Resolve 3 gaps críticos restantes da Onda 3 + 10 gaps médios identificados pela auditoria de 10 agentes.
+> **Aceito-em:** 2026-05-27.
 > **Autor:** Claude Code (orquestrador) + Roldão (decisor)
 > **Origem:** Auditoria de integrações inter-modulares 17/05/2026 madrugada — Auditores C, D, E, F, G, H, I.
 > **Depende de:** ADR-0001, ADR-0005 (engine automações), ADR-0007 (outbox), ADR-0011 (BI), ADR-0012 (autorização), ADR-0014 (transições regulatórias), ADR-0015 (lifecycle tenant).

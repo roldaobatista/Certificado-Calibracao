@@ -1,10 +1,11 @@
 # ADR-0015 — Lifecycle de Tenant: provisioning atômico + sincronização plano-features + bloqueio inadimplência
 
-> **Status:** **PROPOSTA** (17/05/2026, madrugada). Resolve 4 gaps críticos comerciais identificados pela auditoria de 10 agentes (Auditores G, H, A, B): provisioning de novo tenant não atômico, sincronização ADR-0013↔ADR-0006 ausente, suspensão por inadimplência não desliga features, cliente inadimplente não bloqueia OS/orçamento/agenda.
+> **Status:** **ACEITO** (2026-05-27 noite — auditoria 10 lentes pré-Wave A, Onda PRE-A.2). Estava em proposta desde 17/05/2026. Emenda Sprint 3 SAN-PERFIL-TENANT adicionou etapa 0 `COLETA_PERFIL_REGULATORIO` (ADR-0067). Resolve 4 gaps críticos comerciais identificados pela auditoria de 10 agentes (Auditores G, H, A, B): provisioning de novo tenant não atômico, sincronização ADR-0013↔ADR-0006 ausente, suspensão por inadimplência não desliga features, cliente inadimplente não bloqueia OS/orçamento/agenda.
 > **Autor:** Claude Code (orquestrador) + Roldão (decisor)
 > **Origem:** Auditoria de integrações inter-modulares 17/05/2026 madrugada.
-> **Depende de:** ADR-0001, ADR-0002 (multi-tenant), ADR-0006 (feature flags), ADR-0007 (outbox), ADR-0012 (autorização), ADR-0013 (pricing composicional), ADR-0014 (transições regulatórias).
+> **Depende de:** ADR-0001, ADR-0002 (multi-tenant), ADR-0006 (feature flags), ADR-0007 (outbox), ADR-0012 (autorização), ADR-0013 (pricing composicional), ADR-0014 (transições regulatórias), ADR-0067 (perfil regulatório do tenant).
 > **Bloqueia:** Wave A (sem provisioning atômico, novo tenant pode pagar e ficar sem acesso).
+> **Aceito-em:** 2026-05-27 (Onda PRE-A.2 auditoria 10 lentes pré-Wave A — Roldão decidiu "resolver TUDO").
 
 ---
 

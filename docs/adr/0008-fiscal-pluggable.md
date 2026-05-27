@@ -1,10 +1,18 @@
 # ADR-0008 — Camada fiscal pluggable (multi-país e multi-fornecedor)
 
-> **Status:** proposta (17/05/2026 noite final) — aguardando aprovação do Roldão. Bloqueante do Portão 2 da ADR-0001 candidata.
+> **Status:** **ACEITO** (2026-05-27 noite — auditoria 10 lentes pré-Wave A, Onda PRE-A.2). Estava em proposta desde 17/05/2026. Promoção urgente pois NFS-e Padrão Nacional vira obrigatória em **01/09/2026** (deadline duro — 14 semanas).
 > **Autor:** Claude Code (orquestrador) + Roldão (decisor)
 > **Origem:** Parecer 7 (crescimento futuro) + Parecer 4 (supply chain) + Parecer 8 (incidente PlugNotas) da 2ª auditoria de 10 agentes (17/05/2026). ADR-0001 v2 cita PlugNotas como SDK Python mas sem porta/adapter agnóstica — em 2-3 anos sair pra LATAM vira reescrita de 6-12 meses.
-> **Depende de:** ADR-0001 v2 (stack Django + DRF), `docs/arquitetura/anti-corrosion-layer.md`
-> **Crítico:** R-016 score 20 — cutover NFS-e Padrão Nacional **01/09/2026** é deadline duro
+> **Depende de:** ADR-0001 v2 (stack Django + DRF), `docs/arquitetura/anti-corrosion-layer.md`, ADR-0067 (perfil regulatório do tenant — perfil A obriga certificado RBC pra calibração; perfil D aceita declaração).
+> **Crítico:** R-016 score 20 — cutover NFS-e Padrão Nacional **01/09/2026** é deadline duro.
+> **Aceito-em:** 2026-05-27 (Onda PRE-A.2 auditoria 10 lentes pré-Wave A).
+>
+> **Emenda 2026-05-27 (matriz perfil × emissão NFS-e):**
+> - Perfil A (RBC acreditado): NFS-e calibração exige `certificado_id` apontando pra cert RBC vigente (`Tenant.perfil_regulatorio == 'A'` + `certificado.tipo_acreditacao == 'RBC'`).
+> - Perfil B (rastreável): NFS-e calibração exige `certificado_id` simples (rastreabilidade mas não RBC).
+> - Perfil C (em preparação RBC): exige certificado simples + flag `em_preparacao_para_rbc` no envelope.
+> - Perfil D (comercial puro): aceita `declaracao_calibracao_basica_id` (sem certificado emitido).
+> - Predicate `documento_metrologico_obrigatorio_por_perfil(tenant_id, tipo_servico)` consultado pelo FiscalProvider antes de emitir.
 
 ---
 

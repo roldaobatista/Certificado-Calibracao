@@ -1,12 +1,13 @@
 ---
 owner: roldao
-revisado-em: 2026-05-23
-status: proposta
+revisado-em: 2026-05-27
+status: aceito
+aceito-em: 2026-05-27
 ---
 
 # ADR-0014 — Transições regulatórias críticas (6 invariantes de integração + 3 fluxos proativos Onda 8)
 
-> **Status:** **PROPOSTA** (17/05/2026, madrugada). Resolve 6 gaps críticos identificados pela auditoria de 10 agentes (Auditores C, E, F, J) + **3 fluxos proativos adicionados pela auditoria Onda 8 (2026-05-23 — auditor regulatório 7)**: ampliação de escopo CGCRE, NC CGCRE com SLA 30d, revisão CGCRE quinquenal. Também atualiza Fluxo 4 (bypass exige A3 do dono Aferê — local ou cross-tenant via SaaS suporte).
+> **Status:** **ACEITO** (2026-05-27 noite — auditoria 10 lentes pré-Wave A, Onda PRE-A.2). Estava em proposta desde 17/05/2026. INV-INT-001..006 destravadas pra Wave A. Resolve 6 gaps críticos identificados pela auditoria de 10 agentes (Auditores C, E, F, J) + **3 fluxos proativos adicionados pela auditoria Onda 8 (2026-05-23 — auditor regulatório 7)**: ampliação de escopo CGCRE, NC CGCRE com SLA 30d, revisão CGCRE quinquenal. Também atualiza Fluxo 4 (bypass exige A3 do dono Aferê — local ou cross-tenant via SaaS suporte).
 > **Autor:** Claude Code (orquestrador) + Roldão (decisor)
 > **Origem:** Auditoria de integrações inter-modulares 17/05/2026 madrugada.
 > **Depende de:** ADR-0001 (stack), ADR-0007 (camada domínio + outbox), ADR-0011 (BI 3 fases), ADR-0012 (autorização), ADR-0008 (fiscal pluggable).
