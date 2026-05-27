@@ -197,7 +197,18 @@ Ordem (mais barato → mais caro), paralelo ao M3 OS:
 
 ## 6. Status
 
-**VEREDITO 1ª PASSADA: FAIL — INV-RITUAL-001 bloqueia fechamento.** 41 achados C/A/M abertos; 5 batches de conserto causa-raiz em ataque sequencial (S1 em execução).
+**VEREDITO 1ª PASSADA: FAIL — INV-RITUAL-001 bloqueia fechamento.** 41 achados C/A/M originalmente abertos; **22 zerados** em 4 batches consecutivos:
+
+| Batch | Commit | C | A | M | Resumo |
+|---|---|---|---|---|---|
+| S1 drift-docs | `7c06411` | 0 | 4 | 9 | AGENTS §3/§11/§12; CLAUDE; CURRENT rotacionado; 2 diários M4 |
+| S2 segurança+LGPD (parcial) | `146ef9b` | 1 | 1 | 3 | SEG-CAL-01 server-side hash PII; helper `lgpd.py` (+22 tests) |
+| S3 idempotência | `4b58c24` | 1 | 2 | 0 | IdempotencyMixin nos 3 actions + hook estendido + IdempotencyPayloadMismatch |
+| S5 (parcial — ADR-0066) | (em curso) | 0 | 2 | 0 | Fail-open lazy formalizado paralelo a ADR-0063 |
+| **Subtotal zerado** | | **2** | **9** | **12** | **23/41** |
+| **Restante aberto** | | **0** | **4** | **14** | 18 itens (S2 SEG-CAL-02/04/05/06; S4 obs completo; S5 PROD-CAL-03 + Q-CAL-01..05) |
+
+**2/2 CRÍTICOS ZERADOS ✅** — INV-RITUAL-001 ainda bloqueia por 4 ALTO + 14 MÉDIO. Próximo: Batch S4 (observabilidade — exige `append_evento_calibracao`) + S5 restante.
 
 ## 7. Apêndice — invocação dos auditores
 

@@ -93,7 +93,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 
 **Critérios de aceite:**
 - **AC-CAL-001-1**: GIVEN **atividade de OS tipo=calibracao** (ADR-0023) OU recepção avulsa, WHEN registra entrada (cliente, instrumento, condições recebidas), THEN sistema gera etiqueta interna PDF com QR Code apontando ao registro de calibração. Quando origem = atividade de OS, o registro de calibração é vinculado via `link_modulo_tecnico` da atividade — permite OS combinada (manutenção + calibração) com a calibração só iniciando após manutenção concluída.
-- **AC-CAL-001-2**: GIVEN escopo de acreditação NÃO cobre o instrumento, WHEN tenta cadastrar como calibração RBC, THEN sistema avisa e permite seguir como NÃO-RBC.
+- **AC-CAL-001-2**: GIVEN escopo de acreditação NÃO cobre o instrumento, WHEN tenta cadastrar como calibração RBC, THEN sistema avisa e permite seguir como NÃO-RBC. **ADR-0066 (2026-05-27)**: predicate `cmc_cobre` declarado em P4 Fase 2 com fail-open lazy controlado; aviso entra em runtime quando módulo `metrologia/escopos-cmc` for entregue em Wave A (`GATE-CAL-CMC-PREDICATE`). Marco 4 dogfooding-only — RT da Balanças confere faixa manualmente.
 
 **Invariantes:** `INV-TENANT-001`, `INV-CAL-WORM-001`.
 
@@ -105,7 +105,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 
 **Critérios de aceite:**
 - **AC-CAL-002-1**: GIVEN configuração nova, WHEN seleciona grandeza+faixa, THEN sistema oferece métodos disponíveis (NIT-DICLA / norma técnica) e padrões compatíveis.
-- **AC-CAL-002-2**: GIVEN faixa fora do escopo CMC, WHEN tenta salvar como RBC, THEN sistema bloqueia citando CMC oficial.
+- **AC-CAL-002-2**: GIVEN faixa fora do escopo CMC, WHEN tenta salvar como RBC, THEN sistema bloqueia citando CMC oficial. **ADR-0066 (2026-05-27)**: bloqueio 412 `EscopoNaoCobreFaixa` entra em vigor quando módulo `metrologia/escopos-cmc` for entregue em Wave A (`GATE-CAL-CMC-PREDICATE`). Marco 4 dogfooding fail-open lazy.
 
 **Invariantes:** `INV-002` (escopo CMC), `INV-CAL-WORM-001`.
 
@@ -268,7 +268,7 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 **Como** admin tenant, **quero** cadastrar escopo de acreditação CGCRE + CMC por grandeza/faixa, **para** o sistema bloquear emissões fora do escopo RBC.
 
 **Critérios de aceite:**
-- **AC-CAL-015-1**: GIVEN escopo cadastrado (grandeza, faixa min/max, CMC, método), WHEN calibração configurada, THEN sistema valida se cobre.
+- **AC-CAL-015-1**: GIVEN escopo cadastrado (grandeza, faixa min/max, CMC, método), WHEN calibração configurada, THEN sistema valida se cobre. **ADR-0066 (2026-05-27)**: validação real via predicate `cmc_cobre` ativa em Wave A (`GATE-CAL-CMC-PREDICATE`). Marco 4 dogfooding fail-open lazy.
 - **AC-CAL-015-2**: GIVEN renovação/revisão do escopo CGCRE, WHEN admin atualiza, THEN versão anterior preservada com janela de calibrações antigas.
 
 **Invariantes:** `INV-002`, `INV-012` (vincula com Licenças), `INV-CAL-WORM-001`.
@@ -280,9 +280,9 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 **Como** metrologista, **quero** que cada calibração referencie a versão vigente do `ProcedimentoCalibracao` aplicável à grandeza/faixa **na data de execução**, **para** atender ISO 17025 cl. 7.2.1 (procedimento documentado controlado) e permitir auditoria retroativa.
 
 **Critérios de aceite:**
-- **AC-CAL-016-1**: GIVEN configuração da calibração (US-CAL-002), WHEN metrologista seleciona grandeza+faixa, THEN sistema resolve `ProcedimentoCalibracao` vigente em `data_execucao` via predicate `procedimento_vigente_para(grandeza, faixa, em_data)` (referência `INV-VIG-001`/`INV-VIG-004` + ADR-0030) e vincula `Calibracao.procedimento_id` + `Calibracao.procedimento_versao_snapshot` (snapshot do código + versão + hash do anexo PDF).
-- **AC-CAL-016-2**: GIVEN nenhum `ProcedimentoCalibracao` vigente na data, WHEN tenta configurar como RBC, THEN sistema bloqueia com 412 `ProcedimentoVigenteAusente` + cita grandeza/faixa.
-- **AC-CAL-016-3**: GIVEN procedimento ativo em superseção (RT aprova versão N+1 após calibração começar), WHEN calibração está em `EM_EXECUCAO`/`EM_REVISAO_1`, THEN snapshot original é preservado (lock — `INV-CAL-WORM-001` estendido); só calibrações nascidas após `vigencia_inicio` de N+1 usam a nova.
+- **AC-CAL-016-1**: GIVEN configuração da calibração (US-CAL-002), WHEN metrologista seleciona grandeza+faixa, THEN sistema resolve `ProcedimentoCalibracao` vigente em `data_execucao` via predicate `procedimento_vigente_para(grandeza, faixa, em_data)` (referência `INV-VIG-001`/`INV-VIG-004` + ADR-0030) e vincula `Calibracao.procedimento_id` + `Calibracao.procedimento_versao_snapshot` (snapshot do código + versão + hash do anexo PDF). **ADR-0066 (2026-05-27)**: predicate declarado em P4 Fase 2 com fail-open lazy; resolução real entra em Wave A (`GATE-CAL-PROC-VIGENTE-PREDICATE`).
+- **AC-CAL-016-2**: GIVEN nenhum `ProcedimentoCalibracao` vigente na data, WHEN tenta configurar como RBC, THEN sistema bloqueia com 412 `ProcedimentoVigenteAusente` + cita grandeza/faixa. **ADR-0066 (2026-05-27)**: bloqueio 412 entra em vigor em Wave A junto com módulo `metrologia/procedimentos-calibracao` (`GATE-CAL-PROC-VIGENTE-PREDICATE`).
+- **AC-CAL-016-3**: GIVEN procedimento ativo em superseção (RT aprova versão N+1 após calibração começar), WHEN calibração está em `EM_EXECUCAO`/`EM_REVISAO_1`, THEN snapshot original é preservado (lock — `INV-CAL-WORM-001` estendido); só calibrações nascidas após `vigencia_inicio` de N+1 usam a nova. **ADR-0066 (2026-05-27)**: snapshot preservation já entregue em P4 (CalibracaoSnapshot.procedimento_versao_snapshot imutável); resolução do procedimento vigente entra em Wave A.
 
 **Invariantes:** `INV-PROC-001` (procedimento vigente na data — referência módulo `procedimentos`), `INV-CAL-WORM-001`, `INV-CAL-VERSAO-001`.
 
