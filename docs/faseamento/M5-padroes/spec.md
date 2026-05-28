@@ -110,14 +110,23 @@ calculado**, não entidade persistida nova (pontos vêm de
   INV-CAL-WORM-001, INV-VIG-001..004, INV-SOFT-001/002, INV-HMAC-001..005,
   INV-PERFIL-001, INV-VAL-001, INV-TENANT-001.
 
-## 7. Porta exposta (crítica — Marco 4 já consome adapter vazio)
+## 7. Porta exposta (crítica — porta NOVA; M4 hoje só tem `padrao_id` solto)
 
-`PadraoMetrologicoQueryService` (3 métodos — ver modelo-de-domínio §Portas):
-`buscar_disponivel_para_calibracao`, `snapshot_para_uso` (retorna
-`PadraoUsadoSnapshot` imutável — INV-CAL-SNAP-001), `padrao_bloqueado_para_uso`.
-Substitui `EmptyPadraoMetrologicoQueryService` (que lança `NotImplementedError`).
-**GATE-PAD-PORTA-M4:** Marco 4 deve trocar o adapter vazio pelo real + suíte M4
-reverde com padrão real.
+> **Correção pós-review tech-lead (C-6 drift-docs):** `EmptyPadraoMetrologicoQueryService`
+> **não existe no código** — só em docs/ADR-0040 (proposta). O M4 fechado só
+> persiste `PadraoUsado.padrao_id` solto (`models.py:1151`) +
+> `ComponenteIncerteza.fonte_default_padrao_id` (`:1006`), SEM porta plugada e
+> SEM validar disponibilidade. Logo a porta é **nova adição**, não substituição.
+
+Porta read-only como **funções de módulo** em `query_service.py` (estilo
+`certificados/query_service.py` — padrão real do projeto), NÃO Protocol+adapter
+injetado: `buscar_disponivel_para_calibracao`, `snapshot_para_uso` (retorna
+`PadraoUsadoSnapshot` imutável — INV-CAL-SNAP-001), `padrao_bloqueado_para_uso`
+(**fail-CLOSED** — padrão é barreira de segurança metrológica; NÃO replicar
+fail-open ADR-0063/0066).
+**GATE-PAD-PORTA-M4:** M4 passa a CHAMAR `padrao_bloqueado_para_uso` antes de
+gravar `PadraoUsado` (adição) + **testes NOVOS** do caminho bloqueado (a suíte
+629 não cobre — não há padrão real hoje) + suíte 629 reverde.
 
 ## 8. Eventos (hash-chain HMAC ADR-0064 — ver modelo §Eventos)
 
