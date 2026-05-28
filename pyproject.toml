@@ -135,7 +135,9 @@ plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
 # manualmente eh antipadrao (Django sobrescreve em cada makemigrations).
 # Excluimos do strict check; ainda passam por ruff format.
 exclude = [
-    "^src/infrastructure/[^/]+/migrations/",
+    # `(?:[^/]+/)+` cobre tanto o path achatado (calibracao/migrations) quanto
+    # o aninhado pos-ADR-0072 (metrologia/padroes/migrations).
+    "^src/infrastructure/(?:[^/]+/)+migrations/",
     "^config/settings/test_e2e\\.py$",
 ]
 

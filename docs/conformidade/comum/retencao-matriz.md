@@ -1,6 +1,6 @@
 ---
 owner: roldao
-revisado_em: 2026-05-23
+revisado_em: 2026-05-28
 proximo_review: 2026-08-23
 status: draft
 ---
@@ -77,6 +77,10 @@ Cada categoria de dado tem:
 | **OS sem atividade `calibracao`/`verificacao_inmetro` (cancelada/só-manutenção)** | 5 anos (Receita) | 5 anos | LGPD art. 7º V + CTN art. 173 | PG → B2 | Anonimização + crypto-shredding (sem obrigação ISO/INMETRO) |
 | **`AceiteAtividade` (TEMA-D.3 — Lei 14.063/2020)** | retenção da atividade pai + 1 ano | igual atividade pai | Lei 14.063 art. 4º (prova de manifestação) + LGPD art. 7º V | mesma da atividade | Versão termo + hash texto + `ip_hash` + timestamp preservados; assinatura touch original anonimizada após 5a se atividade não-calibração; certificate A1/A3 issuer hash preservado |
 | **`EventoDeOS` + `EventoDeCalibracao` (audit imutável WORM — RAT-08)** | 5 anos | **25 anos quando vinculado a atividade calibração ou certificado** | ISO 17025 cl. 8.4 + Marco Civil art. 15 + INV-OS-AUD-001/INV-CAL-AUD-001 | B2 WORM | Payload já sanitizado (hash HMAC tenant); manter integralmente |
+| **`PadraoMetrologico` — cadastro-mestre do padrão (M5 — ADR-0040)** | 5 anos pós-baixa/sucateamento | **25 anos** (cadeia de rastreabilidade ao SI — cl. 6.5) | **ISO 17025 cl. 6.4/6.5/8.4 + LGPD art. 16 I + RBC NIT-DICLA-021** | PG (estado ≠ terminal) → B2 WORM | Soft-delete B (sem DELETE físico — INV-SOFT-002); não contém PII direta (`localizacao_lab` anti-PII). Manter registro técnico |
+| **`RecalExternoPadrao` / `VerificacaoIntermediaria` / `IntercomparacaoPT` (M5 — cl. 6.4.10/6.6)** | 5 anos | **25 anos** (histórico de calibração/VI/PT do padrão sustenta a validade dos certificados emitidos com ele) | **ISO 17025 cl. 6.4/6.6/8.4 + LGPD art. 16 I + RBC NIT-DICLA-021** | B2 WORM (append-only / imutável pós-retorno) | Cert externo PDF é `storage_key` opaca de binário cifrado por chave KMS do tenant (C-14 — pode conter PII de terceiro); método VI / ação corretiva canonicalizados + hash (ADR-0029). Manter |
+| **`AnaliseCartaControle` (M5 — carta Shewhart probatória, ADR-0070)** | 5 anos | **25 anos** (registro probatório congelado da decisão metrológica — cl. 8.4) | **ISO 17025 cl. 7.11/8.4 + LGPD art. 16 I + INV-PAD-010** | B2 WORM (append-only) | Justificativa do RT canonicalizada + hash (ADR-0029); limites/σ/versão-motor preservados pra replay CGCRE. Manter |
+| **`*_id_hash` de funcionário em evento de padrão (responsável recal / executor VI / RT que aprova — M5)** | igual ao registro-pai (até 25 anos) | **25 anos** | **Prestação de contas LGPD art. 37 + ISO 17025 cl. 8.4** — pseudônimo (HMAC-tenant ADR-0064) permanece dado pessoal (LGPD art. 12: reversível por quem detém a chave) | B2 WORM (junto do registro-pai) | NUNCA PII em claro (só `HashVersionado`). Eliminação só via crypto-shredding da chave HMAC do tenant (alinhado à linha "Chave de hash de PII aposentada") — descartar antes torna a trilha metrológica inconclusiva |
 
 ---
 

@@ -53,6 +53,14 @@ def _resetar_app_settings_na_conexao(sender: object, connection: Any, **kwargs: 
         # garante que pool nunca vaza chave entre contextos.
         cur.execute("RESET app.pii_hash_key_ativa;")
         cur.execute("RESET app.pii_hash_key_ativa_id;")
+        # T-PAD-015 (M5 ADR-0070/INV-PAD-006 — decisao C-10): GUC sinaliza que
+        # a sessao esta DENTRO do fluxo legitimo de recal externo. O trigger
+        # `padrao_incertezas_so_via_recal` so libera UPDATE de incertezas/
+        # validade/proximo_recal quando '1'. O use case `registrar_recal_retorno`
+        # faz `SET LOCAL app.padrao_recal_em_curso = '1'` na sua transacao;
+        # RESET no checkout impede vazar '1' pra um request normal que pegue
+        # a conexao (defesa em profundidade — paralelo app.modo_sistema).
+        cur.execute("RESET app.padrao_recal_em_curso;")
 
 
 def setar_contexto_pg_na_conexao(

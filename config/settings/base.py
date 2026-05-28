@@ -232,6 +232,12 @@ LOCAL_APPS = [
     # 0024 revisado (6 zonas ILAC G8 + PFA/PRA) + 0025 + 0026 + 0040 + 0063
     # Opcao A + 0064 + 0065 NOVA (concorrencia metrologica).
     "src.infrastructure.calibracao.apps.CalibracaoConfig",
+    # Wave A M5 — Padroes Metrologicos (metrologia/padroes — ADR-0040 entidade
+    # separada de equipamentos; ADR-0072 path aninhado). Agregado
+    # PadraoMetrologico + recal externo + VI + PT + carta Shewhart WORM
+    # (ADR-0070) + vinculo auxiliar. INV-PAD-006 (incertezas so via recal) via
+    # GUC app.padrao_recal_em_curso. Porta fail-closed pra M4 (GATE-PAD-PORTA-M4).
+    "src.infrastructure.metrologia.padroes.apps.PadroesConfig",
     # F-C1 P4 — adapter canonico OutboundWebhookProvider (ADR-0054 aceita
     # dentro desta fase). SSRF guard + HMAC canonical + DNS rebinding lock
     # + DPA enforcement (INV-WEBHOOK-OUT-001..005).
