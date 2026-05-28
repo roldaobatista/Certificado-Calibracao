@@ -25,10 +25,15 @@ from src.domain.metrologia.calibracao.entities import (
     EventoDeCalibracaoSnapshot,
     LeituraCorrecaoSnapshot,
     LeituraSnapshot,
+    NaoConformidadeSnapshot,
     OrigemLeitura,
 )
 from src.domain.metrologia.calibracao.enums import (
+    AcaoCorretivaTipo,
+    ClienteNotificadoVia,
+    DecisaoContinuarOuParar,
     EstadoCalibracao,
+    EstadoNaoConformidade,
     OrigemRecepcao,
     RegraDecisao,
     TipoAcreditacao,
@@ -45,6 +50,7 @@ from src.infrastructure.calibracao.models import (
     EventoDeCalibracao,
     Leitura,
     LeituraCorrecao,
+    NaoConformidade,
 )
 
 # Classe de lock por tabela — namespace de 2 args
@@ -504,5 +510,169 @@ class DjangoLeituraCorrecaoRepository:
             razao_correcao_hash=obj.razao_correcao_hash,
             corretor_id_hash=obj.corretor_id_hash,
             corrigido_em=obj.corrigido_em,
+            correlation_id=obj.correlation_id,
+        )
+
+
+class DjangoNaoConformidadeRepository:
+    """Implementa `NaoConformidadeRepository` (T-CAL-128).
+
+    `transitar_estado` faz UPDATE atomico WHERE estado=esperado —
+    rowcount=0 indica corrida (estado mudou concorrente). Cumpre o
+    contrato Protocol em src/domain/.../calibracao/repository.py.
+    """
+
+    def obter_por_id(
+        self, nc_id: UUID
+    ) -> NaoConformidadeSnapshot | None:
+        from src.infrastructure.multitenant.context import active_tenant_context
+
+        tenant_id = active_tenant_context.get()
+        if tenant_id is None:
+            return None
+        try:
+            obj = NaoConformidade.objects.get(id=nc_id, tenant_id=tenant_id)
+        except NaoConformidade.DoesNotExist:
+            return None
+        return self._to_snapshot(obj)
+
+    def salvar_novo(self, snapshot: NaoConformidadeSnapshot) -> None:
+        NaoConformidade.objects.create(
+            id=snapshot.id,
+            tenant_id=snapshot.tenant_id,
+            calibracao_id=snapshot.calibracao_id,
+            origem_proficiencia_id=snapshot.origem_proficiencia_id,
+            descricao_canonicalizada=snapshot.descricao_canonicalizada,
+            descricao_hash=snapshot.descricao_hash,
+            estado=snapshot.estado.value,
+            causa_raiz_canonicalizada=snapshot.causa_raiz_canonicalizada,
+            causa_raiz_hash=snapshot.causa_raiz_hash,
+            acao_corretiva_descricao_hash=(
+                snapshot.acao_corretiva_descricao_hash
+            ),
+            acao_corretiva_tipo=(
+                snapshot.acao_corretiva_tipo.value
+                if snapshot.acao_corretiva_tipo is not None
+                else ""
+            ),
+            acao_executada_em=snapshot.acao_executada_em,
+            eficacia_verificada_em=snapshot.eficacia_verificada_em,
+            eficacia_verificada_por_user_id=(
+                snapshot.eficacia_verificada_por_user_id
+            ),
+            responsavel_acao_user_id=snapshot.responsavel_acao_user_id,
+            responsavel_acao_user_id_hash=(
+                snapshot.responsavel_acao_user_id_hash
+            ),
+            decisao_continuar_ou_parar=(
+                snapshot.decisao_continuar_ou_parar.value
+            ),
+            cliente_notificado_em=snapshot.cliente_notificado_em,
+            cliente_notificado_via=(
+                snapshot.cliente_notificado_via.value
+                if snapshot.cliente_notificado_via is not None
+                else ""
+            ),
+            cliente_notificado_documento_id=(
+                snapshot.cliente_notificado_documento_id
+            ),
+            autorizacao_retomada_user_id=(
+                snapshot.autorizacao_retomada_user_id
+            ),
+            autorizacao_retomada_em=snapshot.autorizacao_retomada_em,
+            correlation_id=snapshot.correlation_id,
+        )
+
+    def transitar_estado(
+        self,
+        snapshot: NaoConformidadeSnapshot,
+        estado_anterior: EstadoNaoConformidade,
+    ) -> bool:
+        # UPDATE atomico WHERE estado=esperado (CAS sem revision).
+        # Tenant filter explicito + RLS (defesa em profundidade).
+        from src.infrastructure.multitenant.context import active_tenant_context
+
+        tenant_id = active_tenant_context.get()
+        if tenant_id is None:
+            return False
+        rowcount = NaoConformidade.objects.filter(
+            id=snapshot.id,
+            tenant_id=tenant_id,
+            estado=estado_anterior.value,
+        ).update(
+            estado=snapshot.estado.value,
+            causa_raiz_canonicalizada=snapshot.causa_raiz_canonicalizada,
+            causa_raiz_hash=snapshot.causa_raiz_hash,
+            acao_corretiva_descricao_hash=(
+                snapshot.acao_corretiva_descricao_hash
+            ),
+            acao_corretiva_tipo=(
+                snapshot.acao_corretiva_tipo.value
+                if snapshot.acao_corretiva_tipo is not None
+                else ""
+            ),
+            acao_executada_em=snapshot.acao_executada_em,
+            eficacia_verificada_em=snapshot.eficacia_verificada_em,
+            eficacia_verificada_por_user_id=(
+                snapshot.eficacia_verificada_por_user_id
+            ),
+            decisao_continuar_ou_parar=(
+                snapshot.decisao_continuar_ou_parar.value
+            ),
+            cliente_notificado_em=snapshot.cliente_notificado_em,
+            cliente_notificado_via=(
+                snapshot.cliente_notificado_via.value
+                if snapshot.cliente_notificado_via is not None
+                else ""
+            ),
+            cliente_notificado_documento_id=(
+                snapshot.cliente_notificado_documento_id
+            ),
+            autorizacao_retomada_user_id=(
+                snapshot.autorizacao_retomada_user_id
+            ),
+            autorizacao_retomada_em=snapshot.autorizacao_retomada_em,
+        )
+        return rowcount == 1
+
+    @staticmethod
+    def _to_snapshot(obj: NaoConformidade) -> NaoConformidadeSnapshot:
+        return NaoConformidadeSnapshot(
+            id=obj.id,
+            tenant_id=obj.tenant_id,
+            calibracao_id=obj.calibracao_id,
+            origem_proficiencia_id=obj.origem_proficiencia_id,
+            descricao_canonicalizada=obj.descricao_canonicalizada,
+            descricao_hash=obj.descricao_hash,
+            estado=EstadoNaoConformidade(obj.estado),
+            causa_raiz_canonicalizada=obj.causa_raiz_canonicalizada,
+            causa_raiz_hash=obj.causa_raiz_hash,
+            acao_corretiva_descricao_hash=obj.acao_corretiva_descricao_hash,
+            acao_corretiva_tipo=(
+                AcaoCorretivaTipo(obj.acao_corretiva_tipo)
+                if obj.acao_corretiva_tipo
+                else None
+            ),
+            acao_executada_em=obj.acao_executada_em,
+            eficacia_verificada_em=obj.eficacia_verificada_em,
+            eficacia_verificada_por_user_id=(
+                obj.eficacia_verificada_por_user_id
+            ),
+            responsavel_acao_user_id=obj.responsavel_acao_user_id,
+            responsavel_acao_user_id_hash=obj.responsavel_acao_user_id_hash,
+            decisao_continuar_ou_parar=DecisaoContinuarOuParar(
+                obj.decisao_continuar_ou_parar
+            ),
+            cliente_notificado_em=obj.cliente_notificado_em,
+            cliente_notificado_via=(
+                ClienteNotificadoVia(obj.cliente_notificado_via)
+                if obj.cliente_notificado_via
+                else None
+            ),
+            cliente_notificado_documento_id=(
+                obj.cliente_notificado_documento_id
+            ),
+            autorizacao_retomada_user_id=obj.autorizacao_retomada_user_id,
+            autorizacao_retomada_em=obj.autorizacao_retomada_em,
             correlation_id=obj.correlation_id,
         )

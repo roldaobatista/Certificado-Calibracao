@@ -88,6 +88,19 @@ from src.application.metrologia.calibracao.criar_calibracao import (
 from src.application.metrologia.calibracao.criar_calibracao import (
     executar as criar_executar,
 )
+from src.application.metrologia.calibracao.nao_conformidade import (
+    AbrirNCInput,
+    ConflitoEstadoNaoConformidade,
+    EstadoInvalidoParaTransicao,
+    FecharNCInput,
+    NaoConformidadeNaoEncontrada,
+)
+from src.application.metrologia.calibracao.nao_conformidade import (
+    abrir as abrir_nc_executar,
+)
+from src.application.metrologia.calibracao.nao_conformidade import (
+    fechar as fechar_nc_executar,
+)
 from src.application.metrologia.calibracao.registrar_leitura import (
     ConflitoLeituraExistente,
     EstadoInvalidoParaRegistrarLeitura,
@@ -121,13 +134,16 @@ from src.infrastructure.calibracao.repositories import (
     DjangoEventoDeCalibracaoRepository,
     DjangoLeituraCorrecaoRepository,
     DjangoLeituraRepository,
+    DjangoNaoConformidadeRepository,
 )
 from src.infrastructure.calibracao.serializers import (
+    AbrirNCSerializer,
     Aprovar2aConferenciaSerializer,
     AprovarRevisaoSerializer,
     CancelarCalibracaoSerializer,
     ConfigurarCalibracaoSerializer,
     CorrigirLeituraSerializer,
+    FecharNCSerializer,
     RecepcionarCalibracaoSerializer,
     RegistrarLeituraSerializer,
     RejeitarRevisaoSerializer,
@@ -159,6 +175,8 @@ ENDPOINT_CAL_CORRIGIR_LEITURA = "calibracao.corrigir_leitura"
 ENDPOINT_CAL_APROVAR_REVISAO = "calibracao.aprovar_revisao"
 ENDPOINT_CAL_REJEITAR_REVISAO = "calibracao.rejeitar_revisao"
 ENDPOINT_CAL_APROVAR_2A_CONF = "calibracao.aprovar_2a_conferencia"
+ENDPOINT_NC_ABRIR = "calibracao.nc_abrir"
+ENDPOINT_NC_FECHAR = "calibracao.nc_fechar"
 
 
 def _resposta_erro_idempotencia(erro: ErroValidacao) -> Response:
@@ -1663,6 +1681,276 @@ class ConferenciaViewSet(viewsets.ViewSet):
                 "calibracao_id": str(cal_id),
                 "usuario_id": str(usuario_id),
                 "revision": out.snapshot.revision,
+            },
+        )
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id_ctx,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body)
+
+
+def _serializar_nc(snapshot: Any) -> dict[str, Any]:
+    return {
+        "id": str(snapshot.id),
+        "calibracao_id": (
+            str(snapshot.calibracao_id) if snapshot.calibracao_id else None
+        ),
+        "origem_proficiencia_id": (
+            str(snapshot.origem_proficiencia_id)
+            if snapshot.origem_proficiencia_id
+            else None
+        ),
+        "estado": snapshot.estado.value,
+        "decisao_continuar_ou_parar": (
+            snapshot.decisao_continuar_ou_parar.value
+        ),
+        "correlation_id": str(snapshot.correlation_id),
+    }
+
+
+# authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+class NaoConformidadeViewSet(viewsets.ViewSet):
+    """ViewSet REST de Nao-Conformidade (T-CAL-128 — abrir + fechar).
+
+      POST /api/v1/nao-conformidades/abrir         (US-CAL-013 marcar-nc)
+      POST /api/v1/nao-conformidades/{id}/fechar   (US-CAL-014 resolver-nc)
+
+    GAP intermediario (Wave A — GATE-NC-INTERMEDIATE-TRANSITIONS):
+    `definir-acao-corretiva` + `executar-acao` + `verificar-eficacia`
+    nao expostos via API por enquanto. NC criada via abrir fica em CONTIDA;
+    fechar so funciona quando NC ja esta em EFICACIA_VERIFICADA (admin
+    pode avancar via shell ate as 3 transicoes intermediarias entrarem).
+    """
+
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="nao-conformidades/abrir",
+    )
+    def abrir(self, request: Request) -> Response:
+        """POST /api/v1/nao-conformidades/abrir/.
+
+        US-CAL-013 marcar-nc. Cria NC em estado CONTIDA. Origem XOR:
+        exatamente UMA de {calibracao_id, origem_proficiencia_id}.
+        """
+        serializer = AbrirNCSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+
+        tenant_id_ctx = active_tenant_context.get()
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        descricao_hash = derivar_hash_texto_canonicalizado(
+            texto=dados["descricao_canonicalizada"],
+            tenant_id=tenant_id_ctx,
+        )
+        responsavel_hash = derivar_user_id_hash(
+            usuario_id=usuario_id, tenant_id=tenant_id_ctx
+        )
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id_ctx,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_NC_ABRIR,
+            payload_fingerprint={
+                "calibracao_id": str(dados.get("calibracao_id") or ""),
+                "origem_proficiencia_id": str(
+                    dados.get("origem_proficiencia_id") or ""
+                ),
+                "descricao_hash_fingerprint": hashlib.sha256(
+                    descricao_hash.encode()
+                ).hexdigest(),
+                "correlation_id": str(dados["correlation_id"]),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+
+        nc_repo = DjangoNaoConformidadeRepository()
+        evento_repo = DjangoEventoDeCalibracaoRepository()
+        try:
+            inp = AbrirNCInput(
+                tenant_id=tenant_id_ctx,
+                calibracao_id=dados.get("calibracao_id"),
+                origem_proficiencia_id=dados.get("origem_proficiencia_id"),
+                descricao_canonicalizada=dados["descricao_canonicalizada"],
+                descricao_hash=descricao_hash,
+                responsavel_acao_user_id=usuario_id,
+                responsavel_acao_user_id_hash=responsavel_hash,
+                correlation_id=dados["correlation_id"],
+            )
+        except ValueError as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response(
+                {"erro": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            out = abrir_nc_executar(inp, nc_repo)
+            if out.snapshot.calibracao_id is not None:
+                append_evento_executar(
+                    AppendEventoCalibracaoInput(
+                        tenant_id=tenant_id_ctx,
+                        calibracao_id=out.snapshot.calibracao_id,
+                        tipo="nc_aberta",
+                        payload_raw={
+                            "nc_id": str(out.snapshot.id),
+                            "estado": out.snapshot.estado.value,
+                            "descricao_hash": descricao_hash,
+                        },
+                        finalidade="nc_aberta",
+                        actor_user_id=usuario_id,
+                        occurred_at=datetime.now(UTC),
+                        correlation_id=out.snapshot.correlation_id,
+                        causation_id=novo.chave_id,  # type: ignore[arg-type]
+                    ),
+                    evento_repo,
+                )
+
+        body = _serializar_nc(out.snapshot)
+        logger.info(
+            "calibracao.nc_abrir OK nc_id=%s estado=%s",
+            out.snapshot.id,
+            out.snapshot.estado.value,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_NC_ABRIR,
+                "nc_id": str(out.snapshot.id),
+                "usuario_id": str(usuario_id),
+            },
+        )
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id_ctx,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
+
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="nao-conformidades/(?P<nc_pk>[^/.]+)/fechar",
+    )
+    def fechar(self, request: Request, nc_pk: str | None = None) -> Response:
+        """POST /api/v1/nao-conformidades/{id}/fechar/.
+
+        US-CAL-014 resolver-nc. EFICACIA_VERIFICADA -> FECHADA.
+        """
+        serializer = FecharNCSerializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            nc_id = UUID(str(nc_pk))
+        except (ValueError, TypeError) as exc:
+            raise NotFound(f"nc_id invalido: {exc}") from exc
+
+        tenant_id_ctx = active_tenant_context.get()
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id_ctx,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_NC_FECHAR,
+            payload_fingerprint={"nc_id": str(nc_id)},
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+
+        nc_repo = DjangoNaoConformidadeRepository()
+        evento_repo = DjangoEventoDeCalibracaoRepository()
+
+        try:
+            with transaction.atomic():
+                out = fechar_nc_executar(FecharNCInput(nc_id=nc_id), nc_repo)
+                if out.snapshot.calibracao_id is not None:
+                    append_evento_executar(
+                        AppendEventoCalibracaoInput(
+                            tenant_id=tenant_id_ctx,
+                            calibracao_id=out.snapshot.calibracao_id,
+                            tipo="nc_resolvida",
+                            payload_raw={
+                                "nc_id": str(out.snapshot.id),
+                                "estado": out.snapshot.estado.value,
+                            },
+                            finalidade="nc_resolvida",
+                            actor_user_id=usuario_id,
+                            occurred_at=datetime.now(UTC),
+                            correlation_id=out.snapshot.correlation_id,
+                            causation_id=novo.chave_id,  # type: ignore[arg-type]
+                        ),
+                        evento_repo,
+                    )
+        except NaoConformidadeNaoEncontrada as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
+            raise NotFound(str(exc)) from exc
+        except EstadoInvalidoParaTransicao as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "EstadoInvalido"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except ConflitoEstadoNaoConformidade as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "ConflitoEstado",
+                    "estado_atual": exc.snapshot_atual.estado.value,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        body = _serializar_nc(out.snapshot)
+        logger.info(
+            "calibracao.nc_fechar OK nc_id=%s estado=%s",
+            out.snapshot.id,
+            out.snapshot.estado.value,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_NC_FECHAR,
+                "nc_id": str(out.snapshot.id),
+                "usuario_id": str(usuario_id),
             },
         )
         concluir_chave(

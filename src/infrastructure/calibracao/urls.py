@@ -18,6 +18,7 @@ from .views import (
     CalibracaoViewSet,
     ConferenciaViewSet,
     LeituraViewSet,
+    NaoConformidadeViewSet,
     RevisaoViewSet,
 )
 
@@ -53,5 +54,16 @@ urlpatterns = [
         "calibracoes/<str:calibracao_pk>/aprovar-2a-conferencia/",
         ConferenciaViewSet.as_view({"post": "aprovar_2a"}),
         name="calibracao-aprovar-2a-conferencia",
+    ),
+    # T-CAL-128 NaoConformidadeViewSet
+    path(
+        "nao-conformidades/abrir/",
+        NaoConformidadeViewSet.as_view({"post": "abrir"}),
+        name="nao-conformidade-abrir",
+    ),
+    path(
+        "nao-conformidades/<str:nc_pk>/fechar/",
+        NaoConformidadeViewSet.as_view({"post": "fechar"}),
+        name="nao-conformidade-fechar",
     ),
 ]

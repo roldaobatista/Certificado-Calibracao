@@ -247,3 +247,45 @@ class Aprovar2aConferenciaSerializer(serializers.Serializer):
 
     def validate_snapshot_competencia_conferente_json(self, valor: dict) -> dict:
         return _validar_snapshot_competencia(valor)
+
+
+# =============================================================
+# Nao-Conformidade (T-CAL-128 — abrir + fechar)
+# =============================================================
+
+
+class AbrirNCSerializer(serializers.Serializer):
+    """POST /api/v1/nao-conformidades/abrir — US-CAL-013 marcar-nc.
+
+    SEG-CAL-09: `descricao_hash` + `responsavel_acao_user_id` +
+    `responsavel_acao_user_id_hash` derivados server-side. Body envia
+    descricao_canonicalizada (>=30 chars) + origem (calibracao_id XOR
+    origem_proficiencia_id) + correlation_id.
+    """
+
+    calibracao_id = serializers.UUIDField(required=False, allow_null=True)
+    origem_proficiencia_id = serializers.UUIDField(
+        required=False, allow_null=True
+    )
+    descricao_canonicalizada = serializers.CharField(min_length=30)
+    correlation_id = serializers.UUIDField()
+
+    def validate(self, attrs: dict) -> dict:
+        cal = attrs.get("calibracao_id")
+        prof = attrs.get("origem_proficiencia_id")
+        if (cal is None) == (prof is None):
+            raise serializers.ValidationError(
+                "origem XOR — exatamente UMA de "
+                "{calibracao_id, origem_proficiencia_id} deve ser fornecida"
+            )
+        return attrs
+
+
+class FecharNCSerializer(serializers.Serializer):
+    """POST /api/v1/nao-conformidades/{id}/fechar — US-CAL-014 resolver-nc.
+
+    Sem campos no body — body opcional. Use case `fechar` consome apenas
+    nc_id; EFICACIA_VERIFICADA -> FECHADA.
+    """
+
+    correlation_id = serializers.UUIDField(required=False)

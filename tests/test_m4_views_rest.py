@@ -10,11 +10,13 @@ from __future__ import annotations
 from uuid import uuid4
 
 from src.infrastructure.calibracao.serializers import (
+    AbrirNCSerializer,
     Aprovar2aConferenciaSerializer,
     AprovarRevisaoSerializer,
     CancelarCalibracaoSerializer,
     ConfigurarCalibracaoSerializer,
     CorrigirLeituraSerializer,
+    FecharNCSerializer,
     RecepcionarCalibracaoSerializer,
     RegistrarLeituraSerializer,
     RejeitarRevisaoSerializer,
@@ -341,3 +343,72 @@ class TestAprovar2aConferenciaSerializer:
         del payload["snapshot_competencia_conferente_json"]["rt_competencia_id"]
         s = Aprovar2aConferenciaSerializer(data=payload)
         assert not s.is_valid()
+
+
+class TestAbrirNCSerializer:
+    """T-CAL-128 — NaoConformidadeViewSet.abrir."""
+
+    def _payload(self) -> dict:
+        return {
+            "calibracao_id": str(uuid4()),
+            "descricao_canonicalizada": (
+                "leitura 3kg fora do tolerado pela especificacao do cliente"
+            ),
+            "correlation_id": str(uuid4()),
+        }
+
+    def test_payload_valido(self) -> None:
+        s = AbrirNCSerializer(data=self._payload())
+        assert s.is_valid(), s.errors
+
+    def test_origem_proficiencia_alternativa(self) -> None:
+        payload = self._payload()
+        payload["calibracao_id"] = None
+        payload["origem_proficiencia_id"] = str(uuid4())
+        s = AbrirNCSerializer(data=payload)
+        assert s.is_valid(), s.errors
+
+    def test_origem_xor_violado_ambos_recusa(self) -> None:
+        payload = self._payload()
+        payload["origem_proficiencia_id"] = str(uuid4())
+        s = AbrirNCSerializer(data=payload)
+        assert not s.is_valid()
+
+    def test_origem_xor_violado_nenhum_recusa(self) -> None:
+        payload = self._payload()
+        payload["calibracao_id"] = None
+        s = AbrirNCSerializer(data=payload)
+        assert not s.is_valid()
+
+    def test_descricao_curta_recusa(self) -> None:
+        payload = self._payload()
+        payload["descricao_canonicalizada"] = "curto"
+        s = AbrirNCSerializer(data=payload)
+        assert not s.is_valid()
+
+    def test_hashes_no_body_sao_ignorados(self) -> None:
+        """SEG-CAL-08/09: descricao_hash + responsavel hashes server-side."""
+        payload = self._payload()
+        payload["descricao_hash"] = "v01$ATACANTE"
+        payload["responsavel_acao_user_id"] = str(uuid4())
+        payload["responsavel_acao_user_id_hash"] = "v01$ATACANTE_USER"
+        s = AbrirNCSerializer(data=payload)
+        assert s.is_valid(), s.errors
+        for campo in (
+            "descricao_hash",
+            "responsavel_acao_user_id",
+            "responsavel_acao_user_id_hash",
+        ):
+            assert campo not in s.validated_data
+
+
+class TestFecharNCSerializer:
+    """T-CAL-128 — NaoConformidadeViewSet.fechar."""
+
+    def test_body_vazio_valido(self) -> None:
+        s = FecharNCSerializer(data={})
+        assert s.is_valid(), s.errors
+
+    def test_correlation_id_opcional(self) -> None:
+        s = FecharNCSerializer(data={"correlation_id": str(uuid4())})
+        assert s.is_valid(), s.errors
