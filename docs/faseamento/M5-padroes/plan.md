@@ -1,12 +1,12 @@
 ---
 owner: roldao
 revisado-em: 2026-05-28
-status: needs-v2
+status: v2-ready-for-tasks
 fase: M5-padroes
 dominio: metrologia
 modulo: padroes
 ritual: plan
-versao: 1
+versao: 2
 depende-de: docs/faseamento/M5-padroes/spec.md
 reviews-concluidas:
   - consultor-rbc-iso17025 (AJUSTAR 5/5 — 3 ALTO)
@@ -14,17 +14,18 @@ reviews-concluidas:
   - advogado-saas-regulado (AJUSTAR/OK)
   - corretora-seguros-saas (AJUSTAR — 2 furos bloqueantes)
 consolidacao: docs/faseamento/M5-padroes/reviews-consolidado.md
+adrs-emitidas-v2:
+  - 0070 (Shewhart híbrido read-model + WORM)
+  - 0071 (2º caminho = 2 implementações mesmo mensurando)
+  - 0072 (path metrologia/* aninhado)
 ---
 
 # Plano técnico — M5 `metrologia/padroes`
 
-> ⚠️ **v1 REVISADO 2026-05-28 — status `needs-v2`.** As 4 revisões dos subagentes
-> exigem correções obrigatórias (C-1..C-16) antes de `/tasks` — ver
-> `reviews-consolidado.md`. 3 ALTO metrológicos + 2 furos de risco bloqueantes +
-> 1 drift-docs. Pendências antes de codar: **plan v2 + 2 ADRs novas** (Shewhart
-> híbrido WORM; "2º caminho" = 2 implementações do mesmo mensurando) + 1 ADR curta
-> (assimetria de path). **NADA de código até plan v2 + ADRs aprovados**
-> (INV-RITUAL-001).
+> ✅ **v2 (2026-05-28) — `ready-for-tasks`.** As 16 correções (C-1..C-16) das 4
+> revisões foram resolvidas: ver §14 (deltas) + ADR-0070/0071/0072 (estruturais)
+> + emendas PRD §8 (C-13/C-14). O corpo v1 abaixo (§1-§13) permanece como
+> contexto; §14 SUPERSEDE onde diverge. Próximo passo: `/tasks`.
 
 > **Ritual:** este é o `/plan`. Antes de `/tasks` + `/implement`, os 4 subagentes
 > revisam (seções §9 trazem as perguntas dirigidas a cada um). Reusa padrões já
@@ -203,6 +204,65 @@ persistir pontos Shewhart (D-PAD-3, salvo veto RBC) · numpy/Monte Carlo.
 
 ## 10. Próximo passo
 
-Revisão dos 4 subagentes desta `plan.md` → consolidar respostas (emendas
-inline + ADRs se decisão estrutural mudar, ex: Shewhart congelado) → `/tasks`.
-**Sem código antes do plan aprovado.**
+`/tasks` (M5-padroes/tasks.md) derivando das fases P1-P9 (§4) **com os deltas v2
+da §14 aplicados**. Sem código antes de `/tasks`.
+
+## 14. Plan v2 — deltas das revisões (SUPERSEDE §1-§13 onde diverge)
+
+Resolução de C-1..C-16 (`reviews-consolidado.md`). Estruturais → ADR.
+
+- **C-1 (Shewhart híbrido) → ADR-0070.** D-PAD-3 atualizada: read-model p/ gráfico
+  + entidade WORM `AnaliseCartaControle` (snapshot congelado da decisão: LC/UCL/LCL/σ
+  + `versao_motor_shewhart` + decisao_rt + justificativa canon + hash). **INV-PAD-010**
+  nova. Entra no agregado + P2 (migration) + P3 (use case dispara no registro de VI).
+- **C-2 + C-3 (2º caminho + Welch-Satterthwaite) → ADR-0071.** D-PAD-4 reescrita:
+  2º caminho = 2 implementações do MESMO mensurando (anti-bug software cl. 7.11),
+  NÃO 2 estimadores. Deriva linear → controle de tendência na carta (US-PAD-008).
+  k via Welch-Satterthwaite/t-Student (reuso `gum_classico.py`) quando ν_eff<30.
+  **US-PAD-009 reescrita** (emenda PRD pendente no /implement).
+- **C-3 (Western Electric) → ADR-0070 + shewhart.py.** Regras 2 e 3 com "mesmo
+  lado"; **adicionar regra de tendência** (7 pontos monotônicos — detecta deriva,
+  Dor #04); motor versionado. **AC-PAD-008-2 emendar** no /implement.
+- **C-4 (FURO-1) + C-5 (FURO-4) + C-16 (FURO-3):** `padrao_bloqueado_para_uso`
+  (D-PAD-5 já atualizada) ganha: `recal_retornado_pendente_aprovacao_RT`,
+  `rastreabilidade_origem_revogada` (flag por evento externo, paralelo ADR-0045),
+  carta em alerta/trend. Estado novo intermediário: `RECAL_RETORNADO_PENDENTE_APROVACAO`.
+- **C-6 (drift porta) → corrigido** em spec §7 + D-PAD-5: porta nova, funções de
+  módulo estilo `certificados/query_service.py`, **fail-CLOSED**, entregue com
+  ponto de consumo no M4 + testes novos. GATE-PAD-PORTA-M4 = adição (não troca).
+- **C-7 → ADR-0071** (Welch-Satterthwaite — coberto acima).
+- **C-8 (auxiliar):** `VinculoAuxiliar` entidade temporal N:N (ADR-0030) com
+  grandeza de influência (temp/umidade/pressão) + leitura ambiental no
+  `PadraoUsadoSnapshot`; intervalos próprios (corrigir AC-PAD-007-4 no /implement).
+- **C-9 (intervalos):** NÃO cravar valores OIML R111 (R111 não define
+  periodicidade). `intervalo_recal_meses`/`intervalo_vi_meses` configuráveis +
+  `criterio_intervalo` justificado (cl. 6.4.7 + ILAC-G24). Enum `classe` mantém.
+- **C-10 (GUC):** `app.padrao_recal_em_curso` no RESET do pool
+  (`_resetar_app_settings_na_conexao`) + `SET LOCAL`. **Variante preferida
+  (avaliar em P2):** derivar `incertezas_certificado` como READ-MODEL do último
+  `RecalExternoPadrao` retornado vigente → trigger bloqueia QUALQUER UPDATE direto
+  e o GUC some. Decisão final no /tasks com base em complexidade da migration.
+- **C-11:** anotado — advisory-lock-por-tenant na cadeia global; hot path baixo.
+- **C-12 (path) → ADR-0072.** `src/infrastructure/metrologia/padroes/`; M4 fica
+  dívida; NÃO mexer no M4.
+- **C-13 + C-14 (advogado) → emenda PRD §8** (feita neste lote) + linha matriz
+  retenção (executor de evento de padrão; 5a quente / 25a evidência ISO; PDF cert
+  externo cifrado por chave KMS tenant — PII de terceiro possível).
+- **C-15 (FURO-2 faixa/grandeza):** **decisão:** a adequação faixa/grandeza↔ponto
+  é validada no **Marco 4** (onde o ponto de calibração existe) via `cmc_cobre` +
+  faixa do padrão; `padrao_bloqueado_para_uso` valida SAÚDE do padrão.
+  `snapshot_para_uso` expõe `grandezas`+`faixas`+`incertezas` p/ M4 decidir.
+  **Delegação EXPLÍCITA documentada** (não gap silencioso — R-042).
+
+### INVs novas v2
+
+- **INV-PAD-010** — toda regra Western Electric disparada / aceite de ponto em
+  alerta exige `AnaliseCartaControle` WORM antes de liberar uso (ADR-0070).
+- **INV-PAD-009** redefinida (ADR-0071) — divergência entre as 2 implementações
+  do mesmo mensurando bloqueia release (bug de software), distinta de controle de deriva.
+
+### Estados v2 (atualiza spec §4 / modelo)
+
+`EM_USO` · `EM_RECAL_EXTERNO` · **`RECAL_RETORNADO_PENDENTE_APROVACAO`** (novo —
+C-4) · `INTERCOMPARACAO_PT_EM_CURSO` · `BAIXADO` · `SUCATEADO`. Flag transversal
+`rastreabilidade_origem_revogada` (C-5) bloqueia uso independente do estado.

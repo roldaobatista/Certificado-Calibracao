@@ -357,10 +357,30 @@ módulo padrões" (validação software 7.11 — 2º caminho de cálculo).
 | Cartas controle Shewhart | art. 7º II | Obrigação regulatória cl. 7.7 |
 | Equipamentos auxiliares | art. 7º II | Obrigação regulatória cl. 6.4.5 |
 | Dossiê CGCRE | art. 7º II | Supervisão regulatória |
+| Executor/responsável de VI/PT/recal (dado funcional) | art. 7º II + art. 7º V | Compõe registro técnico ISO 17025 (II) + relação operacional (V) |
 
-> Padrão metrológico **não contém PII direta** (é instrumento físico do
-> laboratório). Responsável envio recal externo é dado funcional (não
-> cliente final).
+> **Emenda v2 (2026-05-28 — revisão `advogado-saas-regulado` C-13/C-14):**
+>
+> Os **campos estruturados** do padrão (NS, faixa, incerteza, classe) não contêm
+> PII — é instrumento físico. MAS dois cuidados:
+>
+> 1. **Dado do funcionário (executor/responsável):** no EVENTO WORM vai só hash
+>    (HMAC-tenant — ADR-0064). No registro operacional quente o `user_id` segue a
+>    retenção do cadastro (5 anos). PORÉM o **nome desnormalizado que compõe a
+>    evidência técnica de VI/PT/recal herda 25 anos** (cl. 8.4), com anonimização
+>    de CPF e preservação do nome — replica o **Cenário A** da matriz de retenção
+>    (igual ao signatário de certificado em M4 / DRILL-RET-07). Direito do titular
+>    (art. 18): recusa parcial fundamentada (art. 16 I).
+> 2. **PDF do cert externo (`cert_externo_storage_key`):** PODE conter **PII de
+>    terceiro** (assinatura/nome/CPF do signatário do lab acreditado). Tratado
+>    como documento **cifrado pela chave KMS do tenant** (crypto-shredding no
+>    offboarding), base art. 7º II + art. 16 I; **sem tentar anonimizar o binário
+>    probatório**. NÃO é "dado sem PII". O evento só guarda hash; o binário em B2
+>    é cifrado (confirmar com tech-lead na implementação).
+>
+> Pendente /implement: linha na matriz de retenção `docs/conformidade/comum/retencao-matriz.md`
+> ("Executor/responsável de evento de padrão") + drill análogo DRILL-RET-07.
+> Redação DPA sobre PII de terceiro embarcada → lote revisão OAB pré-produção.
 
 ## 9. Métricas (ver `metricas.md`)
 
