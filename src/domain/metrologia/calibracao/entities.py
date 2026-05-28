@@ -40,12 +40,15 @@ from .enums import (
     DecisaoAvaliacaoSubcontratado,
     DecisaoContinuarOuParar,
     DecisaoReclamacao,
+    DistribuicaoIncerteza,
     EstadoCalibracao,
     EstadoNaoConformidade,
     EstadoReclamacao,
+    FormulaCalculoComponente,
     OrigemRecepcao,
     RegraDecisao,
     TipoAcreditacao,
+    TipoOrigemComponente,
 )
 from .value_objects import ZonaILACG8
 
@@ -162,6 +165,14 @@ class ComponenteIncertezaSnapshot:
     orcamento_incerteza_id: UUID
     nome_componente: str
     tipo_componente: str  # 'A' ou 'B'
+    # §16.6 NIT-DICLA-030 — proveniencia metrologica do componente. NOT NULL
+    # no PG (matriz componentes-obrigatorios-por-grandeza / formula-calculo).
+    # GATE-CAL-DOMAIN-MODEL-DRIFT (2026-05-28): snapshot deixou de ser "enxuto"
+    # porque persistir sem estes campos viola CHECK/NOT NULL no model real.
+    tipo_origem_componente: TipoOrigemComponente  # 8 origens fisicas (§16.6)
+    distribuicao: DistribuicaoIncerteza  # NORMAL/RETANGULAR/TRIANGULAR/U/OUTRA
+    divisor: Decimal  # converte meia-largura `a` em u_i (ex: sqrt(3) retangular)
+    formula_calculo: FormulaCalculoComponente  # formula declarada (§16.6)
     valor_estimativa: Decimal
     contribuicao: Decimal  # u_i^2 ponderado (depois aplicado coeficiente sensibilidade)
     grau_liberdade: Decimal | None  # NULL pra Tipo B com dof=infinito
@@ -372,8 +383,13 @@ class AvaliacaoPeriodicaSubcontratadoSnapshot:
     """Avaliacao periodica anual de LaboratorioSubcontratado (cl. 6.6.2 + P-CAL-R5).
 
     1:N de LaboratorioSubcontratado — uma avaliacao por ciclo anual.
-    Imutavel pos-INSERT (WORM trigger PG). Snapshot enxuto: campos que
-    use cases + jobs atualmente consomem.
+    Imutavel pos-INSERT (WORM trigger PG).
+
+    GATE-CAL-DOMAIN-MODEL-DRIFT (2026-05-28): snapshot deixou de ser "enxuto" —
+    o model `AvaliacaoPeriodicaSubcontratado` exige NOT NULL
+    avaliado_por_user_id_hash + criterios_aplicados_json + parecer_canonicalizado
+    + parecer_hash (evidencia auditavel CGCRE cl. 6.6.2). Persistir sem eles
+    violaria NOT NULL no PG real.
 
     Job `verificar_avaliacoes_subcontratados_vencendo` (T-CAL-115) consome
     `proxima_avaliacao_em` para alerta P2 30d antes de vencer.
@@ -383,7 +399,11 @@ class AvaliacaoPeriodicaSubcontratadoSnapshot:
     tenant_id: UUID
     laboratorio_id: UUID  # FK LaboratorioSubcontratado
     avaliado_em: datetime  # tz-aware
+    avaliado_por_user_id_hash: str  # HashVersionado (ADR-0064) — gerente qualidade
     score: Decimal  # 0-10 (cl. 6.6.2)
+    criterios_aplicados_json: dict[str, object]  # snapshot criterio-selecao-v1.0
+    parecer_canonicalizado: str  # >=100 chars + anti-PII + INV-DOC-CANON-001
+    parecer_hash: str  # HashVersionado v<NN>$<base64>
     decisao: DecisaoAvaliacaoSubcontratado
     proxima_avaliacao_em: datetime  # default avaliado_em + 12 meses
     correlation_id: UUID

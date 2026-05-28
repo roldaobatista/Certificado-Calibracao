@@ -21,10 +21,13 @@ from src.domain.metrologia.calibracao.entities import (
     ComponenteIncertezaSnapshot,
 )
 from src.domain.metrologia.calibracao.enums import (
+    DistribuicaoIncerteza,
     EstadoCalibracao,
+    FormulaCalculoComponente,
     OrigemRecepcao,
     RegraDecisao,
     TipoAcreditacao,
+    TipoOrigemComponente,
 )
 from src.domain.metrologia.calibracao.value_objects import ZonaILACG8
 
@@ -47,6 +50,10 @@ def _comp(
         orcamento_incerteza_id=orc_id,
         nome_componente="X",
         tipo_componente="B",
+        tipo_origem_componente=TipoOrigemComponente.OUTRO,
+        distribuicao=DistribuicaoIncerteza.RETANGULAR,
+        divisor=Decimal("1.73205"),
+        formula_calculo=FormulaCalculoComponente.OUTRO,
         valor_estimativa=Decimal("0.1"),
         contribuicao=Decimal("0.01"),
         grau_liberdade=None,

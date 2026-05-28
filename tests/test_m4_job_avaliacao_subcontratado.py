@@ -32,7 +32,14 @@ def _aval(
         laboratorio_id=laboratorio_id or uuid4(),
         avaliado_em=avaliado_em
         or (proxima_avaliacao_em - timedelta(days=365)),
+        avaliado_por_user_id_hash="v01$Z2VyZW50ZQ==",
         score=Decimal("8.5"),
+        criterios_aplicados_json={"prazo": "aprovado", "tecnico": "aprovado"},
+        parecer_canonicalizado=(
+            "Subcontratado avaliado conforme criterio-selecao-subcontratado-v1.0. "
+            "Desempenho dentro do esperado nos 12 meses; manter credenciamento."
+        ),
+        parecer_hash="v01$cGFyZWNlcg==",
         decisao=decisao,
         proxima_avaliacao_em=proxima_avaliacao_em,
         correlation_id=uuid4(),

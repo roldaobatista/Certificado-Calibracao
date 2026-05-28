@@ -39,10 +39,13 @@ from src.domain.metrologia.calibracao.entities import (
     OrigemLeitura,
 )
 from src.domain.metrologia.calibracao.enums import (
+    DistribuicaoIncerteza,
     EstadoCalibracao,
+    FormulaCalculoComponente,
     OrigemRecepcao,
     RegraDecisao,
     TipoAcreditacao,
+    TipoOrigemComponente,
 )
 from src.domain.metrologia.calibracao.value_objects import ZonaILACG8
 
@@ -67,6 +70,10 @@ def _componente(
         orcamento_incerteza_id=orc_id,
         nome_componente=f"comp-{uuid4().hex[:6]}",
         tipo_componente="B",
+        tipo_origem_componente=TipoOrigemComponente.OUTRO,
+        distribuicao=DistribuicaoIncerteza.RETANGULAR,
+        divisor=Decimal("1.73205"),
+        formula_calculo=FormulaCalculoComponente.OUTRO,
         valor_estimativa=Decimal("0.05"),
         contribuicao=Decimal("0.0025"),
         grau_liberdade=None,

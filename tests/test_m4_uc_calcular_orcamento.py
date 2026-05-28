@@ -15,6 +15,7 @@ import pytest
 from src.application.metrologia.calibracao.calcular_orcamento_incerteza import (
     CalcularOrcamentoIncertezaInput,
     CalibracaoEstadoNaoPermiteCalcular,
+    ComponenteParaCalculo,
     executar,
 )
 from src.application.metrologia.calibracao.configurar_calibracao import (
@@ -41,16 +42,62 @@ from src.domain.metrologia.calibracao.entities import (
     OrcamentoIncertezaSnapshot,
 )
 from src.domain.metrologia.calibracao.enums import (
+    DistribuicaoIncerteza,
     EstadoCalibracao,
+    FormulaCalculoComponente,
     OrigemRecepcao,
     RegraDecisao,
     TipoAcreditacao,
-)
-from src.domain.metrologia.calibracao.motor_calculo.gum_classico import (
-    ComponenteEntrada,
+    TipoOrigemComponente,
 )
 
 from tests.test_m4_uc_criar_calibracao import FakeCalibracaoRepository
+
+# =====================================================================
+# Helpers de componente (proveniencia §16.6 — GATE-CAL-DOMAIN-MODEL-DRIFT)
+# =====================================================================
+
+
+def _comp_tipo_a(
+    nome: str = "repetibilidade",
+    u_i: str = "0.01",
+    n_amostras: int = 10,
+    s_x: str = "0.0316",
+) -> ComponenteParaCalculo:
+    """Componente Tipo A com s_x + n>=6 (CHECK ck_componente_tipo_a_n_min)."""
+    return ComponenteParaCalculo(
+        nome=nome,
+        tipo="A",
+        u_i=Decimal(u_i),
+        grau_liberdade=None,  # derivado de n-1
+        tipo_origem_componente=TipoOrigemComponente.REPETIBILIDADE,
+        distribuicao=DistribuicaoIncerteza.NORMAL,
+        divisor=Decimal("1.00000"),
+        formula_calculo=FormulaCalculoComponente.REPETIBILIDADE_STD_MEDIA,
+        s_x=Decimal(s_x),
+        n_amostras=n_amostras,
+    )
+
+
+def _comp_tipo_b(
+    nome: str,
+    u_i: str,
+    origem: TipoOrigemComponente = TipoOrigemComponente.RESOLUCAO_INSTRUMENTO,
+    distribuicao: DistribuicaoIncerteza = DistribuicaoIncerteza.RETANGULAR,
+    divisor: str = "1.73205",
+    formula: FormulaCalculoComponente = FormulaCalculoComponente.RESOLUCAO_RETANGULAR,
+) -> ComponenteParaCalculo:
+    """Componente Tipo B (u_i declarado direto, dof infinito)."""
+    return ComponenteParaCalculo(
+        nome=nome,
+        tipo="B",
+        u_i=Decimal(u_i),
+        grau_liberdade=None,
+        tipo_origem_componente=origem,
+        distribuicao=distribuicao,
+        divisor=Decimal(divisor),
+        formula_calculo=formula,
+    )
 
 # =====================================================================
 # FakeOrcamentoIncertezaRepository
@@ -141,9 +188,16 @@ def _input_calculo(calibracao_id: UUID, **overrides: object) -> CalcularOrcament
     defaults: dict[str, object] = {
         "calibracao_id": calibracao_id,
         "componentes": (
-            ComponenteEntrada("repetibilidade", Decimal("0.01"), "A", 9),
-            ComponenteEntrada("resolucao", Decimal("0.005"), "B", None),
-            ComponenteEntrada("padrao", Decimal("0.002"), "B", None),
+            _comp_tipo_a("repetibilidade", u_i="0.01", n_amostras=10),
+            _comp_tipo_b("resolucao", u_i="0.005"),
+            _comp_tipo_b(
+                "padrao",
+                u_i="0.002",
+                origem=TipoOrigemComponente.INCERTEZA_PADRAO_REF,
+                distribuicao=DistribuicaoIncerteza.NORMAL,
+                divisor="2.00000",
+                formula=FormulaCalculoComponente.PADRAO_CERTIFICADO,
+            ),
         ),
         "correlacoes": (),
         "versao_motor_calculo": "1.0.0+abc123",
@@ -203,8 +257,8 @@ class TestHappyPath:
         # Input identico (componentes + correlacoes + versao_motor)
         comuns: dict[str, object] = {
             "componentes": (
-                ComponenteEntrada("a", Decimal("0.01"), "A", 9),
-                ComponenteEntrada("b", Decimal("0.005"), "B", None),
+                _comp_tipo_a("a", u_i="0.01", n_amostras=10),
+                _comp_tipo_b("b", u_i="0.005"),
             ),
             "versao_motor_calculo": "1.0.0+abc123",
         }
@@ -336,6 +390,82 @@ class TestEstadosCalibracao:
         cal_repo.snapshots[cal_id] = replace(snap, status=EstadoCalibracao.APROVADA)
         with pytest.raises(CalibracaoEstadoNaoPermiteCalcular):
             executar(_input_calculo(cal_id), cal_repo, orc_repo)
+
+
+# =====================================================================
+# Proveniencia §16.6 (GATE-CAL-DOMAIN-MODEL-DRIFT)
+# =====================================================================
+
+
+class TestProveniencia16_6:
+    def test_componentes_carregam_proveniencia_no_snapshot(self) -> None:
+        """tipo_origem/distribuicao/divisor/formula propagam pro snapshot."""
+        cal_repo = FakeCalibracaoRepository()
+        orc_repo = FakeOrcamentoIncertezaRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        out = executar(_input_calculo(cal_id), cal_repo, orc_repo)
+        rep = next(
+            c for c in out.componentes_persistidos if c.nome_componente == "repetibilidade"
+        )
+        assert rep.tipo_origem_componente == TipoOrigemComponente.REPETIBILIDADE
+        assert rep.distribuicao == DistribuicaoIncerteza.NORMAL
+        assert rep.divisor == Decimal("1.00000")
+        assert rep.formula_calculo == FormulaCalculoComponente.REPETIBILIDADE_STD_MEDIA
+
+    def test_tipo_a_carrega_s_x_nao_nulo(self) -> None:
+        """Tipo A grava s_x (CHECK ck_componente_tipo_a_n_min)."""
+        cal_repo = FakeCalibracaoRepository()
+        orc_repo = FakeOrcamentoIncertezaRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        out = executar(_input_calculo(cal_id), cal_repo, orc_repo)
+        comp_a = next(c for c in out.componentes_persistidos if c.tipo_componente == "A")
+        assert comp_a.s_x is not None
+        assert comp_a.n_amostras is not None and comp_a.n_amostras >= 6
+
+
+class TestValidacaoComponenteParaCalculo:
+    def test_tipo_a_sem_s_x_rejeita(self) -> None:
+        with pytest.raises(ValueError, match="s_x NOT NULL"):
+            ComponenteParaCalculo(
+                nome="rep",
+                tipo="A",
+                u_i=Decimal("0.01"),
+                grau_liberdade=9,
+                tipo_origem_componente=TipoOrigemComponente.REPETIBILIDADE,
+                distribuicao=DistribuicaoIncerteza.NORMAL,
+                divisor=Decimal("1"),
+                formula_calculo=FormulaCalculoComponente.REPETIBILIDADE_STD_MEDIA,
+                s_x=None,
+                n_amostras=10,
+            )
+
+    def test_tipo_a_n_menor_que_6_rejeita(self) -> None:
+        with pytest.raises(ValueError, match="n_amostras >= 6"):
+            _comp_tipo_a(n_amostras=5)
+
+    def test_divisor_zero_rejeita(self) -> None:
+        with pytest.raises(ValueError, match="divisor deve ser > 0"):
+            _comp_tipo_b("x", u_i="0.01", divisor="0")
+
+    def test_correlacao_sem_coeficiente_rejeita(self) -> None:
+        with pytest.raises(ValueError, match="INV-CAL-INC-004"):
+            ComponenteParaCalculo(
+                nome="x",
+                tipo="B",
+                u_i=Decimal("0.01"),
+                grau_liberdade=None,
+                tipo_origem_componente=TipoOrigemComponente.OUTRO,
+                distribuicao=DistribuicaoIncerteza.OUTRA,
+                divisor=Decimal("1"),
+                formula_calculo=FormulaCalculoComponente.OUTRO,
+                correlacao_com_componente_id=uuid4(),
+                coeficiente_correlacao=None,
+            )
+
+    def test_tipo_a_grau_liberdade_derivado_de_n(self) -> None:
+        """grau_liberdade omitido -> n-1 (consistencia GUM)."""
+        comp = _comp_tipo_a(n_amostras=10)
+        assert comp.grau_liberdade == 9
 
 
 def test_repository_protocol_compativel() -> None:

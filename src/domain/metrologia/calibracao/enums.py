@@ -191,3 +191,52 @@ class DecisaoReclamacao(str, Enum):
             DecisaoReclamacao.PROCEDENTE_RECALL,
             DecisaoReclamacao.PROCEDENTE_ERRATA,
         }
+
+
+class TipoOrigemComponente(str, Enum):
+    """8 origens fisicas de um componente de incerteza (NIT-DICLA-030 §16.6).
+
+    Bate 1:1 com TIPO_ORIGEM_COMPONENTE_CHOICES em models.py. INV-CAL-INC-002
+    valida as obrigatorias por grandeza+padrao (matriz
+    componentes-obrigatorios-por-grandeza).
+    """
+
+    REPETIBILIDADE = "REPETIBILIDADE"
+    RESOLUCAO_INSTRUMENTO = "RESOLUCAO_INSTRUMENTO"
+    INCERTEZA_PADRAO_REF = "INCERTEZA_PADRAO_REF"
+    DERIVA_PADRAO = "DERIVA_PADRAO"
+    CONDICOES_AMBIENTAIS = "CONDICOES_AMBIENTAIS"
+    EXCENTRICIDADE = "EXCENTRICIDADE"
+    POLARIZACAO_BIAS = "POLARIZACAO_BIAS"
+    OUTRO = "OUTRO"
+
+
+class DistribuicaoIncerteza(str, Enum):
+    """Distribuicao de probabilidade do componente (GUM cl. 4.3 + §16.6).
+
+    Bate 1:1 com DISTRIBUICAO_CHOICES em models.py. O divisor associado
+    converte a meia-largura `a` em incerteza-padrao u_i (ex: RETANGULAR ->
+    a/sqrt(3); TRIANGULAR -> a/sqrt(6); U -> a/sqrt(2)).
+    """
+
+    NORMAL = "NORMAL"
+    RETANGULAR = "RETANGULAR"
+    TRIANGULAR = "TRIANGULAR"
+    U = "U"
+    OUTRA = "OUTRA"
+
+
+class FormulaCalculoComponente(str, Enum):
+    """Formula declarada de derivacao do componente (NIT-DICLA-030 §16.6).
+
+    Bate 1:1 com FORMULA_CALCULO_CHOICES em models.py (matriz
+    formula-calculo-por-grandeza). Provenance auditavel CGCRE 25a (cl. 8.4).
+    """
+
+    REPETIBILIDADE_STD_MEDIA = "REPETIBILIDADE_STD_MEDIA"
+    RESOLUCAO_RETANGULAR = "RESOLUCAO_RETANGULAR"
+    PADRAO_CERTIFICADO = "PADRAO_CERTIFICADO"
+    DERIVA_LINEAR = "DERIVA_LINEAR"
+    TEMPERATURA_QUADRATICA = "TEMPERATURA_QUADRATICA"
+    BIAS_CONHECIDO = "BIAS_CONHECIDO"
+    OUTRO = "OUTRO"

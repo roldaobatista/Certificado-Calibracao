@@ -47,10 +47,13 @@ from src.domain.metrologia.calibracao.entities import (
 )
 from src.domain.metrologia.calibracao.enums import (
     DecisaoAvaliacaoSubcontratado,
+    DistribuicaoIncerteza,
     EstadoCalibracao,
+    FormulaCalculoComponente,
     OrigemRecepcao,
     RegraDecisao,
     TipoAcreditacao,
+    TipoOrigemComponente,
 )
 from src.domain.metrologia.calibracao.value_objects import (
     ClassificacaoZ,
@@ -110,6 +113,10 @@ def _componente(
         orcamento_incerteza_id=orc_id,
         nome_componente=nome,
         tipo_componente=tipo,
+        tipo_origem_componente=TipoOrigemComponente.OUTRO,
+        distribuicao=DistribuicaoIncerteza.RETANGULAR,
+        divisor=Decimal("1.73205"),
+        formula_calculo=FormulaCalculoComponente.OUTRO,
         valor_estimativa=Decimal("0.05"),
         contribuicao=Decimal("0.0025"),
         grau_liberdade=None if tipo == "B" else Decimal("9"),
@@ -277,7 +284,14 @@ def _avaliacao(
         tenant_id=tenant,
         laboratorio_id=lab_id,
         avaliado_em=avaliado_em or AGORA - timedelta(days=365),
+        avaliado_por_user_id_hash="v01$Z2VyZW50ZQ==",
         score=Decimal("8.5"),
+        criterios_aplicados_json={"prazo": "aprovado", "tecnico": "aprovado"},
+        parecer_canonicalizado=(
+            "Subcontratado avaliado conforme criterio-selecao-subcontratado-v1.0. "
+            "Desempenho dentro do esperado nos 12 meses; manter credenciamento."
+        ),
+        parecer_hash="v01$cGFyZWNlcg==",
         decisao=DecisaoAvaliacaoSubcontratado.MANTER,
         proxima_avaliacao_em=AGORA + timedelta(days=15),
         correlation_id=uuid4(),

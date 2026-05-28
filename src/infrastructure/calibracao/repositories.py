@@ -22,10 +22,12 @@ from django.db import connection
 
 from src.domain.metrologia.calibracao.entities import (
     CalibracaoSnapshot,
+    ComponenteIncertezaSnapshot,
     EventoDeCalibracaoSnapshot,
     LeituraCorrecaoSnapshot,
     LeituraSnapshot,
     NaoConformidadeSnapshot,
+    OrcamentoIncertezaSnapshot,
     OrigemLeitura,
     ReclamacaoCalibracaoSnapshot,
 )
@@ -34,12 +36,15 @@ from src.domain.metrologia.calibracao.enums import (
     ClienteNotificadoVia,
     DecisaoContinuarOuParar,
     DecisaoReclamacao,
+    DistribuicaoIncerteza,
     EstadoCalibracao,
     EstadoNaoConformidade,
     EstadoReclamacao,
+    FormulaCalculoComponente,
     OrigemRecepcao,
     RegraDecisao,
     TipoAcreditacao,
+    TipoOrigemComponente,
 )
 from src.domain.metrologia.calibracao.hash_versionado import (
     VERSAO_HMAC_ATUAL,
@@ -50,12 +55,20 @@ from src.domain.metrologia.calibracao.value_objects import ZonaILACG8
 from src.infrastructure.calibracao.lgpd import _CHAVE_HMAC_WAVE_A
 from src.infrastructure.calibracao.models import (
     Calibracao,
+    ComponenteIncerteza,
     EventoDeCalibracao,
     Leitura,
     LeituraCorrecao,
     NaoConformidade,
+    OrcamentoIncerteza,
     ReclamacaoCalibracao,
 )
+
+# §16.6 — Tipo B com dof=infinito vira sentinela no PG (coluna grau_liberdade
+# eh NOT NULL no model). Espelha o tratamento de OrcamentoIncerteza.grau_liberdade_efetivo
+# no use case calcular_orcamento_incerteza. Round-trip: None->sentinela na
+# escrita; sentinela->None na leitura (preserva semantica "infinito").
+_DOF_INFINITO_SENTINELA = "999999.00"
 
 # Classe de lock por tabela — namespace de 2 args
 # (pg_advisory_xact_lock(int4, int4)). Isola hash-chain de calibracao de
@@ -770,4 +783,154 @@ class DjangoReclamacaoCalibracaoRepository:
             prazo_resposta_dia_util=obj.prazo_resposta_dia_util,
             respondida_em=obj.respondida_em,
             correlation_id=obj.correlation_id,
+        )
+
+
+class DjangoOrcamentoIncertezaRepository:
+    """Implementa `OrcamentoIncertezaRepository` (T-CAL-125 — destrava
+    GATE-CAL-DOMAIN-MODEL-DRIFT).
+
+    Persiste OrcamentoIncerteza (1) + ComponenteIncerteza[] (1:N) atomicamente.
+    Caller (ViewSet/use case) envolve em `transaction.atomic`. Ambas as tabelas
+    sao WORM (trigger PG bloqueia UPDATE/DELETE — migration 0006).
+
+    Proveniencia §16.6 (NIT-DICLA-030) viaja nos snapshots de componente:
+    tipo_origem_componente/distribuicao/divisor/formula_calculo (NOT NULL) +
+    s_x/n_amostras do CHECK Tipo A (ck_componente_tipo_a_n_min). O use case
+    `calcular_orcamento_incerteza` ja valida n>=6 + s_x antes de chegar aqui.
+
+    Sentinela dof-infinito: ComponenteIncerteza.grau_liberdade eh NOT NULL no
+    model; Tipo B com dof=infinito (snapshot.grau_liberdade=None) grava
+    `_DOF_INFINITO_SENTINELA` e relê como None (preserva semantica).
+    """
+
+    def salvar_orcamento_com_componentes(
+        self,
+        orcamento: OrcamentoIncertezaSnapshot,
+        componentes: list[ComponenteIncertezaSnapshot],
+    ) -> None:
+        # `calculado_em` no model usa auto_now_add — preserva autoridade do
+        # clock PG (cl. 7.6 — momento do calculo). Ignoramos snapshot.calculado_em.
+        OrcamentoIncerteza.objects.create(
+            id=orcamento.id,
+            tenant_id=orcamento.tenant_id,
+            calibracao_id=orcamento.calibracao_id,
+            u_combinada=orcamento.u_combinada,
+            grau_liberdade_efetivo=orcamento.grau_liberdade_efetivo,
+            k=orcamento.k,
+            U_expandida=orcamento.U_expandida,
+            nivel_confianca=orcamento.nivel_confianca,
+            documentacao_agregacao=orcamento.documentacao_agregacao,
+            versao_motor_calculo=orcamento.versao_motor_calculo,
+            algoritmo_1_resultado=orcamento.algoritmo_1_resultado,
+            algoritmo_2_resultado=orcamento.algoritmo_2_resultado,
+            divergencia_pct=orcamento.divergencia_pct,
+            replay_determinismo_hash=orcamento.replay_determinismo_hash,
+            bias_orcado=orcamento.bias_orcado,
+            bias_origem=orcamento.bias_origem,
+            arredondamento_aplicado_regra=orcamento.arredondamento_aplicado_regra,
+            correlation_id=orcamento.correlation_id,
+        )
+        for comp in componentes:
+            ComponenteIncerteza.objects.create(
+                id=comp.id,
+                tenant_id=comp.tenant_id,
+                orcamento_incerteza_id=comp.orcamento_incerteza_id,
+                nome_componente=comp.nome_componente,
+                tipo_componente=comp.tipo_componente,
+                tipo_origem_componente=comp.tipo_origem_componente.value,
+                distribuicao=comp.distribuicao.value,
+                divisor=comp.divisor,
+                formula_calculo=comp.formula_calculo.value,
+                valor_estimativa=comp.valor_estimativa,
+                contribuicao=comp.contribuicao,
+                grau_liberdade=(
+                    comp.grau_liberdade
+                    if comp.grau_liberdade is not None
+                    else _DOF_INFINITO_SENTINELA
+                ),
+                fonte_default_padrao_id=comp.fonte_default_padrao_id,
+                correlacao_com_componente_id_id=comp.correlacao_com_componente_id,
+                coeficiente_correlacao=comp.coeficiente_correlacao,
+                n_amostras=comp.n_amostras,
+                s_x=comp.s_x,
+            )
+
+    def obter_por_id(
+        self, orcamento_id: UUID
+    ) -> OrcamentoIncertezaSnapshot | None:
+        from src.infrastructure.multitenant.context import active_tenant_context
+
+        tenant_id = active_tenant_context.get()
+        if tenant_id is None:
+            return None
+        try:
+            obj = OrcamentoIncerteza.objects.get(
+                id=orcamento_id, tenant_id=tenant_id
+            )
+        except OrcamentoIncerteza.DoesNotExist:
+            return None
+        return self._orcamento_to_snapshot(obj)
+
+    def listar_componentes(
+        self, orcamento_id: UUID
+    ) -> list[ComponenteIncertezaSnapshot]:
+        qs = ComponenteIncerteza.objects.filter(
+            orcamento_incerteza_id=orcamento_id
+        ).order_by("nome_componente")
+        return [self._componente_to_snapshot(obj) for obj in qs]
+
+    @staticmethod
+    def _orcamento_to_snapshot(
+        obj: OrcamentoIncerteza,
+    ) -> OrcamentoIncertezaSnapshot:
+        return OrcamentoIncertezaSnapshot(
+            id=obj.id,
+            tenant_id=obj.tenant_id,
+            calibracao_id=obj.calibracao_id,
+            u_combinada=obj.u_combinada,
+            grau_liberdade_efetivo=obj.grau_liberdade_efetivo,
+            k=obj.k,
+            U_expandida=obj.U_expandida,
+            nivel_confianca=obj.nivel_confianca,
+            documentacao_agregacao=obj.documentacao_agregacao,
+            versao_motor_calculo=obj.versao_motor_calculo,
+            algoritmo_1_resultado=obj.algoritmo_1_resultado,
+            algoritmo_2_resultado=obj.algoritmo_2_resultado,
+            divergencia_pct=obj.divergencia_pct,
+            replay_determinismo_hash=obj.replay_determinismo_hash,
+            bias_orcado=obj.bias_orcado,
+            bias_origem=obj.bias_origem,
+            arredondamento_aplicado_regra=obj.arredondamento_aplicado_regra,
+            calculado_em=obj.calculado_em,
+            correlation_id=obj.correlation_id,
+        )
+
+    @staticmethod
+    def _componente_to_snapshot(
+        obj: ComponenteIncerteza,
+    ) -> ComponenteIncertezaSnapshot:
+        # Sentinela dof-infinito -> None (round-trip Tipo B).
+        grau = obj.grau_liberdade
+        grau_liberdade = (
+            None if str(grau) == _DOF_INFINITO_SENTINELA else grau
+        )
+        return ComponenteIncertezaSnapshot(
+            id=obj.id,
+            tenant_id=obj.tenant_id,
+            orcamento_incerteza_id=obj.orcamento_incerteza_id,
+            nome_componente=obj.nome_componente,
+            tipo_componente=obj.tipo_componente,
+            tipo_origem_componente=TipoOrigemComponente(obj.tipo_origem_componente),
+            distribuicao=DistribuicaoIncerteza(obj.distribuicao),
+            divisor=obj.divisor,
+            formula_calculo=FormulaCalculoComponente(obj.formula_calculo),
+            valor_estimativa=obj.valor_estimativa,
+            contribuicao=obj.contribuicao,
+            grau_liberdade=grau_liberdade,
+            n_amostras=obj.n_amostras,
+            s_x=obj.s_x,
+            correlacao_com_componente_id=obj.correlacao_com_componente_id_id,
+            coeficiente_correlacao=obj.coeficiente_correlacao,
+            fonte_default_padrao_id=obj.fonte_default_padrao_id,
         )

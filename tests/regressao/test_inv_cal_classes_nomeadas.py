@@ -33,15 +33,15 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-
 from src.domain.metrologia.calibracao.enums import (
+    DistribuicaoIncerteza,
     EstadoCalibracao,
-    OrigemRecepcao,
+    FormulaCalculoComponente,
     RegraDecisao,
     TipoAcreditacao,
+    TipoOrigemComponente,
 )
 from src.domain.metrologia.calibracao.value_objects import ZonaILACG8
-
 
 # =====================================================================
 # INV-CAL-CMC-001 — RBC exige escopo_id NOT NULL (cl. 6.4.10)
@@ -157,6 +157,10 @@ class TestINV_CAL_INC_003:
             orcamento_incerteza_id=uuid4(),
             nome_componente="repetibilidade",
             tipo_componente="A",
+            tipo_origem_componente=TipoOrigemComponente.REPETIBILIDADE,
+            distribuicao=DistribuicaoIncerteza.NORMAL,
+            divisor=Decimal("1.00000"),
+            formula_calculo=FormulaCalculoComponente.REPETIBILIDADE_STD_MEDIA,
             valor_estimativa=Decimal("0.01"),
             contribuicao=Decimal("0.0001"),
             grau_liberdade=Decimal("5"),
@@ -222,7 +226,7 @@ class TestINV_CAL_SUBC_001:
     def test_snapshot_possui_par_de_campos(self) -> None:
         from src.domain.metrologia.calibracao.entities import CalibracaoSnapshot
 
-        nomes_campos = {f for f in CalibracaoSnapshot.__dataclass_fields__}
+        nomes_campos = set(CalibracaoSnapshot.__dataclass_fields__)
         assert "subcontratado_id" in nomes_campos
         assert "aceite_subcontratacao_id" in nomes_campos
 
