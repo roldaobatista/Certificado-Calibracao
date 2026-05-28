@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`. **Modo:** AUTÔNOMO.
 
-**Fase:** Auditoria 10 lentes pré-Wave A em execução — **Ondas 1+2+3 FECHADAS; Onda 4 PARCIAL (T-CAL-124+126+127+128+132 ViewSets fechados; GATE-CAL-DOMAIN-MODEL-DRIFT RESOLVIDO 2026-05-28 commit `89a56d5` — destrava T-CAL-125+129; T-CAL-130+131+133 pendentes sem use cases); Onda 5 PENDENTE.** Commits 2026-05-27 noite (`27dd0d5`..`b7541e9`) + 2026-05-28 (`89a56d5`). Consolidado em `docs/faseamento/auditorias/PRE-WAVE-A-CONSOLIDADO-rodada-1.md`.
+**Fase:** **WAVE A ARRANCADA (2026-05-28 — autorização Roldão "pode").** 1º módulo = **M5 `metrologia/padroes`** (ADR-0040) — spec `/specify` criada em `docs/faseamento/M5-padroes/spec.md` (PRD stable v2 + modelo-de-domínio). **Ritual:** próximo passo é `plan` revisado pelos 4 subagentes (em especial `consultor-rbc-iso17025` p/ Shewhart/Western Electric/2º caminho + `tech-lead` p/ porta M4) → `tasks` → `implement` → 10 auditores. **NADA de código antes do plan aprovado** (memória `feedback_ritual_orquestrador`). Pré-Wave-A: Ondas 1-4 fechadas (GATE-CAL-DOMAIN-MODEL-DRIFT + limpa-mesa + F-C3 paginação resolvidos 2026-05-28); F-C2/F-C3 restantes bloqueiam só DEPLOY externo (dogfooding coda em paralelo). Commits 2026-05-28: `89a56d5`/`be20192`/`9472d24` + docs.
 
 ## Estado da suíte (2026-05-27 noite pós T-CAL-132)
 
