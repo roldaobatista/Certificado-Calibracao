@@ -22,6 +22,7 @@ from getpass import getpass
 from django.core.management.base import BaseCommand, CommandError
 
 from src.infrastructure.usuario.models import Usuario
+from src.infrastructure.usuario.senha_breakglass import validar_senha_breakglass
 
 
 class Command(BaseCommand):
@@ -74,9 +75,15 @@ class Command(BaseCommand):
         if confirmacao != f"CRIAR BREAK-GLASS {email}":
             raise CommandError("Confirmacao falhou. Conta NAO criada.")
 
-        senha = getpass(prompt="Senha inicial (>=14 chars; sera trocada no 1o login): ")
-        if len(senha) < 14:
-            raise CommandError("Senha precisa ter >=14 caracteres para conta break-glass.")
+        senha = getpass(
+            prompt="Senha inicial (>=14 chars, 4 categorias; sera trocada no 1o login): "
+        )
+        # GATE-FC1-CRIAR-RECOVERY-SENHA-COMPLEXA: complexidade + dicionario
+        # (mais rigido que INV-AUTH-002 por ser conta de privilegio maximo).
+        try:
+            validar_senha_breakglass(senha, email=email, nome=nome)
+        except ValueError as exc:
+            raise CommandError(str(exc)) from exc
         senha_2 = getpass(prompt="Repita: ")
         if senha != senha_2:
             raise CommandError("Senhas nao batem. Conta NAO criada.")
