@@ -328,8 +328,11 @@ class TestCrossTenant:
         _autenticar(client, cenario["admin_b"], cenario["tenant_b"])
         resp = client.get("/api/v1/responsaveis-tecnicos/")
         assert resp.status_code == 200
-        # Lista de tenant B nao mostra RT de tenant A
-        assert resp.json()["count"] == 0 if "count" in resp.json() else len(resp.json()) == 0
+        # F-C3: paginação global ativa — resposta vem no envelope DRF
+        # {count, next, previous, results}. Lista de tenant B nao mostra RT de A.
+        corpo = resp.json()
+        assert corpo["count"] == 0
+        assert corpo["results"] == []
 
 
 @pytest.mark.django_db(transaction=True)

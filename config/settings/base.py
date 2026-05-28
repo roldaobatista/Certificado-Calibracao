@@ -400,6 +400,12 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
     ],
+    # F-C3: paginação global obrigatória — sem isso list endpoints retornam
+    # o queryset INTEIRO (risco DoS acidental + payload gigante conforme o
+    # tenant cresce). Envelope {count,next,previous,results}; teto anti-unbounded
+    # em PaginacaoPadrao.max_page_size.
+    "DEFAULT_PAGINATION_CLASS": "src.infrastructure.comum.pagination.PaginacaoPadrao",
+    "PAGE_SIZE": 50,
 }
 
 # Cache:
