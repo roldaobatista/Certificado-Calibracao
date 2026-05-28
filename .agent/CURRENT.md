@@ -2,7 +2,7 @@
 
 > ≤40 linhas. Histórico expandido em `docs/faseamento/diario/`. **Modo:** AUTÔNOMO.
 
-**Fase:** Auditoria 10 lentes pré-Wave A em execução — **Ondas 1+2+3 FECHADAS; Onda 4 PARCIAL (T-CAL-124+126+127+128+132 fechados de 9 ViewSets; T-CAL-125+129 BLOQ por drift; T-CAL-130+131+133 pendentes); Onda 5 PENDENTE.** 15 commits em 2026-05-27 noite (`27dd0d5`..`b7541e9`). Consolidado em `docs/faseamento/auditorias/PRE-WAVE-A-CONSOLIDADO-rodada-1.md`.
+**Fase:** Auditoria 10 lentes pré-Wave A em execução — **Ondas 1+2+3 FECHADAS; Onda 4 PARCIAL (T-CAL-124+126+127+128+132 ViewSets fechados; GATE-CAL-DOMAIN-MODEL-DRIFT RESOLVIDO 2026-05-28 commit `89a56d5` — destrava T-CAL-125+129; T-CAL-130+131+133 pendentes sem use cases); Onda 5 PENDENTE.** Commits 2026-05-27 noite (`27dd0d5`..`b7541e9`) + 2026-05-28 (`89a56d5`). Consolidado em `docs/faseamento/auditorias/PRE-WAVE-A-CONSOLIDADO-rodada-1.md`.
 
 ## Estado da suíte (2026-05-27 noite pós T-CAL-132)
 
@@ -27,8 +27,8 @@
 - T-CAL-127 ✅ **FECHADO** (commit `edc0960`): ConferenciaViewSet (aprovar-2a-conferencia + emissão evento bus `calibracao_aprovada` INT-02).
 - T-CAL-128 ✅ **FECHADO** (commit `77238dc`): NaoConformidadeViewSet (abrir + fechar) + DjangoNaoConformidadeRepository. **GAP-NC-INTERMEDIATE-TRANSITIONS** Wave A: 3 transições intermediárias (definir-acao/executar/verificar-eficacia) não expostas via API; admin via shell até Wave A.
 - T-CAL-132 ✅ **FECHADO** (commit `b7541e9`): ReclamacaoViewSet (abrir + atribuir-rt + responder) + DjangoReclamacaoCalibracaoRepository. **SEG-CAL-11 GATE Wave A M5**: `certificado_id` + `certificado_emitido_em` ainda aceitos no body; quando M5 plugar, fetch server-side de Certificado.
-- T-CAL-125 ⚠️ **BLOQUEADO GATE-CAL-DOMAIN-MODEL-DRIFT**: `ComponenteIncertezaSnapshot` (domain) NÃO tem `tipo_origem_componente`/`distribuicao`/`divisor`/`formula_calculo` que o model `ComponenteIncerteza` exige `NOT NULL`. Use case foi testado só com `FakeRepository`. Retrofit domain⇔model é pré-requisito (~1d).
-- T-CAL-129 ⚠️ **BLOQUEADO** GATE-CAL-DOMAIN-MODEL-DRIFT: mesma classe de drift em `AvaliacaoPeriodicaSubcontratadoSnapshot` (faltam `avaliado_por_user_id_hash`/`criterios_aplicados_json`/`parecer_canonicalizado`/`parecer_hash`).
+- **GATE-CAL-DOMAIN-MODEL-DRIFT ✅ RESOLVIDO** (2026-05-28 commit `89a56d5`): `ComponenteIncertezaSnapshot` ganhou proveniência §16.6 (tipo_origem/distribuicao/divisor/formula via 3 enums novos) + `AvaliacaoPeriodicaSubcontratadoSnapshot` ganhou os 4 campos cl. 6.6.2. Novo input `ComponenteParaCalculo` valida Tipo A (s_x + n>=6 = CHECK) e INV-CAL-INC-004; motor GUM permanece puro. Novo adapter `DjangoOrcamentoIncertezaRepository`. Guardião `tests/regressao/test_cal_domain_model_drift.py` introspecta `model._meta.fields` (pega regressão futura). ruff/mypy limpos; 714 passed/1 skip; auditor-qualidade + llm-correctness PASS.
+- T-CAL-125 / T-CAL-129 ⏳ **DESTRAVADOS** — falta só a camada REST (serializer + view action + url) do `OrcamentoIncertezaViewSet` (calcular-incerteza + avaliar-conformidade) e `SubcontratacaoViewSet`. ViewSet REST + round-trip PG real da sentinela dof-infinito → **GATE-CAL-VIEWSETS-WAVE-A**.
 - T-CAL-130 / T-CAL-131 / T-CAL-133 ⚠️ **PENDENTE — sem use cases**: PadraoViewSet (6 POSTs), Escopo+Proficiencia+VerifInterm (3 POSTs), AceiteRegraDecisao+Override (2 POSTs). Use cases em `src/application/.../padrao/`, `escopo/`, `proficiencia/`, `aceite_regra_decisao/` **não existem**. Precisam ser escritos primeiro.
 - F-C3 paginação DRF + retrofit 621 testes (3d).
 - Retrofit Sprint 4 `perfil_no_evento` em `contas-receber` + `fiscal` (1d).
