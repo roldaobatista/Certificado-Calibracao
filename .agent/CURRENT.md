@@ -29,10 +29,15 @@
 - T-CAL-132 ✅ **FECHADO** (commit `b7541e9`): ReclamacaoViewSet (abrir + atribuir-rt + responder) + DjangoReclamacaoCalibracaoRepository. **SEG-CAL-11 GATE Wave A M5**: `certificado_id` + `certificado_emitido_em` ainda aceitos no body; quando M5 plugar, fetch server-side de Certificado.
 - **GATE-CAL-DOMAIN-MODEL-DRIFT ✅ RESOLVIDO** (2026-05-28 commit `89a56d5`): `ComponenteIncertezaSnapshot` ganhou proveniência §16.6 (tipo_origem/distribuicao/divisor/formula via 3 enums novos) + `AvaliacaoPeriodicaSubcontratadoSnapshot` ganhou os 4 campos cl. 6.6.2. Novo input `ComponenteParaCalculo` valida Tipo A (s_x + n>=6 = CHECK) e INV-CAL-INC-004; motor GUM permanece puro. Novo adapter `DjangoOrcamentoIncertezaRepository`. Guardião `tests/regressao/test_cal_domain_model_drift.py` introspecta `model._meta.fields` (pega regressão futura). ruff/mypy limpos; 714 passed/1 skip; auditor-qualidade + llm-correctness PASS.
 - T-CAL-125 / T-CAL-129 ⏳ **DESTRAVADOS** — falta só a camada REST (serializer + view action + url) do `OrcamentoIncertezaViewSet` (calcular-incerteza + avaliar-conformidade) e `SubcontratacaoViewSet`. ViewSet REST + round-trip PG real da sentinela dof-infinito → **GATE-CAL-VIEWSETS-WAVE-A**.
-- T-CAL-130 / T-CAL-131 / T-CAL-133 ⚠️ **PENDENTE — sem use cases**: PadraoViewSet (6 POSTs), Escopo+Proficiencia+VerifInterm (3 POSTs), AceiteRegraDecisao+Override (2 POSTs). Use cases em `src/application/.../padrao/`, `escopo/`, `proficiencia/`, `aceite_regra_decisao/` **não existem**. Precisam ser escritos primeiro.
-- F-C3 paginação DRF + retrofit 621 testes (3d).
-- Retrofit Sprint 4 `perfil_no_evento` em `contas-receber` + `fiscal` (1d).
-- Limpa-mesa: GATE-FB-4 + GATE-FC1-CRIAR-RECOVERY-SENHA-COMPLEXA + GATE-EQP-RT-AUTHZ + GATE-DEP-001/002 + GATE-EQP-DEP-WEASYPRINT (2.5d).
+- T-CAL-130 / T-CAL-131 / T-CAL-133 ⛔ **WAVE A — criação de módulos novos**: PadraoViewSet/Escopo/Proficiencia/AceiteRegraDecisao exigem criar os módulos `metrologia/padroes` + `escopos-cmc` + `procedimentos` (ADR-0040/0066 = Wave A). Use cases não existem. **Não iniciar sem autorização de arrancar Wave A.**
+- **Limpa-mesa (4.10) ✅ FECHADA tão-quanto-possível-pré-Wave-A** (2026-05-28):
+  - GATE-FC1-CRIAR-RECOVERY-SENHA-COMPLEXA ✅ **DONE** (commit `be20192`): validador `senha_breakglass.py` (≥14 + 4 categorias + dicionário + sequência + entropia + veto email/nome) + 9 testes + auditor-seguranca PASS.
+  - GATE-FB-4 ✅ **já satisfeito** — vedação PII-por-valor já consta em `INV-AUTHZ-002` (REGRAS linha 351).
+  - GATE-DEP-001/002 ✅ **já satisfeito** — Dockerfile FROM + workflows `uses:` já com pin SHA (Onda PRE-A.4 SUPPLY-1).
+  - GATE-EQP-RT-AUTHZ ⛔ **BLOQUEADO Wave A** — exige perfil `gestor_qualidade` que não existe no seed authz (nasce no módulo qualidade Wave A; é perfil transversal usado por ADR-0026/0069).
+  - GATE-EQP-DEP-WEASYPRINT-UPGRADE ⛔ **DEFER Wave A/DevOps** — upgrade 62→68 quebra pin `pydyf<0.11`; CVE-2025-68616 já mitigado in-app (custom url_fetcher).
+- **F-C3 paginação DRF (4.11) — PRÓXIMO FOCADO (alto raio de impacto)**: paginação TOTALMENTE ausente (sem `DEFAULT_PAGINATION_CLASS`/`PAGE_SIZE`). Só 3 arquivos têm endpoint de lista (equipamentos/ordens_servico/responsavel_tecnico). Config global muda formato de resposta de todo list endpoint → retrofit de testes que checam formato. Fazer como unidade focada (settings + classe paginação + retrofit testes + hook + auditores).
+- Retrofit Sprint 4 `perfil_no_evento` em `contas-receber` + `fiscal` ⛔ **NÃO construível** — módulos não existem (Wave A).
 - GATE-OS-VALIDAR-DRILL + GATE-CAL-DRILL-LOCAL drills PG real (1d).
 - GATE-OS-GRANDEZA-EM-ATIVIDADE — retrofit `AtividadeDaOS.grandeza` plugado nos 3 use cases M3 (1.5d, fecha ADR-0063 fail-open).
 
