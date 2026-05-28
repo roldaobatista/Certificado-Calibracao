@@ -47,6 +47,24 @@ from src.application.metrologia.calibracao.append_evento_calibracao import (
 from src.application.metrologia.calibracao.append_evento_calibracao import (
     executar as append_evento_executar,
 )
+from src.application.metrologia.calibracao.aprovar_2a_conferencia import (
+    Aprovar2aConferenciaInput,
+    EstadoInvalidoParaAprovar2aConferencia,
+    Excecao2aConferenciaSemRegistro,
+    FraudeConferenteEhRevisorOuExecutor,
+)
+from src.application.metrologia.calibracao.aprovar_2a_conferencia import (
+    executar as aprovar_2a_executar,
+)
+from src.application.metrologia.calibracao.aprovar_revisao import (
+    AprovarRevisaoInput,
+    EstadoInvalidoParaAprovarRevisao,
+    ExcecaoAdr0026Invalida,
+    FraudeRevisorEhExecutor,
+)
+from src.application.metrologia.calibracao.aprovar_revisao import (
+    executar as aprovar_revisao_executar,
+)
 from src.application.metrologia.calibracao.configurar_calibracao import (
     CalibracaoNaoEncontrada,
     ConfigurarCalibracaoInput,
@@ -79,6 +97,13 @@ from src.application.metrologia.calibracao.registrar_leitura import (
 from src.application.metrologia.calibracao.registrar_leitura import (
     executar as registrar_leitura_executar,
 )
+from src.application.metrologia.calibracao.rejeitar_revisao import (
+    EstadoInvalidoParaRejeitarRevisao,
+    RejeitarRevisaoInput,
+)
+from src.application.metrologia.calibracao.rejeitar_revisao import (
+    executar as rejeitar_revisao_executar,
+)
 from src.domain.metrologia.calibracao.entities import OrigemLeitura
 from src.domain.metrologia.calibracao.enums import (
     OrigemRecepcao,
@@ -98,11 +123,14 @@ from src.infrastructure.calibracao.repositories import (
     DjangoLeituraRepository,
 )
 from src.infrastructure.calibracao.serializers import (
+    Aprovar2aConferenciaSerializer,
+    AprovarRevisaoSerializer,
     CancelarCalibracaoSerializer,
     ConfigurarCalibracaoSerializer,
     CorrigirLeituraSerializer,
     RecepcionarCalibracaoSerializer,
     RegistrarLeituraSerializer,
+    RejeitarRevisaoSerializer,
 )
 from src.infrastructure.idempotencia.services_idempotencia import (
     ErroValidacao,
@@ -128,6 +156,9 @@ ENDPOINT_CAL_CONFIGURAR = "calibracao.configurar"
 ENDPOINT_CAL_CANCELAR = "calibracao.cancelar"
 ENDPOINT_CAL_REGISTRAR_LEITURA = "calibracao.registrar_leitura"
 ENDPOINT_CAL_CORRIGIR_LEITURA = "calibracao.corrigir_leitura"
+ENDPOINT_CAL_APROVAR_REVISAO = "calibracao.aprovar_revisao"
+ENDPOINT_CAL_REJEITAR_REVISAO = "calibracao.rejeitar_revisao"
+ENDPOINT_CAL_APROVAR_2A_CONF = "calibracao.aprovar_2a_conferencia"
 
 
 def _resposta_erro_idempotencia(erro: ErroValidacao) -> Response:
@@ -1086,3 +1117,558 @@ class LeituraViewSet(viewsets.ViewSet):
             response_body_resumo=body,
         )
         return Response(body, status=status.HTTP_201_CREATED)
+
+
+# authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+class RevisaoViewSet(viewsets.ViewSet):
+    """ViewSet REST de Revisao (T-CAL-126 — aprovar + rejeitar).
+
+      POST /api/v1/calibracoes/{id}/aprovar-revisao   (US-CAL-007)
+      POST /api/v1/calibracoes/{id}/rejeitar-revisao  (US-CAL-007 caminho B)
+    """
+
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="calibracoes/(?P<calibracao_pk>[^/.]+)/aprovar-revisao",
+    )
+    def aprovar(
+        self, request: Request, calibracao_pk: str | None = None
+    ) -> Response:
+        """EM_REVISAO_1 -> AGUARDANDO_2A_CONFERENCIA.
+
+        SEG-CAL-09: revisor_id derivado do usuario logado.
+        SEG-CAL-10 (GATE Wave A): snapshot_competencia_revisor_json
+        ainda aceito no body; deve passar a ser derivado server-side
+        de RTCompetencia quando GATE-CAL-10 fechar.
+        """
+        serializer = AprovarRevisaoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+
+        try:
+            cal_id = UUID(str(calibracao_pk))
+        except (ValueError, TypeError) as exc:
+            raise NotFound(f"calibracao_id invalido: {exc}") from exc
+
+        tenant_id_ctx = active_tenant_context.get()
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+        revisor_id = usuario_id  # SEG-CAL-09 server-side
+
+        snap_competencia = dict(dados["snapshot_competencia_revisor_json"])
+        # Fingerprint estavel (chaves ordenadas) — INV-DOC-CANON-001 lite.
+        snap_fp = hashlib.sha256(
+            "|".join(
+                f"{k}={snap_competencia[k]}" for k in sorted(snap_competencia)
+            ).encode()
+        ).hexdigest()
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id_ctx,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_CAL_APROVAR_REVISAO,
+            payload_fingerprint={
+                "calibracao_id": str(cal_id),
+                "revision_esperada": dados["revision_esperada"],
+                "revisor_id": str(revisor_id),
+                "snap_competencia_fp": snap_fp,
+                "excecao_motivo": dados.get("excecao_motivo") or "",
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+
+        repo = DjangoCalibracaoRepository()
+        evento_repo = DjangoEventoDeCalibracaoRepository()
+        try:
+            inp = AprovarRevisaoInput(
+                calibracao_id=cal_id,
+                revision_esperada=dados["revision_esperada"],
+                revisor_id=revisor_id,
+                snapshot_competencia_revisor_json=snap_competencia,
+                excecao_motivo=dados.get("excecao_motivo"),
+            )
+        except ValueError as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response(
+                {"erro": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                out = aprovar_revisao_executar(inp, repo)
+                append_evento_executar(
+                    AppendEventoCalibracaoInput(
+                        tenant_id=tenant_id_ctx,
+                        calibracao_id=cal_id,
+                        tipo="revisao_aprovada",
+                        payload_raw={
+                            "calibracao_id": str(cal_id),
+                            "revision": out.snapshot.revision,
+                            "status": out.snapshot.status.value,
+                            "snap_competencia_fp": snap_fp,
+                            "excecao_motivo": dados.get("excecao_motivo")
+                            or "",
+                        },
+                        finalidade="revisao_aprovada",
+                        actor_user_id=usuario_id,
+                        occurred_at=datetime.now(UTC),
+                        correlation_id=out.snapshot.correlation_id,
+                        causation_id=novo.chave_id,  # type: ignore[arg-type]
+                    ),
+                    evento_repo,
+                )
+        except CalibracaoNaoEncontrada as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
+            raise NotFound(str(exc)) from exc
+        except EstadoInvalidoParaAprovarRevisao as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "EstadoInvalido"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except FraudeRevisorEhExecutor as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "RTSemSegregacao"},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        except ExcecaoAdr0026Invalida as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "ExcecaoAdr0026Invalida"},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        except ConflitoVersaoCalibracao as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "ConflitoVersao",
+                    "revision_atual": exc.snapshot_atual.revision,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        body = _serializar_snapshot(out.snapshot)
+        logger.info(
+            "calibracao.aprovar_revisao OK calibracao_id=%s revision=%d",
+            cal_id,
+            out.snapshot.revision,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_CAL_APROVAR_REVISAO,
+                "calibracao_id": str(cal_id),
+                "usuario_id": str(usuario_id),
+                "revision": out.snapshot.revision,
+            },
+        )
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id_ctx,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body)
+
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="calibracoes/(?P<calibracao_pk>[^/.]+)/rejeitar-revisao",
+    )
+    def rejeitar(
+        self, request: Request, calibracao_pk: str | None = None
+    ) -> Response:
+        """EM_REVISAO_1 -> EM_EXECUCAO (devolve pro metrologista corrigir)."""
+        serializer = RejeitarRevisaoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+
+        try:
+            cal_id = UUID(str(calibracao_pk))
+        except (ValueError, TypeError) as exc:
+            raise NotFound(f"calibracao_id invalido: {exc}") from exc
+
+        tenant_id_ctx = active_tenant_context.get()
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        # SEG-CAL-07 style: hash do motivo derivado server-side pra fingerprint.
+        motivo_hash = derivar_hash_texto_canonicalizado(
+            texto=dados["motivo_rejeicao_canonicalizado"],
+            tenant_id=tenant_id_ctx,
+        )
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id_ctx,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_CAL_REJEITAR_REVISAO,
+            payload_fingerprint={
+                "calibracao_id": str(cal_id),
+                "revision_esperada": dados["revision_esperada"],
+                "motivo_hash_fingerprint": hashlib.sha256(
+                    motivo_hash.encode()
+                ).hexdigest(),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+
+        repo = DjangoCalibracaoRepository()
+        evento_repo = DjangoEventoDeCalibracaoRepository()
+        try:
+            inp = RejeitarRevisaoInput(
+                calibracao_id=cal_id,
+                revision_esperada=dados["revision_esperada"],
+                motivo_rejeicao_canonicalizado=dados[
+                    "motivo_rejeicao_canonicalizado"
+                ],
+            )
+        except ValueError as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response(
+                {"erro": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                out = rejeitar_revisao_executar(inp, repo)
+                append_evento_executar(
+                    AppendEventoCalibracaoInput(
+                        tenant_id=tenant_id_ctx,
+                        calibracao_id=cal_id,
+                        tipo="revisao_rejeitada",
+                        payload_raw={
+                            "calibracao_id": str(cal_id),
+                            "revision": out.snapshot.revision,
+                            "status": out.snapshot.status.value,
+                            "motivo_hash": motivo_hash,
+                        },
+                        finalidade="revisao_rejeitada",
+                        actor_user_id=usuario_id,
+                        occurred_at=datetime.now(UTC),
+                        correlation_id=out.snapshot.correlation_id,
+                        causation_id=novo.chave_id,  # type: ignore[arg-type]
+                    ),
+                    evento_repo,
+                )
+        except CalibracaoNaoEncontrada as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
+            raise NotFound(str(exc)) from exc
+        except EstadoInvalidoParaRejeitarRevisao as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "EstadoInvalido"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except ConflitoVersaoCalibracao as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "ConflitoVersao",
+                    "revision_atual": exc.snapshot_atual.revision,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        body = _serializar_snapshot(out.snapshot)
+        logger.info(
+            "calibracao.rejeitar_revisao OK calibracao_id=%s revision=%d",
+            cal_id,
+            out.snapshot.revision,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_CAL_REJEITAR_REVISAO,
+                "calibracao_id": str(cal_id),
+                "usuario_id": str(usuario_id),
+                "revision": out.snapshot.revision,
+            },
+        )
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id_ctx,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body)
+
+
+# authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+class ConferenciaViewSet(viewsets.ViewSet):
+    """ViewSet REST de 2a Conferencia (T-CAL-127 — aprovar).
+
+      POST /api/v1/calibracoes/{id}/aprovar-2a-conferencia  (US-CAL-008)
+    """
+
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="calibracoes/(?P<calibracao_pk>[^/.]+)/aprovar-2a-conferencia",
+    )
+    def aprovar_2a(
+        self, request: Request, calibracao_pk: str | None = None
+    ) -> Response:
+        """AGUARDANDO_2A_CONFERENCIA -> APROVADA. US-CAL-008 + ADR-0026."""
+        serializer = Aprovar2aConferenciaSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+
+        try:
+            cal_id = UUID(str(calibracao_pk))
+        except (ValueError, TypeError) as exc:
+            raise NotFound(f"calibracao_id invalido: {exc}") from exc
+
+        tenant_id_ctx = active_tenant_context.get()
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+        conferente_id = usuario_id  # SEG-CAL-09 server-side
+
+        snap_competencia = dict(dados["snapshot_competencia_conferente_json"])
+        snap_fp = hashlib.sha256(
+            "|".join(
+                f"{k}={snap_competencia[k]}" for k in sorted(snap_competencia)
+            ).encode()
+        ).hexdigest()
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id_ctx,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_CAL_APROVAR_2A_CONF,
+            payload_fingerprint={
+                "calibracao_id": str(cal_id),
+                "revision_esperada": dados["revision_esperada"],
+                "conferente_id": str(conferente_id),
+                "snap_competencia_fp": snap_fp,
+                "excecao_motivo": dados.get("excecao_motivo") or "",
+                "excecao_2a_conf_id": str(
+                    dados.get("excecao_2a_conf_id") or ""
+                ),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+
+        repo = DjangoCalibracaoRepository()
+        evento_repo = DjangoEventoDeCalibracaoRepository()
+        try:
+            inp = Aprovar2aConferenciaInput(
+                calibracao_id=cal_id,
+                revision_esperada=dados["revision_esperada"],
+                conferente_id=conferente_id,
+                snapshot_competencia_conferente_json=snap_competencia,
+                excecao_motivo=dados.get("excecao_motivo"),
+                excecao_2a_conf_id=dados.get("excecao_2a_conf_id"),
+            )
+        except ValueError as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response(
+                {"erro": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                out = aprovar_2a_executar(inp, repo)
+                append_evento_executar(
+                    AppendEventoCalibracaoInput(
+                        tenant_id=tenant_id_ctx,
+                        calibracao_id=cal_id,
+                        tipo="segunda_conferencia_aprovada",
+                        payload_raw={
+                            "calibracao_id": str(cal_id),
+                            "revision": out.snapshot.revision,
+                            "status": out.snapshot.status.value,
+                            "snap_competencia_fp": snap_fp,
+                            "excecao_motivo": dados.get("excecao_motivo")
+                            or "",
+                            "excecao_2a_conf_id": str(
+                                dados.get("excecao_2a_conf_id") or ""
+                            ),
+                        },
+                        finalidade="segunda_conferencia_aprovada",
+                        actor_user_id=usuario_id,
+                        occurred_at=datetime.now(UTC),
+                        correlation_id=out.snapshot.correlation_id,
+                        causation_id=novo.chave_id,  # type: ignore[arg-type]
+                    ),
+                    evento_repo,
+                )
+                # Saga happy path: 2a conferencia aprovada eleva
+                # status pra APROVADA. Emite tambem `calibracao_aprovada`
+                # pro bus (Marco 5 certificados consome — INT-02).
+                append_evento_executar(
+                    AppendEventoCalibracaoInput(
+                        tenant_id=tenant_id_ctx,
+                        calibracao_id=cal_id,
+                        tipo="calibracao_aprovada",
+                        payload_raw={
+                            "calibracao_id": str(cal_id),
+                            "revision": out.snapshot.revision,
+                            "status": out.snapshot.status.value,
+                        },
+                        finalidade="calibracao_aprovada",
+                        actor_user_id=usuario_id,
+                        occurred_at=datetime.now(UTC),
+                        correlation_id=out.snapshot.correlation_id,
+                        causation_id=novo.chave_id,  # type: ignore[arg-type]
+                    ),
+                    evento_repo,
+                )
+        except CalibracaoNaoEncontrada as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
+            raise NotFound(str(exc)) from exc
+        except EstadoInvalidoParaAprovar2aConferencia as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "EstadoInvalido"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except FraudeConferenteEhRevisorOuExecutor as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "RTSemSegregacao"},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        except Excecao2aConferenciaSemRegistro as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "Excecao2aSemRegistro"},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        except ExcecaoAdr0026Invalida as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "ExcecaoAdr0026Invalida"},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        except ConflitoVersaoCalibracao as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "ConflitoVersao",
+                    "revision_atual": exc.snapshot_atual.revision,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        body = _serializar_snapshot(out.snapshot)
+        logger.info(
+            "calibracao.aprovar_2a_conferencia OK calibracao_id=%s revision=%d status=%s",
+            cal_id,
+            out.snapshot.revision,
+            out.snapshot.status.value,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_CAL_APROVAR_2A_CONF,
+                "calibracao_id": str(cal_id),
+                "usuario_id": str(usuario_id),
+                "revision": out.snapshot.revision,
+            },
+        )
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id_ctx,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body)

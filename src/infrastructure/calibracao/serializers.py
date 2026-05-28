@@ -169,3 +169,81 @@ class LeituraCorrecaoOutSerializer(serializers.Serializer):
     valor_corrigido = serializers.DecimalField(max_digits=20, decimal_places=8)
     corrigido_em = serializers.DateTimeField()
     correlation_id = serializers.UUIDField()
+
+
+# =============================================================
+# Revisao / 2a Conferencia (T-CAL-126 + T-CAL-127)
+# =============================================================
+
+
+_CHAVES_SNAPSHOT_COMPETENCIA = {
+    "grandeza",
+    "faixa_min",
+    "faixa_max",
+    "vigencia_inicio",
+    "vigencia_fim",
+    "rt_competencia_id",
+}
+
+
+def _validar_snapshot_competencia(valor: dict) -> dict:
+    """Wave A interim: cliente envia o snapshot.
+
+    SEG-CAL-10 GATE Wave A: server-side deve derivar de
+    RTCompetencia consultando (rt_id, grandeza, faixa, data atual).
+    Por enquanto o serializer valida a SHAPE (chaves obrigatorias) e
+    o use case re-valida no `__post_init__`. Quando GATE-CAL-10 fechar,
+    serializer passara a IGNORAR snapshot enviado e view buscara
+    RTCompetencia.
+    """
+    if not isinstance(valor, dict):
+        raise serializers.ValidationError(
+            "snapshot_competencia precisa ser objeto JSON"
+        )
+    faltando = _CHAVES_SNAPSHOT_COMPETENCIA - set(valor.keys())
+    if faltando:
+        raise serializers.ValidationError(
+            f"snapshot_competencia sem chaves obrigatorias {sorted(faltando)} "
+            "(AC-CAL-007-5 + AC-CAL-008-4)"
+        )
+    return valor
+
+
+class AprovarRevisaoSerializer(serializers.Serializer):
+    """POST /api/v1/calibracoes/{id}/aprovar-revisao — US-CAL-007.
+
+    SEG-CAL-09: `revisor_id` NAO aceito no body — vem do usuario logado.
+    """
+
+    revision_esperada = serializers.IntegerField(min_value=0)
+    snapshot_competencia_revisor_json = serializers.DictField()
+    excecao_motivo = serializers.CharField(
+        required=False, allow_null=True, allow_blank=False, max_length=80
+    )
+
+    def validate_snapshot_competencia_revisor_json(self, valor: dict) -> dict:
+        return _validar_snapshot_competencia(valor)
+
+
+class RejeitarRevisaoSerializer(serializers.Serializer):
+    """POST /api/v1/calibracoes/{id}/rejeitar-revisao — US-CAL-007 caminho B."""
+
+    revision_esperada = serializers.IntegerField(min_value=0)
+    motivo_rejeicao_canonicalizado = serializers.CharField(min_length=30)
+
+
+class Aprovar2aConferenciaSerializer(serializers.Serializer):
+    """POST /api/v1/calibracoes/{id}/aprovar-2a-conferencia — US-CAL-008.
+
+    SEG-CAL-09: `conferente_id` NAO aceito no body — vem do usuario logado.
+    """
+
+    revision_esperada = serializers.IntegerField(min_value=0)
+    snapshot_competencia_conferente_json = serializers.DictField()
+    excecao_motivo = serializers.CharField(
+        required=False, allow_null=True, allow_blank=False, max_length=80
+    )
+    excecao_2a_conf_id = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate_snapshot_competencia_conferente_json(self, valor: dict) -> dict:
+        return _validar_snapshot_competencia(valor)

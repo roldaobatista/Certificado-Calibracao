@@ -10,11 +10,14 @@ from __future__ import annotations
 from uuid import uuid4
 
 from src.infrastructure.calibracao.serializers import (
+    Aprovar2aConferenciaSerializer,
+    AprovarRevisaoSerializer,
     CancelarCalibracaoSerializer,
     ConfigurarCalibracaoSerializer,
     CorrigirLeituraSerializer,
     RecepcionarCalibracaoSerializer,
     RegistrarLeituraSerializer,
+    RejeitarRevisaoSerializer,
 )
 
 
@@ -228,3 +231,113 @@ class TestCorrigirLeituraSerializer:
         assert s.is_valid(), s.errors
         assert "razao_correcao_hash" not in s.validated_data
         assert "corretor_id_hash" not in s.validated_data
+
+
+def _snapshot_competencia_valido() -> dict:
+    return {
+        "grandeza": "massa",
+        "faixa_min": "0",
+        "faixa_max": "10000",
+        "vigencia_inicio": "2025-01-01",
+        "vigencia_fim": "2028-12-31",
+        "rt_competencia_id": str(uuid4()),
+    }
+
+
+class TestAprovarRevisaoSerializer:
+    """T-CAL-126 — RevisaoViewSet.aprovar."""
+
+    def _payload(self) -> dict:
+        return {
+            "revision_esperada": 2,
+            "snapshot_competencia_revisor_json": _snapshot_competencia_valido(),
+        }
+
+    def test_payload_valido(self) -> None:
+        s = AprovarRevisaoSerializer(data=self._payload())
+        assert s.is_valid(), s.errors
+
+    def test_com_excecao_motivo_valido(self) -> None:
+        payload = self._payload()
+        payload["excecao_motivo"] = "lab_unico_rt"
+        s = AprovarRevisaoSerializer(data=payload)
+        assert s.is_valid(), s.errors
+
+    def test_revisor_id_no_body_eh_ignorado(self) -> None:
+        """SEG-CAL-09: cliente nao pode spoofar revisor."""
+        payload = self._payload()
+        payload["revisor_id"] = str(uuid4())
+        s = AprovarRevisaoSerializer(data=payload)
+        assert s.is_valid(), s.errors
+        assert "revisor_id" not in s.validated_data
+
+    def test_snapshot_sem_chave_obrigatoria_recusa(self) -> None:
+        payload = self._payload()
+        del payload["snapshot_competencia_revisor_json"]["grandeza"]
+        s = AprovarRevisaoSerializer(data=payload)
+        assert not s.is_valid()
+
+    def test_revision_negativa_recusa(self) -> None:
+        payload = self._payload()
+        payload["revision_esperada"] = -1
+        s = AprovarRevisaoSerializer(data=payload)
+        assert not s.is_valid()
+
+
+class TestRejeitarRevisaoSerializer:
+    """T-CAL-126 — RevisaoViewSet.rejeitar."""
+
+    def _payload(self) -> dict:
+        return {
+            "revision_esperada": 2,
+            "motivo_rejeicao_canonicalizado": (
+                "ponto 5kg apresentou desvio fora do esperado pelo procedimento"
+            ),
+        }
+
+    def test_payload_valido(self) -> None:
+        s = RejeitarRevisaoSerializer(data=self._payload())
+        assert s.is_valid(), s.errors
+
+    def test_motivo_curto_recusa(self) -> None:
+        payload = self._payload()
+        payload["motivo_rejeicao_canonicalizado"] = "curto"
+        s = RejeitarRevisaoSerializer(data=payload)
+        assert not s.is_valid()
+
+
+class TestAprovar2aConferenciaSerializer:
+    """T-CAL-127 — ConferenciaViewSet.aprovar_2a."""
+
+    def _payload(self) -> dict:
+        return {
+            "revision_esperada": 3,
+            "snapshot_competencia_conferente_json": (
+                _snapshot_competencia_valido()
+            ),
+        }
+
+    def test_payload_valido(self) -> None:
+        s = Aprovar2aConferenciaSerializer(data=self._payload())
+        assert s.is_valid(), s.errors
+
+    def test_com_excecao_completa_valido(self) -> None:
+        payload = self._payload()
+        payload["excecao_motivo"] = "lab_unico_rt"
+        payload["excecao_2a_conf_id"] = str(uuid4())
+        s = Aprovar2aConferenciaSerializer(data=payload)
+        assert s.is_valid(), s.errors
+
+    def test_conferente_id_no_body_eh_ignorado(self) -> None:
+        """SEG-CAL-09: cliente nao pode spoofar conferente."""
+        payload = self._payload()
+        payload["conferente_id"] = str(uuid4())
+        s = Aprovar2aConferenciaSerializer(data=payload)
+        assert s.is_valid(), s.errors
+        assert "conferente_id" not in s.validated_data
+
+    def test_snapshot_sem_chave_obrigatoria_recusa(self) -> None:
+        payload = self._payload()
+        del payload["snapshot_competencia_conferente_json"]["rt_competencia_id"]
+        s = Aprovar2aConferenciaSerializer(data=payload)
+        assert not s.is_valid()
