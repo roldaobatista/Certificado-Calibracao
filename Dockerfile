@@ -5,7 +5,7 @@
 # Dependabot atualiza este SHA semanalmente via .github/dependabot.yml.
 # Tag mutável `python:3.12-slim-bookworm` resolvida em 2026-05-27 → SHA pinado abaixo.
 
-FROM python:3.12-slim-bookworm@sha256:5f55cdf0c5d9dc1a415637a5ccc4a9e18663ad203673173b8cda8f8dcacef689
+FROM python:3.14-slim-bookworm@sha256:a9bee15510a364124aa24692899d269835683b883de42f7ebec8c293cf679ccb
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
