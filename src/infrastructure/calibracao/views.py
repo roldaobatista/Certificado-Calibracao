@@ -101,6 +101,25 @@ from src.application.metrologia.calibracao.nao_conformidade import (
 from src.application.metrologia.calibracao.nao_conformidade import (
     fechar as fechar_nc_executar,
 )
+from src.application.metrologia.calibracao.reclamacao import (
+    AbrirReclamacaoInput,
+    AtribuirRTInput,
+    ConflitoEstadoReclamacao,
+    EstadoInvalidoParaTransicaoReclamacao,
+    JanelaCDCExpirada,
+    ReclamacaoNaoEncontrada,
+    ResponderReclamacaoInput,
+    RTNaoIndependenteDaCalibracaoOriginal,
+)
+from src.application.metrologia.calibracao.reclamacao import (
+    abrir as abrir_reclamacao_executar,
+)
+from src.application.metrologia.calibracao.reclamacao import (
+    atribuir_rt as atribuir_rt_executar,
+)
+from src.application.metrologia.calibracao.reclamacao import (
+    responder as responder_reclamacao_executar,
+)
 from src.application.metrologia.calibracao.registrar_leitura import (
     ConflitoLeituraExistente,
     EstadoInvalidoParaRegistrarLeitura,
@@ -119,6 +138,7 @@ from src.application.metrologia.calibracao.rejeitar_revisao import (
 )
 from src.domain.metrologia.calibracao.entities import OrigemLeitura
 from src.domain.metrologia.calibracao.enums import (
+    DecisaoReclamacao,
     OrigemRecepcao,
     RegraDecisao,
     TipoAcreditacao,
@@ -135,11 +155,14 @@ from src.infrastructure.calibracao.repositories import (
     DjangoLeituraCorrecaoRepository,
     DjangoLeituraRepository,
     DjangoNaoConformidadeRepository,
+    DjangoReclamacaoCalibracaoRepository,
 )
 from src.infrastructure.calibracao.serializers import (
     AbrirNCSerializer,
+    AbrirReclamacaoSerializer,
     Aprovar2aConferenciaSerializer,
     AprovarRevisaoSerializer,
+    AtribuirRTReclamacaoSerializer,
     CancelarCalibracaoSerializer,
     ConfigurarCalibracaoSerializer,
     CorrigirLeituraSerializer,
@@ -147,6 +170,7 @@ from src.infrastructure.calibracao.serializers import (
     RecepcionarCalibracaoSerializer,
     RegistrarLeituraSerializer,
     RejeitarRevisaoSerializer,
+    ResponderReclamacaoSerializer,
 )
 from src.infrastructure.idempotencia.services_idempotencia import (
     ErroValidacao,
@@ -177,6 +201,9 @@ ENDPOINT_CAL_REJEITAR_REVISAO = "calibracao.rejeitar_revisao"
 ENDPOINT_CAL_APROVAR_2A_CONF = "calibracao.aprovar_2a_conferencia"
 ENDPOINT_NC_ABRIR = "calibracao.nc_abrir"
 ENDPOINT_NC_FECHAR = "calibracao.nc_fechar"
+ENDPOINT_RECL_ABRIR = "calibracao.reclamacao_abrir"
+ENDPOINT_RECL_ATRIBUIR_RT = "calibracao.reclamacao_atribuir_rt"
+ENDPOINT_RECL_RESPONDER = "calibracao.reclamacao_responder"
 
 
 def _resposta_erro_idempotencia(erro: ErroValidacao) -> Response:
@@ -1951,6 +1978,475 @@ class NaoConformidadeViewSet(viewsets.ViewSet):
                 "endpoint": ENDPOINT_NC_FECHAR,
                 "nc_id": str(out.snapshot.id),
                 "usuario_id": str(usuario_id),
+            },
+        )
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id_ctx,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body)
+
+
+def _serializar_reclamacao(snapshot: Any) -> dict[str, Any]:
+    return {
+        "id": str(snapshot.id),
+        "calibracao_id": str(snapshot.calibracao_id),
+        "certificado_id": str(snapshot.certificado_id),
+        "estado": snapshot.estado.value,
+        "decisao": snapshot.decisao.value if snapshot.decisao else None,
+        "aberta_em": snapshot.aberta_em.isoformat(),
+        "respondida_em": (
+            snapshot.respondida_em.isoformat()
+            if snapshot.respondida_em
+            else None
+        ),
+        "correlation_id": str(snapshot.correlation_id),
+    }
+
+
+# authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+class ReclamacaoViewSet(viewsets.ViewSet):
+    """ViewSet REST de ReclamacaoCalibracao (T-CAL-132 — 3 actions).
+
+      POST /api/v1/reclamacoes/abrir                (US-CAL-018-1)
+      POST /api/v1/reclamacoes/{id}/atribuir-rt     (US-CAL-018-2)
+      POST /api/v1/reclamacoes/{id}/responder       (US-CAL-018-4)
+
+    cl. 7.9 ISO 17025 + CDC art. 26 (janela 90d).
+    """
+
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="reclamacoes/abrir",
+    )
+    def abrir(self, request: Request) -> Response:
+        """POST /api/v1/reclamacoes/abrir/."""
+        serializer = AbrirReclamacaoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+
+        tenant_id_ctx = active_tenant_context.get()
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        # SEG-CAL-01/08: hashes server-side.
+        cliente_referencia_hash = derivar_cliente_referencia_hash(
+            cliente_id=dados["cliente_id"], tenant_id=tenant_id_ctx
+        )
+        relato_hash = derivar_hash_texto_canonicalizado(
+            texto=dados["relato_canonicalizado"], tenant_id=tenant_id_ctx
+        )
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id_ctx,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_RECL_ABRIR,
+            payload_fingerprint={
+                "calibracao_id": str(dados["calibracao_id"]),
+                "certificado_id": str(dados["certificado_id"]),
+                "cliente_referencia_hash": cliente_referencia_hash,
+                "relato_hash_fingerprint": hashlib.sha256(
+                    relato_hash.encode()
+                ).hexdigest(),
+                "correlation_id": str(dados["correlation_id"]),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+
+        recl_repo = DjangoReclamacaoCalibracaoRepository()
+        evento_repo = DjangoEventoDeCalibracaoRepository()
+        try:
+            inp = AbrirReclamacaoInput(
+                tenant_id=tenant_id_ctx,
+                calibracao_id=dados["calibracao_id"],
+                certificado_id=dados["certificado_id"],
+                cliente_referencia_hash=cliente_referencia_hash,
+                relato_canonicalizado=dados["relato_canonicalizado"],
+                relato_hash=relato_hash,
+                aberta_em=datetime.now(UTC),
+                certificado_emitido_em=dados["certificado_emitido_em"],
+                prazo_resposta_dia_util=dados["prazo_resposta_dia_util"],
+                correlation_id=dados["correlation_id"],
+            )
+        except ValueError as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response(
+                {"erro": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                out = abrir_reclamacao_executar(inp, recl_repo)
+                append_evento_executar(
+                    AppendEventoCalibracaoInput(
+                        tenant_id=tenant_id_ctx,
+                        calibracao_id=dados["calibracao_id"],
+                        tipo="reclamacao_aberta",
+                        payload_raw={
+                            "reclamacao_id": str(out.snapshot.id),
+                            "certificado_id": str(out.snapshot.certificado_id),
+                            "cliente_referencia_hash": (
+                                cliente_referencia_hash
+                            ),
+                            "relato_hash": relato_hash,
+                            "estado": out.snapshot.estado.value,
+                        },
+                        finalidade="reclamacao_aberta",
+                        actor_user_id=usuario_id,
+                        occurred_at=datetime.now(UTC),
+                        correlation_id=out.snapshot.correlation_id,
+                        causation_id=novo.chave_id,  # type: ignore[arg-type]
+                    ),
+                    evento_repo,
+                )
+        except JanelaCDCExpirada as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_410_GONE,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "JanelaCDCExpirada"},
+                status=status.HTTP_410_GONE,
+            )
+
+        body = _serializar_reclamacao(out.snapshot)
+        logger.info(
+            "calibracao.reclamacao_abrir OK reclamacao_id=%s",
+            out.snapshot.id,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_RECL_ABRIR,
+                "reclamacao_id": str(out.snapshot.id),
+                "usuario_id": str(usuario_id),
+            },
+        )
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id_ctx,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
+
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="reclamacoes/(?P<reclamacao_pk>[^/.]+)/atribuir-rt",
+    )
+    def atribuir_rt(
+        self, request: Request, reclamacao_pk: str | None = None
+    ) -> Response:
+        """RECEBIDA -> EM_ANALISE. AC-CAL-018-2 — RT independente."""
+        serializer = AtribuirRTReclamacaoSerializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+
+        try:
+            reclamacao_id = UUID(str(reclamacao_pk))
+        except (ValueError, TypeError) as exc:
+            raise NotFound(f"reclamacao_id invalido: {exc}") from exc
+
+        tenant_id_ctx = active_tenant_context.get()
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        recl_repo = DjangoReclamacaoCalibracaoRepository()
+        cal_repo = DjangoCalibracaoRepository()
+
+        atual = recl_repo.obter_por_id(reclamacao_id)
+        if atual is None:
+            raise NotFound(f"reclamacao_id={reclamacao_id} nao encontrada")
+        calibracao = cal_repo.obter_por_id(atual.calibracao_id)
+        if calibracao is None:
+            raise NotFound(
+                f"calibracao_id={atual.calibracao_id} nao encontrada"
+            )
+
+        # SEG-CAL-09: derivar 3 hashes server-side.
+        rt_atribuido_hash = derivar_user_id_hash(
+            usuario_id=usuario_id, tenant_id=tenant_id_ctx
+        )
+        # AC-CAL-018-2: revisor_id/conferente_id sao UUIDs em Calibracao;
+        # derivar para hash compativel.
+        revisor_original_hash = (
+            derivar_user_id_hash(
+                usuario_id=calibracao.revisor_id, tenant_id=tenant_id_ctx
+            )
+            if calibracao.revisor_id is not None
+            else ""
+        )
+        conferente_original_hash = (
+            derivar_user_id_hash(
+                usuario_id=calibracao.conferente_id, tenant_id=tenant_id_ctx
+            )
+            if calibracao.conferente_id is not None
+            else ""
+        )
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id_ctx,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_RECL_ATRIBUIR_RT,
+            payload_fingerprint={
+                "reclamacao_id": str(reclamacao_id),
+                "rt_atribuido_hash": rt_atribuido_hash,
+                "permitir_excecao": bool(dados["permitir_mesmo_rt_excecao"]),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+
+        try:
+            inp = AtribuirRTInput(
+                reclamacao_id=reclamacao_id,
+                rt_atribuido_user_id_hash=rt_atribuido_hash,
+                revisor_original_id_hash=revisor_original_hash or rt_atribuido_hash,
+                conferente_original_id_hash=(
+                    conferente_original_hash or rt_atribuido_hash
+                ),
+                permitir_mesmo_rt_excecao=dados["permitir_mesmo_rt_excecao"],
+            )
+        except ValueError as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response(
+                {"erro": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                out = atribuir_rt_executar(inp, recl_repo)
+        except ReclamacaoNaoEncontrada as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
+            raise NotFound(str(exc)) from exc
+        except EstadoInvalidoParaTransicaoReclamacao as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "EstadoInvalido"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except RTNaoIndependenteDaCalibracaoOriginal as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "RTNaoIndependente"},
+                status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+        except ConflitoEstadoReclamacao as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "ConflitoEstado",
+                    "estado_atual": exc.snapshot_atual.estado.value,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        body = _serializar_reclamacao(out.snapshot)
+        logger.info(
+            "calibracao.reclamacao_atribuir_rt OK reclamacao_id=%s",
+            out.snapshot.id,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_RECL_ATRIBUIR_RT,
+                "reclamacao_id": str(out.snapshot.id),
+                "usuario_id": str(usuario_id),
+            },
+        )
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id_ctx,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body)
+
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="reclamacoes/(?P<reclamacao_pk>[^/.]+)/responder",
+    )
+    def responder(
+        self, request: Request, reclamacao_pk: str | None = None
+    ) -> Response:
+        """EM_ANALISE -> RESPONDIDA. AC-CAL-018-4: PROCEDENTE_RECALL
+        aciona saga M5 via evento `reclamacao_respondida`."""
+        serializer = ResponderReclamacaoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+
+        try:
+            reclamacao_id = UUID(str(reclamacao_pk))
+        except (ValueError, TypeError) as exc:
+            raise NotFound(f"reclamacao_id invalido: {exc}") from exc
+
+        tenant_id_ctx = active_tenant_context.get()
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        resposta_hash = derivar_hash_texto_canonicalizado(
+            texto=dados["resposta_canonicalizada"], tenant_id=tenant_id_ctx
+        )
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id_ctx,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_RECL_RESPONDER,
+            payload_fingerprint={
+                "reclamacao_id": str(reclamacao_id),
+                "decisao": dados["decisao"],
+                "resposta_hash_fingerprint": hashlib.sha256(
+                    resposta_hash.encode()
+                ).hexdigest(),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+
+        recl_repo = DjangoReclamacaoCalibracaoRepository()
+        evento_repo = DjangoEventoDeCalibracaoRepository()
+        try:
+            inp = ResponderReclamacaoInput(
+                reclamacao_id=reclamacao_id,
+                resposta_canonicalizada=dados["resposta_canonicalizada"],
+                resposta_hash=resposta_hash,
+                decisao=DecisaoReclamacao(dados["decisao"]),
+                respondida_em=dados["respondida_em"],
+            )
+        except ValueError as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response(
+                {"erro": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                out = responder_reclamacao_executar(inp, recl_repo)
+                append_evento_executar(
+                    AppendEventoCalibracaoInput(
+                        tenant_id=tenant_id_ctx,
+                        calibracao_id=out.snapshot.calibracao_id,
+                        tipo="reclamacao_respondida",
+                        payload_raw={
+                            "reclamacao_id": str(out.snapshot.id),
+                            "decisao": dados["decisao"],
+                            "resposta_hash": resposta_hash,
+                            "dispara_recall_m5": out.dispara_recall_m5,
+                        },
+                        finalidade="reclamacao_respondida",
+                        actor_user_id=usuario_id,
+                        occurred_at=datetime.now(UTC),
+                        correlation_id=out.snapshot.correlation_id,
+                        causation_id=novo.chave_id,  # type: ignore[arg-type]
+                    ),
+                    evento_repo,
+                )
+        except ReclamacaoNaoEncontrada as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
+            raise NotFound(str(exc)) from exc
+        except EstadoInvalidoParaTransicaoReclamacao as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "EstadoInvalido"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except ConflitoEstadoReclamacao as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "ConflitoEstado",
+                    "estado_atual": exc.snapshot_atual.estado.value,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        body = _serializar_reclamacao(out.snapshot)
+        body["dispara_recall_m5"] = out.dispara_recall_m5
+        logger.info(
+            "calibracao.reclamacao_responder OK reclamacao_id=%s decisao=%s",
+            out.snapshot.id,
+            dados["decisao"],
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_RECL_RESPONDER,
+                "reclamacao_id": str(out.snapshot.id),
+                "usuario_id": str(usuario_id),
+                "dispara_recall_m5": out.dispara_recall_m5,
             },
         )
         concluir_chave(

@@ -27,13 +27,16 @@ from src.domain.metrologia.calibracao.entities import (
     LeituraSnapshot,
     NaoConformidadeSnapshot,
     OrigemLeitura,
+    ReclamacaoCalibracaoSnapshot,
 )
 from src.domain.metrologia.calibracao.enums import (
     AcaoCorretivaTipo,
     ClienteNotificadoVia,
     DecisaoContinuarOuParar,
+    DecisaoReclamacao,
     EstadoCalibracao,
     EstadoNaoConformidade,
+    EstadoReclamacao,
     OrigemRecepcao,
     RegraDecisao,
     TipoAcreditacao,
@@ -51,6 +54,7 @@ from src.infrastructure.calibracao.models import (
     Leitura,
     LeituraCorrecao,
     NaoConformidade,
+    ReclamacaoCalibracao,
 )
 
 # Classe de lock por tabela — namespace de 2 args
@@ -674,5 +678,96 @@ class DjangoNaoConformidadeRepository:
             ),
             autorizacao_retomada_user_id=obj.autorizacao_retomada_user_id,
             autorizacao_retomada_em=obj.autorizacao_retomada_em,
+            correlation_id=obj.correlation_id,
+        )
+
+
+class DjangoReclamacaoCalibracaoRepository:
+    """Implementa `ReclamacaoCalibracaoRepository` (T-CAL-132).
+
+    Estado-maquina: RECEBIDA -> EM_ANALISE -> RESPONDIDA. CAS sem
+    revision; `transitar_estado` faz UPDATE WHERE estado=esperado.
+    """
+
+    def obter_por_id(
+        self, reclamacao_id: UUID
+    ) -> ReclamacaoCalibracaoSnapshot | None:
+        from src.infrastructure.multitenant.context import active_tenant_context
+
+        tenant_id = active_tenant_context.get()
+        if tenant_id is None:
+            return None
+        try:
+            obj = ReclamacaoCalibracao.objects.get(
+                id=reclamacao_id, tenant_id=tenant_id
+            )
+        except ReclamacaoCalibracao.DoesNotExist:
+            return None
+        return self._to_snapshot(obj)
+
+    def salvar_nova(self, snapshot: ReclamacaoCalibracaoSnapshot) -> None:
+        ReclamacaoCalibracao.objects.create(
+            id=snapshot.id,
+            tenant_id=snapshot.tenant_id,
+            calibracao_id=snapshot.calibracao_id,
+            certificado_id=snapshot.certificado_id,
+            cliente_referencia_hash=snapshot.cliente_referencia_hash,
+            relato_canonicalizado=snapshot.relato_canonicalizado,
+            relato_hash=snapshot.relato_hash,
+            estado=snapshot.estado.value,
+            rt_atribuido_user_id_hash=snapshot.rt_atribuido_user_id_hash,
+            resposta_canonicalizada=snapshot.resposta_canonicalizada,
+            resposta_hash=snapshot.resposta_hash,
+            decisao=snapshot.decisao.value if snapshot.decisao else "",
+            aberta_em=snapshot.aberta_em,
+            prazo_resposta_dia_util=snapshot.prazo_resposta_dia_util,
+            respondida_em=snapshot.respondida_em,
+            correlation_id=snapshot.correlation_id,
+        )
+
+    def transitar_estado(
+        self,
+        snapshot: ReclamacaoCalibracaoSnapshot,
+        estado_anterior: EstadoReclamacao,
+    ) -> bool:
+        from src.infrastructure.multitenant.context import active_tenant_context
+
+        tenant_id = active_tenant_context.get()
+        if tenant_id is None:
+            return False
+        rowcount = ReclamacaoCalibracao.objects.filter(
+            id=snapshot.id,
+            tenant_id=tenant_id,
+            estado=estado_anterior.value,
+        ).update(
+            estado=snapshot.estado.value,
+            rt_atribuido_user_id_hash=snapshot.rt_atribuido_user_id_hash,
+            resposta_canonicalizada=snapshot.resposta_canonicalizada,
+            resposta_hash=snapshot.resposta_hash,
+            decisao=snapshot.decisao.value if snapshot.decisao else "",
+            respondida_em=snapshot.respondida_em,
+        )
+        return rowcount == 1
+
+    @staticmethod
+    def _to_snapshot(
+        obj: ReclamacaoCalibracao,
+    ) -> ReclamacaoCalibracaoSnapshot:
+        return ReclamacaoCalibracaoSnapshot(
+            id=obj.id,
+            tenant_id=obj.tenant_id,
+            calibracao_id=obj.calibracao_id,
+            certificado_id=obj.certificado_id,
+            cliente_referencia_hash=obj.cliente_referencia_hash,
+            relato_canonicalizado=obj.relato_canonicalizado,
+            relato_hash=obj.relato_hash,
+            estado=EstadoReclamacao(obj.estado),
+            rt_atribuido_user_id_hash=obj.rt_atribuido_user_id_hash,
+            resposta_canonicalizada=obj.resposta_canonicalizada,
+            resposta_hash=obj.resposta_hash,
+            decisao=DecisaoReclamacao(obj.decisao) if obj.decisao else None,
+            aberta_em=obj.aberta_em,
+            prazo_resposta_dia_util=obj.prazo_resposta_dia_util,
+            respondida_em=obj.respondida_em,
             correlation_id=obj.correlation_id,
         )

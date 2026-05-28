@@ -19,6 +19,7 @@ from .views import (
     ConferenciaViewSet,
     LeituraViewSet,
     NaoConformidadeViewSet,
+    ReclamacaoViewSet,
     RevisaoViewSet,
 )
 
@@ -65,5 +66,21 @@ urlpatterns = [
         "nao-conformidades/<str:nc_pk>/fechar/",
         NaoConformidadeViewSet.as_view({"post": "fechar"}),
         name="nao-conformidade-fechar",
+    ),
+    # T-CAL-132 ReclamacaoViewSet
+    path(
+        "reclamacoes/abrir/",
+        ReclamacaoViewSet.as_view({"post": "abrir"}),
+        name="reclamacao-abrir",
+    ),
+    path(
+        "reclamacoes/<str:reclamacao_pk>/atribuir-rt/",
+        ReclamacaoViewSet.as_view({"post": "atribuir_rt"}),
+        name="reclamacao-atribuir-rt",
+    ),
+    path(
+        "reclamacoes/<str:reclamacao_pk>/responder/",
+        ReclamacaoViewSet.as_view({"post": "responder"}),
+        name="reclamacao-responder",
     ),
 ]

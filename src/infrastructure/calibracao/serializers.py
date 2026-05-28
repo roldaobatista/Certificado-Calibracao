@@ -289,3 +289,56 @@ class FecharNCSerializer(serializers.Serializer):
     """
 
     correlation_id = serializers.UUIDField(required=False)
+
+
+# =============================================================
+# ReclamacaoCalibracao (T-CAL-132 — abrir + atribuir-rt + responder)
+# =============================================================
+
+
+class AbrirReclamacaoSerializer(serializers.Serializer):
+    """POST /api/v1/reclamacoes/abrir — US-CAL-018.
+
+    SEG-CAL-01-style: `cliente_referencia_hash` + `relato_hash` derivados
+    server-side a partir de (cliente_id, tenant_id) e relato.
+    SEG-CAL-11 GATE Wave A M5: `certificado_emitido_em` ainda aceito do
+    body; deve passar a ser buscado em Certificado quando M5 plugar.
+    """
+
+    calibracao_id = serializers.UUIDField()
+    certificado_id = serializers.UUIDField()
+    certificado_emitido_em = serializers.DateTimeField()
+    cliente_id = serializers.UUIDField()
+    relato_canonicalizado = serializers.CharField(min_length=100)
+    prazo_resposta_dia_util = serializers.IntegerField(
+        min_value=1, default=15
+    )
+    correlation_id = serializers.UUIDField()
+
+
+class AtribuirRTReclamacaoSerializer(serializers.Serializer):
+    """POST /api/v1/reclamacoes/{id}/atribuir-rt — US-CAL-018 AC-018-2.
+
+    SEG-CAL-09: `rt_atribuido_user_id_hash` derivado do usuario logado.
+    `revisor_original_id_hash` + `conferente_original_id_hash` derivados
+    server-side a partir da Calibracao original (view fetcha).
+    """
+
+    permitir_mesmo_rt_excecao = serializers.BooleanField(default=False)
+
+
+class ResponderReclamacaoSerializer(serializers.Serializer):
+    """POST /api/v1/reclamacoes/{id}/responder — US-CAL-018 AC-018-4.
+
+    SEG-CAL-09 style: `resposta_hash` derivado server-side.
+    """
+
+    resposta_canonicalizada = serializers.CharField(min_length=100)
+    decisao = serializers.ChoiceField(
+        choices=[
+            "IMPROCEDENTE",
+            "PROCEDENTE_RETRABALHO",
+            "PROCEDENTE_RECALL",
+        ]
+    )
+    respondida_em = serializers.DateTimeField()
