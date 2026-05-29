@@ -242,6 +242,23 @@ ACOES_CALIBRACAO: Final[frozenset[str]] = frozenset(
 )
 
 
+# Marco 5 `metrologia/padroes` — US-PAD-001..009 (GATE-OBS-PAD-WORM-1 / D-PAD-6).
+# As 6 mutacoes REST de padrao emitem cadeia WORM `padrao.*` (baixar/revogar
+# afetam validade de certificado emitido — cl. 8.4). Consumers Wave A:
+# certificados (recall por rastreabilidade revogada), qualidade (NC), bus.
+ACOES_PADROES: Final[frozenset[str]] = frozenset(
+    {
+        "padrao.cadastrado",
+        "padrao.recal_externo_iniciado",
+        "padrao.recal_externo_retornado",
+        "padrao.recal_externo_concluido",  # aprovacao RT — INV-PAD-006 (incertezas mutam)
+        "padrao.recal_externo_rejeitado",
+        "padrao.baixado",
+        "padrao.rastreabilidade_revogada",  # C-5 — dispara recall cl. 8.4 (certificados)
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -250,6 +267,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_ADMIN_BREAK_GLASS
     | ACOES_OS
     | ACOES_CALIBRACAO
+    | ACOES_PADROES
 )
 
 

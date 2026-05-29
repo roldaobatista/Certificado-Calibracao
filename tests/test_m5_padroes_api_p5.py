@@ -179,3 +179,91 @@ def test_revogar_rastreabilidade_remove_de_disponiveis(cenario):
 
     disp2 = client.get("/api/v1/padroes/disponiveis/")
     assert pid not in disp2.json()["disponiveis"]  # bloqueado pela porta
+
+
+def _eventos_bus(tenant_id, acao):
+    """Le bus_outbox (tenant-scoped via contexto) — envelopes de uma acao.
+
+    `envelope_jsonb` pode voltar como str (driver) ou dict — normaliza com json.loads.
+    """
+    import json
+
+    from django.db import connection
+
+    from src.infrastructure.multitenant.connection import run_in_tenant_context
+
+    with run_in_tenant_context(tenant_id), connection.cursor() as cur:
+        cur.execute(
+            "SELECT envelope_jsonb FROM bus_outbox WHERE acao = %s AND tenant_id = %s",
+            [acao, str(tenant_id)],
+        )
+        return [
+            json.loads(row[0]) if isinstance(row[0], str) else row[0]
+            for row in cur.fetchall()
+        ]
+
+
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
+def test_cadastrar_emite_evento_worm_padrao(cenario):
+    """GATE-OBS-PAD-WORM-1: cadastrar emite padrao.cadastrado na cadeia WORM/bus."""
+    client = APIClient()
+    _autenticar(client, cenario["admin"], cenario["tenant"])
+    r = _post(client, "/api/v1/padroes/cadastrar/", _payload_cadastrar())
+    assert r.status_code == 201, r.content
+
+    envelopes = _eventos_bus(cenario["tenant"].id, "padrao.cadastrado")
+    assert len(envelopes) == 1
+    env = envelopes[0]
+    assert env["event_name"] == "padrao.cadastrado"
+    assert "perfil_no_evento" in env  # snapshot SAN-PERFIL Sprint 4
+    assert env["payload"]["numero_serie"] == r.json()["numero_serie"]
+
+
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
+def test_revogar_emite_evento_recall_cl_8_4(cenario):
+    """GATE-OBS-PAD-WORM-1: revogar rastreabilidade emite evento (recall cl. 8.4)."""
+    client = APIClient()
+    _autenticar(client, cenario["admin"], cenario["tenant"])
+    pid = _post(client, "/api/v1/padroes/cadastrar/", _payload_cadastrar()).json()["id"]
+    rev = _post(
+        client,
+        f"/api/v1/padroes/{pid}/revogar-rastreabilidade/",
+        {"motivo": "origem perdeu acreditacao CGCRE"},
+    )
+    assert rev.status_code == 200, rev.content
+
+    envelopes = _eventos_bus(cenario["tenant"].id, "padrao.rastreabilidade_revogada")
+    assert len(envelopes) == 1
+    assert envelopes[0]["payload"]["id"] == pid
+
+
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
+def test_ciclo_recal_emite_3_eventos(cenario):
+    """envio + retorno + aprovacao emitem os 3 eventos padrao.recal_externo_*."""
+    client = APIClient()
+    _autenticar(client, cenario["admin"], cenario["tenant"])
+    pid = _post(client, "/api/v1/padroes/cadastrar/", _payload_cadastrar()).json()["id"]
+    recal_id = _post(
+        client, f"/api/v1/padroes/{pid}/recal-envio/", {"lab_externo": "Lab RBC"}
+    ).json()["recal_id"]
+    _post(
+        client,
+        f"/api/v1/padroes/recal/{recal_id}/retorno/",
+        {
+            "status": "RETORNADO",
+            "incertezas_novas": [
+                {"valor": "0.0005", "fator_k": "2", "nivel_confianca": "0.9545", "unidade": "g"}
+            ],
+            "validade_nova": "2028-07-01",
+            "valor_convencional_novo": "1.0",
+        },
+    )
+    _post(
+        client,
+        f"/api/v1/padroes/recal/{recal_id}/aprovar/",
+        {"aprovado": True, "proximo_recal_novo": "2028-06-01"},
+    )
+    tid = cenario["tenant"].id
+    assert len(_eventos_bus(tid, "padrao.recal_externo_iniciado")) == 1
+    assert len(_eventos_bus(tid, "padrao.recal_externo_retornado")) == 1
+    assert len(_eventos_bus(tid, "padrao.recal_externo_concluido")) == 1

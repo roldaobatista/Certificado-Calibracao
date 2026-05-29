@@ -143,6 +143,47 @@ def _tenant_ou_403() -> UUID | None:
     return active_tenant_context.get()
 
 
+def _publicar_evento_padrao(
+    *,
+    acao: str,
+    payload: dict[str, Any],
+    causation_id: UUID,
+    tenant_id: UUID,
+    usuario_id: UUID,
+    resource_summary: str,
+) -> None:
+    """Emite o evento WORM `padrao.*` (GATE-OBS-PAD-WORM-1 / D-PAD-6).
+
+    Chamado DENTRO do `transaction.atomic()` da action (Garantia 3 do helper:
+    cadeia + outbox no mesmo bloco transacional da persistencia). `publicar_evento`
+    sanitiza o payload em escrita, valida tenant == contexto ativo, captura
+    `perfil_no_evento` do GUC (SAN-PERFIL Sprint 4) e enfileira no bus_outbox
+    idempotente por (causation_id, acao). Import local: evita custo no import-time
+    e mantem a dependencia explicita na borda REST.
+    """
+    from src.infrastructure.audit.event_helpers import publicar_evento
+
+    publicar_evento(
+        acao=acao,
+        payload=payload,
+        causation_id=causation_id,
+        tenant_id=tenant_id,
+        usuario_id=usuario_id if usuario_id != UUID(int=0) else None,
+        resource_summary=resource_summary,
+    )
+    # Log estruturado simetrico das 6 mutacoes (OBS-002 — tenant_id + acao +
+    # correlation em path critico; resolve o "log assimetrico" pre-P9).
+    logger.info(
+        "padrao evento WORM publicado acao=%s",
+        acao,
+        extra={
+            "tenant_id": str(tenant_id),
+            "acao": acao,
+            "correlation_id": str(payload.get("correlation_id", "")),
+        },
+    )
+
+
 # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
 class PadraoViewSet(viewsets.ViewSet):
     """ViewSet REST de PadraoMetrologico (cadastro + ciclo de recal + baixa)."""
@@ -262,6 +303,14 @@ class PadraoViewSet(viewsets.ViewSet):
             )
             with transaction.atomic():
                 out = cadastrar_padrao.executar(inp, repo)
+                _publicar_evento_padrao(
+                    acao="padrao.cadastrado",
+                    payload=_serializar_padrao(out.snapshot),
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"padrao {out.snapshot.numero_serie}",
+                )
         except (
             ValueError,
             cadastrar_padrao.NumeroSerieDuplicadoError,
@@ -328,6 +377,18 @@ class PadraoViewSet(viewsets.ViewSet):
                     ),
                     rp,
                     rr,
+                )
+                _publicar_evento_padrao(
+                    acao="padrao.recal_externo_iniciado",
+                    payload={
+                        "recal_id": str(out.recal.id),
+                        "lab_externo": d["lab_externo"],
+                        **_serializar_padrao(out.padrao),
+                    },
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"recal envio padrao {out.padrao.numero_serie}",
                 )
         except registrar_recal_envio.PadraoNaoEncontradoError as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_404_NOT_FOUND)
@@ -402,6 +463,18 @@ class PadraoViewSet(viewsets.ViewSet):
                     rp,
                     rr,
                 )
+                _publicar_evento_padrao(
+                    acao="padrao.recal_externo_retornado",
+                    payload={
+                        "recal_id": str(out.recal.id),
+                        "status": d["status"],
+                        **_serializar_padrao(out.padrao),
+                    },
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"recal retorno padrao {out.padrao.numero_serie}",
+                )
         except (
             registrar_recal_retorno.RecalNaoEncontradoError,
             registrar_recal_envio.PadraoNaoEncontradoError,
@@ -465,6 +538,22 @@ class PadraoViewSet(viewsets.ViewSet):
                     ),
                     rp,
                     rr,
+                )
+                _publicar_evento_padrao(
+                    acao=(
+                        "padrao.recal_externo_concluido"
+                        if d["aprovado"]
+                        else "padrao.recal_externo_rejeitado"
+                    ),
+                    payload={
+                        "recal_id": str(out.recal.id),
+                        "aprovado": d["aprovado"],
+                        **_serializar_padrao(out.padrao),
+                    },
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"recal aprovacao RT padrao {out.padrao.numero_serie}",
                 )
         except (
             registrar_recal_retorno.RecalNaoEncontradoError,
@@ -541,6 +630,14 @@ class PadraoViewSet(viewsets.ViewSet):
                     ),
                     rp,
                 )
+                _publicar_evento_padrao(
+                    acao="padrao.baixado",
+                    payload={"sucatar": d["sucatar"], **_serializar_padrao(out.padrao)},
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"baixa padrao {out.padrao.numero_serie}",
+                )
         except registrar_recal_envio.PadraoNaoEncontradoError as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_404_NOT_FOUND)
         except registrar_recal_envio.ConflitoVersaoError as exc:
@@ -595,6 +692,16 @@ class PadraoViewSet(viewsets.ViewSet):
                         motivo=d["motivo"],
                     ),
                     rp,
+                )
+                _publicar_evento_padrao(
+                    acao="padrao.rastreabilidade_revogada",
+                    payload=_serializar_padrao(out.padrao),
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=(
+                        f"revogacao rastreabilidade padrao {out.padrao.numero_serie}"
+                    ),
                 )
         except registrar_recal_envio.PadraoNaoEncontradoError as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_404_NOT_FOUND)
