@@ -8,6 +8,7 @@ Convencao M4: `obter_*` retorna snapshot ou None; mutacao da raiz via CAS
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
@@ -112,6 +113,18 @@ class VinculoAuxiliarRepository(Protocol):
 
     def salvar_novo(self, snapshot: VinculoAuxiliarSnapshot) -> None: ...
 
+    def obter_por_id(self, vinculo_id: UUID) -> VinculoAuxiliarSnapshot | None: ...
+
     def listar_auxiliares_vigentes_de(
         self, padrao_principal_id: UUID
     ) -> list[VinculoAuxiliarSnapshot]: ...
+
+    def listar_vigentes_por_auxiliar(
+        self, padrao_auxiliar_id: UUID
+    ) -> list[VinculoAuxiliarSnapshot]:
+        """Vinculos vigentes em que o padrao e o AUXILIAR (anti-duplicata)."""
+        ...
+
+    def revogar(self, vinculo_id: UUID, revogado_em: datetime) -> bool:
+        """Liga `revogado_em` (ADR-0030). False se nao encontrado/ja revogado."""
+        ...

@@ -16,6 +16,7 @@ e `aplicar_recal_aprovado`, que envolve o UPDATE em
 from __future__ import annotations
 
 import json as _json
+from datetime import datetime
 from uuid import UUID
 
 from django.db import connection
@@ -421,25 +422,44 @@ class DjangoVinculoAuxiliarRepository:
             revogado_em=snapshot.revogado_em,
         )
 
+    @staticmethod
+    def _to_snapshot(o: VinculoAuxiliar) -> VinculoAuxiliarSnapshot:
+        from src.domain.metrologia.value_objects import Grandeza
+
+        return VinculoAuxiliarSnapshot(
+            id=o.id,
+            tenant_id=o.tenant_id,
+            padrao_principal_id=o.padrao_principal_id,
+            padrao_auxiliar_id=o.padrao_auxiliar_id,
+            grandeza_influencia=Grandeza.from_string(
+                str(o.grandeza_influencia.get("simbolo", o.grandeza_influencia))
+            ),
+            vigencia_inicio=o.vigencia_inicio,
+            revogado_em=o.revogado_em,
+        )
+
+    def obter_por_id(self, vinculo_id: UUID) -> VinculoAuxiliarSnapshot | None:
+        obj = VinculoAuxiliar.objects.filter(id=vinculo_id).first()
+        return self._to_snapshot(obj) if obj is not None else None
+
     def listar_auxiliares_vigentes_de(
         self, padrao_principal_id: UUID
     ) -> list[VinculoAuxiliarSnapshot]:
-        from src.domain.metrologia.value_objects import Grandeza
-
         objs = VinculoAuxiliar.objects.filter(
             padrao_principal_id=padrao_principal_id, revogado_em__isnull=True
         )
-        return [
-            VinculoAuxiliarSnapshot(
-                id=o.id,
-                tenant_id=o.tenant_id,
-                padrao_principal_id=o.padrao_principal_id,
-                padrao_auxiliar_id=o.padrao_auxiliar_id,
-                grandeza_influencia=Grandeza.from_string(
-                    str(o.grandeza_influencia.get("simbolo", o.grandeza_influencia))
-                ),
-                vigencia_inicio=o.vigencia_inicio,
-                revogado_em=o.revogado_em,
-            )
-            for o in objs
-        ]
+        return [self._to_snapshot(o) for o in objs]
+
+    def listar_vigentes_por_auxiliar(
+        self, padrao_auxiliar_id: UUID
+    ) -> list[VinculoAuxiliarSnapshot]:
+        objs = VinculoAuxiliar.objects.filter(
+            padrao_auxiliar_id=padrao_auxiliar_id, revogado_em__isnull=True
+        )
+        return [self._to_snapshot(o) for o in objs]
+
+    def revogar(self, vinculo_id: UUID, revogado_em: datetime) -> bool:
+        atualizadas = VinculoAuxiliar.objects.filter(
+            id=vinculo_id, revogado_em__isnull=True
+        ).update(revogado_em=revogado_em)
+        return atualizadas == 1

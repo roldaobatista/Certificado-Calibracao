@@ -42,6 +42,7 @@ from src.infrastructure.metrologia.padroes.models import (
     AnaliseCartaControle,
     IntercomparacaoPT,
     PadraoMetrologico,
+    RecalExternoPadrao,
     VerificacaoIntermediaria,
     VinculoAuxiliar,
 )
@@ -252,20 +253,173 @@ def buscar_disponivel_para_calibracao(
     tenant_id: UUID,
     tenant_e_perfil_a: bool = False,
     hoje: _dt.date | None = None,
+    limite: int = 200,
 ) -> list[UUID]:
     """IDs dos padroes EM_USO do tenant que NAO estao bloqueados (saude OK).
 
     Conveniencia de UI/selecao — reusa `padrao_bloqueado_para_uso` por padrao
-    (fail-closed). Listagens grandes podem virar query batch em Wave A.
+    (fail-closed). `limite` capa o numero de candidatos avaliados (default 200,
+    teto F-C3) pra evitar payload/queries ilimitados; o caller pagina o restante.
+
+    GATE-PAD-PERF-DISPONIVEIS (Wave A): o loop chama a porta por padrao (N+1
+    bounded por `limite`). Otimizacao batch (pre-carregar VI/PT/vinculo/carta em
+    dicts e decidir em memoria) fica rastreada; baseline congelado por teste
+    assertNumQueries. Uso single-padrao pelo M4 (1 chamada) nao e afetado.
     """
     candidatos = PadraoMetrologico.objects.filter(
         tenant_id=tenant_id,
         estado=EstadoPadrao.EM_USO.value,
         revogado_em__isnull=True,
-    ).values_list("id", flat=True)
+    ).values_list("id", flat=True)[:limite]
     disponiveis: list[UUID] = []
     for pid in candidatos:
         bloqueado, _motivo = padrao_bloqueado_para_uso(pid, tenant_e_perfil_a, hoje)
         if not bloqueado:
             disponiveis.append(pid)
     return disponiveis
+
+
+def carta_controle_readmodel(padrao_id: UUID) -> dict[str, object] | None:
+    """Read-model da carta Shewhart (US-PAD-008-1 / ADR-0070 — perfil A na borda).
+
+    Recalcula on-demand a serie de desvios das VIs + limites (LC/UCL/LCL/zona
+    de alerta +/-2 sigma) + violacoes Western Electric. NAO persiste (a DECISAO do RT e que vira
+    `AnaliseCartaControle` WORM — INV-PAD-010). Retorna None se o padrao nao
+    existe (RLS). O gate de perfil A e responsabilidade da view (INV-PAD-008).
+    """
+    padrao = PadraoMetrologico.objects.filter(id=padrao_id).first()
+    if padrao is None:
+        return None
+    vis = list(
+        VerificacaoIntermediaria.objects.filter(padrao_id=padrao_id).order_by("data_vi")
+    )
+    vis_com_desvio = [v for v in vis if v.desvio_observado is not None]
+    pontos = [
+        {
+            "vi_id": str(v.id),
+            "data_vi": v.data_vi.isoformat(),
+            "desvio": str(v.desvio_observado),
+        }
+        for v in vis_com_desvio
+    ]
+    serie = [Decimal(str(v.desvio_observado)) for v in vis_com_desvio]
+    if len(serie) < _MIN_PONTOS_CARTA:
+        return {
+            "padrao_id": str(padrao_id),
+            "n_pontos": len(serie),
+            "pontos": pontos,
+            "limites": None,
+            "violacoes": [],
+            "motivo": "pontos insuficientes para carta de controle (< 2)",
+        }
+    limites = shewhart.calcular_limites(serie)
+    violacoes = shewhart.detectar_violacoes(serie, limites)
+    dois_sigma = Decimal("2") * limites.sigma
+    return {
+        "padrao_id": str(padrao_id),
+        "n_pontos": len(serie),
+        "linha_central": str(limites.linha_central),
+        "ucl": str(limites.ucl),
+        "lcl": str(limites.lcl),
+        "sigma": str(limites.sigma),
+        "zona_alerta_superior": str(limites.linha_central + dois_sigma),
+        "zona_alerta_inferior": str(limites.linha_central - dois_sigma),
+        "pontos": pontos,
+        "violacoes": [v.regra.value for v in violacoes],
+        "versao_motor_shewhart": shewhart.VERSAO_MOTOR_SHEWHART,
+    }
+
+
+def montar_dossie_cgcre(padrao_id: UUID) -> dict[str, object] | None:
+    """Dossie CGCRE em JSON estruturado (US-PAD-006 — perfil A na borda).
+
+    Exporta o cadastro + historico (recals/VIs/PTs/cartas) do padrao em dados
+    estruturados (NAO PDF/A — non-goal Wave B). Sem PII crua: executores/RT vao
+    como `*_id_hash` (HMAC-tenant). Retorna None se o padrao nao existe (RLS).
+    O gate de perfil A e responsabilidade da view (US-PAD-006 supervisao CGCRE).
+    """
+    padrao_obj = PadraoMetrologico.objects.filter(id=padrao_id).first()
+    if padrao_obj is None:
+        return None
+    snap = mappers.model_para_snapshot(padrao_obj)
+
+    recais = [
+        {
+            "recal_id": str(r.id),
+            "lab_externo": r.lab_externo,
+            "status": r.status,
+            "enviado_em": r.enviado_em.isoformat(),
+            "retornado_em": r.retornado_em.isoformat() if r.retornado_em else None,
+            "aprovado_rt_em": r.aprovado_rt_em.isoformat() if r.aprovado_rt_em else None,
+            "responsavel_envio_id_hash": r.responsavel_envio_id_hash,
+            "aprovado_rt_id_hash": r.aprovado_rt_id_hash,
+        }
+        for r in RecalExternoPadrao.objects.filter(padrao_id=padrao_id).order_by(
+            "enviado_em"
+        )
+    ]
+    vis = [
+        {
+            "vi_id": str(v.id),
+            "data_vi": v.data_vi.isoformat(),
+            "resultado": v.resultado,
+            "desvio_observado": str(v.desvio_observado)
+            if v.desvio_observado is not None
+            else None,
+            "executor_id_hash": v.executor_id_hash,
+            "metodo_hash": v.metodo_hash,
+        }
+        for v in VerificacaoIntermediaria.objects.filter(padrao_id=padrao_id).order_by(
+            "data_vi"
+        )
+    ]
+    pts = [
+        {
+            "pt_id": str(p.id),
+            "lab_organizador": p.lab_organizador,
+            "protocolo": p.protocolo,
+            "data_inicio": p.data_inicio.isoformat(),
+            "resultado": p.resultado,
+            "zeta_score": str(p.zeta_score) if p.zeta_score is not None else None,
+        }
+        for p in IntercomparacaoPT.objects.filter(padrao_id=padrao_id).order_by(
+            "data_inicio"
+        )
+    ]
+    cartas = [
+        {
+            "analise_id": str(a.id),
+            "regra_violada": a.regra_violada,
+            "decisao_rt": a.decisao_rt,
+            "versao_motor_shewhart": a.versao_motor_shewhart,
+            "criado_em": a.criado_em.isoformat(),
+            "justificativa_hash": a.justificativa_hash,
+        }
+        for a in AnaliseCartaControle.objects.filter(padrao_id=padrao_id).order_by(
+            "criado_em"
+        )
+    ]
+    return {
+        "padrao": {
+            "id": str(snap.id),
+            "numero_serie": snap.numero_serie,
+            "fabricante": snap.fabricante,
+            "modelo": snap.modelo,
+            "subtipo": snap.subtipo.value,
+            "classe": snap.classe.value,
+            "vinculacao": snap.vinculacao.value,
+            "grandezas": [g.value for g in snap.grandezas],
+            "estado": snap.estado.value,
+            "validade_certificado_rastreabilidade": (
+                snap.validade_certificado_rastreabilidade.isoformat()
+            ),
+            "proximo_recal": snap.proximo_recal.isoformat(),
+            "criterio_intervalo": snap.criterio_intervalo,
+            "rastreabilidade_origem_revogada": snap.rastreabilidade_origem_revogada,
+        },
+        "recals_externos": recais,
+        "verificacoes_intermediarias": vis,
+        "intercomparacoes_pt": pts,
+        "analises_carta_controle": cartas,
+        "versao_dossie": "1.0",
+    }

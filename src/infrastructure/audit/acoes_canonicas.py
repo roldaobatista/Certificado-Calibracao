@@ -255,6 +255,8 @@ ACOES_PADROES: Final[frozenset[str]] = frozenset(
         "padrao.recal_externo_rejeitado",
         "padrao.baixado",
         "padrao.rastreabilidade_revogada",  # C-5 — dispara recall cl. 8.4 (certificados)
+        "padrao.vinculo_auxiliar_criado",  # US-PAD-007-4 cl. 6.4.5 (ativa INV-PAD-007)
+        "padrao.vinculo_auxiliar_revogado",
     }
 )
 
