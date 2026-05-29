@@ -1041,6 +1041,21 @@ run_case "ACWb .md ignora PASS"                       PASS  analise-carta-worm.s
 run_case "ACWc tests ignoram PASS"                    PASS  analise-carta-worm.sh '{"tool_input":{"file_path":"tests/regressao/test_inv_pad_worm.py","content":"DELETE FROM analise_carta_controle"}}'
 run_case "ACWd outra tabela PASS"                     PASS  analise-carta-worm.sh '{"tool_input":{"file_path":"x.sql","content":"UPDATE padrao_metrologico SET estado = 1;"}}'
 
+# --- Gate anti-drift de contagens (auditoria maquina-dev 2026-05-29) ---
+# So no modo completo (sem filtro). Garante que os numeros a mao nos docs
+# canonicos (README/AGENTS/CLAUDE) batem com a fonte direta. Mata os
+# sumidouros #3/#6 da auditoria sem inflar a contagem de hooks.
+if [ -z "$FILTER" ]; then
+    echo ""
+    echo "===== gate anti-drift de contagens (scripts/status-projeto.sh --check) ====="
+    if bash scripts/status-projeto.sh --check; then
+        echo "  [OK]   contagens dos docs canonicos batem com o real"
+    else
+        echo "  [FAIL] drift de contagem detectado (corrija o doc ou rode scripts/status-projeto.sh)"
+        fail=$((fail+1))
+    fi
+fi
+
 echo ""
 if [ -n "$FILTER" ]; then
     echo "===== resumo (filtro='$FILTER'): $pass ok, $fail falhas, $skipped pulados ====="
