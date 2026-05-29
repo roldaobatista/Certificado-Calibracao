@@ -7,15 +7,15 @@
 
 **M5 — estado:** P1-P8 entregues + GATE-OBS-PAD-WORM-1 resolvido (`0a48ea9`). P9 (10 auditores) deu 7 PASS + 2 FAIL (produto+performance) + drift-docs CONCERNS → 1 ALTO + 6 MÉDIO + 9 BAIXO. MÉDIO+ bloqueia (INV-RITUAL-001) — M5 segue **aberto**. Roldão decidiu construir os 3 (dossiê CGCRE + carta read-model + vínculo auxiliar CRUD) antes de encerrar. P10 backbone entregue (`b1ef289`): use cases + query services + repo + eventos prontos.
 
-**FALTA pra encerrar M5 (próxima sessão):**
-1. Endpoints REST: POST vínculo criar/revogar (emitir eventos), GET dossie-cgcre (gate perfil A), GET carta-controle (gate perfil A) — views.py + serializers + urls.
-2. Migration 0007 seed authz das ações novas (gerir_vinculo_auxiliar + ler dossie/carta).
-3. Emitir eventos de vínculo via `_publicar_evento_padrao`.
-4. Testes E2E dos 4 endpoints + INV-PAD-007 ativado via REST.
-5. PERF-001: teste assertNumQueries baseline + GATE-PAD-PERF-DISPONIVEIS + paginar saída `disponiveis`.
-6. Docs: emendar AC-PAD-003-2 (bloqueio lógico); spec §6 +INV-PAD-004/010; plan §7 DoD +INV-PAD-010; matriz parar de mentir US-PAD-006/008-1/007-4; remover pendência §6 obsoleta; frontmatter draft→stable.
-7. BAIXOs: mappers model concreto; teste baixar-evento; teste replay idemp.
-8. **Re-rodar P9** (produto+performance+drift) até zerar MÉDIO+ → então encerrar M5.
+**P10 ENTREGUE (2026-05-29) — falta só VERIFICAR e confirmar:**
+- ✅ Fatia A: REST vínculo auxiliar (CRUD) + dossiê CGCRE + carta-controle (gate perfil A) + migration 0007 seed authz + eventos vínculo + 12 E2E + PERF-001 baseline. INV-PAD-007 provado via REST. Commits `d6e1f69`/`d37011c`/`152fbf1`.
+- ✅ Re-passada INV-RITUAL-003 (9 auditores): 7 PASS + 2 CONCERNS; 3 MÉDIO detectados e resolvidos na 2ª leva (`dab606e`): AC-PAD-006-1 dossiê +uso_em_calibracoes(M4)+ancora hash-chain(ADR-0064); AC-PAD-008-1 carta gate ≥10 pontos/24m; drift D4 contagem. BAIXOs: idempotency hook cobre metrologia/*; 2 BAIXO viram GATE (GATE-LGPD-PAD-DOSSIE-1 + GATE-OBS-PAD-CORRELACAO-LOG).
+
+**PENDENTE pra FECHAR M5 (Docker caiu — engine WSL travado em 2026-05-29; reabrir Docker Desktop):**
+1. **Verificar a 2ª leva** (commit `dab606e` é WIP não-rodado): `ruff` + `mypy query_service.py` + `pytest --no-cov --reuse-db tests/test_m5_padroes_api_p5.py tests/test_m5_padroes_api_p10.py` (rodar p5 antes pra primar reseed da 0007). Consertar o que falhar.
+2. **Re-passada de CONFIRMAÇÃO** (só produto + drift-docs — os 2 que tinham CONCERNS) até zero MÉDIO+.
+3. Só então: encerrar M5 + promover frontmatter dos docs M5 `draft→stable`.
+Hooks 450/450 + 2 gates verdes (local, não dependem de Docker).
 
 **Suíte (2026-05-29):** hooks `_test-runner` 450/450 + gate anti-drift verde / 55 hooks. Drill `validar_m5_padroes` 43/43 PG-real. M5 ~57 testes verdes. ruff/mypy limpos.
 
