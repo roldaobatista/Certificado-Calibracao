@@ -82,12 +82,12 @@ depende-de:
 |----|--------|
 | T-PAD-050 | alerta recal vencendo (P2) / VI pendente por classe (P2) / recal pendente retorno >90d (P2) / recal retornado pendente aprovação RT >Nd (P2) |
 
-## P7 — INVs em REGRAS + hooks
+## P7 — INVs em REGRAS + hooks ✅ COMPLETO (2026-05-29)
 
-| ID | Tarefa |
-|----|--------|
-| T-PAD-060 | cravar INV-PAD-001..010 em REGRAS-INEGOCIAVEIS.md (incl. INV-PAD-009 redefinida ADR-0071 + INV-PAD-010 ADR-0070) |
-| T-PAD-061 | hooks: `padrao-incertezas-so-via-recal` (INV-PAD-006), `padrao-auxiliar-em-controle` (INV-PAD-007), `shewhart-perfil-A` (INV-PAD-008), `analise-carta-worm` (INV-PAD-010) + casos no `_test-runner` |
+| ID | Tarefa | Status |
+|----|--------|--------|
+| T-PAD-060 | cravar INV-PAD-001..010 em REGRAS-INEGOCIAVEIS.md (incl. INV-PAD-009 redefinida ADR-0071 + INV-PAD-010 ADR-0070) | ✅ INV-PAD-001..006 reconciliados (002 GAP CHECK fechado migration 0006; 003/004/006 nomes corrigidos) + 007..010 cravados. Classes `TestINV_PAD_001..010` (TST-004) em `tests/regressao/test_inv_pad_classes_nomeadas.py` (19 testes) |
+| T-PAD-061 | hooks: `padrao-incertezas-so-via-recal` (INV-PAD-006), `padrao-auxiliar-em-controle` (INV-PAD-007), `shewhart-perfil-A` (INV-PAD-008), `analise-carta-worm` (INV-PAD-010) + casos no `_test-runner` | ✅ 4 hooks criados + registrados em settings.json + 37 casos no `_test-runner` (450/450 verdes). **Causa-raiz extra:** INV-PAD-007 runtime IMPLEMENTADO na porta `_bloqueado_por_auxiliar` (não estava — auxiliar só era lido p/ grandeza); INV-PAD-002 CHECK `jsonb_array_length>0` (migration 0006) |
 
 ## P8 — Emendas docs + reconciliação + drill
 

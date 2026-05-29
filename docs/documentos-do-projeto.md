@@ -134,7 +134,7 @@ Ajustes incorporados na v5 (Auditoria 2):
 | `multi-tenant-ops.md` novo 🔴 | A1, A4 |
 | `seguranca/agente-input-nao-confiavel.md` novo 🔴 | A1 |
 | `docs/INDICE.md` + `docs/INDEX.yaml` novos 🔴 | A7, A8 |
-| `conformidade/comum/retencao-matriz.md` novo 🔴 | A1, A4, A5 |
+| `conformidade/comum/retencao-matriz.md` ✅ draft | A1, A4, A5 |
 | `seguranca-dados.md` promovido 🟡 → 🔴 (ANPD 72h) | A5 |
 | Quebrar `padroes-tecnicos.md` em 8 docs | A3 |
 | Hierarquia de regras (REGRAS = fonte única) | A7, A8 |
@@ -338,7 +338,7 @@ Ajustes incorporados na v5 (Auditoria 2):
 | `docs/conformidade/comum/seguranca-dados.md` | 🔴 | **PROMOVIDO de 🟡.** Inclui: (a) playbook incidente ANPD 72h (Resolução 15/2024); (b) RIPD/DPIA template (LGPD art. 38); (c) mapeamento bases legais por operação CRUD. |
 | `docs/conformidade/comum/fiscal.md` | 🔴 (se módulo financeiro) | **Matriz município × padrão NFS-e** (ABRASF/Nacional/proprietário SP/RJ/BH/Curitiba) — Auditor 5. |
 | `docs/conformidade/comum/fiscal-contingencia.md` (NOVO) | 🔴 | NOVO — separado. SVC-AN/SVC-RS, EPEC, CC-e, cancelamento <24h, inutilização de numeração. |
-| `docs/conformidade/comum/retencao-matriz.md` (NOVO) | 🔴 | NOVO — Auditor 1+4+5. Matriz `categoria_dado × base_legal × prazo × fonte × acao_pos_prazo`. Reconcilia Receita 5 anos × ISO 17025 8.4 (~25 anos) × LGPD direito ao esquecimento. Exclusão lógica + log WORM da exclusão + crypto-shredding. |
+| `docs/conformidade/comum/retencao-matriz.md` | ✅ draft (M3 Onda 2) | Auditor 1+4+5. Matriz `categoria_dado × base_legal × prazo × fonte × acao_pos_prazo`. Reconcilia Receita 5 anos × ISO 17025 8.4 (~25 anos) × LGPD direito ao esquecimento. Exclusão lógica + log WORM da exclusão + crypto-shredding. Linha de padrões/executor em M5 P8 (T-PAD-071). |
 | `docs/conformidade/comum/pci-dss.md` | ⚪ | Lazy. |
 | `docs/conformidade/comum/open-banking.md` | ⚪ | Lazy. |
 
