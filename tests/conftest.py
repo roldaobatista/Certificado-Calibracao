@@ -156,7 +156,11 @@ def _aplicar_seed(app_label: str, migration_name: str) -> None:
         mod = importlib.import_module(module_path)
     except ModuleNotFoundError:
         return
-    seed_func = getattr(mod, "seed", None)
+    # Convenção primária: função `seed(apps, schema_editor)`. Algumas migrations
+    # (ex: ordens_servico 0004) nomeiam o restore `seed_forward` (par com
+    # `seed_reverse`); sem este fallback, o conftest fazia no-op e o dado-semente
+    # NÃO era restaurado após TRUNCATE transacional (achado da auditoria 2026-05-29).
+    seed_func = getattr(mod, "seed", None) or getattr(mod, "seed_forward", None)
     if seed_func is None:
         return
     with connection.schema_editor(atomic=False) as schema_editor:

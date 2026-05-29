@@ -1054,6 +1054,15 @@ if [ -z "$FILTER" ]; then
         echo "  [FAIL] drift de contagem detectado (corrija o doc ou rode scripts/status-projeto.sh)"
         fail=$((fail+1))
     fi
+
+    echo ""
+    echo "===== gate sentinela do catalogo de semente (scripts/verificar-catalogo-seed.sh) ====="
+    if bash scripts/verificar-catalogo-seed.sh; then
+        echo "  [OK]   catalogo de semente sincronizado (sem migration de semente fora do conftest)"
+    else
+        echo "  [FAIL] migration de semente fora do catalogo _SEED_MIGRATIONS (risco do incidente 197 testes)"
+        fail=$((fail+1))
+    fi
 fi
 
 echo ""
