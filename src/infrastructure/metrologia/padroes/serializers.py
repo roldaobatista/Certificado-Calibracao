@@ -100,3 +100,15 @@ class BaixarPadraoSerializer(serializers.Serializer):
 
 class RevogarRastreabilidadeSerializer(serializers.Serializer):
     motivo = serializers.CharField(max_length=2000, min_length=10)
+
+
+class CriarVinculoAuxiliarSerializer(serializers.Serializer):
+    """US-PAD-007-4 / cl. 6.4.5 — vincula auxiliar ao principal (pk da URL).
+
+    `padrao_principal_id` vem do pk da rota; aqui só o auxiliar + a grandeza de
+    influência (string canônica → Grandeza no use case). Sem PII.
+    """
+
+    padrao_auxiliar_id = serializers.UUIDField()
+    grandeza_influencia = serializers.CharField(max_length=40)
+    correlation_id = serializers.UUIDField()

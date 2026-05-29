@@ -38,6 +38,7 @@ from src.application.metrologia.padroes import (
     aprovar_recal_rt,
     baixar_padrao,
     cadastrar_padrao,
+    gerir_vinculo_auxiliar,
     registrar_recal_envio,
     registrar_recal_retorno,
     revogar_rastreabilidade_origem,
@@ -68,11 +69,13 @@ from src.infrastructure.metrologia.padroes import query_service
 from src.infrastructure.metrologia.padroes.repositories import (
     DjangoPadraoRepository,
     DjangoRecalExternoRepository,
+    DjangoVinculoAuxiliarRepository,
 )
 from src.infrastructure.metrologia.padroes.serializers import (
     AprovarRecalSerializer,
     BaixarPadraoSerializer,
     CadastrarPadraoSerializer,
+    CriarVinculoAuxiliarSerializer,
     RecalEnvioSerializer,
     RecalRetornoSerializer,
     RevogarRastreabilidadeSerializer,
@@ -90,6 +93,8 @@ ENDPOINT_RECAL_RETORNO = "padrao.recal_retorno"
 ENDPOINT_RECAL_APROVAR = "padrao.recal_aprovar"
 ENDPOINT_BAIXAR = "padrao.baixar"
 ENDPOINT_REVOGAR = "padrao.revogar_rastreabilidade"
+ENDPOINT_VINCULO_CRIAR = "padrao.vinculo_auxiliar_criar"
+ENDPOINT_VINCULO_REVOGAR = "padrao.vinculo_auxiliar_revogar"
 
 
 def _resposta_erro_idempotencia(erro: ErroValidacao) -> Response:
@@ -136,6 +141,20 @@ def _serializar_padrao(snapshot: Any) -> dict[str, Any]:
         "proximo_recal": snapshot.proximo_recal.isoformat(),
         "rastreabilidade_origem_revogada": snapshot.rastreabilidade_origem_revogada,
         "correlation_id": str(snapshot.correlation_id),
+    }
+
+
+def _serializar_vinculo(snapshot: Any) -> dict[str, Any]:
+    g = snapshot.grandeza_influencia
+    return {
+        "id": str(snapshot.id),
+        "padrao_principal_id": str(snapshot.padrao_principal_id),
+        "padrao_auxiliar_id": str(snapshot.padrao_auxiliar_id),
+        "grandeza_influencia": getattr(g, "value", str(g)),
+        "vigencia_inicio": snapshot.vigencia_inicio.isoformat(),
+        "revogado_em": (
+            snapshot.revogado_em.isoformat() if snapshot.revogado_em else None
+        ),
     }
 
 
@@ -198,6 +217,10 @@ class PadraoViewSet(viewsets.ViewSet):
         "recal_aprovar": "padrao.aprovar_recal",
         "baixar": "padrao.baixar",
         "revogar_rastreabilidade": "padrao.revogar_rastreabilidade",
+        "criar_vinculo_auxiliar": "padrao.gerir_vinculo_auxiliar",
+        "revogar_vinculo_auxiliar": "padrao.gerir_vinculo_auxiliar",
+        "dossie_cgcre": "padrao.ler_dossie",
+        "carta_controle": "padrao.ler_carta",
     }
 
     def get_authz_action(self, request: Request) -> str | None:
@@ -721,6 +744,186 @@ class PadraoViewSet(viewsets.ViewSet):
             response_body_resumo=body,
         )
         return Response(body, status=status.HTTP_200_OK)
+
+    # ------------------------------------------------ vinculo auxiliar (P10)
+    # authz-check: skip -- RequireAuthz global + ACTION_MAP cobrem estas actions
+    @action(detail=True, methods=["post"], url_path="vinculos-auxiliares")
+    def criar_vinculo_auxiliar(self, request: Request, pk: str | None = None) -> Response:
+        """POST — vincula auxiliar ao principal (US-PAD-007-4, cl. 6.4.5).
+
+        Sem este caminho a barreira INV-PAD-007 (auxiliar vencido bloqueia o
+        principal) ficava inerte em producao. # idempotency-key: required
+        """
+        s = CriarVinculoAuxiliarSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        tenant_id = _tenant_ou_403()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+        principal_id = self._uuid_ou_404(pk)
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_VINCULO_CRIAR,
+            payload_fingerprint={
+                "principal": str(principal_id),
+                "auxiliar": str(d["padrao_auxiliar_id"]),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None and novo.chave_id is not None
+        chave_id = novo.chave_id
+
+        rp, rv = DjangoPadraoRepository(), DjangoVinculoAuxiliarRepository()
+        try:
+            with transaction.atomic():
+                out = gerir_vinculo_auxiliar.criar(
+                    gerir_vinculo_auxiliar.CriarVinculoInput(
+                        tenant_id=tenant_id,
+                        padrao_principal_id=principal_id,
+                        padrao_auxiliar_id=d["padrao_auxiliar_id"],
+                        grandeza_influencia=Grandeza.from_string(
+                            d["grandeza_influencia"]
+                        ),
+                        vigencia_inicio=datetime.now(UTC),
+                    ),
+                    rp,
+                    rv,
+                )
+                _publicar_evento_padrao(
+                    acao="padrao.vinculo_auxiliar_criado",
+                    payload=_serializar_vinculo(out.vinculo),
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"vinculo auxiliar {out.vinculo.id}",
+                )
+        except registrar_recal_envio.PadraoNaoEncontradoError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_404_NOT_FOUND)
+        except gerir_vinculo_auxiliar.VinculoJaExisteError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
+        except (
+            gerir_vinculo_auxiliar.AuxiliarInvalidoError,
+            gerir_vinculo_auxiliar.VinculoCircularError,
+            ValueError,
+        ) as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
+
+        body = _serializar_vinculo(out.vinculo)
+        concluir_chave(
+            chave_id=chave_id,
+            tenant_id=tenant_id,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
+
+    # authz-check: skip -- RequireAuthz global + ACTION_MAP cobrem estas actions
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="vinculos-auxiliares/(?P<vinculo_id>[^/.]+)/revogar",
+    )
+    def revogar_vinculo_auxiliar(
+        self, request: Request, vinculo_id: str | None = None
+    ) -> Response:
+        """POST — revoga vinculo auxiliar (ADR-0030 soft-delete temporal).
+
+        # idempotency-key: required
+        """
+        tenant_id = _tenant_ou_403()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+        vid = self._uuid_ou_404(vinculo_id)
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_VINCULO_REVOGAR,
+            payload_fingerprint={"vinculo_id": str(vid)},
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None and novo.chave_id is not None
+        chave_id = novo.chave_id
+
+        rv = DjangoVinculoAuxiliarRepository()
+        try:
+            with transaction.atomic():
+                out = gerir_vinculo_auxiliar.revogar(
+                    gerir_vinculo_auxiliar.RevogarVinculoInput(
+                        tenant_id=tenant_id,
+                        vinculo_id=vid,
+                        revogado_em=datetime.now(UTC),
+                    ),
+                    rv,
+                )
+                _publicar_evento_padrao(
+                    acao="padrao.vinculo_auxiliar_revogado",
+                    payload=_serializar_vinculo(out.vinculo),
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"revogacao vinculo auxiliar {out.vinculo.id}",
+                )
+        except gerir_vinculo_auxiliar.VinculoNaoEncontradoError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_404_NOT_FOUND)
+        except gerir_vinculo_auxiliar.VinculoJaRevogadoError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
+
+        body = _serializar_vinculo(out.vinculo)
+        concluir_chave(
+            chave_id=chave_id,
+            tenant_id=tenant_id,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_200_OK)
+
+    # ----------------------------------------------- dossie CGCRE + carta (P10)
+    # authz-check: skip -- RequireAuthz global + ACTION_MAP cobrem estas actions
+    @action(detail=True, methods=["get"], url_path="dossie-cgcre")
+    def dossie_cgcre(self, request: Request, pk: str | None = None) -> Response:
+        """GET — dossie CGCRE estruturado (US-PAD-006). Exclusivo perfil A."""
+        tenant_id = _tenant_ou_403()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+        perfil_a, _m = tenant_perfil_e(["A"])
+        if not perfil_a:
+            return Response(
+                {"erro": "dossie CGCRE exclusivo de tenant perfil A (acreditado RBC)"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        pid = self._uuid_ou_404(pk)
+        dossie = query_service.montar_dossie_cgcre(pid)
+        if dossie is None:
+            raise NotFound(f"Padrao {pid} nao encontrado")
+        return Response(dossie)
+
+    # authz-check: skip -- RequireAuthz global + ACTION_MAP cobrem estas actions
+    @action(detail=True, methods=["get"], url_path="carta-controle")
+    def carta_controle(self, request: Request, pk: str | None = None) -> Response:
+        """GET — read-model carta Shewhart (US-PAD-008-1). Exclusivo perfil A."""
+        tenant_id = _tenant_ou_403()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+        perfil_a, _m = tenant_perfil_e(["A"])
+        if not perfil_a:
+            return Response(
+                {"erro": "carta de controle exclusiva de tenant perfil A"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        pid = self._uuid_ou_404(pk)
+        carta = query_service.carta_controle_readmodel(pid)
+        if carta is None:
+            raise NotFound(f"Padrao {pid} nao encontrado")
+        return Response(carta)
 
     # ---------------------------------------------------------------- helpers
     @staticmethod
