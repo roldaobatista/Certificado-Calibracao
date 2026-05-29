@@ -28,7 +28,7 @@ Triggers (espelham o padrao M4 calibracao — nao reinventar):
    DELETE bloqueados (registro probatorio congelado — cl. 8.4).
 
 # audit-immutability: triggers WORM do modulo padroes (nao tocam cadeia auditoria)
-# tests-coverage: tests/regressao/test_inv_pad_worm.py (T-PAD-072 GATE-PAD-DRILL-LOCAL)
+# tests-coverage: tests/regressao/test_inv_pad_p2_schema_triggers.py (WORM/GUC) + test_inv_pad_classes_nomeadas.py (INV-PAD-006/010 — T-PAD-072 GATE-PAD-DRILL-LOCAL)
 """
 
 from __future__ import annotations

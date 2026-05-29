@@ -11,7 +11,7 @@ NAO cobre nesta migration (ficam em 0003_triggers_worm):
 - WORM em recal_externo_padrao / verificacao_intermediaria /
   intercomparacao_pt / analise_carta_controle.
 
-# tests-coverage: tests/regressao/test_inv_pad_rls.py (T-PAD-072 GATE-PAD-DRILL-LOCAL)
+# tests-coverage: tests/regressao/test_inv_pad_p2_schema_triggers.py (RLS) + test_inv_pad_classes_nomeadas.py (T-PAD-072 GATE-PAD-DRILL-LOCAL)
 """
 
 from __future__ import annotations
