@@ -29,8 +29,14 @@ relacionados:
 ## 1. Em uma frase
 
 ```
-Pra cada Story: /specify → /plan → review 4 subagentes → /tasks → /implement → review 3 auditores → loop até PASS com ZERO CRÍTICO/ALTO/MÉDIO (INV-RITUAL-001).
+Pra cada Story: /specify → /plan → review 4 subagentes (lista defeitos de domínio candidatos) → /tasks
+→ /implement EM FATIAS de ~20-25 tarefas (INV-RITUAL-002), cada fatia com mini-revisão dos auditores
+   pertinentes (INV-RITUAL-003: 6 essenciais sempre + roteados por área, falha-aberto)
+→ passada completa dos 10 auditores + suite completa como veredito de fechamento
+→ loop até PASS com ZERO CRÍTICO/ALTO/MÉDIO (INV-RITUAL-001).
 ```
+
+> **Atualizado 2026-05-29** (auditoria da máquina de dev — decisões do Roldão): fatiamento obrigatório (INV-RITUAL-002), roteamento de auditores por risco com travas (INV-RITUAL-003), e revisão profunda do plano reforçada. INV-RITUAL-001 (MÉDIO bloqueia fechamento) **mantido intacto** por decisão do Roldão.
 
 ---
 
@@ -117,6 +123,7 @@ ACs **binários**: ou passa ou não passa. Não admite "parcialmente".
 
 **Output esperado de cada subagente:** parecer em `docs/dominios/<dominio>/modulos/<modulo>/revisoes/US-MOD-NNN-<subagente>.md` com:
 - `APROVADO` | `APROVADO COM RESSALVAS: <lista>` | `REPROVADO: <motivo + correção exigida>`
+- **Obrigatório (reforço 2026-05-29):** cada subagente lista explicitamente os **defeitos de domínio candidatos** que a implementação tende a cometer (ex: "hash de PII sem salt", "evento sem proteção anti-duplo-clique", "incerteza sem versão de motor"). Esta etapa é a de **maior proteção pelo menor custo** — pegou 3 erros metrológicos do M5 e uma funcionalidade-fantasma antes de uma linha de código. Os defeitos listados viram itens de checagem nas mini-revisões de fatia (§3.6).
 
 **Loop:** se REPROVADO, corrige o plano e re-revisa. Limite anti-deadlock: 5 reprovações da mesma Story = Caso-limite 5.
 
@@ -128,22 +135,41 @@ Cada T-MOD-NNN tem:
 - Estimativa em commits (deve ser 1, raramente 2)
 - Hook esperado (que validação deve passar)
 
-### 3.5. /implement — executar
+### 3.5. /implement — executar EM FATIAS (INV-RITUAL-002)
 
-- Cada commit cita `T-MOD-NNN: <descrição>` + opcional `(AC-MOD-NNN-N)`
-- Hooks rodam automático em cada commit (`block-destructive`, `secrets-scanner`, `tenant-id-validator`, `authz-check`, `anti-mascaramento`, etc — 15 ativos)
-- Se hook bloquear: corrige e tenta de novo. NUNCA bypass com `--no-verify`.
+- **Fatie o Marco em blocos de ~20-25 tarefas** que cabem numa sessão e fecham um incremento auditável (ex: M5 P1 domínio puro → P2 schema+RLS → P3 use cases → P4 porta → P5 REST…). **Proibido** o lote único de 130-160 tarefas.
+- Cada commit cita `T-MOD-NNN: <descrição>` + opcional `(AC-MOD-NNN-N)`.
+- Hooks rodam automático em cada commit (55 ativos — ver `docs/governanca/STATUS-GERADO.md` pra contagem viva). Se hook bloquear: corrige e tenta de novo. NUNCA bypass com `--no-verify`.
+- **Ao fim de CADA fatia:** mini-revisão dos auditores pertinentes àquela camada (§3.6) — pega o defeito cedo, sobre ~20 tarefas, com causa-raiz rastreável. Não espere o módulo inteiro.
 
-### 3.6. Review pós-implementação pelos 3 auditores Família 5
+### 3.6. Review pós-implementação — auditores Família 5 ROTEADOS por risco (INV-RITUAL-003)
 
-**Ordem (do mais barato pro mais caro):**
-1. **Auditor de Qualidade** (pre-commit): cobertura, TST-001..004
-2. **Auditor de Segurança** (pre-commit): SEC-*, INV-TENANT-*
-3. **Auditor de Produto** (pre-merge): ACs binários + non-goals
+**Os 6 auditores ESSENCIAIS rodam SEMPRE em qualquer mudança de código** (do mais barato pro mais caro):
+1. **Auditor de Qualidade** — cobertura, TST-001..004
+2. **Auditor de Segurança** — SEC-*, INV-TENANT-*
+3. **Auditor de LLM-correctness** — docstring que mente, `Any` de escape, código órfão de US/AC
+4. **Auditor de Idempotência** — POST crítico / consumer sem proteção de replay (anti-duplo-clique)
+5. **Auditor de Conformidade-LGPD** — PII sem base legal, migration PII sem hash+eliminação
+6. **Auditor de Produto** (pre-merge) — ACs binários + non-goals
 
-**Como invocar:** `Agent` tool com `subagent_type=auditor-qualidade` (ou outro). Prompt completo está em `docs/governanca/auditor-<nome>-prompt.md`.
+**Os demais rodam SÓ se o diff toca a área deles (roteador FALHA-ABERTO — na dúvida, RODA):**
+- **Performance** — se toca `views.py`/`services.py`/`use_cases.py`/`domain` (N+1, timeout, rate-limit)
+- **Supply-chain** — se toca `pyproject.toml`/`poetry.lock`/`Dockerfile`/`.github/workflows`
+- **Observabilidade** — se toca `financeiro`/`auth`/`authz`/`tenant`/`kms`/`audit`/`views.py`
+- **Drift-docs** — se toca docs de status/contagem (parte numérica já coberta por `scripts/status-projeto.sh --check`; o auditor foca no **semântico**: decisão em estado errado, frase que afirma "pronto" sobre código que não entrega)
 
-**Output:** `PASS | CONCERNS: <lista> | FAIL: <regra violada + linha + sugestão>`. Append em `docs/governanca/trilha-auditoria-agentes.md`.
+**Travas (inegociáveis):**
+- Pular auditor só por **extensão inerte** (`.md`, template de tela) — **nunca por código**.
+- Na dúvida sobre a área, RODA (falha-aberto). Roteador que cala um auditor que devia rodar = vetor do bug fundador.
+- **Pré-condição de ativação do roteamento:** validar contra os diffs de M3 e M4 que o roteador teria chamado TODOS os auditores que acharam problema real. Enquanto não validado, roda os 10.
+
+**Mini-revisão por fatia (§3.5):** ao fim de cada fatia, rodar só os essenciais + os roteados pela camada daquela fatia. A **passada completa dos 10 + suite completa** é o veredito de fechamento do Marco (não se pula).
+
+**Na re-revisão (2ª passada):** rodar só os auditores que falharam + os cuja área foi tocada pelo conserto. Auditor de área não-mexida não pode ter regredido — não re-roda.
+
+**Como invocar:** `Agent` tool com `subagent_type=auditor-<nome>`. Prompt completo em `docs/governanca/auditor-<nome>-prompt.md`.
+
+**Output:** `PASS | CONCERNS: <lista> | FAIL: <regra violada + linha + sugestão>`. Registrar no consolidado por-módulo (`docs/faseamento/<marco>/auditoria-familia5.md`).
 
 **Loop:** se FAIL, corrige e re-revisa. 5 reprovações da mesma Story = escalation.
 

@@ -1,13 +1,15 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
-status: draft
+revisado-em: 2026-05-29
+status: deprecated
 append-only: true
 ---
 
 # Trilha de auditoria dos agentes
 
-> **Pra quê:** registro **append-only** de cada decisão de auditor + cada drill + cada incidente envolvendo agente IA. Query padrão "quem tocou tenant Y entre HH:MM" testada em drill trimestral.
+> **⚠️ APOSENTADA em 2026-05-29 (auditoria da máquina de dev).** Este arquivo deixou de receber registros em 2026-05-18 — os Marcos M2, M3, M4 e M5 nunca foram anotados aqui, mas o ritual ainda mandava escrever (cerimônia-zumbi). **O registro vivo de auditor agora é o consolidado por-módulo:** `docs/faseamento/<marco>/auditoria-familia5.md`. Mantido como histórico congelado do período F-A/F-B/M1 (não apagar — é trilha probatória daquele período).
+>
+> **Pra quê (histórico):** registro **append-only** de cada decisão de auditor + cada drill + cada incidente envolvendo agente IA até 2026-05-18.
 >
 > **Retenção:** 2 anos governance + 5 anos se relacionado a dado regulado.
 
