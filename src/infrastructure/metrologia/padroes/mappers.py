@@ -17,12 +17,17 @@ Shape canonico:
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.domain.metrologia.padroes.entities import (
     PadraoMetrologicoSnapshot,
     PadraoUsadoSnapshot,
 )
+
+if TYPE_CHECKING:
+    # Tipagem do model PG sem acoplar em runtime (PROD-PAD baixo: tira o `Any`
+    # de escape das assinaturas publicas dos mappers de leitura).
+    from src.infrastructure.metrologia.padroes.models import PadraoMetrologico
 from src.domain.metrologia.padroes.enums import (
     ClassePadrao,
     EstadoPadrao,
@@ -96,7 +101,7 @@ def incertezas_de_json(raw: list[dict[str, Any]]) -> tuple[IncertezaExpandida, .
 # --------------------------------------------------------------------------
 # Model -> Snapshot
 # --------------------------------------------------------------------------
-def model_para_snapshot(model: Any) -> PadraoMetrologicoSnapshot:
+def model_para_snapshot(model: PadraoMetrologico) -> PadraoMetrologicoSnapshot:
     """PadraoMetrologico (Django) -> PadraoMetrologicoSnapshot (dominio)."""
     return PadraoMetrologicoSnapshot(
         id=model.id,
@@ -129,7 +134,7 @@ def model_para_snapshot(model: Any) -> PadraoMetrologicoSnapshot:
 
 
 def model_para_usado_snapshot(
-    model: Any,
+    model: PadraoMetrologico,
     leituras_ambientais: tuple[tuple[Grandeza, Decimal], ...] = (),
 ) -> PadraoUsadoSnapshot:
     """PadraoMetrologico -> PadraoUsadoSnapshot (VO imutavel consumido por M4).

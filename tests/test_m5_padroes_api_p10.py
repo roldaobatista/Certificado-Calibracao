@@ -287,3 +287,58 @@ def test_disponiveis_baseline_num_queries(cenario, django_assert_max_num_queries
         r = client.get("/api/v1/padroes/disponiveis/")
     assert r.status_code == 200
     assert len(r.json()["disponiveis"]) == 3
+
+
+# ---------------------------------------------------------------- BAIXOs P9
+def _eventos_bus(tenant_id, acao):
+    import json
+
+    from django.db import connection
+    from src.infrastructure.multitenant.connection import run_in_tenant_context
+
+    with run_in_tenant_context(tenant_id), connection.cursor() as cur:
+        cur.execute(
+            "SELECT envelope_jsonb FROM bus_outbox WHERE acao = %s AND tenant_id = %s",
+            [acao, str(tenant_id)],
+        )
+        return [
+            json.loads(row[0]) if isinstance(row[0], str) else row[0]
+            for row in cur.fetchall()
+        ]
+
+
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
+def test_baixar_emite_evento_worm(cenario):
+    """BAIXO P9: baixar emite padrao.baixado na cadeia WORM/bus."""
+    client = APIClient()
+    _autenticar(client, cenario["admin"], cenario["tenant"])
+    pid = _criar_padrao(client)
+    r = _post(
+        client,
+        f"/api/v1/padroes/{pid}/baixar/",
+        {"sucatar": False, "motivo_revogacao": "fim de vida util do padrao"},
+    )
+    assert r.status_code == 200, r.content
+    envelopes = _eventos_bus(cenario["tenant"].id, "padrao.baixado")
+    assert len(envelopes) == 1
+    assert envelopes[0]["payload"]["id"] == pid
+
+
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
+def test_idempotency_replay_mesma_chave_nao_duplica(cenario):
+    """BAIXO P9: re-POST com a MESMA Idempotency-Key devolve replay (sem duplicar)."""
+    client = APIClient()
+    _autenticar(client, cenario["admin"], cenario["tenant"])
+    payload = _payload_cadastrar()
+    chave = str(uuid4())
+    r1 = client.post(
+        "/api/v1/padroes/cadastrar/", payload, format="json", HTTP_IDEMPOTENCY_KEY=chave
+    )
+    assert r1.status_code == 201, r1.content
+    pid = r1.json()["id"]
+    r2 = client.post(
+        "/api/v1/padroes/cadastrar/", payload, format="json", HTTP_IDEMPOTENCY_KEY=chave
+    )
+    # Replay: mesmo recurso, sem criar um segundo padrao.
+    assert r2.status_code in (200, 201)
+    assert r2.json()["id"] == pid
