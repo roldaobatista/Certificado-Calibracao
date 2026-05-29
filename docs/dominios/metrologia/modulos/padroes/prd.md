@@ -293,7 +293,18 @@ metrológico).
   documental cl. 6.4.5).
 - **AC-PAD-007-4**: GIVEN `subtipo=AUXILIAR`, WHEN sistema cria, THEN
   fluxo de recal externo opcional (auxiliar pode ter calibração interna);
-  porém VI obrigatória nos mesmos intervalos do padrão principal.
+  porém VI obrigatória nos **seus próprios intervalos** — `intervalo_recal_meses`
+  e `intervalo_vi_meses` configuráveis por equipamento auxiliar com
+  `criterio_intervalo` justificado (cl. 6.4.7 + ILAC-G24), NÃO herdados do
+  padrão principal. O vínculo principal↔auxiliar é modelado como entidade
+  temporal N:N `VinculoAuxiliar` (ADR-0030) com a grandeza de influência
+  (temperatura/umidade/pressão); a leitura ambiental do auxiliar compõe o
+  `PadraoUsadoSnapshot` na seleção pela calibração M4 (plan §14 C-8 + C-9).
+- **AC-PAD-007-5**: GIVEN padrão principal com `VinculoAuxiliar` vigente cujo
+  auxiliar está com calibração/rastreabilidade vencida (ou fora de `EM_USO` /
+  VI REPROVADA), WHEN o M4 consulta a porta `padrao_bloqueado_para_uso` antes
+  de gravar `PadraoUsado`, THEN o principal é bloqueado (fail-CLOSED) — auxiliar
+  vencido contamina o balanço de incerteza (INV-PAD-007 cl. 6.4.5).
 
 **Invariantes:** INV-PAD-007 (nova — auxiliar em controle antes de uso),
 INV-021, INV-TENANT-001.
@@ -310,11 +321,21 @@ supervisão CGCRE (perfil A exige desde a 1ª supervisão — L3#A9).
   "Carta Controle", THEN sistema plota carta Shewhart com linha central
   (média móvel) + UCL/LCL (±3σ) + zona de alerta (±2σ) + pontos
   observados.
-- **AC-PAD-008-2**: GIVEN regra Western Electric detectada (1 ponto fora
-  ±3σ; 2 de 3 fora ±2σ; 4 de 5 fora ±1σ; 8 pontos sequenciais do mesmo
-  lado da média), WHEN próxima VI registrada, THEN sistema dispara
-  alerta P1 + bloqueia uso do padrão até RT analisar e
-  aceitar/recalibrar.
+- **AC-PAD-008-2**: GIVEN regra Western Electric detectada pelo motor
+  versionado (`versao_motor_shewhart`) — (R1) 1 ponto fora ±3σ; (R2) 2 de 3
+  pontos consecutivos fora ±2σ **do mesmo lado** da média; (R3) 4 de 5 pontos
+  consecutivos fora ±1σ **do mesmo lado** da média; (R4) 8 pontos sequenciais
+  do mesmo lado da média; (R5 — tendência) 7 pontos consecutivos monotonicamente
+  crescentes ou decrescentes (detecta deriva — Dor #04), WHEN próxima VI
+  registrada, THEN sistema dispara alerta P1 + grava registro WORM
+  `AnaliseCartaControle` congelando os limites vigentes no instante (LC/UCL/LCL/σ
+  + `versao_motor_shewhart`) + bloqueia uso do padrão até o RT registrar
+  `decisao_rt` (ACEITO_COM_JUSTIFICATIVA / RECALIBRAR / SUSPENDER_USO) com
+  justificativa canonicalizada ADR-0029 (INV-PAD-010 + ADR-0070).
+- **AC-PAD-008-2b**: GIVEN estado de alerta/tendência detectado (R2, R3 ou R5),
+  mesmo sem violação dura de ±3σ, THEN também exige `AnaliseCartaControle` WORM
+  registrada (decisao_rt = ACEITO_COM_JUSTIFICATIVA no mínimo) antes de liberar
+  uso continuado do padrão (corretora FURO-3 / C-16 + ADR-0070 §Decisão item 3).
 - **AC-PAD-008-3**: GIVEN carta controle, WHEN export pra dossiê CGCRE
   (US-PAD-006), THEN imagem PNG + dados CSV incluídos.
 - **AC-PAD-008-4**: GIVEN tenant `perfil_regulatorio != A`, WHEN abre
@@ -323,28 +344,38 @@ supervisão CGCRE (perfil A exige desde a 1ª supervisão — L3#A9).
 
 **Invariantes:** INV-PAD-008 (nova — perfil A obrigatório), INV-PERFIL-001.
 
-### US-PAD-009 — 2º caminho de cálculo do valor convencional (ADR-0025 v2)
+### US-PAD-009 — Verificação de software por 2 implementações independentes do mesmo mensurando (cl. 7.11 — ADR-0071)
 
-**Como** RT do tenant em perfil A ou B, **quero** que o sistema calcule o
-valor convencional do padrão por 2 caminhos independentes (peso médio
-dos certificados externos anteriores VS GUM completo com modelo de
-incerteza) e compare desvio, **para** atender ADR-0025 v2 §"Extensão
-módulo padrões" (validação software 7.11 — 2º caminho de cálculo).
+**Como** RT do tenant em perfil A ou B, **quero** que o valor convencional do
+padrão seja calculado por **duas implementações independentes do MESMO modelo
+metrológico** (mesmo mensurando) que devem convergir, **para** provar ausência
+de bug de software de cálculo (ISO 17025 cl. 7.11 — ADR-0071 que refina
+ADR-0025 v2).
 
 - **AC-PAD-009-1**: GIVEN padrão `EM_USO` com ≥ 2 recals externos no
-  histórico, WHEN sistema calcula valor convencional, THEN executa
-  Caminho A (média ponderada por incerteza dos certs anteriores) +
-  Caminho B (GUM completo com modelo de variação temporal).
-- **AC-PAD-009-2**: GIVEN desvio entre Caminho A e Caminho B >
-  `k * u_combined` (k=2 — coverage factor 95%), THEN dispara investigação
-  (alerta P1 ao RT) + bloqueia uso até RT registrar análise (similar
-  AC-PAD-005-3).
-- **AC-PAD-009-3**: GIVEN tenant `perfil_regulatorio = A`, WHEN dossiê
-  CGCRE exportado, THEN ambos caminhos aparecem documentados (cadeia
-  ADR-0025 v2 cl. 7.11.3).
+  histórico, WHEN sistema calcula o valor convencional, THEN executa o mesmo
+  modelo metrológico por 2 implementações independentes (Caminho A = média
+  ponderada pela inversa da variância em forma fechada; Caminho B = mesma média
+  via pesos normalizados) que estimam o **mesmo mensurando** e devem convergir
+  dentro da tolerância relativa `1e-30` (Decimal prec=50).
+- **AC-PAD-009-2**: GIVEN divergência entre as 2 implementações do mesmo
+  mensurando acima da tolerância numérica, THEN trata-se de **bug de software**
+  (não investigação metrológica): levanta `DivergenciaImplementacoesError` e
+  bloqueia o cálculo/release (INV-PAD-009 — ADR-0071). NOTA: detecção de
+  **deriva/tendência** NÃO entra aqui — é controle de estabilidade e fica em
+  US-PAD-008 (carta Shewhart, regra de tendência R5).
+- **AC-PAD-009-3**: GIVEN o cálculo da incerteza expandida do valor
+  convencional, WHEN os graus de liberdade efetivos `ν_eff` < 30, THEN o fator
+  de abrangência `k` é calculado via **Welch-Satterthwaite + t-Student**
+  (JCGM 100 Anexo G), não `k=2` fixo (ADR-0071 item 3).
+- **AC-PAD-009-4**: GIVEN tenant `perfil_regulatorio = A`, WHEN dossiê
+  CGCRE exportado, THEN a verificação por 2 implementações (resultado de
+  convergência + `versao_motor`) aparece documentada (cadeia ADR-0025 v2
+  cl. 7.11.3).
 
-**Invariantes:** INV-PAD-009 (nova — 2º caminho de cálculo), INV-VAL-001
-(ADR-0025 v2).
+**Invariantes:** INV-PAD-009 (redefinida ADR-0071 — divergência entre as 2
+implementações do mesmo mensurando bloqueia release como bug de software,
+distinta de controle de deriva), INV-VAL-001 (ADR-0025 v2).
 
 ## 8. Bases legais LGPD (art. 7º)
 
@@ -390,7 +421,7 @@ módulo padrões" (validação software 7.11 — 2º caminho de cálculo).
 - % padrões em A com PT ativo no ciclo declarado ≥ 100%
 - **% padrões em A com carta controle Shewhart ativa ≥ 100%** (nova — L3#A9)
 - **% equipamentos auxiliares com calibração vigente = 100%** (nova — L3#7)
-- Zero desvios não investigados entre Caminho A e Caminho B (US-PAD-009)
+- Zero divergências não resolvidas entre as 2 implementações do mesmo mensurando (bug de software, cl. 7.11 — US-PAD-009/ADR-0071)
 
 ## 10. NFR
 
@@ -408,8 +439,11 @@ módulo padrões" (validação software 7.11 — 2º caminho de cálculo).
   0025 v2 (validação software estendida ao módulo padrões — URS/IQ/OQ/PQ +
   2º caminho de cálculo), 0030 (vigência canônica), 0031 (soft-delete
   padrão B), 0040 (padrão como entidade separada), 0064 (HMAC 25a),
-  0066 (fail-open lazy), 0067 (perfil), 0068 (sucessão RT).
-- **INVs:** INV-021..023, INV-PAD-001..009, INV-CAL-SNAP-001,
+  0066 (fail-open lazy), 0067 (perfil), 0068 (sucessão RT),
+  **0070 (carta Shewhart híbrida read-model + WORM `AnaliseCartaControle`),
+  0071 (2º caminho = 2 implementações do mesmo mensurando cl. 7.11 +
+  Welch-Satterthwaite), 0072 (path infra metrologia aninhado)**.
+- **INVs:** INV-021..023, INV-PAD-001..010, INV-CAL-SNAP-001,
   INV-CAL-RAST-001, INV-CAL-VI-001, INV-CAL-WORM-001, INV-VIG-001..004,
   INV-SOFT-001/002, INV-HMAC-001..005, INV-PERFIL-001, INV-VAL-001.
 
@@ -424,8 +458,11 @@ módulo padrões" (validação software 7.11 — 2º caminho de cálculo).
   padrão é válido.
 - **Método** — procedimento técnico aplicado (ex: comparação direta /
   substituição / curva de calibração).
-- **Carta Shewhart** — gráfico de controle estatístico com linha central
-  + UCL/LCL (±3σ) + regras Western Electric.
+- **Carta Shewhart** — controle estatístico **híbrido** (ADR-0070): gráfico
+  read-model on-demand (linha central + UCL/LCL ±3σ + zona alerta ±2σ) + as 5
+  regras Western Electric (R1 fora 3σ / R2 2-de-3 2σ mesmo lado / R3 4-de-5 1σ
+  mesmo lado / R4 run-8 / R5 tendência-7). A **decisão do RT** sobre regra
+  disparada é congelada num registro WORM `AnaliseCartaControle` (INV-PAD-010).
 - **PT (Proficiency Testing)** — ISO/IEC 17043 — comparação
   interlaboratorial.
 - **Equipamento auxiliar** — instrumento que apoia a calibração mas não

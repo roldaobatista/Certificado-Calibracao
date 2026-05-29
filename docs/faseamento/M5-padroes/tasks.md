@@ -89,14 +89,14 @@ depende-de:
 | T-PAD-060 | cravar INV-PAD-001..010 em REGRAS-INEGOCIAVEIS.md (incl. INV-PAD-009 redefinida ADR-0071 + INV-PAD-010 ADR-0070) | ✅ INV-PAD-001..006 reconciliados (002 GAP CHECK fechado migration 0006; 003/004/006 nomes corrigidos) + 007..010 cravados. Classes `TestINV_PAD_001..010` (TST-004) em `tests/regressao/test_inv_pad_classes_nomeadas.py` (19 testes) |
 | T-PAD-061 | hooks: `padrao-incertezas-so-via-recal` (INV-PAD-006), `padrao-auxiliar-em-controle` (INV-PAD-007), `shewhart-perfil-A` (INV-PAD-008), `analise-carta-worm` (INV-PAD-010) + casos no `_test-runner` | ✅ 4 hooks criados + registrados em settings.json + 37 casos no `_test-runner` (450/450 verdes). **Causa-raiz extra:** INV-PAD-007 runtime IMPLEMENTADO na porta `_bloqueado_por_auxiliar` (não estava — auxiliar só era lido p/ grandeza); INV-PAD-002 CHECK `jsonb_array_length>0` (migration 0006) |
 
-## P8 — Emendas docs + reconciliação + drill
+## P8 — Emendas docs + reconciliação + drill ✅ COMPLETO (2026-05-29)
 
-| ID | Tarefa |
-|----|--------|
-| T-PAD-070 | emendar PRD: AC-PAD-008-2 (regras WE + tendência), US-PAD-009 (2 implementações), AC-PAD-007-4 (intervalos próprios) — refletir ADR-0070/0071 |
-| T-PAD-071 | matriz retenção: linha "Executor/responsável de evento de padrão" (5a quente/25a evidência) + PDF cert externo cifrado (C-13/C-14) + drill análogo DRILL-RET-07 |
-| T-PAD-072 | drill `validar_m5_padroes` (estrutural) + **GATE-PAD-DRILL-LOCAL** (PG real: UNIQUE, RLS cross-tenant, triggers WORM/incertezas, perfil A bloqueia RBC, **teste concorrência GUC/pool** se C-10 manter GUC) |
-| T-PAD-073 | reconciliação spec↔código (matriz) |
+| ID | Tarefa | Status |
+|----|--------|--------|
+| T-PAD-070 | emendar PRD: AC-PAD-008-2 (regras WE + tendência), US-PAD-009 (2 implementações), AC-PAD-007-4 (intervalos próprios) — refletir ADR-0070/0071 | ✅ 3 ACs emendados + AC-PAD-008-2b (alerta/trend WORM) + AC-PAD-007-5 (INV-PAD-007 runtime) + AC-PAD-009-3 (Welch-Satterthwaite) + coerência (lista ADRs 0070/0071/0072 + INV-PAD-010, métrica, glossário Shewhart híbrido) |
+| T-PAD-071 | matriz retenção: linha "Executor/responsável de evento de padrão" (5a quente/25a evidência) + PDF cert externo cifrado (C-13/C-14) + drill análogo DRILL-RET-07 | ✅ 2 linhas (nome desnormalizado C-13 + PDF cert externo C-13/C-14 standalone) + DRILL-RET-PAD-01 (não-duplicando linhas 80-83 já existentes) |
+| T-PAD-072 | drill `validar_m5_padroes` (estrutural) + **GATE-PAD-DRILL-LOCAL** (PG real: UNIQUE, RLS cross-tenant, triggers WORM/incertezas, perfil A bloqueia RBC, **teste concorrência GUC/pool** se C-10 manter GUC) | ✅ drill estrutural 43/43 PASS (6 tabelas + RLS ENABLE/FORCE + 4 policies + UNIQUE + 6 triggers + 3 CHECK jsonb + grants + GUC reset + índices). GATE-PAD-DRILL-LOCAL coberto por test_inv_pad_p2_schema_triggers + test_inv_pad_classes_nomeadas; teste concorrência GUC/pool dedicado fica pré-1º-tenant |
+| T-PAD-073 | reconciliação spec↔código (matriz) | ✅ `docs/faseamento/M5-padroes/matriz-reconciliacao.md` (US↔AC↔INV↔ADR↔hook↔código + INV↔teste + GATEs + pendências P9) |
 
 ## P9 — Ritual auditores
 
