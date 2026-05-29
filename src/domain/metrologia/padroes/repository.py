@@ -45,6 +45,18 @@ class PadraoRepository(Protocol):
         """
         ...
 
+    def aplicar_recal_aprovado(
+        self, snapshot: PadraoMetrologicoSnapshot, revision_anterior: int
+    ) -> bool:
+        """UPDATE CAS que TAMBEM grava `incertezas_certificado`/
+        `validade_certificado_rastreabilidade`/`proximo_recal` vindos do recal
+        aprovado pelo RT (C-4). O adapter envolve em `SET LOCAL
+        app.padrao_recal_em_curso = '1'` (INV-PAD-006 — unico caminho que o
+        trigger PG libera). Usado SO por `aprovar_recal_rt`. rowcount=0 ->
+        corrida (caller 409).
+        """
+        ...
+
 
 @runtime_checkable
 class RecalExternoRepository(Protocol):

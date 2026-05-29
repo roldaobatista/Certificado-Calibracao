@@ -130,4 +130,7 @@ class TestProtocols:
             def atualizar_com_lock(self, snapshot, revision_anterior):
                 return True
 
+            def aplicar_recal_aprovado(self, snapshot, revision_anterior):
+                return True
+
         assert isinstance(FakePadraoRepo(), PadraoRepository)
