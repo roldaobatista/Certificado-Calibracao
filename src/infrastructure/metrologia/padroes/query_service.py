@@ -48,6 +48,20 @@ from src.infrastructure.metrologia.padroes.models import (
 )
 
 _MIN_PONTOS_CARTA = 2
+# AC-PAD-008-1: a carta SÓ plota limites (LC/UCL/LCL/zona) com >= 10 pontos de VI
+# nos últimos 24 meses. Limiar de DECISÃO/DISPLAY regulatória — separado do
+# _MIN_PONTOS_CARTA=2, que é o mínimo estatístico usado pela porta de BLOQUEIO
+# (`_bloqueado_por_carta`, fail-safe: bloqueia violação mesmo com poucos pontos).
+_MIN_PONTOS_DECISAO_REGULATORIA = 10
+_JANELA_CARTA_MESES = 24
+
+
+def _corte_24_meses(hoje: _dt.date) -> _dt.date:
+    """Data de corte = hoje - 24 meses (2 anos exatos; trata 29/02)."""
+    try:
+        return hoje.replace(year=hoje.year - 2)
+    except ValueError:
+        return hoje.replace(year=hoje.year - 2, day=28)
 
 
 def padrao_bloqueado_para_uso(
@@ -279,21 +293,40 @@ def buscar_disponivel_para_calibracao(
     return disponiveis
 
 
-def carta_controle_readmodel(padrao_id: UUID) -> dict[str, object] | None:
+def carta_controle_readmodel(
+    padrao_id: UUID, hoje: _dt.date | None = None
+) -> dict[str, object] | None:
     """Read-model da carta Shewhart (US-PAD-008-1 / ADR-0070 — perfil A na borda).
 
     Recalcula on-demand a serie de desvios das VIs + limites (LC/UCL/LCL/zona
     de alerta +/-2 sigma) + violacoes Western Electric. NAO persiste (a DECISAO do RT e que vira
     `AnaliseCartaControle` WORM — INV-PAD-010). Retorna None se o padrao nao
     existe (RLS). O gate de perfil A e responsabilidade da view (INV-PAD-008).
+
+    AC-PAD-008-1: so plota limites com >= 10 pontos de VI nos ULTIMOS 24 MESES.
+    Abaixo disso devolve `amostra_insuficiente=True` + `limites=None` (limites de
+    controle com <10 pontos sao estatisticamente sem sentido e poderiam induzir
+    decisao/erro de supervisao CGCRE). `hoje` injetavel pra teste deterministico.
     """
     padrao = PadraoMetrologico.objects.filter(id=padrao_id).first()
     if padrao is None:
         return None
+    hoje = hoje or _dt.date.today()
+    corte = _corte_24_meses(hoje)
     vis = list(
         VerificacaoIntermediaria.objects.filter(padrao_id=padrao_id).order_by("data_vi")
     )
-    vis_com_desvio = [v for v in vis if v.desvio_observado is not None]
+
+    def _como_data(d: _dt.date | _dt.datetime) -> _dt.date:
+        # datetime é subclasse de date; normaliza pro tipo date pra comparar com `corte`.
+        return d.date() if isinstance(d, _dt.datetime) else d
+
+    # AC-PAD-008-1: janela dos ultimos 24 meses (a carta reflete estabilidade recente).
+    vis_com_desvio = [
+        v
+        for v in vis
+        if v.desvio_observado is not None and _como_data(v.data_vi) >= corte
+    ]
     pontos = [
         {
             "vi_id": str(v.id),
@@ -303,14 +336,21 @@ def carta_controle_readmodel(padrao_id: UUID) -> dict[str, object] | None:
         for v in vis_com_desvio
     ]
     serie = [Decimal(str(v.desvio_observado)) for v in vis_com_desvio]
-    if len(serie) < _MIN_PONTOS_CARTA:
+    if len(serie) < _MIN_PONTOS_DECISAO_REGULATORIA:
         return {
             "padrao_id": str(padrao_id),
             "n_pontos": len(serie),
             "pontos": pontos,
             "limites": None,
             "violacoes": [],
-            "motivo": "pontos insuficientes para carta de controle (< 2)",
+            "amostra_insuficiente": True,
+            "pontos_minimos_decisao": _MIN_PONTOS_DECISAO_REGULATORIA,
+            "janela_meses": _JANELA_CARTA_MESES,
+            "motivo": (
+                f"AC-PAD-008-1: exige >= {_MIN_PONTOS_DECISAO_REGULATORIA} pontos de VI "
+                f"nos ultimos {_JANELA_CARTA_MESES} meses (tem {len(serie)}) — "
+                "limites nao plotados (amostra insuficiente para decisao regulatoria)"
+            ),
         }
     limites = shewhart.calcular_limites(serie)
     violacoes = shewhart.detectar_violacoes(serie, limites)
@@ -318,6 +358,8 @@ def carta_controle_readmodel(padrao_id: UUID) -> dict[str, object] | None:
     return {
         "padrao_id": str(padrao_id),
         "n_pontos": len(serie),
+        "amostra_insuficiente": False,
+        "janela_meses": _JANELA_CARTA_MESES,
         "linha_central": str(limites.linha_central),
         "ucl": str(limites.ucl),
         "lcl": str(limites.lcl),
@@ -399,6 +441,13 @@ def montar_dossie_cgcre(padrao_id: UUID) -> dict[str, object] | None:
             "criado_em"
         )
     ]
+    # AC-PAD-006-1 (a) "uso em calibrações" — quais calibrações de cliente
+    # consumiram o padrão (cross-módulo M4/PadraoUsado). Import local: M4 chama a
+    # porta de padroes (GATE-PAD-PORTA-M4), então import no topo seria ciclo.
+    uso_em_calibracoes = _uso_em_calibracoes(padrao_id)
+    # AC-PAD-006-1 (b) "hash-chain HMAC ADR-0064 incluído" — âncora de integridade
+    # que liga o dossiê à trilha WORM imutável (valor probatório p/ supervisão CGCRE).
+    ancora_integridade = _ancora_integridade_cadeia(padrao_id)
     return {
         "padrao": {
             "id": str(snap.id),
@@ -421,5 +470,71 @@ def montar_dossie_cgcre(padrao_id: UUID) -> dict[str, object] | None:
         "verificacoes_intermediarias": vis,
         "intercomparacoes_pt": pts,
         "analises_carta_controle": cartas,
-        "versao_dossie": "1.0",
+        "uso_em_calibracoes": uso_em_calibracoes,
+        "ancora_integridade": ancora_integridade,
+        "versao_dossie": "1.1",
+    }
+
+
+def _uso_em_calibracoes(padrao_id: UUID) -> list[dict[str, object]]:
+    """AC-PAD-006-1(a): calibrações de cliente que consumiram este padrão (M4).
+
+    Lê `PadraoUsado` (módulo M4 calibração — ADR-0040 snapshot cl. 6.5). RLS
+    escopa ao tenant. Import local evita ciclo (M4 → porta padroes).
+    """
+    from src.infrastructure.calibracao.models import PadraoUsado
+
+    return [
+        {
+            "calibracao_id": str(u.calibracao_id),
+            "usado_em": u.snapshot_capturado_at.isoformat(),
+            "snapshot_lock": u.snapshot_lock,
+            "vinculacao_si_tipo": u.vinculacao_si_tipo,
+        }
+        for u in PadraoUsado.objects.filter(padrao_id=padrao_id).order_by(
+            "snapshot_capturado_at"
+        )
+    ]
+
+
+def _ancora_integridade_cadeia(padrao_id: UUID) -> dict[str, object]:
+    """AC-PAD-006-1(b): âncora hash-chain da trilha WORM (ADR-0064).
+
+    Coleta os eventos `padrao.*` deste padrão na cadeia imutável `auditoria`
+    (hash_atual = sha256(hash_anterior || payload_canonicalizado)) com seq +
+    hash, mais o HEAD da cadeia — assim o verificador confirma que o histórico do
+    dossiê pertence à cadeia e não foi adulterado. PII de pessoa vai hasheada via
+    chave HMAC versionada (ADR-0064); a versão da chave acompanha a âncora.
+    """
+    from django.conf import settings
+    from django.db.models import Q
+
+    from src.infrastructure.audit.models import Auditoria
+
+    eventos = list(
+        Auditoria.objects.filter(
+            Q(action__startswith="padrao."),
+            Q(payload_jsonb__id=str(padrao_id))
+            | Q(payload_jsonb__padrao_principal_id=str(padrao_id)),
+        )
+        .order_by("sequencia")
+        .values("action", "sequencia", "hash_atual", "hash_anterior", "timestamp")
+    )
+    eventos_worm = [
+        {
+            "action": e["action"],
+            "sequencia": e["sequencia"],
+            "hash_atual": e["hash_atual"],
+            "hash_anterior": e["hash_anterior"],
+            "timestamp": e["timestamp"].isoformat(),
+        }
+        for e in eventos
+    ]
+    return {
+        "adr": "ADR-0064",
+        "algoritmo_cadeia": "sha256(hash_anterior || payload_canonicalizado)",
+        "versao_chave_hmac_pii": getattr(settings, "PII_HASH_KEY_ID", "v1"),
+        "n_eventos": len(eventos_worm),
+        "head_hash": eventos_worm[-1]["hash_atual"] if eventos_worm else None,
+        "eventos_worm": eventos_worm,
     }

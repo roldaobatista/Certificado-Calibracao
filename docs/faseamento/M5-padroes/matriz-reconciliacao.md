@@ -74,7 +74,7 @@ Total `_test-runner`: **450/450 verdes / 55 hooks ativos**.
 | P6 | job `alertar_padroes_pendencias` (4 pendências) | 20 puros + 3 PG-real |
 | P7 | INV-PAD-001..010 em REGRAS + 4 hooks + INV-PAD-007 runtime + CHECK 0006 | 19 `TestINV_PAD_*` + 37 casos hook |
 | P8 | emenda PRD + matriz retenção + drill `validar_m5_padroes` + esta matriz | drill 43/43 PASS |
-| P10 | REST vínculo auxiliar (CRUD) + dossiê CGCRE + carta-controle (gate perfil A) + migration 0007 seed authz + PERF-001 baseline | 10 E2E (p10) + 19/19 (p5+p10) |
+| P10 | REST vínculo auxiliar (CRUD) + dossiê CGCRE (uso em calibrações M4 + âncora hash-chain ADR-0064) + carta-controle (gate ≥10 pontos/24m AC-PAD-008-1) + migration 0007 seed authz + PERF-001 baseline | 12 E2E (p10) + 21/21 (p5+p10) |
 
 ## 5. GATEs do módulo
 
@@ -88,10 +88,14 @@ Total `_test-runner`: **450/450 verdes / 55 hooks ativos**.
 
 ## 6. Pendências para fechar M5
 
-- **P10 entregue (2026-05-29):** os 3 bloqueantes do P9 (PROD-PAD-01/02/03 dossiê+carta+vínculo expostos via REST) + PERF-001 baseline construídos e testados (19/19 E2E).
-- **Re-rodar P9** (produto + performance + drift-docs — os 2 FAIL + o CONCERNS) sob o roteamento INV-RITUAL-003, até zerar MÉDIO+ → então fechar M5 e promover frontmatter `draft→stable`.
-- GATE-PAD-DRILL-LOCAL: teste de concorrência GUC/pool dedicado (C-10) — tech-lead cravou que só fecha em drill PG-real + pentest pré-1º-tenant.
+- **P10 1ª leva (2026-05-29):** PROD-PAD-01/02/03 (dossiê+carta+vínculo via REST) + PERF-001 baseline.
+- **Re-passada P9 rodada (2026-05-29, INV-RITUAL-003 — 9 auditores):** 7 PASS + 2 CONCERNS; 3 MÉDIO bloqueantes detectados e **resolvidos na causa-raiz na 2ª leva P10**:
+  - AC-PAD-006-1 (dossiê): + `uso_em_calibracoes` (M4 PadraoUsado) + `ancora_integridade` (hash-chain WORM ADR-0064). Resolvido em código.
+  - AC-PAD-008-1 (carta): gate de ≥10 pontos de VI em 24 meses antes de plotar limites (`amostra_insuficiente`); separado do limiar ≥2 da porta de bloqueio (fail-safe). Resolvido em código.
+  - drift D4 (contagem): matriz corrigida para 12 E2E (p10) + 21/21.
+- **GATEs BAIXO rastreados (não bloqueiam — INV-RITUAL-001):** GATE-LGPD-PAD-DOSSIE-1 (anti-PII em lab_externo/lab_organizador/protocolo — razão social PJ, Wave A); GATE-OBS-PAD-CORRELACAO-LOG (correlation_id no log dos 2 eventos de vínculo — resolve com middleware correlation Wave A).
+- GATE-PAD-DRILL-LOCAL: teste de concorrência GUC/pool dedicado (C-10) — drill PG-real + pentest pré-1º-tenant.
 
 ## 7. Próximo passo
 
-Re-passada dos auditores que falharam no P9 (produto/performance/drift) + essenciais → fechamento do M5.
+Re-passada de confirmação (produto + drift-docs — os 2 que tinham CONCERNS) → se zero MÉDIO+, fechar M5 e promover frontmatter `draft→stable`.

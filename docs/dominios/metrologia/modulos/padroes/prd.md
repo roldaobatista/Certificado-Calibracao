@@ -1,6 +1,6 @@
 ---
 owner: roldao
-revisado-em: 2026-05-27
+revisado-em: 2026-05-29
 proximo-review: 2026-08-27
 status: stable
 diataxis: explanation

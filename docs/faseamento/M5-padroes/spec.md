@@ -1,6 +1,6 @@
 ---
 owner: roldao
-revisado-em: 2026-05-28
+revisado-em: 2026-05-29
 status: draft
 fase: M5-padroes
 dominio: metrologia

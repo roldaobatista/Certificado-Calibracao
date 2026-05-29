@@ -236,7 +236,13 @@ def test_dossie_cgcre_perfil_a(cenario_a):
     assert body["padrao"]["id"] == pid
     assert "recals_externos" in body
     assert "verificacoes_intermediarias" in body
-    assert body["versao_dossie"] == "1.0"
+    # AC-PAD-006-1: uso em calibracoes (M4) + ancora de integridade hash-chain (ADR-0064)
+    assert "uso_em_calibracoes" in body
+    assert isinstance(body["uso_em_calibracoes"], list)
+    assert body["ancora_integridade"]["adr"] == "ADR-0064"
+    assert "head_hash" in body["ancora_integridade"]
+    assert "eventos_worm" in body["ancora_integridade"]
+    assert body["versao_dossie"] == "1.1"
 
 
 @pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
@@ -258,9 +264,11 @@ def test_carta_controle_perfil_a(cenario_a):
     assert r.status_code == 200, r.content
     body = r.json()
     assert body["padrao_id"] == pid
-    # sem VIs com desvio -> pontos insuficientes
+    # AC-PAD-008-1: sem VIs (<10 pontos em 24m) -> amostra insuficiente, limites nao plotados
     assert body["n_pontos"] == 0
     assert body["limites"] is None
+    assert body["amostra_insuficiente"] is True
+    assert body["pontos_minimos_decisao"] == 10
 
 
 @pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
