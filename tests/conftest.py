@@ -122,6 +122,7 @@ _SEED_MIGRATIONS: list[tuple[str, str]] = [
     ("ordens_servico", "0013_seed_authz_os"),
     ("responsavel_tecnico", "0002_seed_authz_acoes"),
     ("calibracao", "0013_seed_authz_calibracao"),
+    ("padroes", "0005_seed_authz_padroes"),
 ]
 
 
@@ -146,7 +147,11 @@ def _aplicar_seed(app_label: str, migration_name: str) -> None:
     quando o seed roda — IntegrityError aqui seria bug de migration que
     precisa ser visto, NAO engolido.
     """
-    module_path = f"src.infrastructure.{app_label}.migrations.{migration_name}"
+    # ADR-0072: modulos metrologia/* ficam aninhados; o app_label ("padroes")
+    # nao casa 1:1 com o caminho do modulo. Mapa para os apps aninhados.
+    _APP_MODULE_SUBPATH = {"padroes": "metrologia.padroes"}
+    sub = _APP_MODULE_SUBPATH.get(app_label, app_label)
+    module_path = f"src.infrastructure.{sub}.migrations.{migration_name}"
     try:
         mod = importlib.import_module(module_path)
     except ModuleNotFoundError:
