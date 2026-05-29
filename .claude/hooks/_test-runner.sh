@@ -2,7 +2,7 @@
 # Bateria de testes dos hooks. NAO eh hook em si — eh validador local.
 #
 # USO:
-#   bash .claude/hooks/_test-runner.sh              # roda TUDO (~280 casos)
+#   bash .claude/hooks/_test-runner.sh              # roda TUDO (450 casos / 55 hooks)
 #   bash .claude/hooks/_test-runner.sh WS           # roda so casos com ID
 #                                                   # comecando em "WS"
 #   bash .claude/hooks/_test-runner.sh prod-set     # roda so casos do hook
@@ -991,6 +991,55 @@ run_case "MF11 YAML com aceite PASS"                  PASS  metrology-replay-fix
 
 # MF12: aceite curto (<20 chars) -> BLOCK
 run_case "MF12 aceite curto JSON BLOCK"               BLOCK metrology-replay-fixtures-versionadas.sh '{"tool_input":{"file_path":"tests/replay_metrologico/massa.json","content":"{\"_aceite_motivo\": \"curto\"}"}}'
+
+echo ""
+echo "===== padrao-incertezas-so-via-recal (M5 P7 / INV-PAD-006 / C-10) ====="
+run_case "PD6-1 raw UPDATE incertezas BLOCK"          BLOCK padrao-incertezas-so-via-recal.sh '{"tool_input":{"file_path":"src/x.py","content":"cur.execute(\"UPDATE padrao_metrologico SET incertezas_certificado = %s::jsonb WHERE id = %s\", [j, pid])"}}'
+run_case "PD6-2 ORM update(proximo_recal) BLOCK"      BLOCK padrao-incertezas-so-via-recal.sh '{"tool_input":{"file_path":"src/x.py","content":"PadraoMetrologico.objects.filter(id=pid).update(proximo_recal=date(2027, 1, 1))"}}'
+run_case "PD6-3 assign validade + save BLOCK"         BLOCK padrao-incertezas-so-via-recal.sh '{"tool_input":{"file_path":"src/x.py","content":"padrao.validade_certificado_rastreabilidade = nv\npadrao.save()"}}'
+run_case "PD6-4 migration dropa trigger so BLOCK"     BLOCK padrao-incertezas-so-via-recal.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/padroes/migrations/0099_x.py","content":"migrations.RunSQL(\"DROP TRIGGER padrao_incertezas_so_via_recal_trg ON padrao_metrologico;\")"}}'
+run_case "PD6-5 via sancionada GUC PASS"              PASS  padrao-incertezas-so-via-recal.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/padroes/servico.py","content":"cur.execute(\"SET LOCAL app.padrao_recal_em_curso = 1\")\ncur.execute(\"UPDATE padrao_metrologico SET incertezas_certificado = %s WHERE id=%s\", [j, pid])"}}'
+run_case "PD6-6 repositories.py home PASS"            PASS  padrao-incertezas-so-via-recal.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/padroes/repositories.py","content":"PadraoMetrologico.objects.filter(id=pid).update(proximo_recal=pr)"}}'
+run_case "PD6-7 migration recria trigger PASS"        PASS  padrao-incertezas-so-via-recal.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/padroes/migrations/0003_x.py","content":"FORWARD = \"CREATE TRIGGER padrao_incertezas_so_via_recal_trg BEFORE UPDATE ON padrao_metrologico ...\"\nREVERSE = \"DROP TRIGGER padrao_incertezas_so_via_recal_trg ON padrao_metrologico;\""}}'
+run_case "PD6-8 override consciente PASS"             PASS  padrao-incertezas-so-via-recal.sh '{"tool_input":{"file_path":"src/scripts/c.py","content":"# inv-pad-006: skip -- correcao ANPD documentada DR-2026-007 dupla A3\nPadraoMetrologico.objects.filter(id=p).update(proximo_recal=x)"}}'
+run_case "PD6-9 objects.create kwarg PASS"            PASS  padrao-incertezas-so-via-recal.sh '{"tool_input":{"file_path":"src/x.py","content":"PadraoMetrologico.objects.create(id=s.id, incertezas_certificado=js, proximo_recal=pr)"}}'
+run_case "PD6-10 doc markdown ignora PASS"            PASS  padrao-incertezas-so-via-recal.sh '{"tool_input":{"file_path":"docs/faseamento/M5-padroes/spec.md","content":"Exemplo: UPDATE padrao_metrologico SET proximo_recal = ... (so via recal)."}}'
+
+echo ""
+echo "===== padrao-auxiliar-em-controle (M5 P7 / INV-PAD-007 / cl. 6.4.5) ====="
+run_case "PA1 porta sem ref auxiliar BLOCK"           BLOCK padrao-auxiliar-em-controle.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/padroes/query_service.py","content":"def padrao_bloqueado_para_uso(p, hoje=None):\n    if p.proximo_recal < hoje:\n        return (True, \"recal\")\n    return (False, \"\")"}}'
+run_case "PA2 porta com loop auxiliar PASS"           PASS  padrao-auxiliar-em-controle.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/padroes/query_service.py","content":"def padrao_bloqueado_para_uso(p, hoje=None):\n    if p.proximo_recal < hoje:\n        return (True, \"recal\")\n    for v in VinculoAuxiliar.objects.filter(padrao_principal_id=p, revogado_em__isnull=True):\n        b, _ = padrao_bloqueado_para_uso(v.padrao_auxiliar_id, hoje=hoje)\n        if b:\n            return (True, \"auxiliar\")\n    return (False, \"\")"}}'
+run_case "PA3 auxiliar so soft-delete BLOCK"          BLOCK padrao-auxiliar-em-controle.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/padroes/query_service.py","content":"def padrao_bloqueado_por_auxiliar(p):\n    for v in VinculoAuxiliar.objects.filter(padrao_principal_id=p, revogado_em__isnull=True):\n        leitura = v.grandeza_influencia\n    return (False, \"\")"}}'
+run_case "PA4 desativacao comentario BLOCK"           BLOCK padrao-auxiliar-em-controle.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/padroes/query_service.py","content":"def padrao_bloqueado_para_uso(p, hoje=None):\n    # INV-PAD-007: skip checagem de auxiliar por enquanto (TODO Wave A)\n    aux = VinculoAuxiliar.objects.filter(padrao_principal_id=p)\n    return (False, \"\")"}}'
+run_case "PA5 override formal PASS"                   PASS  padrao-auxiliar-em-controle.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/padroes/query_service.py","content":"# padrao-auxiliar-em-controle: skip -- loop movido pra application/validar_padrao_para_calibracao coberto por test_inv_pad_007\ndef padrao_bloqueado_para_uso(p):\n    return (False, \"\")"}}'
+run_case "PA6 fora de escopo PASS"                    PASS  padrao-auxiliar-em-controle.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/padroes/repositories.py","content":"def padrao_bloqueado_para_uso(p):\n    return (False, \"\")"}}'
+
+echo ""
+echo "===== shewhart-perfil-A (M5 P7 / INV-PAD-008 / ADR-0067+0070) ====="
+run_case "SH1 AnaliseCarta sem gate BLOCK"            BLOCK shewhart-perfil-A.sh '{"tool_input":{"file_path":"src/application/metrologia/padroes/r.py","content":"from src.domain.metrologia.padroes.entities import AnaliseCartaControleSnapshot\n\ndef executar(inp, repo):\n    a = AnaliseCartaControleSnapshot(id=uuid4(), tenant_id=inp.tenant_id)\n    repo.salvar_nova(a)\n    return a"}}'
+run_case "SH2 carta com tenant_e_perfil_a PASS"       PASS  shewhart-perfil-A.sh '{"tool_input":{"file_path":"src/application/metrologia/padroes/r.py","content":"from src.domain.metrologia.padroes.entities import AnaliseCartaControleSnapshot\n\ndef executar(inp, repo):\n    if not inp.tenant_e_perfil_a:\n        raise PerfilNaoPermiteCartaError\n    a = AnaliseCartaControleSnapshot(id=uuid4(), tenant_id=inp.tenant_id)\n    return a"}}'
+run_case "SH3 shewhart.calcular sem gate BLOCK"       BLOCK shewhart-perfil-A.sh '{"tool_input":{"file_path":"src/application/metrologia/padroes/r.py","content":"from src.domain.metrologia.padroes import shewhart\nlimites = shewhart.calcular_limites(serie)\nshewhart.detectar_violacoes(serie, limites)"}}'
+run_case "SH4 com tenant_perfil_e([A]) PASS"          PASS  shewhart-perfil-A.sh '{"tool_input":{"file_path":"src/application/metrologia/padroes/r.py","content":"from src.domain.metrologia.padroes import shewhart\nallowed, _ = tenant_perfil_e([\"A\"])\nif not allowed:\n    return ()\nlimites = shewhart.calcular_limites(serie)"}}'
+run_case "SH5 motor shewhart.py fora escopo PASS"     PASS  shewhart-perfil-A.sh '{"tool_input":{"file_path":"src/domain/metrologia/padroes/shewhart.py","content":"def calcular_limites(pontos):\n    return sum(pontos) / len(pontos)"}}'
+run_case "SH6 cadastrar sem gatilho PASS"             PASS  shewhart-perfil-A.sh '{"tool_input":{"file_path":"src/application/metrologia/padroes/cadastrar_padrao.py","content":"def executar(inp, repo):\n    repo.salvar_novo(inp.snapshot)\n    return inp.snapshot"}}'
+run_case "SH7 override PASS"                           PASS  shewhart-perfil-A.sh '{"tool_input":{"file_path":"src/application/metrologia/padroes/r.py","content":"# shewhart-perfil-A: skip -- read-model exposto so na view ja gateada tenant_perfil_e\nfrom src.domain.metrologia.padroes import shewhart\nshewhart.calcular_limites(s)"}}'
+run_case "SH8 RegistrarAnaliseCarta sem gate BLOCK"   BLOCK shewhart-perfil-A.sh '{"tool_input":{"file_path":"src/application/metrologia/padroes/registrar_analise_carta_controle.py","content":"@dataclass\nclass RegistrarAnaliseCartaInput:\n    tenant_id: UUID\n\ndef executar(inp, repo):\n    return repo.salvar_nova(inp)"}}'
+
+echo ""
+echo "===== analise-carta-worm (M5 P7 / INV-PAD-010 / ADR-0070) ====="
+run_case "ACW1 UPDATE carta BLOCK"                    BLOCK analise-carta-worm.sh '{"tool_input":{"file_path":"x.sql","content":"UPDATE analise_carta_controle SET decisao_rt = 1 WHERE id=2;"}}'
+run_case "ACW2 DELETE FROM carta BLOCK"               BLOCK analise-carta-worm.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/padroes/repositories.py","content":"cursor.execute(\"DELETE FROM analise_carta_controle WHERE id=1\")"}}'
+run_case "ACW3 TRUNCATE carta BLOCK"                  BLOCK analise-carta-worm.sh '{"tool_input":{"file_path":"x.py","content":"cursor.execute(\"TRUNCATE TABLE analise_carta_controle\")"}}'
+run_case "ACW4 DROP TRIGGER WORM BLOCK"               BLOCK analise-carta-worm.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/padroes/migrations/0099_x.py","content":"sql = \"DROP TRIGGER analise_carta_controle_append_only_trg ON analise_carta_controle\""}}'
+run_case "ACW5 DROP FUNCTION WORM BLOCK"              BLOCK analise-carta-worm.sh '{"tool_input":{"file_path":"x.sql","content":"DROP FUNCTION analise_carta_controle_append_only();"}}'
+run_case "ACW6 DISABLE RLS carta BLOCK"               BLOCK analise-carta-worm.sh '{"tool_input":{"file_path":"x.sql","content":"ALTER TABLE analise_carta_controle DISABLE ROW LEVEL SECURITY;"}}'
+run_case "ACW7 DROP IF EXISTS isolado BLOCK"          BLOCK analise-carta-worm.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/padroes/migrations/0099_drop.py","content":"DROP TRIGGER IF EXISTS analise_carta_controle_append_only_trg ON analise_carta_controle;"}}'
+run_case "ACW8 migration CREATE+reverse PASS"         PASS  analise-carta-worm.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/padroes/migrations/0003_triggers_worm.py","content":"FORWARD: CREATE TRIGGER analise_carta_controle_append_only_trg BEFORE UPDATE OR DELETE ON analise_carta_controle ...; REVERSE: DROP TRIGGER IF EXISTS analise_carta_controle_append_only_trg ON analise_carta_controle; DROP FUNCTION IF EXISTS analise_carta_controle_append_only();"}}'
+run_case "ACW9 override valido PASS"                  PASS  analise-carta-worm.sh '{"tool_input":{"file_path":"x.sql","content":"# analise-carta-worm: skip -- correcao schema aprovada DR-2026-007\nDELETE FROM analise_carta_controle WHERE id=1;"}}'
+run_case "ACWa override curto BLOCK"                  BLOCK analise-carta-worm.sh '{"tool_input":{"file_path":"x.sql","content":"# analise-carta-worm: skip -- ok\nDELETE FROM analise_carta_controle WHERE id=1;"}}'
+run_case "ACWb .md ignora PASS"                       PASS  analise-carta-worm.sh '{"tool_input":{"file_path":"docs/faseamento/M5-padroes/spec.md","content":"UPDATE analise_carta_controle SET decisao_rt=1"}}'
+run_case "ACWc tests ignoram PASS"                    PASS  analise-carta-worm.sh '{"tool_input":{"file_path":"tests/regressao/test_inv_pad_worm.py","content":"DELETE FROM analise_carta_controle"}}'
+run_case "ACWd outra tabela PASS"                     PASS  analise-carta-worm.sh '{"tool_input":{"file_path":"x.sql","content":"UPDATE padrao_metrologico SET estado = 1;"}}'
 
 echo ""
 if [ -n "$FILTER" ]; then
