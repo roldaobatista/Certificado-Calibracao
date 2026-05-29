@@ -161,7 +161,7 @@ Cada T-MOD-NNN tem:
 **Travas (inegociáveis):**
 - Pular auditor só por **extensão inerte** (`.md`, template de tela) — **nunca por código**.
 - Na dúvida sobre a área, RODA (falha-aberto). Roteador que cala um auditor que devia rodar = vetor do bug fundador.
-- **Pré-condição de ativação do roteamento:** validar contra os diffs de M3 e M4 que o roteador teria chamado TODOS os auditores que acharam problema real. Enquanto não validado, roda os 10.
+- **Roteamento ✅ VALIDADO e ATIVO (2026-05-29)** — evidência em `docs/governanca/validacao-roteador-auditores.md` (100% dos roteados com achado real em M3/M4 seriam disparados; 6 essenciais pegaram 100% dos CRÍTICOs). Re-validar quando surgir tipo de módulo de forma diferente (ex: só-infra/fila).
 
 **Mini-revisão por fatia (§3.5):** ao fim de cada fatia, rodar só os essenciais + os roteados pela camada daquela fatia. A **passada completa dos 10 + suite completa** é o veredito de fechamento do Marco (não se pula).
 
