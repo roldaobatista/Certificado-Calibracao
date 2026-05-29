@@ -101,11 +101,13 @@ calculado**, não entidade persistida nova (pontos vêm de
 - **INV-PAD-001** — UNIQUE `(tenant_id, numero_serie)`.
 - **INV-PAD-002** — cadastro exige incerteza + valor convencional (NIT-DICLA-030 item 8.2.6).
 - **INV-PAD-003** — baixa/sucatamento bloqueada se calibração em curso usa o padrão.
+- **INV-PAD-004** — padrão com recal vencido (`proximo_recal < hoje`) ou certificado de rastreabilidade vencido é bloqueado para uso pela porta `padrao_bloqueado_para_uso`.
 - **INV-PAD-005** — `vinculacao=RBC` exige `tenant_perfil_e(["A"])` (ADR-0067).
 - **INV-PAD-006** — `incertezas_certificado` só muta via evento `padrao.recal_externo_concluido` (trigger PG).
 - **INV-PAD-007** — equipamento auxiliar com calibração vencida bloqueia uso do padrão principal que o consome (US-PAD-007).
 - **INV-PAD-008** — cartas Shewhart exclusivas perfil A.
 - **INV-PAD-009** — 2º caminho de cálculo obrigatório (perfil A/B) com investigação se desvio > k·u_combined.
+- **INV-PAD-010** — toda regra Western Electric disparada / aceite de ponto em carta de controle vira `AnaliseCartaControle` WORM congelada (LC/UCL/LCL/σ + versão do motor + decisão do RT + justificativa-hash) — ADR-0070.
 - **Reusadas:** INV-021..023, INV-CAL-SNAP-001, INV-CAL-RAST-001, INV-CAL-VI-001,
   INV-CAL-WORM-001, INV-VIG-001..004, INV-SOFT-001/002, INV-HMAC-001..005,
   INV-PERFIL-001, INV-VAL-001, INV-TENANT-001.

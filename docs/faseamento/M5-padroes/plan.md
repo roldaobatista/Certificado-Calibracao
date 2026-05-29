@@ -166,9 +166,10 @@ canonicalização texto probatório ADR-0029 (método VI / acao_corretiva).
 
 ## 7. Critérios de pronto (Definition of Done M5)
 
-PRD §7 todos AC verdes · INV-PAD-001..009 em REGRAS + testes · drill estrutural
-verde · GATE-PAD-PORTA-M4 (suíte M4 reverde) · 10 auditores PASS ZERO C/A/M
-(INV-RITUAL-001) · ruff/mypy limpos · paginação herdada.
+PRD §7 todos AC verdes · INV-PAD-001..010 em REGRAS + testes · drill estrutural
+verde · GATE-PAD-PORTA-M4 (suíte M4 reverde) · auditores PASS ZERO C/A/M sob
+roteamento INV-RITUAL-003 (essenciais sempre + roteados por área) · ruff/mypy
+limpos · paginação herdada.
 
 ## 8. Non-goals do plano (confirmam spec §3)
 

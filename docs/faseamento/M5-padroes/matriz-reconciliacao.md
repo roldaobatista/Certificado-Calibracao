@@ -31,9 +31,9 @@ relacionados:
 | US-PAD-003 Verificação intermediária | 003-x | INV-PAD-003 (VI REPROVADA) | 0040 | — (trigger WORM) | `application/.../registrar_verificacao_intermediaria.py` + migration 0003 | ✅ |
 | US-PAD-004 Baixar/sucatar | 004-x | INV-PAD-003 / INV-SOFT-002 | 0031 | soft-delete-padrao-check | `application/.../baixar_padrao.py` + `domain/.../transicoes.py` + migration 0003 (block_delete) | ✅ |
 | US-PAD-005 Intercomparação PT (perfil A) | 005-x | INV-023 | 0067 | — (gate perfil A) | `application/.../registrar_intercomparacao.py` | ✅ |
-| US-PAD-006 Dossiê CGCRE (JSON, perfil A) | 006-x | supervisão | 0067 | — | `infrastructure/.../query_service.py` + `views.py` | ✅ estruturado (PDF/A Wave B) |
-| US-PAD-007 Equipamentos auxiliares cl. 6.4.5 | 007-1..5 | **INV-PAD-007** | 0040/0030 | **padrao-auxiliar-em-controle** | `domain/.../entities.py` (VinculoAuxiliar) + `infrastructure/.../query_service.py` (`_bloqueado_por_auxiliar`) | ✅ runtime (P7) |
-| US-PAD-008 Cartas Shewhart (perfil A) | 008-1/2/2b/3/4 | **INV-PAD-008/010** | 0070/0067 | **shewhart-perfil-A** + **analise-carta-worm** | `domain/.../shewhart.py` + `application/.../registrar_analise_carta_controle.py` + migration 0003 (WORM) | ✅ |
+| US-PAD-006 Dossiê CGCRE (JSON, perfil A) | 006-x | supervisão | 0067 | — | `query_service.montar_dossie_cgcre` + `views.py` (GET `dossie-cgcre`, gate perfil A) | ✅ JSON via REST (P10); PDF/A Wave B |
+| US-PAD-007 Equipamentos auxiliares cl. 6.4.5 | 007-1..5 | **INV-PAD-007** | 0040/0030 | **padrao-auxiliar-em-controle** | `domain/.../entities.py` (VinculoAuxiliar) + `query_service.py` (`_bloqueado_por_auxiliar`) + `application/.../gerir_vinculo_auxiliar.py` + `views.py` (REST CRUD `vinculos-auxiliares`) | ✅ runtime (P7) + REST CRUD (P10) |
+| US-PAD-008 Cartas Shewhart (perfil A) | 008-1/2/2b/3/4 | **INV-PAD-008/010** | 0070/0067 | **shewhart-perfil-A** + **analise-carta-worm** | `domain/.../shewhart.py` + `application/.../registrar_analise_carta_controle.py` + migration 0003 (WORM) + `query_service.carta_controle_readmodel` + `views.py` (GET `carta-controle`, gate perfil A) | ✅ + read-model REST (P10) |
 | US-PAD-009 2 implementações mesmo mensurando (cl. 7.11) | 009-1..4 | **INV-PAD-009** | 0071 | incerteza-versao-motor-check (reuso M4) | `domain/.../valor_convencional.py` + `application/.../calcular_valor_convencional.py` | ✅ |
 
 ## 2. INV-PAD-001..010 ↔ teste nomeado (TST-004) ↔ enforcement
@@ -74,22 +74,24 @@ Total `_test-runner`: **450/450 verdes / 55 hooks ativos**.
 | P6 | job `alertar_padroes_pendencias` (4 pendências) | 20 puros + 3 PG-real |
 | P7 | INV-PAD-001..010 em REGRAS + 4 hooks + INV-PAD-007 runtime + CHECK 0006 | 19 `TestINV_PAD_*` + 37 casos hook |
 | P8 | emenda PRD + matriz retenção + drill `validar_m5_padroes` + esta matriz | drill 43/43 PASS |
+| P10 | REST vínculo auxiliar (CRUD) + dossiê CGCRE + carta-controle (gate perfil A) + migration 0007 seed authz + PERF-001 baseline | 10 E2E (p10) + 19/19 (p5+p10) |
 
 ## 5. GATEs do módulo
 
 | GATE | Conteúdo | Status |
 |------|----------|--------|
 | GATE-PAD-PORTA-M4 | porta consumida pelo M4 antes de gravar `PadraoUsado` | ✅ entregue (P4) |
+| GATE-PAD-PERF-DISPONIVEIS | N+1 bounded por `limite=200` em GET `/disponiveis/`; baseline congelado por `assertNumQueries`; otimização batch rastreada | 🟡 baseline (P10) — otimização batch diferida |
 | GATE-PAD-DRILL-LOCAL | PG-real: cross-tenant, triggers WORM/incertezas, perfil A bloqueia RBC, INV-PAD-007 auxiliar, concorrência GUC/pool | 🟡 parcial — coberto por `test_inv_pad_p2_schema_triggers` + `test_inv_pad_classes_nomeadas`; teste de concorrência de pool dedicado + revisão pré-1º-tenant pendentes |
 | GATE-PAD-SHEWHART-RBC | revisão humana credenciada do motor incerteza+Shewhart | ⛔ diferido pré-tenant-A (memória `project_sem_contratacoes_externas_ate_producao`) |
 | GATE-CAL-CMC/PROC-PREDICATE | destravam com módulos `escopos-cmc` + `procedimentos` (próximos) | ⛔ Wave A |
 
-## 6. Pendências para fechar P9
+## 6. Pendências para fechar M5
 
-- Rodar os 10 auditores Família 5 (INV-RITUAL-001: MÉDIO+ bloqueia).
+- **P10 entregue (2026-05-29):** os 3 bloqueantes do P9 (PROD-PAD-01/02/03 dossiê+carta+vínculo expostos via REST) + PERF-001 baseline construídos e testados (19/19 E2E).
+- **Re-rodar P9** (produto + performance + drift-docs — os 2 FAIL + o CONCERNS) sob o roteamento INV-RITUAL-003, até zerar MÉDIO+ → então fechar M5 e promover frontmatter `draft→stable`.
 - GATE-PAD-DRILL-LOCAL: teste de concorrência GUC/pool dedicado (C-10) — tech-lead cravou que só fecha em drill PG-real + pentest pré-1º-tenant.
-- Gap tests-coverage: migrations 0002/0003 citam `test_inv_pad_rls.py`/`test_inv_pad_worm.py` mas o arquivo real é `test_inv_pad_p2_schema_triggers.py` — reconciliar comentário na migration (drift menor).
 
 ## 7. Próximo passo
 
-P9 — ritual dos 10 auditores Família 5.
+Re-passada dos auditores que falharam no P9 (produto/performance/drift) + essenciais → fechamento do M5.

@@ -206,9 +206,13 @@ recals externos), **para** detectar drift antes do recal seguinte.
   (aprovado/reprovado) + método + responsável + data, THEN
   `VerificacaoIntermediaria` criada; evento
   `padrao.verificacao_intermediaria_registrada`.
-- **AC-PAD-003-2**: GIVEN VI reprovada, WHEN salvo, THEN padrão passa pra
-  `estado=EM_RECAL_EXTERNO` automaticamente + bloqueia uso até nova VI
-  aprovada (INV-CAL-VI-001).
+- **AC-PAD-003-2**: GIVEN VI reprovada, WHEN salva, THEN a porta
+  `padrao_bloqueado_para_uso` passa a bloquear o padrão para uso em calibração
+  (**bloqueio lógico**, análogo à carta de controle AC-PAD-008 — NÃO há transição
+  automática de estado) até nova VI aprovada; o RT decide o encaminhamento
+  (recal externo / baixa) explicitamente (INV-CAL-VI-001 / INV-PAD-003).
+  *(Emendado 2026-05-29 — PROD-PAD-04: alinha o AC ao comportamento real do
+  código, que faz bloqueio lógico via porta, não state-machine.)*
 - **AC-PAD-003-3**: GIVEN classe E1/E2/F1/F2 + sem VI nos últimos N meses
   (configurável por classe), THEN alerta P2 + dashboard marca padrão como
   "VI pendente".
