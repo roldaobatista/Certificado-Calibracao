@@ -53,15 +53,26 @@ def padrao_bloqueado_para_uso(
     padrao_id: UUID,
     tenant_e_perfil_a: bool = False,
     hoje: _dt.date | None = None,
+    _visitados: set[UUID] | None = None,
 ) -> tuple[bool, str]:
     """Retorna (bloqueado, motivo). Fail-CLOSED em qualquer erro.
 
     `tenant_e_perfil_a` (calculado pelo caller via predicate `tenant_perfil_e`)
     habilita o bloqueio por carta Shewhart (INV-PAD-008 — cartas exclusivas A).
     `hoje` injetavel pra teste deterministico.
+
+    `_visitados` (interno) guarda os padroes ja avaliados nesta cadeia para
+    evitar recursao infinita ao verificar auxiliares vinculados (INV-PAD-007).
     """
     try:
         hoje = hoje or _dt.date.today()
+        visitados = _visitados or set()
+        if padrao_id in visitados:
+            # Ja avaliado nesta cadeia (vinculo auxiliar circular patologico):
+            # nao re-bloqueia nem re-libera — quem chamou ja decide.
+            return (False, "")
+        visitados = visitados | {padrao_id}
+
         padrao = PadraoMetrologico.objects.filter(id=padrao_id).first()
         if padrao is None:
             return (True, "padrao inexistente ou de outro tenant (RLS)")
@@ -106,11 +117,51 @@ def padrao_bloqueado_para_uso(
             if bloqueado_carta:
                 return (True, motivo_carta)
 
+        # INV-PAD-007 (cl. 6.4.5): equipamento auxiliar vinculado vigente com
+        # calibracao/rastreabilidade vencida (ou fora de EM_USO / VI reprovada)
+        # contamina o balanco de incerteza do principal -> bloqueia o principal.
+        bloqueado_aux, motivo_aux = _bloqueado_por_auxiliar(
+            padrao_id, tenant_e_perfil_a, hoje, visitados
+        )
+        if bloqueado_aux:
+            return (True, motivo_aux)
+
         return (False, "")
     except Exception as exc:
         # fail-CLOSED deliberado: qualquer erro inesperado bloqueia o uso do
         # padrao (nunca libera por engano — risco E&O).
         return (True, f"falha ao avaliar saude do padrao (fail-closed): {exc!r}")
+
+
+def _bloqueado_por_auxiliar(
+    padrao_principal_id: UUID,
+    tenant_e_perfil_a: bool,
+    hoje: _dt.date,
+    visitados: set[UUID],
+) -> tuple[bool, str]:
+    """INV-PAD-007 (cl. 6.4.5): reavalia a saude dos auxiliares vigentes.
+
+    Cada `VinculoAuxiliar` vigente (`revogado_em IS NULL` — ADR-0030) aponta um
+    `PadraoMetrologico` auxiliar (subtipo AUXILIAR_* garantido na CRIACAO do
+    vinculo, nao filtrado aqui) que entra na cadeia de incerteza do principal.
+    Reusa `padrao_bloqueado_para_uso` recursivamente
+    (mesmo conjunto de checagens: estado/recal/validade/VI/PT), propagando
+    `visitados` para evitar ciclo. Auxiliar bloqueado -> principal bloqueado.
+    """
+    vinculos = VinculoAuxiliar.objects.filter(
+        padrao_principal_id=padrao_principal_id, revogado_em__isnull=True
+    )
+    for v in vinculos:
+        bloqueado_aux, motivo_aux = padrao_bloqueado_para_uso(
+            v.padrao_auxiliar_id, tenant_e_perfil_a, hoje, visitados
+        )
+        if bloqueado_aux:
+            return (
+                True,
+                f"auxiliar {v.padrao_auxiliar_id} bloqueado (INV-PAD-007 cl. 6.4.5): "
+                f"{motivo_aux}",
+            )
+    return (False, "")
 
 
 def _bloqueado_por_carta(padrao_id: UUID) -> tuple[bool, str]:
