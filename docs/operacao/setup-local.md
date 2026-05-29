@@ -126,19 +126,21 @@ O `-v` apaga o volume com os dados. Sem ele, os dados ficam pra próxima.
 
 Em outro Git Bash (deixa o `docker compose up` rodando):
 
+> **Antes de mexer em testes, leia `docs/operacao/testes-armadilhas.md`** — 3 armadilhas já custaram 5h15 num único dia. Nunca use `--create-db` nem `-o addopts=""`.
+
 ```bash
 cd "/c/PROJETOS/Certificado de calibracao"
 
-# Suite completa (rápida + lenta com fuzzing)
-docker compose exec app poetry run pytest
+# Dia a dia — comando SEGURO (reaproveita o banco, não dropa, não cai em dev)
+docker compose exec app poetry run pytest --no-cov --reuse-db
 
 # Só os rápidos (sem isolamento cross-tenant)
-docker compose exec app poetry run pytest -m "not tenant_isolation and not slow"
+docker compose exec app poetry run pytest --no-cov --reuse-db -m "not tenant_isolation and not slow"
 
 # Só fuzzing de isolamento (50 threads x 100 queries)
-docker compose exec app poetry run pytest -m "tenant_isolation and slow"
+docker compose exec app poetry run pytest --reuse-db -m "tenant_isolation and slow"
 
-# Cobertura HTML
+# Suite completa COM cobertura (fim de fase — mais lento)
 docker compose exec app poetry run pytest
 # Abre depois: reports/coverage/index.html
 ```
