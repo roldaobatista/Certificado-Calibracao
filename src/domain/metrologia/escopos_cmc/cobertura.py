@@ -18,34 +18,44 @@ from __future__ import annotations
 from collections.abc import Sequence
 from decimal import Decimal
 
+from src.domain.metrologia.faixa_cobertura import faixa_contida
 from src.domain.metrologia.value_objects import FaixaMedicao
 
 from .entities import EscopoCMCSnapshot
 
-# Reasons estáveis (mapeados a 412 pela camada de aplicação).
+# Geometria de contenção compartilhada (M7 T-PROC-000): `faixa_contida` agora
+# vive em src/domain/metrologia/faixa_cobertura.py e é reexportada aqui para
+# preservar o contrato `cobertura.faixa_contida` (query_service M6 + testes).
+__all__ = [
+    "faixa_contida",
+    "avaliar_contencao",
+    "cmc_no_ponto",
+    "menor_cmc_por_faixa",
+    "u_atende_cmc",
+    "avaliar_u_cmc",
+    "u_igual_cmc_suspeita",
+    "REASON_OK",
+    "REASON_FORA_DO_ESCOPO",
+    "REASON_UNIDADE_INCOMPATIVEL",
+    "REASON_INCERTEZA_ABAIXO_CMC",
+]
+
+# Reasons estáveis ESPECÍFICOS do escopo CGCRE (mapeados a 412 pela aplicação) —
+# distintos dos reasons neutros da geometria compartilhada (erro de domínio
+# `EscopoNaoCobreFaixa`, fraude de acreditação cl. 8.1.3 — RBC).
 REASON_OK = ""
 REASON_FORA_DO_ESCOPO = "cmc_fora_do_escopo"
 REASON_UNIDADE_INCOMPATIVEL = "cmc_unidade_incompativel"
 REASON_INCERTEZA_ABAIXO_CMC = "incerteza_abaixo_do_cmc"
 
 
-def faixa_contida(*, solicitada: FaixaMedicao, escopo: FaixaMedicao) -> bool:
-    """Contenção TOTAL: `solicitada ⊆ escopo` (ADR-0074 cond. 1 / INV-ECMC-005).
-
-    Exige mesma unidade (fail-closed em unidade divergente — conversão de
-    unidade é refinamento futuro; bloquear é mais seguro que emitir fora do CMC).
-    """
-    if solicitada.unidade != escopo.unidade:
-        return False
-    return solicitada.inferior >= escopo.inferior and solicitada.superior <= escopo.superior
-
-
 def avaliar_contencao(
     *, solicitada: FaixaMedicao, escopo: FaixaMedicao
 ) -> tuple[bool, str]:
-    """Versão com reason estável da contenção de faixa.
+    """Versão com reason ESPECÍFICO do escopo (`cmc_*`) da contenção de faixa.
 
-    Returns (True, "") se contido; (False, reason) caso contrário.
+    Embrulha a geometria compartilhada `faixa_contida` com os reasons do domínio
+    escopos-cmc. Returns (True, "") se contido; (False, reason) caso contrário.
     """
     if solicitada.unidade != escopo.unidade:
         return False, REASON_UNIDADE_INCOMPATIVEL
