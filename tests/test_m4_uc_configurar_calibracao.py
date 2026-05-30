@@ -26,6 +26,7 @@ from src.application.metrologia.calibracao.configurar_calibracao import (
     CalibracaoNaoEncontrada,
     ConfigurarCalibracaoInput,
     ConflitoVersaoCalibracao,
+    EscopoNaoCobreFaixa,
     EstadoInvalidoParaConfigurar,
     executar,
 )
@@ -52,6 +53,7 @@ from tests.test_m4_uc_criar_calibracao import FakeCalibracaoRepository
 def _criar_calibracao_avulsa(
     repo: FakeCalibracaoRepository,
     tipo_acreditacao: TipoAcreditacao = TipoAcreditacao.NAO_RBC,
+    snapshot_equipamento_json: dict[str, object] | None = None,
 ) -> UUID:
     """Cria calibracao AVULSA em RECEPCIONADA e retorna seu id."""
     out = criar_executar(
@@ -60,7 +62,11 @@ def _criar_calibracao_avulsa(
             origem_recepcao=OrigemRecepcao.AVULSA,
             atividade_os_id=None,
             instrumento_id=uuid4(),
-            snapshot_equipamento_json={"nome": "Balanca"},
+            snapshot_equipamento_json=(
+                {"nome": "Balanca"}
+                if snapshot_equipamento_json is None
+                else snapshot_equipamento_json
+            ),
             cliente_id=uuid4(),
             cliente_referencia_hash="v01$aGVsbG8=",
             cliente_key_id="cliente-key-v1",
@@ -308,3 +314,105 @@ class TestConcorrenciaCAS:
         # Worker 1 atrasado tenta configurar a calibracao ja CONFIGURADA
         with pytest.raises(EstadoInvalidoParaConfigurar):
             executar(_input_avulsa(cal_id, revision=0), repo)
+
+
+# =====================================================================
+# Cobertura CMC no use case (ADR-0073/0074 — M6 escopos-cmc Fatia 3)
+# Transicao fail-open -> fail-closed (T-ECMC-045). NUNCA relaxar assert M4.
+# =====================================================================
+
+
+class _FakeCobertura:
+    """Porta de cobertura fake — registra chamadas e retorna resposta fixa."""
+
+    def __init__(self, ok: bool, motivo: str = "") -> None:
+        self._ok = ok
+        self._motivo = motivo
+        self.chamadas: list[dict[str, object]] = []
+
+    def __call__(self, **kwargs: object) -> tuple[bool, str]:
+        self.chamadas.append(kwargs)
+        return self._ok, self._motivo
+
+
+# Snapshot de equipamento COM grandeza/faixa estruturados (estado da etapa 2:
+# recepcao/M2 ja popularam). Ativa a validacao de cobertura no use case.
+_SNAP_COM_FAIXA: dict[str, object] = {
+    "nome": "Balanca",
+    "grandeza": "massa",
+    "faixa_min": "0",
+    "faixa_max": "200",
+    "unidade": "kg",
+}
+
+
+class TestCoberturaCMCNoUseCase:
+    def test_rbc_faixa_fora_de_escopo_bloqueia_412(self) -> None:
+        """A com escopo + snapshot com faixa + cobertura nega -> EscopoNaoCobreFaixa."""
+        repo = FakeCalibracaoRepository()
+        cal_id = _criar_calibracao_avulsa(
+            repo,
+            tipo_acreditacao=TipoAcreditacao.RBC,
+            snapshot_equipamento_json=_SNAP_COM_FAIXA,
+        )
+        cobertura = _FakeCobertura(ok=False, motivo="cmc_fora_do_escopo")
+        with pytest.raises(EscopoNaoCobreFaixa) as exc:
+            executar(_input_avulsa(cal_id, escopo_id=uuid4()), repo, cobertura=cobertura)
+        assert exc.value.grandeza == "massa"
+        assert exc.value.motivo == "cmc_fora_do_escopo"
+        assert len(cobertura.chamadas) == 1
+
+    def test_rbc_faixa_coberta_configura(self) -> None:
+        """A com escopo + snapshot com faixa + cobertura aprova -> CONFIGURADA."""
+        repo = FakeCalibracaoRepository()
+        cal_id = _criar_calibracao_avulsa(
+            repo,
+            tipo_acreditacao=TipoAcreditacao.RBC,
+            snapshot_equipamento_json=_SNAP_COM_FAIXA,
+        )
+        cobertura = _FakeCobertura(ok=True)
+        out = executar(_input_avulsa(cal_id, escopo_id=uuid4()), repo, cobertura=cobertura)
+        assert out.snapshot.status == EstadoCalibracao.CONFIGURADA
+        assert len(cobertura.chamadas) == 1
+        # Server-side: data da vigencia = regra_decisao_acordada_em (nao payload).
+        assert cobertura.chamadas[0]["grandeza"] == "massa"
+        assert cobertura.chamadas[0]["faixa_max"] == "200"
+
+    def test_rbc_sem_faixa_no_snapshot_fail_open_lazy(self) -> None:
+        """A sem grandeza/faixa no snapshot (estado atual M4) -> fail-open lazy:
+        cobertura NUNCA e chamada e configura (GATE-CAL-CMC-PREDICATE)."""
+        repo = FakeCalibracaoRepository()
+        cal_id = _criar_calibracao_avulsa(
+            repo, tipo_acreditacao=TipoAcreditacao.RBC
+        )  # snapshot default {"nome": "Balanca"} — sem faixa
+        cobertura = _FakeCobertura(ok=False, motivo="nao_deveria_chamar")
+        out = executar(_input_avulsa(cal_id, escopo_id=uuid4()), repo, cobertura=cobertura)
+        assert out.snapshot.status == EstadoCalibracao.CONFIGURADA
+        assert cobertura.chamadas == []
+
+    def test_nao_rbc_nunca_consulta_cobertura(self) -> None:
+        """B/C/D (NAO_RBC) nunca 412 por CMC — cobertura nem e consultada,
+        mesmo com faixa no snapshot."""
+        repo = FakeCalibracaoRepository()
+        cal_id = _criar_calibracao_avulsa(
+            repo,
+            tipo_acreditacao=TipoAcreditacao.NAO_RBC,
+            snapshot_equipamento_json=_SNAP_COM_FAIXA,
+        )
+        cobertura = _FakeCobertura(ok=False, motivo="nao_deveria_chamar")
+        out = executar(_input_avulsa(cal_id, escopo_id=None), repo, cobertura=cobertura)
+        assert out.snapshot.status == EstadoCalibracao.CONFIGURADA
+        assert cobertura.chamadas == []
+
+    def test_default_stub_fail_open_quando_sem_adapter(self) -> None:
+        """Sem injetar adapter (default _cobertura_fail_open_lazy) + faixa no
+        snapshot -> configura (STUB True). Garante que testes de use case puro
+        nao quebram (transicao etapa 1 T-ECMC-046)."""
+        repo = FakeCalibracaoRepository()
+        cal_id = _criar_calibracao_avulsa(
+            repo,
+            tipo_acreditacao=TipoAcreditacao.RBC,
+            snapshot_equipamento_json=_SNAP_COM_FAIXA,
+        )
+        out = executar(_input_avulsa(cal_id, escopo_id=uuid4()), repo)  # sem cobertura=
+        assert out.snapshot.status == EstadoCalibracao.CONFIGURADA

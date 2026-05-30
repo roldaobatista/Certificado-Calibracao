@@ -87,6 +87,17 @@ def _coerce_uuid(raw: object) -> UUID | None:
 def cmc_cobre(resource: dict[str, Any]) -> tuple[bool, str]:
     """Predicate ABAC — CMC do tenant RBC cobre grandeza + faixa solicitada.
 
+    **DEPRECATED 2026-05-30 (ADR-0073 / M6 escopos-cmc Fatia 3 — T-ECMC-040):**
+    A validacao de cobertura de faixa CMC MIGROU para DENTRO do use case
+    `configurar_calibracao` (chamada `escopos_cmc.query_service.cobre`), porque o
+    permission layer DRF nao tem dado metrologico server-side (grandeza/faixa) no
+    momento em que o predicate e avaliado (ver ADR-0073 Contexto). Este predicate
+    permanece registrado em `apps.py` como NO-OP documentado durante a transicao
+    (remocao coordenada futura — nao no mesmo commit). O anti-fraude de perfil
+    (itens 1-3 abaixo, ADR-0067) continua valido e ainda e exercitado nos testes;
+    a contencao de faixa (`cmc_fora_do_escopo`) NAO e mais responsabilidade deste
+    predicate.
+
     **RETROFIT 2026-05-27 (T-SAN-PERFIL-018 / Sprint 2 ADR-0067):**
     Antes da auditoria 10 lentes, este predicate lia `tipo_acreditacao` do
     PAYLOAD da request — vulneravel a fraude documental (FAIL L6 da auditoria

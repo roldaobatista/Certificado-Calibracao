@@ -69,6 +69,7 @@ from src.application.metrologia.calibracao.configurar_calibracao import (
     CalibracaoNaoEncontrada,
     ConfigurarCalibracaoInput,
     ConflitoVersaoCalibracao,
+    EscopoNaoCobreFaixa,
     EstadoInvalidoParaConfigurar,
 )
 from src.application.metrologia.calibracao.configurar_calibracao import (
@@ -179,6 +180,9 @@ from src.infrastructure.idempotencia.services_idempotencia import (
     avaliar_chave_idempotencia,
     concluir_chave,
     falhar_chave,
+)
+from src.infrastructure.metrologia.escopos_cmc import (
+    query_service as escopos_cmc_qs,
 )
 from src.infrastructure.multitenant.context import (
     active_tenant_context,
@@ -513,7 +517,10 @@ class CalibracaoViewSet(viewsets.ViewSet):
         evento_repo = DjangoEventoDeCalibracaoRepository()
         try:
             with transaction.atomic():
-                out = configurar_executar(inp, repo)
+                # ADR-0073: porta de cobertura CMC injetada (escopos-cmc M6).
+                out = configurar_executar(
+                    inp, repo, cobertura=escopos_cmc_qs.cobre
+                )
                 # OBS-CAL-01: elo WORM da configuracao (cl. 7.2 + ADR-0024).
                 append_evento_executar(
                     AppendEventoCalibracaoInput(
@@ -568,6 +575,25 @@ class CalibracaoViewSet(viewsets.ViewSet):
             return Response(
                 {"erro": str(exc), "codigo": "EstadoInvalido"},
                 status=status.HTTP_409_CONFLICT,
+            )
+        except EscopoNaoCobreFaixa as exc:
+            # ADR-0073/0074 cond. 1: RBC sem escopo CMC vigente cobrindo a faixa.
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "EscopoNaoCobreFaixa",
+                    "grandeza": exc.grandeza,
+                    "faixa_min": exc.faixa_min,
+                    "faixa_max": exc.faixa_max,
+                    "unidade": exc.unidade,
+                    "motivo": exc.motivo,
+                },
+                status=status.HTTP_412_PRECONDITION_FAILED,
             )
         except ConflitoVersaoCalibracao as exc:
             falhar_chave(

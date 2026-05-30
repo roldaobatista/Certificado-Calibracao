@@ -22,8 +22,11 @@ Caller chama AuthorizationProvider.can('calibracao.configurar', resource={
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, replace
 from datetime import datetime
+from decimal import Decimal
+from typing import Protocol, runtime_checkable
 from uuid import UUID
 
 from src.domain.metrologia.calibracao.entities import CalibracaoSnapshot
@@ -35,6 +38,50 @@ from src.domain.metrologia.calibracao.enums import (
 )
 from src.domain.metrologia.calibracao.repository import CalibracaoRepository
 
+log = logging.getLogger(__name__)
+
+
+@runtime_checkable
+class CoberturaEscopoPort(Protocol):
+    """Porta de cobertura de escopo CMC (ADR-0073/0074 cond. 1 — contenção total).
+
+    Implementada como FUNCAO DE MODULO sem estado (TL-C-04 / ADR-0073 ponto 4):
+    `src.infrastructure.metrologia.escopos_cmc.query_service.cobre`. A view injeta
+    o adapter REAL; o use case NUNCA importa infra (ADR-0007). Retorna (True, '')
+    se algum escopo CONFIRMADO vigente em `data` CONTEM a faixa solicitada; senao
+    (False, reason). Fail-CLOSED na implementacao real.
+    """
+
+    def __call__(
+        self,
+        *,
+        tenant_id: UUID,
+        grandeza: str,
+        faixa_min: Decimal | str,
+        faixa_max: Decimal | str,
+        unidade: str,
+        data: datetime,
+    ) -> tuple[bool, str]: ...
+
+
+def _cobertura_fail_open_lazy(
+    *,
+    tenant_id: UUID,
+    grandeza: str,
+    faixa_min: Decimal | str,
+    faixa_max: Decimal | str,
+    unidade: str,
+    data: datetime,
+) -> tuple[bool, str]:
+    """STUB default da porta — fail-open lazy (ADR-0066, transicao etapa 1 T-ECMC-046).
+
+    Usado quando NENHUM adapter real e injetado (ex.: testes de use case puro que
+    nao exercem cobertura). Em producao a view injeta o adapter REAL
+    (`escopos_cmc.query_service.cobre`). Distinto do fail-open por AUSENCIA de
+    grandeza/faixa (decidido no corpo do use case — GATE-CAL-CMC-PREDICATE).
+    """
+    return True, ""
+
 
 class CalibracaoNaoEncontrada(Exception):
     """ID nao existe no tenant ativo (RLS ja filtrou) — caller retorna 404."""
@@ -42,6 +89,52 @@ class CalibracaoNaoEncontrada(Exception):
 
 class EstadoInvalidoParaConfigurar(Exception):
     """Calibracao nao esta em RECEPCIONADA — caller retorna 409 Conflict."""
+
+
+class EscopoNaoCobreFaixa(Exception):
+    """RBC: nenhum escopo CMC CONFIRMADO vigente cobre a grandeza+faixa solicitada.
+
+    ADR-0073/0074 cond. 1 (contencao total). Caller (view) retorna 412. Carrega
+    grandeza/faixa/motivo para a mensagem com contexto metrologico.
+    """
+
+    def __init__(
+        self,
+        grandeza: str,
+        faixa_min: str,
+        faixa_max: str,
+        unidade: str,
+        motivo: str,
+    ) -> None:
+        self.grandeza = grandeza
+        self.faixa_min = faixa_min
+        self.faixa_max = faixa_max
+        self.unidade = unidade
+        self.motivo = motivo
+        super().__init__(
+            f"EscopoNaoCobreFaixa grandeza={grandeza} "
+            f"faixa=[{faixa_min},{faixa_max}]{unidade} motivo={motivo}"
+        )
+
+
+def _faixa_solicitada_server_side(
+    snap: CalibracaoSnapshot,
+) -> tuple[str, str, str, str] | None:
+    """Deriva (grandeza, faixa_min, faixa_max, unidade) do snapshot PERSISTIDO.
+
+    Server-side — NUNCA do payload da request (SEG-CAL-10). Fonte interim:
+    `snapshot_equipamento_json` capturado na recepcao. Enquanto a recepcao/M2
+    nao popular esses campos estruturados (GATE-CAL-CMC-PREDICATE), retorna None
+    -> use case opera fail-open lazy (paralelo ADR-0063).
+    """
+    eq = snap.snapshot_equipamento_json or {}
+    grandeza = str(eq.get("grandeza") or "").strip()
+    faixa_min = eq.get("faixa_min")
+    faixa_max = eq.get("faixa_max")
+    unidade = str(eq.get("unidade") or "").strip()
+    if not grandeza or faixa_min is None or faixa_max is None or not unidade:
+        return None
+    return grandeza, str(faixa_min), str(faixa_max), unidade
 
 
 class ConflitoVersaoCalibracao(Exception):
@@ -103,14 +196,20 @@ class ConfigurarCalibracaoOutput:
 def executar(
     inp: ConfigurarCalibracaoInput,
     repo: CalibracaoRepository,
+    cobertura: CoberturaEscopoPort = _cobertura_fail_open_lazy,
 ) -> ConfigurarCalibracaoOutput:
     """Configura calibracao: RECEPCIONADA -> CONFIGURADA via CAS.
+
+    `cobertura` (ADR-0073): porta de cobertura de escopo CMC injetada pela view
+    (`escopos_cmc.query_service.cobre`). Default fail-open lazy para testes de
+    use case puro. So consultada quando tipo_acreditacao=RBC.
 
     Levanta:
       CalibracaoNaoEncontrada — id nao existe.
       EstadoInvalidoParaConfigurar — status != RECEPCIONADA.
       ValueError — analise critica inconsistente com origem (ADR-0023)
         OU RBC sem escopo_id OU regra_decisao_acordada_documento_id ausente.
+      EscopoNaoCobreFaixa — RBC + faixa fora de qualquer escopo CMC vigente (412).
       ConflitoVersaoCalibracao — CAS perdeu race.
     """
     atual = repo.obter_por_id(inp.calibracao_id)
@@ -158,6 +257,32 @@ def executar(
             "configurar_calibracao: tipo_acreditacao=RBC exige escopo_id NOT NULL "
             "(INV-CAL-CMC-001 + cl. 6.4.10)"
         )
+
+    # ADR-0073/0074 cond. 1: cobertura de faixa CMC validada DENTRO do use case
+    # (nao no permission layer). So RBC. Fonte server-side (snapshot persistido,
+    # nunca payload — SEG-CAL-10). Fail-open lazy enquanto a fonte estruturada
+    # nao existir (paralelo ADR-0063 — GATE-CAL-CMC-PREDICATE / T-ECMC-046).
+    if atual.tipo_acreditacao == TipoAcreditacao.RBC:
+        faixa = _faixa_solicitada_server_side(atual)
+        if faixa is not None:
+            grandeza, fx_min, fx_max, unidade = faixa
+            ok, motivo = cobertura(
+                tenant_id=atual.tenant_id,
+                grandeza=grandeza,
+                faixa_min=fx_min,
+                faixa_max=fx_max,
+                unidade=unidade,
+                data=inp.regra_decisao_acordada_em,
+            )
+            if not ok:
+                raise EscopoNaoCobreFaixa(grandeza, fx_min, fx_max, unidade, motivo)
+        else:
+            log.info(
+                "configurar_calibracao: cobertura CMC fail-open lazy — "
+                "snapshot_equipamento_json sem grandeza/faixa estruturados "
+                "(calibracao_id=%s). GATE-CAL-CMC-PREDICATE.",
+                inp.calibracao_id,
+            )
 
     # Snapshot novo (frozen — usa replace pra trocar campos)
     novo = replace(
