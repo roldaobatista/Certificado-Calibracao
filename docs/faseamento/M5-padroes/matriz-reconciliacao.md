@@ -74,7 +74,7 @@ Total `_test-runner`: **450/450 verdes / 55 hooks ativos**.
 | P6 | job `alertar_padroes_pendencias` (4 pendências) | 20 puros + 3 PG-real |
 | P7 | INV-PAD-001..010 em REGRAS + 4 hooks + INV-PAD-007 runtime + CHECK 0006 | 19 `TestINV_PAD_*` + 37 casos hook |
 | P8 | emenda PRD + matriz retenção + drill `validar_m5_padroes` + esta matriz | drill 43/43 PASS |
-| P10 | REST vínculo auxiliar (CRUD) + dossiê CGCRE (uso em calibrações M4 + âncora hash-chain ADR-0064) + carta-controle (gate ≥10 pontos/24m AC-PAD-008-1) + migration 0007 seed authz + PERF-001 baseline | 12 E2E (p10) + 21/21 (p5+p10) |
+| P10 | REST vínculo auxiliar (CRUD) + dossiê CGCRE (uso em calibrações M4 + âncora hash-chain ADR-0064) + carta-controle (gate ≥10 pontos/24m AC-PAD-008-1) + migration 0007 seed authz + PERF-001 baseline | 13 E2E (p10, inclui cross-tenant dossiê/carta) + 22/22 (p5+p10) |
 
 ## 5. GATEs do módulo
 

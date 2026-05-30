@@ -272,6 +272,22 @@ def test_carta_controle_perfil_a(cenario_a):
 
 
 @pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
+def test_dossie_e_carta_cross_tenant_404(cenario_a):
+    """Isolamento multi-tenant: tenant B (também perfil A) NÃO vê dossiê/carta de
+    padrão do tenant A — RLS esconde o padrão → montar_dossie/carta None → 404.
+    Isola o TENANT (não o perfil): B é perfil A pra o gate de perfil não mascarar."""
+    client_a = APIClient()
+    _autenticar(client_a, cenario_a["admin"], cenario_a["tenant"])
+    pid = _criar_padrao(client_a)
+
+    cen_b = _cenario(perfil_a=True)
+    client_b = APIClient()
+    _autenticar(client_b, cen_b["admin"], cen_b["tenant"])
+    assert client_b.get(f"/api/v1/padroes/{pid}/dossie-cgcre/").status_code == 404
+    assert client_b.get(f"/api/v1/padroes/{pid}/carta-controle/").status_code == 404
+
+
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
 def test_carta_controle_nao_perfil_a_403(cenario):
     client = APIClient()
     _autenticar(client, cenario["admin"], cenario["tenant"])

@@ -57,7 +57,11 @@ _JANELA_CARTA_MESES = 24
 
 
 def _corte_24_meses(hoje: _dt.date) -> _dt.date:
-    """Data de corte = hoje - 24 meses (2 anos exatos; trata 29/02)."""
+    """Data de corte = hoje - 24 meses (2 anos exatos; trata 29/02).
+
+    O corte e INCLUSIVO no caller (`data_vi >= corte`): uma VI feita exatamente
+    24 meses atras ainda conta para a carta.
+    """
     try:
         return hoje.replace(year=hoje.year - 2)
     except ValueError:
