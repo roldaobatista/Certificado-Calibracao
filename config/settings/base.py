@@ -244,6 +244,13 @@ LOCAL_APPS = [
     # bloqueio de emissao RBC fora do escopo (412 EscopoNaoCobreFaixa). Cobertura
     # tridimensional ADR-0074 (faixa subset + U>=CMC + menor-CMC). WORM Padrao B.
     "src.infrastructure.metrologia.escopos_cmc.apps.EscoposCmcConfig",
+    # Wave A M7 — Procedimentos de Calibracao (metrologia/procedimentos-calibracao
+    # — ADR-0072 path aninhado). ProcedimentoCalibracao (o "como medir": metodo/
+    # norma documentado controlado cl. 7.2.1, vigente por grandeza+faixa). Destrava
+    # GATE-CAL-PROC-VIGENTE-PREDICATE (ADR-0066/0073): bloqueio de emissao RBC sem
+    # procedimento vigente (412 ProcedimentoVigenteAusente). WORM Padrao B; UNIQUE
+    # parcial 1 vigente por chave (INV-PROC-008).
+    "src.infrastructure.metrologia.procedimentos_calibracao.apps.ProcedimentosCalibracaoConfig",
     # F-C1 P4 — adapter canonico OutboundWebhookProvider (ADR-0054 aceita
     # dentro desta fase). SSRF guard + HMAC canonical + DNS rebinding lock
     # + DPA enforcement (INV-WEBHOOK-OUT-001..005).
