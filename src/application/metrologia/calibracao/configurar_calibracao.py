@@ -37,6 +37,7 @@ from src.domain.metrologia.calibracao.enums import (
     TipoAcreditacao,
 )
 from src.domain.metrologia.calibracao.repository import CalibracaoRepository
+from src.domain.metrologia.value_objects import FaixaMedicao, Grandeza
 
 log = logging.getLogger(__name__)
 
@@ -117,24 +118,47 @@ class EscopoNaoCobreFaixa(Exception):
         )
 
 
-def _faixa_solicitada_server_side(
-    snap: CalibracaoSnapshot,
-) -> tuple[str, str, str, str] | None:
-    """Deriva (grandeza, faixa_min, faixa_max, unidade) do snapshot PERSISTIDO.
+def _declarar_faixa(
+    inp: ConfigurarCalibracaoInput,
+) -> tuple[Grandeza | None, FaixaMedicao | None]:
+    """Constroi os VOs `(Grandeza, FaixaMedicao)` da faixa calibrada DECLARADA pelo
+    RT na configuracao (ADR-0076). Fonte UNICA (NC-05 — sem ler snapshot_equipamento_json).
 
-    Server-side — NUNCA do payload da request (SEG-CAL-10). Fonte interim:
-    `snapshot_equipamento_json` capturado na recepcao. Enquanto a recepcao/M2
-    nao popular esses campos estruturados (GATE-CAL-CMC-PREDICATE), retorna None
-    -> use case opera fail-open lazy (paralelo ADR-0063).
+    - Nada declarado -> (None, None).
+    - Declaracao PARCIAL (ex.: grandeza sem faixa) -> ValueError (atomico: tudo ou nada).
+    - Declaracao completa -> VOs validados (Grandeza.from_string + FaixaMedicao
+      validam vocabulario/unidade/inferior<superior server-side).
     """
-    eq = snap.snapshot_equipamento_json or {}
-    grandeza = str(eq.get("grandeza") or "").strip()
-    faixa_min = eq.get("faixa_min")
-    faixa_max = eq.get("faixa_max")
-    unidade = str(eq.get("unidade") or "").strip()
-    if not grandeza or faixa_min is None or faixa_max is None or not unidade:
-        return None
-    return grandeza, str(faixa_min), str(faixa_max), unidade
+    tem_algo = (
+        bool(inp.grandeza_calibrada)
+        or inp.faixa_calibrada_min is not None
+        or inp.faixa_calibrada_max is not None
+        or bool(inp.unidade_calibrada)
+    )
+    if not tem_algo:
+        return None, None
+    completo = (
+        bool(inp.grandeza_calibrada)
+        and inp.faixa_calibrada_min is not None
+        and inp.faixa_calibrada_max is not None
+        and bool(inp.unidade_calibrada)
+    )
+    if not completo:
+        raise ValueError(
+            "configurar_calibracao: faixa calibrada declarada exige grandeza + "
+            "faixa_min + faixa_max + unidade JUNTOS (ADR-0076)"
+        )
+    # `completo` ja garante non-None — estreita pro type checker.
+    assert inp.faixa_calibrada_min is not None
+    assert inp.faixa_calibrada_max is not None
+    return (
+        Grandeza.from_string(inp.grandeza_calibrada),
+        FaixaMedicao(
+            inp.faixa_calibrada_min,
+            inp.faixa_calibrada_max,
+            inp.unidade_calibrada,
+        ),
+    )
 
 
 class ConflitoVersaoCalibracao(Exception):
@@ -171,6 +195,13 @@ class ConfigurarCalibracaoInput:
     analise_critica_pedido_id: UUID | None  # quando origem=ATIVIDADE_OS
     analise_critica_pedido_inline_hash: str  # quando origem=AVULSA (>=10 chars)
     capacidade_tecnica_confirmada_por_user_id: UUID | None  # avulsa: obrigatorio
+    # Faixa calibrada declarada (ADR-0076) — RT declara; obrigatoria em RBC.
+    # Primitivos (serializer fornece); use case constroi os VOs em _declarar_faixa.
+    # Default vazio/None: NAO_RBC pode omitir; tudo-ou-nada (declaracao parcial = erro).
+    grandeza_calibrada: str = ""
+    faixa_calibrada_min: Decimal | None = None
+    faixa_calibrada_max: Decimal | None = None
+    unidade_calibrada: str = ""
 
     def __post_init__(self) -> None:
         if self.regra_decisao_acordada_em.tzinfo is None:
@@ -258,30 +289,37 @@ def executar(
             "(INV-CAL-CMC-001 + cl. 6.4.10)"
         )
 
-    # ADR-0073/0074 cond. 1: cobertura de faixa CMC validada DENTRO do use case
-    # (nao no permission layer). So RBC. Fonte server-side (snapshot persistido,
-    # nunca payload — SEG-CAL-10). Fail-open lazy enquanto a fonte estruturada
-    # nao existir (paralelo ADR-0063 — GATE-CAL-CMC-PREDICATE / T-ECMC-046).
+    # ADR-0076: faixa calibrada declarada pelo RT (fonte UNICA — server-side
+    # validada pelos VOs). RBC = portao obrigatorio fail-CLOSED: declarada DEVE
+    # existir E estar contida em escopo CMC acreditado vigente (cobre()).
+    # NAO_RBC: declaracao opcional, nunca bloqueia (ADR-0075 — aviso suave fica
+    # na borda de apresentacao, nao aqui).
+    grandeza_decl, faixa_decl = _declarar_faixa(inp)
     if atual.tipo_acreditacao == TipoAcreditacao.RBC:
-        faixa = _faixa_solicitada_server_side(atual)
-        if faixa is not None:
-            grandeza, fx_min, fx_max, unidade = faixa
-            ok, motivo = cobertura(
-                tenant_id=atual.tenant_id,
-                grandeza=grandeza,
-                faixa_min=fx_min,
-                faixa_max=fx_max,
-                unidade=unidade,
-                data=inp.regra_decisao_acordada_em,
+        if grandeza_decl is None or faixa_decl is None:
+            raise ValueError(
+                "configurar_calibracao: tipo_acreditacao=RBC exige faixa calibrada "
+                "declarada (grandeza + faixa + unidade) — ADR-0076 + "
+                "GATE-CAL-CMC-PREDICATE"
             )
-            if not ok:
-                raise EscopoNaoCobreFaixa(grandeza, fx_min, fx_max, unidade, motivo)
-        else:
-            log.info(
-                "configurar_calibracao: cobertura CMC fail-open lazy — "
-                "snapshot_equipamento_json sem grandeza/faixa estruturados "
-                "(calibracao_id=%s). GATE-CAL-CMC-PREDICATE.",
-                inp.calibracao_id,
+        # ADR-0073/0074 cond. 1: cobertura validada DENTRO do use case (porta
+        # injetada), contra o ESCOPO acreditado (teto regulatorio — ADR-0076),
+        # nao a capacidade do instrumento.
+        ok, motivo = cobertura(
+            tenant_id=atual.tenant_id,
+            grandeza=grandeza_decl.value,
+            faixa_min=faixa_decl.inferior,
+            faixa_max=faixa_decl.superior,
+            unidade=faixa_decl.unidade,
+            data=inp.regra_decisao_acordada_em,
+        )
+        if not ok:
+            raise EscopoNaoCobreFaixa(
+                grandeza_decl.value,
+                str(faixa_decl.inferior),
+                str(faixa_decl.superior),
+                faixa_decl.unidade,
+                motivo,
             )
 
     # Snapshot novo (frozen — usa replace pra trocar campos)
@@ -298,6 +336,8 @@ def executar(
         analise_critica_pedido_id=inp.analise_critica_pedido_id,
         analise_critica_pedido_inline_hash=inp.analise_critica_pedido_inline_hash,
         capacidade_tecnica_confirmada_por_user_id=inp.capacidade_tecnica_confirmada_por_user_id,
+        grandeza_calibrada=grandeza_decl,
+        faixa_calibrada_declarada=faixa_decl,
     )
 
     # CAS atomico (ADR-0065)

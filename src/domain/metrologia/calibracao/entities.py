@@ -34,6 +34,8 @@ from decimal import Decimal
 from enum import Enum
 from uuid import UUID
 
+from src.domain.metrologia.value_objects import FaixaMedicao, Grandeza
+
 from .enums import (
     AcaoCorretivaTipo,
     ClienteNotificadoVia,
@@ -150,6 +152,15 @@ class CalibracaoSnapshot:
     # HashVersionado v<NN>$<base64> derivado do motivo canonicalizado.
     # Vazio quando status != CANCELADA.
     motivo_cancelamento_hash: str = ""
+
+    # Faixa calibrada declarada (ADR-0076 — peça compartilhada escopos-cmc + procedimentos).
+    # Cravada na CONFIGURACAO pelo RT (None em RECEPCIONADA). Portao de cobertura RBC:
+    # `faixa_calibrada_declarada ⊆ escopo acreditado` (fail-closed RBC). NAO confundir
+    # com capacidade do instrumento (M2) nem com a faixa efetiva por pontos (emissao —
+    # módulo certificados). WORM probatorio (cl. 8.4). grandeza+faixa preenchidas
+    # atomicamente ou ambas None.
+    grandeza_calibrada: Grandeza | None = None
+    faixa_calibrada_declarada: FaixaMedicao | None = None
 
 
 @dataclass(frozen=True, slots=True)

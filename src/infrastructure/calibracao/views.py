@@ -474,6 +474,12 @@ class CalibracaoViewSet(viewsets.ViewSet):
                 "capacidade_tecnica_confirmada_por_user_id": str(
                     dados.get("capacidade_tecnica_confirmada_por_user_id") or ""
                 ),
+                # ADR-0076: faixa declarada entra no fingerprint (declaracoes
+                # distintas nao sao idempotentes entre si).
+                "grandeza_calibrada": dados.get("grandeza_calibrada", "") or "",
+                "faixa_calibrada_min": str(dados.get("faixa_calibrada_min") or ""),
+                "faixa_calibrada_max": str(dados.get("faixa_calibrada_max") or ""),
+                "unidade_calibrada": dados.get("unidade_calibrada", "") or "",
             },
         )
         if resp is not None:
@@ -502,6 +508,11 @@ class CalibracaoViewSet(viewsets.ViewSet):
                 capacidade_tecnica_confirmada_por_user_id=dados.get(
                     "capacidade_tecnica_confirmada_por_user_id"
                 ),
+                # ADR-0076: faixa calibrada declarada pelo RT (validada no use case).
+                grandeza_calibrada=dados.get("grandeza_calibrada", "") or "",
+                faixa_calibrada_min=dados.get("faixa_calibrada_min"),
+                faixa_calibrada_max=dados.get("faixa_calibrada_max"),
+                unidade_calibrada=dados.get("unidade_calibrada", "") or "",
             )
         except ValueError as exc:
             falhar_chave(

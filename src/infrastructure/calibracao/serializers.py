@@ -78,6 +78,21 @@ class ConfigurarCalibracaoSerializer(serializers.Serializer):
     capacidade_tecnica_confirmada_por_user_id = serializers.UUIDField(
         required=False, allow_null=True
     )
+    # Faixa calibrada declarada pelo RT (ADR-0076). Obrigatoria em RBC (use case
+    # valida); opcional NAO_RBC. Validacao fina (vocabulario/unidade/min<max) no
+    # use case via VOs Grandeza/FaixaMedicao.
+    grandeza_calibrada = serializers.CharField(
+        required=False, allow_blank=True, default="", max_length=30
+    )
+    faixa_calibrada_min = serializers.DecimalField(
+        required=False, allow_null=True, max_digits=30, decimal_places=12
+    )
+    faixa_calibrada_max = serializers.DecimalField(
+        required=False, allow_null=True, max_digits=30, decimal_places=12
+    )
+    unidade_calibrada = serializers.CharField(
+        required=False, allow_blank=True, default="", max_length=10
+    )
 
 
 class CancelarCalibracaoSerializer(serializers.Serializer):

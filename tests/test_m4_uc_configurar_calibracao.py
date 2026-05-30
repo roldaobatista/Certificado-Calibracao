@@ -19,6 +19,7 @@ Casos cobertos:
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
@@ -159,10 +160,21 @@ class TestHappyPath:
         assert out.snapshot.analise_critica_pedido_inline_hash == ""
 
     def test_rbc_com_escopo_id(self) -> None:
+        # ADR-0076: RBC agora exige faixa calibrada declarada (default STUB cobre=True).
         repo = FakeCalibracaoRepository()
         cal_id = _criar_calibracao_avulsa(repo, tipo_acreditacao=TipoAcreditacao.RBC)
         escopo = uuid4()
-        out = executar(_input_avulsa(cal_id, escopo_id=escopo), repo)
+        out = executar(
+            _input_avulsa(
+                cal_id,
+                escopo_id=escopo,
+                grandeza_calibrada="massa",
+                faixa_calibrada_min=Decimal("0"),
+                faixa_calibrada_max=Decimal("100"),
+                unidade_calibrada="kg",
+            ),
+            repo,
+        )
         assert out.snapshot.escopo_id == escopo
 
     def test_snapshot_persistido_no_repo(self) -> None:
@@ -335,84 +347,124 @@ class _FakeCobertura:
         return self._ok, self._motivo
 
 
-# Snapshot de equipamento COM grandeza/faixa estruturados (estado da etapa 2:
-# recepcao/M2 ja popularam). Ativa a validacao de cobertura no use case.
-_SNAP_COM_FAIXA: dict[str, object] = {
-    "nome": "Balanca",
-    "grandeza": "massa",
-    "faixa_min": "0",
-    "faixa_max": "200",
-    "unidade": "kg",
+# Faixa calibrada DECLARADA pelo RT na configuracao (ADR-0076 — fonte unica).
+# Passada via input (NAO via snapshot_equipamento_json). Ativa o portao de cobertura.
+_FAIXA_DECL: dict[str, object] = {
+    "grandeza_calibrada": "massa",
+    "faixa_calibrada_min": Decimal("0"),
+    "faixa_calibrada_max": Decimal("100"),
+    "unidade_calibrada": "kg",
 }
 
 
 class TestCoberturaCMCNoUseCase:
     def test_rbc_faixa_fora_de_escopo_bloqueia_412(self) -> None:
-        """A com escopo + snapshot com faixa + cobertura nega -> EscopoNaoCobreFaixa."""
+        """RBC + faixa declarada + cobertura nega -> EscopoNaoCobreFaixa (412)."""
         repo = FakeCalibracaoRepository()
         cal_id = _criar_calibracao_avulsa(
-            repo,
-            tipo_acreditacao=TipoAcreditacao.RBC,
-            snapshot_equipamento_json=_SNAP_COM_FAIXA,
+            repo, tipo_acreditacao=TipoAcreditacao.RBC
         )
         cobertura = _FakeCobertura(ok=False, motivo="cmc_fora_do_escopo")
         with pytest.raises(EscopoNaoCobreFaixa) as exc:
-            executar(_input_avulsa(cal_id, escopo_id=uuid4()), repo, cobertura=cobertura)
+            executar(
+                _input_avulsa(cal_id, escopo_id=uuid4(), **_FAIXA_DECL),
+                repo,
+                cobertura=cobertura,
+            )
         assert exc.value.grandeza == "massa"
         assert exc.value.motivo == "cmc_fora_do_escopo"
         assert len(cobertura.chamadas) == 1
 
     def test_rbc_faixa_coberta_configura(self) -> None:
-        """A com escopo + snapshot com faixa + cobertura aprova -> CONFIGURADA."""
-        repo = FakeCalibracaoRepository()
-        cal_id = _criar_calibracao_avulsa(
-            repo,
-            tipo_acreditacao=TipoAcreditacao.RBC,
-            snapshot_equipamento_json=_SNAP_COM_FAIXA,
-        )
-        cobertura = _FakeCobertura(ok=True)
-        out = executar(_input_avulsa(cal_id, escopo_id=uuid4()), repo, cobertura=cobertura)
-        assert out.snapshot.status == EstadoCalibracao.CONFIGURADA
-        assert len(cobertura.chamadas) == 1
-        # Server-side: data da vigencia = regra_decisao_acordada_em (nao payload).
-        assert cobertura.chamadas[0]["grandeza"] == "massa"
-        assert cobertura.chamadas[0]["faixa_max"] == "200"
-
-    def test_rbc_sem_faixa_no_snapshot_fail_open_lazy(self) -> None:
-        """A sem grandeza/faixa no snapshot (estado atual M4) -> fail-open lazy:
-        cobertura NUNCA e chamada e configura (GATE-CAL-CMC-PREDICATE)."""
+        """RBC + faixa declarada + cobertura aprova -> CONFIGURADA + VOs cravados."""
         repo = FakeCalibracaoRepository()
         cal_id = _criar_calibracao_avulsa(
             repo, tipo_acreditacao=TipoAcreditacao.RBC
-        )  # snapshot default {"nome": "Balanca"} — sem faixa
-        cobertura = _FakeCobertura(ok=False, motivo="nao_deveria_chamar")
-        out = executar(_input_avulsa(cal_id, escopo_id=uuid4()), repo, cobertura=cobertura)
+        )
+        cobertura = _FakeCobertura(ok=True)
+        out = executar(
+            _input_avulsa(cal_id, escopo_id=uuid4(), **_FAIXA_DECL),
+            repo,
+            cobertura=cobertura,
+        )
         assert out.snapshot.status == EstadoCalibracao.CONFIGURADA
+        # VOs cravados no snapshot (ADR-0076).
+        assert out.snapshot.grandeza_calibrada is not None
+        assert out.snapshot.grandeza_calibrada.value == "massa"
+        assert out.snapshot.faixa_calibrada_declarada is not None
+        assert out.snapshot.faixa_calibrada_declarada.superior == Decimal("100")
+        # cobre() chamado com a faixa DECLARADA + data = regra_decisao_acordada_em.
+        assert len(cobertura.chamadas) == 1
+        assert cobertura.chamadas[0]["grandeza"] == "massa"
+        assert cobertura.chamadas[0]["faixa_max"] == Decimal("100")
+
+    def test_rbc_sem_faixa_declarada_recusa(self) -> None:
+        """RBC sem declarar faixa -> ValueError (obrigatoria; NAO fail-open).
+        cobertura NUNCA e chamada (ADR-0076 + GATE-CAL-CMC-PREDICATE)."""
+        repo = FakeCalibracaoRepository()
+        cal_id = _criar_calibracao_avulsa(
+            repo, tipo_acreditacao=TipoAcreditacao.RBC
+        )
+        cobertura = _FakeCobertura(ok=True, motivo="nao_deveria_chamar")
+        with pytest.raises(ValueError, match="RBC exige faixa calibrada"):
+            executar(
+                _input_avulsa(cal_id, escopo_id=uuid4()),
+                repo,
+                cobertura=cobertura,
+            )
         assert cobertura.chamadas == []
+
+    def test_rbc_declaracao_parcial_recusa(self) -> None:
+        """RBC declara so grandeza (sem faixa) -> ValueError tudo-ou-nada."""
+        repo = FakeCalibracaoRepository()
+        cal_id = _criar_calibracao_avulsa(
+            repo, tipo_acreditacao=TipoAcreditacao.RBC
+        )
+        with pytest.raises(ValueError, match="JUNTOS"):
+            executar(
+                _input_avulsa(
+                    cal_id, escopo_id=uuid4(), grandeza_calibrada="massa"
+                ),
+                repo,
+                cobertura=_FakeCobertura(ok=True),
+            )
 
     def test_nao_rbc_nunca_consulta_cobertura(self) -> None:
-        """B/C/D (NAO_RBC) nunca 412 por CMC — cobertura nem e consultada,
-        mesmo com faixa no snapshot."""
+        """NAO_RBC nunca 412 por CMC — cobertura nao consultada mesmo declarando."""
         repo = FakeCalibracaoRepository()
         cal_id = _criar_calibracao_avulsa(
-            repo,
-            tipo_acreditacao=TipoAcreditacao.NAO_RBC,
-            snapshot_equipamento_json=_SNAP_COM_FAIXA,
+            repo, tipo_acreditacao=TipoAcreditacao.NAO_RBC
         )
         cobertura = _FakeCobertura(ok=False, motivo="nao_deveria_chamar")
-        out = executar(_input_avulsa(cal_id, escopo_id=None), repo, cobertura=cobertura)
+        out = executar(
+            _input_avulsa(cal_id, escopo_id=None, **_FAIXA_DECL),
+            repo,
+            cobertura=cobertura,
+        )
         assert out.snapshot.status == EstadoCalibracao.CONFIGURADA
         assert cobertura.chamadas == []
+        # NAO_RBC pode declarar — fica gravado (capacidade interna ADR-0075).
+        assert out.snapshot.faixa_calibrada_declarada is not None
 
-    def test_default_stub_fail_open_quando_sem_adapter(self) -> None:
-        """Sem injetar adapter (default _cobertura_fail_open_lazy) + faixa no
-        snapshot -> configura (STUB True). Garante que testes de use case puro
-        nao quebram (transicao etapa 1 T-ECMC-046)."""
+    def test_nao_rbc_sem_faixa_configura(self) -> None:
+        """NAO_RBC sem declarar faixa -> configura, VOs ficam None."""
         repo = FakeCalibracaoRepository()
         cal_id = _criar_calibracao_avulsa(
-            repo,
-            tipo_acreditacao=TipoAcreditacao.RBC,
-            snapshot_equipamento_json=_SNAP_COM_FAIXA,
+            repo, tipo_acreditacao=TipoAcreditacao.NAO_RBC
         )
-        out = executar(_input_avulsa(cal_id, escopo_id=uuid4()), repo)  # sem cobertura=
+        out = executar(_input_avulsa(cal_id, escopo_id=None), repo)
+        assert out.snapshot.status == EstadoCalibracao.CONFIGURADA
+        assert out.snapshot.grandeza_calibrada is None
+        assert out.snapshot.faixa_calibrada_declarada is None
+
+    def test_default_stub_fail_open_quando_sem_adapter(self) -> None:
+        """RBC + faixa declarada + sem injetar adapter (default STUB True) ->
+        configura. Garante que testes de use case puro nao quebram (T-ECMC-046)."""
+        repo = FakeCalibracaoRepository()
+        cal_id = _criar_calibracao_avulsa(
+            repo, tipo_acreditacao=TipoAcreditacao.RBC
+        )
+        out = executar(
+            _input_avulsa(cal_id, escopo_id=uuid4(), **_FAIXA_DECL), repo
+        )  # sem cobertura=
         assert out.snapshot.status == EstadoCalibracao.CONFIGURADA

@@ -193,6 +193,38 @@ class Calibracao(models.Model):
         help_text="FK ConfiguracaoCalibracao (a criar T-CAL-NNN). Preenchido em configurarCalibracao.",
     )
 
+    # ----- Faixa calibrada declarada (ADR-0076) -----
+    # Cravada na configuracao pelo RT. Portao de cobertura RBC (declarada ⊆ escopo).
+    # Decompoe o VO FaixaMedicao + Grandeza do dominio (TL-C-02 — colunas tipadas).
+    # NULL/"" em RECEPCIONADA; preenchidas atomicamente em CONFIGURADA.
+    # metrology-affecting: toca faixa (INV-CAL-VAL-002).
+    grandeza_calibrada = models.CharField(
+        max_length=30,
+        blank=True,
+        default="",
+        help_text="Grandeza declarada na config (vocabulario canonico Grandeza). ADR-0076.",
+    )
+    faixa_calibrada_min = models.DecimalField(
+        max_digits=30,
+        decimal_places=12,
+        null=True,
+        blank=True,
+        help_text="Limite inferior da faixa calibrada declarada (Decimal). ADR-0076.",
+    )
+    faixa_calibrada_max = models.DecimalField(
+        max_digits=30,
+        decimal_places=12,
+        null=True,
+        blank=True,
+        help_text="Limite superior da faixa calibrada declarada (faixa_min < faixa_max). ADR-0076.",
+    )
+    unidade_calibrada = models.CharField(
+        max_length=10,
+        blank=True,
+        default="",
+        help_text="Unidade da faixa calibrada declarada (whitelist FaixaMedicao). ADR-0076.",
+    )
+
     # ----- Maquina de estados -----
     status = models.CharField(
         max_length=30,

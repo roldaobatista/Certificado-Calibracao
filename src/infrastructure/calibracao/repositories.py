@@ -52,6 +52,7 @@ from src.domain.metrologia.calibracao.hash_versionado import (
     formatar_hash_versionado,
 )
 from src.domain.metrologia.calibracao.value_objects import ZonaILACG8
+from src.domain.metrologia.value_objects import FaixaMedicao, Grandeza
 from src.infrastructure.calibracao.lgpd import _CHAVE_HMAC_WAVE_A
 from src.infrastructure.calibracao.models import (
     Calibracao,
@@ -144,6 +145,27 @@ class DjangoCalibracaoRepository:
             causation_id=snapshot.causation_id,
             criada_por_user_id=snapshot.criada_por_user_id,
             # criada_em: auto_now_add no model — Django seta automatico.
+            # ADR-0076: vazio em RECEPCIONADA (cravado so na configuracao).
+            grandeza_calibrada=(
+                snapshot.grandeza_calibrada.value
+                if snapshot.grandeza_calibrada
+                else ""
+            ),
+            faixa_calibrada_min=(
+                snapshot.faixa_calibrada_declarada.inferior
+                if snapshot.faixa_calibrada_declarada
+                else None
+            ),
+            faixa_calibrada_max=(
+                snapshot.faixa_calibrada_declarada.superior
+                if snapshot.faixa_calibrada_declarada
+                else None
+            ),
+            unidade_calibrada=(
+                snapshot.faixa_calibrada_declarada.unidade
+                if snapshot.faixa_calibrada_declarada
+                else ""
+            ),
         )
 
     def atualizar_com_lock(
@@ -188,7 +210,11 @@ class DjangoCalibracaoRepository:
                     aceite_subcontratacao_id = %s,
                     certificado_subcontratado_snapshot_json = %s::jsonb,
                     recebedor_user_id = %s,
-                    motivo_cancelamento_hash = %s
+                    motivo_cancelamento_hash = %s,
+                    grandeza_calibrada = %s,
+                    faixa_calibrada_min = %s,
+                    faixa_calibrada_max = %s,
+                    unidade_calibrada = %s
                 WHERE id = %s
                   AND revision = %s
                 """,
@@ -231,6 +257,27 @@ class DjangoCalibracaoRepository:
                     ),
                     snapshot.recebedor_user_id,
                     snapshot.motivo_cancelamento_hash,
+                    # ADR-0076: faixa calibrada declarada (decompoe VOs).
+                    (
+                        snapshot.grandeza_calibrada.value
+                        if snapshot.grandeza_calibrada
+                        else ""
+                    ),
+                    (
+                        snapshot.faixa_calibrada_declarada.inferior
+                        if snapshot.faixa_calibrada_declarada
+                        else None
+                    ),
+                    (
+                        snapshot.faixa_calibrada_declarada.superior
+                        if snapshot.faixa_calibrada_declarada
+                        else None
+                    ),
+                    (
+                        snapshot.faixa_calibrada_declarada.unidade
+                        if snapshot.faixa_calibrada_declarada
+                        else ""
+                    ),
                     str(snapshot.id),
                     revision_anterior,
                 ],
@@ -288,6 +335,23 @@ class DjangoCalibracaoRepository:
             criada_em=obj.criada_em,
             criada_por_user_id=obj.criada_por_user_id,
             motivo_cancelamento_hash=obj.motivo_cancelamento_hash or "",
+            # ADR-0076: faixa calibrada declarada (reconstroi VOs do dominio).
+            grandeza_calibrada=(
+                Grandeza(obj.grandeza_calibrada) if obj.grandeza_calibrada else None
+            ),
+            faixa_calibrada_declarada=(
+                FaixaMedicao(
+                    obj.faixa_calibrada_min,
+                    obj.faixa_calibrada_max,
+                    obj.unidade_calibrada,
+                )
+                if (
+                    obj.faixa_calibrada_min is not None
+                    and obj.faixa_calibrada_max is not None
+                    and obj.unidade_calibrada
+                )
+                else None
+            ),
         )
 
 
