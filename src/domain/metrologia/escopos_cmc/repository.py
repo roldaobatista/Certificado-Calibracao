@@ -71,6 +71,14 @@ class EscopoRepository(Protocol):
         ADR-0031). False se não encontrado/já revogado."""
         ...
 
+    def encerrar_vigencia(
+        self, *, escopo_id: UUID, vigencia_fim: datetime, revision_anterior: int
+    ) -> bool:
+        """Encerra a vigência de uma versão superada por revisão (`vigencia_fim`
+        NULL→valor, one-shot ADR-0030); CAS via `revision`. A linha NÃO é apagada
+        (WORM Padrão B). False se corrida/já encerrada (caller 409)."""
+        ...
+
     def listar_confirmados_vigentes(
         self, *, tenant_id: UUID, grandeza: Grandeza, em: datetime
     ) -> list[EscopoCMCSnapshot]:

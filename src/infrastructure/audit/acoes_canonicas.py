@@ -261,6 +261,17 @@ ACOES_PADROES: Final[frozenset[str]] = frozenset(
 )
 
 
+# M6 metrologia/escopos-cmc (T-ECMC-031) — cadastro/versionamento/revogacao do
+# escopo de acreditacao CGCRE. Revogacao/revisao sao probatorias cl. 8.4 (TL-C-06).
+ACOES_ESCOPOS_CMC: Final[frozenset[str]] = frozenset(
+    {
+        "escopos_cmc.cadastrado",
+        "escopos_cmc.revisado",
+        "escopos_cmc.revogado",
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -270,6 +281,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_OS
     | ACOES_CALIBRACAO
     | ACOES_PADROES
+    | ACOES_ESCOPOS_CMC
 )
 
 

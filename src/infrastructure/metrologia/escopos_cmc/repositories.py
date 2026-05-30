@@ -110,6 +110,16 @@ class DjangoEscopoRepository:
         )
         return atualizados == 1
 
+    def encerrar_vigencia(
+        self, *, escopo_id: UUID, vigencia_fim: _dt.datetime, revision_anterior: int
+    ) -> bool:
+        """Encerra a vigência da versão superada (vigencia_fim NULL→valor, CAS).
+        O trigger WORM permite só essa transição one-shot em linha CONFIRMADA."""
+        atualizados = EscopoCMC.objects.filter(
+            id=escopo_id, revision=revision_anterior, vigencia_fim__isnull=True
+        ).update(vigencia_fim=vigencia_fim, revision=revision_anterior + 1)
+        return atualizados == 1
+
     def listar_confirmados_vigentes(
         self, *, tenant_id: UUID, grandeza: Grandeza, em: _dt.datetime
     ) -> list[EscopoCMCSnapshot]:

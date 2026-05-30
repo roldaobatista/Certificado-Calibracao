@@ -124,6 +124,7 @@ _SEED_MIGRATIONS: list[tuple[str, str]] = [
     ("calibracao", "0013_seed_authz_calibracao"),
     ("padroes", "0005_seed_authz_padroes"),
     ("padroes", "0007_seed_authz_vinculo_dossie_carta"),
+    ("escopos_cmc", "0005_seed_authz_escopos_cmc"),
 ]
 
 
@@ -150,7 +151,10 @@ def _aplicar_seed(app_label: str, migration_name: str) -> None:
     """
     # ADR-0072: modulos metrologia/* ficam aninhados; o app_label ("padroes")
     # nao casa 1:1 com o caminho do modulo. Mapa para os apps aninhados.
-    _APP_MODULE_SUBPATH = {"padroes": "metrologia.padroes"}
+    _APP_MODULE_SUBPATH = {
+        "padroes": "metrologia.padroes",
+        "escopos_cmc": "metrologia.escopos_cmc",
+    }
     sub = _APP_MODULE_SUBPATH.get(app_label, app_label)
     module_path = f"src.infrastructure.{sub}.migrations.{migration_name}"
     try:

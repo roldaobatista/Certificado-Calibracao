@@ -29,4 +29,5 @@ urlpatterns = [
     path("api/v1/", include("src.infrastructure.ordens_servico.urls")),
     path("api/v1/", include("src.infrastructure.calibracao.urls")),
     path("api/v1/", include("src.infrastructure.metrologia.padroes.urls")),
+    path("api/v1/", include("src.infrastructure.metrologia.escopos_cmc.urls")),
 ]
