@@ -2,7 +2,7 @@
 
 @AGENTS.md
 
-> **Status (2026-05-29):** 7 Foundations/Marcos FECHADOS (F-A, F-B, M1, M2, F-C1, M3 OS, M4 calibração) + SAN-PERFIL-TENANT Sprints 1-4 FECHADOS (ADR-0067). **Wave A arrancada — M5 `metrologia/padroes` em curso (P1-P7 entregues).** ADRs ativas 0000..0072 (0059/0060/0061 reservadas; M5 acrescentou 0070 carta Shewhart híbrida + 0071 2 implementações cl. 7.11 + 0072 path aninhado). 55 hooks ativos / 450 casos verdes em `_test-runner` (+4 M5 padroes P7). Suite M4 chave 629/629; suite ampla regression+audit+M3+M4 exit 0 pós-saneamento. Auditoria 10 lentes pré-Wave A em execução (`docs/faseamento/auditorias/PRE-WAVE-A-CONSOLIDADO-rodada-1.md` — 5 ondas, ~150 achados). Este arquivo é adendo do harness Claude Code; produto/arquitetura ficam em `AGENTS.md` (importado acima).
+> **Status (2026-05-29):** 7 Foundations/Marcos FECHADOS (F-A, F-B, M1, M2, F-C1, M3 OS, M4 calibração) + SAN-PERFIL-TENANT Sprints 1-4 FECHADOS (ADR-0067). **Wave A arrancada — M5 `metrologia/padroes` em curso (P1-P7 entregues).** ADRs ativas 0000..0072 (0059/0060/0061 reservadas; M5 acrescentou 0070 carta Shewhart híbrida + 0071 2 implementações cl. 7.11 + 0072 path aninhado). 58 hooks ativos / 474 casos verdes em `_test-runner` (+4 M5 padroes P7; +3 M6 escopos-cmc P7). Suite M4 chave 629/629; suite ampla regression+audit+M3+M4 exit 0 pós-saneamento. Auditoria 10 lentes pré-Wave A em execução (`docs/faseamento/auditorias/PRE-WAVE-A-CONSOLIDADO-rodada-1.md` — 5 ondas, ~150 achados). Este arquivo é adendo do harness Claude Code; produto/arquitetura ficam em `AGENTS.md` (importado acima).
 
 ---
 
@@ -64,7 +64,7 @@ Ambiente operacional, sem código de produto ainda. Discovery concluída; arquit
 
 **`.claude/` (versionado):**
 - `settings.json` ✅ — permissões + hooks
-- `hooks/` ✅ — **55 hooks ativos**, **450 casos** no `_test-runner` (lista completa em AGENTS §3; +4 do Marco 5 P7 padroes: padrao-incertezas-so-via-recal + padrao-auxiliar-em-controle + shewhart-perfil-A + analise-carta-worm).
+- `hooks/` ✅ — **58 hooks ativos**, **474 casos** no `_test-runner` (lista completa em AGENTS §3; +3 do Marco 6 P7 escopos-cmc: escopo-rbc-perfil-a + escopo-cobre-fail-closed + escopo-extracao-nao-auto-persiste; +4 do Marco 5 P7 padroes: padrao-incertezas-so-via-recal + padrao-auxiliar-em-controle + shewhart-perfil-A + analise-carta-worm).
 - `agents/` ✅ — 4 subagentes humanos-substitutos: `tech-lead-saas-regulado`, `advogado-saas-regulado`, `corretora-seguros-saas`, `consultor-rbc-iso17025`
 - `output-styles/pt-br-conciso.md` ✅
 - `skills/`, `commands/`, `rules/` — vazios por escolha; criar quando padrão repetir 3 vezes
@@ -107,7 +107,7 @@ Confirmar antes de operações irreversíveis: `git reset --hard`, `git push --f
 ├── agents/                ← 4 subagentes humanos-substitutos (tech-lead, advogado, corretora, RBC)
 ├── skills/                ← vazio (criar quando padrão repetir 3x)
 ├── commands/              ← vazio (preferir skills no padrão novo)
-├── hooks/                 ← 55 hooks ativos (450 casos no _test-runner) — lista completa em AGENTS §3
+├── hooks/                 ← 58 hooks ativos (474 casos no _test-runner) — lista completa em AGENTS §3
 ├── rules/                 ← vazio (criar com `paths:` frontmatter — lazy)
 └── output-styles/         ← pt-br-conciso.md
 ```
@@ -123,4 +123,4 @@ A máquina é Windows 11. Hooks rodam via Git Bash. Considerar:
 - Path com espaços (`C:\PROJETOS\Certificado de calibracao`) — sempre usar `"${CLAUDE_PROJECT_DIR}"` com aspas.
 - `chmod +x` não é confiável no Windows — invocar hooks via `bash script.sh`.
 - Sandboxing nativo não suportado (só WSL2).
-- Validar mudanças nos hooks rodando `bash .claude/hooks/_test-runner.sh` — 450 casos cobrindo bypass conhecidos e regressões.
+- Validar mudanças nos hooks rodando `bash .claude/hooks/_test-runner.sh` — 474 casos cobrindo bypass conhecidos e regressões.

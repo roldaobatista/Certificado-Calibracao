@@ -1041,6 +1041,39 @@ run_case "ACWb .md ignora PASS"                       PASS  analise-carta-worm.s
 run_case "ACWc tests ignoram PASS"                    PASS  analise-carta-worm.sh '{"tool_input":{"file_path":"tests/regressao/test_inv_pad_worm.py","content":"DELETE FROM analise_carta_controle"}}'
 run_case "ACWd outra tabela PASS"                     PASS  analise-carta-worm.sh '{"tool_input":{"file_path":"x.sql","content":"UPDATE padrao_metrologico SET estado = 1;"}}'
 
+echo ""
+echo "===== escopo-rbc-perfil-a (M6 P7 / INV-ECMC-002 / ADR-0067+0075) ====="
+run_case "ERBC1 rbc_acreditado de request.data BLOCK"  BLOCK escopo-rbc-perfil-a-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/escopos_cmc/views.py","content":"rbc_acreditado = request.data.get(\"rbc_acreditado\")"}}'
+run_case "ERBC2 rbc_acreditado de validated_data BLOCK" BLOCK escopo-rbc-perfil-a-check.sh '{"tool_input":{"file_path":"src/x/serializers.py","content":"escopo.rbc_acreditado = validated_data[\"rbc_acreditado\"]"}}'
+run_case "ERBC3 rbc_acreditado=rbc_solicitado cru BLOCK" BLOCK escopo-rbc-perfil-a-check.sh '{"tool_input":{"file_path":"src/x/service.py","content":"rbc_acreditado = rbc_solicitado"}}'
+run_case "ERBC4 rbc_acreditado de payload dict BLOCK"  BLOCK escopo-rbc-perfil-a-check.sh '{"tool_input":{"file_path":"src/x/handler.py","content":"rbc_acreditado = payload[\"rbc_acreditado\"]"}}'
+run_case "ERBC5 via rbc_efetivo PASS"                  PASS  escopo-rbc-perfil-a-check.sh '{"tool_input":{"file_path":"src/application/metrologia/escopos_cmc/cadastrar_escopo.py","content":"rbc = rbc_efetivo(rbc_solicitado=inp.rbc_solicitado, perfil=inp.perfil)\nsnapshot = EscopoCMCSnapshot(rbc_acreditado=rbc)"}}'
+run_case "ERBC6 filter(rbc_acreditado=True) query PASS" PASS  escopo-rbc-perfil-a-check.sh '{"tool_input":{"file_path":"src/x/repositories.py","content":"qs = EscopoCMC.objects.filter(rbc_acreditado=True)"}}'
+run_case "ERBC7 mapper round-trip PASS"               PASS  escopo-rbc-perfil-a-check.sh '{"tool_input":{"file_path":"src/x/mappers.py","content":"return EscopoCMCSnapshot(rbc_acreditado=m.rbc_acreditado)"}}'
+run_case "ERBC8 transicoes.py lar do gate PASS"       PASS  escopo-rbc-perfil-a-check.sh '{"tool_input":{"file_path":"src/domain/metrologia/escopos_cmc/transicoes.py","content":"def rbc_efetivo(*, rbc_solicitado, perfil):\n    return bool(rbc_solicitado) and perfil_permite_rbc(perfil)"}}'
+run_case "ERBC9 override PASS"                         PASS  escopo-rbc-perfil-a-check.sh '{"tool_input":{"file_path":"src/x/v.py","content":"# escopo-rbc-perfil-a: skip -- migracao legada aprovada DR-2026-009\nrbc_acreditado = request.data[\"rbc_acreditado\"]"}}'
+run_case "ERBCa teste ignora PASS"                    PASS  escopo-rbc-perfil-a-check.sh '{"tool_input":{"file_path":"tests/x/test_views.py","content":"rbc_acreditado = request.data[\"rbc_acreditado\"]"}}'
+run_case "ERBCb .md ignora PASS"                      PASS  escopo-rbc-perfil-a-check.sh '{"tool_input":{"file_path":"docs/spec.md","content":"rbc_acreditado = request.data[\"rbc_acreditado\"]"}}'
+
+echo ""
+echo "===== escopo-cobre-fail-closed (M6 P7 / INV-ECMC-004 / ADR-0073+0074) ====="
+run_case "ECFC1 cobre gutada fail-open BLOCK"          BLOCK escopo-cobre-fail-closed-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/escopos_cmc/query_service.py","content":"def cobre(**kw):\n    return True, \"\""}}'
+run_case "ECFC2 cobre sem REASON_FORA_DO_ESCOPO BLOCK" BLOCK escopo-cobre-fail-closed-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/escopos_cmc/query_service.py","content":"def cobre(**kw):\n    if cobertura.faixa_contida(s=1): return True, REASON_OK\n    return True, \"\""}}'
+run_case "ECFC3 cobre completa fail-closed PASS"       PASS  escopo-cobre-fail-closed-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/escopos_cmc/query_service.py","content":"def cobre(**kw):\n    if cobertura.faixa_contida(solicitada=s, escopo=e): return True, REASON_OK\n    return False, REASON_FORA_DO_ESCOPO"}}'
+run_case "ECFC4 outro arquivo qualquer PASS"           PASS  escopo-cobre-fail-closed-check.sh '{"tool_input":{"file_path":"src/x/outro.py","content":"def cobre(**kw):\n    return True"}}'
+run_case "ECFC5 edit so cmc_para sem def cobre PASS"   PASS  escopo-cobre-fail-closed-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/escopos_cmc/query_service.py","content":"def cmc_para(**kw):\n    return None"}}'
+run_case "ECFC6 override PASS"                          PASS  escopo-cobre-fail-closed-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/escopos_cmc/query_service.py","content":"# escopo-cobre-fail-closed: skip -- refactor revisado por tech-lead DR-2026-010\ndef cobre(**kw):\n    return True, \"\""}}'
+
+echo ""
+echo "===== escopo-extracao-nao-auto-persiste (M6 P7 / INV-ECMC-007 / decisao N) ====="
+run_case "EEXT1 importar chama cadastrar BLOCK"        BLOCK escopo-extracao-nao-auto-persiste-check.sh '{"tool_input":{"file_path":"src/application/metrologia/escopos_cmc/importar_escopo_pdf.py","content":"linhas = parsear_tabela(x)\nEscopoExtraido(id=1)\ncadastrar_executar(linha, repo)"}}'
+run_case "EEXT2 extrai + cria CONFIRMADO direto BLOCK" BLOCK escopo-extracao-nao-auto-persiste-check.sh '{"tool_input":{"file_path":"src/x/novo_import.py","content":"linhas = parsear_tabela(x)\ne = EscopoExtraido()\nEscopoCMC.objects.create(estado=\"CONFIRMADO\")"}}'
+run_case "EEXT3 importar so staging PASS"              PASS  escopo-extracao-nao-auto-persiste-check.sh '{"tool_input":{"file_path":"src/application/metrologia/escopos_cmc/importar_escopo_pdf.py","content":"linhas = parsear_tabela(inp.linhas_cruas, inp.mapa_colunas)\nextraido = EscopoExtraido(id=uuid4(), linhas=linhas, confirmado_em=None)\nrepo.salvar_novo(extraido)"}}'
+run_case "EEXT4 confirmar reusa cadastrar PASS"        PASS  escopo-extracao-nao-auto-persiste-check.sh '{"tool_input":{"file_path":"src/application/metrologia/escopos_cmc/confirmar_escopo_extraido.py","content":"out = cadastrar_executar(linha_pdf, repo_escopo)\nstaging.estado = EstadoEscopo.CONFIRMADO"}}'
+run_case "EEXT5 cadastrar manual normal PASS"          PASS  escopo-extracao-nao-auto-persiste-check.sh '{"tool_input":{"file_path":"src/application/metrologia/escopos_cmc/cadastrar_escopo.py","content":"snapshot = EscopoCMCSnapshot(estado=EstadoEscopo.CONFIRMADO)\nrepo.salvar_novo(snapshot)"}}'
+run_case "EEXT6 override PASS"                          PASS  escopo-extracao-nao-auto-persiste-check.sh '{"tool_input":{"file_path":"src/application/metrologia/escopos_cmc/importar_escopo_pdf.py","content":"# escopo-extracao-auto-persiste: skip -- fluxo aprovado conferencia automatica DR-2026-011\nlinhas = parsear_tabela(x)\nEscopoExtraido()\ncadastrar_executar(l, r)"}}'
+run_case "EEXT7 teste ignora PASS"                    PASS  escopo-extracao-nao-auto-persiste-check.sh '{"tool_input":{"file_path":"tests/test_m6_escopos_cmc_extracao_use_cases.py","content":"linhas = parsear_tabela(x)\nEscopoExtraido()\ncadastrar_executar(l, r)"}}'
+
 # --- Gate anti-drift de contagens (auditoria maquina-dev 2026-05-29) ---
 # So no modo completo (sem filtro). Garante que os numeros a mao nos docs
 # canonicos (README/AGENTS/CLAUDE) batem com a fonte direta. Mata os
