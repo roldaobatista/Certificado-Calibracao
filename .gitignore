@@ -70,3 +70,8 @@ Thumbs.db
 *.db
 dumps/
 .coverage
+
+# =============================================================
+# Artefatos gerados de teste/relatorio (regeneraveis — nao versionar)
+# =============================================================
+reports/
