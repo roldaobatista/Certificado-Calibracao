@@ -93,7 +93,8 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 
 **Critérios de aceite:**
 - **AC-CAL-001-1**: GIVEN **atividade de OS tipo=calibracao** (ADR-0023) OU recepção avulsa, WHEN registra entrada (cliente, instrumento, condições recebidas), THEN sistema gera etiqueta interna PDF com QR Code apontando ao registro de calibração. Quando origem = atividade de OS, o registro de calibração é vinculado via `link_modulo_tecnico` da atividade — permite OS combinada (manutenção + calibração) com a calibração só iniciando após manutenção concluída.
-- **AC-CAL-001-2**: GIVEN escopo de acreditação NÃO cobre o instrumento, WHEN tenta cadastrar como calibração RBC, THEN sistema avisa e permite seguir como NÃO-RBC. **ADR-0066 (2026-05-27)**: predicate `cmc_cobre` declarado em P4 Fase 2 com fail-open lazy controlado; aviso entra em runtime quando módulo `metrologia/escopos-cmc` for entregue em Wave A (`GATE-CAL-CMC-PREDICATE`). Marco 4 dogfooding-only — RT da Balanças confere faixa manualmente.
+<!-- prd-ux-states: skip -- emenda pontual M6 (ADR-0073/0074) em AC do PRD M4; secao UX estados nao-felizes e debito proprio do M4 calibracao, rastreado a parte -->
+- **AC-CAL-001-2**: GIVEN escopo de acreditação NÃO cobre o instrumento, WHEN tenta cadastrar como calibração RBC, THEN sistema avisa e permite seguir como NÃO-RBC. **ADR-0073/0074 (M6 escopos-cmc — 2026-05-30, substitui o fail-open lazy da ADR-0066)**: validação REAL na **configuração** via porta `escopos_cmc.query_service.cobre()` (o predicate STUB `cmc_cobre` da ADR-0066 está deprecado/no-op). Grandeza+faixa server-side (não payload — SEG-CAL-10), via `Calibracao.faixa_calibrada_declarada` (frente SAN-FAIXA-CALIBRADA). Recepção = aviso degradante NÃO-RBC; configuração = bloqueio (ver AC-CAL-002-2). Terminologia ADR-0075: só perfil A é "escopo RBC acreditado"; B/C/D é "capacidade interna declarada".
 
 **Invariantes:** `INV-TENANT-001`, `INV-CAL-WORM-001`.
 
@@ -105,7 +106,8 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 
 **Critérios de aceite:**
 - **AC-CAL-002-1**: GIVEN configuração nova, WHEN seleciona grandeza+faixa, THEN sistema oferece métodos disponíveis (NIT-DICLA / norma técnica) e padrões compatíveis.
-- **AC-CAL-002-2**: GIVEN faixa fora do escopo CMC, WHEN tenta salvar como RBC, THEN sistema bloqueia citando CMC oficial. **ADR-0066 (2026-05-27)**: bloqueio 412 `EscopoNaoCobreFaixa` entra em vigor quando módulo `metrologia/escopos-cmc` for entregue em Wave A (`GATE-CAL-CMC-PREDICATE`). Marco 4 dogfooding fail-open lazy.
+<!-- prd-ux-states: skip -- emenda pontual M6 (ADR-0073/0074) em AC do PRD M4; secao UX estados nao-felizes e debito proprio do M4 calibracao, rastreado a parte -->
+- **AC-CAL-002-2**: GIVEN faixa fora do escopo CMC, WHEN tenta salvar como RBC, THEN sistema bloqueia citando CMC oficial. **ADR-0073/0074 (M6 escopos-cmc — 2026-05-30)**: bloqueio 412 `EscopoNaoCobreFaixa` REAL na configuração via `escopos_cmc.query_service.cobre()` — contenção total da faixa (INV-ECMC-005), só perfil A. `GATE-CAL-CMC-PREDICATE` (portão de configuração) **FECHADO** pela frente SAN-FAIXA-CALIBRADA + Fatia 3. A 2ª condição U≥CMC na emissão (INV-ECMC-009 / porta `cmc_para()`) fica em `GATE-ECMC-U-MAIOR-CMC` (módulo `certificados` Wave A).
 
 **Invariantes:** `INV-002` (escopo CMC), `INV-CAL-WORM-001`.
 
@@ -268,8 +270,10 @@ Ver `personas.md` deste módulo + `../../personas.md` + `docs/comum/personas.md`
 **Como** admin tenant, **quero** cadastrar escopo de acreditação CGCRE + CMC por grandeza/faixa, **para** o sistema bloquear emissões fora do escopo RBC.
 
 **Critérios de aceite:**
-- **AC-CAL-015-1**: GIVEN escopo cadastrado (grandeza, faixa min/max, CMC, método), WHEN calibração configurada, THEN sistema valida se cobre. **ADR-0066 (2026-05-27)**: validação real via predicate `cmc_cobre` ativa em Wave A (`GATE-CAL-CMC-PREDICATE`). Marco 4 dogfooding fail-open lazy.
-- **AC-CAL-015-2**: GIVEN renovação/revisão do escopo CGCRE, WHEN admin atualiza, THEN versão anterior preservada com janela de calibrações antigas.
+<!-- prd-ux-states: skip -- emenda pontual M6 (ADR-0073/0074) em AC do PRD M4; secao UX estados nao-felizes e debito proprio do M4 calibracao, rastreado a parte -->
+- **AC-CAL-015-1**: GIVEN escopo cadastrado (grandeza, faixa min/max, CMC, método), WHEN calibração configurada, THEN sistema valida se cobre. **ADR-0073/0074 (M6 escopos-cmc — 2026-05-30)**: validação REAL via porta `escopos_cmc.query_service.cobre()` (módulo entregue — escopo é entidade Django persistida, não mais o STUB fail-open). Versionamento do escopo preservado (AC-CAL-015-2 / INV-ECMC-003).
+<!-- prd-ux-states: skip -- emenda pontual M6 (ADR-0073) em AC do PRD M4; secao UX estados nao-felizes e debito proprio do M4 calibracao, rastreado a parte -->
+- **AC-CAL-015-2**: GIVEN renovação/revisão do escopo CGCRE, WHEN admin atualiza, THEN versão anterior preservada com janela de calibrações antigas. **M6 escopos-cmc (2026-05-30)**: `revisar_escopo` = INSERT de nova `versao` preservando a anterior (WORM Padrão B — INV-ECMC-003); escopo CONFIRMADO é imutável exceto revogação one-shot.
 
 **Invariantes:** `INV-002`, `INV-012` (vincula com Licenças), `INV-CAL-WORM-001`.
 

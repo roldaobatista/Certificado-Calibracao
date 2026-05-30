@@ -55,6 +55,10 @@ relacionados:
 | **Subcontratação cl. 6.6 (US-CAL-017)** | ✅ OBRIGATÓRIO (predicate + avaliação periódica) | ⚪ OPCIONAL | ⚪ OPCIONAL | ⚪ OPCIONAL |
 | **Reclamação cliente CDC art. 26 (US-CAL-018)** | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO |
 | **Verificação periódica vigência acreditação** (S5 plan.md — job mensal) | ✅ OBRIGATÓRIO (job alerta 60d antes) | ⚪ N/A | ⚪ N/A | ⚪ N/A |
+| **Escopo CGCRE `rbc_acreditado=true`** (M6 escopos-cmc — US-ECMC-001 / INV-ECMC-002 / ADR-0075) | ✅ OBRIGATÓRIO (declara escopo RBC; gate `rbc_efetivo`) | ❌ DESABILITADO (rbc forçado `false`) | ❌ DESABILITADO (rbc forçado `false`) | ❌ DESABILITADO (rbc forçado `false`) |
+| **Capacidade interna declarada `rbc_acreditado=false`** (M6 — US-ECMC-007 / ADR-0075) | ⚪ OPCIONAL (além do escopo RBC) | 🟢 OPCIONAL_RECOMENDADO | 🟢 OPCIONAL_RECOMENDADO | 🟢 OPCIONAL_RECOMENDADO |
+| **Bloqueio cobertura `cobre()` na configuração** (M6 — US-ECMC-004 / INV-ECMC-004/005 / ADR-0073/0074) | ✅ OBRIGATÓRIO (412 `EscopoNaoCobreFaixa` fora do escopo) | ⚪ N/A (não é RBC — short-circuit antes da porta) | ⚪ N/A | ⚪ N/A |
+| **U≥CMC na emissão** (M6 — US-ECMC-008 / INV-ECMC-009 / porta `cmc_para()` — GATE-ECMC-U-MAIOR-CMC) | ✅ OBRIGATÓRIO (412 `IncertezaAbaixoDoCMC` — consumo em `certificados` Wave A) | ⚪ N/A | ⚪ N/A | ⚪ N/A |
 
 ## Matriz de retenção em camadas (AC-SAN-PERFIL-005-5 + R10 plan.md)
 
@@ -66,6 +70,7 @@ relacionados:
 | **Eventos WORM hash-chain** (INV-HMAC-001..005) | 25a INVARIANTE | 25a INVARIANTE | 25a INVARIANTE | **25a INVARIANTE** |
 | **Job `geo_truncamento_calibracao_5a`** | NUNCA trunca | 5a (trunca preservando hash-chain) | 5a | 5a + anonimização agressiva |
 | **Backup B2 WORM** (ADR-0064) | 25a | 25a | 25a | 25a (hash-chain) + 5a (PII) |
+| **Escopo CMC / capacidade** (M6 — sustenta o certificado emitido; WORM Padrão B INV-ECMC-003) | 25a (lastreia cert RBC — ISO 8.4) | 25a (capacidade declarada) | 25a | 25a (nunca apaga; sem PII de cliente) |
 
 **Regra-mestre:** dados de PII de cliente podem ser anonimizados; hash-chain WORM e evento de calibração NUNCA podem ser apagados (vence INV-HMAC-001..005).
 
@@ -98,4 +103,5 @@ relacionados:
 ## Histórico
 
 - **2026-05-27** — Documento criado em Sprint 3 P5 do saneamento ADR-0067. Cobertura inicial: 14 features-núcleo + 4 camadas de retenção + 6 direções de mudança de perfil.
+- **2026-05-30 (M6 escopos-cmc P8 — T-ECMC-071)** — +4 features-núcleo (escopo RBC só A / capacidade interna B/C/D / bloqueio `cobre()` na configuração / U≥CMC na emissão) + 1 camada de retenção (escopo CMC sustenta cert 25a WORM Padrão B). ADR-0073/0074/0075.
 - Próximas revisões cobrirão features Wave A à medida que módulos `certificados`, `licencas-acreditacoes`, `onboarding`, `direitos-titular` forem entregues.
