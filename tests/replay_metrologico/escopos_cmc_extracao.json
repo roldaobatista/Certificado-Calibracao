@@ -1,0 +1,20 @@
+{
+  "_aceite_motivo": "Ground truth do motor deterministico de extracao de escopo CGCRE (parsear_tabela) — contrato replay cl. 7.11 (ADR-0025) do M6 escopos-cmc Fatia 4 T-ECMC-050/054. Alterar so com reanalise da extracao.",
+  "descricao": "Tabela CGCRE extraida (celulas de texto cru) -> LinhaEscopoExtraida. mapa = indice 0-based de cada papel de coluna.",
+  "mapa": {"grandeza": 0, "faixa": 1, "unidade": 2, "cmc": 3, "metodo": 4},
+  "linhas": [
+    ["Massa", "0,5 a 200", "kg", "0,1", "PRO-CAL-MASSA-01"],
+    ["Temperatura", "(-30 a 660)", "C", "0,05", ""],
+    ["", "", "", "", ""],
+    ["Pressao", "(0,5 a 200) kPa", "", "1,2 + 0,002·X", "PROC-PRESSAO"],
+    ["Volume", "100 a 50", "mL", "2", ""],
+    ["Forca", "sem faixa aqui", "N", "0,3", ""]
+  ],
+  "esperado": [
+    {"grandeza_texto": "Massa", "unidade": "kg", "cmc_texto": "0,1", "faixa_min": "0.5", "faixa_max": "200", "metodo_texto": "PRO-CAL-MASSA-01", "confianca": "1"},
+    {"grandeza_texto": "Temperatura", "unidade": "C", "cmc_texto": "0,05", "faixa_min": "-30", "faixa_max": "660", "metodo_texto": "", "confianca": "1"},
+    {"grandeza_texto": "Pressao", "unidade": "", "cmc_texto": "1,2 + 0,002·X", "faixa_min": "0.5", "faixa_max": "200", "metodo_texto": "PROC-PRESSAO", "confianca": "0.8"},
+    {"grandeza_texto": "Volume", "unidade": "mL", "cmc_texto": "2", "faixa_min": "100", "faixa_max": "50", "metodo_texto": "", "confianca": "0.5"},
+    {"grandeza_texto": "Forca", "unidade": "N", "cmc_texto": "0,3", "faixa_min": null, "faixa_max": null, "metodo_texto": "", "confianca": "0.5"}
+  ]
+}
