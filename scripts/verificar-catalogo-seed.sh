@@ -54,7 +54,7 @@ done
 
 # 2) DIREÇÃO DE DRIFT (aviso): entrada do catálogo aponta pra arquivo que não existe, ou existe mas
 #    não tem seed() (conftest faz no-op → dado não restaurado).
-_subpath() { case "$1" in padroes) echo "metrologia/padroes" ;; *) echo "$1" ;; esac; }
+_subpath() { case "$1" in padroes) echo "metrologia/padroes" ;; escopos_cmc) echo "metrologia/escopos_cmc" ;; *) echo "$1" ;; esac; }
 while IFS=, read -r app mig; do
     [ -z "$app" ] && continue
     sub=$(_subpath "$app")

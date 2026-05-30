@@ -16,7 +16,7 @@
 - **Foundation F-C2/F-C3 reservadas** (observabilidade + instrumentação+resiliência) — pré-requisito do 1º deploy externo
 - **Stack ativa:** Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry + Docker Compose
 - **LICENSE:** BUSL-1.1 aplicada na Onda 0 do plano-v2 (parecer subagente `advogado-saas-regulado`; confirmação OAB humano pendente)
-- **73 ADRs aceitas/propostas** (0000..0072) — ADR-0070/0071/0072 do Marco 5; ADR-0064/0065/0066 do Marco 4; ADR-0063 do Marco 3
+- **76 ADRs aceitas/propostas** (0000..0075) — ADR-0073/0074/0075 do Marco 6 escopos-cmc; ADR-0070/0071/0072 do Marco 5; ADR-0064/0065/0066 do Marco 4; ADR-0063 do Marco 3
 - **Suite:** pytest M4 chave 629/629 verde em ~27s; pytest geral 905/0/0 (último full run 2026-05-24); 55 hooks ativos; 450/450 casos no `_test-runner.sh`
 
 > Contagens (hooks/casos/ADRs) são geradas por `scripts/status-projeto.sh` — ver `docs/governanca/STATUS-GERADO.md`. Anti-drift: `bash scripts/status-projeto.sh --check`.

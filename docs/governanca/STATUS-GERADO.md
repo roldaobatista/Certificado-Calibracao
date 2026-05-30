@@ -20,5 +20,5 @@ relacionados:
 |---|---|---|
 | Hooks ativos | **55** | `.claude/hooks/*.sh` (excl. _test-runner) |
 | Casos no _test-runner | **450** | `grep -c run_case .claude/hooks/_test-runner.sh` |
-| ADRs | **73** | `docs/adr/*.md` |
-| Invariantes (IDs INV-*) | **121** | `REGRAS-INEGOCIAVEIS.md` |
+| ADRs | **76** | `docs/adr/*.md` |
+| Invariantes (IDs INV-*) | **123** | `REGRAS-INEGOCIAVEIS.md` |
