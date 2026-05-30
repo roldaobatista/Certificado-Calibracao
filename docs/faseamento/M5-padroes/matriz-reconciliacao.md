@@ -1,8 +1,8 @@
 ---
 owner: agente-ia
 revisado-em: 2026-05-29
-proximo-review: pre-fechamento-M5
-status: draft
+proximo-review: 2026-08-29
+status: stable
 diataxis: reference
 audiencia: [agente, auditor]
 marco: M5-padroes
@@ -74,7 +74,7 @@ Total `_test-runner`: **450/450 verdes / 55 hooks ativos**.
 | P6 | job `alertar_padroes_pendencias` (4 pendências) | 20 puros + 3 PG-real |
 | P7 | INV-PAD-001..010 em REGRAS + 4 hooks + INV-PAD-007 runtime + CHECK 0006 | 19 `TestINV_PAD_*` + 37 casos hook |
 | P8 | emenda PRD + matriz retenção + drill `validar_m5_padroes` + esta matriz | drill 43/43 PASS |
-| P10 | REST vínculo auxiliar (CRUD) + dossiê CGCRE (uso em calibrações M4 + âncora hash-chain ADR-0064) + carta-controle (gate ≥10 pontos/24m AC-PAD-008-1) + migration 0007 seed authz + PERF-001 baseline | 13 E2E (p10, inclui cross-tenant dossiê/carta) + 22/22 (p5+p10) |
+| P10 | REST vínculo auxiliar (CRUD) + dossiê CGCRE (uso em calibrações M4 + âncora hash-chain ADR-0064) + carta-controle (gate ≥10 pontos/24m AC-PAD-008-1) + migration 0007 seed authz + PERF-001 baseline | 14 E2E (p10, inclui cross-tenant + carta ≥10 plota) + 23/23 (p5+p10) |
 
 ## 5. GATEs do módulo
 
@@ -92,10 +92,10 @@ Total `_test-runner`: **450/450 verdes / 55 hooks ativos**.
 - **Re-passada P9 rodada (2026-05-29, INV-RITUAL-003 — 9 auditores):** 7 PASS + 2 CONCERNS; 3 MÉDIO bloqueantes detectados e **resolvidos na causa-raiz na 2ª leva P10**:
   - AC-PAD-006-1 (dossiê): + `uso_em_calibracoes` (M4 PadraoUsado) + `ancora_integridade` (hash-chain WORM ADR-0064). Resolvido em código.
   - AC-PAD-008-1 (carta): gate de ≥10 pontos de VI em 24 meses antes de plotar limites (`amostra_insuficiente`); separado do limiar ≥2 da porta de bloqueio (fail-safe). Resolvido em código.
-  - drift D4 (contagem): matriz corrigida para 12 E2E (p10) + 21/21.
-- **GATEs BAIXO rastreados (não bloqueiam — INV-RITUAL-001):** GATE-LGPD-PAD-DOSSIE-1 (anti-PII em lab_externo/lab_organizador/protocolo — razão social PJ, Wave A); GATE-OBS-PAD-CORRELACAO-LOG (correlation_id no log dos 2 eventos de vínculo — resolve com middleware correlation Wave A).
+  - drift D4 (contagem): matriz corrigida para 13 E2E (p10) + 22/22.
+- **GATEs BAIXO rastreados (não bloqueiam — INV-RITUAL-001):** GATE-LGPD-PAD-DOSSIE-1 (anti-PII em lab_externo/lab_organizador/protocolo — razão social PJ, Wave A); GATE-OBS-PAD-CORRELACAO-LOG (correlation_id no log dos 2 eventos de vínculo — resolve com middleware correlation Wave A); GATE-SEG-PAD-DEFESA-PROFUNDIDADE (filtro `tenant_id` explícito redundante ao RLS em `_uso_em_calibracoes`/`_ancora_integridade` — RLS+FORCE já protege, validado por teste cross-tenant 404).
 - GATE-PAD-DRILL-LOCAL: teste de concorrência GUC/pool dedicado (C-10) — drill PG-real + pentest pré-1º-tenant.
 
-## 7. Próximo passo
+## 7. Veredito — M5 FECHADO (2026-05-29)
 
-Re-passada de confirmação (produto + drift-docs — os 2 que tinham CONCERNS) → se zero MÉDIO+, fechar M5 e promover frontmatter `draft→stable`.
+Re-passada de confirmação (8 auditores, INV-RITUAL-003): **8 PASS / 0 CONCERNS / 0 FAIL — ZERO CRÍTICO/ALTO/MÉDIO**. Os 3 MÉDIO da 1ª re-passada confirmados resolvidos na causa-raiz. BAIXOs resolvidos: idempotency hook cobre metrologia/*, `revisado-em` bumpado, teste cross-tenant dossiê/carta, comentário corte 24m, **teste do caminho de sucesso da carta (≥10 pontos plota limites)** — esta última fechou uma lacuna que um auditor afirmou (incorretamente) estar coberta. BAIXOs diferidos como GATE: GATE-LGPD-PAD-DOSSIE-1, GATE-OBS-PAD-CORRELACAO-LOG, GATE-SEG-PAD-DEFESA-PROFUNDIDADE. Verificação independente: **p5+p10 23/23 verde**, ruff/mypy limpos, hooks 450/450 + 2 gates. **Marco M5 `metrologia/padroes` FECHADO** — INV-RITUAL-001 satisfeito.

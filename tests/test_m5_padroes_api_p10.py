@@ -272,6 +272,49 @@ def test_carta_controle_perfil_a(cenario_a):
 
 
 @pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
+def test_carta_controle_com_10_pontos_plota_limites(cenario_a):
+    """AC-PAD-008-1 caminho de SUCESSO: >=10 VIs com desvio em 24m -> carta plota
+    LC/UCL/LCL (amostra_insuficiente=False). Fecha a lacuna que o auditor alucinou
+    estar coberta (test 'massa_suficiente' inexistente)."""
+    import datetime as dt
+    from decimal import Decimal
+
+    from src.domain.metrologia.padroes.enums import ResultadoVI
+    from src.infrastructure.metrologia.padroes.models import VerificacaoIntermediaria
+    from src.infrastructure.multitenant.connection import run_in_tenant_context
+
+    client = APIClient()
+    _autenticar(client, cenario_a["admin"], cenario_a["tenant"])
+    pid = _criar_padrao(client)
+    tid = cenario_a["tenant"].id
+    hoje = dt.date.today()
+    desvios = [
+        "0.0010", "-0.0010", "0.0008", "-0.0007", "0.0011",
+        "-0.0009", "0.0005", "-0.0004", "0.0012", "-0.0011",
+    ]
+    with run_in_tenant_context(tid):
+        for i, dv in enumerate(desvios):
+            VerificacaoIntermediaria.objects.create(
+                id=uuid4(),
+                tenant_id=tid,
+                padrao_id=pid,
+                data_vi=hoje - dt.timedelta(days=30 * i + 5),
+                resultado=ResultadoVI.APROVADO.value,
+                desvio_observado=Decimal(dv),
+                metodo_hash="v1$bWV0b2RvaGFzaA==",
+                executor_id_hash="v1$ZXhlY3V0b3JoYXNo",
+                criado_em=dt.datetime.now(dt.UTC),
+            )
+    r = client.get(f"/api/v1/padroes/{pid}/carta-controle/")
+    assert r.status_code == 200, r.content
+    body = r.json()
+    assert body["n_pontos"] == 10
+    assert body["amostra_insuficiente"] is False
+    assert "linha_central" in body and "ucl" in body and "lcl" in body
+    assert "zona_alerta_superior" in body and "zona_alerta_inferior" in body
+
+
+@pytest.mark.django_db(transaction=True, databases=["default", "breaker_writer"])
 def test_dossie_e_carta_cross_tenant_404(cenario_a):
     """Isolamento multi-tenant: tenant B (também perfil A) NÃO vê dossiê/carta de
     padrão do tenant A — RLS esconde o padrão → montar_dossie/carta None → 404.
