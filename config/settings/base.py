@@ -238,6 +238,12 @@ LOCAL_APPS = [
     # (ADR-0070) + vinculo auxiliar. INV-PAD-006 (incertezas so via recal) via
     # GUC app.padrao_recal_em_curso. Porta fail-closed pra M4 (GATE-PAD-PORTA-M4).
     "src.infrastructure.metrologia.padroes.apps.PadroesConfig",
+    # Wave A M6 — Escopos CMC (metrologia/escopos-cmc — ADR-0040 entidade
+    # separada; ADR-0072 path aninhado). EscopoCMC (grandeza/faixa/CMC) +
+    # staging de extracao PDF. Destrava GATE-CAL-CMC-PREDICATE (ADR-0066/0073):
+    # bloqueio de emissao RBC fora do escopo (412 EscopoNaoCobreFaixa). Cobertura
+    # tridimensional ADR-0074 (faixa subset + U>=CMC + menor-CMC). WORM Padrao B.
+    "src.infrastructure.metrologia.escopos_cmc.apps.EscoposCmcConfig",
     # F-C1 P4 — adapter canonico OutboundWebhookProvider (ADR-0054 aceita
     # dentro desta fase). SSRF guard + HMAC canonical + DNS rebinding lock
     # + DPA enforcement (INV-WEBHOOK-OUT-001..005).
