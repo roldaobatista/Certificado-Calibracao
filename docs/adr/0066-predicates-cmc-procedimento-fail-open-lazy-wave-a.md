@@ -87,3 +87,27 @@ Pattern é EXATAMENTE paralelo ao ADR-0063 do M3 OS (predicate `rt_competencia_c
 ## Status
 
 ACEITO em 2026-05-27 como conserto Batch S5 da 1ª passada P5 Família 5 do Marco 4 calibração. Espelha decisão Roldão (memória `feedback_negocio_sobre_agente`): "negócio vence conveniência do agente — fail-open documentado é melhor que ACs prometidos sem entrega".
+
+## Emenda 2026-05-29 (revisões M6 `escopos-cmc` — formalização da transição)
+
+A revisão do plan M6 (tech-lead TL-C-01/TL-C-05 + RBC NC-04) detalhou **como** o
+fail-open lazy fecha, formalizando o que aqui era genérico:
+
+1. **`cmc_cobre` fecha pelo use case, não pelo predicate-na-permissão.** A ADR-0073
+   move a validação de cobertura metrológica para dentro do use case
+   (`configurar_calibracao`) por chamada explícita à porta `escopos_cmc.query_service.
+   cobre(...)`. O predicate STUB `cmc_cobre` em `predicates_calibracao.py` fica
+   DEPRECADO (no-op) na transição. Bloqueio real (412 `EscopoNaoCobreFaixa`) entra
+   na **Fatia 3** do M6 (GATE-CAL-CMC-PREDICATE).
+2. **Cobertura RBC é tridimensional (ADR-0074):** faixa ⊆ escopo (na config) +
+   `U ≥ CMC` (na emissão, 2ª porta) + menor-CMC-por-faixa. O fechamento da condição
+   `U ≥ CMC` é rastreado por **GATE-ECMC-U-MAIOR-CMC** (consumo possivelmente diferido
+   ao módulo `certificados`).
+3. **Vínculo RT↔escopo permanece fail-open lazy** (paralelo ao `rt_competencia_cobre`
+   da ADR-0063) até o retrofit ADR-0022 v2 (RTCompetencia por método+faixa) chegar.
+   No MVP dogfooding NÃO bloqueia por RT; bloqueio real (escopo sem RT competente
+   vivo → DENY uso RBC) é rastreado por **GATE-ECMC-RT-VINCULO**, obrigatório antes
+   do 1º tenant RBC externo. Fail-open documentado explícito no código + teste nomeado
+   (nunca gap silencioso).
+4. **`procedimento_vigente_para` segue o mesmo padrão** (ADR-0073) quando o módulo
+   `procedimentos-calibracao` for construído — fecha via use case, não via predicate.

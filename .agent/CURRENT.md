@@ -7,7 +7,11 @@
 
 **M5 — fechamento:** ritual completo P1→P10. P9 (10 auditores) abriu achados; Roldão mandou construir os 3 (dossiê CGCRE + carta read-model + vínculo auxiliar CRUD); P10 entregou via REST (INV-PAD-007 provado ponta-a-ponta). Re-passada INV-RITUAL-003 (9 auditores) + confirmação (8 auditores) = **8 PASS, zero achado bloqueante** — todos os achados de gravidade média resolvidos na causa-raiz; 3 BAIXO viraram GATE rastreado (GATE-LGPD-PAD-DOSSIE-1 / GATE-OBS-PAD-CORRELACAO-LOG / GATE-SEG-PAD-DEFESA-PROFUNDIDADE). Verificação independente: **p5+p10 23/23 verde**, ruff/mypy limpos, hooks 450/450 + 2 gates, drill `validar_m5_padroes` 43/43. INV-RITUAL-001 satisfeito. Frontmatter dos docs M5 promovido `draft→stable`. Commits da fase: `d6e1f69`/`d37011c`/`152fbf1`/`dab606e` + fechamento.
 
-**Próximo módulo Wave A:** `metrologia/escopos-cmc` + `metrologia/procedimentos-calibracao` (destravam GATE-CAL-CMC/PROC-PREDICATE) — ou outro módulo Wave A à escolha do Roldão.
+**EM CURSO — M6 `metrologia/escopos-cmc` (3º módulo Wave A; decisão Roldão 2026-05-29):** ritual P0-P3 (planejamento) FECHADO. Dossiê (workflow 5 leitores, 80 achados) → spec v2 → plan v2 `ready-for-tasks` → tasks (5 fatias, T-ECMC-NNN). Revisões tech-lead + RBC = APROVA COM CORREÇÕES (2 CRÍTICO + 6 ALTO) → **3 ADRs aceitas: 0073** (validação metrológica no use case, não no permission layer DRF), **0074** (cobertura RBC tridimensional: faixa ⊆ escopo + U≥CMC ILAC-P14 §5.5 + menor-CMC-por-faixa; INV-ECMC-009), **0075** (capacidade interna B/C/D ≠ CMC acreditada A — separação terminológica cl. 8.1.3) + emenda ADR-0066. Decisões Roldão: rótulo "CMC (menor incerteza declarada)" + **extração automática do PDF CGCRE** (com conferência humana — Fatia 4) + **todos os perfis declaram** (A=RBC, B/C/D=capacidade interna). Investigação T-ECMC-000 (regra #0): `cmc_cobre` testado isolado (49 verdes), sem teste view-level — wire-in é adição no use case, não drop-in. **Próximo: /implement Fatia 1a (domínio puro), ambiente de pé.** Docs em `docs/faseamento/M6-escopos-cmc/`.
+
+**Pendente do M6 (decisão de produto aberta ao Roldão — veto):** terminologia de B/C/D ("Capacidade interna declarada (sem acreditação RBC)" — refinamento RBC da decisão do Roldão por cl. 8.1.3).
+
+**Próximo módulo Wave A (após M6):** `metrologia/procedimentos-calibracao` (destrava GATE-CAL-PROC-PREDICATE) — ou outro à escolha do Roldão.
 
 **Suíte (2026-05-29):** hooks `_test-runner` 450/450 + gate anti-drift verde / 55 hooks. Drill `validar_m5_padroes` 43/43 PG-real. M5 ~57 testes verdes. ruff/mypy limpos.
 
