@@ -31,7 +31,7 @@ relacionados:
 | US-ECMC-002 Revisar escopo (versão preservada) | AC-CAL-015-2 | INV-ECMC-003 | 0030/0031 | — (trigger WORM) | `application/.../revisar_escopo.py` + migration 0003 | ✅ |
 | US-ECMC-003 Revogar escopo (WORM Padrão B) | — | INV-ECMC-003/006 | 0029/0031 | — (trigger WORM) | `application/.../revogar_escopo.py` + `domain/.../transicoes.py` (`validar_motivo_revogacao`) | ✅ |
 | US-ECMC-004 Validar cobertura na configuração (`cobre()` real → 412) | AC-CAL-002-2/015-1 + GATE-CAL-CMC-PREDICATE | **INV-ECMC-004/005** | 0073/0074/0066→0073 | **escopo-cobre-fail-closed-check** | `infrastructure/.../query_service.py` (`cobre`) + `domain/.../cobertura.py` + wire-in `application/.../calibracao/configurar_calibracao.py` (`CoberturaEscopoPort`) | ✅ (portão config FECHADO) |
-| US-ECMC-005 Aviso degradante na recepção | AC-CAL-001-2 | INV-ECMC-004 | 0073 | — | `application/.../calibracao` recepção (aviso NÃO-RBC) | ✅ |
+| US-ECMC-005 Aviso degradante na recepção | AC-CAL-001-2 | INV-ECMC-004 | 0073 | — | `application/.../calibracao` recepção (não-RBC nunca bloqueia) | ✅ backend / UX diferida (GATE-ECMC-UX-AVISO-RBC — aviso visível + rótulos cliente são frente de tela Wave A) |
 | US-ECMC-006 Importar escopo do PDF CGCRE + conferência | decisão N | **INV-ECMC-007** | 0025/0059(não ativada) | **escopo-extracao-nao-auto-persiste-check** | `domain/.../extracao.py` + `application/.../importar_escopo_pdf.py` + `confirmar_escopo_extraido.py` + `views.py` (`importar-extracao`/`confirmar-extraido`) | ✅ (linhas já extraídas; PDFlib diferido) |
 | US-ECMC-007 Declarar capacidade interna (B/C/D `rbc=false` forçado) | decisão O | **INV-ECMC-002** | 0075/0067 | **escopo-rbc-perfil-a-check** | `application/.../cadastrar_escopo.py` (perfil B/C/D → `rbc_efetivo` força false) | ✅ |
 | US-ECMC-008 Snapshot `EscopoUsado` + U≥CMC na emissão | ADR-0014 | **INV-ECMC-008/009** | 0014/0029/0074 | — | `domain/.../entities.py` (VO `EscopoUsado`) + `infrastructure/.../query_service.py` (`cmc_para`) | ✅ porta entregue; consumo emissão = GATE-ECMC-U-MAIOR-CMC Wave A |
@@ -83,6 +83,8 @@ Total `_test-runner`: **474/474 verdes / 58 hooks ativos**.
 | GATE-ECMC-RT-VINCULO | 🟡 Wave A | vínculo RT↔escopo fail-open lazy documentado (paralelo ADR-0063); bloqueio real pré-1º tenant RBC externo |
 | GATE-ECMC-COBERTURA-RBC | 🟡 diferido | revisão RBC credenciada da semântica U≥CMC — pré-tenant A (`project_sem_contratacoes_externas_ate_producao`) |
 | GATE-ECMC-EXTRACT-PDFLIB | 🟡 diferido | porta binário-PDF→linhas (dep pdfplumber); REST recebe linhas já extraídas |
+| GATE-ECMC-UX-AVISO-RBC | 🟡 Wave A (BAIXO P9 PROD-ECMC-01) | aviso degradante NÃO-RBC visível + rótulos cliente ("CMC (menor incerteza declarada)" / "Nº do escopo CGCRE") na frente de tela HTMX — backend completo, UX é non-goal deste módulo |
+| GATE-OBS-ECMC-CORRELACAO-REVOGAR | 🟡 BAIXO (P9 OBS) | `payload.correlation_id` sintético em `revogar`/`extracao_confirmada` (serializer sem campo); o correlation_id genuíno está no envelope WORM do outbox — alinha precedente M5 `GATE-OBS-PAD-CORRELACAO-LOG` (resolve até F-C) |
 
 ## 6. Pendências (não bloqueiam fechamento do módulo)
 

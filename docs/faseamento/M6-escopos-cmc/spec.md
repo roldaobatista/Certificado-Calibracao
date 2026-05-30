@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado-em: 2026-05-29
-status: draft
+revisado-em: 2026-05-30
+status: stable
 fase: M6-escopos-cmc
 dominio: metrologia
 modulo: escopos-cmc

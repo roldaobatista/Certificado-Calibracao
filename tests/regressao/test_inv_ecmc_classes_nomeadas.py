@@ -221,6 +221,19 @@ class TestINV_ECMC_004:
         assert dentro is True
         assert fora is False and r2 == cobertura.REASON_FORA_DO_ESCOPO
 
+    @pytest.mark.django_db(transaction=True)
+    def test_entrada_invalida_fail_closed_erro_interno(self):
+        # grandeza fora do contrato -> except -> fail-closed (nunca libera RBC)
+        tenant = TenantFactory(slug=f"ecmc4c-{uuid4().hex[:6]}")
+        with run_in_tenant_context(tenant.id):
+            ok, reason = query_service.cobre(
+                tenant_id=tenant.id, grandeza="grandeza_inexistente_xyz",
+                faixa_min=Decimal("10"), faixa_max=Decimal("20"),
+                unidade="g", data=timezone.now(),
+            )
+        assert ok is False
+        assert reason == "erro_interno"
+
 
 class TestINV_ECMC_005:
     """Cobertura por CONTENÇÃO TOTAL — interseção parcial NÃO cobre."""
