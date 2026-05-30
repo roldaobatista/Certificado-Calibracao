@@ -32,12 +32,16 @@ from rest_framework.response import Response
 
 from src.application.metrologia.escopos_cmc import (
     cadastrar_escopo,
+    confirmar_escopo_extraido,
+    importar_escopo_pdf,
     revisar_escopo,
     revogar_escopo,
 )
 from src.domain.metrologia.escopos_cmc.enums import FormaCMC
+from src.domain.metrologia.escopos_cmc.extracao import MapaColunas
 from src.domain.metrologia.value_objects import FaixaMedicao, Grandeza
 from src.infrastructure.authz.perfil_tenant_helper import obter_perfil_tenant_corrente
+from src.infrastructure.calibracao.lgpd import derivar_user_id_hash
 from src.infrastructure.idempotencia.services_idempotencia import (
     ErroValidacao,
     NovoProcessamento,
@@ -46,9 +50,14 @@ from src.infrastructure.idempotencia.services_idempotencia import (
     concluir_chave,
     falhar_chave,
 )
-from src.infrastructure.metrologia.escopos_cmc.repositories import DjangoEscopoRepository
+from src.infrastructure.metrologia.escopos_cmc.repositories import (
+    DjangoEscopoExtraidoRepository,
+    DjangoEscopoRepository,
+)
 from src.infrastructure.metrologia.escopos_cmc.serializers import (
     CadastrarEscopoSerializer,
+    ConfirmarExtraidoSerializer,
+    ImportarExtracaoSerializer,
     RevisarEscopoSerializer,
     RevogarEscopoSerializer,
 )
@@ -63,6 +72,8 @@ ENDPOINT_CADASTRAR = "escopos_cmc.cadastrar"
 ENDPOINT_DECLARAR = "escopos_cmc.declarar_capacidade"
 ENDPOINT_REVISAR = "escopos_cmc.revisar"
 ENDPOINT_REVOGAR = "escopos_cmc.revogar"
+ENDPOINT_IMPORTAR = "escopos_cmc.importar_extracao"
+ENDPOINT_CONFIRMAR = "escopos_cmc.confirmar_extraido"
 
 
 def _resposta_erro_idempotencia(erro: ErroValidacao) -> Response:
@@ -118,6 +129,28 @@ def _serializar_escopo(s: Any) -> dict[str, Any]:
     }
 
 
+def _serializar_extraido(e: Any) -> dict[str, Any]:
+    """Staging (escopo extraído) + linhas candidatas com confiança (tela conferência)."""
+    return {
+        "id": str(e.id),
+        "numero_escopo_cgcre": e.numero_escopo_cgcre,
+        "origem_pdf_storage_key": e.origem_pdf_storage_key,
+        "confirmado_em": e.confirmado_em.isoformat() if e.confirmado_em else None,
+        "linhas": [
+            {
+                "grandeza_texto": ln.grandeza_texto,
+                "unidade": ln.unidade,
+                "cmc_texto": ln.cmc_texto,
+                "faixa_min": None if ln.faixa_min is None else str(ln.faixa_min),
+                "faixa_max": None if ln.faixa_max is None else str(ln.faixa_max),
+                "metodo_texto": ln.metodo_texto,
+                "confianca": str(ln.confianca),
+            }
+            for ln in e.linhas
+        ],
+    }
+
+
 def _tenant_ou_none() -> UUID | None:
     return active_tenant_context.get()
 
@@ -165,6 +198,10 @@ class EscopoCMCViewSet(viewsets.ViewSet):
         "declarar_capacidade": "escopos_cmc.declarar_capacidade",
         "revisar": "escopos_cmc.revisar",
         "revogar": "escopos_cmc.revogar",
+        # importar staging = direito de criar conteúdo de escopo (reusa cadastrar;
+        # não há ação `importar` semeada — só `confirmar_extraido` é privilegiada).
+        "importar_extracao": "escopos_cmc.cadastrar",
+        "confirmar_extraido": "escopos_cmc.confirmar_extraido",
     }
 
     def get_authz_action(self, request: Request) -> str | None:
@@ -411,6 +448,194 @@ class EscopoCMCViewSet(viewsets.ViewSet):
             response_body_resumo=body,
         )
         return Response(body, status=status.HTTP_200_OK)
+
+    # ---------------------------------------------------------------- POST extração PDF (Fatia 4)
+    @action(detail=False, methods=["post"], url_path="importar-extracao")
+    def importar_extracao(self, request: Request) -> Response:
+        """POST — T-ECMC-051: parseia linhas extraídas + grava staging RASCUNHO
+        (INV-ECMC-007 — nunca vigente). # idempotency-key: required
+
+        # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+        """
+        s = ImportarExtracaoSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        tenant_id = _tenant_ou_none()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_IMPORTAR,
+            payload_fingerprint={
+                "origem_pdf_storage_key": d["origem_pdf_storage_key"],
+                "correlation_id": str(d["correlation_id"]),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None and novo.chave_id is not None
+        chave_id = novo.chave_id
+
+        repo = DjangoEscopoExtraidoRepository()
+        try:
+            inp = importar_escopo_pdf.ImportarEscopoPdfInput(
+                tenant_id=tenant_id,
+                origem_pdf_storage_key=d["origem_pdf_storage_key"],
+                numero_escopo_cgcre=d.get("numero_escopo_cgcre", ""),
+                linhas_cruas=d["linhas_cruas"],
+                mapa_colunas=MapaColunas(**d["mapa_colunas"]),
+                extraido_em=datetime.now(UTC),
+                correlation_id=d["correlation_id"],
+            )
+            with transaction.atomic():
+                out = importar_escopo_pdf.executar(inp, repo)
+                _publicar_evento_escopo(
+                    acao="escopos_cmc.extracao_importada",
+                    payload={
+                        "extraido_id": str(out.extraido.id),
+                        "numero_escopo_cgcre": out.extraido.numero_escopo_cgcre,
+                        "linhas": len(out.extraido.linhas),
+                        "correlation_id": str(d["correlation_id"]),
+                    },
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"extracao staging {out.extraido.id}",
+                )
+        except (ValueError, TypeError) as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
+
+        body = _serializar_extraido(out.extraido)
+        concluir_chave(
+            chave_id=chave_id,
+            tenant_id=tenant_id,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="confirmar-extraido")
+    def confirmar_extraido(self, request: Request, pk: str | None = None) -> Response:
+        """POST — T-ECMC-052: conferência humana promove staging -> N escopos
+        CONFIRMADO (WORM). # idempotency-key: required
+
+        # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+        """
+        s = ConfirmarExtraidoSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        tenant_id = _tenant_ou_none()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+        perfil = obter_perfil_tenant_corrente()
+        if not perfil:
+            return Response(
+                {"erro": "perfil regulatório indisponível (fail-closed ADR-0067)"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+        extraido_id = self._uuid_ou_404(pk)
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_CONFIRMAR,
+            payload_fingerprint={
+                "extraido_id": str(extraido_id),
+                "n_escopos": len(d["escopos"]),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None and novo.chave_id is not None
+        chave_id = novo.chave_id
+
+        # Conferência confirmada server-side: perfil do tenant (não payload),
+        # vigência = agora, origem forçada EXTRACAO_PDF no use case.
+        agora = datetime.now(UTC)
+        linhas_norm = tuple(
+            cadastrar_escopo.CadastrarEscopoInput(
+                tenant_id=tenant_id,
+                grandeza=Grandeza.from_string(esc["grandeza"]),
+                faixa=FaixaMedicao(esc["faixa_min"], esc["faixa_max"], esc["unidade"]),
+                cmc_forma=FormaCMC(esc["cmc_forma"]),
+                cmc_valor=esc["cmc_valor"],
+                cmc_unidade=esc["cmc_unidade"],
+                perfil=perfil,
+                rbc_solicitado=esc.get("rbc_acreditado", False),
+                vigencia_inicio=agora,
+                correlation_id=esc["correlation_id"],
+                cmc_coef_relativo=esc.get("cmc_coef_relativo"),
+                numero_escopo_cgcre=esc.get("numero_escopo_cgcre", ""),
+                procedimento_id=esc.get("procedimento_id"),
+                documento_regulatorio_id=esc.get("documento_regulatorio_id"),
+            )
+            for esc in d["escopos"]
+        )
+        repo_extr = DjangoEscopoExtraidoRepository()
+        repo_esc = DjangoEscopoRepository()
+        try:
+            inp = confirmar_escopo_extraido.ConfirmarEscopoExtraidoInput(
+                extraido_id=extraido_id,
+                tenant_id=tenant_id,
+                confirmado_por_id_hash=derivar_user_id_hash(
+                    usuario_id=usuario_id, tenant_id=tenant_id
+                ),
+                confirmado_em=agora,
+                escopos=linhas_norm,
+            )
+            with transaction.atomic():
+                out = confirmar_escopo_extraido.executar(inp, repo_extr, repo_esc)
+                for snap in out.confirmados:
+                    _publicar_evento_escopo(
+                        acao="escopos_cmc.cadastrado",
+                        payload=_serializar_escopo(snap),
+                        causation_id=chave_id,
+                        tenant_id=tenant_id,
+                        usuario_id=usuario_id,
+                        resource_summary=(
+                            f"escopo {snap.grandeza.value} v{snap.versao} (extracao PDF)"
+                        ),
+                    )
+                _publicar_evento_escopo(
+                    acao="escopos_cmc.extracao_confirmada",
+                    payload={
+                        "extraido_id": str(extraido_id),
+                        "confirmados": len(out.confirmados),
+                        "correlation_id": str(extraido_id),
+                    },
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"confirma extracao {extraido_id}",
+                )
+        except confirmar_escopo_extraido.ExtraidoNaoEncontrado as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_404_NOT_FOUND)
+        except confirmar_escopo_extraido.ExtraidoJaConfirmado as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
+        except (
+            ValueError,
+            cadastrar_escopo.ChaveDuplicadaError,
+            cadastrar_escopo.ProcedimentoObrigatorioParaRBCError,
+        ) as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
+
+        body = {
+            "extraido_id": str(extraido_id),
+            "confirmados": [_serializar_escopo(s) for s in out.confirmados],
+        }
+        concluir_chave(
+            chave_id=chave_id,
+            tenant_id=tenant_id,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
 
     # ---------------------------------------------------------------- helpers
     @staticmethod

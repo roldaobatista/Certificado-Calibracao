@@ -47,3 +47,44 @@ class RevisarEscopoSerializer(_CMCFieldsMixin):
 
 class RevogarEscopoSerializer(serializers.Serializer):
     motivo = serializers.CharField(max_length=2000, min_length=10)
+
+
+# ----- Fatia 4: extração PDF CGCRE + conferência humana (T-ECMC-053) -----
+
+
+class _MapaColunasSerializer(serializers.Serializer):
+    """Índice 0-based de cada papel de coluna na tabela extraída (ADR-0072)."""
+
+    grandeza = serializers.IntegerField(min_value=0)
+    cmc = serializers.IntegerField(min_value=0)
+    faixa = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+    faixa_min = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+    faixa_max = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+    unidade = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+    metodo = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+
+
+class ImportarExtracaoSerializer(serializers.Serializer):
+    """Linhas JÁ extraídas do PDF (porta `LeitorTabelaPdf` em infra/cliente) +
+    mapa de colunas. O binário->linhas (lib PDF) é porta trocável diferida
+    (GATE-ECMC-EXTRACT-PDFLIB). `extraido_em` é server-side (now)."""
+
+    origem_pdf_storage_key = serializers.CharField(max_length=200)
+    numero_escopo_cgcre = serializers.CharField(
+        max_length=60, required=False, allow_blank=True, default=""
+    )
+    linhas_cruas = serializers.ListField(
+        child=serializers.ListField(
+            child=serializers.CharField(allow_blank=True, trim_whitespace=False)
+        ),
+        allow_empty=False,
+    )
+    mapa_colunas = _MapaColunasSerializer()
+    correlation_id = serializers.UUIDField()
+
+
+class ConfirmarExtraidoSerializer(serializers.Serializer):
+    """Linhas APROVADAS+NORMALIZADAS pela conferência humana (cada uma vira um
+    EscopoCMC CONFIRMADO). Reusa o payload de cadastro (perfil server-side)."""
+
+    escopos = serializers.ListField(child=CadastrarEscopoSerializer(), allow_empty=False)
