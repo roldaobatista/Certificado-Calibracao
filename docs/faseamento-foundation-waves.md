@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado_em: 2026-05-27
-proximo_review: 2026-08-27
+revisado_em: 2026-05-30
+proximo_review: 2026-08-30
 status: stable
 diataxis: reference
 audiencia: agente
@@ -355,6 +355,7 @@ Wave B é o produto virar "completo" pra qualquer cliente externo que apareça. 
 Wave C é "as melhorias que você vai querer depois que o produto estiver pronto e rodando". Coisas como inteligência artificial fazendo perguntas em linguagem natural sobre os dados, recursos avançados de segurança (chave física em vez de TOTP), federação entre laboratórios parceiros, marketplace de apps de terceiros. Não tem prazo nem promessa.
 
 ### Escopo provisório (pode mudar com feedback dos primeiros clientes)
+- **🤖 Aferê Prumo (camada de IA — cérebro + agentes por setor):** produto add-on de IA, **já descoberto e arquitetado** no projeto irmão `balancas-solution-ia` (3 ADRs aceitos + auditoria cega de 10 arquitetos Opus + mapa de encaixe). Atende WhatsApp (áudio), orça, abre OS, confere certificado, avisa prazos — com aprovação humana. É um **domínio DENTRO do Aferê** reusando as portas. **Ponteiro:** `docs/evolucao/afere-prumo-trilha-ia.md` → doc completa em `C:/projetos/balancas-solution-ia/`. Agrupa/completa peças já no roadmap: `comunicacao-omnichannel` (B.1), `automacoes-bpm` (B.3), `gestao-documental` (B.3), `LLMProvider` (ADR-0059) + porta nova `stt` (transcrição local) + BI semântico (abaixo).
 - **BI semântico:** chat sobre dados em linguagem natural (LiteLLM + camada de embeddings)
 - **Temporal.io** se ADR-0005 evoluir pra orquestração de workflows longos (substitui Celery em casos específicos)
 - **MFA hardware** (YubiKey/WebAuthn) — passo além do TOTP do F-B
@@ -460,6 +461,7 @@ Este documento **NÃO** é:
 | **2026-05-27** | **Marco 4 `metrologia/calibracao` FECHADO** — 160 T-CAL (~156 entregues; 4 grupos TRACK Wave A). P5 ritual: 1ª passada (2 PASS / 1 CONCERNS / 7 FAIL — 41 C/A/M) → 6 batches conserto causa-raiz S1..S6.1 → 2ª passada (8 PASS + 2 CONCERNS BAIXO carryover) → 3ª/4ª passada drift-docs PASS. ADRs aceitas: 0040 (padrão metrológico), 0064 (HMAC rotação anual + KMS 25a), 0065 (concorrência calibração UNIQUE+CAS+advisory lock), 0066 (fail-open lazy `cmc_cobre` + `procedimento_vigente_para`). Suite M4 chave 629/629, hooks 413/413 / 51 ativos. |
 | **2026-05-27 noite** | **SAN-PERFIL-TENANT Sprints 1-4 FECHADOS** — saneamento estrutural pós-auditoria 10 lentes (10/10 FAIL detectaram gap: PRD declara 4 perfis A/B/C/D mas Tenant não persistia; predicate `cmc_cobre` lia tipo_acreditacao do payload da request = FAIL L6 fraude documental). ADR-0067 aceita (perfil regulatório do tenant como entidade temporal de 1ª classe). Sprint 1 schema multi-step + funções SECURITY DEFINER + hook `tenant-perfil-imutavel-check`. Sprint 2 ContextVar + middleware + predicate canônico `tenant_perfil_e` + hook `payload-tipo-acreditacao-obsoleto-check`. Sprint 3 comando `provisionar_tenant` + matriz feature×perfil + job vigência + hook `feature-perfil-matriz-validator` + emenda ADR-0015. Sprint 4 snapshot `perfil_no_evento` WORM via trigger BEFORE INSERT + GUC `app.perfil_tenant` + retrofit equipamento + retrofit geo_truncamento (perfil A nunca trunca). Drills PG real 17/17 + 6/6 PASS. Sprints 5-6 = Wave A. |
 | **2026-05-27 madrugada** | **Auditoria 10 lentes pré-Wave A consolidada** — Roldão escolheu escopo amplo. 10 agentes em paralelo (4 humano-substitutos + 2 auditores Família 5 + 4 general-purpose). ~150 achados (37 CRÍTICOS + ~50 ALTOS + ~60 MÉDIOS). Roldão decidiu "resolver TUDO — críticos, altos, médios, baixos". Plano em 5 ondas: `docs/faseamento/auditorias/PRE-WAVE-A-CONSOLIDADO-rodada-1.md`. Decisões Roldão: HTMX núcleo + 5 SPAs (ADR-0010), Aferê PJ separada DEPOIS (hoje = Balanças Solution), Onda 3 PRDs com 4 agentes paralelos, **zero contratações externas até produção real** (memória `project_sem_contratacoes_externas_ate_producao`). |
+| **2026-05-30** | **Marcador da trilha Aferê Prumo (camada de IA) adicionado ao escopo de Wave C** (§6) — descoberta + arquitetura (3 ADRs aceitos + auditoria cega de 10 arquitetos Opus) + mapa de encaixe **concluídos** no projeto irmão `balancas-solution-ia`. Decisão Roldão: **ritmo normal, entra em Wave B/C** (não antecipar; precisa do MVP-1 com dados reais primeiro). Ponteiro: `docs/evolucao/afere-prumo-trilha-ia.md`. |
 
 ---
 
