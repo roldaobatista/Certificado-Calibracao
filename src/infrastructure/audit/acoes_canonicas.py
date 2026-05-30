@@ -274,6 +274,19 @@ ACOES_ESCOPOS_CMC: Final[frozenset[str]] = frozenset(
 )
 
 
+# M7 metrologia/procedimentos-calibracao (T-PROC-036) — cadastro/publicacao/
+# versionamento/revogacao do procedimento tecnico documentado controlado
+# (cl. 7.2.1). Probatorias cl. 8.4 (documento controlado cl. 8.3).
+ACOES_PROCEDIMENTOS_CALIBRACAO: Final[frozenset[str]] = frozenset(
+    {
+        "procedimentos_calibracao.cadastrado",
+        "procedimentos_calibracao.publicado",
+        "procedimentos_calibracao.revisado",
+        "procedimentos_calibracao.revogado",
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -284,6 +297,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_CALIBRACAO
     | ACOES_PADROES
     | ACOES_ESCOPOS_CMC
+    | ACOES_PROCEDIMENTOS_CALIBRACAO
 )
 
 
