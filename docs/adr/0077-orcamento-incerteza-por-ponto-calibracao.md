@@ -2,7 +2,7 @@
 owner: roldao
 revisado-em: 2026-05-31
 proximo_review: 2026-08-31
-status: proposta
+status: aceito
 diataxis: explanation
 audiencia: agente
 tipo: adr

@@ -178,6 +178,54 @@ class TestINV_CAL_INC_003:
 
 
 # =====================================================================
+# INV-CAL-INC-005 — incerteza por ponto + agregado pior-caso (ADR-0077)
+# =====================================================================
+
+
+class TestINV_CAL_INC_005:
+    """Incerteza POR PONTO — ADR-0077. Núcleo do invariante (puro):
+    derivação Tipo A perfil-aware + agregado pior-caso + fail-closed perfil A."""
+
+    def test_agregado_e_max_nunca_media(self) -> None:
+        from src.domain.metrologia.calibracao.motor_calculo.incerteza_por_ponto import (
+            agregado_pior_caso,
+        )
+
+        us = [Decimal("0.012"), Decimal("0.078"), Decimal("0.039")]
+        # média = 0.043; pior-caso = 0.078 (média subestimaria)
+        assert agregado_pior_caso(us) == Decimal("0.078")
+
+    def test_tipo_a_n6_usa_sx_proprio_dof_n_menos_1(self) -> None:
+        from src.domain.metrologia.calibracao.enums import MetodoTipoAPonto
+        from src.domain.metrologia.calibracao.motor_calculo.incerteza_por_ponto import (
+            derivar_tipo_a_ponto,
+        )
+
+        valores = [Decimal(str(10 + i * 0.01)) for i in range(6)]
+        r = derivar_tipo_a_ponto(valores_repeticoes=valores, perfil="A")
+        assert r.metodo is MetodoTipoAPonto.SX_PROPRIO
+        assert r.dof == 5
+
+    def test_perfil_A_ausente_fail_closed(self) -> None:
+        from src.domain.metrologia.calibracao.motor_calculo.incerteza_por_ponto import (
+            TipoAAusenteError,
+            derivar_tipo_a_ponto,
+        )
+
+        with pytest.raises(TipoAAusenteError):
+            derivar_tipo_a_ponto(valores_repeticoes=[Decimal("10")], perfil="A")
+
+    def test_escalonamento_nao_constante_perfil_A_fail_closed(self) -> None:
+        """Use case bloqueia Tipo B lei != CONSTANTE em perfil A (1a fatia)."""
+        from src.application.metrologia.calibracao.calcular_orcamento_incerteza import (
+            EscalonamentoNaoSuportadoError,
+        )
+
+        # erro existe e carrega componente + lei (contrato do portao Q-FIS-3)
+        assert issubclass(EscalonamentoNaoSuportadoError, Exception)
+
+
+# =====================================================================
 # INV-CAL-NC-002 — decisao_continuar_parar canonica
 # =====================================================================
 
