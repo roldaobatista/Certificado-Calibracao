@@ -350,6 +350,21 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/escopo-extracao-nao-auto-persiste-check.sh\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/proc-vigente-fail-closed-check.sh\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/proc-controle-documental-check.sh\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/proc-metodo-validado-check.sh\"",
+            "timeout": 5
           }
         ]
       }

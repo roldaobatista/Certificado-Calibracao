@@ -199,6 +199,14 @@ def cmc_cobre(resource: dict[str, Any]) -> tuple[bool, str]:
 def procedimento_vigente_para(resource: dict[str, Any]) -> tuple[bool, str]:
     """Predicate ABAC — procedimento tecnico vigente na data (cl. 7.2).
 
+    **DEPRECATED 2026-05-30 (ADR-0073 / M7 procedimentos-calibracao Fatia 3 —
+    T-PROC-040/043):** a validacao de procedimento vigente MIGROU para DENTRO do
+    use case `configurar_calibracao` (porta `procedimentos_calibracao.query_service.
+    cobre_procedimento`), porque o permission layer DRF nao tem grandeza/faixa
+    server-side no momento da avaliacao (ADR-0073). Este predicate permanece como
+    NO-OP documentado durante a transicao (remocao coordenada futura — nao no mesmo
+    commit). O bloqueio real (412 `ProcedimentoVigenteAusente`) e do use case.
+
     Resource esperado:
         tenant_id: UUID.
         grandeza: str — slug. Ausente => predicate nao aplica.
@@ -218,12 +226,10 @@ def procedimento_vigente_para(resource: dict[str, Any]) -> tuple[bool, str]:
         # Atividade nao-calibracao (sem grandeza) — predicate nao aplica.
         return True, ""
 
-    # GATE-CAL-PROC-1 STUB: modulo `procedimentos_tecnicos` nao existe.
-    # Quando entrar em Wave A:
-    #   from src.infrastructure.procedimentos_tecnicos.repository import proc_repo
-    #   vigente = proc_repo.vigente_em(tenant_id, grandeza, data)
-    #   if vigente is None: return False, "procedimento_inexistente"
-    #   if vigente.vigente_ate < data_alvo: return False, "procedimento_vencido"
+    # DEPRECATED NO-OP (T-PROC-040/043): a resolucao real do procedimento vigente
+    # vive no use case `configurar_calibracao` (porta `procedimentos_calibracao.
+    # query_service.cobre_procedimento` -> 412 ProcedimentoVigenteAusente). Este
+    # predicate so permanece registrado durante a transicao (remocao coordenada).
     return True, ""
 
 

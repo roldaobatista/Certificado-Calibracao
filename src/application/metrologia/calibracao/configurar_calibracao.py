@@ -84,6 +84,49 @@ def _cobertura_fail_open_lazy(
     return True, ""
 
 
+@runtime_checkable
+class CoberturaProcedimentoPort(Protocol):
+    """Porta de procedimento tecnico vigente (M7 — ADR-0073 / cl. 7.2.1).
+
+    Funcao de modulo `procedimentos_calibracao.query_service.cobre_procedimento`.
+    A view injeta o adapter REAL; o use case NUNCA importa infra (ADR-0007).
+    Retorna `(True, resolvido)` quando ha procedimento PUBLICADO vigente em `data`
+    que CONTEM a faixa (resolvido = dict {procedimento_id, codigo, versao,
+    numero_revisao, hash_anexo} para preencher o snapshot real, ou None no STUB
+    lazy); `(False, None)` quando nenhum cobre (RBC -> 412). So consultada se RBC.
+    """
+
+    def __call__(
+        self,
+        *,
+        tenant_id: UUID,
+        grandeza: str,
+        faixa_min: Decimal | str,
+        faixa_max: Decimal | str,
+        unidade: str,
+        data: datetime,
+    ) -> tuple[bool, dict[str, str] | None]: ...
+
+
+def _procedimento_fail_open_lazy(
+    *,
+    tenant_id: UUID,
+    grandeza: str,
+    faixa_min: Decimal | str,
+    faixa_max: Decimal | str,
+    unidade: str,
+    data: datetime,
+) -> tuple[bool, dict[str, str] | None]:
+    """STUB default da 2a porta — fail-open lazy (paralelo ADR-0066 / T-PROC-040).
+
+    `(True, None)`: nao bloqueia E mantem o procedimento do input (legado M4). Em
+    producao a view injeta o adapter REAL (`procedimentos_calibracao.query_service.
+    cobre_procedimento`), que resolve o procedimento vigente server-side ou bloqueia
+    (GATE-CAL-PROC-VIGENTE-PREDICATE).
+    """
+    return True, None
+
+
 class CalibracaoNaoEncontrada(Exception):
     """ID nao existe no tenant ativo (RLS ja filtrou) — caller retorna 404."""
 
@@ -114,6 +157,33 @@ class EscopoNaoCobreFaixa(Exception):
         self.motivo = motivo
         super().__init__(
             f"EscopoNaoCobreFaixa grandeza={grandeza} "
+            f"faixa=[{faixa_min},{faixa_max}]{unidade} motivo={motivo}"
+        )
+
+
+class ProcedimentoVigenteAusente(Exception):
+    """RBC: nenhum ProcedimentoCalibracao PUBLICADO vigente cobre a grandeza+faixa.
+
+    cl. 7.2.1 (procedimento documentado controlado) — erro de dominio DISTINTO de
+    EscopoNaoCobreFaixa (escopo = fraude de acreditacao; procedimento = lacuna de
+    metodo). Caller (view) retorna 412. M7 GATE-CAL-PROC-VIGENTE-PREDICATE.
+    """
+
+    def __init__(
+        self,
+        grandeza: str,
+        faixa_min: str,
+        faixa_max: str,
+        unidade: str,
+        motivo: str,
+    ) -> None:
+        self.grandeza = grandeza
+        self.faixa_min = faixa_min
+        self.faixa_max = faixa_max
+        self.unidade = unidade
+        self.motivo = motivo
+        super().__init__(
+            f"ProcedimentoVigenteAusente grandeza={grandeza} "
             f"faixa=[{faixa_min},{faixa_max}]{unidade} motivo={motivo}"
         )
 
@@ -228,6 +298,7 @@ def executar(
     inp: ConfigurarCalibracaoInput,
     repo: CalibracaoRepository,
     cobertura: CoberturaEscopoPort = _cobertura_fail_open_lazy,
+    procedimento: CoberturaProcedimentoPort = _procedimento_fail_open_lazy,
 ) -> ConfigurarCalibracaoOutput:
     """Configura calibracao: RECEPCIONADA -> CONFIGURADA via CAS.
 
@@ -322,6 +393,41 @@ def executar(
                 motivo,
             )
 
+    # M7 (ADR-0073 / cl. 7.2.1): 2o portao na MESMA transicao, DEPOIS do escopo
+    # (ordem escopo->procedimento, 1a falha interrompe). So RBC. Resolve o
+    # procedimento PUBLICADO vigente server-side (porta injetada) e preenche o
+    # snapshot real; None -> 412 ProcedimentoVigenteAusente (GATE-CAL-PROC-VIGENTE).
+    proc_id_final = inp.procedimento_id
+    proc_snap_final = inp.procedimento_versao_snapshot
+    if atual.tipo_acreditacao == TipoAcreditacao.RBC:
+        assert grandeza_decl is not None and faixa_decl is not None  # garantido acima
+        proc_ok, proc_resolvido = procedimento(
+            tenant_id=atual.tenant_id,
+            grandeza=grandeza_decl.value,
+            faixa_min=faixa_decl.inferior,
+            faixa_max=faixa_decl.superior,
+            unidade=faixa_decl.unidade,
+            data=inp.regra_decisao_acordada_em,
+        )
+        if not proc_ok:
+            raise ProcedimentoVigenteAusente(
+                grandeza_decl.value,
+                str(faixa_decl.inferior),
+                str(faixa_decl.superior),
+                faixa_decl.unidade,
+                "procedimento_inexistente",
+            )
+        # Adapter real resolveu o procedimento vigente -> preenche o snapshot real
+        # (server-side, nao do payload — C-1). STUB lazy retorna None -> mantem input.
+        if proc_resolvido is not None:
+            proc_id_final = UUID(proc_resolvido["procedimento_id"])
+            proc_snap_final = {
+                "codigo": proc_resolvido["codigo"],
+                "versao": proc_resolvido["versao"],
+                "numero_revisao": proc_resolvido["numero_revisao"],
+                "hash_anexo": proc_resolvido["hash_anexo"],
+            }
+
     # Snapshot novo (frozen — usa replace pra trocar campos)
     novo = replace(
         atual,
@@ -330,8 +436,8 @@ def executar(
         regra_decisao=inp.regra_decisao,
         regra_decisao_acordada_em=inp.regra_decisao_acordada_em,
         regra_decisao_acordada_documento_id=inp.regra_decisao_acordada_documento_id,
-        procedimento_id=inp.procedimento_id,
-        procedimento_versao_snapshot=inp.procedimento_versao_snapshot,
+        procedimento_id=proc_id_final,
+        procedimento_versao_snapshot=proc_snap_final,
         escopo_id=inp.escopo_id,
         analise_critica_pedido_id=inp.analise_critica_pedido_id,
         analise_critica_pedido_inline_hash=inp.analise_critica_pedido_inline_hash,

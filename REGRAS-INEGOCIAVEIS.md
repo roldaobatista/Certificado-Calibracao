@@ -227,13 +227,38 @@
 
 ---
 
-## INV-PROC-* — Invariantes de Procedimentos de Calibração (novo Onda 7 — A5-CAL)
+## INV-PROC-* — Invariantes de Procedimentos de Calibração (M7 `metrologia/procedimentos-calibracao`)
+
+> **Renumeração canônica 2026-05-30 (M7 Fatia 3 — T-PROC-046):** a tabela
+> placeholder anterior (`INV-PROC-001..003`, planejamento "Onda 7 — A5-CAL") foi
+> SUPERADA pela definição construída no módulo M7. Spec-as-source (D2): o spec
+> revisado por `consultor-rbc` + `tech-lead` (`docs/faseamento/M7-procedimentos-calibracao/spec.md` §6) é a fonte.
+> **Migração de intenção dos placeholders antigos:** a "imutabilidade do anexo
+> pós-aprovação" virou INV-PROC-003 (WORM Padrão B) + INV-PROC-007 (sha256
+> server-side); o "controle de quem aprovou" virou INV-PROC-009. A exigência de
+> **A3 na aprovação do procedimento** (antigo INV-PROC-002) NÃO entrou no escopo
+> M7 — recai sobre o INV-017 global + fluxo de assinatura A3 do RT em Wave A
+> (`licencas-acreditacoes`); rastreada como GATE-PROC-METODO-VALIDADO/Wave A, não
+> apagada.
 
 | ID | Regra | Base normativa | Hook que valida | Escopo por perfil | Consequência de violar |
 |---|---|---|---|---|---|
-| INV-PROC-001 | **Toda `Calibracao` configurada como RBC referencia `ProcedimentoCalibracao` vigente na data de execução** (Onda 7 — A5-CAL). Predicate `procedimento_vigente_para(tenant_id, grandeza, faixa, em_data)` resolve único OU None (ambiguidade = alerta P1); ausência bloqueia configuração com 412 `ProcedimentoVigenteAusente`. Snapshot do procedimento (`Calibracao.procedimento_versao_snapshot`) imutável após execução. | ISO 17025 cl. 7.2.1 + ADR-0030 | Hook valida `Calibracao.procedimento_id NOT NULL` em RBC; predicate consistente | Absoluta em A; configurável em B/C/D | NC supervisão CGCRE — procedimento não documentado/controlado |
-| INV-PROC-002 | **Aprovação de procedimento exige RT do tenant (`aprovado_por_rt_id`) + assinatura A3 (INV-017) + `data_aprovacao <= vigencia_inicio`** (não aprovar com vigência retroativa). | ISO 17025 cl. 7.2.1 + cl. 6.2 + INV-017 + ADR-0022 | Hook valida transição RASCUNHO→VIGENTE; teste E2E rejeita aprovação retroativa | Absoluta em A; configurável em B/C/D | Procedimento "aprovado" sem rastro de quem aprovou = NC crítica |
-| INV-PROC-003 | **Anexo PDF do procedimento imutável após aprovação (`anexo_pdf_hash` SHA-256 registrado + persistido em B2 WORM).** Mudança no PDF exige nova versão (US-PROC-001). | ISO 17025 cl. 7.2.1 + cl. 8.4 + INV-001 | Trigger PG bloqueia UPDATE em `anexo_pdf_hash` quando `status >= VIGENTE`; teste E2E | Absoluta em A; configurável em B/C/D | Procedimento alterado pós-aprovação = fraude documental |
+| INV-PROC-001 | **Resolução do procedimento vigente** — `vigente_em(tenant_id, grandeza, faixa, data)` só considera `PUBLICADO` + vigente em `data` (ADR-0030) que CONTÉM a faixa solicitada (contenção total `faixa_contida`). Fonte de US-CAL-016 / cl. 7.2.1. | ISO 17025 cl. 7.2.1 + ADR-0030 | Porta `procedimentos_calibracao.query_service.vigente_em` fail-CLOSED (qualquer erro → None) + hook `proc-vigente-fail-closed-check` | Absoluta (resolução server-side) | Procedimento errado/vencido resolvido → calibração sem método válido |
+| INV-PROC-002 | **UNIQUE documental tenant-scoped** — `(tenant_id, codigo, versao)`; `codigo` é a identidade do documento controlado (cl. 8.3). Cadastro de chave já existente bloqueia (use `revisar` para nova versão). | ISO 17025 cl. 8.3 | Constraint UNIQUE (migration 0001) + repo verifica antes de gravar | Absoluta (todos perfis) | Duas versões com a mesma chave = ambiguidade documental |
+| INV-PROC-003 | **PUBLICADO é WORM Padrão B** — muta só via revogação (`revogado_em`+`motivo_revogacao`); DELETE bloqueado por trigger; revisão cria nova `versao` preservando a anterior. Campos técnicos (`metodo_norma`/`faixa_*`/`anexo_pdf_sha256`) congelados pós-publicação. | ISO 17025 cl. 8.4 + cl. 8.3 + ADR-0031 | Trigger WORM `procedimento_calibracao` (migration 0003) + hook `soft-delete-padrao-check` | Absoluta (todos perfis) | Procedimento mutável pós-publicação = fraude documental |
+| INV-PROC-004 | **`procedimento_vigente_para` fail-CLOSED real** — calibração RBC (perfil A) com grandeza+faixa SEM procedimento PUBLICADO vigente → DENY (`procedimento_inexistente`/`procedimento_vencido`) → view 412 `ProcedimentoVigenteAusente`. Substitui o fail-open ADR-0066 (NÃO replicar fail-open). | ISO 17025 cl. 7.2.1 + ADR-0073 | Porta `cobre_procedimento` no use case `configurar_calibracao` (ADR-0073, não no permission layer DRF) + hook `proc-vigente-fail-closed-check` | Bloqueia A; B/C/D aviso degradante (D-PROC-1) | Emissão RBC sem método documentado = NC CGCRE |
+| INV-PROC-005 | **Snapshot `procedimento_versao_snapshot` congelado** — campo que JÁ EXISTE em `ConfigurarCalibracaoInput` desde M4 P4 (M7 só PREENCHE, não cria coluna): `codigo` + `versao` + `numero_revisao` + `anexo_pdf_sha256` da época (canonicalização ADR-0029), imutável; superseção (RT publica N+1) NÃO altera calibração já configurada. | ISO 17025 cl. 7.2.1 + ADR-0029 + INV-CAL-WORM-001 | Snapshot preenchido server-side no use case (não do payload — C-1) | Absoluta (todos perfis) | Snapshot mutável = certificado não reconstituível |
+| INV-PROC-006 | **Vigência canônica ADR-0030** — tz-aware, CHECK INV-VIG-001..004 (`vigencia_inicio < vigencia_fim`, etc.). | ISO 17025 cl. 7.2.1 + ADR-0030 | CHECK constraints (migration) + hook `vigencia-canonica-check` | Absoluta (todos perfis) | Vigência incoerente = resolução ambígua |
+| INV-PROC-007 | **Integridade do documento controlado** — `anexo_pdf_sha256` é o sha256 do conteúdo do PDF, recalculado **server-side** (não confiar no cliente); anexo de PUBLICADO imutável (WORM — INV-PROC-003); o snapshot na calibração guarda o sha256 da época. (HMAC ADR-0064 é dos EVENTOS hash-chain, não do anexo.) | ISO 17025 cl. 7.2.1 | `AnexoStoragePort.sha256_server_side` recalcula no cadastrar/revisar (use case + REST) | Absoluta (todos perfis) | Documento adulterado sem detecção |
+| INV-PROC-008 | **Não-overlap de vigência** — no máximo UMA versão PUBLICADA vigente por `(tenant, codigo, grandeza, faixa_min, faixa_max)` numa data. Publicação de N+1 encerra `vigencia_fim` da anterior na MESMA transação, sob `pg_advisory_xact_lock(hash(tenant, codigo, grandeza, faixa))` (molde ADR-0065) + UNIQUE parcial `WHERE estado='PUBLICADO' AND vigencia_fim IS NULL AND revogado_em IS NULL`. | ISO 17025 cl. 7.2.1 + ADR-0065 | UNIQUE parcial (migration) + advisory lock no use case `publicar` | Absoluta (todos perfis) | 2 vigentes simultâneos = ambiguidade regulatória |
+| INV-PROC-009 | **Controle documental cl. 8.3.1** — procedimento PUBLICADO tem `numero_revisao` + `aprovado_em` + `aprovado_por_id` preenchidos; os 3 entram no snapshot da calibração (reconstituível sem cruzar audit log). | ISO 17025 cl. 8.3.1 | `validar_controle_documental` na transição publicar + hook `proc-controle-documental-check` | Absoluta em A; configurável em B/C/D | NC controle documental — quem/quando aprovou ausente |
+| INV-PROC-010 | **Qualificação de método cl. 7.2.2** — `tipo_metodo` obrigatório; perfil A + `NAO_NORMALIZADO`/`MODIFICADO` exige `registro_validacao_id` antes de publicar. **Fail-open lazy** (paralelo ADR-0066) até `licencas-acreditacoes` existir (GATE-PROC-METODO-VALIDADO). | ISO 17025 cl. 7.2.2 + ADR-0066 (paralelo) | `metodo_exige_validacao_pendente` na transição + hook `proc-metodo-validado-check` (fail-open lazy) | Bloqueia A quando ativo; B/C/D aviso | Método não validado em laboratório acreditado |
+
+> **Reusadas:** INV-CAL-WORM-001 (snapshot calibração imutável), INV-CAL-VERSAO-001,
+> INV-VIG-001..004, INV-SOFT-001/002, INV-TENANT-001..004,
+> INV-TENANT-PERFIL-001/003/004, INV-DOC-CANON-001, INV-HMAC-001..005 (eventos
+> hash-chain). Classes nomeadas `TestINV_PROC_001..010` em
+> `tests/regressao/test_inv_proc_classes_nomeadas.py` (TST-004).
 
 ---
 

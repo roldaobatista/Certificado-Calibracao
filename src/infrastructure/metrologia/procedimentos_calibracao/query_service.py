@@ -81,3 +81,37 @@ def vigente_em(
     except Exception:
         log.exception("procedimentos.vigente_em erro inesperado — fail-closed")
         return None
+
+
+def cobre_procedimento(
+    *,
+    tenant_id: UUID,
+    grandeza: str,
+    faixa_min: Decimal | str,
+    faixa_max: Decimal | str,
+    unidade: str,
+    data: _dt.datetime,
+) -> tuple[bool, dict[str, str] | None]:
+    """Adapter da porta `CoberturaProcedimentoPort` (M4 `configurar_calibracao` —
+    ADR-0073 / T-PROC-040). Resolve o procedimento vigente via `vigente_em` e
+    devolve `(True, {procedimento_id, codigo, versao, numero_revisao, hash_anexo})`
+    para o use case preencher o snapshot real; `(False, None)` se nenhum cobre
+    (RBC -> 412). `numero_revisao` (cl. 8.3.2c) é distinto de `versao` (T-PROC-042).
+    Fail-CLOSED (qualquer erro já vira None em `vigente_em` -> (False, None))."""
+    snap = vigente_em(
+        tenant_id=tenant_id,
+        grandeza=grandeza,
+        faixa_min=faixa_min,
+        faixa_max=faixa_max,
+        unidade=unidade,
+        data=data,
+    )
+    if snap is None:
+        return False, None
+    return True, {
+        "procedimento_id": str(snap.id),
+        "codigo": snap.codigo,
+        "versao": str(snap.versao),
+        "numero_revisao": snap.numero_revisao,
+        "hash_anexo": snap.anexo_pdf_sha256,
+    }

@@ -1074,6 +1074,32 @@ run_case "EEXT5 cadastrar manual normal PASS"          PASS  escopo-extracao-nao
 run_case "EEXT6 override PASS"                          PASS  escopo-extracao-nao-auto-persiste-check.sh '{"tool_input":{"file_path":"src/application/metrologia/escopos_cmc/importar_escopo_pdf.py","content":"# escopo-extracao-auto-persiste: skip -- fluxo aprovado conferencia automatica DR-2026-011\nlinhas = parsear_tabela(x)\nEscopoExtraido()\ncadastrar_executar(l, r)"}}'
 run_case "EEXT7 teste ignora PASS"                    PASS  escopo-extracao-nao-auto-persiste-check.sh '{"tool_input":{"file_path":"tests/test_m6_escopos_cmc_extracao_use_cases.py","content":"linhas = parsear_tabela(x)\nEscopoExtraido()\ncadastrar_executar(l, r)"}}'
 
+echo ""
+echo "===== proc-vigente-fail-closed (M7 Fatia 3 / INV-PROC-004 / ADR-0073) ====="
+run_case "PVFC1 vigente_em gutada fail-open BLOCK"    BLOCK proc-vigente-fail-closed-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/procedimentos_calibracao/query_service.py","content":"def vigente_em(**kw):\n    return object()"}}'
+run_case "PVFC2 vigente_em sem PUBLICADO BLOCK"       BLOCK proc-vigente-fail-closed-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/procedimentos_calibracao/query_service.py","content":"def vigente_em(**kw):\n    if faixa_contida(s, f): return s\n    return None"}}'
+run_case "PVFC3 vigente_em completa PASS"             PASS  proc-vigente-fail-closed-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/procedimentos_calibracao/query_service.py","content":"def vigente_em(**kw):\n    qs = filtra(estado=\"PUBLICADO\")\n    if faixa_contida(solicitada=s, escopo=e): return snap\n    return None"}}'
+run_case "PVFC4 outro arquivo qualquer PASS"          PASS  proc-vigente-fail-closed-check.sh '{"tool_input":{"file_path":"src/x/outro.py","content":"def vigente_em(**kw):\n    return True"}}'
+run_case "PVFC5 edit so cobre_procedimento PASS"      PASS  proc-vigente-fail-closed-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/procedimentos_calibracao/query_service.py","content":"def cobre_procedimento(**kw):\n    return False, None"}}'
+run_case "PVFC6 override PASS"                         PASS  proc-vigente-fail-closed-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/procedimentos_calibracao/query_service.py","content":"# proc-vigente-fail-closed: skip -- refactor revisado tech-lead DR-2026-020\ndef vigente_em(**kw):\n    return object()"}}'
+
+echo ""
+echo "===== proc-controle-documental (M7 Fatia 3 / INV-PROC-009 / cl. 8.3.1) ====="
+run_case "PCD1 publicar sem validar BLOCK"            BLOCK proc-controle-documental-check.sh '{"tool_input":{"file_path":"src/application/metrologia/procedimentos_calibracao/publicar_procedimento.py","content":"class PublicarProcedimentoInput:\n    def executar(): pass"}}'
+run_case "PCD2 publicar com validar PASS"             PASS  proc-controle-documental-check.sh '{"tool_input":{"file_path":"src/application/metrologia/procedimentos_calibracao/publicar_procedimento.py","content":"class PublicarProcedimentoInput:\n    validar_controle_documental(numero_revisao=x, aprovado_em=y, aprovado_por_id=z)"}}'
+run_case "PCD3 outro arquivo qualquer PASS"           PASS  proc-controle-documental-check.sh '{"tool_input":{"file_path":"src/x/outro.py","content":"def executar(): pass"}}'
+run_case "PCD4 edit nao toca publicacao PASS"         PASS  proc-controle-documental-check.sh '{"tool_input":{"file_path":"src/application/metrologia/procedimentos_calibracao/publicar_procedimento.py","content":"log = logging.getLogger(__name__)"}}'
+run_case "PCD5 override PASS"                          PASS  proc-controle-documental-check.sh '{"tool_input":{"file_path":"src/application/metrologia/procedimentos_calibracao/publicar_procedimento.py","content":"# proc-controle-documental: skip -- reescrita aprovada RBC DR-2026-021\nclass PublicarProcedimentoInput:\n    def executar(): pass"}}'
+
+echo ""
+echo "===== proc-metodo-validado (M7 Fatia 3 / INV-PROC-010 fail-open lazy) ====="
+run_case "PMV1 flip lazy->bloqueio BLOCK"             BLOCK proc-metodo-validado-check.sh '{"tool_input":{"file_path":"src/application/metrologia/procedimentos_calibracao/cadastrar_procedimento.py","content":"    if metodo_exige_validacao_pendente(tipo_metodo=t):\n        raise X()"}}'
+run_case "PMV2 publicar flip BLOCK"                   BLOCK proc-metodo-validado-check.sh '{"tool_input":{"file_path":"src/application/metrologia/procedimentos_calibracao/publicar_procedimento.py","content":"    if metodo_exige_validacao_pendente(tipo_metodo=t, perfil=p):\n        raise MetodoNaoValidado()"}}'
+run_case "PMV3 aviso lazy PASS"                       PASS  proc-metodo-validado-check.sh '{"tool_input":{"file_path":"src/application/metrologia/procedimentos_calibracao/cadastrar_procedimento.py","content":"    aviso = metodo_exige_validacao_pendente(tipo_metodo=t, perfil=p, registro_validacao_id=None)"}}'
+run_case "PMV4 gate ativado documentado PASS"         PASS  proc-metodo-validado-check.sh '{"tool_input":{"file_path":"src/application/metrologia/procedimentos_calibracao/publicar_procedimento.py","content":"    # GATE-PROC-METODO-VALIDADO ativado (licencas-acreditacoes existe)\n    if metodo_exige_validacao_pendente(tipo_metodo=t, perfil=p):\n        raise MetodoNaoValidado()"}}'
+run_case "PMV5 outro arquivo qualquer PASS"           PASS  proc-metodo-validado-check.sh '{"tool_input":{"file_path":"src/x/outro.py","content":"if metodo_exige_validacao_pendente(x): raise Y()"}}'
+run_case "PMV6 override PASS"                          PASS  proc-metodo-validado-check.sh '{"tool_input":{"file_path":"src/application/metrologia/procedimentos_calibracao/cadastrar_procedimento.py","content":"# proc-metodo-validado: skip -- bloqueio aprovado pos-licencas DR-2026-022\n    if metodo_exige_validacao_pendente(t): raise Y()"}}'
+
 # --- Gate anti-drift de contagens (auditoria maquina-dev 2026-05-29) ---
 # So no modo completo (sem filtro). Garante que os numeros a mao nos docs
 # canonicos (README/AGENTS/CLAUDE) batem com a fonte direta. Mata os

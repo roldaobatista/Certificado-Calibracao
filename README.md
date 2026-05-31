@@ -17,7 +17,7 @@
 - **Stack ativa:** Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry + Docker Compose
 - **LICENSE:** BUSL-1.1 aplicada na Onda 0 do plano-v2 (parecer subagente `advogado-saas-regulado`; confirmação OAB humano pendente)
 - **77 ADRs aceitas/propostas** (0000..0076) — ADR-0073/0074/0075/0076 do Marco 6 escopos-cmc; ADR-0070/0071/0072 do Marco 5; ADR-0064/0065/0066 do Marco 4; ADR-0063 do Marco 3
-- **Suite:** pytest M4 chave 629/629 verde em ~27s; pytest geral 905/0/0 (último full run 2026-05-24); 58 hooks ativos; 474/474 casos no `_test-runner.sh`
+- **Suite:** pytest M4 chave 629/629 verde em ~27s; pytest geral 905/0/0 (último full run 2026-05-24); 61 hooks ativos; 491/491 casos no `_test-runner.sh`
 
 > Contagens (hooks/casos/ADRs) são geradas por `scripts/status-projeto.sh` — ver `docs/governanca/STATUS-GERADO.md`. Anti-drift: `bash scripts/status-projeto.sh --check`.
 

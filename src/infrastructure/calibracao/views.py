@@ -71,6 +71,7 @@ from src.application.metrologia.calibracao.configurar_calibracao import (
     ConflitoVersaoCalibracao,
     EscopoNaoCobreFaixa,
     EstadoInvalidoParaConfigurar,
+    ProcedimentoVigenteAusente,
 )
 from src.application.metrologia.calibracao.configurar_calibracao import (
     executar as configurar_executar,
@@ -183,6 +184,9 @@ from src.infrastructure.idempotencia.services_idempotencia import (
 )
 from src.infrastructure.metrologia.escopos_cmc import (
     query_service as escopos_cmc_qs,
+)
+from src.infrastructure.metrologia.procedimentos_calibracao import (
+    query_service as procedimentos_qs,
 )
 from src.infrastructure.multitenant.context import (
     active_tenant_context,
@@ -528,9 +532,13 @@ class CalibracaoViewSet(viewsets.ViewSet):
         evento_repo = DjangoEventoDeCalibracaoRepository()
         try:
             with transaction.atomic():
-                # ADR-0073: porta de cobertura CMC injetada (escopos-cmc M6).
+                # ADR-0073: portas reais injetadas — escopo CMC (M6) +
+                # procedimento vigente (M7). Ordem escopo->procedimento.
                 out = configurar_executar(
-                    inp, repo, cobertura=escopos_cmc_qs.cobre
+                    inp,
+                    repo,
+                    cobertura=escopos_cmc_qs.cobre,
+                    procedimento=procedimentos_qs.cobre_procedimento,
                 )
                 # OBS-CAL-01: elo WORM da configuracao (cl. 7.2 + ADR-0024).
                 append_evento_executar(
@@ -598,6 +606,25 @@ class CalibracaoViewSet(viewsets.ViewSet):
                 {
                     "erro": str(exc),
                     "codigo": "EscopoNaoCobreFaixa",
+                    "grandeza": exc.grandeza,
+                    "faixa_min": exc.faixa_min,
+                    "faixa_max": exc.faixa_max,
+                    "unidade": exc.unidade,
+                    "motivo": exc.motivo,
+                },
+                status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+        except ProcedimentoVigenteAusente as exc:
+            # M7 cl. 7.2.1: RBC sem procedimento PUBLICADO vigente cobrindo a faixa.
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "ProcedimentoVigenteAusente",
                     "grandeza": exc.grandeza,
                     "faixa_min": exc.faixa_min,
                     "faixa_max": exc.faixa_max,

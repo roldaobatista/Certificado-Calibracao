@@ -102,10 +102,13 @@ class ProcedimentoUsado:
     vigencia_fim: datetime | None = None
 
     def snapshot_minimo(self) -> dict[str, str]:
-        """Os 3 campos mínimos que o `procedimento_versao_snapshot` (M4) exige:
-        `{codigo, versao, hash_anexo}` — preenche o contrato já cravado."""
+        """Campos que o `procedimento_versao_snapshot` (M4) congela na configuração
+        (INV-PROC-005): `{codigo, versao, numero_revisao, hash_anexo}`. `numero_revisao`
+        (cl. 8.3.2c) é o marcador de revisão do documento controlado, distinto de
+        `versao` interna — entra no snapshot pra reconstituição CGCRE sem joins."""
         return {
             "codigo": self.codigo,
             "versao": str(self.versao),
+            "numero_revisao": self.numero_revisao,
             "hash_anexo": self.anexo_pdf_sha256,
         }

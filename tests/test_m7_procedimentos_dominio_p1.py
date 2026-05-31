@@ -128,11 +128,12 @@ class TestProcedimentoUsado:
         )
 
     def test_snapshot_minimo_bate_contrato_m4(self):
-        # M4 ConfigurarCalibracaoInput exige {codigo, versao, hash_anexo}
+        # INV-PROC-005: snapshot congela codigo+versao+numero_revisao+hash_anexo
         m = self._usado().snapshot_minimo()
-        assert set(m) == {"codigo", "versao", "hash_anexo"}
+        assert set(m) == {"codigo", "versao", "numero_revisao", "hash_anexo"}
         assert m["codigo"] == "PC-MASSA-001"
         assert m["versao"] == "2"
+        assert m["numero_revisao"] == "Rev. 04"
         assert m["hash_anexo"] == "deadbeef"
 
     def test_vo_imutavel(self):
