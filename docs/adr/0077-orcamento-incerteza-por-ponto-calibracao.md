@@ -50,13 +50,19 @@ ponto de calibração**. A forma canônica é a tabela do certificado: para cada
 `ponto_calibracao` medido → `{valor_medido, correção, u_combinada, k, U_expandida,
 grau_liberdade_efetivo (ν_eff), nivel_confianca}`.
 
-Caminhos de implementação (decididos no `/plan` do retrofit, sob revisão `tech-lead`):
-- **Preferido (b1):** adicionar `ponto_calibracao` ao `OrcamentoIncertezaSnapshot`
-  e produzir N orçamentos (um por ponto). Modelo que a CGCRE espera ver.
-- **Ponte aceitável (b2):** função de incerteza `U(X)` declarada e justificada pelo
-  RT (espelha a forma `a + b·X` da CMC), avaliada por ponto na emissão. Só legítima
-  com método de interpolação **validado e declarado** (cl. 7.11) — o software não
-  inventa interpolação.
+**Caminho escolhido (decisão Roldão 2026-05-31): b1 + média derivada.**
+- **b1 (escolhido):** adicionar `ponto_calibracao` ao `OrcamentoIncertezaSnapshot`
+  e produzir N orçamentos (um por ponto). Modelo que a CGCRE espera ver. **Dado-fonte
+  e valor reportado no certificado = por ponto.**
+- **Média derivada (decisão Roldão):** além do por-ponto, expor um **agregado de
+  conveniência** (ex.: `U_media`, e/ou faixa `[U_min, U_max]`) calculado a partir dos
+  pontos — para quem quiser a "visão geral" rápida sem ler a tabela inteira. **É
+  NÃO-NORMATIVO** (rótulo "visão geral"/resumo): o certificado RBC reporta por ponto;
+  a média é só display/busca, nunca substitui o valor por ponto nem vira o U "do
+  certificado". Derivada on-the-fly ou materializada como campo de leitura.
+- **b2 (não escolhido, mas registrado):** função `U(X)` declarada+justificada pelo RT
+  (cl. 7.11) — disponível como evolução futura se algum tenant medir muitos pontos e
+  preferir declarar a função; não é o caminho desta frente.
 - **Rejeitado (a):** U único aplicado a todos os pontos como default silencioso.
 
 Altera marco FECHADO M4 (entidades + migrations + motor de cálculo + drill) — por
@@ -64,20 +70,41 @@ isso exige esta ADR. A validação cl. 7.11 do cálculo de incerteza por ponto e
 rol de revisão por consultor RBC humano credenciado pré-produção
 (`project_sem_contratacoes_externas_ate_producao`).
 
+## Descoberta de-riscante (regra #0 — investigação 2026-05-31)
+
+A premissa inicial da NC-01 ("M4 não tem estrutura por ponto") está **incompleta**: o
+model **`OrcamentoPorPonto`** (1:N de `OrcamentoIncerteza`, com `ponto_calibracao`,
+`u_combinada_no_ponto`, `U_expandida_no_ponto`, `k_no_ponto`) **JÁ EXISTE** no schema
+M4 — tabela (migration 0006) + trigger WORM (0003) + grants (0014) + RLS testada. Foi
+provisionado no M4 olhando pra frente, mas **nunca ligado**: o motor
+`calcular_orcamento_incerteza` produz só o agregado (1 `U_expandida`) e não popula a
+tabela por ponto; não há snapshot de domínio `OrcamentoPorPontoSnapshot` nem use case.
+
+**Logo o retrofit é WIRING, não reconstrução:** não cria tabela/trigger/migration
+destrutiva. Escopo real ≈ snapshot de domínio + use case popular por ponto +
+repositório + média derivada + testes. Risco muito menor que o estimado pelo RBC.
+
 ## Consequências
 
 - **Habilita** `GATE-CAL-EMISSAO-RECONCILIA-FAIXA` + `GATE-ECMC-U-MAIOR-CMC` (M8) —
   a reconciliação por ponto torna-se possível.
-- **Retrofit M4:** `OrcamentoIncertezaSnapshot` ganha `ponto_calibracao` (ou
-  estrutura por ponto) + migration aditiva + ajuste do motor de cálculo para produzir
-  U por ponto + retrofit dos testes/drill M4. Frente própria (SAN-INCERTEZA-PONTO),
-  ANTES da Fatia 2 do M8 (emitir_certificado).
+- **Retrofit M4 (frente SAN-INCERTEZA-PONTO, ANTES da Fatia 2 do M8):** liga o stub
+  `OrcamentoPorPonto` existente — snapshot de domínio `OrcamentoPorPontoSnapshot` +
+  use case produz N linhas por ponto + repositório popula + **média derivada**
+  (agregado `OrcamentoIncerteza.U_expandida` vira a "visão geral" não-normativa) +
+  retrofit testes/drill. Migration aditiva só se faltar coluna (ex.: `nivel_confianca_no_ponto`,
+  `grau_liberdade_efetivo_no_ponto` — NC-05); a tabela base já existe. Decisão da forma
+  do INPUT por ponto (componentes por ponto vs Tipo A por ponto) = mini-plano revisado
+  pelo `tech-lead`.
 - **Replay cl. 7.11:** o `replay_determinismo_hash` passa a cobrir o cálculo por
   ponto (fixtures versionadas por ponto).
 - Non-goal: não muda a fórmula de cálculo em si, só a granularidade (por ponto).
 
 ## Status
 
-🟡 **Proposta** (2026-05-31). Depende de: ADR-0074, ADR-0076, ADR-0025 v2.
-Bloqueia: M8 Fatia 2 (`emitir_certificado`). Decisão de aceite + caminho (b1 vs b2) =
-Roldão, após mini-plano do retrofit revisado pelo `tech-lead` (altera marco fechado).
+🟡 **Proposta — caminho decidido (b1 + média derivada, Roldão 2026-05-31).** Depende
+de: ADR-0074, ADR-0076, ADR-0025 v2. Bloqueia: M8 Fatia 2 (`emitir_certificado`).
+Aceite formal após **mini-plano do retrofit (frente SAN-INCERTEZA-PONTO) revisado pelo
+`tech-lead`** (altera marco fechado M4 — exigência da `ordem-dependencia-bloco-metrologia.md`).
+A validação cl. 7.11 do cálculo por ponto = revisão consultor RBC humano credenciado
+pré-produção.
