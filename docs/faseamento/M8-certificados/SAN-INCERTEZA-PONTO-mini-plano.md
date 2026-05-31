@@ -1,7 +1,7 @@
 ---
 owner: agente-ia
 revisado-em: 2026-05-31
-status: draft
+status: ready-for-tasks
 diataxis: reference
 audiencia: [agente, tech-lead, consultor-rbc, roldao]
 marco: M8-certificados
@@ -65,7 +65,57 @@ relacionados:
 - A derivação de s_x (Tipo A) por ponto a partir das repetições da própria
   `LeituraSnapshot` é metrologicamente correta (n≥6 por ponto — INV-CAL-INC-003)?
 
+## Decisões pós-revisão (tech-lead + RBC 2026-05-31 — AMBOS APROVA COM CORREÇÕES)
+
+### Tech-lead (arquitetura)
+- **Q-RETRO-1 = (b):** use case recebe componentes base + leituras; deriva Tipo A
+  (s_x) por ponto das repetições; **motor GUM NÃO muda** (já é "por chamada" — N
+  chamadas a `propagar()`). Único "caller" é teste → retrofit barato.
+- **Q-RETRO-2 = manter agregado** `OrcamentoIncerteza` como **pior-caso (max U)**,
+  NÃO-NORMATIVO; NÃO depreciar nem trocar por `U_media` (quebraria 3 consumers +
+  teste M4 sem ganho). O help_text do model JÁ diz "pior caso".
+- **Q-RETRO-3 = ambos hashes:** `replay_determinismo_hash_no_ponto` por ponto +
+  hash agregado de fecho encadeando os por-ponto (tamper-evidence composicional).
+- **Migration aditiva OBRIGATÓRIA (não condicional), 3 colunas + índice, ANTES do
+  repositório:** `nivel_confianca_no_ponto`, `grau_liberdade_efetivo_no_ponto`,
+  `replay_determinismo_hash_no_ponto` + `Index(tenant, orcamento_incerteza)`.
+  Colunas NULL-áveis (tabela vazia; trigger WORM permite INSERT — zero risco).
+- Protocol `OrcamentoIncertezaRepository.salvar_orcamento_com_componentes` ganha
+  `pontos=()` (default) na MESMA transação atômica. Atualizar Fake + Django impl.
+- **TL-A-03 (registrar, não codar):** `avaliar_conformidade` também é por ponto
+  (zona ILAC G8 por ponto) — dependência conhecida do M8, não desta fatia.
+
+### Consultor-RBC (física — base GUM/NIT-DICLA-030/EA-4/02/ILAC-P14)
+- **Q-RBC-1 (Tipo B):** resolução (UUT+padrão) = CONSTANTE absoluto ✅; incerteza do
+  padrão + deriva = `a+b·X` (NÃO opt-in puro). **1ª fatia segura:** Tipo B constante
+  **+ portão fail-closed: padrão com `b≠0` no certificado/CMC NÃO emite RBC** (espera
+  fatia 2 do escalonamento) — senão subestima U nos pontos altos = NC CGCRE. Campo
+  `lei_escalonamento ∈ {CONSTANTE, PROPORCIONAL, LINEAR_AFIM}` + `coef_a`/`coef_b` por
+  componente; defaults por origem pré-preenchidos, RT confirma.
+- **Q-RBC-2 (n<6 por ponto):** híbrido perfil-aware — n≥6→Tipo A normal; 2≤n<6→tenta
+  **s_pooled** do procedimento (continua Tipo A, GUM §4.2.4), senão **fail-closed
+  perfil A** / ressalva registrada B/C/D; n<2→sem Tipo A, registrado. **Nunca
+  silencioso** — gravar `metodo_tipo_a_ponto ∈ {SX_PROPRIO, S_POOLED, AUSENTE}` +
+  `n_repeticoes_ponto`.
+- **Q-RBC-3 (visão geral):** **pior caso (max U)** confirmado. Média aritmética =
+  enganosa, NÃO exibir. Rótulo obrigatório "**U máxima na faixa**" (não "U da
+  calibração"/"U média"); não usar pra conformidade de ponto; não substitui por-ponto.
+
+### Campos novos do `OrcamentoPorPontoSnapshot` (consolidado)
+`ponto_calibracao`, `u_combinada_no_ponto`, `U_expandida_no_ponto`, `k_no_ponto`
+(já no model) + `nivel_confianca_no_ponto`, `grau_liberdade_efetivo_no_ponto`,
+`replay_determinismo_hash_no_ponto`, `metodo_tipo_a_ponto`, `n_repeticoes_ponto`,
+`lei_escalonamento_aplicada` (migration aditiva).
+
+### Escalar a humano credenciado pré-produção (`project_sem_contratacoes_externas_ate_producao`)
+1. Coeficientes `a,b` por componente/grandeza (Q-RBC-1). 2. Validação do `s_pooled`
+(Q-RBC-2 — registro cl. 7.2.2). 3. Revalidação software cl. 7.11 do cálculo por ponto
+(ADR-0025 — URS+OQ+replay por ponto). Minuta ~80% pronta. ~R$5-15k quando 1º tenant A real.
+
 ## Veredito
 
-Mini-plano `draft` para revisão `tech-lead`. Após APROVA COM CORREÇÕES → tasks
-SAN-INCERTEZA-PONTO → implement (fatias) → reverde M4 → então M8 Fatia 2.
+Mini-plano **`ready-for-tasks`** (tech-lead + RBC APROVA COM CORREÇÕES, incorporadas).
+Próximo: `/tasks` SAN-INCERTEZA-PONTO (fatias: domínio snapshot → migration aditiva 3
+colunas+índice → use case por ponto + portão b≠0 + n<6 perfil-aware → repositório →
+testes/drill/replay por ponto → reverde M4) → implement → então M8 Fatia 2 (reconciliação).
+**INV nova:** INV-CAL-INC-005 (incerteza por ponto + agregado pior-caso) a cravar nas tasks.
