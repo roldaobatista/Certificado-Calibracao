@@ -290,8 +290,78 @@ def _verificar_seed_authz_calibracao() -> DrillResult:
         )
 
 
+# ADR-0077 (SAN-INCERTEZA-PONTO) — colunas probatorias por ponto.
+_COLUNAS_POR_PONTO_ADR0077 = [
+    "nivel_confianca_no_ponto",
+    "grau_liberdade_efetivo_no_ponto",
+    "replay_determinismo_hash_no_ponto",
+    "metodo_tipo_a_ponto",
+    "n_repeticoes_ponto",
+    "lei_escalonamento_aplicada",
+    "tipo_a_insuficiente",
+    "s_tipo_a_no_ponto",
+]
+
+
+def _verificar_colunas_por_ponto_adr0077() -> DrillResult:
+    """Check 11 (ADR-0077): orcamento_por_ponto tem as 8 colunas probatorias +
+    orcamento_incerteza tem cadeia_pontos_hash (migrations 0018/0019)."""
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'orcamento_por_ponto'
+            """
+        )
+        cols_ponto = {row[0] for row in cur.fetchall()}
+        cur.execute(
+            """
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'orcamento_incerteza'
+              AND column_name = 'cadeia_pontos_hash'
+            """
+        )
+        tem_cadeia = cur.fetchone() is not None
+    faltando = [c for c in _COLUNAS_POR_PONTO_ADR0077 if c not in cols_ponto]
+    ok = not faltando and tem_cadeia
+    detalhe = ""
+    if not ok:
+        partes = []
+        if faltando:
+            partes.append(f"orcamento_por_ponto faltando: {faltando}")
+        if not tem_cadeia:
+            partes.append("orcamento_incerteza.cadeia_pontos_hash AUSENTE")
+        detalhe = "; ".join(partes)
+    return DrillResult(
+        "colunas incerteza por ponto ADR-0077 (0018/0019)",
+        passou=ok,
+        detalhe=detalhe,
+    )
+
+
+def _verificar_trigger_worm_orcamento_por_ponto() -> DrillResult:
+    """Check 12 (ADR-0077 / INV-CAL-WORM-001): trigger WORM em orcamento_por_ponto
+    (so admite INSERT; UPDATE/DELETE bloqueados — append-only probatorio)."""
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            SELECT 1 FROM information_schema.triggers
+            WHERE event_object_table = 'orcamento_por_ponto'
+              AND (trigger_name ILIKE '%worm%'
+                   OR trigger_name ILIKE '%imut%'
+                   OR trigger_name ILIKE '%anti%')
+            """
+        )
+        ok = cur.fetchone() is not None
+    return DrillResult(
+        "trigger WORM orcamento_por_ponto INV-CAL-WORM-001",
+        passou=ok,
+        detalhe="" if ok else "trigger WORM nao encontrado em orcamento_por_ponto",
+    )
+
+
 def rodar_todas_verificacoes() -> list[DrillResult]:
-    """Roda todas as 10 categorias de check + retorna lista plana."""
+    """Roda todas as 12 categorias de check + retorna lista plana."""
     resultados: list[DrillResult] = []
     resultados.extend(_verificar_tabelas_existem())
     resultados.extend(_verificar_rls_habilitado())
@@ -303,6 +373,8 @@ def rodar_todas_verificacoes() -> list[DrillResult]:
     resultados.append(_verificar_trigger_imutabilidade_calibracao())
     resultados.append(_verificar_trigger_imutabilidade_nao_conformidade())
     resultados.append(_verificar_seed_authz_calibracao())
+    resultados.append(_verificar_colunas_por_ponto_adr0077())
+    resultados.append(_verificar_trigger_worm_orcamento_por_ponto())
     return resultados
 
 

@@ -1,0 +1,57 @@
+{
+  "_aceite_motivo": "Ground truth do calculo de incerteza POR PONTO (ADR-0077 / SAN-INCERTEZA-PONTO) — contrato replay determinismo cl. 7.11 (ADR-0025). Mesma entrada (componentes base Tipo B CONSTANTE + repeticoes por ponto + versao_motor) -> mesmos u_c, U(ponto), k, dof, metodo Tipo A, s aplicado, hash por ponto, hash agregado e cadeia de fecho. Alterar SO com reanalise metrologica (consultor-rbc) + revalidacao cl. 7.11 (URS+OQ). k VARIA por ponto por construcao (Welch-Satterthwaite por ponto — Tipo A dominante nos pontos altos).",
+  "descricao": "3 pontos com s_x crescente (spread 0.01/0.05/0.10) -> U cresce -> agregado pior-caso = ponto 100. Tipo B identicos (resolucao retangular 0.005 + padrao normal 0.002). perfil A, n=6 por ponto (SX_PROPRIO).",
+  "entrada": {
+    "versao_motor_calculo": "1.0.0+abc123",
+    "perfil_tenant": "A",
+    "documentacao_agregacao": "Replay golden incerteza por ponto ADR-0077 cl. 7.11 GUM cl. 4.2.",
+    "componentes_base": [
+      {
+        "nome": "resolucao", "u_i": "0.005",
+        "tipo_origem": "RESOLUCAO_INSTRUMENTO", "distribuicao": "RETANGULAR",
+        "divisor": "1.73205", "formula": "RESOLUCAO_RETANGULAR", "lei": "CONSTANTE"
+      },
+      {
+        "nome": "padrao", "u_i": "0.002",
+        "tipo_origem": "INCERTEZA_PADRAO_REF", "distribuicao": "NORMAL",
+        "divisor": "2.00000", "formula": "PADRAO_CERTIFICADO", "lei": "CONSTANTE"
+      }
+    ],
+    "pontos": [
+      {"ponto": "10", "repeticoes": ["10.00", "10.01", "9.99", "10.005", "9.995", "10.00"], "s_pooled": null},
+      {"ponto": "50", "repeticoes": ["50.00", "50.05", "49.95", "50.025", "49.975", "50.00"], "s_pooled": null},
+      {"ponto": "100", "repeticoes": ["100.00", "100.10", "99.90", "100.05", "99.95", "100.00"], "s_pooled": null}
+    ]
+  },
+  "esperado_pontos": [
+    {
+      "ponto": "10", "metodo": "SX_PROPRIO", "n": 6,
+      "u_combinada": "0.0061101009266077866754507295916373446519792754356906",
+      "U_expandida": "0.012", "k": "2.025", "dof": "100",
+      "s_tipo_a": "0.0070710678118654752440084436210484903928483593768847",
+      "hash": "v01$2GL7zFp7OGhdA0udZIdPRKRSrJLpMOWk3AXG6mSxalw="
+    },
+    {
+      "ponto": "50", "metodo": "SX_PROPRIO", "n": 6,
+      "u_combinada": "0.015405626677721790533747475404915196878295039068575",
+      "U_expandida": "0.039", "k": "2.517", "dof": "6",
+      "s_tipo_a": "0.035355339059327376220042218105242451964241796884424",
+      "hash": "v01$JpRpuwfQ1XQZnkd2I0LGSdfoZg+9Ik09Q6VJwUHl5jU="
+    },
+    {
+      "ponto": "100", "metodo": "SX_PROPRIO", "n": 6,
+      "u_combinada": "0.029365512652316038416376315149860025065661410990074",
+      "U_expandida": "0.078", "k": "2.649", "dof": "5",
+      "s_tipo_a": "0.070710678118654752440084436210484903928483593768847",
+      "hash": "v01$MiAuz1L0HTUZ0hyi05d2lPTUoQXLDoar9Qeu177UfJk="
+    }
+  ],
+  "esperado_agregado": {
+    "U_expandida": "0.078",
+    "u_combinada": "0.029365512652316038416376315149860025065661410990074",
+    "k": "2.649",
+    "ponto_pior_caso": "100",
+    "replay_determinismo_hash": "v01$MiAuz1L0HTUZ0hyi05d2lPTUoQXLDoar9Qeu177UfJk=",
+    "cadeia_pontos_hash": "v01$F6m2D1K7kQRWurjrN8cp4VWRGdJ5kxRBNRuaKV2lwzQ="
+  }
+}
