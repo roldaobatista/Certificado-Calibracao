@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado-em: 2026-05-30
-status: ready-for-tasks
+revisado-em: 2026-05-31
+status: stable
 fase: M7-procedimentos-calibracao
 dominio: metrologia
 modulo: procedimentos-calibracao

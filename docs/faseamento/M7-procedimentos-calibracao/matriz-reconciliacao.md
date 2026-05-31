@@ -100,8 +100,21 @@ Total `_test-runner`: **491/491 verdes / 61 hooks ativos**.
 Todas as 10 INV-PROC têm enforcement real + teste nomeado (TST-004) + (onde aplicável)
 hook camada A. As 6 US têm código + status. GATE central
 (GATE-CAL-PROC-VIGENTE-PREDICATE no portão de configuração) FECHADO; suíte M4 chave
-reverde 676/676 (zero regressão). Pronto para **P9 — ritual auditores roteados
-(INV-RITUAL-003)**: seguranca (porta fail-closed + RLS + concorrência) ·
-llm-correctness (cobertura bate docstring) · produto (AC binários + terminologia) ·
-qualidade (INV-PROC testados) · observabilidade (eventos hash-chain) ·
-idempotência. INV-RITUAL-001: MÉDIO+ bloqueia.
+reverde 676/676 (zero regressão).
+
+## 8. P9 — ritual auditores roteados (INV-RITUAL-003) — FECHADO 2026-05-31
+
+6 auditores roteados por risco: **6/6 sem achado MÉDIO+ bloqueante** (INV-RITUAL-001
+satisfeito):
+
+| Auditor | Veredito | Achado |
+|---------|----------|--------|
+| seguranca | ✅ PASS | SEG-CAL-10 server-side + RLS + fail-CLOSED + hooks sem bypass; zero |
+| llm-correctness | ✅ PASS | docstrings verazes (4 chaves), sem `Any`, rastreabilidade INV-PROC; zero |
+| produto | ✅ PASS | AC-CAL-016-1/2 fiéis, escopo perfil correto, terminologia distinta; 1 BAIXO (nota stale AC-016-3) **RESOLVIDO** |
+| qualidade | ✅ PASS | TST-001..004 limpos, sem relaxamento M4, snapshot 3→4 é aperto; zero |
+| observabilidade | 🟡 CONCERNS BAIXO | log estruturado ausente no 412 + `tenant_id` em `vigente_em` **RESOLVIDO** (log.warning extra nos 2 handlers 412 + `extra={tenant_id}` em vigente_em — sana também débito-irmão M6 EscopoNaoCobreFaixa) |
+| idempotência | ✅ PASS | falhar_chave correto, replay terminal, ordem portas sem estado parcial, CAS preservado; zero |
+
+**Os 2 achados BAIXO foram resolvidos na causa-raiz** (regra "resolver TUDO crítico→baixo"),
+não apenas rastreados. M7 `metrologia/procedimentos-calibracao` **FECHADO**.

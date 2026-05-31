@@ -597,6 +597,24 @@ class CalibracaoViewSet(viewsets.ViewSet):
             )
         except EscopoNaoCobreFaixa as exc:
             # ADR-0073/0074 cond. 1: RBC sem escopo CMC vigente cobrindo a faixa.
+            # OBS-002: trilha do bloqueio metrologico (motivo reconstituivel).
+            logger.warning(
+                "calibracao.configurar BLOQUEADO EscopoNaoCobreFaixa "
+                "calibracao_id=%s grandeza=%s motivo=%s",
+                cal_id,
+                exc.grandeza,
+                exc.motivo,
+                extra={
+                    "tenant_id": str(tenant_id_ctx),
+                    "calibracao_id": str(cal_id),
+                    "grandeza": exc.grandeza,
+                    "faixa_min": exc.faixa_min,
+                    "faixa_max": exc.faixa_max,
+                    "unidade": exc.unidade,
+                    "motivo": exc.motivo,
+                    "bloqueio": "EscopoNaoCobreFaixa",
+                },
+            )
             falhar_chave(
                 chave_id=novo.chave_id,  # type: ignore[arg-type]
                 tenant_id=tenant_id_ctx,
@@ -616,6 +634,24 @@ class CalibracaoViewSet(viewsets.ViewSet):
             )
         except ProcedimentoVigenteAusente as exc:
             # M7 cl. 7.2.1: RBC sem procedimento PUBLICADO vigente cobrindo a faixa.
+            # OBS-002: trilha do bloqueio metrologico (motivo reconstituivel).
+            logger.warning(
+                "calibracao.configurar BLOQUEADO ProcedimentoVigenteAusente "
+                "calibracao_id=%s grandeza=%s motivo=%s",
+                cal_id,
+                exc.grandeza,
+                exc.motivo,
+                extra={
+                    "tenant_id": str(tenant_id_ctx),
+                    "calibracao_id": str(cal_id),
+                    "grandeza": exc.grandeza,
+                    "faixa_min": exc.faixa_min,
+                    "faixa_max": exc.faixa_max,
+                    "unidade": exc.unidade,
+                    "motivo": exc.motivo,
+                    "bloqueio": "ProcedimentoVigenteAusente",
+                },
+            )
             falhar_chave(
                 chave_id=novo.chave_id,  # type: ignore[arg-type]
                 tenant_id=tenant_id_ctx,

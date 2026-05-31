@@ -76,10 +76,17 @@ def vigente_em(
         return None
     except (ValueError, InvalidOperation, TypeError) as e:
         # entrada inválida (grandeza/unidade/faixa fora do contrato) -> fail-closed
-        log.warning("procedimentos.vigente_em entrada invalida: %s", e)
+        log.warning(
+            "procedimentos.vigente_em entrada invalida: %s",
+            e,
+            extra={"tenant_id": str(tenant_id)},  # OBS-002
+        )
         return None
     except Exception:
-        log.exception("procedimentos.vigente_em erro inesperado — fail-closed")
+        log.exception(
+            "procedimentos.vigente_em erro inesperado — fail-closed",
+            extra={"tenant_id": str(tenant_id)},  # OBS-002
+        )
         return None
 
 
