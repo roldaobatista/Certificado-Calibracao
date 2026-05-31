@@ -1089,6 +1089,20 @@ class ComponenteIncerteza(models.Model):
         return f"Componente {self.nome_componente} ({self.tipo_componente})"
 
 
+# ADR-0077 (SAN-INCERTEZA-PONTO) — registros probatorios por ponto.
+METODO_TIPO_A_PONTO_CHOICES = [
+    ("SX_PROPRIO", "s_x das repeticoes do proprio ponto (n>=6)"),
+    ("S_POOLED", "Desvio-padrao combinado (pooled) do metodo (2<=n<6)"),
+    ("AUSENTE", "Sem Tipo A no ponto (n<2) — so Tipo B"),
+]
+
+LEI_ESCALONAMENTO_CHOICES = [
+    ("CONSTANTE", "Constante (valor absoluto fixo na faixa)"),
+    ("PROPORCIONAL", "Proporcional (b*X)"),
+    ("LINEAR_AFIM", "Linear afim (a + b*X)"),
+]
+
+
 class OrcamentoPorPonto(models.Model):
     """Incerteza por ponto da calibracao (1:N de OrcamentoIncerteza).
 
@@ -1123,6 +1137,36 @@ class OrcamentoPorPonto(models.Model):
         decimal_places=2,
         default="2.0",
     )
+    # ADR-0077 colunas probatorias (migration aditiva; NULL-aveis — tabela vazia,
+    # trigger WORM permite INSERT; dominio garante presenca no INSERT).
+    nivel_confianca_no_ponto = models.DecimalField(
+        max_digits=6, decimal_places=4, null=True, blank=True,
+        help_text="Cobertura nominal no ponto (ex.: 0.9545).",
+    )
+    grau_liberdade_efetivo_no_ponto = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text="nu_eff Welch-Satterthwaite no ponto (999999 = infinito pratico).",
+    )
+    replay_determinismo_hash_no_ponto = models.CharField(
+        max_length=255, default="", blank=True,
+        help_text="HashVersionado v<NN>$<base64> do calculo do ponto (ADR-0025 cl. 7.11).",
+    )
+    metodo_tipo_a_ponto = models.CharField(
+        max_length=20, choices=METODO_TIPO_A_PONTO_CHOICES, default="", blank=True,
+        help_text="Como o Tipo A foi obtido no ponto (Q-RBC-2).",
+    )
+    n_repeticoes_ponto = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Numero de repeticoes do ponto (regra n>=6 por ponto).",
+    )
+    lei_escalonamento_aplicada = models.CharField(
+        max_length=20, choices=LEI_ESCALONAMENTO_CHOICES, default="", blank=True,
+        help_text="Lei de escalonamento Tipo B aplicada (1a fatia: CONSTANTE).",
+    )
+    tipo_a_insuficiente = models.BooleanField(
+        default=False,
+        help_text="Ressalva B/C/D: ponto com 2<=n<6 sem s_pooled (nao bloqueia).",
+    )
 
     class Meta:
         verbose_name = "Orcamento por Ponto"
@@ -1133,6 +1177,11 @@ class OrcamentoPorPonto(models.Model):
             models.UniqueConstraint(
                 fields=["tenant", "orcamento_incerteza", "ponto_calibracao"],
                 name="uq_orcamento_ponto",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["tenant", "orcamento_incerteza"], name="orcponto_tenant_orc_idx"
             ),
         ]
 
