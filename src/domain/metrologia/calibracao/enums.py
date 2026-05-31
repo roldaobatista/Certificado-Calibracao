@@ -240,3 +240,38 @@ class FormulaCalculoComponente(str, Enum):
     TEMPERATURA_QUADRATICA = "TEMPERATURA_QUADRATICA"
     BIAS_CONHECIDO = "BIAS_CONHECIDO"
     OUTRO = "OUTRO"
+
+
+class MetodoTipoAPonto(str, Enum):
+    """Como o componente Tipo A (repetibilidade) foi obtido NUM ponto — ADR-0077
+    (SAN-INCERTEZA-PONTO / consultor-rbc Q-RBC-2).
+
+    Registro probatório cl. 7.5/7.11: nunca substituir s_x silenciosamente.
+    - SX_PROPRIO: s_x calculado das repetições do próprio ponto (n >= 6).
+    - S_POOLED: desvio-padrão combinado (pooled) de histórico/validação do método,
+      usado quando 2 <= n < 6 (GUM §4.2.4 + EA-4/02 §3.2 — continua Tipo A).
+    - AUSENTE: n < 2 — sem componente Tipo A no ponto (só Tipo B), registrado.
+    """
+
+    SX_PROPRIO = "SX_PROPRIO"
+    S_POOLED = "S_POOLED"
+    AUSENTE = "AUSENTE"
+
+
+class LeiEscalonamento(str, Enum):
+    """Como um componente Tipo B varia ao longo da faixa — ADR-0077 (consultor-rbc
+    Q-RBC-1, base GUM §5.1.3 / NIT-DICLA-030 §5.5 / ILAC-P14 §5.5).
+
+    - CONSTANTE: valor absoluto fixo em todos os pontos (ex.: resolução = a/√3).
+    - PROPORCIONAL: escala com o valor do ponto (b·X) — ex.: deriva % do valor.
+    - LINEAR_AFIM: a + b·X — forma do certificado do padrão (piso + ganho).
+
+    Default por origem (RT confirma): RESOLUCAO_* -> CONSTANTE; INCERTEZA_PADRAO_REF
+    / DERIVA_PADRAO -> LINEAR_AFIM; ambientais/excentricidade -> declarado pelo RT.
+    1ª fatia SAN-INCERTEZA-PONTO trata todo Tipo B como CONSTANTE + portão
+    fail-closed na emissão RBC quando algum padrão tem b != 0 (não subestimar U).
+    """
+
+    CONSTANTE = "CONSTANTE"
+    PROPORCIONAL = "PROPORCIONAL"
+    LINEAR_AFIM = "LINEAR_AFIM"

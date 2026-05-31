@@ -47,6 +47,8 @@ from .enums import (
     EstadoNaoConformidade,
     EstadoReclamacao,
     FormulaCalculoComponente,
+    LeiEscalonamento,
+    MetodoTipoAPonto,
     OrigemRecepcao,
     RegraDecisao,
     TipoAcreditacao,
@@ -224,6 +226,39 @@ class OrcamentoIncertezaSnapshot:
     arredondamento_aplicado_regra: str  # default 'NIT_DICLA_030_2_DIGITOS_SIG'
     calculado_em: datetime  # auto_now_add no PG
     correlation_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class OrcamentoPorPontoSnapshot:
+    """Incerteza por ponto de calibração (1:N de OrcamentoIncerteza) — ADR-0077.
+
+    A CMC varia por ponto (ILAC-P14 §5.5); logo o U também (GUM §5). Este é o
+    dado-fonte da reconciliação RBC na emissão (`U(ponto) >= CMC(ponto)`) e o que vai
+    REPORTADO no certificado (uma linha por ponto). O agregado `OrcamentoIncerteza`
+    é só "visão geral" pior-caso (não-normativa).
+
+    Imutável pós-INSERT (INV-CAL-WORM-001 — trigger PG `orcamento_por_ponto`). Tabela
+    e trigger já existiam no schema M4 (migration 0006) — esta frente liga + acrescenta
+    colunas probatórias (`nivel_confianca_no_ponto`, `grau_liberdade_efetivo_no_ponto`,
+    `replay_determinismo_hash_no_ponto`, `metodo_tipo_a_ponto`, `n_repeticoes_ponto`,
+    `lei_escalonamento_aplicada`).
+    """
+
+    id: UUID
+    tenant_id: UUID
+    orcamento_incerteza_id: UUID
+    ponto_calibracao: Decimal
+    u_combinada_no_ponto: Decimal
+    U_expandida_no_ponto: Decimal  # - U é notação metrológica canônica
+    k_no_ponto: Decimal
+    nivel_confianca_no_ponto: Decimal
+    grau_liberdade_efetivo_no_ponto: Decimal  # nu_eff (999999 = infinito pratico)
+    replay_determinismo_hash_no_ponto: str  # HashVersionado v<NN>$<base64> (cl. 7.11)
+    metodo_tipo_a_ponto: MetodoTipoAPonto  # SX_PROPRIO / S_POOLED / AUSENTE (Q-RBC-2)
+    n_repeticoes_ponto: int
+    # 1ª fatia: todo Tipo B CONSTANTE (Q-RBC-1). PROPORCIONAL/LINEAR_AFIM = fatia 2.
+    lei_escalonamento_aplicada: LeiEscalonamento
+    tipo_a_insuficiente: bool = False  # ressalva B/C/D (2<=n<6 sem s_pooled)
 
 
 @dataclass(frozen=True, slots=True)
