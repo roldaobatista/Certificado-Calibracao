@@ -59,6 +59,8 @@ relacionados:
 | **Capacidade interna declarada `rbc_acreditado=false`** (M6 — US-ECMC-007 / ADR-0075) | ⚪ OPCIONAL (além do escopo RBC) | 🟢 OPCIONAL_RECOMENDADO | 🟢 OPCIONAL_RECOMENDADO | 🟢 OPCIONAL_RECOMENDADO |
 | **Bloqueio cobertura `cobre()` na configuração** (M6 — US-ECMC-004 / INV-ECMC-004/005 / ADR-0073/0074) | ✅ OBRIGATÓRIO (412 `EscopoNaoCobreFaixa` fora do escopo) | ⚪ N/A (não é RBC — short-circuit antes da porta) | ⚪ N/A | ⚪ N/A |
 | **U≥CMC na emissão** (M6 — US-ECMC-008 / INV-ECMC-009 / porta `cmc_para()` — GATE-ECMC-U-MAIOR-CMC) | ✅ OBRIGATÓRIO (412 `IncertezaAbaixoDoCMC` — consumo em `certificados` Wave A) | ⚪ N/A | ⚪ N/A | ⚪ N/A |
+| **Procedimento documentado vigente** (M7 procedimentos — US-CAL-016 / INV-PROC-001/004 / ADR-0073 / cl. 7.2.1) | ✅ OBRIGATÓRIO (412 `ProcedimentoVigenteAusente` na configuração RBC; porta `cobre_procedimento()` resolve só PUBLICADO vigente que contém a faixa) | 🟢 OPCIONAL_RECOMENDADO (aviso degradante — não bloqueia) | 🟢 OPCIONAL_RECOMENDADO | 🟢 OPCIONAL_RECOMENDADO |
+| **Validação de método cl. 7.2.2** (M7 — INV-PROC-010 / `tipo_metodo` + `registro_validacao_id` — GATE-PROC-METODO-VALIDADO) | 🟡 OBRIGATÓRIO_PARCIAL (A + método NÃO-NORMALIZADO/MODIFICADO exige validação; **fail-open lazy** até `licencas-acreditacoes` — só AVISO hoje) | ⚪ N/A (não-acreditado nunca pende) | ⚪ N/A | ⚪ N/A |
 
 ## Matriz de retenção em camadas (AC-SAN-PERFIL-005-5 + R10 plan.md)
 
@@ -71,6 +73,7 @@ relacionados:
 | **Job `geo_truncamento_calibracao_5a`** | NUNCA trunca | 5a (trunca preservando hash-chain) | 5a | 5a + anonimização agressiva |
 | **Backup B2 WORM** (ADR-0064) | 25a | 25a | 25a | 25a (hash-chain) + 5a (PII) |
 | **Escopo CMC / capacidade** (M6 — sustenta o certificado emitido; WORM Padrão B INV-ECMC-003) | 25a (lastreia cert RBC — ISO 8.4) | 25a (capacidade declarada) | 25a | 25a (nunca apaga; sem PII de cliente) |
+| **Procedimento de calibração** (M7 — documento controlado que lastreia a calibração; WORM Padrão B INV-PROC-003; snapshot na calibração INV-PROC-005) | 25a (lastreia cert RBC — ISO 8.4 + cl. 7.2.1) | 25a (método declarado) | 25a | 25a (nunca apaga; sem PII de cliente) |
 
 **Regra-mestre:** dados de PII de cliente podem ser anonimizados; hash-chain WORM e evento de calibração NUNCA podem ser apagados (vence INV-HMAC-001..005).
 
@@ -104,4 +107,5 @@ relacionados:
 
 - **2026-05-27** — Documento criado em Sprint 3 P5 do saneamento ADR-0067. Cobertura inicial: 14 features-núcleo + 4 camadas de retenção + 6 direções de mudança de perfil.
 - **2026-05-30 (M6 escopos-cmc P8 — T-ECMC-071)** — +4 features-núcleo (escopo RBC só A / capacidade interna B/C/D / bloqueio `cobre()` na configuração / U≥CMC na emissão) + 1 camada de retenção (escopo CMC sustenta cert 25a WORM Padrão B). ADR-0073/0074/0075.
+- **2026-05-31 (M7 procedimentos P8 — T-PROC-070)** — +2 features-núcleo (procedimento documentado vigente A obrigatório / B-C-D recomendado — 412 `ProcedimentoVigenteAusente`; validação de método cl. 7.2.2 fail-open lazy A) + 1 camada de retenção (procedimento sustenta cert 25a WORM Padrão B). ADR-0073 / INV-PROC-001..010.
 - Próximas revisões cobrirão features Wave A à medida que módulos `certificados`, `licencas-acreditacoes`, `onboarding`, `direitos-titular` forem entregues.
