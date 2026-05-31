@@ -9,7 +9,14 @@ Regras cravadas (consultor-rbc 2026-05-31, base GUM/NIT-DICLA-030 §7.4/EA-4/02 
 - 2 <= n < 6 -> usa s_pooled (validação do método) se houver (S_POOLED, dof do pool);
   senão: perfil A = FAIL-CLOSED (TipoAInsuficienteError); B/C/D = ressalva registrada
   (SX_PROPRIO + tipo_a_insuficiente=True).
-- n < 2 -> sem Tipo A no ponto (AUSENTE) — só Tipo B; registrado, nunca silencioso.
+- n == 1 com s_pooled -> indicação única coberta pelo desvio combinado do método
+  (S_POOLED, u = s_pool/√1 = s_pool; GUM §4.2.4). Aceito em qualquer perfil.
+- n < 2 SEM s_pooled (AUSENTE real) -> sem Tipo A no ponto. Um ponto RBC sem
+  repetibilidade avaliada é NC de supervisão (cl. 7.6.3 + GUM 3.4.2): perfil A =
+  FAIL-CLOSED (TipoAAusenteError); B/C/D = só Tipo B, ressalva registrada.
+
+O `s_usado` retornado é o desvio-padrão (s_x ou s_pool); o use case converte em
+incerteza-padrão Tipo A pela média: u_A = s_usado / √n (consultor-rbc Q-FIS-1).
 
 Agregado de "visão geral" = PIOR CASO (max U entre pontos), NÃO média (Q-RBC-3 — média
 de incertezas subestima). Rótulo no consumidor: "U máxima na faixa".
@@ -40,6 +47,24 @@ class TipoAInsuficienteError(Exception):
         super().__init__(
             f"TipoAInsuficiente ponto={ponto} n={n} (<{N_MINIMO_TIPO_A}) sem s_pooled — "
             f"perfil A fail-closed (NIT-DICLA-030 §7.4)"
+        )
+
+
+class TipoAAusenteError(Exception):
+    """Perfil A: ponto com n < 2 e SEM s_pooled — fail-closed (consultor-rbc Q-FIS-4).
+
+    Um ponto de calibração RBC sem nenhuma observação repetida não tem
+    repetibilidade avaliada; emiti-lo como acreditado ignorando a dispersão
+    experimental é NC de supervisão CGCRE (ISO/IEC 17025 cl. 7.6.3 + GUM 3.4.2 +
+    NIT-DICLA-030 §7.4). B/C/D registra ressalva (só Tipo B), não levanta.
+    """
+
+    def __init__(self, ponto: Decimal, n: int) -> None:
+        self.ponto = ponto
+        self.n = n
+        super().__init__(
+            f"TipoAAusente ponto={ponto} n={n} (<2) sem s_pooled — perfil A "
+            f"fail-closed (ISO/IEC 17025 cl. 7.6.3 + GUM 3.4.2)"
         )
 
 
@@ -81,7 +106,23 @@ def derivar_tipo_a_ponto(
     perfil_norm = perfil.strip().upper()
 
     if n < 2:
-        # n < 2: impossível s_x — sem Tipo A no ponto (registrado).
+        # n == 1 com s_pooled = indicação única coberta pelo desvio combinado do
+        # método (GUM §4.2.4): u_A = s_pool/√1 = s_pool, dof do pool. n == 0 nunca
+        # se apoia em pool (não há ponto medido → divisão por zero no use case).
+        if n == 1 and s_pooled is not None:
+            s_pool, dof_pool = s_pooled
+            if s_pool < 0:
+                raise ValueError(f"derivar_tipo_a_ponto: s_pooled < 0 ({s_pool})")
+            return ResultadoTipoAPonto(
+                metodo=MetodoTipoAPonto.S_POOLED,
+                s_usado=s_pool,
+                n_repeticoes=n,
+                dof=dof_pool,
+                tipo_a_insuficiente=False,
+            )
+        # AUSENTE real (n == 0, ou n == 1 sem pool): sem Tipo A no ponto.
+        if perfil_norm == _PERFIL_ACREDITADO:
+            raise TipoAAusenteError(Decimal(0), n)
         return ResultadoTipoAPonto(
             metodo=MetodoTipoAPonto.AUSENTE,
             s_usado=None,

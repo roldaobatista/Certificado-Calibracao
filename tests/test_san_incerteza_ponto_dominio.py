@@ -13,6 +13,7 @@ from src.domain.metrologia.calibracao.enums import (
 )
 from src.domain.metrologia.calibracao.motor_calculo.incerteza_por_ponto import (
     N_MINIMO_TIPO_A,
+    TipoAAusenteError,
     TipoAInsuficienteError,
     agregado_pior_caso,
     derivar_tipo_a_ponto,
@@ -74,16 +75,43 @@ class TestDerivarTipoAPonto:
         assert r.tipo_a_insuficiente is True  # ressalva registrada, não bloqueia
         assert r.n_repeticoes == 3
 
-    def test_n_menor_que_2_ausente(self):
-        r = derivar_tipo_a_ponto(valores_repeticoes=[Decimal("10")], perfil="A")
+    @pytest.mark.parametrize("perfil", ["B", "C", "D"])
+    def test_n_menor_que_2_sem_pool_nao_A_ausente(self, perfil):
+        # Q-FIS-4: n<2 sem s_pooled em B/C/D = ressalva registrada (só Tipo B).
+        r = derivar_tipo_a_ponto(valores_repeticoes=[Decimal("10")], perfil=perfil)
         assert r.metodo is MetodoTipoAPonto.AUSENTE
         assert r.s_usado is None
         assert r.dof is None
         assert r.tipo_a_insuficiente is True
 
-    def test_n_zero_ausente_nao_levanta(self):
-        r = derivar_tipo_a_ponto(valores_repeticoes=[], perfil="A")
-        assert r.metodo is MetodoTipoAPonto.AUSENTE
+    def test_n_menor_que_2_sem_pool_perfil_A_fail_closed(self):
+        # Q-FIS-4: ponto RBC sem repetibilidade nem pool = NC (cl. 7.6.3) -> bloqueia.
+        with pytest.raises(TipoAAusenteError):
+            derivar_tipo_a_ponto(valores_repeticoes=[Decimal("10")], perfil="A")
+
+    def test_n_zero_perfil_A_fail_closed(self):
+        with pytest.raises(TipoAAusenteError):
+            derivar_tipo_a_ponto(valores_repeticoes=[], perfil="A")
+
+    def test_indicacao_unica_n1_com_pool_usa_s_pooled(self):
+        # Q-FIS-4 (GUM §4.2.4): n=1 coberto pelo desvio combinado do método.
+        r = derivar_tipo_a_ponto(
+            valores_repeticoes=[Decimal("10")],
+            perfil="A",
+            s_pooled=(Decimal("0.20"), 40),
+        )
+        assert r.metodo is MetodoTipoAPonto.S_POOLED
+        assert r.s_usado == Decimal("0.20")
+        assert r.n_repeticoes == 1
+        assert r.dof == 40
+        assert r.tipo_a_insuficiente is False
+
+    def test_n_zero_com_pool_continua_ausente_perfil_A_bloqueia(self):
+        # n=0 nunca se apoia em pool (não há ponto medido) -> AUSENTE -> perfil A bloqueia.
+        with pytest.raises(TipoAAusenteError):
+            derivar_tipo_a_ponto(
+                valores_repeticoes=[], perfil="A", s_pooled=(Decimal("0.2"), 40)
+            )
 
     def test_n_minimo_constante(self):
         assert N_MINIMO_TIPO_A == 6

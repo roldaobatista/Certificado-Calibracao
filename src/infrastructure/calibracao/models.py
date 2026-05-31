@@ -962,6 +962,15 @@ class OrcamentoIncerteza(models.Model):
     correlation_id = models.UUIDField(
         default=uuid.uuid4,
     )
+    # ADR-0077 (migration aditiva): hash de fecho encadeando os pontos (ordem
+    # ponto_calibracao ASC). Vazio no path flat (sem pontos). Tamper-evidence
+    # composicional — distinto do replay_determinismo_hash (cálculo do agregado).
+    cadeia_pontos_hash = models.CharField(
+        max_length=255,
+        default="",
+        blank=True,
+        help_text="HashVersionado de fecho dos pontos (ADR-0077). Vazio no path flat.",
+    )
 
     class Meta:
         verbose_name = "Orcamento de Incerteza"
@@ -1158,6 +1167,13 @@ class OrcamentoPorPonto(models.Model):
     n_repeticoes_ponto = models.PositiveIntegerField(
         null=True, blank=True,
         help_text="Numero de repeticoes do ponto (regra n>=6 por ponto).",
+    )
+    s_tipo_a_no_ponto = models.DecimalField(
+        max_digits=20, decimal_places=8, null=True, blank=True,
+        help_text=(
+            "Desvio-padrao Tipo A aplicado no ponto (s_x ou s_pool). Completude "
+            "probatoria CGCRE no caso S_POOLED. None quando AUSENTE."
+        ),
     )
     lei_escalonamento_aplicada = models.CharField(
         max_length=20, choices=LEI_ESCALONAMENTO_CHOICES, default="", blank=True,

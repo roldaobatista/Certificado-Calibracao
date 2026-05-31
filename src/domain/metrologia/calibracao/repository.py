@@ -21,6 +21,7 @@ from .entities import (
     LeituraSnapshot,
     NaoConformidadeSnapshot,
     OrcamentoIncertezaSnapshot,
+    OrcamentoPorPontoSnapshot,
     ReclamacaoCalibracaoSnapshot,
 )
 from .enums import EstadoNaoConformidade, EstadoReclamacao
@@ -156,8 +157,15 @@ class OrcamentoIncertezaRepository(Protocol):
         self,
         orcamento: OrcamentoIncertezaSnapshot,
         componentes: list[ComponenteIncertezaSnapshot],
+        pontos: tuple[OrcamentoPorPontoSnapshot, ...] = (),
     ) -> None:
-        """INSERT atomico do orcamento + N componentes (1:N).
+        """INSERT atomico do orcamento + N componentes (1:N) + N pontos (ADR-0077).
+
+        `pontos` default `()` preserva as 3 chamadas legadas (path flat). No modo
+        por-ponto persiste tambem os OrcamentoPorPonto na MESMA transacao atomica
+        (caller envolve em transaction.atomic). No modo por-ponto, `componentes`
+        carrega SO os Tipo B (decisao tech-lead opcao (a) — Tipo A vive na linha
+        do ponto, preservando o CHECK ck_componente_tipo_a_n_min intacto).
 
         Levanta IntegrityError em violacoes (RLS / CHECK Tipo A n>=6 /
         FK self-correlacao circular).

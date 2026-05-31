@@ -28,6 +28,7 @@ from src.domain.metrologia.calibracao.entities import (
     LeituraSnapshot,
     NaoConformidadeSnapshot,
     OrcamentoIncertezaSnapshot,
+    OrcamentoPorPontoSnapshot,
     OrigemLeitura,
     ReclamacaoCalibracaoSnapshot,
 )
@@ -62,6 +63,7 @@ from src.infrastructure.calibracao.models import (
     LeituraCorrecao,
     NaoConformidade,
     OrcamentoIncerteza,
+    OrcamentoPorPonto,
     ReclamacaoCalibracao,
 )
 
@@ -872,6 +874,7 @@ class DjangoOrcamentoIncertezaRepository:
         self,
         orcamento: OrcamentoIncertezaSnapshot,
         componentes: list[ComponenteIncertezaSnapshot],
+        pontos: tuple[OrcamentoPorPontoSnapshot, ...] = (),
     ) -> None:
         # `calculado_em` no model usa auto_now_add — preserva autoridade do
         # clock PG (cl. 7.6 — momento do calculo). Ignoramos snapshot.calculado_em.
@@ -894,6 +897,7 @@ class DjangoOrcamentoIncertezaRepository:
             bias_origem=orcamento.bias_origem,
             arredondamento_aplicado_regra=orcamento.arredondamento_aplicado_regra,
             correlation_id=orcamento.correlation_id,
+            cadeia_pontos_hash=orcamento.cadeia_pontos_hash,
         )
         for comp in componentes:
             ComponenteIncerteza.objects.create(
@@ -919,6 +923,30 @@ class DjangoOrcamentoIncertezaRepository:
                 n_amostras=comp.n_amostras,
                 s_x=comp.s_x,
             )
+        # ADR-0077 — N OrcamentoPorPonto na MESMA transacao atomica (caller envolve
+        # em transaction.atomic). bulk_create (nao update_or_create) porque o trigger
+        # WORM de orcamento_por_ponto so admite INSERT.
+        if pontos:
+            OrcamentoPorPonto.objects.bulk_create([
+                OrcamentoPorPonto(
+                    id=p.id,
+                    tenant_id=p.tenant_id,
+                    orcamento_incerteza_id=p.orcamento_incerteza_id,
+                    ponto_calibracao=p.ponto_calibracao,
+                    u_combinada_no_ponto=p.u_combinada_no_ponto,
+                    U_expandida_no_ponto=p.U_expandida_no_ponto,
+                    k_no_ponto=p.k_no_ponto,
+                    nivel_confianca_no_ponto=p.nivel_confianca_no_ponto,
+                    grau_liberdade_efetivo_no_ponto=p.grau_liberdade_efetivo_no_ponto,
+                    replay_determinismo_hash_no_ponto=p.replay_determinismo_hash_no_ponto,
+                    metodo_tipo_a_ponto=p.metodo_tipo_a_ponto.value,
+                    n_repeticoes_ponto=p.n_repeticoes_ponto,
+                    lei_escalonamento_aplicada=p.lei_escalonamento_aplicada.value,
+                    tipo_a_insuficiente=p.tipo_a_insuficiente,
+                    s_tipo_a_no_ponto=p.s_tipo_a_no_ponto,
+                )
+                for p in pontos
+            ])
 
     def obter_por_id(
         self, orcamento_id: UUID
@@ -968,6 +996,7 @@ class DjangoOrcamentoIncertezaRepository:
             arredondamento_aplicado_regra=obj.arredondamento_aplicado_regra,
             calculado_em=obj.calculado_em,
             correlation_id=obj.correlation_id,
+            cadeia_pontos_hash=obj.cadeia_pontos_hash,
         )
 
     @staticmethod

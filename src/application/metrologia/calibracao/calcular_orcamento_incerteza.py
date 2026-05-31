@@ -40,13 +40,17 @@ from src.application.metrologia.calibracao.configurar_calibracao import (
     CalibracaoNaoEncontrada,
 )
 from src.domain.metrologia.calibracao.entities import (
+    CalibracaoSnapshot,
     ComponenteIncertezaSnapshot,
     OrcamentoIncertezaSnapshot,
+    OrcamentoPorPontoSnapshot,
 )
 from src.domain.metrologia.calibracao.enums import (
     DistribuicaoIncerteza,
     EstadoCalibracao,
     FormulaCalculoComponente,
+    LeiEscalonamento,
+    MetodoTipoAPonto,
     TipoOrigemComponente,
 )
 from src.domain.metrologia.calibracao.hash_versionado import (
@@ -60,7 +64,11 @@ from src.domain.metrologia.calibracao.motor_calculo.arredondamento import (
 )
 from src.domain.metrologia.calibracao.motor_calculo.gum_classico import (
     ComponenteEntrada,
+    ResultadoGUM,
     propagar,
+)
+from src.domain.metrologia.calibracao.motor_calculo.incerteza_por_ponto import (
+    derivar_tipo_a_ponto,
 )
 from src.domain.metrologia.calibracao.repository import (
     CalibracaoRepository,
@@ -76,10 +84,74 @@ _MIN_CHARS_DOC_AGREGACAO = 50
 # INV-CAL-INC-003 + NIT-DICLA-030 §7.4 — Tipo A exige n>=6 (CHECK PG
 # ck_componente_tipo_a_n_min). Espelha a constraint da migration 0006.
 _MIN_N_AMOSTRAS_TIPO_A = 6
+# Perfil acreditado (RBC) — unico que sofre fail-closed no caminho por-ponto.
+_PERFIL_ACREDITADO = "A"
+# Nome canonico do componente Tipo A derivado por ponto (repetibilidade). Nao
+# persiste como ComponenteIncerteza global no modo por-ponto (decisao tech-lead
+# opcao (a)); serve so para o motor GUM montar a combinacao do ponto.
+_NOME_COMPONENTE_TIPO_A = "repetibilidade"
 
 
 class CalibracaoEstadoNaoPermiteCalcular(Exception):
     """Calibracao em estado que nao permite calcular orcamento."""
+
+
+class EscalonamentoNaoSuportadoError(Exception):
+    """Perfil A: componente Tipo B com lei != CONSTANTE na 1a fatia (Q-FIS-3).
+
+    Tratar como constante um componente que escala com o mensurando (incerteza do
+    padrao a+b·X com b!=0, deriva proporcional) subestima U nos pontos altos da
+    faixa = NC de supervisao CGCRE (NIT-DICLA-030 §7.4 + ILAC-P14 §5). A 2a fatia
+    (escalonamento) habilita PROPORCIONAL/LINEAR_AFIM. B/C/D registra ressalva e
+    nao levanta (capacidade interna nao-acreditada).
+    """
+
+    def __init__(self, nome_componente: str, lei: LeiEscalonamento) -> None:
+        self.nome_componente = nome_componente
+        self.lei = lei
+        super().__init__(
+            f"EscalonamentoNaoSuportado componente={nome_componente!r} "
+            f"lei={lei.value} — 1a fatia RBC so admite CONSTANTE (Q-FIS-3)"
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PontoParaCalculo:
+    """Um ponto de calibracao com suas repeticoes — deriva Tipo A (ADR-0077).
+
+    `valores_repeticoes` = leituras do ponto (deriva s_x via desvio_padrao_amostral
+    quando n>=6; senao s_pooled). `s_pooled = (s, dof)` = desvio combinado validado
+    do metodo (GUM §4.2.4) quando 2<=n<6 ou indicacao unica n=1.
+    """
+
+    ponto_calibracao: Decimal
+    valores_repeticoes: tuple[Decimal, ...]
+    s_pooled: tuple[Decimal, int] | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.ponto_calibracao, Decimal):
+            raise TypeError(
+                f"PontoParaCalculo.ponto_calibracao deve ser Decimal "
+                f"(achou {type(self.ponto_calibracao).__name__})"
+            )
+        for v in self.valores_repeticoes:
+            if not isinstance(v, Decimal):
+                raise TypeError(
+                    "PontoParaCalculo.valores_repeticoes: todos os valores devem "
+                    f"ser Decimal (achou {type(v).__name__})"
+                )
+        if self.s_pooled is not None:
+            s_pool, dof_pool = self.s_pooled
+            if not isinstance(s_pool, Decimal):
+                raise TypeError(
+                    f"PontoParaCalculo.s_pooled[0] deve ser Decimal "
+                    f"(achou {type(s_pool).__name__})"
+                )
+            if dof_pool < 1:
+                raise ValueError(
+                    f"PontoParaCalculo.s_pooled[1] (dof) deve ser >= 1 "
+                    f"(achou {dof_pool})"
+                )
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +190,10 @@ class ComponenteParaCalculo:
     correlacao_com_componente_id: UUID | None = None
     coeficiente_correlacao: Decimal | None = None
     fonte_default_padrao_id: UUID | None = None
+    # ADR-0077 Q-RBC-1: lei de variacao do componente Tipo B na faixa. 1a fatia so
+    # admite CONSTANTE em RBC (portao fail-closed no use case por-ponto). Default
+    # CONSTANTE mantem o path flat inalterado.
+    lei_escalonamento: LeiEscalonamento = LeiEscalonamento.CONSTANTE
 
     def __post_init__(self) -> None:
         if not isinstance(self.u_i, Decimal):
@@ -195,12 +271,33 @@ class CalcularOrcamentoIncertezaInput:
     bias_origem: str  # vazio se sem bias
     calculado_em: datetime  # UTC-aware
     correlation_id: UUID
+    # ADR-0077 — modo por-ponto. Vazio (default) = path flat legado INTACTO.
+    # Quando nao-vazio: `componentes` carrega SO os Tipo B base (CONSTANTE); o
+    # Tipo A e derivado por ponto das `valores_repeticoes`. `perfil_tenant`
+    # obrigatorio (regra n<6 / AUSENTE fail-closed perfil A — Q-RBC-2/Q-FIS-4).
+    pontos: tuple[PontoParaCalculo, ...] = ()
+    perfil_tenant: str = ""
 
     def __post_init__(self) -> None:
         if not self.componentes:
             raise ValueError(
                 "calcular_orcamento_incerteza: componentes vazio (GUM cl. 5.1.2 exige >=1)"
             )
+        if self.pontos:
+            # Modo por-ponto: perfil obrigatorio (fail-closed sem perfil declarado)
+            # e `componentes` so Tipo B (Tipo A vem derivado das repeticoes).
+            if not self.perfil_tenant:
+                raise ValueError(
+                    "calcular_orcamento_incerteza: modo por-ponto exige "
+                    "perfil_tenant (regra n<6 fail-closed — ADR-0077 Q-RBC-2)"
+                )
+            tipos_a = [c.nome for c in self.componentes if c.tipo == "A"]
+            if tipos_a:
+                raise ValueError(
+                    "calcular_orcamento_incerteza: modo por-ponto exige "
+                    "`componentes` so Tipo B (o Tipo A e derivado por ponto das "
+                    f"repeticoes); achou Tipo A: {tipos_a}"
+                )
         if len(self.documentacao_agregacao) < _MIN_CHARS_DOC_AGREGACAO:
             raise ValueError(
                 f"calcular_orcamento_incerteza: documentacao_agregacao precisa "
@@ -228,6 +325,8 @@ class CalcularOrcamentoIncertezaInput:
 class CalcularOrcamentoIncertezaOutput:
     orcamento: OrcamentoIncertezaSnapshot
     componentes_persistidos: tuple[ComponenteIncertezaSnapshot, ...]
+    # ADR-0077 — N orcamentos por ponto (vazio no path flat).
+    pontos: tuple[OrcamentoPorPontoSnapshot, ...] = ()
 
 
 def _gerar_replay_hash(
@@ -291,6 +390,10 @@ def executar(
             f"exige status IN "
             f"{sorted(s.value for s in _ESTADOS_CALCULO_PERMITIDO)}"
         )
+
+    # ADR-0077 — modo por-ponto (aditivo; path flat abaixo intacto).
+    if inp.pontos:
+        return _executar_por_ponto(inp, calibracao, orcamento_repo)
 
     # ---- Algoritmo 1 (GUM Decimal puro) ----
     # Projeta SO a matematica pro motor (proveniencia §16.6 nao afeta o calculo,
@@ -368,34 +471,10 @@ def executar(
     # Componentes persistidos (1:N) — agora com proveniencia §16.6 completa
     # (GATE-CAL-DOMAIN-MODEL-DRIFT). s_x/n_amostras vem do proprio componente
     # (Tipo A validado em ComponenteParaCalculo.__post_init__ — n>=6 + s_x).
-    componentes_persistidos: list[ComponenteIncertezaSnapshot] = []
-    for comp in inp.componentes:
-        u_i_quad = comp.u_i * comp.u_i  # u_i^2 = contribuicao base
-        componentes_persistidos.append(
-            ComponenteIncertezaSnapshot(
-                id=uuid4(),
-                tenant_id=calibracao.tenant_id,
-                orcamento_incerteza_id=orcamento_id,
-                nome_componente=comp.nome,
-                tipo_componente=comp.tipo,
-                tipo_origem_componente=comp.tipo_origem_componente,
-                distribuicao=comp.distribuicao,
-                divisor=comp.divisor,
-                formula_calculo=comp.formula_calculo,
-                valor_estimativa=comp.u_i,
-                contribuicao=u_i_quad,
-                grau_liberdade=(
-                    Decimal(comp.grau_liberdade)
-                    if comp.grau_liberdade is not None
-                    else None
-                ),
-                n_amostras=comp.n_amostras,
-                s_x=comp.s_x,
-                correlacao_com_componente_id=comp.correlacao_com_componente_id,
-                coeficiente_correlacao=comp.coeficiente_correlacao,
-                fonte_default_padrao_id=comp.fonte_default_padrao_id,
-            )
-        )
+    componentes_persistidos = [
+        _snapshot_componente(comp, calibracao.tenant_id, orcamento_id)
+        for comp in inp.componentes
+    ]
 
     orcamento_repo.salvar_orcamento_com_componentes(
         orcamento, componentes_persistidos
@@ -404,4 +483,268 @@ def executar(
     return CalcularOrcamentoIncertezaOutput(
         orcamento=orcamento,
         componentes_persistidos=tuple(componentes_persistidos),
+    )
+
+
+def _snapshot_componente(
+    comp: ComponenteParaCalculo,
+    tenant_id: UUID,
+    orcamento_id: UUID,
+) -> ComponenteIncertezaSnapshot:
+    """Projeta um ComponenteParaCalculo no snapshot persistido (1:N do orcamento).
+
+    Usado pelo path flat (todos os componentes) e pelo path por-ponto (SO os Tipo B
+    base — decisao tech-lead opcao (a): o Tipo A nao vira ComponenteIncerteza global
+    no modo por-ponto, preservando o CHECK ck_componente_tipo_a_n_min).
+    """
+    u_i_quad = comp.u_i * comp.u_i  # u_i^2 = contribuicao base
+    return ComponenteIncertezaSnapshot(
+        id=uuid4(),
+        tenant_id=tenant_id,
+        orcamento_incerteza_id=orcamento_id,
+        nome_componente=comp.nome,
+        tipo_componente=comp.tipo,
+        tipo_origem_componente=comp.tipo_origem_componente,
+        distribuicao=comp.distribuicao,
+        divisor=comp.divisor,
+        formula_calculo=comp.formula_calculo,
+        valor_estimativa=comp.u_i,
+        contribuicao=u_i_quad,
+        grau_liberdade=(
+            Decimal(comp.grau_liberdade) if comp.grau_liberdade is not None else None
+        ),
+        n_amostras=comp.n_amostras,
+        s_x=comp.s_x,
+        correlacao_com_componente_id=comp.correlacao_com_componente_id,
+        coeficiente_correlacao=comp.coeficiente_correlacao,
+        fonte_default_padrao_id=comp.fonte_default_padrao_id,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _PontoCalc:
+    """Resultado intermediario de um ponto (interno ao use case por-ponto)."""
+
+    snap: OrcamentoPorPontoSnapshot
+    gum: ResultadoGUM
+    U_arred: Decimal  # - U arredondada NIT-DICLA-030 §7.5
+    replay_hash: str
+    ponto: Decimal
+
+
+def _calcular_ponto(
+    ponto: PontoParaCalculo,
+    *,
+    perfil: str,
+    entradas_b: list[ComponenteEntrada],
+    correlacoes: tuple[tuple[str, str, Decimal], ...],
+    versao_motor: str,
+    lei_aplicada: LeiEscalonamento,
+    tenant_id: UUID,
+    orcamento_id: UUID,
+) -> _PontoCalc:
+    """Deriva Tipo A do ponto + combina com Tipo B base + propaga GUM (1 chamada).
+
+    Perfil A pode levantar TipoAInsuficienteError/TipoAAusenteError (Q-FIS-2/4) —
+    propaga para o caller abortar atomicamente (nenhum ponto persistido).
+    """
+    resultado_a = derivar_tipo_a_ponto(
+        valores_repeticoes=list(ponto.valores_repeticoes),
+        perfil=perfil,
+        s_pooled=ponto.s_pooled,
+    )
+    entradas: list[ComponenteEntrada] = []
+    s_aplicado: Decimal | None = None
+    if resultado_a.metodo is not MetodoTipoAPonto.AUSENTE:
+        s_aplicado = resultado_a.s_usado
+        if s_aplicado is None:  # defesa — dominio garante s_usado quando != AUSENTE
+            raise ValueError(
+                "derivar_tipo_a_ponto: metodo != AUSENTE com s_usado None"
+            )
+        # u_A = s_usado/√n (incerteza-padrao da MEDIA de n repeticoes; Q-FIS-1).
+        u_a = s_aplicado / Decimal(resultado_a.n_repeticoes).sqrt()
+        entradas.append(
+            ComponenteEntrada(
+                nome=_NOME_COMPONENTE_TIPO_A,
+                u_i=u_a,
+                tipo="A",
+                grau_liberdade=resultado_a.dof,
+            )
+        )
+    entradas.extend(entradas_b)
+
+    resultado_gum = propagar(entradas, list(correlacoes) if correlacoes else None)
+    U_arred = arredondar_2_digitos_significativos(resultado_gum.U_expandida)
+    replay_hash = _gerar_replay_hash(
+        entradas,
+        correlacoes,
+        versao_motor,
+        resultado_gum.u_combinada,
+        U_arred,
+        resultado_gum.fator_k,
+        resultado_gum.grau_liberdade_efetivo,
+    )
+    dof_ponto = (
+        Decimal(resultado_gum.grau_liberdade_efetivo)
+        if resultado_gum.grau_liberdade_efetivo is not None
+        else Decimal("999999")
+    )
+    snap = OrcamentoPorPontoSnapshot(
+        id=uuid4(),
+        tenant_id=tenant_id,
+        orcamento_incerteza_id=orcamento_id,
+        ponto_calibracao=ponto.ponto_calibracao,
+        u_combinada_no_ponto=resultado_gum.u_combinada,
+        U_expandida_no_ponto=U_arred,
+        k_no_ponto=resultado_gum.fator_k,
+        nivel_confianca_no_ponto=resultado_gum.nivel_confianca,
+        grau_liberdade_efetivo_no_ponto=dof_ponto,
+        replay_determinismo_hash_no_ponto=replay_hash,
+        metodo_tipo_a_ponto=resultado_a.metodo,
+        n_repeticoes_ponto=resultado_a.n_repeticoes,
+        lei_escalonamento_aplicada=lei_aplicada,
+        tipo_a_insuficiente=resultado_a.tipo_a_insuficiente,
+        s_tipo_a_no_ponto=s_aplicado,
+    )
+    return _PontoCalc(
+        snap=snap,
+        gum=resultado_gum,
+        U_arred=U_arred,
+        replay_hash=replay_hash,
+        ponto=ponto.ponto_calibracao,
+    )
+
+
+def _executar_por_ponto(
+    inp: CalcularOrcamentoIncertezaInput,
+    calibracao: CalibracaoSnapshot,
+    orcamento_repo: OrcamentoIncertezaRepository,
+) -> CalcularOrcamentoIncertezaOutput:
+    """Caminho por-ponto (ADR-0077). Produz N OrcamentoPorPonto + agregado pior-caso.
+
+    Decisoes cravadas (tech-lead + consultor-rbc 2026-05-31):
+    - Tipo A derivado por ponto das repeticoes; u_A = s_usado/√n (Q-FIS-1);
+      motor GUM roda 1x por ponto (N chamadas a propagar()).
+    - Tipo B base CONSTANTE (1a fatia); portao fail-closed perfil A se lei != CONSTANTE
+      (Q-FIS-3), avaliado ANTES do loop (propriedade do orcamento, nao do ponto) —
+      atomico: nenhum ponto e emitido.
+    - Agregado global = ponto de PIOR CASO (max U, "U maxima na faixa", nao-normativo);
+      ComponenteIncerteza 1:N global = SO os Tipo B (opcao (a) — preserva CHECK n>=6).
+    - replay_determinismo_hash global = hash do ponto j* (coincide por construcao);
+      cadeia_pontos_hash = fecho encadeando os hashes por ponto em ordem ASC.
+    """
+    perfil = inp.perfil_tenant.strip().upper()
+    tipo_b_base = list(inp.componentes)  # __post_init__ garantiu: todos Tipo B
+
+    # --- Portao escalonamento (Q-FIS-3) — antes do loop, atomico. ---
+    nao_constantes = [
+        c for c in tipo_b_base
+        if c.lei_escalonamento is not LeiEscalonamento.CONSTANTE
+    ]
+    if nao_constantes and perfil == _PERFIL_ACREDITADO:
+        c0 = nao_constantes[0]
+        raise EscalonamentoNaoSuportadoError(c0.nome, c0.lei_escalonamento)
+    # B/C/D com lei declarada nao-constante: rastro de ressalva (2a fatia pendente).
+    lei_aplicada = (
+        nao_constantes[0].lei_escalonamento
+        if nao_constantes
+        else LeiEscalonamento.CONSTANTE
+    )
+
+    orcamento_id = uuid4()
+    entradas_b = [c.para_entrada_motor() for c in tipo_b_base]
+
+    pontos_calc = [
+        _calcular_ponto(
+            ponto,
+            perfil=perfil,
+            entradas_b=entradas_b,
+            correlacoes=inp.correlacoes,
+            versao_motor=inp.versao_motor_calculo,
+            lei_aplicada=lei_aplicada,
+            tenant_id=calibracao.tenant_id,
+            orcamento_id=orcamento_id,
+        )
+        for ponto in inp.pontos
+    ]
+
+    # j* = pior caso (max U). Empate -> menor ponto_calibracao (determinismo total,
+    # independe da ordem de chegada das leituras).
+    vencedor = max(pontos_calc, key=lambda pc: (pc.U_arred, -pc.ponto))
+    gum_j = vencedor.gum
+    dof_persistido = (
+        Decimal(gum_j.grau_liberdade_efetivo)
+        if gum_j.grau_liberdade_efetivo is not None
+        else Decimal("999999")
+    )
+    n_comp_j = len(tipo_b_base) + (
+        0 if vencedor.snap.metodo_tipo_a_ponto is MetodoTipoAPonto.AUSENTE else 1
+    )
+    algoritmo_1_resultado: dict[str, object] = {
+        "u_combinada": str(gum_j.u_combinada),
+        "U_expandida_bruta": str(gum_j.U_expandida),
+        "U_expandida_arredondada": str(vencedor.U_arred),
+        "k": str(gum_j.fator_k),
+        "grau_liberdade_efetivo": gum_j.grau_liberdade_efetivo,
+        "nivel_confianca": str(gum_j.nivel_confianca),
+        "n_componentes": n_comp_j,
+        "n_correlacoes": len(inp.correlacoes),
+        "modo": "por_ponto",
+        "n_pontos": len(pontos_calc),
+        "ponto_pior_caso": str(vencedor.ponto),
+    }
+
+    # Cadeia de fecho — encadeia os hashes por ponto em ordem ponto_calibracao ASC.
+    ordenados = sorted(pontos_calc, key=lambda pc: pc.ponto)
+    cadeia_payload = {
+        "versao_motor": inp.versao_motor_calculo,
+        "pontos": [
+            {"ponto": str(pc.ponto), "hash": pc.replay_hash} for pc in ordenados
+        ],
+    }
+    cadeia_hash = formatar_hash_versionado(
+        VERSAO_HMAC_ATUAL,
+        hashlib.sha256(canonicalizar_payload_para_hmac(cadeia_payload)).digest(),
+    )
+
+    orcamento = OrcamentoIncertezaSnapshot(
+        id=orcamento_id,
+        tenant_id=calibracao.tenant_id,
+        calibracao_id=inp.calibracao_id,
+        u_combinada=gum_j.u_combinada,
+        grau_liberdade_efetivo=dof_persistido,
+        k=gum_j.fator_k,
+        U_expandida=vencedor.U_arred,
+        nivel_confianca=gum_j.nivel_confianca,
+        documentacao_agregacao=inp.documentacao_agregacao,
+        versao_motor_calculo=inp.versao_motor_calculo,
+        algoritmo_1_resultado=algoritmo_1_resultado,
+        algoritmo_2_resultado=None,
+        divergencia_pct=None,
+        # = hash do ponto j* por construcao (Q4 tech-lead); cadeia em campo proprio.
+        replay_determinismo_hash=vencedor.replay_hash,
+        bias_orcado=inp.bias_orcado,
+        bias_origem=inp.bias_origem,
+        arredondamento_aplicado_regra=REGRA_ID,
+        calculado_em=inp.calculado_em,
+        correlation_id=inp.correlation_id,
+        cadeia_pontos_hash=cadeia_hash,
+    )
+
+    # Global persiste SO os Tipo B (decisao tech-lead opcao (a)) — preserva o CHECK
+    # ck_componente_tipo_a_n_min. O Tipo A vive em OrcamentoPorPonto[j*].
+    componentes_persistidos = [
+        _snapshot_componente(c, calibracao.tenant_id, orcamento_id)
+        for c in tipo_b_base
+    ]
+    pontos_snap = tuple(pc.snap for pc in pontos_calc)
+
+    orcamento_repo.salvar_orcamento_com_componentes(
+        orcamento, componentes_persistidos, pontos_snap
+    )
+
+    return CalcularOrcamentoIncertezaOutput(
+        orcamento=orcamento,
+        componentes_persistidos=tuple(componentes_persistidos),
+        pontos=pontos_snap,
     )

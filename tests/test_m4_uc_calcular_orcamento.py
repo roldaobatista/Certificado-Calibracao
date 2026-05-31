@@ -16,6 +16,8 @@ from src.application.metrologia.calibracao.calcular_orcamento_incerteza import (
     CalcularOrcamentoIncertezaInput,
     CalibracaoEstadoNaoPermiteCalcular,
     ComponenteParaCalculo,
+    EscalonamentoNaoSuportadoError,
+    PontoParaCalculo,
     executar,
 )
 from src.application.metrologia.calibracao.configurar_calibracao import (
@@ -40,15 +42,22 @@ from src.application.metrologia.calibracao.iniciar_leituras import (
 from src.domain.metrologia.calibracao.entities import (
     ComponenteIncertezaSnapshot,
     OrcamentoIncertezaSnapshot,
+    OrcamentoPorPontoSnapshot,
 )
 from src.domain.metrologia.calibracao.enums import (
     DistribuicaoIncerteza,
     EstadoCalibracao,
     FormulaCalculoComponente,
+    LeiEscalonamento,
+    MetodoTipoAPonto,
     OrigemRecepcao,
     RegraDecisao,
     TipoAcreditacao,
     TipoOrigemComponente,
+)
+from src.domain.metrologia.calibracao.motor_calculo.incerteza_por_ponto import (
+    TipoAAusenteError,
+    TipoAInsuficienteError,
 )
 
 from tests.test_m4_uc_criar_calibracao import FakeCalibracaoRepository
@@ -110,16 +119,21 @@ class FakeOrcamentoIncertezaRepository:
     _componentes_por_orcamento: dict[UUID, list[ComponenteIncertezaSnapshot]] = field(
         default_factory=dict
     )
+    _pontos_por_orcamento: dict[UUID, list[OrcamentoPorPontoSnapshot]] = field(
+        default_factory=dict
+    )
 
     def salvar_orcamento_com_componentes(
         self,
         orcamento: OrcamentoIncertezaSnapshot,
         componentes: list[ComponenteIncertezaSnapshot],
+        pontos: tuple[OrcamentoPorPontoSnapshot, ...] = (),
     ) -> None:
         if orcamento.id in self.orcamentos:
             raise ValueError(f"orcamento duplicado {orcamento.id}")
         self.orcamentos[orcamento.id] = orcamento
         self._componentes_por_orcamento[orcamento.id] = list(componentes)
+        self._pontos_por_orcamento[orcamento.id] = list(pontos)
 
     def obter_por_id(self, orcamento_id: UUID) -> OrcamentoIncertezaSnapshot | None:
         return self.orcamentos.get(orcamento_id)
@@ -128,6 +142,11 @@ class FakeOrcamentoIncertezaRepository:
         self, orcamento_id: UUID
     ) -> list[ComponenteIncertezaSnapshot]:
         return list(self._componentes_por_orcamento.get(orcamento_id, ()))
+
+    def listar_pontos(
+        self, orcamento_id: UUID
+    ) -> list[OrcamentoPorPontoSnapshot]:
+        return list(self._pontos_por_orcamento.get(orcamento_id, ()))
 
 
 # =====================================================================
@@ -476,3 +495,267 @@ def test_repository_protocol_compativel() -> None:
 
     repo = FakeOrcamentoIncertezaRepository()
     assert isinstance(repo, OrcamentoIncertezaRepository)
+
+
+# =====================================================================
+# Modo por-ponto (ADR-0077 / SAN-INCERTEZA-PONTO)
+# =====================================================================
+
+
+def _reps(base: str, spread: str, n: int = 6) -> tuple[Decimal, ...]:
+    """n repeticoes centradas em `base`; amplitude ~`spread` (s_x cresce c/ spread)."""
+    b = Decimal(base)
+    s = Decimal(spread)
+    deltas = [Decimal(0), s, -s, s / 2, -s / 2, Decimal(0)][:n]
+    return tuple(b + d for d in deltas)
+
+
+def _comp_b_padrao(lei: LeiEscalonamento = LeiEscalonamento.CONSTANTE) -> ComponenteParaCalculo:
+    return ComponenteParaCalculo(
+        nome="padrao",
+        tipo="B",
+        u_i=Decimal("0.002"),
+        grau_liberdade=None,
+        tipo_origem_componente=TipoOrigemComponente.INCERTEZA_PADRAO_REF,
+        distribuicao=DistribuicaoIncerteza.NORMAL,
+        divisor=Decimal("2.00000"),
+        formula_calculo=FormulaCalculoComponente.PADRAO_CERTIFICADO,
+        lei_escalonamento=lei,
+    )
+
+
+def _input_por_ponto(
+    calibracao_id: UUID,
+    pontos: tuple[PontoParaCalculo, ...],
+    *,
+    perfil: str = "A",
+    componentes: tuple[ComponenteParaCalculo, ...] | None = None,
+    **overrides: object,
+) -> CalcularOrcamentoIncertezaInput:
+    comps = componentes if componentes is not None else (
+        _comp_tipo_b("resolucao", u_i="0.005"),
+        _comp_b_padrao(),
+    )
+    defaults: dict[str, object] = {
+        "calibracao_id": calibracao_id,
+        "componentes": comps,
+        "correlacoes": (),
+        "versao_motor_calculo": "1.0.0+abc123",
+        "documentacao_agregacao": (
+            "Orcamento por ponto NIT-DICLA-030 rev. 15. Tipo A derivado por "
+            "ponto das repeticoes via GUM cl. 4.2; agregado pior-caso."
+        ),
+        "bias_orcado": None,
+        "bias_origem": "",
+        "calculado_em": datetime(2026, 5, 26, 16, 0, tzinfo=UTC),
+        "correlation_id": uuid4(),
+        "pontos": pontos,
+        "perfil_tenant": perfil,
+    }
+    defaults.update(overrides)
+    return CalcularOrcamentoIncertezaInput(**defaults)  # type: ignore[arg-type]
+
+
+# 3 pontos com s_x crescente -> U cresce -> j* = ponto 100.
+_TRES_PONTOS = (
+    PontoParaCalculo(Decimal("10"), _reps("10", "0.01")),
+    PontoParaCalculo(Decimal("50"), _reps("50", "0.05")),
+    PontoParaCalculo(Decimal("100"), _reps("100", "0.10")),
+)
+
+
+class TestPorPontoHappy:
+    def test_produz_n_orcamentos_por_ponto(self) -> None:
+        cal_repo = FakeCalibracaoRepository()
+        orc_repo = FakeOrcamentoIncertezaRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        out = executar(_input_por_ponto(cal_id, _TRES_PONTOS), cal_repo, orc_repo)
+        assert len(out.pontos) == 3
+        assert all(
+            p.metodo_tipo_a_ponto is MetodoTipoAPonto.SX_PROPRIO for p in out.pontos
+        )
+        assert all(p.n_repeticoes_ponto == 6 for p in out.pontos)
+        assert all(p.s_tipo_a_no_ponto is not None for p in out.pontos)
+        # persistido via repo
+        assert orc_repo.listar_pontos(out.orcamento.id) == list(out.pontos)
+
+    def test_agregado_e_pior_caso_max_U(self) -> None:
+        cal_repo = FakeCalibracaoRepository()
+        orc_repo = FakeOrcamentoIncertezaRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        out = executar(_input_por_ponto(cal_id, _TRES_PONTOS), cal_repo, orc_repo)
+        max_u = max(p.U_expandida_no_ponto for p in out.pontos)
+        assert out.orcamento.U_expandida == max_u
+        # j* = ponto de maior U (ponto 100, maior spread)
+        j = max(out.pontos, key=lambda p: p.U_expandida_no_ponto)
+        assert j.ponto_calibracao == Decimal("100")
+        # coerencia: global espelha o ponto j* (u_c bruto + replay hash)
+        assert out.orcamento.u_combinada == j.u_combinada_no_ponto
+        assert (
+            out.orcamento.replay_determinismo_hash
+            == j.replay_determinismo_hash_no_ponto
+        )
+
+    def test_global_persiste_so_tipo_b(self) -> None:
+        """Decisao tech-lead (a): Tipo A NAO vira ComponenteIncerteza global."""
+        cal_repo = FakeCalibracaoRepository()
+        orc_repo = FakeOrcamentoIncertezaRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        out = executar(_input_por_ponto(cal_id, _TRES_PONTOS), cal_repo, orc_repo)
+        assert len(out.componentes_persistidos) == 2
+        assert all(c.tipo_componente == "B" for c in out.componentes_persistidos)
+
+    def test_cadeia_pontos_hash_versionado(self) -> None:
+        cal_repo = FakeCalibracaoRepository()
+        orc_repo = FakeOrcamentoIncertezaRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        out = executar(_input_por_ponto(cal_id, _TRES_PONTOS), cal_repo, orc_repo)
+        assert out.orcamento.cadeia_pontos_hash.startswith("v01$")
+        assert len(out.orcamento.cadeia_pontos_hash) == len("v01$") + 44
+
+    def test_algoritmo_1_marca_modo_por_ponto(self) -> None:
+        cal_repo = FakeCalibracaoRepository()
+        orc_repo = FakeOrcamentoIncertezaRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        out = executar(_input_por_ponto(cal_id, _TRES_PONTOS), cal_repo, orc_repo)
+        assert out.orcamento.algoritmo_1_resultado["modo"] == "por_ponto"
+        assert out.orcamento.algoritmo_1_resultado["n_pontos"] == 3
+        assert out.orcamento.algoritmo_1_resultado["ponto_pior_caso"] == "100"
+
+
+class TestPorPontoBackwardCompat:
+    def test_path_flat_sem_pontos_intacto(self) -> None:
+        cal_repo = FakeCalibracaoRepository()
+        orc_repo = FakeOrcamentoIncertezaRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        out = executar(_input_calculo(cal_id), cal_repo, orc_repo)
+        assert out.pontos == ()
+        assert out.orcamento.cadeia_pontos_hash == ""
+
+
+class TestPorPontoDeterminismo:
+    def test_ordem_dos_pontos_nao_muda_cadeia_nem_agregado(self) -> None:
+        cal_repo_a = FakeCalibracaoRepository()
+        cal_repo_b = FakeCalibracaoRepository()
+        orc_a = FakeOrcamentoIncertezaRepository()
+        orc_b = FakeOrcamentoIncertezaRepository()
+        cal_a = _calibracao_em_execucao(cal_repo_a)
+        cal_b = _calibracao_em_execucao(cal_repo_b)
+        pontos_ordem_1 = _TRES_PONTOS
+        pontos_ordem_2 = (_TRES_PONTOS[2], _TRES_PONTOS[0], _TRES_PONTOS[1])
+        out_a = executar(_input_por_ponto(cal_a, pontos_ordem_1), cal_repo_a, orc_a)
+        out_b = executar(_input_por_ponto(cal_b, pontos_ordem_2), cal_repo_b, orc_b)
+        assert out_a.orcamento.cadeia_pontos_hash == out_b.orcamento.cadeia_pontos_hash
+        assert out_a.orcamento.U_expandida == out_b.orcamento.U_expandida
+        assert (
+            out_a.orcamento.replay_determinismo_hash
+            == out_b.orcamento.replay_determinismo_hash
+        )
+
+
+class TestPorPontoValidacaoInput:
+    def test_pontos_sem_perfil_rejeita(self) -> None:
+        with pytest.raises(ValueError, match="perfil_tenant"):
+            _input_por_ponto(uuid4(), _TRES_PONTOS, perfil="")
+
+    def test_componentes_tipo_a_no_modo_por_ponto_rejeita(self) -> None:
+        with pytest.raises(ValueError, match="so Tipo B"):
+            _input_por_ponto(uuid4(), _TRES_PONTOS, componentes=(_comp_tipo_a(),))
+
+    def test_ponto_valor_float_rejeita(self) -> None:
+        with pytest.raises(TypeError, match="valores_repeticoes"):
+            PontoParaCalculo(Decimal("10"), (0.5,))  # type: ignore[arg-type]
+
+
+class TestPorPontoFailClosedPerfilA:
+    def _ponto_n3(self) -> tuple[PontoParaCalculo, ...]:
+        return (
+            PontoParaCalculo(
+                Decimal("10"), (Decimal("10"), Decimal("10.1"), Decimal("9.9"))
+            ),
+        )
+
+    def test_n_entre_2_e_6_sem_pool_perfil_A_bloqueia_atomico(self) -> None:
+        cal_repo = FakeCalibracaoRepository()
+        orc_repo = FakeOrcamentoIncertezaRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        with pytest.raises(TipoAInsuficienteError):
+            executar(
+                _input_por_ponto(cal_id, self._ponto_n3(), perfil="A"),
+                cal_repo,
+                orc_repo,
+            )
+        assert orc_repo.orcamentos == {}  # nada persistido (atomico)
+
+    def test_ausente_perfil_A_bloqueia(self) -> None:
+        cal_repo = FakeCalibracaoRepository()
+        orc_repo = FakeOrcamentoIncertezaRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        pontos = (PontoParaCalculo(Decimal("10"), (Decimal("10"),)),)
+        with pytest.raises(TipoAAusenteError):
+            executar(
+                _input_por_ponto(cal_id, pontos, perfil="A"), cal_repo, orc_repo
+            )
+
+    def test_indicacao_unica_com_pool_emite(self) -> None:
+        cal_repo = FakeCalibracaoRepository()
+        orc_repo = FakeOrcamentoIncertezaRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        pontos = (
+            PontoParaCalculo(
+                Decimal("10"), (Decimal("10"),), s_pooled=(Decimal("0.02"), 40)
+            ),
+        )
+        out = executar(_input_por_ponto(cal_id, pontos, perfil="A"), cal_repo, orc_repo)
+        assert out.pontos[0].metodo_tipo_a_ponto is MetodoTipoAPonto.S_POOLED
+        assert out.pontos[0].s_tipo_a_no_ponto == Decimal("0.02")
+        assert out.pontos[0].n_repeticoes_ponto == 1
+
+
+class TestPorPontoRessalvaNaoA:
+    @pytest.mark.parametrize("perfil", ["B", "C", "D"])
+    def test_n_entre_2_e_6_sem_pool_ressalva_nao_bloqueia(self, perfil: str) -> None:
+        cal_repo = FakeCalibracaoRepository()
+        orc_repo = FakeOrcamentoIncertezaRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        pontos = (
+            PontoParaCalculo(
+                Decimal("10"), (Decimal("10"), Decimal("10.1"), Decimal("9.9"))
+            ),
+        )
+        out = executar(
+            _input_por_ponto(cal_id, pontos, perfil=perfil), cal_repo, orc_repo
+        )
+        assert out.pontos[0].tipo_a_insuficiente is True
+        assert out.pontos[0].metodo_tipo_a_ponto is MetodoTipoAPonto.SX_PROPRIO
+
+
+class TestPorPontoEscalonamento:
+    def test_b_diferente_de_constante_perfil_A_fail_closed(self) -> None:
+        cal_repo = FakeCalibracaoRepository()
+        orc_repo = FakeOrcamentoIncertezaRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        comps = (_comp_b_padrao(lei=LeiEscalonamento.PROPORCIONAL),)
+        pontos = (PontoParaCalculo(Decimal("10"), _reps("10", "0.01")),)
+        with pytest.raises(EscalonamentoNaoSuportadoError):
+            executar(
+                _input_por_ponto(cal_id, pontos, perfil="A", componentes=comps),
+                cal_repo,
+                orc_repo,
+            )
+        assert orc_repo.orcamentos == {}
+
+    def test_b_diferente_de_constante_perfil_C_registra_ressalva(self) -> None:
+        cal_repo = FakeCalibracaoRepository()
+        orc_repo = FakeOrcamentoIncertezaRepository()
+        cal_id = _calibracao_em_execucao(cal_repo)
+        comps = (_comp_b_padrao(lei=LeiEscalonamento.PROPORCIONAL),)
+        pontos = (PontoParaCalculo(Decimal("10"), _reps("10", "0.01")),)
+        out = executar(
+            _input_por_ponto(cal_id, pontos, perfil="C", componentes=comps),
+            cal_repo,
+            orc_repo,
+        )
+        assert (
+            out.pontos[0].lei_escalonamento_aplicada is LeiEscalonamento.PROPORCIONAL
+        )

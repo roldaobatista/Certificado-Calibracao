@@ -226,6 +226,11 @@ class OrcamentoIncertezaSnapshot:
     arredondamento_aplicado_regra: str  # default 'NIT_DICLA_030_2_DIGITOS_SIG'
     calculado_em: datetime  # auto_now_add no PG
     correlation_id: UUID
+    # ADR-0077: hash de fecho encadeando os replay_hash dos pontos (ordem
+    # ponto_calibracao ASC) — tamper-evidence composicional. Vazio no path flat
+    # (sem pontos). NUNCA confundir com replay_determinismo_hash (este = hash do
+    # cálculo GUM do agregado/pior-caso, idêntico ao do ponto j* no modo por-ponto).
+    cadeia_pontos_hash: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -259,6 +264,10 @@ class OrcamentoPorPontoSnapshot:
     # 1ª fatia: todo Tipo B CONSTANTE (Q-RBC-1). PROPORCIONAL/LINEAR_AFIM = fatia 2.
     lei_escalonamento_aplicada: LeiEscalonamento
     tipo_a_insuficiente: bool = False  # ressalva B/C/D (2<=n<6 sem s_pooled)
+    # Desvio-padrão Tipo A efetivamente aplicado no ponto (s_x ou s_pool). Sem ele,
+    # auditoria CGCRE não reconstrói o Tipo A do ponto a partir só de u_combinada
+    # (tech-lead — completude probatória, caso S_POOLED). None quando AUSENTE.
+    s_tipo_a_no_ponto: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)
