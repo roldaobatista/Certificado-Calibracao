@@ -10,7 +10,7 @@ tipo: spec-faseamento
 relacionados:
   - docs/dominios/metrologia/modulos/certificados/prd.md
   - docs/faseamento/ordem-dependencia-bloco-metrologia.md
-  - docs/adr/0076-fonte-faixa-cobertura-rbc.md
+  - docs/adr/0076-fonte-faixa-cobertura-declarada-config-vs-pontos-emissao.md
   - docs/adr/0074-cobertura-rbc-tridimensional-faixa-u-maior-cmc.md
   - docs/adr/0073-validacao-cobertura-metrologica-no-use-case.md
   - docs/adr/0067-perfil-regulatorio-tenant-entidade-temporal.md

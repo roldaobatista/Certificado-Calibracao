@@ -13,7 +13,7 @@ relacionados:
   - docs/faseamento/M8-certificados/T-CER-000-investigacao.md
   - docs/adr/0077-orcamento-incerteza-por-ponto-calibracao.md
   - docs/adr/0078-certificados-tabela-achatada-logica-aninhada.md
-  - docs/adr/0076-fonte-faixa-cobertura-rbc.md
+  - docs/adr/0076-fonte-faixa-cobertura-declarada-config-vs-pontos-emissao.md
   - docs/adr/0074-cobertura-rbc-tridimensional-faixa-u-maior-cmc.md
 ---
 
