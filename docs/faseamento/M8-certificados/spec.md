@@ -2,7 +2,7 @@
 owner: agente-ia
 revisado-em: 2026-06-01
 proximo-review: 2026-09-01
-status: draft
+status: stable
 diataxis: reference
 audiencia: [agente, auditor, tech-lead, consultor-rbc]
 marco: M8-certificados

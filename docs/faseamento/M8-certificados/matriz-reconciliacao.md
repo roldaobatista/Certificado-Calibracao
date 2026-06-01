@@ -114,6 +114,22 @@ Total `_test-runner`: **508/508 verdes / 64 hooks ativos** (491 + 17). Sentinela
   tenant perfil A (RBC-Corr3 do consultor-rbc) — Wave A (`licencas-acreditacoes`).
 - **Motivo do rebaixamento no evento WORM** (TL-M1) — distinguir [acreditação vencida vs
   suspensa vs perfil-nativo não-acreditado] no payload do evento — Wave A.
+- **Achados BAIXO do P9 rastreados como GATE não-bloqueante** (resolver na Wave A — não
+  são específicos do núcleo metrológico desta frente):
+  - **GATE-IDEMP-REPLAY-TRANSITORIO** — `services_idempotencia._avaliar_existente` trata
+    chave `falhada` como terminal; falha transitória (ex. 409 reserva expirada) trava retry
+    com a MESMA chave por 24h. Camada de idempotência COMPARTILHADA (afeta todos os módulos)
+    — mudança transversal Wave A/F-C, não no M8.
+  - **GATE-IDEMP-REAPER-ORFAS** — crash entre commit do `atomic` e `concluir_chave` deixa
+    chave `em_processo` órfã até TTL. Reaper/cron de recuperação = infra F-C (transversal).
+  - **GATE-CER-DECISAO-RT-CADEIA** — publicar elo na cadeia hash central para a decisão WORM
+    do RT (`decidir_ponto`). Hoje a decisão já é append-only/imutável por trigger (0004) +
+    log estruturado; o elo central adicional é melhoria Wave A.
+  - **AC-CER-001-5 materialização (perfil D)** — `Certificado.tipo = RELATORIO_AFERICAO` +
+    sequência de numeração por tipo-de-documento = Wave A (frente UI/perfil D); nesta frente
+    perfil D produz `NAO_RBC` derivado. O enum tem só RBC/NAO_RBC (`enums.py`).
+  - **TL-M1** (já rastreado) — distinguir o MOTIVO do rebaixamento RBC→não-RBC [acreditação
+    vencida vs suspensa vs perfil-nativo] no payload do evento WORM — Wave A.
 - **Pendências escaladas a humano credenciado** (diferidas —
   `project_sem_contratacoes_externas_ate_producao`): homologação cl. 7.11 do motor de
   incerteza por ponto; dossiê RBC da reconciliação (partição rbc/não-rbc + decisões RT)
@@ -134,7 +150,33 @@ da frente alinhado (`CertificadoReconciliado`); fronteira com o evento normativo
 aceito. Suíte: 508/508 hooks + ~74 testes M8 + 17 INV-CER + drill 34/34; reverde global
 M4/M6/M7/SAN-INCERTEZA-PONTO sem regressão. **Pronto para P9.**
 
-## 8. P9 — ritual auditores roteados (INV-RITUAL-003)
+## 8. P9 — ritual auditores roteados (INV-RITUAL-003) — FECHADO 2026-06-01
 
-> _A preencher após a execução dos 6 auditores roteados por risco (T-CER-080). MÉDIO+
-> bloqueia fechamento (`ritual-gate-check.sh` / INV-RITUAL-001)._
+6 auditores roteados por risco + **verificação adversarial de cada achado MÉDIO+** (um
+verificador cético independente por achado, instruído a refutar). Dos 5 achados MÉDIO
+levantados, **apenas 1 sobreviveu como MÉDIO** após a verificação; os demais foram
+refutados (1 FALSO_POSITIVO) ou rebaixados a BAIXO. O único MÉDIO confirmado foi
+**RESOLVIDO na causa-raiz** (regra "resolver TUDO crítico→baixo") — INV-RITUAL-001
+satisfeito (zero MÉDIO+ remanescente).
+
+| Auditor | Veredito | Achado | Verificação adversarial | Desfecho |
+|---------|----------|--------|--------------------------|----------|
+| seguranca | ✅ PASS | — | — | porta fail-CLOSED + RLS v2 (4 tabelas) + perfil server-side + retrieve sem reconsulta + WORM sem bypass + hooks ok; zero |
+| llm-correctness | ✅ PASS | — | — | docstrings verazes, sem `Any` de escape, rastreabilidade INV-CER/US/AC; zero |
+| idempotencia | ✅ PASS | 2 BAIXO | — | IDEMP-001 nos 3 POST + existe_chave/UNIQUE + advisory lock + CAS; 2 BAIXO de infra transversal → GATE rastreado |
+| qualidade | 🟡 CONCERNS | 1 BAIXO (QLD-CER-01) | — | 16/16 INV testadas, anti-reconsulta provada por mutação, M4 reverde sem relaxamento; `type:ignore` com justificativa na linha acima → **RESOLVIDO** (movida p/ mesma linha) |
+| produto | 🟡 CONCERNS | 2 MÉDIO + 1 BAIXO | ambos MÉDIO → **BAIXO** (drift de doc; comportamento real correto) | PROD-CER-01 (AC-CER-001-3 sem fronteira) **RESOLVIDO** (nota de fronteira); PROD-CER-02 (glossário) **RESOLVIDO** (+7 termos); PROD-CER-03 (RELATORIO_AFERICAO Wave A) **RESOLVIDO** (rastreado §6) |
+| observabilidade | 🟡 CONCERNS | 3 MÉDIO + 1 BAIXO | OBS-1 → **FALSO_POSITIVO**; OBS-2 → **MÉDIO confirmado**; OBS-3 → **BAIXO** | OBS-2 (`_falha` sem log) **RESOLVIDO** (log.warning estruturado); OBS-3 (correlation_id no log sucesso) **RESOLVIDO**; OBS-4 (log decidir_ponto) **RESOLVIDO**; OBS-1 (rebaixamento "silencioso") refutado — observável via `tipo_acreditacao` no snapshot/evento (motivo no evento = TL-M1 rastreado) |
+
+**Conserto causa-raiz do P9 (commit pós-auditoria):** `views.py` — log estruturado em
+`_falha` (OBS-002, MÉDIO; `chave_id`=Idempotency-Key como correlador server-side),
+`correlation_id` no log de sucesso de `_publicar_evento_cert`, log estruturado de sucesso
+em `decidir_ponto`; `prd.md` AC-CER-001-3 nota de fronteira; `glossario.md` +7 termos
+(RBC/não-RBC/Relatório de Aferição/capacidade interna/reconciliação/ressalva);
+`test_m8_certificados_dominio_p1.py` justificativa `type:ignore` na mesma linha. Verificado:
+ruff limpo, mypy zero erro novo (7 pré-existentes molde), 43/43 testes M8 (API+domínio+INV-CER)
+verdes, hooks cert exit 0, 508/508 `_test-runner`.
+
+**Veredito FINAL:** M8 `metrologia/certificados` (núcleo de emissão metrológica) **FECHADO**
+— 3 PASS + 3 CONCERNS, todos os achados MÉDIO+ resolvidos na causa-raiz (1 MÉDIO + BAIXO),
+demais BAIXO resolvidos ou rastreados como GATE não-bloqueante.
