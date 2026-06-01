@@ -10,7 +10,6 @@ None; mutação via CAS (`atualizar_com_lock`); marcação one-shot.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
@@ -47,18 +46,12 @@ class CertificadoRepository(Protocol):
         numa única transação (bulk_create dos pontos). `status='emitido'`."""
         ...
 
-    def atualizar_com_lock(
-        self, certificado: CertificadoSnapshot, revision_anterior: int
-    ) -> bool:
-        """UPDATE CAS WHERE revision=esperada; rowcount=0 → corrida (caller 409).
-        NÃO muta campos técnicos pós-emissão (trigger WORM — INV-CER-WORM-001)."""
-        ...
-
     def marcar_substituida(
-        self, *, certificado_id: UUID, versao_sucessora_id: UUID, revision_anterior: int
+        self, *, certificado_id: UUID, revision_anterior: int
     ) -> bool:
-        """Transição one-shot `EMITIDO → SUBSTITUIDA` na reemissão (CAS).
-        False se corrida/já substituída (caller 409)."""
+        """Transição one-shot `EMITIDO → SUBSTITUIDA` na reemissão (CAS via
+        `revision`). False se corrida/já substituída (caller 409). O link forward
+        é implícito: a nova versão aponta backward via `versao_anterior_id`."""
         ...
 
 
@@ -83,8 +76,8 @@ class AnaliseReconciliacaoRepository(Protocol):
         ...
 
     def obter_decisao_por_ponto(
-        self, *, tenant_id: UUID, calibracao_id: UUID, criado_apos: datetime | None = None
+        self, *, tenant_id: UUID, calibracao_id: UUID
     ) -> dict[object, AnaliseReconciliacaoCertificado]:
         """Mapa `ponto_calibracao → decisão` para aplicar exclusões/ressalvas na
-        emissão (mais recente por ponto)."""
+        emissão (mais recente por ponto vence)."""
         ...

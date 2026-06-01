@@ -126,6 +126,7 @@ _SEED_MIGRATIONS: list[tuple[str, str]] = [
     ("padroes", "0007_seed_authz_vinculo_dossie_carta"),
     ("escopos_cmc", "0005_seed_authz_escopos_cmc"),
     ("procedimentos_calibracao", "0005_seed_authz_procedimentos"),
+    ("certificados", "0006_seed_authz_certificados"),
 ]
 
 
