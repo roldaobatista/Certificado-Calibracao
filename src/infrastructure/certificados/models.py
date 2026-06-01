@@ -310,3 +310,58 @@ class AnaliseReconciliacaoCert(models.Model):
 
     def __str__(self) -> str:
         return f"AnaliseReconciliacao({self.calibracao_id} ponto={self.ponto_calibracao} {self.decisao_rt})"
+
+
+class NumeroCertificadoReservado(models.Model):
+    """Reserva do número VISÍVEL do certificado (T-CER-031 / INV-CER-NUM-001).
+
+    Densidade SEM BURACOS por (tenant, tipo, ano) — NIT-DICLA-021. Reserva TTL 5min:
+    `confirmado=False` até a emissão cravar; expira e é liberada se a emissão não
+    confirmar (reuso). Distinto do `numero_interno` (sequence PG global, buracos OK —
+    INV-CER-NUM-002). Triggers PG (0008): consecutividade no INSERT, confirmação
+    one-shot e bloqueio de DELETE de número confirmado (cancelamento PRESERVA o
+    número, não devolve à sequência).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.PROTECT, related_name="numeros_certificado_reservados"
+    )
+    tipo = models.CharField(
+        max_length=20, default="CERTIFICADO",
+        help_text="Discriminador de sequência (1 sequência por tenant+ano).",
+    )
+    ano = models.IntegerField(db_index=True)
+    sequencial = models.IntegerField(help_text="N do <SLUG>-<YYYY>-<NNNNNN> (sem buracos).")
+    reservado_em = models.DateTimeField(auto_now_add=True)
+    ttl_expira_em = models.DateTimeField(
+        help_text="Reserva não-confirmada expira aqui (T-CER-031 — 5min)."
+    )
+    confirmado = models.BooleanField(
+        default=False, help_text="True na confirmação one-shot (transação da emissão)."
+    )
+    correlation_id = models.UUIDField(default=uuid.uuid4)
+
+    class Meta:
+        app_label = "certificados"
+        db_table = "numero_certificado_reservado"
+        verbose_name = "Número de certificado reservado"
+        verbose_name_plural = "Números de certificado reservados"
+        ordering = ["tenant", "tipo", "ano", "sequencial"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("tenant", "tipo", "ano", "sequencial"),
+                name="uq_num_cert_reservado",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["tenant", "tipo", "ano"], name="ix_num_cert_reservado_chave"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"NumeroReservado({self.tipo}-{self.ano}-{self.sequencial:06d} "
+            f"confirmado={self.confirmado})"
+        )

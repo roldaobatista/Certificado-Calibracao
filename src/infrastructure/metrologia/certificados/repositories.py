@@ -13,20 +13,33 @@ from decimal import Decimal
 from uuid import UUID
 
 from django.db import connection, transaction
+from django.utils import timezone
 
 from src.domain.metrologia.certificados.entities import (
     AnaliseReconciliacaoCertificado,
     CertificadoSnapshot,
     PontoReconciliadoSnapshot,
 )
+from src.domain.metrologia.certificados.numeracao import (
+    TIPO_CERTIFICADO,
+    TTL_RESERVA,
+    ReservaNumero,
+    montar_numero_certificado,
+    proximo_sequencial,
+)
 from src.infrastructure.certificados.models import (
     AnaliseReconciliacaoCert,
     Certificado,
+    NumeroCertificadoReservado,
     PontoReconciliado,
     StatusCertificado,
 )
 
 from . import mappers
+
+# Namespace do advisory lock da numeração (distinto de audit/hash-chain — paralelo
+# audit/services.py `_ADVISORY_LOCK_*`). Serializa reservas por (tenant, tipo, ano).
+_ADVISORY_LOCK_NUMERACAO_CERT = 880_401
 
 
 class DjangoCertificadoRepository:
@@ -123,3 +136,81 @@ class DjangoAnaliseReconciliacaoRepository:
         for m in qs:
             mapa[m.ponto_calibracao] = mappers.analise_model_para_snapshot(m)
         return mapa
+
+
+class DjangoNumeracaoCertificadoRepository:
+    """Reserva → confirma → libera o número VISÍVEL (T-CER-033 / INV-CER-NUM-001).
+
+    Serializa por (tenant, tipo, ano) com `pg_advisory_xact_lock` transacional; o
+    INSERT é validado pelo trigger de consecutividade (0008). `reservar_numero` abre
+    a própria transação (lock liberado ao fim → reservas concorrentes serializam);
+    `confirmar_numero` roda DENTRO da `transaction.atomic` da emissão.
+    """
+
+    def reservar_numero(
+        self,
+        *,
+        tenant_id: UUID,
+        tenant_slug: str,
+        ano: int,
+        correlation_id: UUID,
+        tipo: str = TIPO_CERTIFICADO,
+    ) -> ReservaNumero:
+        with transaction.atomic():
+            with connection.cursor() as cur:
+                cur.execute(
+                    "SELECT pg_advisory_xact_lock(%s, hashtext(%s));",
+                    [_ADVISORY_LOCK_NUMERACAO_CERT, f"{tenant_id}:{tipo}:{ano}"],
+                )
+            agora = timezone.now()
+            # Libera expirados ANTES de calcular o próximo (reuso → densidade).
+            NumeroCertificadoReservado.objects.filter(
+                tenant_id=tenant_id, tipo=tipo, ano=ano,
+                confirmado=False, ttl_expira_em__lt=agora,
+            ).delete()
+            em_uso = list(
+                NumeroCertificadoReservado.objects.filter(
+                    tenant_id=tenant_id, tipo=tipo, ano=ano
+                ).values_list("sequencial", flat=True)
+            )
+            seq = proximo_sequencial(em_uso)
+            numero = montar_numero_certificado(
+                tenant_slug=tenant_slug, ano=ano, sequencial=seq
+            )
+            ttl = agora + TTL_RESERVA
+            m = NumeroCertificadoReservado.objects.create(
+                tenant_id=tenant_id, tipo=tipo, ano=ano, sequencial=seq,
+                ttl_expira_em=ttl, confirmado=False, correlation_id=correlation_id,
+            )
+            return ReservaNumero(
+                id=m.id,
+                tenant_id=tenant_id,
+                tipo=tipo,
+                ano=ano,
+                sequencial=seq,
+                numero_certificado=numero.value,
+                reservado_em=m.reservado_em,
+                ttl_expira_em=ttl,
+                confirmado=False,
+                correlation_id=correlation_id,
+            )
+
+    def confirmar_numero(self, *, reserva_id: UUID, tenant_id: UUID) -> bool:
+        """One-shot: só confirma reserva viva e não-confirmada (caller re-reserva
+        se False). O caller envolve na `transaction.atomic` da emissão."""
+        agora = timezone.now()
+        n = NumeroCertificadoReservado.objects.filter(
+            id=reserva_id, tenant_id=tenant_id, confirmado=False,
+            ttl_expira_em__gte=agora,
+        ).update(confirmado=True)
+        return n == 1
+
+    def liberar_expirados(
+        self, *, tenant_id: UUID, ano: int, tipo: str = TIPO_CERTIFICADO
+    ) -> int:
+        agora = timezone.now()
+        total, _ = NumeroCertificadoReservado.objects.filter(
+            tenant_id=tenant_id, tipo=tipo, ano=ano,
+            confirmado=False, ttl_expira_em__lt=agora,
+        ).delete()
+        return total
