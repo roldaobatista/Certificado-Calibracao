@@ -952,7 +952,7 @@ class OrcamentoIncerteza(models.Model):
         help_text="Origem do bias (ex: calibracao_externa_padrao_referencia).",
     )
     arredondamento_aplicado_regra = models.CharField(
-        max_length=20,
+        max_length=40,
         default="NIT_DICLA_030_2_DIGITOS_SIG",
         help_text="Regra de arredondamento (NIT-DICLA-030 §7.5).",
     )
