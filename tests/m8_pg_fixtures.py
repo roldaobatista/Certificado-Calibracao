@@ -12,6 +12,7 @@ percorrer a máquina de 12 estados.
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from datetime import timedelta
 from decimal import Decimal
 from uuid import uuid4
 
@@ -138,6 +139,41 @@ def criar_ponto_orcamento(
             lei_escalonamento_aplicada=LeiEscalonamento.CONSTANTE.value,
             tipo_a_insuficiente=False,
             s_tipo_a_no_ponto=None,
+        )
+
+
+def criar_escopo_cmc_confirmado(
+    tenant,
+    *,
+    grandeza: str = "massa",
+    faixa_min: Decimal = Decimal("0"),
+    faixa_max: Decimal = Decimal("1000"),
+    unidade: str = "g",
+    cmc_valor: Decimal = Decimal("0.5"),
+):
+    """1 `EscopoCMC` CONFIRMADO + vigente (RBC acreditado, CMC ABSOLUTA) que cobre a
+    faixa. Vigência início 30d no passado para cobrir a `data_emissao` (que o
+    cmc_para_adapter converte para meia-noite UTC do dia). Usado nos testes RBC."""
+    from src.domain.metrologia.escopos_cmc.enums import EstadoEscopo
+    from src.infrastructure.metrologia.escopos_cmc.models import EscopoCMC
+
+    sfx = uuid4().hex[:6]
+    with run_in_tenant_context(tenant.id):
+        inicio = timezone.now() - timedelta(days=30)
+        return EscopoCMC.objects.create(
+            tenant=tenant,
+            grandeza=grandeza,
+            faixa_min=faixa_min,
+            faixa_max=faixa_max,
+            unidade=unidade,
+            cmc_forma="ABSOLUTA",
+            cmc_valor=cmc_valor,
+            cmc_unidade=unidade,
+            rbc_acreditado=True,
+            numero_escopo_cgcre=f"CRL {1000 + (uuid4().int % 9000):04d}-{sfx[:2]}",
+            estado=EstadoEscopo.CONFIRMADO.value,
+            vigente_a_partir=inicio,
+            vigencia_inicio=inicio,
         )
 
 

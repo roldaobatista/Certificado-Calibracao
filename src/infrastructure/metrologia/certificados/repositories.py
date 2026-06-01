@@ -97,6 +97,35 @@ class DjangoCertificadoRepository:
         ).update(status=StatusCertificado.SUBSTITUIDA, revision=revision_anterior + 1)
         return n == 1
 
+    def obter_revision_para_cas(
+        self, *, tenant_id: UUID, certificado_id: UUID
+    ) -> int | None:
+        """Lê o `revision` do cert EMITIDO com `select_for_update` (CAS da reemissão —
+        TL-A1). DEVE rodar DENTRO da `transaction.atomic` do caller (advisory lock por
+        calibração ANTES, fechando o TOCTOU na origem). `None` se não existe ou não
+        está EMITIDO (já substituído/revogado → caller 409)."""
+        m = (
+            Certificado.all_objects.select_for_update()
+            .filter(
+                id=certificado_id,
+                tenant_id=tenant_id,
+                status=StatusCertificado.EMITIDO,
+            )
+            .first()
+        )
+        return m.revision if m is not None else None
+
+    def listar_pontos(
+        self, *, certificado_id: UUID
+    ) -> list[PontoReconciliadoSnapshot]:
+        """Read-path dos pontos reconciliados (retrieve T-CER-045). SÓ campos
+        persistidos, ordenados por ponto ASC — NUNCA reconsulta `cmc_para`/
+        `tenant_perfil_e` (INV-CER-SNAPSHOT-CMC-001). RLS isola o tenant."""
+        qs = PontoReconciliado.objects.filter(
+            certificado_id=certificado_id
+        ).order_by("ponto_calibracao")
+        return [mappers.ponto_model_para_snapshot(m) for m in qs]
+
 
 class DjangoAnaliseReconciliacaoRepository:
     """Decisões WORM do RT por ponto, ligadas a `calibracao_id`."""

@@ -287,6 +287,19 @@ ACOES_PROCEDIMENTOS_CALIBRACAO: Final[frozenset[str]] = frozenset(
 )
 
 
+# M8 metrologia/certificados (T-CER-047) — emissao metrologica do certificado.
+# PascalCase (nao slug lowercase) PROPOSITAL: vai SO na cadeia hash central
+# (cadeia=True, outbox=False), nao no bus_outbox — cujo CHECK exige slug lowercase
+# (migration 0011). Precedente: Admin.BreakGlass.CONTA_CRIADA. `CertificadoEmitido`
+# (normativo cl. 7.8) e RESERVADO p/ a assinatura A3 (Wave A) — NAO usar aqui:
+# status='emitido' interno = emissao metrologica, nao distribuivel ate a A3.
+ACOES_CERTIFICADOS: Final[frozenset[str]] = frozenset(
+    {
+        "Certificados.CertificadoReconciliado",
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -298,6 +311,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_PADROES
     | ACOES_ESCOPOS_CMC
     | ACOES_PROCEDIMENTOS_CALIBRACAO
+    | ACOES_CERTIFICADOS
 )
 
 
