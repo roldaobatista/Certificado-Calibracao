@@ -114,6 +114,17 @@ class Tenant(models.Model):
             "Cancelamento definitivo usa direcao=CANCELAMENTO_CGCRE."
         ),
     )
+    acreditacao_vigencia_fim = models.DateField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Data de validade da acreditacao CGCRE (INV-CER-CGCRE-VIG-001). "
+            "Preenchida apenas em perfil A. A emissao so classifica ponto como "
+            "RBC quando a acreditacao esta vigente nesta data (> data_de_emissao). "
+            "NULL = fail-open lazy (campo novo; GATE-CER-CGCRE-VIG-DATA-POPULAR "
+            "Wave A torna o bloqueio por vencimento efetivo quando populado)."
+        ),
+    )
     ilac_mra_aderido = models.BooleanField(
         default=False,
         help_text=(
@@ -191,6 +202,17 @@ class Tenant(models.Model):
                 {
                     "acreditacao_suspensa_ate": (
                         "Data de fim da suspensao deve ser >= data de inicio."
+                    )
+                }
+            )
+
+        # 5. Vigencia da acreditacao so faz sentido em perfil A (INV-CER-CGCRE-VIG-001).
+        if self.acreditacao_vigencia_fim and self.perfil_regulatorio != "A":
+            raise ValidationError(
+                {
+                    "acreditacao_vigencia_fim": (
+                        "Vigencia da acreditacao CGCRE so pode ser preenchida em "
+                        f"tenant perfil A. Perfil atual: {self.perfil_regulatorio}."
                     )
                 }
             )
