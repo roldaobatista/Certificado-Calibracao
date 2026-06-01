@@ -58,3 +58,84 @@ class ClassificacaoPonto(str, Enum):
             ClassificacaoPonto.SEM_CMC,
             ClassificacaoPonto.U_MENOR_CMC,
         )
+
+
+class EstadoCertificado(str, Enum):
+    """Ciclo de vida do certificado (plan §3). Os VALORES batem 1:1 com
+    `StatusCertificado` do stub (`infrastructure/certificados/models.py`) —
+    lowercase — porque o trigger cross-app INV-025 lê `status='emitido'` literal
+    (ADR-0078). `SUBSTITUIDA` é a choice ESTENDIDA pela migration aditiva
+    (T-CER-020) para a reemissão versionada (US-CER-004); aditiva, não toca o
+    contrato do trigger (que só filtra `'emitido'`).
+
+    `RASCUNHO` permanece declarado (compat stub) mas NÃO é materializado nesta
+    frente: a reconciliação calculada + as `AnaliseReconciliacaoCertificado`
+    penduram em `calibracao_id`, SEM linha em `certificados` até `emitir`. Assim
+    a tabela contém APENAS snapshots imutáveis `'emitido'` (WORM puro).
+    """
+
+    RASCUNHO = "rascunho"
+    EMITIDO = "emitido"
+    SUBSTITUIDA = "substituida"
+    REVOGADO = "revogado"
+
+    @property
+    def terminal(self) -> bool:
+        """Estados sem transição de saída (reemissão cria NOVA linha, não muta)."""
+        return self in (EstadoCertificado.SUBSTITUIDA, EstadoCertificado.REVOGADO)
+
+    @property
+    def emitido(self) -> bool:
+        """Emissão metrológica concluída (números definitivos + snapshot
+        congelado). NÃO significa 'entregue ao cliente' — a entrega normativa
+        cl. 7.8 depende da assinatura A3 (Wave A)."""
+        return self is EstadoCertificado.EMITIDO
+
+    @property
+    def consultavel(self) -> bool:
+        """Já materializado em `certificados` (read-path). RASCUNHO não
+        materializa nesta frente."""
+        return self in (
+            EstadoCertificado.EMITIDO,
+            EstadoCertificado.SUBSTITUIDA,
+            EstadoCertificado.REVOGADO,
+        )
+
+
+class TipoAcreditacao(str, Enum):
+    """Selo do certificado (cl. 8.1.3 / ADR-0075). `RBC` só perfil A com
+    acreditação vigente E pontos todos cobertos (`pode_emitir_rbc`); senão
+    `NAO_RBC` (capacidade interna B/C/D, ou perfil A fora do escopo/vencido)."""
+
+    RBC = "RBC"
+    NAO_RBC = "NAO_RBC"
+
+
+class DecisaoReconciliacaoRT(str, Enum):
+    """Decisão WORM do RT sobre um ponto problemático (NC-03 / padrão ADR-0070).
+
+    - `EXCLUIR_PONTO`: ponto sai do certificado (não reportado).
+    - `EMITIR_NAO_RBC_NO_PONTO`: ponto reportado SEM selo RBC (exige
+      `ressalva_nao_rbc` — C-03 / cl. 8.1.3, anti uso indevido de acreditação).
+    - `ABORTAR`: cancela a emissão (bug grave — ex.: orçamento errado).
+    """
+
+    EXCLUIR_PONTO = "EXCLUIR_PONTO"
+    EMITIR_NAO_RBC_NO_PONTO = "EMITIR_NAO_RBC_NO_PONTO"
+    ABORTAR = "ABORTAR"
+
+
+class CategoriaMotivoExclusao(str, Enum):
+    """Categoria objetiva do motivo de exclusão/rebaixamento de um ponto
+    (C-02 / cl. 7.10.1) — campo estruturado para auditoria CGCRE.
+
+    `U_MAIOR_QUE_CMC_BUG` casa com a classificação `ClassificacaoPonto.U_MENOR_CMC`
+    (a U declarada é menor que a CMC = a CMC estava otimista demais perante a U
+    real; nomes de direção aparente oposta, mesmo fenômeno)."""
+
+    PADRAO_FORA_VALIDADE = "PADRAO_FORA_VALIDADE"
+    FALHA_REPETIBILIDADE = "FALHA_REPETIBILIDADE"
+    U_MAIOR_QUE_CMC_BUG = "U_MAIOR_QUE_CMC_BUG"
+    PONTO_FORA_FAIXA_DECLARADA = "PONTO_FORA_FAIXA_DECLARADA"
+    CONDICAO_AMBIENTAL_NC = "CONDICAO_AMBIENTAL_NC"
+    OUTRO = "OUTRO"

@@ -29,3 +29,43 @@ class SemOrcamentoPontoError(ReconciliacaoCertificadoError):
     fail-closed (não se emite ponto sem incerteza)."""
 
     reason = "SEM_ORCAMENTO"
+
+
+class FaixaDeclaradaAusenteError(ReconciliacaoCertificadoError):
+    """Calibração APROVADA sem `faixa_calibrada_declarada`/`grandeza_calibrada`
+    (ADR-0076). Sem a faixa declarada não se pode aferir `pontos ⊆ declarada`
+    → fail-closed (fecha GATE-CAL-EMISSAO-RECONCILIA-FAIXA com dado de origem)."""
+
+    reason = "FAIXA_DECLARADA_AUSENTE"
+
+
+class CertificadoError(Exception):
+    """Base dos erros de ciclo de vida/emissão do certificado (≠ reconciliação)."""
+
+    reason = "certificado_erro"
+
+
+class TransicaoCertificadoInvalidaError(CertificadoError):
+    """Transição de `EstadoCertificado` não permitida pela máquina de estados."""
+
+    reason = "TRANSICAO_CERTIFICADO_INVALIDA"
+
+
+class MotivoReemissaoInsuficienteError(CertificadoError):
+    """Reemissão (US-CER-004) exige motivo com ≥ 50 chars."""
+
+    reason = "MOTIVO_REEMISSAO_INSUFICIENTE"
+
+
+class ReconciliacaoPendenteDecisaoRTError(CertificadoError):
+    """Perfil A com ponto não-RBC SEM decisão do RT → bloqueia emissão (422), sem
+    persistir nada (NC-03 / máquina de estados plan §3)."""
+
+    reason = "RECONCILIACAO_PENDENTE_DECISAO_RT"
+
+
+class RessalvaNaoRbcObrigatoriaError(CertificadoError):
+    """Decisão `EMITIR_NAO_RBC_NO_PONTO` sem `ressalva_nao_rbc` (C-03 / cl. 8.1.3
+    / ADR-0075) — anti uso indevido de acreditação (L6 invertido)."""
+
+    reason = "RESSALVA_NAO_RBC_OBRIGATORIA"
