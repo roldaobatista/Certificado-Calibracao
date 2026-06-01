@@ -174,7 +174,11 @@ def _publicar_evento_cert(
     )
     logger.info(
         "certificados evento WORM publicado acao=Certificados.CertificadoReconciliado",
-        extra={"tenant_id": str(tenant_id), "resource": resource_summary},
+        extra={
+            "tenant_id": str(tenant_id),
+            "correlation_id": str(causation_id),  # OBS-002: correlador (Idempotency-Key)
+            "resource": resource_summary,
+        },
     )
 
 
@@ -262,6 +266,19 @@ class CertificadoViewSet(viewsets.ViewSet):
         concluir_chave(
             chave_id=chave_id, tenant_id=tenant_id,
             response_status=status.HTTP_201_CREATED, response_body_resumo=body,
+        )
+        # OBS-002: decisão WORM do RT (cl. 7.10.1) deixa trilha estruturada. A persistência
+        # em si já é append-only/imutável por trigger (migration 0004); o elo na cadeia
+        # hash central da decisão é melhoria rastreada (GATE-CER-DECISAO-RT-CADEIA Wave A).
+        logger.info(
+            "certificados decisao RT registrada decisao=%s",
+            decisao.decisao_rt.value,
+            extra={
+                "tenant_id": str(tenant_id),
+                "correlation_id": str(chave_id),
+                "calibracao_id": str(decisao.calibracao_id),
+                "ponto_calibracao": str(decisao.ponto_calibracao),
+            },
         )
         return Response(body, status=status.HTTP_201_CREATED)
 
@@ -502,5 +519,20 @@ class CertificadoViewSet(viewsets.ViewSet):
 
     @staticmethod
     def _falha(chave_id: UUID, tenant_id: UUID, exc: Exception, http_status: int) -> Response:
+        # OBS-002: bloqueio fail-closed em path crítico (emitir/reemitir/decidir) carrega
+        # trilha estruturada. `chave_id` é a Idempotency-Key — correlador único server-side
+        # da requisição, rastreável até `idempotencia_chave` (mesmo papel do correlation_id
+        # do M4/M7; auditor-observabilidade P9 OBS-2/T-CER-080).
+        logger.warning(
+            "certificados bloqueio fail-closed codigo=%s status=%s",
+            exc.__class__.__name__,
+            http_status,
+            extra={
+                "tenant_id": str(tenant_id),
+                "correlation_id": str(chave_id),
+                "codigo": exc.__class__.__name__,
+                "http_status": http_status,
+            },
+        )
         falhar_chave(chave_id=chave_id, tenant_id=tenant_id, response_status=http_status)
         return Response({"erro": str(exc)}, status=http_status)

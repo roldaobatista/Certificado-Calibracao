@@ -177,8 +177,8 @@ def test_certificado_snapshot_round_trip_todos_os_campos():
     assert snap.numero_interno == 42
     assert snap.snapshot_padroes_usados_json[0]["padrao_id"] == "p1"
     assert snap.regra_decisao_snapshot["modo"] == "simples"
-    with pytest.raises((AttributeError, Exception)):  # frozen
-        snap.numero_interno = 99  # type: ignore[misc]
+    with pytest.raises((AttributeError, Exception)):
+        snap.numero_interno = 99  # type: ignore[misc] -- atribuicao deliberada a dataclass frozen p/ provar que levanta
 
 
 # --- AnaliseReconciliacaoCertificado + coerência (T-CER-014) ------------------
