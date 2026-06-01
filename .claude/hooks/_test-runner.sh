@@ -1100,6 +1100,29 @@ run_case "PMV4 gate ativado documentado PASS"         PASS  proc-metodo-validado
 run_case "PMV5 outro arquivo qualquer PASS"           PASS  proc-metodo-validado-check.sh '{"tool_input":{"file_path":"src/x/outro.py","content":"if metodo_exige_validacao_pendente(x): raise Y()"}}'
 run_case "PMV6 override PASS"                          PASS  proc-metodo-validado-check.sh '{"tool_input":{"file_path":"src/application/metrologia/procedimentos_calibracao/cadastrar_procedimento.py","content":"# proc-metodo-validado: skip -- bloqueio aprovado pos-licencas DR-2026-022\n    if metodo_exige_validacao_pendente(t): raise Y()"}}'
 
+echo "===== cert-reconcilia-fail-closed (M8 Fatia 3 / INV-CER-RECONCILIA-002/005) ====="
+run_case "CRFC1 reconciliar sem ambiguo BLOCK"        BLOCK cert-reconcilia-fail-closed-check.sh '{"tool_input":{"file_path":"src/domain/metrologia/certificados/reconciliacao.py","content":"def reconciliar_pontos(x):\n    return []"}}'
+run_case "CRFC2 reconciliar sem sem-orcamento BLOCK"  BLOCK cert-reconcilia-fail-closed-check.sh '{"tool_input":{"file_path":"src/domain/metrologia/certificados/reconciliacao.py","content":"def reconciliar_pontos(x):\n    raise OrcamentoPontoAmbiguoError()"}}'
+run_case "CRFC3 reconciliar completa PASS"            PASS  cert-reconcilia-fail-closed-check.sh '{"tool_input":{"file_path":"src/domain/metrologia/certificados/reconciliacao.py","content":"def reconciliar_pontos(x):\n    raise OrcamentoPontoAmbiguoError()\n    raise SemOrcamentoPontoError()"}}'
+run_case "CRFC4 emitir sem faixa-ausente BLOCK"       BLOCK cert-reconcilia-fail-closed-check.sh '{"tool_input":{"file_path":"src/application/metrologia/certificados/emitir_certificado.py","content":"def emitir_certificado(inp):\n    return cert"}}'
+run_case "CRFC5 emitir com faixa-ausente PASS"        PASS  cert-reconcilia-fail-closed-check.sh '{"tool_input":{"file_path":"src/application/metrologia/certificados/emitir_certificado.py","content":"def emitir_certificado(inp):\n    raise FaixaDeclaradaAusenteError()"}}'
+run_case "CRFC6 outro arquivo qualquer PASS"          PASS  cert-reconcilia-fail-closed-check.sh '{"tool_input":{"file_path":"src/x/outro.py","content":"def reconciliar_pontos(): pass"}}'
+
+echo "===== cert-snapshot-nao-reconsulta (M8 Fatia 3 / INV-CER-SNAPSHOT-CMC-001) ====="
+run_case "CSNR1 serializer chama cmc_para BLOCK"      BLOCK cert-snapshot-nao-reconsulta-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/certificados/serializers.py","content":"cmc = cmc_para(ponto=p)"}}'
+run_case "CSNR2 serializer chama tenant_perfil BLOCK" BLOCK cert-snapshot-nao-reconsulta-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/certificados/serializers.py","content":"if tenant_perfil_e([\"A\"]):\n    pass"}}'
+run_case "CSNR3 serializer le so snapshot PASS"       PASS  cert-snapshot-nao-reconsulta-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/certificados/serializers.py","content":"return {\"cmc_no_ponto\": str(p.cmc_no_ponto)}  # le do snapshot, nunca cmc_para"}}'
+run_case "CSNR4 override PASS"                         PASS  cert-snapshot-nao-reconsulta-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/certificados/serializers.py","content":"# cert-snapshot-nao-reconsulta: skip -- read-model especial aprovado DR-2026-030\ncmc = cmc_para(p)"}}'
+run_case "CSNR5 outro arquivo qualquer PASS"          PASS  cert-snapshot-nao-reconsulta-check.sh '{"tool_input":{"file_path":"src/x/outro.py","content":"cmc = cmc_para(p)"}}'
+
+echo "===== cert-perfil-rbc-so-A (M8 Fatia 3 / INV-CER-PERFIL-001 + RESSALVA-001) ====="
+run_case "CPRA1 tipo do request.data BLOCK"           BLOCK cert-perfil-rbc-so-A-check.sh '{"tool_input":{"file_path":"src/x/views.py","content":"tipo_acreditacao = request.data[\"tipo\"]"}}'
+run_case "CPRA2 tipo do validated_data BLOCK"         BLOCK cert-perfil-rbc-so-A-check.sh '{"tool_input":{"file_path":"src/x/views.py","content":"tipo_acreditacao = validated_data[\"tipo_acreditacao\"]"}}'
+run_case "CPRA3 tipo via perfil_e_acreditado PASS"    PASS  cert-perfil-rbc-so-A-check.sh '{"tool_input":{"file_path":"src/x/views.py","content":"tipo = RBC if perfil_e_acreditado(perfil) else NAO_RBC"}}'
+run_case "CPRA4 override PASS"                         PASS  cert-perfil-rbc-so-A-check.sh '{"tool_input":{"file_path":"src/x/views.py","content":"# cert-perfil-rbc-so-A: skip -- derivado server-side via helper DR-2026-031\ntipo_acreditacao = request.data[\"t\"]"}}'
+run_case "CPRA5 transicoes cert lar isento PASS"      PASS  cert-perfil-rbc-so-A-check.sh '{"tool_input":{"file_path":"src/domain/metrologia/certificados/transicoes.py","content":"tipo_acreditacao = request.data[\"t\"]"}}'
+run_case "CPRA6 teste ignora PASS"                    PASS  cert-perfil-rbc-so-A-check.sh '{"tool_input":{"file_path":"tests/test_cert.py","content":"tipo_acreditacao = request.data[\"t\"]"}}'
+
 # --- Gate anti-drift de contagens (auditoria maquina-dev 2026-05-29) ---
 # So no modo completo (sem filtro). Garante que os numeros a mao nos docs
 # canonicos (README/AGENTS/CLAUDE) batem com a fonte direta. Mata os
