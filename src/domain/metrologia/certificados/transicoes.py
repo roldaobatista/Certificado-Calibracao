@@ -10,8 +10,10 @@ Django (ADR-0007).
 
 from __future__ import annotations
 
-from collections.abc import Collection
+from collections.abc import Collection, Mapping, Sequence
+from dataclasses import replace
 from decimal import Decimal
+from typing import Protocol
 
 from .enums import (
     CategoriaMotivoExclusao,
@@ -20,11 +22,13 @@ from .enums import (
     EstadoCertificado,
 )
 from .erros import (
+    EmissaoAbortadaPeloRTError,
     MotivoReemissaoInsuficienteError,
     ReconciliacaoPendenteDecisaoRTError,
     RessalvaNaoRbcObrigatoriaError,
     TransicaoCertificadoInvalidaError,
 )
+from .reconciliacao import PontoReconciliado
 
 # Reemissão NÃO é transição: cria NOVA linha v(N+1) e marca v(N)→SUBSTITUIDA.
 _TRANSICOES_VALIDAS: dict[EstadoCertificado, frozenset[EstadoCertificado]] = {
@@ -116,3 +120,49 @@ def categoria_coerente(
     Categorias físicas/`OUTRO` valem para qualquer classificação."""
     exigida = _CATEGORIA_EXIGE_CLASSIFICACAO.get(categoria)
     return exigida is None or exigida is classificacao
+
+
+class _DecisaoRT(Protocol):
+    """Forma estrutural mínima de uma decisão do RT (basta `decisao_rt`).
+    `@property` read-only → aceita dataclass frozen (AnaliseReconciliacaoCertificado)."""
+
+    @property
+    def decisao_rt(self) -> DecisaoReconciliacaoRT: ...
+
+
+def aplicar_decisoes_rt(
+    pontos: Sequence[PontoReconciliado],
+    decisoes_por_ponto: Mapping[Decimal, _DecisaoRT],
+) -> list[PontoReconciliado]:
+    """Aplica as decisões WORM do RT aos pontos problemáticos (NC-03):
+
+    - `EXCLUIR_PONTO` → `EXCLUIDO`, fora do certificado (`incluido=False`).
+    - `EMITIR_NAO_RBC_NO_PONTO` → reportado sem selo RBC (`incluido=True`; a
+      `ressalva_nao_rbc` é gravada no snapshot pelo use case).
+    - `ABORTAR` → `EmissaoAbortadaPeloRTError` (não emite).
+
+    Pontos `RBC_OK` e não-RBC-válidos (B/C/D `SEM_CMC` sem decisão) ficam intactos.
+    A completude das decisões (perfil A) é validada em separado
+    (`validar_completude_decisoes_rt`) antes de chamar esta função.
+    """
+    resultado: list[PontoReconciliado] = []
+    for p in pontos:
+        dec = decisoes_por_ponto.get(p.ponto_calibracao)
+        if not p.classificacao.problematico or dec is None:
+            resultado.append(p)
+            continue
+        if dec.decisao_rt is DecisaoReconciliacaoRT.ABORTAR:
+            raise EmissaoAbortadaPeloRTError(
+                f"RT abortou a emissão no ponto {p.ponto_calibracao}"
+            )
+        if dec.decisao_rt is DecisaoReconciliacaoRT.EXCLUIR_PONTO:
+            resultado.append(
+                replace(
+                    p,
+                    classificacao=ClassificacaoPonto.EXCLUIDO,
+                    incluido_no_certificado=False,
+                )
+            )
+        else:  # EMITIR_NAO_RBC_NO_PONTO
+            resultado.append(replace(p, incluido_no_certificado=True))
+    return resultado

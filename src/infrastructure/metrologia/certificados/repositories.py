@@ -104,22 +104,22 @@ class DjangoAnaliseReconciliacaoRepository:
         return [mappers.analise_model_para_snapshot(m) for m in qs]
 
     def existe_decisao_para_ponto(
-        self, *, tenant_id: UUID, calibracao_id: UUID, ponto_calibracao: object
+        self, *, tenant_id: UUID, calibracao_id: UUID, ponto_calibracao: Decimal
     ) -> bool:
         return AnaliseReconciliacaoCert.objects.filter(
             tenant_id=tenant_id,
             calibracao_id=calibracao_id,
-            ponto_calibracao=Decimal(str(ponto_calibracao)),
+            ponto_calibracao=ponto_calibracao,
         ).exists()
 
     def obter_decisao_por_ponto(
         self, *, tenant_id: UUID, calibracao_id: UUID
-    ) -> dict[object, AnaliseReconciliacaoCertificado]:
+    ) -> dict[Decimal, AnaliseReconciliacaoCertificado]:
         """Mapa `ponto_calibracao → decisão` (mais recente por ponto vence)."""
         qs = AnaliseReconciliacaoCert.objects.filter(
             tenant_id=tenant_id, calibracao_id=calibracao_id
         ).order_by("criado_em")
-        mapa: dict[object, AnaliseReconciliacaoCertificado] = {}
+        mapa: dict[Decimal, AnaliseReconciliacaoCertificado] = {}
         for m in qs:
             mapa[m.ponto_calibracao] = mappers.analise_model_para_snapshot(m)
         return mapa

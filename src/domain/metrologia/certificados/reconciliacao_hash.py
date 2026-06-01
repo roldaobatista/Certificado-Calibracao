@@ -34,17 +34,29 @@ from .enums import ClassificacaoPonto
 
 class _PontoReconciliavel(Protocol):
     """Forma estrutural mínima para o hash — serve tanto para `PontoReconciliado`
-    (resultado puro Fatia 0) quanto `PontoReconciliadoSnapshot` (persistível)."""
+    (resultado puro Fatia 0) quanto `PontoReconciliadoSnapshot` (persistível).
 
-    ponto_calibracao: Decimal
-    valor_reportado: Decimal
-    U_no_ponto: Decimal  # U é notação metrológica canônica (NIT-DICLA-030)
-    k_no_ponto: Decimal
-    nivel_confianca_no_ponto: Decimal
-    grau_liberdade_efetivo_no_ponto: Decimal
-    cmc_no_ponto: Decimal | None
-    classificacao: ClassificacaoPonto
-    incluido_no_certificado: bool
+    Atributos como `@property` (read-only) para que dataclasses FROZEN satisfaçam
+    o Protocol (atributo mutável em Protocol exige implementador settable)."""
+
+    @property
+    def ponto_calibracao(self) -> Decimal: ...
+    @property
+    def valor_reportado(self) -> Decimal: ...
+    @property
+    def U_no_ponto(self) -> Decimal: ...  # U é notação metrológica canônica
+    @property
+    def k_no_ponto(self) -> Decimal: ...
+    @property
+    def nivel_confianca_no_ponto(self) -> Decimal: ...
+    @property
+    def grau_liberdade_efetivo_no_ponto(self) -> Decimal: ...
+    @property
+    def cmc_no_ponto(self) -> Decimal | None: ...
+    @property
+    def classificacao(self) -> ClassificacaoPonto: ...
+    @property
+    def incluido_no_certificado(self) -> bool: ...
 
 
 def _str_ou_none(valor: Decimal | None) -> str | None:

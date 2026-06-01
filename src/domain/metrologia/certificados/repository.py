@@ -10,6 +10,7 @@ None; mutação via CAS (`atualizar_com_lock`); marcação one-shot.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from decimal import Decimal
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
@@ -70,14 +71,14 @@ class AnaliseReconciliacaoRepository(Protocol):
         ...
 
     def existe_decisao_para_ponto(
-        self, *, tenant_id: UUID, calibracao_id: UUID, ponto_calibracao: object
+        self, *, tenant_id: UUID, calibracao_id: UUID, ponto_calibracao: Decimal
     ) -> bool:
         """Idempotência da decisão por ponto."""
         ...
 
     def obter_decisao_por_ponto(
         self, *, tenant_id: UUID, calibracao_id: UUID
-    ) -> dict[object, AnaliseReconciliacaoCertificado]:
+    ) -> dict[Decimal, AnaliseReconciliacaoCertificado]:
         """Mapa `ponto_calibracao → decisão` para aplicar exclusões/ressalvas na
         emissão (mais recente por ponto vence)."""
         ...

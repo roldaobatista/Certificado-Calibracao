@@ -69,3 +69,37 @@ class RessalvaNaoRbcObrigatoriaError(CertificadoError):
     / ADR-0075) — anti uso indevido de acreditação (L6 invertido)."""
 
     reason = "RESSALVA_NAO_RBC_OBRIGATORIA"
+
+
+class CalibracaoNaoAprovadaError(CertificadoError):
+    """Só calibração `APROVADA` (2ª conferência ADR-0026) pode emitir certificado
+    (INV-CER-EMISSAO-001). Estado anterior → 422."""
+
+    reason = "CALIBRACAO_NAO_APROVADA"
+
+
+class CategoriaIncoerenteError(CertificadoError):
+    """`categoria_motivo` incoerente com a `classificacao` do ponto (C-02 /
+    cl. 7.10.1) — ex.: PONTO_FORA_FAIXA_DECLARADA para ponto que está dentro."""
+
+    reason = "CATEGORIA_MOTIVO_INCOERENTE"
+
+
+class JustificativaInsuficienteError(CertificadoError):
+    """Decisão do RT exige justificativa objetiva (cl. 7.10.1) — mín. 20 chars."""
+
+    reason = "JUSTIFICATIVA_INSUFICIENTE"
+
+
+class EmissaoAbortadaPeloRTError(CertificadoError):
+    """Decisão `ABORTAR` do RT em algum ponto → emissão não prossegue (bug grave,
+    ex.: orçamento de incerteza errado)."""
+
+    reason = "EMISSAO_ABORTADA_PELO_RT"
+
+
+class CertificadoJaEmitidoError(CertificadoError):
+    """Idempotência: já existe certificado para (tenant, calibração, versão)
+    (INV-CER-EMISSAO-001) — evita dupla emissão da mesma calibração."""
+
+    reason = "CERTIFICADO_JA_EMITIDO"
