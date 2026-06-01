@@ -49,9 +49,11 @@ from src.domain.metrologia.certificados.repository import (
     CertificadoRepository,
 )
 from src.domain.metrologia.certificados.transicoes import (
+    acreditacao_vigente_para_rbc,
     aplicar_decisoes_rt,
     perfil_e_acreditado,
     validar_completude_decisoes_rt,
+    validar_vigencia_padroes,
 )
 
 _VERSAO_RECONCILIACAO = "1.0.0"
@@ -71,6 +73,10 @@ class EmitirCertificadoInput:
     emitido_em: datetime
     correlation_id: UUID
     cmc_para: CmcParaPort | None = None  # None ⇒ emissão NÃO-RBC
+    # INV-CER-CGCRE-VIG-001 (server-side, derivado do Tenant pela view; nunca body).
+    acreditacao_vigencia_fim: date | None = None
+    acreditacao_suspensa_em: date | None = None
+    acreditacao_suspensa_ate: date | None = None
     versao: int = 1
     versao_anterior_id: UUID | None = None
 
@@ -103,13 +109,35 @@ def emitir_certificado(
             f"calibração {cal.id} sem grandeza/faixa declarada — não reconciliável"
         )
 
+    # 2.5. INV-CER-CGCRE-VIG-001 — rebaixa RBC→não-RBC se a acreditação está
+    # vencida/suspensa na data de emissão (cl. 8.1.3 — uso indevido de acreditação).
+    # Forçar cmc_efetivo=None faz todos os pontos caírem em não-RBC, exigindo
+    # decisão do RT (perfil A) — não há hard-block (decisão cravada plan §4/C-06).
+    cmc_efetivo = inp.cmc_para
+    if cmc_efetivo is not None and not acreditacao_vigente_para_rbc(
+        perfil=inp.perfil,
+        acreditacao_vigencia_fim=inp.acreditacao_vigencia_fim,
+        acreditacao_suspensa_em=inp.acreditacao_suspensa_em,
+        acreditacao_suspensa_ate=inp.acreditacao_suspensa_ate,
+        data_emissao=inp.data_emissao,
+    ):
+        cmc_efetivo = None
+
+    # 2.6. INV-CER-PADRAO-VIG-001 (cl. 6.5 / NC-07) — padrão com calibração vencida
+    # bloqueia a emissão RBC (perfil A); fail-open lazy quando vigência ausente.
+    validar_vigencia_padroes(
+        snapshot_padroes_usados=inp.snapshot_padroes_usados_json,
+        data_emissao=inp.data_emissao,
+        perfil=inp.perfil,
+    )
+
     # 3. Reconciliação ponto-a-ponto (puro).
     rec = reconciliar_pontos(
         pontos_medidos=inp.pontos_medidos,
         orcamentos_por_ponto=inp.orcamentos_por_ponto,
         faixa_declarada=cal.faixa_calibrada_declarada,
         grandeza=cal.grandeza_calibrada,
-        cmc_para=inp.cmc_para,
+        cmc_para=cmc_efetivo,
         data_emissao=inp.data_emissao,
         tenant_id=inp.tenant_id,
     )

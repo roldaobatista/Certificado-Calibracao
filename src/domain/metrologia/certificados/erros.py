@@ -103,3 +103,20 @@ class CertificadoJaEmitidoError(CertificadoError):
     (INV-CER-EMISSAO-001) — evita dupla emissão da mesma calibração."""
 
     reason = "CERTIFICADO_JA_EMITIDO"
+
+
+class PadraoCalibracaoVencidaError(CertificadoError):
+    """Perfil A: algum padrão usado tinha a calibração VENCIDA na data de emissão
+    (cl. 6.5 / NC-07 / INV-CER-PADRAO-VIG-001) — não se emite RBC apoiado em padrão
+    sem rastreabilidade vigente. Vigência ausente no snapshot é fail-open lazy
+    (campo opcional até o wiring com M5 `padroes` — GATE-CER-PADRAO-VIG-SNAPSHOT)."""
+
+    reason = "PADRAO_CALIBRACAO_VENCIDA"
+
+
+class ReemissaoConflitanteError(CertificadoError):
+    """Reemissão (US-CER-004): o CAS `marcar_substituida(revision_anterior)` falhou
+    — corrida ou o certificado anterior já foi substituído/revogado. Caller → 409
+    (a transação atômica reverte o INSERT da nova versão)."""
+
+    reason = "REEMISSAO_CONFLITANTE"

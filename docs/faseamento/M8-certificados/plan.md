@@ -172,8 +172,9 @@ numa única transação) quando NÃO há ponto não-RBC sem decisão RT (perfil 
 | INV-CER-SNAPSHOT-CMC-001 | read-path do cert emitido NUNCA reconsulta `cmc_para`/`tenant_perfil_e`; lê snapshots (TL-04 — WORM furado por LEITURA) | Absoluta |
 | INV-CER-REGRA-DEC-001 | congela `regra_decisao_snapshot` (cl. 7.8.6/ADR-0024) quando aplicável (NC-04) | Absoluta A |
 | INV-CER-WORM-001 | cert emitido imutável; correção só via reemissão versionada (US-CER-004); DELETE bloqueado por trigger | Absoluta |
-| INV-CER-CGCRE-VIG-001 | só classifica `RBC_OK` quando perfil A **ativo E não-suspenso** E `acreditacao_vigencia_fim > data_de_emissao` (C-06 — cobre suspensão ≠ vencimento; data de emissão, não `today` flake); senão pontos → não-RBC (decisão RT) | Absoluta A |
+| INV-CER-CGCRE-VIG-001 | só classifica `RBC_OK` quando perfil A **ativo E não-suspenso** E `acreditacao_vigencia_fim >= data_de_emissao` (C-06 — cobre suspensão ≠ vencimento; vigência **inclusiva do último dia** e suspensão avaliada por janela `[em,ate]` NA data de emissão, não `today` — parecer consultor-rbc 2026-06-01); `acreditacao_vigencia_fim is None` é **fail-open lazy** (GATE-CER-CGCRE-VIG-DATA-POPULAR); senão pontos → não-RBC (decisão RT) | Absoluta A |
 | INV-CER-RESSALVA-001 | ponto `EMITIR_NAO_RBC_NO_PONTO` carrega `ressalva_nao_rbc` obrigatória no snapshot (C-03 — anti uso indevido de acreditação cl. 8.1.3 / ADR-0075) | Absoluta A |
+| INV-CER-PADRAO-VIG-001 | (NC-07, cl. 6.5) perfil A bloqueia emissão se algum padrão usado tinha a calibração **vencida** na data de emissão (`calibracao_padrao_vigencia_fim < data_de_emissao` → `PADRAO_CALIBRACAO_VENCIDA`); vigência ausente/malformada no snapshot é **fail-open lazy** (GATE-CER-PADRAO-VIG-SNAPSHOT até o wiring com M5 `padroes`) | Absoluta A |
 
 Reusadas: INV-CAL-WORM-001, INV-CAL-INC-005, INV-ECMC-008/009, INV-VIG-*, INV-SOFT-*,
 INV-TENANT-*, INV-TENANT-PERFIL-001/003/004, INV-DOC-CANON-001, INV-HMAC-001..005.

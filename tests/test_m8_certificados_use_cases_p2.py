@@ -21,6 +21,10 @@ from src.application.metrologia.certificados.emitir_certificado import (
     EmitirCertificadoInput,
     emitir_certificado,
 )
+from src.application.metrologia.certificados.reemitir_certificado import (
+    ReemitirCertificadoInput,
+    reemitir_certificado,
+)
 from src.domain.metrologia.calibracao.entities import OrcamentoPorPontoSnapshot
 from src.domain.metrologia.calibracao.enums import (
     EstadoCalibracao,
@@ -41,7 +45,10 @@ from src.domain.metrologia.certificados.erros import (
     EmissaoAbortadaPeloRTError,
     FaixaDeclaradaAusenteError,
     JustificativaInsuficienteError,
+    MotivoReemissaoInsuficienteError,
+    PadraoCalibracaoVencidaError,
     ReconciliacaoPendenteDecisaoRTError,
+    ReemissaoConflitanteError,
     RessalvaNaoRbcObrigatoriaError,
 )
 from src.domain.metrologia.certificados.reconciliacao import PontoMedido
@@ -78,6 +85,8 @@ class FakeCertRepo:
         self.certs = {}
         self.pontos = {}
         self.seq = 0
+        self.marcar_ok = True  # CAS configurável (False ⇒ corrida/409)
+        self.substituidas = []  # (certificado_id, revision_anterior)
 
     def obter_por_id(self, certificado_id):
         return self.certs.get(certificado_id)
@@ -94,7 +103,8 @@ class FakeCertRepo:
         self.pontos[cert.id] = list(pontos)
 
     def marcar_substituida(self, *, certificado_id, revision_anterior):
-        return True
+        self.substituidas.append((certificado_id, revision_anterior))
+        return self.marcar_ok
 
 
 class FakeCmc:
@@ -136,12 +146,18 @@ def _pm(ponto):
     return PontoMedido(ponto_calibracao=Decimal(ponto), valor_reportado=Decimal(ponto), unidade="g")
 
 
-def _emitir_input(cal, *, pontos, orcs, perfil, cmc, versao=1):
+def _emitir_input(
+    cal, *, pontos, orcs, perfil, cmc, versao=1,
+    vigencia_fim=None, suspensa_em=None, suspensa_ate=None, padroes=None, versao_anterior_id=None,
+):
     return EmitirCertificadoInput(
         tenant_id=_TENANT, calibracao=cal, pontos_medidos=pontos, orcamentos_por_ponto=orcs,
         perfil=perfil, numero_interno=1, numero_certificado="BALANCAS-2026-000001",
-        snapshot_padroes_usados_json=[{"padrao_id": "p1"}], data_emissao=_DATA, emitido_em=_NOW,
-        correlation_id=uuid4(), cmc_para=cmc, versao=versao,
+        snapshot_padroes_usados_json=padroes if padroes is not None else [{"padrao_id": "p1"}],
+        data_emissao=_DATA, emitido_em=_NOW, correlation_id=uuid4(), cmc_para=cmc,
+        acreditacao_vigencia_fim=vigencia_fim,
+        acreditacao_suspensa_em=suspensa_em, acreditacao_suspensa_ate=suspensa_ate,
+        versao=versao, versao_anterior_id=versao_anterior_id,
     )
 
 
@@ -313,3 +329,241 @@ def test_emitir_abortar_pelo_rt():
     with pytest.raises(EmissaoAbortadaPeloRTError):
         emitir_certificado(inp, cert_repo=cert_repo, analise_repo=analise_repo)
     assert cert_repo.certs == {}
+
+
+# =============================================================
+# Fatia 2b — INV-CER-CGCRE-VIG-001 (acreditação vencida/suspensa rebaixa RBC→não-RBC)
+# =============================================================
+
+_VENCIDA = date(2026, 1, 1)  # < _DATA (2026-05-31)
+_VIGENTE = date(2027, 1, 1)  # > _DATA
+
+
+def test_cgcre_vigencia_none_fail_open_lazy_emite_rbc():
+    # Campo novo não populado (default None) ⇒ fail-open lazy ⇒ RBC normal.
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    inp = _emitir_input(_calibracao(), pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A", cmc=cmc)
+    cert = emitir_certificado(inp, cert_repo=cert_repo, analise_repo=analise_repo)
+    assert cert.tipo_acreditacao is TipoAcreditacao.RBC
+
+
+def test_cgcre_vigente_emite_rbc():
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    inp = _emitir_input(_calibracao(), pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A", cmc=cmc, vigencia_fim=_VIGENTE)
+    cert = emitir_certificado(inp, cert_repo=cert_repo, analise_repo=analise_repo)
+    assert cert.tipo_acreditacao is TipoAcreditacao.RBC
+
+
+def test_cgcre_vencida_perfil_a_sem_decisao_bloqueia():
+    # Vencida ⇒ rebaixa cmc→None ⇒ ponto vira não-RBC ⇒ perfil A exige decisão RT.
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    inp = _emitir_input(_calibracao(), pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A", cmc=cmc, vigencia_fim=_VENCIDA)
+    with pytest.raises(ReconciliacaoPendenteDecisaoRTError):
+        emitir_certificado(inp, cert_repo=cert_repo, analise_repo=analise_repo)
+    assert cert_repo.certs == {}  # nada persistido (fail-closed)
+
+
+def test_cgcre_suspensa_rebaixa_bloqueia():
+    # Suspensão cobre a data de emissão (fail-closed imediato), mesmo com vigência None.
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    inp = _emitir_input(
+        _calibracao(), pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A", cmc=cmc,
+        suspensa_em=date(2026, 5, 1), suspensa_ate=date(2026, 6, 30),  # cobre _DATA=2026-05-31
+    )
+    with pytest.raises(ReconciliacaoPendenteDecisaoRTError):
+        emitir_certificado(inp, cert_repo=cert_repo, analise_repo=analise_repo)
+    assert cert_repo.certs == {}
+
+
+def test_cgcre_suspensao_futura_nao_rebaixa_emite_rbc():
+    # Suspensão começa DEPOIS da data de emissão → não cobre → RBC normal.
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    inp = _emitir_input(
+        _calibracao(), pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A", cmc=cmc,
+        suspensa_em=date(2026, 7, 1), suspensa_ate=date(2026, 8, 1),  # após _DATA
+    )
+    cert = emitir_certificado(inp, cert_repo=cert_repo, analise_repo=analise_repo)
+    assert cert.tipo_acreditacao is TipoAcreditacao.RBC
+
+
+def test_cgcre_vigencia_igual_data_emissao_ainda_vigente():
+    # Borda: vigência == data de emissão ⇒ válido no último dia (>=) ⇒ RBC.
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    inp = _emitir_input(_calibracao(), pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A", cmc=cmc, vigencia_fim=_DATA)
+    cert = emitir_certificado(inp, cert_repo=cert_repo, analise_repo=analise_repo)
+    assert cert.tipo_acreditacao is TipoAcreditacao.RBC
+
+
+def test_cgcre_vencida_perfil_a_com_decisao_emite_nao_rbc():
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cal = _calibracao()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    # Rebaixado a SEM_CMC; RT decide reportar não-RBC com ressalva.
+    decidir_ponto_reconciliacao(
+        _decidir_input(
+            cal.id, "100", classificacao=ClassificacaoPonto.SEM_CMC,
+            decisao_rt=DecisaoReconciliacaoRT.EMITIR_NAO_RBC_NO_PONTO,
+            categoria_motivo=CategoriaMotivoExclusao.OUTRO,
+            ressalva_nao_rbc="ponto reportado sem selo RBC: acreditacao vencida na emissao",
+        ),
+        analise_repo=analise_repo,
+    )
+    inp = _emitir_input(cal, pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A", cmc=cmc, vigencia_fim=_VENCIDA)
+    cert = emitir_certificado(inp, cert_repo=cert_repo, analise_repo=analise_repo)
+    assert cert.tipo_acreditacao is TipoAcreditacao.NAO_RBC
+
+
+# =============================================================
+# Fatia 2b — INV-CER-PADRAO-VIG-001 (padrão com calibração vencida — cl. 6.5 / NC-07)
+# =============================================================
+
+
+def test_padrao_vencido_perfil_a_bloqueia():
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    inp = _emitir_input(
+        _calibracao(), pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A", cmc=cmc,
+        padroes=[{"padrao_id": "p1", "calibracao_padrao_vigencia_fim": "2026-01-01"}],
+    )
+    with pytest.raises(PadraoCalibracaoVencidaError):
+        emitir_certificado(inp, cert_repo=cert_repo, analise_repo=analise_repo)
+    assert cert_repo.certs == {}
+
+
+def test_padrao_vencido_perfil_d_nao_bloqueia():
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    inp = _emitir_input(
+        _calibracao(), pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="D", cmc=None,
+        padroes=[{"padrao_id": "p1", "calibracao_padrao_vigencia_fim": "2026-01-01"}],
+    )
+    cert = emitir_certificado(inp, cert_repo=cert_repo, analise_repo=analise_repo)
+    assert cert.tipo_acreditacao is TipoAcreditacao.NAO_RBC
+
+
+def test_padrao_vigente_perfil_a_emite_rbc():
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    inp = _emitir_input(
+        _calibracao(), pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A", cmc=cmc,
+        padroes=[{"padrao_id": "p1", "calibracao_padrao_vigencia_fim": "2027-01-01"}],
+    )
+    cert = emitir_certificado(inp, cert_repo=cert_repo, analise_repo=analise_repo)
+    assert cert.tipo_acreditacao is TipoAcreditacao.RBC
+
+
+def test_padrao_vigencia_igual_data_emissao_nao_bloqueia():
+    # Borda: padrão vence EXATAMENTE na data de emissão ⇒ válido no dia (vig < emissão é False).
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    inp = _emitir_input(
+        _calibracao(), pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A", cmc=cmc,
+        padroes=[{"padrao_id": "p1", "calibracao_padrao_vigencia_fim": _DATA.isoformat()}],
+    )
+    cert = emitir_certificado(inp, cert_repo=cert_repo, analise_repo=analise_repo)
+    assert cert.tipo_acreditacao is TipoAcreditacao.RBC
+
+
+def test_padrao_vigencia_malformada_fail_open():
+    # Coerção tolerante: vigência malformada no snapshot ⇒ tratada como ausente (não bloqueia).
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    inp = _emitir_input(
+        _calibracao(), pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A", cmc=cmc,
+        padroes=[{"padrao_id": "p1", "calibracao_padrao_vigencia_fim": "data-invalida"}],
+    )
+    cert = emitir_certificado(inp, cert_repo=cert_repo, analise_repo=analise_repo)
+    assert cert.tipo_acreditacao is TipoAcreditacao.RBC
+
+
+# =============================================================
+# Fatia 2b — reemitir_certificado (v(N+1) + v(N)→SUBSTITUIDA — US-CER-004)
+# =============================================================
+
+_MOTIVO_OK = "correcao de metadado do certificado a pedido formal do cliente conforme NC registrada"
+
+
+def _emitir_v1(cert_repo, analise_repo, cal, cmc):
+    inp = _emitir_input(cal, pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A", cmc=cmc)
+    return emitir_certificado(inp, cert_repo=cert_repo, analise_repo=analise_repo)
+
+
+def _reemitir_input(v1, cal, *, perfil, cmc, motivo, revision=0):
+    return ReemitirCertificadoInput(
+        tenant_id=_TENANT, certificado_anterior=v1, revision_anterior=revision, motivo=motivo,
+        calibracao=cal, pontos_medidos=[_pm("100")], orcamentos_por_ponto=[_orc("100", "0.8")],
+        perfil=perfil, numero_interno=2, numero_certificado="BALANCAS-2026-000002",
+        data_emissao=_DATA, emitido_em=_NOW, correlation_id=uuid4(), cmc_para=cmc,
+    )
+
+
+def test_reemitir_cria_v2_substitui_v1():
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cal = _calibracao()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    v1 = _emitir_v1(cert_repo, analise_repo, cal, cmc)
+    v2 = reemitir_certificado(
+        _reemitir_input(v1, cal, perfil="A", cmc=cmc, motivo=_MOTIVO_OK),
+        cert_repo=cert_repo, analise_repo=analise_repo,
+    )
+    assert v2.versao == 2
+    assert v2.versao_anterior_id == v1.id
+    assert (v1.id, 0) in cert_repo.substituidas  # CAS chamado no anterior
+
+
+def test_reemitir_herda_snapshot_padroes_do_anterior():
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cal = _calibracao()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    v1 = _emitir_v1(cert_repo, analise_repo, cal, cmc)
+    v2 = reemitir_certificado(
+        _reemitir_input(v1, cal, perfil="A", cmc=cmc, motivo=_MOTIVO_OK),
+        cert_repo=cert_repo, analise_repo=analise_repo,
+    )
+    assert v2.snapshot_padroes_usados_json == v1.snapshot_padroes_usados_json
+
+
+def test_reemitir_herda_lista_padroes_vazia():
+    # Borda M2 (tech-lead): v(N) com snapshot_padroes=[] ⇒ reemissão herda [] (≠ None sentinela).
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cal = _calibracao()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    v1 = emitir_certificado(
+        _emitir_input(cal, pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A", cmc=cmc, padroes=[]),
+        cert_repo=cert_repo, analise_repo=analise_repo,
+    )
+    v2 = reemitir_certificado(
+        _reemitir_input(v1, cal, perfil="A", cmc=cmc, motivo=_MOTIVO_OK),
+        cert_repo=cert_repo, analise_repo=analise_repo,
+    )
+    assert list(v2.snapshot_padroes_usados_json) == []
+
+
+def test_reemitir_motivo_curto():
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cal = _calibracao()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    v1 = _emitir_v1(cert_repo, analise_repo, cal, cmc)
+    with pytest.raises(MotivoReemissaoInsuficienteError):
+        reemitir_certificado(
+            _reemitir_input(v1, cal, perfil="A", cmc=cmc, motivo="curto"),
+            cert_repo=cert_repo, analise_repo=analise_repo,
+        )
+
+
+def test_reemitir_cas_falha_conflito_409():
+    cert_repo, analise_repo = FakeCertRepo(), FakeAnaliseRepo()
+    cal = _calibracao()
+    cmc = FakeCmc({Decimal("100"): Decimal("0.5")})
+    v1 = _emitir_v1(cert_repo, analise_repo, cal, cmc)
+    cert_repo.marcar_ok = False  # corrida — outro processo já substituiu
+    with pytest.raises(ReemissaoConflitanteError):
+        reemitir_certificado(
+            _reemitir_input(v1, cal, perfil="A", cmc=cmc, motivo=_MOTIVO_OK),
+            cert_repo=cert_repo, analise_repo=analise_repo,
+        )
