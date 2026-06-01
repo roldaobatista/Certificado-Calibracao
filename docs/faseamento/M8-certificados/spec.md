@@ -1,7 +1,7 @@
 ---
 owner: agente-ia
-revisado-em: 2026-05-31
-proximo-review: 2026-08-31
+revisado-em: 2026-06-01
+proximo-review: 2026-09-01
 status: draft
 diataxis: reference
 audiencia: [agente, auditor, tech-lead, consultor-rbc]
@@ -81,7 +81,7 @@ Deriva do PRD; só a parte LÓGICA/metrológica:
 
 | US do PRD | O que entra AGORA | O que difere |
 |-----------|-------------------|--------------|
-| **US-CER-001** Gerar certificado | emissão lógica: consome APROVADA, reconcilia cobertura, crava snapshot imutável (cliente/instrumento/padrões/leituras/incerteza/EscopoUsado/ProcedimentoUsado), `perfil_emissor_no_momento` WORM, gating de campos por perfil (dados estruturados, NÃO render), evento `Certificados.CertificadoEmitido` | render PDF/A-3, template visual |
+| **US-CER-001** Gerar certificado | emissão lógica: consome APROVADA, reconcilia cobertura, crava snapshot imutável (cliente/instrumento/padrões/leituras/incerteza/EscopoUsado/ProcedimentoUsado), `perfil_emissor_no_momento` WORM, gating de campos por perfil (dados estruturados, NÃO render), evento `Certificados.CertificadoReconciliado` (emissão metrológica; `CertificadoEmitido` normativo cl. 7.8 dispara só na assinatura A3 — Wave A) | render PDF/A-3, template visual |
 | **US-CER-003** Numeração sequencial inviolável | sequence PG `certificado_numero_seq` + `NumeroReservado` (TTL) + trigger virada anual + cancelamento preserva número | gap-detection job (diferível) |
 | **US-CER-004** Reemissão versionada | nova versão `v(N+1)` linkada à `v(N)`, motivo ≥50 chars, `v(N)`→SUBSTITUIDA WORM | aviso no portal (UX) |
 | **US-CER-013** Cert com equipamento baixado | `snapshot_equipamento_json` imutável na emissão (paridade calibração) | selo no PDF |

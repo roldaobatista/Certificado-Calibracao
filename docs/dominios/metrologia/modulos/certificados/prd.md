@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado-em: 2026-05-27
-proximo-review: 2026-08-27
+revisado-em: 2026-06-01
+proximo-review: 2026-09-01
 status: stable
 modulo: certificados
 dominio: metrologia
@@ -105,10 +105,10 @@ Predicate canônico: **`tenant_perfil_e(perfis_aceitos: list[str])`** em `src/in
 **Como** responsável técnico, **quero** gerar certificado a partir de uma calibração revisada e aprovada, **para** entregar o resultado ao cliente conforme ISO 17025 7.8.
 
 **Critérios de aceite:**
-- **AC-CER-001-1**: GIVEN calibração com status APROVADO AND segunda conferência concluída (perfil A obrigatório; B/C opcional; D N/A — matriz §3.1) AND `Tenant.perfil_regulatorio` resolvido via ContextVar `perfil_tenant_context`, WHEN RT solicita emissão via POST `/api/v1/certificados/{calibracao_id}/emitir`, THEN sistema gera certificado com numeração sequencial próxima (tipo per perfil — §6.1.b), snapshot imutável de dados (cliente, instrumento, padrões, leituras, incerteza), `Certificado.perfil_emissor_no_momento` cravado = `Tenant.perfil_regulatorio` (ADR-0067 §3 snapshot WORM), template aplicado conforme perfil (§3.1) AND publica evento `Certificados.CertificadoEmitido{cert_id, perfil_emissor_no_momento, ...}`.
+- **AC-CER-001-1**: GIVEN calibração com status APROVADO AND segunda conferência concluída (perfil A obrigatório; B/C opcional; D N/A — matriz §3.1) AND `Tenant.perfil_regulatorio` resolvido via ContextVar `perfil_tenant_context`, WHEN RT solicita emissão via POST `/api/v1/certificados/{calibracao_id}/emitir`, THEN sistema gera certificado com numeração sequencial próxima (tipo per perfil — §6.1.b), snapshot imutável de dados (cliente, instrumento, padrões, leituras, incerteza), `Certificado.perfil_emissor_no_momento` cravado = `Tenant.perfil_regulatorio` (ADR-0067 §3 snapshot WORM), template aplicado conforme perfil (§3.1) AND publica evento `Certificados.CertificadoReconciliado{cert_id, perfil_emissor_no_momento, reconciliacao_hash, ...}` (emissão metrológica). **Nota terminológica (T-CER-070 — fronteira NC-08):** `status='emitido'` é o estado INTERNO da emissão lógica (snapshot WORM congelado, reconciliação ponto-a-ponto concluída); a **entrega normativa cl. 7.8** (selo RBC distribuível ao cliente) e o evento `Certificados.CertificadoEmitido` só ocorrem na assinatura A3 (Wave A — `DocumentoCertificado`, ADR-0009/0047).
 - **AC-CER-001-2**: GIVEN calibração não aprovada (rejeitada/pendente), WHEN tenta emitir, THEN sistema bloqueia com 422 `{erro: "CALIBRACAO_NAO_APROVADA", detalhe: "exige status APROVADO + 2ª conferência (perfil A) ou APROVADO (B/C)"}`.
 - **AC-CER-001-3 (perfil-aware — ADR-0067 + ADR-0044 emenda)**: GIVEN tenant `perfil_regulatorio != 'A'` (B, C ou D), WHEN tenta emitir certificado com template RBC ou marcar `tipo_acreditacao=RBC` no payload, THEN predicate `tenant_perfil_e(['A'])` rejeita com 403 `{erro: "PERFIL_NAO_AUTORIZA_RBC", perfil_atual, tentativa: "template_rbc"}` AND publica evento `Certificado.EmissaoBloqueadaPorPerfil{tenant_id, perfil, motivo: "template_rbc_em_perfil_nao_acreditado"}` AND NENHUMA emissão (defesa anti-fraude documental — fecha FAIL L6 SAN-PERFIL-TENANT).
-- **AC-CER-001-4 (perfil A + CGCRE vencida — composição com US-LIC-003)**: GIVEN tenant `perfil=A` AND `Tenant.acreditacao_vigencia_fim < today` (acreditação CGCRE vencida — `licencas-acreditacoes` US-LIC-003), WHEN tenta emitir cert RBC, THEN sistema bloqueia com 409 `{erro: "ACREDITACAO_CGCRE_VENCIDA", venceu_em: DD/MM/AAAA, link_renovacao}` AND publica `Certificado.EmissaoBloqueadaCGCREVencida`.
+- **AC-CER-001-4 (perfil A + acreditação CGCRE vencida/suspensa — INV-CER-CGCRE-VIG-001; comportamento DECIDIDO no plan §4 / C-06):** GIVEN tenant `perfil=A` AND `Tenant.acreditacao_vigencia_fim < data_de_emissao` (vencida — vigência inclusiva do último dia, `>=`) **OU** acreditação suspensa na janela `[suspensa_em, suspensa_ate]` na data de emissão, WHEN tenta emitir cert, THEN o sistema **NÃO faz hard-block (não há 409)** — em vez disso **rebaixa todos os pontos a não-RBC** (`cmc_efetivo=None`), de modo que pontos que seriam RBC passam a **exigir decisão explícita do RT** (`EMITIR_NAO_RBC_NO_PONTO` com ressalva, ou `EXCLUIR`); só classifica `RBC_OK` quando perfil A está **ativo E não-suspenso E `acreditacao_vigencia_fim >= data_de_emissao`** (data de emissão, **não** `today`). `acreditacao_vigencia_fim is None` = **fail-open lazy** (GATE-CER-CGCRE-VIG-DATA-POPULAR torna efetivo em Wave A). **Fronteira documentada (NC-09):** esta regra reconcilia a versão original deste AC (que previa 409 hard-block) com a decisão do `consultor-rbc` (2026-06-01) — rebaixamento preserva a possibilidade de emitir certificado não-acreditado válido em vez de travar a operação inteira, mantendo a defesa contra "uso indevido de acreditação" (cl. 8.1.3). Base: ISO 17025 cl. 8.1.3 + NIT-DICLA-005 §7.4 + ADR-0067.
 - **AC-CER-001-5 (perfil D — relatório de aferição)**: GIVEN tenant `perfil=D`, WHEN emite, THEN template aplicado é `RELATORIO_AFERICAO` (sem palavra "ISO 17025" nem "RBC" nem "calibração acreditada") AND `Certificado.tipo = RELATORIO_AFERICAO` AND retenção 5a (Receita) — `matriz-feature-perfil.md` §retenção.
 
 **Invariantes:** `INV-032` (acreditação vigente — doc bloqueante vencido impede operação dependente), `INV-034` (numeração sequencial inviolável), `INV-001` (WORM + snapshot imutável), `INV-019` (RT habilitado quando aplicável), `INV-TENANT-001`, **`INV-CER-PERFIL-001`** (novo Onda PRE-A.3: template aplicado MATCH `Tenant.perfil_regulatorio` vigente; mismatch = bloqueio 403 + evento), **`INV-CER-SNAPSHOT-PERFIL-001`** (novo: `Certificado.perfil_emissor_no_momento` cravado no INSERT, imutável pós-emissão — defesa CGCRE retroativa cl. 8.4).
@@ -434,8 +434,10 @@ Predicate canônico: **`tenant_perfil_e(perfis_aceitos: list[str])`** em `src/in
 
 **Módulos consumers downstream:**
 
-- `financeiro/fiscal` — consome `Certificados.CertificadoEmitido` (gera NFS-e — INV-FIS-CR-001).
-- `financeiro/contas-receber` — consome `Certificados.CertificadoEmitido` → cria título (ADR-0043 emenda perfil — grace D+45/20/30/7).
+> **Nota de evento (T-CER-070 / NC-08):** os consumers fiscais abaixo consomem o evento **normativo** `Certificados.CertificadoEmitido` (cl. 7.8 — disparado na **assinatura A3, Wave A**), não o `Certificados.CertificadoReconciliado` da emissão metrológica desta frente. Faturar antes do certificado assinado seria NC; por isso a integração fiscal é **Wave A** e escuta o evento normativo.
+
+- `financeiro/fiscal` (**Wave A**) — consome o evento normativo `Certificados.CertificadoEmitido` (cl. 7.8, assinatura A3) → gera NFS-e (INV-FIS-CR-001).
+- `financeiro/contas-receber` (**Wave A**) — consome o evento normativo `Certificados.CertificadoEmitido` (cl. 7.8, assinatura A3) → cria título (ADR-0043 emenda perfil — grace D+45/20/30/7).
 - `notificacoes/cliente` — consumer US-CER-005 + US-CER-018 (ADR-0060 `EmailTemplateProvider`).
 
 **ADRs aceitas Onda 2/PRE-A.2:**

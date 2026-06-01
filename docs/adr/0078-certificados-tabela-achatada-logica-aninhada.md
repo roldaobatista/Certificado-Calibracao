@@ -1,8 +1,8 @@
 ---
 owner: roldao
-revisado-em: 2026-05-31
+revisado-em: 2026-06-01
 proximo_review: 2026-08-31
-status: proposta
+status: aceito
 diataxis: explanation
 audiencia: agente
 tipo: adr
@@ -71,5 +71,13 @@ movendo a tabela (que quebraria o trigger cross-app).
 
 ## Status
 
-🟡 **Proposta** (2026-05-31). Depende de: ADR-0072. Relacionada: ADR-0077 (incerteza
-por ponto). Bloqueia: M8 Fatia 1b (schema). Aceite = Roldão no `/plan`.
+✅ **Aceito** (2026-06-01 — promovido na Fatia 3 P8 do M8, T-CER-071). A migration
+aditiva concretizou o contrato de trigger sem renomear/dropar a tabela `certificados`,
+a app, o valor `'emitido'`, nem as colunas `equipamento_id`/`status`/`revogado_em` do
+contrato INV-025 — exatamente como a decisão prescreveu. Schema entregue na Fatia 1b
+(`f0cd30d` — 6 migrations aditivas, INV-025 intocado, drill `validar_certificados`
+34/34); `query_service.tem_emitido` tornou-se explícito (`.filter(status='emitido',
+revogado_em__isnull=True)`); lógica de emissão no path aninhado
+`src/{domain,infrastructure}/metrologia/certificados/`. Depende de: ADR-0072.
+Relacionada: ADR-0077 (incerteza por ponto), ADR-0076 (faixa declarada), ADR-0074
+(cobertura RBC), ADR-0073 (validação no use case), ADR-0067 (perfil snapshot WORM).
