@@ -127,6 +127,7 @@ _SEED_MIGRATIONS: list[tuple[str, str]] = [
     ("escopos_cmc", "0005_seed_authz_escopos_cmc"),
     ("procedimentos_calibracao", "0005_seed_authz_procedimentos"),
     ("certificados", "0006_seed_authz_certificados"),
+    ("licencas_acreditacoes", "0005_seed_authz_licencas"),
 ]
 
 
@@ -157,6 +158,7 @@ def _aplicar_seed(app_label: str, migration_name: str) -> None:
         "padroes": "metrologia.padroes",
         "escopos_cmc": "metrologia.escopos_cmc",
         "procedimentos_calibracao": "metrologia.procedimentos_calibracao",
+        "licencas_acreditacoes": "metrologia.licencas_acreditacoes",
     }
     sub = _APP_MODULE_SUBPATH.get(app_label, app_label)
     module_path = f"src.infrastructure.{sub}.migrations.{migration_name}"

@@ -251,6 +251,12 @@ LOCAL_APPS = [
     # procedimento vigente (412 ProcedimentoVigenteAusente). WORM Padrao B; UNIQUE
     # parcial 1 vigente por chave (INV-PROC-008).
     "src.infrastructure.metrologia.procedimentos_calibracao.apps.ProcedimentosCalibracaoConfig",
+    # Wave A M9 — Licencas, Acreditacoes e Autorizacoes (metrologia/licencas-acreditacoes
+    # — ADR-0072 path aninhado). DocumentoRegulatorio (acreditacao CGCRE, ART/RRT, licencas):
+    # vigencia + alertas + bloqueio + historico WORM + anexo obrigatorio. FONTE RICA da
+    # vigencia CGCRE (ADR-0079) — popula cache Tenant.acreditacao_vigencia_fim via
+    # aplicar_evento_cgcre -> fecha GATE-CER-CGCRE-VIG-DATA-POPULAR do M8. WORM Padrao B.
+    "src.infrastructure.metrologia.licencas_acreditacoes.apps.LicencasAcreditacoesConfig",
     # F-C1 P4 — adapter canonico OutboundWebhookProvider (ADR-0054 aceita
     # dentro desta fase). SSRF guard + HMAC canonical + DNS rebinding lock
     # + DPA enforcement (INV-WEBHOOK-OUT-001..005).
