@@ -263,6 +263,45 @@
 
 ---
 
+## INV-CER-* — Invariantes de Certificados (M8 `metrologia/certificados`)
+
+> **Família canônica cravada 2026-06-01 (M8 Fatia 3 — T-CER-050).** Fonte: spec/plan
+> revisado por `consultor-rbc` + `tech-lead` (`docs/faseamento/M8-certificados/plan.md` §4)
+> + revisão adversarial da Sub-fatia A (correções de borda `>=` e suspensão-por-janela
+> incorporadas). **CONSOLIDA o placeholder `INV-CER-NUM-001` da seção INV-DOM-*** (Onda 2 —
+> agora ponteiro): a numeração visível inviolável passa a ser INV-CER-NUM-001 desta seção.
+> A emissão metrológica (`status='emitido'`) é interna; a entrega normativa cl. 7.8 (selo
+> RBC distribuível) só na assinatura A3 (Wave A — `DocumentoCertificado`).
+
+| ID | Regra | Base normativa | Hook que valida | Escopo por perfil | Consequência de violar |
+|---|---|---|---|---|---|
+| INV-CER-EMISSAO-001 | **Só calibração `APROVADA` (2ª conferência ADR-0026) emite** certificado; estado anterior → 422 `CALIBRACAO_NAO_APROVADA`. Idempotência por `(tenant, calibração, versão)` (não há 2ª emissão da mesma versão). | ISO 17025 cl. 7.8 + ADR-0026 | Use case `emitir_certificado` fail-closed + `existe_chave` + UNIQUE `(tenant,calibracao_id,versao)` | Absoluta A; config B/C/D | Emissão de calibração não conferida = NC cl. 7.8 / certificado sem 2ª conferência |
+| INV-CER-RECONCILIA-001 | **`∀ ponto incluído: ponto ∈ faixa_calibrada_declarada`** — CGCRE não extrapola (ADR-0076). Ponto fora → `FORA_DECLARADA` (decisão RT). | ISO 17025 + ADR-0076 | `reconciliar_pontos` (FaixaMedicao.contem) + hook `cert-reconcilia-fail-closed` | Absoluta A | Certificado RBC reportando ponto fora do escopo declarado = extrapolação proibida |
+| INV-CER-RECONCILIA-002 | **RBC: `U(ponto) ≥ CMC(ponto)`** via porta `cmc_para` (ADR-0074 cond. 2 / ILAC-P14 §5.5); `U < CMC` (incerteza melhor que a acreditada) sem decisão RT → bloqueia. Fecha GATE-ECMC-U-MAIOR-CMC. | ILAC-P14 §5.5 + ADR-0074 + INV-ECMC-009 | `reconciliar_pontos` (avaliar_u_cmc) + hook `cert-reconcilia-fail-closed` | Absoluta A | Reivindicação de incerteza abaixo da CMC acreditada = fraude metrológica |
+| INV-CER-RECONCILIA-003 | **`faixa_certificado=[min,max]` dos pontos VÁLIDOS** (metadado; os pontos discretos são a verdade); imutável no snapshot WORM. | ISO 17025 cl. 7.8.2 + ADR-0076 | Use case (faixa derivada dos pontos incluídos) + WORM trigger | Absoluta A | Faixa do certificado divergente dos pontos medidos = documento incoerente |
+| INV-CER-RECONCILIA-004 | **Pontos ordenados canonicamente por `ponto_calibracao` ASC** antes de `reconciliacao_hash` E `faixa_certificado` (replay determinístico cl. 7.11). | ISO 17025 cl. 7.11 + ADR-0029 (INV-DOC-CANON-001) | `reconciliar_pontos` (sort ASC antes do hash) + `reconciliacao_hash` | Absoluta | 2 certificados da mesma calibração com hash diferente = falso positivo de adulteração WORM |
+| INV-CER-RECONCILIA-005 | **`OrcamentoPorPonto` é 1:1 com `ponto_calibracao`** na calibração; reconciliação resolve `U(ponto)` por lookup único (NÃO agregação); duplicidade → `ORCAMENTO_PONTO_AMBIGUO` fail-closed. | ADR-0077 + GUM | `reconciliar_pontos` (`_indexar_orcamentos`) + hook `cert-reconcilia-fail-closed` | Absoluta A | Dupla contagem da incerteza por ponto = U subestimada ou superestimada |
+| INV-CER-NUM-001 | **Numeração visível inviolável (NIT-DICLA-021)** — `numero_certificado` `<SLUG>-<YYYY>-<NNNNNN>` denso por `(tenant, tipo, ano)`; reserva TTL 5min; virada anual reinicia; cancelamento PRESERVA o número (não reusa); reuso de número confirmado → erro PG. **Consolida o placeholder INV-DOM.** | NIT-DICLA-021 + Receita | VO `NumeroCertificado` + 3 triggers PG (`numero_certificado_reservado` 0008) + advisory lock no repo | Absoluta | Auditor CGCRE vê buraco/reuso = suspeita de emissão paralela = perda de acreditação |
+| INV-CER-NUM-002 | **`numero_interno` (sequence PG global, buracos OK) ≠ `numero_certificado` visível** (sem buracos). Dois eixos distintos. | NIT-DICLA-021 + ADR-0056 (paralelo OS) | Sequence `certificado_numero_seq` (interno) + triggers visível (0008) | Absoluta | Confundir os dois eixos = ou buraco visível (ilegal) ou sequence interna travada |
+| INV-CER-PERFIL-001 | **Campos do certificado dão MATCH com `Tenant.perfil_regulatorio` vigente** (server-side); `tipo_acreditacao=RBC` em perfil≠A → bloqueado (defesa L6). Perfil/tipo NUNCA do payload. | ISO 17025 cl. 8.1.3 + ADR-0067/0075 | View deriva perfil server-side + hook `cert-perfil-rbc-so-A` | Absoluta | Operador de tenant B/C/D forja `tipo_acreditacao=RBC` no JSON = fraude documental (L6 invertido) |
+| INV-CER-SNAPSHOT-PERFIL-001 | **`perfil_emissor_no_momento CHAR(1) NOT NULL`** cravado no INSERT, imutável (ADR-0067). | ADR-0067 + ISO 17025 cl. 8.4 | Coluna NOT NULL no INSERT (emissão) + WORM trigger | Absoluta | Auditor CGCRE em 2030 não reconstitui qual perfil o lab tinha na emissão |
+| INV-CER-SNAPSHOT-CMC-001 | **Read-path do certificado emitido NUNCA reconsulta `cmc_para`/`tenant_perfil_e`** — lê os snapshots persistidos (`cmc_no_ponto` é o congelado). WORM furado por LEITURA seria bug (TL-04). | ISO 17025 cl. 7.11/8.4 | Serializer/view de `retrieve` lê só snapshot + hook `cert-snapshot-nao-reconsulta` + teste anti-reconsulta (T-CER-052) | Absoluta | Reler CMC vigente ao exibir cert antigo = documento muda de valor após emitido |
+| INV-CER-REGRA-DEC-001 | **Congela `regra_decisao_snapshot`** (cl. 7.8.6 / ADR-0024) quando aplicável (declaração de conformidade). | ISO 17025 cl. 7.8.6 + ADR-0024 | Snapshot preenchido na emissão (do `cal.regra_decisao`) + WORM trigger | Absoluta A | Regra de decisão mutável pós-emissão = declaração de conformidade não reconstituível |
+| INV-CER-WORM-001 | **Certificado emitido é imutável** — correção só via reemissão versionada (US-CER-004 — `v(N+1)` + `v(N)→SUBSTITUIDA` CAS); DELETE bloqueado por trigger; transição `emitido→substituida`/`emitido→revogado` one-shot. | ISO 17025 cl. 7.11/8.4 + ADR-0031 (Padrão B) + INV-SOFT-002 | Trigger WORM `certificado` (migration 0004) + `marcar_substituida` CAS por `revision` | Absoluta | Certificado mutável/apagável = trilha probatória destruída |
+| INV-CER-CGCRE-VIG-001 | **Só classifica `RBC_OK` quando perfil A ATIVO E NÃO-suspenso E `acreditacao_vigencia_fim >= data_de_emissao`** (vigência inclusiva do último dia; suspensão avaliada por janela `[em,ate]` NA data de emissão, não `today`); senão pontos → não-RBC (decisão RT, sem hard-block). `acreditacao_vigencia_fim is None` = **fail-open lazy** (GATE-CER-CGCRE-VIG-DATA-POPULAR Wave A torna efetivo). Suspensão é fail-closed imediato. | ISO 17025 cl. 8.1.3 + NIT-DICLA-005 §7.4 + ADR-0067 (parecer consultor-rbc 2026-06-01) | `acreditacao_vigente_para_rbc` no use case (rebaixa `cmc_efetivo=None`) | Absoluta A | Emitir RBC com acreditação vencida/suspensa = uso indevido de acreditação (NC grave CGCRE) |
+| INV-CER-RESSALVA-001 | **Ponto `EMITIR_NAO_RBC_NO_PONTO` carrega `ressalva_nao_rbc` obrigatória** no snapshot (anti uso indevido de acreditação). | ISO 17025 cl. 8.1.3 + ADR-0075 | `exigir_ressalva_nao_rbc` no domínio + hook `cert-perfil-rbc-so-A` (heurística RBC do payload) | Absoluta A | Ponto não-RBC exibido como RBC no documento = declaração indevida |
+| INV-CER-PADRAO-VIG-001 | **Vigência da calibração dos padrões usados confirmada na data de emissão** (cl. 6.5 / NC-07): padrão com `calibracao_padrao_vigencia_fim < data_de_emissao` → perfil A bloqueia `PADRAO_CALIBRACAO_VENCIDA`. Vigência ausente/malformada no snapshot = **fail-open lazy** (GATE-CER-PADRAO-VIG-SNAPSHOT até wiring M5 `padroes`). | ISO 17025 cl. 6.4.4/6.5 | `validar_vigencia_padroes` no use case | Absoluta A; B/C/D não bloqueia | Certificado RBC apoiado em padrão sem rastreabilidade vigente = NC cl. 6.5 |
+
+> **Reusadas:** INV-CAL-WORM-001, INV-CAL-INC-005 (orçamento por ponto ADR-0077),
+> INV-ECMC-008/009 (cobertura RBC), INV-VIG-001..004, INV-SOFT-001/002,
+> INV-TENANT-001..004, INV-TENANT-PERFIL-001/003/004, INV-DOC-CANON-001,
+> INV-HMAC-001..005 (eventos hash-chain). Classes nomeadas `TestINV_CER_*` em
+> `tests/regressao/test_inv_cer_classes_nomeadas.py` (TST-004). Hooks da família:
+> `cert-reconcilia-fail-closed`, `cert-snapshot-nao-reconsulta`, `cert-perfil-rbc-so-A`
+> (M8 Fatia 3 — T-CER-053/054/055).
+
+---
+
 ## RAT-* — Registros de tratamento LGPD
 
 > Promovidos em 2026-05-23 — eram citados nos PRDs mas não existiam em catálogo canônico (achado da auditoria 10 lentes).
@@ -292,7 +331,7 @@
 | INV-ANON-003 | **`*_referencia_hash` usa KMS com `key_id` versionado (vN)** — rotação anual (GATE-1 F-A ciclo PII). | ADR-0032 + GATE-1 F-A | VO `ReferenciaPIIAnonimizavel` valida formato `vN`; job rotação anual | Absoluta (todos perfis) | Comprometimento de chave invalida 100% das referências cross-módulo sem caminho de rotação |
 | INV-ANON-004 | **Consumer que recebeu `Cliente.Anonimizado` e mutou seu estado registra audit em `acessos_dados_cliente`** com motivo `anonimizacao_propagada`. | ADR-0032 + INV-013 | Hook `audit-pii-salt-check.sh` estendido; teste E2E propagação | Absoluta (todos perfis) | Anonimização sem rastro = LGPD ANPD não consegue auditar fluxo cross-módulo |
 | INV-AUDIT-IMMUT-002 | **Toda nova tabela com nome `*_eventos`, `evento_*`, `acessos_*` nasce com trigger `*_bloqueia_mutation` + cobertura no hook `audit-immutability-check.sh`.** Estende INV-AUDIT-IMMUT-001 (que cobre só `auditoria` principal). | INV-001 + INV-AUTHZ-002 + INV-CAL-AUD-001 + INV-OS-AUD-001 | Hook `audit-immutability-check.sh` estendido (Onda 4) — bloqueia migration sem trigger | Absoluta (todos perfis) | `EventoTimeline`, `EventoDeOS`, `EventoDeCalibracao` viram WORM-de-mentira; audit auditor CGCRE invalida |
-| INV-CER-NUM-001 | **Numeração sequencial NIT-DICLA-021 inviolável** — VO `NumeroCertificado` em `src/domain/metrologia/value_objects.py`, formato `<TENANT_SLUG>-<YYYY>-<NNNNNN>`, sem buraco visível (cancelamento preserva número como `CANCELADO`), trigger PG valida monotonicidade. | NIT-DICLA-021 + Receita Federal + INV-034 | VO valida formato; trigger PG `BEFORE INSERT` valida `MAX(seq) + 1`; gap detection diário | Absoluta em A; configurável em B/C/D | Auditor CGCRE vê gap = suspeita de emissão paralela = perda de acreditação |
+| INV-CER-NUM-001 | **→ DEFINIÇÃO CANÔNICA migrada para a seção `INV-CER-*`** (M8 Fatia 3 — T-CER-050, 2026-06-01). Mantido aqui como ponteiro histórico (era placeholder Onda 2). Numeração visível inviolável NIT-DICLA-021 — VO `NumeroCertificado` + tabela `numero_certificado_reservado` (TTL 5min) + 3 triggers PG. | NIT-DICLA-021 | ver seção `INV-CER-*` (VO + 3 triggers + advisory lock) | Absoluta | ver `INV-CER-NUM-001` canônico |
 
 **Notas operacionais:**
 - INV-VIG-001..004 + INV-SOFT-001..003 + INV-ANON-001..004 + INV-AUDIT-IMMUT-002 + INV-CER-NUM-001 destravam Marco 3 OS / Marco 4 calibração / Wave A certificados.
