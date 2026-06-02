@@ -12,6 +12,8 @@
 #   - ALTER TABLE tenants DROP COLUMN perfil_regulatorio
 #   - DELETE FROM tenant_perfil_historico (append-only)
 #   - UPDATE tenant_perfil_historico (append-only)
+#   - UPDATE tenants SET acreditacao_* (cache vigencia/CGCRE so via aplicar_evento_cgcre —
+#     INV-LIC-VIG-SYNC-001 / M9 D-LIC-8; SQL direto OU Tenant.objects.update())
 #
 # Mutacao legitima passa pelas 2 funcoes SECURITY DEFINER que rodam dentro
 # da PROPRIA transacao + INSERT em TenantPerfilHistorico + outbox event.
@@ -110,6 +112,10 @@ elif printf '%s' "$content" | grep -qiE 'ALTER[[:space:]]+TABLE[[:space:]]+tenan
     violacao="ALTER TABLE tenants DROP COLUMN perfil_regulatorio"
 elif printf '%s' "$content" | grep -qiE 'ALTER[[:space:]]+TABLE[[:space:]]+tenants[[:space:]]+ALTER[[:space:]]+COLUMN[[:space:]]+perfil_regulatorio'; then
     violacao="ALTER TABLE tenants ALTER COLUMN perfil_regulatorio"
+elif printf '%s' "$content" | grep -qiE 'UPDATE[[:space:]]+tenants[[:space:]]+SET[[:space:]].*acreditacao_(vigencia_fim|vigencia_inicio|cgcre_numero|suspensa_em|suspensa_ate)'; then
+    violacao="UPDATE tenants SET acreditacao_* (cache de acreditacao so via aplicar_evento_cgcre — INV-LIC-VIG-SYNC-001 / M9 D-LIC-8)"
+elif printf '%s' "$content" | grep -qiE 'Tenant\.objects.*\.update\([^)]*acreditacao_(vigencia_fim|vigencia_inicio|cgcre_numero|suspensa_em|suspensa_ate)'; then
+    violacao="Tenant.objects.update(acreditacao_*) (cache de acreditacao so via aplicar_evento_cgcre — INV-LIC-VIG-SYNC-001 / M9 D-LIC-8)"
 elif printf '%s' "$content" | grep -qiE 'DELETE[[:space:]]+FROM[[:space:]]+tenant_perfil_historico'; then
     violacao="DELETE FROM tenant_perfil_historico (tabela append-only)"
 elif printf '%s' "$content" | grep -qiE 'UPDATE[[:space:]]+tenant_perfil_historico[[:space:]]+SET'; then

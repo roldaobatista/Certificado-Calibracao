@@ -226,6 +226,9 @@ run_case "TPb .md ignora"                    PASS  tenant-perfil-imutavel-check.
 run_case "TPc caminho oficial aplicar_evento OK" PASS tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"src/application/tenant/aplicar_evento_cgcre.py","content":"cursor.execute(\"SELECT aplicar_evento_cgcre($1, $2)\", [d, m])"}}'
 run_case "TPd migration backfill 0004 OK"    PASS  tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"src/infrastructure/tenant/migrations/0004_perfil_regulatorio_backfill.py","content":"tenant.perfil_regulatorio = '\''B'\''\ntenant.save()"}}'
 run_case "TPe DISABLE TRIGGER historico NO"  BLOCK tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"x.sql","content":"ALTER TABLE tenant_perfil_historico DISABLE TRIGGER tph_anti_update_trigger;"}}'
+run_case "TPf UPDATE tenants acreditacao_vigencia_fim NO" BLOCK tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"src/x.py","content":"cursor.execute(\"UPDATE tenants SET acreditacao_vigencia_fim = '\''2027-01-01'\'' WHERE id = $1\")"}}'
+run_case "TPg ORM update acreditacao_vigencia_fim NO" BLOCK tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"src/y.py","content":"Tenant.objects.filter(id=t).update(acreditacao_vigencia_fim=nova)"}}'
+run_case "TPh migration 0012 estende funcao OK" PASS tenant-perfil-imutavel-check.sh '{"tool_input":{"file_path":"src/infrastructure/tenant/migrations/0012_aplicar_evento_cgcre_vigencia.py","content":"CREATE FUNCTION aplicar_evento_cgcre(p_direcao TEXT) ... UPDATE tenants SET acreditacao_vigencia_fim = CASE WHEN p_acreditacao_vigencia_fim IS NOT NULL THEN p_acreditacao_vigencia_fim ELSE acreditacao_vigencia_fim END"}}'
 
 echo ""
 echo "===== payload-tipo-acreditacao-obsoleto (T-SAN-PERFIL-026 / AC-006-4) ====="
