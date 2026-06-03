@@ -13,6 +13,7 @@ from .entities import (
     AlertaVencimento,
     BloqueioOperacional,
     DocumentoRegulatorio,
+    EventoEmergencial,
     RevisaoDocumento,
 )
 
@@ -30,6 +31,25 @@ class DocumentoRegulatorioRepository(Protocol):
         self, *, tenant_id: UUID, tipo: str, numero: str, orgao_emissor: str
     ) -> bool:
         """Idempotência de cadastro (mesmo tipo+número+órgão no tenant)."""
+        ...
+
+    def obter_por_chave_natural(
+        self, *, tenant_id: UUID, tipo: str, numero: str, orgao_emissor: str
+    ) -> DocumentoRegulatorio | None:
+        """Reconstrói o documento pela chave natural (retentativa idempotente da
+        promoção D-LIC-4 — devolve o existente sem re-promover)."""
+        ...
+
+    def atualizar_vigencia_cache(
+        self,
+        *,
+        tenant_id: UUID,
+        documento_id: UUID,
+        vigencia_inicio: date,
+        vigencia_fim: date,
+    ) -> None:
+        """Renovação: avança a vigência da raiz + recalcula `status_cache` (Padrão B
+        mutável — a revisão append-only é gravada à parte)."""
         ...
 
 
@@ -67,3 +87,9 @@ class BloqueioRepository(Protocol):
     def obter_ativo(
         self, *, tenant_id: UUID, documento_id: UUID
     ) -> BloqueioOperacional | None: ...
+
+
+class EventoEmergencialRepository(Protocol):
+    def registrar(self, evento: EventoEmergencial) -> None:
+        """WORM append-only (INV-033 / INV-LIC-WORM-001) — liberação auditada."""
+        ...

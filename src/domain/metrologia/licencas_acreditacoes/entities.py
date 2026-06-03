@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from .enums import (
     CanalAlerta,
@@ -42,11 +42,16 @@ class DocumentoRegulatorio:
     criado_em: datetime
     criado_por: UUID
     escopo: str = ""
+    # Acreditação CGCRE — fonte rica (ADR-0079): número RBC + aderência ILAC-MRA. O
+    # cache `Tenant.acreditacao_*` espelha estes (sincronizado só via aplicar_evento_cgcre).
+    numero_cgcre: str = ""
+    ilac_mra_aderido: bool = False
     titular_referencia_hash: str = ""
     titular_referencia_key_id: str = ""
     responsavel_id: UUID | None = None
     observacao: str = ""
     perfil_no_evento: str = ""
+    correlation_id: UUID = field(default_factory=uuid4)
     revogado_em: datetime | None = None
     motivo_revogacao: str = ""
 

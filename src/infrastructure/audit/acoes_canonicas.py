@@ -300,6 +300,20 @@ ACOES_CERTIFICADOS: Final[frozenset[str]] = frozenset(
 )
 
 
+# M9 metrologia/licencas-acreditacoes (T-LIC-044) — cadastro/renovacao/modo
+# emergencial/revogacao de documento regulatorio da empresa (acreditacao CGCRE,
+# ART/RRT, licencas). Probatorias cl. 8.4 (documento regulatorio controlado). Slug
+# lowercase (vao ao bus_outbox — molde escopos_cmc/procedimentos).
+ACOES_LICENCAS: Final[frozenset[str]] = frozenset(
+    {
+        "licencas.documento_cadastrado",
+        "licencas.documento_renovado",
+        "licencas.modo_emergencial_acionado",
+        "licencas.documento_revogado",
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -312,6 +326,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_ESCOPOS_CMC
     | ACOES_PROCEDIMENTOS_CALIBRACAO
     | ACOES_CERTIFICADOS
+    | ACOES_LICENCAS
 )
 
 
