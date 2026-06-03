@@ -1126,6 +1126,28 @@ run_case "CPRA4 override PASS"                         PASS  cert-perfil-rbc-so-
 run_case "CPRA5 transicoes cert lar isento PASS"      PASS  cert-perfil-rbc-so-A-check.sh '{"tool_input":{"file_path":"src/domain/metrologia/certificados/transicoes.py","content":"tipo_acreditacao = request.data[\"t\"]"}}'
 run_case "CPRA6 teste ignora PASS"                    PASS  cert-perfil-rbc-so-A-check.sh '{"tool_input":{"file_path":"tests/test_cert.py","content":"tipo_acreditacao = request.data[\"t\"]"}}'
 
+echo "===== lic-anexo-obrigatorio (M9 Fatia 4 / INV-LIC-ANEXO-001) ====="
+run_case "LAO1 use case monta revisao sem validar BLOCK" BLOCK lic-anexo-obrigatorio-check.sh '{"tool_input":{"file_path":"src/application/metrologia/licencas_acreditacoes/novo.py","content":"rev = RevisaoDocumento(\n  id=uuid4(),\n)"}}'
+run_case "LAO2 use case com validar_anexo PASS"          PASS  lic-anexo-obrigatorio-check.sh '{"tool_input":{"file_path":"src/application/metrologia/licencas_acreditacoes/novo.py","content":"validar_anexo(anexo_sha256=inp.anexo_sha256)\nrev = RevisaoDocumento(id=uuid4())"}}'
+run_case "LAO3 override PASS"                            PASS  lic-anexo-obrigatorio-check.sh '{"tool_input":{"file_path":"src/application/metrologia/licencas_acreditacoes/novo.py","content":"# lic-anexo-obrigatorio: skip -- anexo validado em camada anterior DR-2026-090\nrev = RevisaoDocumento(id=uuid4())"}}'
+run_case "LAO4 fora da camada use case PASS"            PASS  lic-anexo-obrigatorio-check.sh '{"tool_input":{"file_path":"src/infrastructure/metrologia/licencas_acreditacoes/repositories.py","content":"RevisaoDocumentoModel.objects.create()"}}'
+run_case "LAO5 teste ignora PASS"                       PASS  lic-anexo-obrigatorio-check.sh '{"tool_input":{"file_path":"tests/test_m9.py","content":"rev = RevisaoDocumento(id=uuid4())"}}'
+
+echo "===== lic-perfil-cgcre (M9 Fatia 4 / INV-LIC-PERFIL-001) ====="
+run_case "LPC1 perfil CGCRE do request.data BLOCK"      BLOCK lic-perfil-cgcre-check.sh '{"tool_input":{"file_path":"src/x/views.py","content":"tipo = ACREDITACAO_CGCRE\nperfil = request.data[\"perfil\"]"}}'
+run_case "LPC2 perfil CGCRE do validated_data BLOCK"    BLOCK lic-perfil-cgcre-check.sh '{"tool_input":{"file_path":"src/x/views.py","content":"x = ACREDITACAO_CGCRE\nperfil = validated_data[\"perfil\"]"}}'
+run_case "LPC3 perfil server-side PASS"                 PASS  lic-perfil-cgcre-check.sh '{"tool_input":{"file_path":"src/x/views.py","content":"x = ACREDITACAO_CGCRE\nperfil = obter_perfil_tenant_corrente()\nvalidar_tipo_x_perfil(tipo=t, perfil=perfil, escopo=e)"}}'
+run_case "LPC4 sem contexto CGCRE PASS"                 PASS  lic-perfil-cgcre-check.sh '{"tool_input":{"file_path":"src/x/views.py","content":"perfil = request.data[\"perfil\"]"}}'
+run_case "LPC5 override PASS"                            PASS  lic-perfil-cgcre-check.sh '{"tool_input":{"file_path":"src/x/views.py","content":"# lic-perfil-cgcre: skip -- perfil derivado em mixin server-side DR-2026-091\nx = ACREDITACAO_CGCRE\nperfil = request.data[\"perfil\"]"}}'
+run_case "LPC6 transicoes lar isento PASS"              PASS  lic-perfil-cgcre-check.sh '{"tool_input":{"file_path":"src/domain/metrologia/licencas_acreditacoes/transicoes.py","content":"x = ACREDITACAO_CGCRE\nperfil = request.data[\"perfil\"]"}}'
+
+echo "===== lic-emergencial-a3 (M9 Fatia 4 / INV-033) ====="
+run_case "LEA1 EventoEmergencial sem validar BLOCK"     BLOCK lic-emergencial-a3-check.sh '{"tool_input":{"file_path":"src/application/metrologia/licencas_acreditacoes/x.py","content":"evento = EventoEmergencial(\n  id=uuid4(),\n)"}}'
+run_case "LEA2 com validar_modo_emergencial PASS"       PASS  lic-emergencial-a3-check.sh '{"tool_input":{"file_path":"src/application/metrologia/licencas_acreditacoes/x.py","content":"validar_modo_emergencial(tipo_documento=t, justificativa=j, assinatura_a3_id=a, janela_dias=n)\nevento = EventoEmergencial(id=uuid4())"}}'
+run_case "LEA3 override PASS"                            PASS  lic-emergencial-a3-check.sh '{"tool_input":{"file_path":"src/application/metrologia/licencas_acreditacoes/x.py","content":"# lic-emergencial-a3: skip -- pre-condicoes em servico dedicado DR-2026-092\nevento = EventoEmergencial(id=uuid4())"}}'
+run_case "LEA4 entities lar isento PASS"                PASS  lic-emergencial-a3-check.sh '{"tool_input":{"file_path":"src/domain/metrologia/licencas_acreditacoes/entities.py","content":"class EventoEmergencial(\n  id: UUID\n)"}}'
+run_case "LEA5 teste ignora PASS"                       PASS  lic-emergencial-a3-check.sh '{"tool_input":{"file_path":"tests/test_m9.py","content":"evento = EventoEmergencial(id=uuid4())"}}'
+
 # --- Gate anti-drift de contagens (auditoria maquina-dev 2026-05-29) ---
 # So no modo completo (sem filtro). Garante que os numeros a mao nos docs
 # canonicos (README/AGENTS/CLAUDE) batem com a fonte direta. Mata os

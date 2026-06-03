@@ -19,7 +19,7 @@ vigencia_fim` (que o M8 lê — fecha GATE-CER-CGCRE-VIG-DATA-POPULAR).
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 
@@ -80,6 +80,9 @@ from src.infrastructure.idempotencia.services_idempotencia import (
 from src.infrastructure.metrologia.licencas_acreditacoes.eventos_cgcre import (
     DjangoAplicarEventoCgcre,
 )
+from src.infrastructure.metrologia.licencas_acreditacoes.query_service import (
+    documentos_signatario_vencidos_em,
+)
 from src.infrastructure.metrologia.licencas_acreditacoes.repositories import (
     DjangoAlertaRepository,
     DjangoBloqueioRepository,
@@ -93,6 +96,7 @@ from src.infrastructure.metrologia.licencas_acreditacoes.serializers import (
     PromoverPerfilASerializer,
     RenovarDocumentoSerializer,
     serializar_documento_leitura,
+    serializar_historico_revisoes,
 )
 from src.infrastructure.multitenant.context import (
     active_tenant_context,
@@ -156,6 +160,8 @@ class DocumentoRegulatorioViewSet(viewsets.ViewSet):
     authz_purpose = "execucao_contrato"
     ACTION_MAP = {
         "retrieve": "licencas.ver",
+        "historico": "licencas.ver",
+        "signatario_apto": "licencas.ver",
         "cadastrar": "licencas.cadastrar",
         "promover": "licencas.cadastrar",
         "renovar": "licencas.renovar",
@@ -186,6 +192,54 @@ class DocumentoRegulatorioViewSet(viewsets.ViewSet):
             serializar_documento_leitura(
                 doc, hoje=timezone.now().date(), revisoes=revisoes
             )
+        )
+
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header); as
+    # actions GET abaixo (historico/signatario_apto) já estão no ACTION_MAP (licencas.ver).
+    # ---------------------------------------------------------------- GET historico
+    @action(detail=True, methods=["get"], url_path="historico")
+    def historico(self, request: Request, pk: str | None = None) -> Response:
+        """GET — US-LIC-004: histórico versionado append-only imutável (WORM)."""
+        doc_id = self._uuid_ou_404(pk)
+        tenant_id, _usuario_id, erro = self._contexto()
+        if erro is not None:
+            return erro
+        doc = DjangoDocumentoRegulatorioRepository().obter_por_id(
+            tenant_id=tenant_id, documento_id=doc_id
+        )
+        if doc is None:
+            raise NotFound(f"Documento regulatório {pk} não encontrado")
+        revisoes = DjangoRevisaoRepository().listar_por_documento(
+            tenant_id=tenant_id, documento_id=doc_id
+        )
+        body = {"documento_id": str(doc_id), **serializar_historico_revisoes(revisoes)}
+        return Response(body)
+
+    # ------------------------------------------------------- GET signatario-apto
+    @action(detail=False, methods=["get"], url_path="signatario-apto")
+    def signatario_apto(self, request: Request) -> Response:
+        """GET — US-LIC-005 / D-LIC-5b: aptidão do signatário (ART/RRT/cert digital).
+        Read-model do hard-block; consumo na emissão M8 = GATE-LIC-EMISSAO-HARDBLOCK
+        (Wave B). Query param `data` (ISO) opcional — default hoje."""
+        tenant_id, _usuario_id, erro = self._contexto()
+        if erro is not None:
+            return erro
+        data = self._data_query(request) or timezone.now().date()
+        vencidos = documentos_signatario_vencidos_em(tenant_id=tenant_id, data=data)
+        return Response(
+            {
+                "apto": not vencidos,
+                "data": data.isoformat(),
+                "documentos_vencidos": [
+                    {
+                        "documento_id": str(d.documento_id),
+                        "tipo": d.tipo.value,
+                        "numero": d.numero,
+                        "vigencia_fim": d.vigencia_fim.isoformat(),
+                    }
+                    for d in vencidos
+                ],
+            }
         )
 
     # ---------------------------------------------------------------- POST cadastrar
@@ -533,6 +587,17 @@ class DocumentoRegulatorioViewSet(viewsets.ViewSet):
             )
         usuario_id = usuario_id_context.get() or UUID(int=0)
         return tenant_id, perfil, usuario_id, None
+
+    @staticmethod
+    def _data_query(request: Request) -> date | None:
+        """Lê `?data=YYYY-MM-DD` (opcional). Inválida/ausente → None (caller usa hoje)."""
+        raw = request.query_params.get("data")
+        if not raw:
+            return None
+        try:
+            return date.fromisoformat(raw)
+        except ValueError:
+            return None
 
     @staticmethod
     def _uuid_ou_404(raw: str | None) -> UUID:

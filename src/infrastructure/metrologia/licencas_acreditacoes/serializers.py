@@ -105,6 +105,29 @@ class AcionarEmergencialSerializer(serializers.Serializer):
     correlation_id = serializers.UUIDField()
 
 
+def serializar_historico_revisoes(
+    revisoes: Sequence[RevisaoDocumento],
+) -> dict[str, object]:
+    """Read-path do histórico versionado (US-LIC-004) — revisões append-only imutáveis
+    (WORM), ordenadas por `numero_revisao`. Inclui metadados de auditoria."""
+    return {
+        "total_revisoes": len(revisoes),
+        "revisoes": [
+            {
+                "numero_revisao": r.numero_revisao,
+                "data_emissao": r.data_emissao.isoformat(),
+                "data_validade": r.data_validade.isoformat(),
+                "motivo": r.motivo.value,
+                "anexo_id": str(r.anexo_id),
+                "anexo_sha256": r.anexo_sha256,
+                "criado_em": r.criado_em.isoformat(),
+                "criado_por": str(r.criado_por),
+            }
+            for r in revisoes
+        ],
+    }
+
+
 def serializar_documento_leitura(
     doc: DocumentoRegulatorio, *, hoje: date, revisoes: Sequence[RevisaoDocumento] = ()
 ) -> dict[str, object]:

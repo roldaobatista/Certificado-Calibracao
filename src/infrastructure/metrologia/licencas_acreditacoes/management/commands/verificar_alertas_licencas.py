@@ -14,9 +14,8 @@ Wave A: agendamento via Procrastinate 1x/dia. Envio real de e-mail é diferido
 
 from __future__ import annotations
 
-from uuid import UUID
-
 from typing import Any
+from uuid import UUID
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.utils import timezone

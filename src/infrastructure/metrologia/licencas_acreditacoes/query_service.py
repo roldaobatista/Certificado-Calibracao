@@ -17,12 +17,26 @@ from uuid import UUID
 from src.application.metrologia.licencas_acreditacoes.jobs.verificar_alertas_licencas import (
     DocumentoAlertaSnapshot,
 )
+from src.application.metrologia.licencas_acreditacoes.verificar_signatario import (
+    DocumentoSignatarioSnapshot,
+    documentos_signatario_vencidos,
+    signatario_apto,
+)
 from src.domain.metrologia.licencas_acreditacoes.enums import (
     JANELAS_ALERTA_DIAS,
     TipoDocumentoRegulatorio,
 )
 from src.infrastructure.metrologia.licencas_acreditacoes.models import (
     DocumentoRegulatorio as DocumentoRegulatorioModel,
+)
+
+# Tipos do signatário cuja vigência vencida é HARD-409 (espelha
+# `TipoDocumentoRegulatorio.bloqueia_assinatura_hard`).
+_TIPOS_SIGNATARIO_HARD = (
+    TipoDocumentoRegulatorio.ART.value,
+    TipoDocumentoRegulatorio.RRT.value,
+    TipoDocumentoRegulatorio.CERT_DIGITAL_A1.value,
+    TipoDocumentoRegulatorio.CERT_DIGITAL_A3.value,
 )
 
 
@@ -61,6 +75,40 @@ def listar_documentos_para_alerta(
         )
         for doc_id, vig_fim, resp_id in qs
     ]
+
+
+def _snapshots_signatario(*, tenant_id: UUID) -> list[DocumentoSignatarioSnapshot]:
+    qs = DocumentoRegulatorioModel.objects.filter(
+        tenant_id=tenant_id,
+        tipo__in=_TIPOS_SIGNATARIO_HARD,
+        revogado_em__isnull=True,
+    ).values_list("id", "tipo", "numero", "vigencia_fim")
+    return [
+        DocumentoSignatarioSnapshot(
+            documento_id=doc_id,
+            tipo=TipoDocumentoRegulatorio(tipo),
+            numero=numero,
+            vigencia_fim=vig_fim,
+            revogado=False,
+        )
+        for doc_id, tipo, numero, vig_fim in qs
+    ]
+
+
+def signatario_apto_em(*, tenant_id: UUID, data: date) -> bool:
+    """US-LIC-005 / D-LIC-5b — `True` se nenhum documento do signatário (ART/RRT/cert
+    digital) está vencido na `data`. Read-model do hard-block (consumo na emissão M8 =
+    GATE-LIC-EMISSAO-HARDBLOCK Wave B)."""
+    return signatario_apto(_snapshots_signatario(tenant_id=tenant_id), data=data)
+
+
+def documentos_signatario_vencidos_em(
+    *, tenant_id: UUID, data: date
+) -> list[DocumentoSignatarioSnapshot]:
+    """Documentos do signatário vencidos na `data` (detalhe do read-model US-LIC-005)."""
+    return documentos_signatario_vencidos(
+        _snapshots_signatario(tenant_id=tenant_id), data=data
+    )
 
 
 def vigencia_fim_acreditacao_cgcre(*, tenant_id: UUID) -> date | None:
