@@ -2,7 +2,7 @@
 owner: agente-ia
 revisado-em: 2026-06-01
 proximo-review: 2026-09-01
-status: ready-for-implement
+status: stable
 diataxis: reference
 audiencia: [agente, auditor]
 marco: M9-licencas-acreditacoes

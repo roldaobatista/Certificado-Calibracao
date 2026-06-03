@@ -95,6 +95,24 @@ hook camada A. As 7 linhas de US/sub-US têm código + status ✅. Os 2 GATEs ce
 (GATE-CER-CGCRE-VIG-DATA-POPULAR + GATE-LIC-DRIFT) FECHADOS; o invariante de não-drift
 `cache == fonte` provado end-to-end; reverde M8 confirma rebaixamento real. Pronto para P9.
 
-## 8. P9 — ritual auditores roteados (INV-RITUAL-003)
+## 8. P9 — ritual auditores roteados (INV-RITUAL-003) — FECHADO 2026-06-03
 
-> Preenchido ao fim do P9.
+6 auditores roteados por risco (tenant/authz + WORM + REST path crítico + idempotência):
+**6/6 PASS — ZERO CRÍTICO/ALTO/MÉDIO** (INV-RITUAL-001 satisfeito):
+
+| Auditor | Veredito | Achado |
+|---------|----------|--------|
+| seguranca | ✅ PASS | perfil server-side em 3 camadas (ContextVar → app gate "A" fixo → função PG lê perfil persistido + RAISE); `tenant_id` explícito em todas as queries; raw cursor só `%s` named params; 3 hooks com override real; `signatario_apto` fail-closed correto. ZERO C/A/M |
+| llm-correctness | ✅ PASS | docstrings fiéis ao corpo (signatario_apto / verificar_alertas / vigencia_fim_acreditacao); `Any` só na fronteira I/O DRF; testes não-tautológicos; refino job perfil A sem caminho morto; rastreabilidade US/AC/INV. ZERO C/A/M |
+| produto | ✅ PASS | AC-LIC-003-1/5 emendados fiéis a D-LIC-5 e ao código; US-LIC-004/005 entregues; non-goals diferidos honestamente (PDF/A3/OCSP/e-mail = GATE Wave B, código não finge); zero scope creep; terminologia coerente; matriz/URS fiéis. ZERO C/A/M |
+| qualidade | ✅ PASS | 5 INV-LIC com `TestINV_LIC_*` nomeada exercitando barreira real (puro/PG-real/trigger); asserts significativos; sem type:ignore/noqa/`\|\| true`; não-drift + reverde M8 cobrem path crítico; 16 casos hook + E2E das actions novas. ZERO C/A/M |
+| observabilidade | ✅ PASS | OBS-001 (WORM em renovar/promover/cadastrar/emergencial + `tenant_perfil_historico`) + OBS-002 (log estruturado tenant_id+correlation_id no feliz e no `_falha`) atendidos; correlation_id real (chave idempotência). OBS-003 métrica = **CONCERN BAIXO** carryover M5-M8 rastreado GATE-OBS-METRIC-* (não bloqueia). ZERO C/A/M |
+| idempotência | ✅ PASS | `renovar` mantém Idempotency-Key obrigatória; replay não re-executa o sync (vigência não avança 2×); sync atômico no `transaction.atomic`, `concluir_chave` fora do bloco, falha → rollback total; GET sem chave; job de alertas idempotente (UNIQUE + ignore_conflicts). ZERO C/A/M |
+
+**Nenhum achado sobreviveu à verificação adversarial** (cada auditor leu o código real e confirmou
+defesa em profundidade). Único débito = OBS-003 (métrica) BAIXO, idêntico ao carryover aceito de
+M5-M8, rastreado por GATE-OBS-METRIC-* (Foundation F-C). INV-RITUAL-001 satisfeito.
+
+**M9 `metrologia/licencas-acreditacoes` FECHADO — 5º e último módulo do bloco metrologia Wave A.**
+Com ele, o bloco metrologia (padrões → escopos-cmc → procedimentos → certificados → licenças) está
+completo (5/5).
