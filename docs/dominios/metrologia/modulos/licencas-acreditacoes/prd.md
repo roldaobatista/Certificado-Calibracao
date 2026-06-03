@@ -143,13 +143,22 @@ Matriz §3.1 — perfil A obrigatório URS+IQ+OQ+PQ; B opcional; C obrigatório 
 
 **Como** sistema, **quero** impedir operação dependente quando documento "bloqueante" estiver vencido, **para** evitar emissão ilegal/inválida (ex: certificado RBC sem acreditação vigente).
 
-**Critérios de aceite:**
-- **AC-LIC-003-1 (perfil A — bloqueio efetivo emissão RBC)**: GIVEN `tenant_perfil_e(['A'])` AND acreditação CGCRE marcada `bloqueante=True` AND `vigencia_fim < today`, WHEN técnico tenta emitir certificado RBC (US-CER-001 AC-4 referencia este AC), THEN sistema bloqueia com 409 `{erro: "ACREDITACAO_CGCRE_VENCIDA", venceu_em: DD/MM/AAAA, licenca_id, link_renovacao}` AND publica `Licencas.OperacaoBloqueadaDocVencido{tenant_id, perfil, operacao, licenca_id}`.
-- **AC-LIC-003-2 (modo emergencial — qualquer perfil — INV-033)**: GIVEN documento bloqueante vencido, WHEN admin Aferê (Roldão) marca "operação em modo emergencial" via POST `/api/v1/licencas/{id}/modo-emergencial` com `justificativa ≥100 chars + A3`, THEN sistema libera operação dependente MAS registra evento auditável `Licencas.ModoEmergencialAtivado{licenca_id, justificativa_hash, a3_id, expira_em}` + audit WORM AND expira em até 7 dias (sem renovação automática).
-- **AC-LIC-003-3 (doc não-bloqueante)**: GIVEN documento bloqueante=False, WHEN vence, THEN sistema apenas alerta (AC-LIC-002) — NÃO bloqueia operação.
-- **AC-LIC-003-4 (perfil != A tentando se aproveitar de US-LIC-003)**: GIVEN tenant `perfil != A` AND tenta cadastrar acreditação CGCRE bloqueante, WHEN POST, THEN AC-LIC-001-3b rejeita previamente (defesa em profundidade).
+> **Emenda M9 Fatia 4/P8 (2026-06-03 — D-LIC-5 / RBC-M9-01, revisão `consultor-rbc`):** o
+> AC-LIC-003-1 original previa um **409 hard** para acreditação CGCRE vencida. Reconciliado
+> com o M8 (INV-CER-CGCRE-VIG-001): existem **DUAS fronteiras distintas por TIPO de documento**
+> (INV-LIC-BLOQUEIO-001) — (a) **acreditação CGCRE** vencida **REBAIXA** RBC→não-RBC via o cache
+> que o M8 lê (não é 409); (b) **ART/RRT/e-CNPJ do signatário** vencido é **409 hard** (cl. 6.2 —
+> sem signatário habilitado não se assina certificado nenhum). O AC-LIC-003-1 foi reescrito e
+> AC-LIC-003-5 adicionado.
 
-**Invariantes:** `INV-032` (doc bloqueante vencido impede operação dependente), `INV-033` (modo emergencial exige justificativa + A3 + WORM + expira em 7d), `INV-001`, `INV-LIC-PERFIL-001`.
+**Critérios de aceite:**
+- **AC-LIC-003-1 (perfil A — acreditação CGCRE vencida REBAIXA, não 409 — D-LIC-5a)**: GIVEN `tenant_perfil_e(['A'])` AND acreditação CGCRE com `vigencia_fim < data_emissao`, WHEN técnico emite certificado, THEN a emissão **NÃO é bloqueada com 409** — o M8 (`acreditacao_vigente_para_rbc`, INV-CER-CGCRE-VIG-001) **rebaixa** a classificação RBC→não-RBC na data de emissão, lendo o cache `Tenant.acreditacao_vigencia_fim` que o M9 popula via `aplicar_evento_cgcre` (ADR-0079). O job `verificar_vigencia_acreditacao_perfil_a` emite alerta operacional CRÍTICO. (409 só se o cliente exigiu explicitamente RBC e não aceita não-RBC — escopo de produto, não default; GATE-LIC-EMISSAO-HARDBLOCK Wave B.)
+- **AC-LIC-003-2 (modo emergencial — qualquer perfil — INV-033)**: GIVEN documento bloqueante vencido, WHEN admin Aferê (Roldão) marca "operação em modo emergencial" via POST `/api/v1/licencas/{id}/acionar-emergencial/` com `justificativa ≥100 chars + assinatura_a3_id`, THEN sistema registra evento auditável `EventoEmergencial{bloqueio_id, justificativa_hash, assinatura_a3_id, expira_em, libera_apenas_nao_rbc}` + audit WORM AND expira em até 7 dias (sem renovação automática). Sobre `ACREDITACAO_CGCRE` libera **apenas operação não-RBC** (`libera_apenas_nao_rbc=True` — nunca contorna o rebaixamento do M8, cl. 8.1.3 — D-LIC-6).
+- **AC-LIC-003-3 (doc não-bloqueante)**: GIVEN documento `bloqueante=False`, WHEN vence, THEN sistema apenas alerta (AC-LIC-002) — NÃO bloqueia operação.
+- **AC-LIC-003-4 (perfil != A,B,C tentando cadastrar CGCRE)**: GIVEN tenant `perfil = D` AND tenta cadastrar acreditação CGCRE, WHEN POST, THEN `validar_tipo_x_perfil` rejeita com 403 `ACREDITACAO_CGCRE_EXIGE_PERFIL_ABC` (INV-LIC-PERFIL-001 — defesa anti-fraude L6, perfil server-side ADR-0067).
+- **AC-LIC-003-5 (signatário sem ART/RRT/e-CNPJ válido — 409 hard — D-LIC-5b)**: GIVEN documento `tipo ∈ {ART, RRT, CERT_DIGITAL_A1, CERT_DIGITAL_A3}` NÃO-revogado com `vigencia_fim < data`, WHEN consulta-se a aptidão do signatário (`GET /api/v1/licencas/signatario-apto/`), THEN `signatario_apto = False` e os documentos vencidos são listados — o signatário NÃO está habilitado a assinar **certificado nenhum** (RBC ou não, cl. 6.2 / NIT-DICLA-021). Read-model do hard-block; o bloqueio na emissão (409) entra no M8 via **GATE-LIC-EMISSAO-HARDBLOCK (Wave B)**.
+
+**Invariantes:** `INV-032` (doc bloqueante vencido impede operação dependente), `INV-033` (modo emergencial exige justificativa ≥100ch + A3 + WORM + expira em 7d), `INV-001`, `INV-LIC-PERFIL-001`, `INV-LIC-BLOQUEIO-001` (duas fronteiras D-LIC-5).
 
 **Dependências:** Bloqueia módulos: `metrologia/certificados` (US-CER-001 AC-4), `metrologia/calibracao` (US-CAL emissão).
 
