@@ -96,11 +96,14 @@ def iniciar_atividade(
         )
 
     # AC-OS-003-6 + ADR-0063: re-valida predicate na data atual.
+    # grandeza="" -> fail-open BY DESIGN (parecer consultor-rbc 2026-06-03 / cl. 6.2):
+    # a grandeza só é cravada em `configurar_calibracao` (M4), que valida a competência
+    # do executor ANTES de medir (enforcement primário) e propaga AtividadeDaOS.grandeza.
     permitido, motivo = rt_competencia_cobre(
         {
             "tenant_id": atividade.tenant_id,
             "executor_user_id": payload.usuario_id,
-            "grandeza": "",  # ADR-0063 — diferido Marco 4
+            "grandeza": "",  # fail-open by design (ver acima) — populado por M4
         }
     )
     if not permitido:

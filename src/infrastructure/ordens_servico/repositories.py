@@ -108,6 +108,7 @@ def _atividade_to_snapshot(a: AtividadeDaOS) -> AtividadeSnapshot:
         geo_municipio_hash=a.geo_municipio_hash,
         equipamento_id_desnormalizado=a.equipamento_id_desnormalizado,
         tipo_bloqueia_concorrencia=a.tipo_bloqueia_concorrencia,
+        grandeza=a.grandeza,
     )
 
 

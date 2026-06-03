@@ -73,6 +73,10 @@ class AtividadeSnapshot:
     # Desnormalizado por trigger (INV-OS-CONC-001)
     equipamento_id_desnormalizado: UUID | None
     tipo_bloqueia_concorrencia: bool
+    # Grandeza metrológica da atividade (ADR-0063). Vazio até `configurar_calibracao`
+    # (M4) propagar; quando populada, o predicate `rt_competencia_cobre` passa a
+    # bloquear transferências de técnico (ADR-0063 ponto 3 — drop-in).
+    grandeza: str = ""
 
 
 @dataclass(frozen=True, slots=True)

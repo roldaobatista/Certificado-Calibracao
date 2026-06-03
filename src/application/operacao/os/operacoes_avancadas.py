@@ -285,12 +285,15 @@ def transferir_tecnico(
             detalhe=f"estado={atividade.estado.value}; transferencia so em PENDENTE/AGENDADA",
         )
 
-    # AC-OS-012-2 + ADR-0063: invoca predicate pro novo tecnico.
+    # AC-OS-012-2 + ADR-0063 ponto 3: invoca predicate pro novo tecnico LENDO a
+    # grandeza efetiva da atividade. Se `configurar_calibracao` (M4) já propagou a
+    # grandeza, este predicate BLOQUEIA a transferência para técnico sem competência
+    # (drop-in). Vazia ("") até a configuração → fail-open by design (cl. 6.2).
     permitido, motivo = rt_competencia_cobre(
         {
             "tenant_id": atividade.tenant_id,
             "executor_user_id": payload.novo_tecnico_id,
-            "grandeza": "",  # ADR-0063 — diferido Marco 4
+            "grandeza": atividade.grandeza or "",  # efetiva (ADR-0063 ponto 3)
         }
     )
     if not permitido:

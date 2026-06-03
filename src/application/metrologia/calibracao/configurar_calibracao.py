@@ -127,6 +127,68 @@ def _procedimento_fail_open_lazy(
     return True, None
 
 
+@runtime_checkable
+class CompetenciaExecutorPort(Protocol):
+    """Porta de competência do executor por grandeza (ADR-0063 Opção A — cl. 6.2.1/6.2.5e).
+
+    Enforcement PRIMÁRIO da competência de QUEM EXECUTA (distinto do signatário,
+    validado na emissão M8 — INV-CER-COMP-001). A view injeta o adapter REAL, que
+    resolve o técnico atribuído à atividade (`AtividadeDaOS.tecnico_executor_id` via
+    `atividade_os_id`) ou usa `executor_fallback_id` (origem AVULSA) e chama o predicate
+    `rt_competencia_cobre`. Retorna `(True, '')` se o técnico cobre a grandeza na `data`;
+    `(False, reason)` senão. Fail-open lazy no STUB (testes puros). Só consultada se RBC.
+    """
+
+    def __call__(
+        self,
+        *,
+        tenant_id: UUID,
+        atividade_os_id: UUID | None,
+        executor_fallback_id: UUID | None,
+        grandeza: str,
+        data: datetime,
+    ) -> tuple[bool, str]: ...
+
+
+def _competencia_fail_open_lazy(
+    *,
+    tenant_id: UUID,
+    atividade_os_id: UUID | None,
+    executor_fallback_id: UUID | None,
+    grandeza: str,
+    data: datetime,
+) -> tuple[bool, str]:
+    """STUB default da porta de competência — fail-open lazy (ADR-0063 / GATE-OS-GRANDEZA).
+
+    `(True, '')`: não bloqueia. Em produção a view injeta o adapter REAL
+    (`competencia_atividade.competencia_executor_cobre`). Distinto do enforcement do
+    signatário na emissão (INV-CER-COMP-001).
+    """
+    return True, ""
+
+
+@runtime_checkable
+class PropagarGrandezaAtividadePort(Protocol):
+    """Porta de propagação da grandeza calibrada → `AtividadeDaOS.grandeza` (ADR-0063
+    ponto 3 — fecha o predicate M3 retroativamente p/ transferências posteriores).
+
+    A view injeta o adapter REAL (`competencia_atividade.propagar_grandeza_atividade`),
+    que faz `UPDATE atividade_da_os SET grandeza=... WHERE id=atividade_os_id`. No-op no
+    STUB (testes puros / origem AVULSA sem atividade).
+    """
+
+    def __call__(
+        self, *, tenant_id: UUID, atividade_os_id: UUID, grandeza: str
+    ) -> None: ...
+
+
+def _propagar_grandeza_noop_lazy(
+    *, tenant_id: UUID, atividade_os_id: UUID, grandeza: str
+) -> None:
+    """STUB default — no-op. A view injeta o adapter REAL (UPDATE AtividadeDaOS)."""
+    return None
+
+
 class CalibracaoNaoEncontrada(Exception):
     """ID nao existe no tenant ativo (RLS ja filtrou) — caller retorna 404."""
 
@@ -185,6 +247,21 @@ class ProcedimentoVigenteAusente(Exception):
         super().__init__(
             f"ProcedimentoVigenteAusente grandeza={grandeza} "
             f"faixa=[{faixa_min},{faixa_max}]{unidade} motivo={motivo}"
+        )
+
+
+class ExecutorSemCompetencia(Exception):
+    """RBC: o técnico atribuído à atividade NÃO tem competência declarada (RTCompetencia
+    vigente) na grandeza a calibrar (ADR-0063 Opção A — cl. 6.2.1/6.2.5e). Enforcement
+    PRIMÁRIO do executor na configuração, ANTES de medir. Distinto do signatário
+    (emissão M8 — INV-CER-COMP-001). Caller (view) retorna 422.
+    """
+
+    def __init__(self, grandeza: str, motivo: str) -> None:
+        self.grandeza = grandeza
+        self.motivo = motivo
+        super().__init__(
+            f"ExecutorSemCompetencia grandeza={grandeza} motivo={motivo}"
         )
 
 
@@ -299,6 +376,8 @@ def executar(
     repo: CalibracaoRepository,
     cobertura: CoberturaEscopoPort = _cobertura_fail_open_lazy,
     procedimento: CoberturaProcedimentoPort = _procedimento_fail_open_lazy,
+    competencia_executor: CompetenciaExecutorPort = _competencia_fail_open_lazy,
+    propagar_grandeza: PropagarGrandezaAtividadePort = _propagar_grandeza_noop_lazy,
 ) -> ConfigurarCalibracaoOutput:
     """Configura calibracao: RECEPCIONADA -> CONFIGURADA via CAS.
 
@@ -428,6 +507,21 @@ def executar(
                 "hash_anexo": proc_resolvido["hash_anexo"],
             }
 
+        # ADR-0063 Opção A (cl. 6.2.1/6.2.5e): competência do EXECUTOR na grandeza,
+        # ANTES de medir — enforcement PRIMÁRIO (o signatário é validado na emissão M8,
+        # INV-CER-COMP-001). Só RBC. O adapter resolve o técnico atribuído à atividade
+        # (AtividadeDaOS.tecnico_executor_id) ou usa o confirmador da capacidade (AVULSA).
+        assert grandeza_decl is not None  # garantido pelo portão de faixa RBC acima
+        comp_ok, comp_motivo = competencia_executor(
+            tenant_id=atual.tenant_id,
+            atividade_os_id=atual.atividade_os_id,
+            executor_fallback_id=inp.capacidade_tecnica_confirmada_por_user_id,
+            grandeza=grandeza_decl.value,
+            data=inp.regra_decisao_acordada_em,
+        )
+        if not comp_ok:
+            raise ExecutorSemCompetencia(grandeza_decl.value, comp_motivo)
+
     # Snapshot novo (frozen — usa replace pra trocar campos)
     novo = replace(
         atual,
@@ -454,5 +548,15 @@ def executar(
         # Se snapshot sumiu (concorrente deletou? cenario impossivel mas defensivo):
         snapshot_para_excecao = atualizado if atualizado is not None else atual
         raise ConflitoVersaoCalibracao(snapshot_para_excecao)
+
+    # ADR-0063 ponto 3: propaga a grandeza calibrada → `AtividadeDaOS.grandeza` (fecha o
+    # predicate M3 `rt_competencia_cobre` RETROATIVO p/ transferências de técnico
+    # posteriores). Só origem=ATIVIDADE_OS com grandeza declarada (RBC). No-op no STUB.
+    if atual.atividade_os_id is not None and grandeza_decl is not None:
+        propagar_grandeza(
+            tenant_id=atual.tenant_id,
+            atividade_os_id=atual.atividade_os_id,
+            grandeza=grandeza_decl.value,
+        )
 
     return ConfigurarCalibracaoOutput(snapshot=novo)

@@ -89,14 +89,17 @@ def atribuir_tecnico(
         raise ErroAtribuirTecnico("OSNaoEncontrada", 404)
 
     # AC-OS-002b-4 + ADR-0063: invoca predicate por cada executor.
-    # grandeza="" -> fail-open controlado (M3); Marco 4 calibracao
-    # adiciona grandeza em AtividadeDaOS e predicate passa a bloquear.
+    # grandeza="" -> fail-open BY DESIGN (parecer consultor-rbc 2026-06-03 / cl. 6.2):
+    # a grandeza não existe na atribuição (alocação comercial, não execução técnica).
+    # Enforcement PRIMÁRIO da competência do executor é em `configurar_calibracao`
+    # (M4, ADR-0063 Opção A — ANTES de medir), que propaga `AtividadeDaOS.grandeza` e
+    # faz este predicate bloquear AUTOMATICAMENTE em transferências POSTERIORES.
     for _atrib in payload.atribuicoes:
         permitido, motivo = rt_competencia_cobre(
             {
                 "tenant_id": os_snapshot.tenant_id,
                 "executor_user_id": _atrib.tecnico_executor_id,
-                "grandeza": "",  # ADR-0063 — diferido Marco 4
+                "grandeza": "",  # fail-open by design (ver acima) — populado por M4
             }
         )
         if not permitido:

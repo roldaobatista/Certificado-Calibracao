@@ -71,6 +71,7 @@ from src.application.metrologia.calibracao.configurar_calibracao import (
     ConflitoVersaoCalibracao,
     EscopoNaoCobreFaixa,
     EstadoInvalidoParaConfigurar,
+    ExecutorSemCompetencia,
     ProcedimentoVigenteAusente,
 )
 from src.application.metrologia.calibracao.configurar_calibracao import (
@@ -191,6 +192,10 @@ from src.infrastructure.metrologia.procedimentos_calibracao import (
 from src.infrastructure.multitenant.context import (
     active_tenant_context,
     usuario_id_context,
+)
+from src.infrastructure.ordens_servico.competencia_atividade import (
+    competencia_executor_cobre,
+    propagar_grandeza_atividade,
 )
 
 logger = logging.getLogger(__name__)
@@ -534,11 +539,15 @@ class CalibracaoViewSet(viewsets.ViewSet):
             with transaction.atomic():
                 # ADR-0073: portas reais injetadas — escopo CMC (M6) +
                 # procedimento vigente (M7). Ordem escopo->procedimento.
+                # ADR-0063 Opção A: competência do executor (M3 RTCompetencia) +
+                # propagação da grandeza p/ AtividadeDaOS (fecha predicate M3).
                 out = configurar_executar(
                     inp,
                     repo,
                     cobertura=escopos_cmc_qs.cobre,
                     procedimento=procedimentos_qs.cobre_procedimento,
+                    competencia_executor=competencia_executor_cobre,
+                    propagar_grandeza=propagar_grandeza_atividade,
                 )
                 # OBS-CAL-01: elo WORM da configuracao (cl. 7.2 + ADR-0024).
                 append_evento_executar(
@@ -668,6 +677,37 @@ class CalibracaoViewSet(viewsets.ViewSet):
                     "motivo": exc.motivo,
                 },
                 status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+        except ExecutorSemCompetencia as exc:
+            # ADR-0063 Opção A / cl. 6.2.1: técnico atribuído sem competência (RTCompetencia)
+            # na grandeza, ANTES de medir. OBS-002: trilha do bloqueio (motivo reconstituível).
+            logger.warning(
+                "calibracao.configurar BLOQUEADO ExecutorSemCompetencia "
+                "calibracao_id=%s grandeza=%s motivo=%s",
+                cal_id,
+                exc.grandeza,
+                exc.motivo,
+                extra={
+                    "tenant_id": str(tenant_id_ctx),
+                    "calibracao_id": str(cal_id),
+                    "grandeza": exc.grandeza,
+                    "motivo": exc.motivo,
+                    "bloqueio": "ExecutorSemCompetencia",
+                },
+            )
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "ExecutorSemCompetencia",
+                    "grandeza": exc.grandeza,
+                    "motivo": exc.motivo,
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
         except ConflitoVersaoCalibracao as exc:
             falhar_chave(
