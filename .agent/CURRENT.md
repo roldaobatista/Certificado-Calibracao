@@ -53,9 +53,9 @@
 
 **Decisões Roldão recentes:** HTMX + 5 SPAs / Aferê PJ separada depois / zero contratações externas até produção real / resolver TUDO (crítico→baixo) / fatiar + roteamento + banco-real-no-ciclo (auditoria 2026-05-29).
 
-## Pendências cross-marco (TRACK Wave A)
-- GATE-OS-VALIDAR-DRILL + GATE-CAL-DRILL-LOCAL — drills PG real (1d).
-- GATE-OS-GRANDEZA-EM-ATIVIDADE — retrofit `AtividadeDaOS.grandeza` nos 3 use cases M3 (1.5d, fecha ADR-0063).
-- T-CAL-125/129 — camada REST OrcamentoIncerteza/Subcontratacao ViewSet (destravados).
-- T-CAL-130/131/133 — PadraoViewSet/Escopo/Proficiencia exigem módulos `escopos-cmc` + `procedimentos` (Wave A).
-- F-C2 dev (structlog real + health/ready + SIGTERM + correlation_id). GATEs externos em `gates-externos-pre-producao.md` (a criar).
+## FRENTE EM CURSO — CONSOLIDAÇÃO DA BASE (decisão Roldão 2026-06-03, pós-bloco-metrologia)
+- ✅ **GATE-CAL-DRILL-LOCAL** — drill `validar_m4_calibracao` 56/56 PG real (confirmado verde).
+- ✅ **GATE-OS-VALIDAR-DRILL** — drill `validar_m3_os` 54/54 criado (commit `0a5f515`); 11 tabelas + colunas-chave + RLS v2 + 6 triggers WORM + grants.
+- ⏳ **GATE-OS-GRANDEZA-EM-ATIVIDADE** — retrofit `AtividadeDaOS.grandeza` nos use cases M3 (`src/application/operacao/os/{atribuir_tecnico,iniciar_atividade,operacoes_avancadas}.py`); campo JÁ EXISTE (CharField fail-open M3), falta preencher a grandeza efetiva quando há link com calibração (fecha ADR-0063 — predicate `rt_competencia_cobre` passa a bloquear real). **Toca competência RT (regulatório) — investigar fluxo regra #0 + possível revisão consultor-rbc antes de mexer.**
+- ⏳ **T-CAL-125/129/130/131/133** — ViewSets REST destravados (OrcamentoIncerteza/Subcontratacao/Padrao/Escopo/Proficiencia); M6/M7 agora existem.
+- ⏳ **F-C2 dev** — observabilidade real (structlog + health/ready + SIGTERM + correlation_id) — **fecha o OBS-003 BAIXO carryover de TODOS os módulos metrologia** (GATE-OBS-METRIC-*). Maior item; criar `gates-externos-pre-producao.md`.
