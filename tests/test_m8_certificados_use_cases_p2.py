@@ -42,6 +42,7 @@ from src.domain.metrologia.certificados.erros import (
     CalibracaoNaoAprovadaError,
     CategoriaIncoerenteError,
     CertificadoJaEmitidoError,
+    DecisorSemCompetenciaGrandezaError,
     EmissaoAbortadaPeloRTError,
     FaixaDeclaradaAusenteError,
     JustificativaInsuficienteError,
@@ -118,6 +119,19 @@ class FakeCmc:
 # --- helpers ------------------------------------------------------------------
 
 
+def _snap_competencia(grandeza, *, vigencia_fim=None):
+    """Snapshot de competência (revisor/conferente) coerente com a grandeza calibrada
+    — molde do que `aprovar_revisao`/`aprovar_2a_conferencia` capturam (INV-CAL-RT-002)."""
+    return {
+        "grandeza": grandeza.value if grandeza is not None else "",
+        "faixa_min": "0",
+        "faixa_max": "100",
+        "vigencia_inicio": "2020-01-01",
+        "vigencia_fim": vigencia_fim,
+        "rt_competencia_id": str(uuid4()),
+    }
+
+
 def _calibracao(*, status=EstadoCalibracao.APROVADA, grandeza=Grandeza.MASSA, faixa=_FAIXA, cal_id=None):
     return SimpleNamespace(
         id=cal_id or uuid4(),
@@ -128,6 +142,9 @@ def _calibracao(*, status=EstadoCalibracao.APROVADA, grandeza=Grandeza.MASSA, fa
         snapshot_equipamento_json={"tag": "BAL-01"},
         cliente_referencia_hash="v01$cli",
         regra_decisao=SimpleNamespace(value="ACEITACAO_SIMPLES"),
+        # INV-CAL-RT-001 — competência do revisor/conferente coerente com a grandeza.
+        snapshot_competencia_revisor_json=_snap_competencia(grandeza),
+        snapshot_competencia_conferente_json=_snap_competencia(grandeza),
     )
 
 
@@ -567,3 +584,81 @@ def test_reemitir_cas_falha_conflito_409():
             _reemitir_input(v1, cal, perfil="A", cmc=cmc, motivo=_MOTIVO_OK),
             cert_repo=cert_repo, analise_repo=analise_repo,
         )
+
+
+# ============================================================================
+# NC-03 (parecer consultor-rbc) — INV-CAL-RT-001 / INV-CER-COMP-001:
+# competência do revisor/conferente (signatário) na grandeza, na emissão.
+# ============================================================================
+from src.domain.metrologia.certificados.transicoes import (  # noqa: E402
+    validar_competencia_decisores,
+)
+
+
+def test_decisor_conferente_grandeza_incompativel_perfil_a_bloqueia():
+    cal = _calibracao(grandeza=Grandeza.MASSA)
+    # Conferente (signatário) com competência em OUTRA grandeza assinou.
+    cal.snapshot_competencia_conferente_json = _snap_competencia(Grandeza.TEMPERATURA)
+    inp = _emitir_input(
+        cal, pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A",
+        cmc=FakeCmc({Decimal("100"): Decimal("0.5")}),
+    )
+    with pytest.raises(DecisorSemCompetenciaGrandezaError) as exc:
+        emitir_certificado(inp, cert_repo=FakeCertRepo(), analise_repo=FakeAnaliseRepo())
+    assert exc.value.papel == "conferente"
+    assert exc.value.grandeza_calibrada == "massa"
+
+
+def test_decisor_revisor_grandeza_incompativel_perfil_a_bloqueia():
+    cal = _calibracao(grandeza=Grandeza.MASSA)
+    cal.snapshot_competencia_revisor_json = _snap_competencia(Grandeza.PRESSAO)
+    inp = _emitir_input(
+        cal, pontos=[_pm("100")], orcs=[_orc("100", "0.8")], perfil="A",
+        cmc=FakeCmc({Decimal("100"): Decimal("0.5")}),
+    )
+    with pytest.raises(DecisorSemCompetenciaGrandezaError) as exc:
+        emitir_certificado(inp, cert_repo=FakeCertRepo(), analise_repo=FakeAnaliseRepo())
+    assert exc.value.papel == "revisor"
+
+
+class TestValidarCompetenciaDecisores:
+    """Função pura — INV-CAL-RT-001 (revisor+conferente; perfil A; fail-open lazy)."""
+
+    def _snap(self, g):
+        return {"grandeza": g, "rt_competencia_id": "x"}
+
+    def test_perfil_a_grandeza_coerente_ok(self):
+        validar_competencia_decisores(
+            snapshot_competencia_revisor=self._snap("massa"),
+            snapshot_competencia_conferente=self._snap("massa"),
+            grandeza_calibrada="massa", perfil="A",
+        )  # não levanta
+
+    def test_perfil_a_conferente_incompativel_bloqueia(self):
+        with pytest.raises(DecisorSemCompetenciaGrandezaError):
+            validar_competencia_decisores(
+                snapshot_competencia_revisor=self._snap("massa"),
+                snapshot_competencia_conferente=self._snap("temperatura"),
+                grandeza_calibrada="massa", perfil="A",
+            )
+
+    def test_perfil_d_nao_bloqueia(self):
+        validar_competencia_decisores(
+            snapshot_competencia_revisor=self._snap("temperatura"),
+            snapshot_competencia_conferente=self._snap("temperatura"),
+            grandeza_calibrada="massa", perfil="D",
+        )  # perfil não-acreditado → return
+
+    def test_snapshot_ausente_fail_open(self):
+        validar_competencia_decisores(
+            snapshot_competencia_revisor=None,
+            snapshot_competencia_conferente=None,
+            grandeza_calibrada="massa", perfil="A",
+        )  # fail-open lazy (GATE-CER-DECISOR-COMP-SNAPSHOT)
+
+    def test_case_insensitive(self):
+        validar_competencia_decisores(
+            snapshot_competencia_revisor=self._snap("MASSA"),
+            snapshot_competencia_conferente=self._snap("Massa"),
+            grandeza_calibrada="massa", perfil="A",
+        )  # normaliza lower/strip

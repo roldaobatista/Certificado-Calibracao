@@ -52,6 +52,7 @@ from src.domain.metrologia.certificados.transicoes import (
     acreditacao_vigente_para_rbc,
     aplicar_decisoes_rt,
     perfil_e_acreditado,
+    validar_competencia_decisores,
     validar_completude_decisoes_rt,
     validar_vigencia_padroes,
 )
@@ -128,6 +129,18 @@ def emitir_certificado(
     validar_vigencia_padroes(
         snapshot_padroes_usados=inp.snapshot_padroes_usados_json,
         data_emissao=inp.data_emissao,
+        perfil=inp.perfil,
+    )
+
+    # 2.7. INV-CAL-RT-001 / INV-CER-COMP-001 (cl. 6.2 + NIT-DICLA-021) — perfil A: o
+    # revisor (1ª conf.) e o conferente (2ª conf./signatário) devem ter competência na
+    # grandeza calibrada (snapshot imutável da aprovação). Trava do SIGNATÁRIO na emissão
+    # (distinta do executor, validado em configurar_calibracao — ADR-0063). Fail-open lazy
+    # se snapshot ausente (GATE-CER-DECISOR-COMP-SNAPSHOT). NC-03 do parecer consultor-rbc.
+    validar_competencia_decisores(
+        snapshot_competencia_revisor=cal.snapshot_competencia_revisor_json,
+        snapshot_competencia_conferente=cal.snapshot_competencia_conferente_json,
+        grandeza_calibrada=cal.grandeza_calibrada.value,
         perfil=inp.perfil,
     )
 

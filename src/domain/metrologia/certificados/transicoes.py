@@ -23,6 +23,7 @@ from .enums import (
     EstadoCertificado,
 )
 from .erros import (
+    DecisorSemCompetenciaGrandezaError,
     EmissaoAbortadaPeloRTError,
     MotivoReemissaoInsuficienteError,
     PadraoCalibracaoVencidaError,
@@ -161,6 +162,36 @@ def validar_vigencia_padroes(
             raise PadraoCalibracaoVencidaError(
                 f"padrão {item.get('padrao_id', '?')} com calibração vencida em "
                 f"{vig.isoformat()} < emissão {data_emissao.isoformat()} (cl. 6.5)"
+            )
+
+
+def validar_competencia_decisores(
+    *,
+    snapshot_competencia_revisor: Mapping[str, object] | None,
+    snapshot_competencia_conferente: Mapping[str, object] | None,
+    grandeza_calibrada: str,
+    perfil: str,
+) -> None:
+    """INV-CAL-RT-001 / INV-CER-COMP-001 (cl. 6.2 + NIT-DICLA-021): perfil A bloqueia a
+    emissão se o snapshot de competência do **revisor** (1ª conf.) OU do **conferente**
+    (2ª conf. / signatário) não cobre a grandeza calibrada — RT competente em OUTRA
+    grandeza assinou (certificado nulo retroativo R-060). Os snapshots são imutáveis,
+    capturados na aprovação, e provam a VIGÊNCIA na captura (replay cl. 7.11) — aqui só
+    se confere o casamento de grandeza. Snapshot ausente = fail-open lazy
+    (GATE-CER-DECISOR-COMP-SNAPSHOT). Perfis B/C/D não bloqueiam (configurável)."""
+    if not perfil_e_acreditado(perfil):
+        return
+    alvo = grandeza_calibrada.strip().lower()
+    for papel, snap in (
+        ("revisor", snapshot_competencia_revisor),
+        ("conferente", snapshot_competencia_conferente),
+    ):
+        if not snap:
+            continue  # fail-open lazy — snapshot não capturado (até wiring completo)
+        grandeza_snap = str(snap.get("grandeza", "")).strip().lower()
+        if grandeza_snap != alvo:
+            raise DecisorSemCompetenciaGrandezaError(
+                papel, grandeza_calibrada, grandeza_snap or "(ausente)"
             )
 
 

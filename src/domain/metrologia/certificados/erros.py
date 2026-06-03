@@ -120,3 +120,23 @@ class ReemissaoConflitanteError(CertificadoError):
     (a transação atômica reverte o INSERT da nova versão)."""
 
     reason = "REEMISSAO_CONFLITANTE"
+
+
+class DecisorSemCompetenciaGrandezaError(CertificadoError):
+    """Perfil A: o revisor (1ª conf.) OU conferente (2ª conf.) NÃO tem competência na
+    grandeza calibrada (INV-CAL-RT-001 / INV-CER-COMP-001 — cl. 6.2 + NIT-DICLA-021).
+    O snapshot de competência (imutável, capturado na aprovação) cobre grandeza ≠ a
+    calibrada → certificado nulo retroativo (R-060). Snapshot ausente é fail-open lazy
+    (GATE-CER-DECISOR-COMP-SNAPSHOT). Caller → 422."""
+
+    reason = "DECISOR_SEM_COMPETENCIA_GRANDEZA"
+
+    def __init__(self, papel: str, grandeza_calibrada: str, grandeza_snapshot: str) -> None:
+        self.papel = papel
+        self.grandeza_calibrada = grandeza_calibrada
+        self.grandeza_snapshot = grandeza_snapshot
+        super().__init__(
+            f"DecisorSemCompetenciaGrandezaError papel={papel} "
+            f"grandeza_calibrada={grandeza_calibrada} "
+            f"grandeza_competencia={grandeza_snapshot}"
+        )
