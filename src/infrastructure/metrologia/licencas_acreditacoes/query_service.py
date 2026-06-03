@@ -11,10 +11,16 @@ Defesa em profundidade (molde M5-M8): `tenant_id` EXPLÍCITO além da RLS.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from uuid import UUID
 
-from src.domain.metrologia.licencas_acreditacoes.enums import TipoDocumentoRegulatorio
+from src.application.metrologia.licencas_acreditacoes.jobs.verificar_alertas_licencas import (
+    DocumentoAlertaSnapshot,
+)
+from src.domain.metrologia.licencas_acreditacoes.enums import (
+    JANELAS_ALERTA_DIAS,
+    TipoDocumentoRegulatorio,
+)
 from src.infrastructure.metrologia.licencas_acreditacoes.models import (
     DocumentoRegulatorio as DocumentoRegulatorioModel,
 )
@@ -31,6 +37,30 @@ def vigente_para_rbc(*, tenant_id: UUID, data: date) -> bool:
         vigencia_inicio__lte=data,
         vigencia_fim__gte=data,
     ).exists()
+
+
+def listar_documentos_para_alerta(
+    *, tenant_id: UUID, agora: date, janela_maxima_dias: int = max(JANELAS_ALERTA_DIAS)
+) -> list[DocumentoAlertaSnapshot]:
+    """Snapshots dos documentos NÃO-revogados do tenant cuja `vigencia_fim` cai dentro
+    da maior janela de alerta (`agora + janela_maxima_dias`) — inclui já vencidos
+    (alerta crítico). Consumido pelo job `verificar_alertas_licencas` (T-LIC-051)."""
+    limite = agora + timedelta(days=janela_maxima_dias)
+    qs = DocumentoRegulatorioModel.objects.filter(
+        tenant_id=tenant_id,
+        revogado_em__isnull=True,
+        vigencia_fim__lte=limite,
+    ).values_list("id", "vigencia_fim", "responsavel_id")
+    return [
+        DocumentoAlertaSnapshot(
+            documento_id=doc_id,
+            tenant_id=tenant_id,
+            vigencia_fim=vig_fim,
+            revogado=False,
+            responsavel_id=resp_id,
+        )
+        for doc_id, vig_fim, resp_id in qs
+    ]
 
 
 def vigencia_fim_acreditacao_cgcre(*, tenant_id: UUID) -> date | None:

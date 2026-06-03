@@ -20,7 +20,29 @@ from django.db import connection
 
 
 class DjangoAplicarEventoCgcre:
-    """Implementa `AplicarEventoCgcrePort.promover` via `aplicar_evento_cgcre`."""
+    """Implementa `AplicarEventoCgcrePort.promover` (D-LIC-4) e
+    `RenovarVigenciaCgcrePort.renovar_vigencia` (D-LIC-3 / T-LIC-050) via
+    `aplicar_evento_cgcre`."""
+
+    def renovar_vigencia(
+        self, *, tenant_id: UUID, vigencia_fim: date, motivo: str
+    ) -> None:
+        """Direção `renovacao_vigencia_cgcre` — avança o cache
+        `Tenant.acreditacao_vigencia_fim` SEM mudar o perfil (permanece A). Não emite
+        outbox (consolida no relatório trimestral). Roda na transação do caller."""
+        with connection.cursor() as cur:
+            cur.execute(
+                "SELECT aplicar_evento_cgcre("
+                "p_direcao => %s, p_tenant_id => %s, p_perfil_novo => %s, "
+                "p_motivo => %s, p_acreditacao_vigencia_fim => %s)",
+                [
+                    "renovacao_vigencia_cgcre",
+                    str(tenant_id),
+                    "A",
+                    motivo,
+                    vigencia_fim,
+                ],
+            )
 
     def promover(
         self,

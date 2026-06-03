@@ -13,13 +13,16 @@ art. 22 + CC art. 765): seguradora pode rescindir apolice retroativamente
 se houver tenant Perfil A com acreditacao vencida operando sem flag.
 Job mensal demonstra processo de verificacao continuo (boa-fe Afere).
 
-NOTA Wave A: este job consulta `tenants.acreditacao_suspensa_*` (cache
-de display). Vigencia REAL por escopo CGCRE (grandeza × faixa × procedimento)
-fica no modulo `licencas-acreditacoes` Wave A. Ate la, este job apenas:
+NOTA M9 (T-LIC-051 refino): o cache `tenants.acreditacao_vigencia_fim` JA E
+populado pelo modulo `licencas-acreditacoes` via `aplicar_evento_cgcre`
+(ADR-0079). Este job agora alerta sobre o VENCIMENTO REAL da acreditacao
+(precedencia sobre a janela legada de suspensao) alem de:
   - Marca alerta operacional se `acreditacao_suspensa_ate` esta proxima
-    de vencer.
+    de vencer (tenant A legado sem licenca cadastrada — vigencia_fim None).
   - Verifica que perfil A tem `acreditacao_cgcre_numero` preenchido
     (defesa contra estado inconsistente).
+Vigencia por escopo CGCRE (grandeza × faixa × procedimento) fica no
+read-model do M9; este job usa a vigencia agregada do cache.
 
 Funcao pura: recebe lista de snapshots + `agora` + janelas. Caller
 (adapter Django) le DB, chama essa funcao, publica alertas via bus.
@@ -30,7 +33,6 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass
 from uuid import UUID
-
 
 # Janela default de aviso antecipado (S5 plan.md = 60 dias).
 JANELA_AVISO_DIAS_DEFAULT = 60
@@ -46,6 +48,10 @@ class TenantPerfilASnapshot:
     acreditacao_cgcre_numero: str | None
     acreditacao_suspensa_em: dt.date | None
     acreditacao_suspensa_ate: dt.date | None
+    # M9 T-LIC-051 (refino): cache de vigencia da acreditacao CGCRE, agora populado
+    # pelo modulo licencas-acreditacoes via `aplicar_evento_cgcre` (ADR-0079). `None`
+    # = tenant A legado sem licenca cadastrada (cai no caminho antigo por suspensao).
+    acreditacao_vigencia_fim: dt.date | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +118,52 @@ def verificar_vigencia_acreditacao_perfil_a(
                 )
             )
             continue
+
+        # M9 T-LIC-051 (refino) — vigencia REAL da acreditacao CGCRE (cache populado
+        # via aplicar_evento_cgcre / ADR-0079). Fonte de verdade do vencimento; tem
+        # precedencia sobre a janela legada de suspensao.
+        if snap.acreditacao_vigencia_fim is not None:
+            prazo_aviso = agora + dt.timedelta(days=janela_aviso_dias)
+            if snap.acreditacao_vigencia_fim < agora:
+                alertas.append(
+                    AlertaVigenciaAcreditacao(
+                        tenant_id=snap.tenant_id,
+                        tenant_slug=snap.slug,
+                        severidade="CRITICO",
+                        motivo=(
+                            f"Tenant {snap.slug} (perfil A) tem acreditacao CGCRE com "
+                            f"vigencia_fim={snap.acreditacao_vigencia_fim.isoformat()} "
+                            f"JA VENCIDA. acreditacao_vigente_para_rbc rebaixa emissao "
+                            f"RBC->nao-RBC na data de emissao (INV-CER-CGCRE-VIG-001)."
+                        ),
+                        proxima_acao=(
+                            "Renovar a acreditacao no modulo licencas-acreditacoes "
+                            "(renovar_documento sincroniza o cache via "
+                            "aplicar_evento_cgcre direcao=renovacao_vigencia_cgcre). "
+                            "Se nao houve renovacao CGCRE: rebaixar para B."
+                        ),
+                    )
+                )
+                continue
+            if agora <= snap.acreditacao_vigencia_fim <= prazo_aviso:
+                dias_restantes = (snap.acreditacao_vigencia_fim - agora).days
+                alertas.append(
+                    AlertaVigenciaAcreditacao(
+                        tenant_id=snap.tenant_id,
+                        tenant_slug=snap.slug,
+                        severidade="AVISO",
+                        motivo=(
+                            f"Tenant {snap.slug} (perfil A) tem acreditacao CGCRE "
+                            f"vencendo em {dias_restantes} dias "
+                            f"({snap.acreditacao_vigencia_fim.isoformat()})."
+                        ),
+                        proxima_acao=(
+                            "Iniciar renovacao da acreditacao junto a CGCRE e cadastrar "
+                            "a nova vigencia (renovar_documento) antes do vencimento."
+                        ),
+                    )
+                )
+                continue
 
         # Sem janela de suspensao = vigencia plena (modulo licencas-acreditacoes
         # Wave A vai trazer vigencia por escopo; ate la, considera "OK").

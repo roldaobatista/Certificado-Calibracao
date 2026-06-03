@@ -351,7 +351,7 @@ class DocumentoRegulatorioViewSet(viewsets.ViewSet):
         s.is_valid(raise_exception=True)
         d = s.validated_data
         doc_id = self._uuid_ou_404(pk)
-        tenant_id, _perfil, usuario_id, erro = self._contexto_com_perfil()
+        tenant_id, perfil, usuario_id, erro = self._contexto_com_perfil()
         if erro is not None:
             return erro
 
@@ -381,6 +381,7 @@ class DocumentoRegulatorioViewSet(viewsets.ViewSet):
                 criado_por=usuario_id,
                 criado_em=datetime.now(UTC),
                 correlation_id=d["correlation_id"],
+                perfil=perfil,
             )
             with transaction.atomic():
                 out = renovar_executar(
@@ -389,6 +390,7 @@ class DocumentoRegulatorioViewSet(viewsets.ViewSet):
                     revisao_repo=DjangoRevisaoRepository(),
                     bloqueio_repo=DjangoBloqueioRepository(),
                     alerta_repo=DjangoAlertaRepository(),
+                    cgcre_sync=DjangoAplicarEventoCgcre(),
                 )
                 body = {
                     "documento_id": str(doc_id),
@@ -406,6 +408,12 @@ class DocumentoRegulatorioViewSet(viewsets.ViewSet):
             return self._falha(chave_id, tenant_id, exc, status.HTTP_404_NOT_FOUND)
         except _ERROS_422 as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except DatabaseError as exc:
+            # `aplicar_evento_cgcre(renovacao_vigencia_cgcre)` rejeita estado inválido
+            # (tenant não-A, vigência ausente) via RAISE EXCEPTION → regra de negócio → 422.
+            return self._falha(
+                chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
 
         concluir_chave(
             chave_id=chave_id, tenant_id=tenant_id,
