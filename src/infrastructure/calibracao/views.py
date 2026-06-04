@@ -31,6 +31,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 
@@ -64,6 +65,23 @@ from src.application.metrologia.calibracao.aprovar_revisao import (
 )
 from src.application.metrologia.calibracao.aprovar_revisao import (
     executar as aprovar_revisao_executar,
+)
+from src.application.metrologia.calibracao.avaliar_conformidade import (
+    AvaliarConformidadeInput,
+    CalibracaoEstadoNaoPermiteAvaliar,
+)
+from src.application.metrologia.calibracao.avaliar_conformidade import (
+    executar as avaliar_conformidade_executar,
+)
+from src.application.metrologia.calibracao.calcular_orcamento_incerteza import (
+    CalcularOrcamentoIncertezaInput,
+    CalibracaoEstadoNaoPermiteCalcular,
+    ComponenteParaCalculo,
+    EscalonamentoNaoSuportadoError,
+    PontoParaCalculo,
+)
+from src.application.metrologia.calibracao.calcular_orcamento_incerteza import (
+    executar as calcular_orcamento_executar,
 )
 from src.application.metrologia.calibracao.configurar_calibracao import (
     CalibracaoNaoEncontrada,
@@ -158,9 +176,20 @@ from src.application.metrologia.calibracao.subcontratacao import (
 from src.domain.metrologia.calibracao.entities import OrigemLeitura
 from src.domain.metrologia.calibracao.enums import (
     DecisaoReclamacao,
+    DistribuicaoIncerteza,
+    FormulaCalculoComponente,
+    LeiEscalonamento,
     OrigemRecepcao,
     RegraDecisao,
     TipoAcreditacao,
+    TipoOrigemComponente,
+)
+from src.domain.metrologia.calibracao.motor_calculo.incerteza_por_ponto import (
+    TipoAAusenteError,
+    TipoAInsuficienteError,
+)
+from src.infrastructure.authz.perfil_tenant_helper import (
+    obter_perfil_tenant_corrente,
 )
 from src.infrastructure.calibracao.lgpd import (
     derivar_cliente_key_id,
@@ -174,6 +203,7 @@ from src.infrastructure.calibracao.repositories import (
     DjangoLeituraCorrecaoRepository,
     DjangoLeituraRepository,
     DjangoNaoConformidadeRepository,
+    DjangoOrcamentoIncertezaRepository,
     DjangoReclamacaoCalibracaoRepository,
 )
 from src.infrastructure.calibracao.serializers import (
@@ -182,6 +212,8 @@ from src.infrastructure.calibracao.serializers import (
     Aprovar2aConferenciaSerializer,
     AprovarRevisaoSerializer,
     AtribuirRTReclamacaoSerializer,
+    AvaliarConformidadeSerializer,
+    CalcularOrcamentoIncertezaSerializer,
     CancelarCalibracaoSerializer,
     ConfigurarCalibracaoSerializer,
     CorrigirLeituraSerializer,
@@ -237,6 +269,8 @@ ENDPOINT_RECL_ATRIBUIR_RT = "calibracao.reclamacao_atribuir_rt"
 ENDPOINT_RECL_RESPONDER = "calibracao.reclamacao_responder"
 ENDPOINT_SUBC_SUBCONTRATAR = "calibracao.subcontratar"
 ENDPOINT_SUBC_RECEBIMENTO = "calibracao.registrar_recebimento_subcontratado"
+ENDPOINT_CAL_CALC_ORCAMENTO = "calibracao.calcular_orcamento_incerteza"
+ENDPOINT_CAL_AVALIAR_CONF = "calibracao.avaliar_conformidade"
 
 
 def _resposta_erro_idempotencia(erro: ErroValidacao) -> Response:
@@ -3047,6 +3081,383 @@ class SubcontratacaoViewSet(_CalibracaoAuthzViewSet):
                 "calibracao_id": str(out.snapshot.id),
                 "usuario_id": str(usuario_id),
                 "revision": out.snapshot.revision,
+            },
+        )
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id_ctx,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body)
+
+
+def _serializar_orcamento(snapshot: Any) -> dict[str, Any]:
+    """OrcamentoIncertezaSnapshot -> dict serializavel (decimais como string)."""
+    return {
+        "id": str(snapshot.id),
+        "calibracao_id": str(snapshot.calibracao_id),
+        "u_combinada": str(snapshot.u_combinada),
+        "grau_liberdade_efetivo": str(snapshot.grau_liberdade_efetivo),
+        "k": str(snapshot.k),
+        "U_expandida": str(snapshot.U_expandida),
+        "nivel_confianca": str(snapshot.nivel_confianca),
+        "versao_motor_calculo": snapshot.versao_motor_calculo,
+        "replay_determinismo_hash": snapshot.replay_determinismo_hash,
+    }
+
+
+def _componente_do_payload(c: dict[str, Any]) -> ComponenteParaCalculo:
+    """Constroi ComponenteParaCalculo do dict validado (enums str -> membro).
+
+    __post_init__ re-valida (Tipo A exige s_x + n>=6, divisor>0 etc.) e levanta
+    ValueError/TypeError que a view traduz pra 400.
+    """
+    return ComponenteParaCalculo(
+        nome=c["nome"],
+        tipo=c["tipo"],
+        u_i=c["u_i"],
+        grau_liberdade=c.get("grau_liberdade"),
+        tipo_origem_componente=TipoOrigemComponente(c["tipo_origem_componente"]),
+        distribuicao=DistribuicaoIncerteza(c["distribuicao"]),
+        divisor=c["divisor"],
+        formula_calculo=FormulaCalculoComponente(c["formula_calculo"]),
+        s_x=c.get("s_x"),
+        n_amostras=c.get("n_amostras"),
+        correlacao_com_componente_id=c.get("correlacao_com_componente_id"),
+        coeficiente_correlacao=c.get("coeficiente_correlacao"),
+        fonte_default_padrao_id=c.get("fonte_default_padrao_id"),
+        lei_escalonamento=LeiEscalonamento(
+            c.get("lei_escalonamento") or LeiEscalonamento.CONSTANTE.value
+        ),
+    )
+
+
+def _ponto_do_payload(p: dict[str, Any]) -> PontoParaCalculo:
+    """Constroi PontoParaCalculo do dict validado (ADR-0077 modo por-ponto)."""
+    s_pooled: tuple[Decimal, int] | None = None
+    if p.get("s_pooled_s") is not None:
+        s_pooled = (p["s_pooled_s"], p["s_pooled_dof"])
+    return PontoParaCalculo(
+        ponto_calibracao=p["ponto_calibracao"],
+        valores_repeticoes=tuple(p["valores_repeticoes"]),
+        s_pooled=s_pooled,
+    )
+
+
+# authz-check: skip -- RequireAuthz resolve via ACTION_MAP da base _CalibracaoAuthzViewSet
+class OrcamentoIncertezaViewSet(_CalibracaoAuthzViewSet):
+    """ViewSet REST de orcamento de incerteza + conformidade (T-CAL-125).
+
+      POST /api/v1/calibracoes/{id}/calcular-incerteza      (US-CAL-005 — GUM cl. 5)
+      POST /api/v1/calibracoes/{id}/avaliar-conformidade    (US-CAL-006 — cl. 7.8.6)
+
+    Use cases puros em application/.../calibracao/{calcular_orcamento_incerteza,
+    avaliar_conformidade}.py. Mesmo molde M4: Idempotency-Key + evento WORM no
+    mesmo `transaction.atomic`. `perfil_tenant` (modo por-ponto ADR-0077) vem do
+    CONTEXTO server-side (ADR-0067 — nunca do body). Cobertura/competencia ja
+    foram validadas em `configurar`; aqui o foco e o calculo GUM + a regra de
+    decisao ILAC G8.
+    """
+
+    ACTION_MAP = {
+        "calcular_incerteza": "calibracao.calcular_orcamento_incerteza",
+        "avaliar_conformidade": "calibracao.avaliar_conformidade",
+    }
+
+    # authz-check: skip -- RequireAuthz resolve via ACTION_MAP da base
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="calibracoes/(?P<calibracao_pk>[^/.]+)/calcular-incerteza",
+    )
+    def calcular_incerteza(
+        self, request: Request, calibracao_pk: str | None = None
+    ) -> Response:
+        """POST /api/v1/calibracoes/{id}/calcular-incerteza/ (US-CAL-005)."""
+        serializer = CalcularOrcamentoIncertezaSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+
+        try:
+            cal_id = UUID(str(calibracao_pk))
+        except (ValueError, TypeError) as exc:
+            raise NotFound(f"calibracao_id invalido: {exc}") from exc
+
+        tenant_id_ctx = active_tenant_context.get()
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id_ctx,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_CAL_CALC_ORCAMENTO,
+            payload_fingerprint={
+                "calibracao_id": str(cal_id),
+                "versao_motor_calculo": dados["versao_motor_calculo"],
+                "correlation_id": str(dados["correlation_id"]),
+                "n_componentes": len(dados["componentes"]),
+                "n_pontos": len(dados["pontos"]),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+
+        # ADR-0067: perfil canonico vem do contexto server-side, NUNCA do body.
+        perfil = obter_perfil_tenant_corrente()
+        try:
+            inp = CalcularOrcamentoIncertezaInput(
+                calibracao_id=cal_id,
+                componentes=tuple(
+                    _componente_do_payload(c) for c in dados["componentes"]
+                ),
+                correlacoes=tuple(
+                    (str(rho[0]), str(rho[1]), Decimal(str(rho[2])))
+                    for rho in dados["correlacoes"]
+                ),
+                versao_motor_calculo=dados["versao_motor_calculo"],
+                documentacao_agregacao=dados["documentacao_agregacao"],
+                bias_orcado=dados.get("bias_orcado"),
+                bias_origem=dados.get("bias_origem") or "",
+                calculado_em=datetime.now(UTC),
+                correlation_id=dados["correlation_id"],
+                pontos=tuple(_ponto_do_payload(p) for p in dados["pontos"]),
+                perfil_tenant=perfil or "",
+            )
+        # InvalidOperation: `correlacoes` com rho nao-numerico (ListField nao tipa
+        # o child) — herda de ArithmeticError, NAO de ValueError; capturar aqui
+        # evita 500 + chave de idempotencia presa (achado auditor-llm Fatia 3).
+        except (ValueError, TypeError, IndexError, InvalidOperation) as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response({"erro": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        cal_repo = DjangoCalibracaoRepository()
+        orc_repo = DjangoOrcamentoIncertezaRepository()
+        evento_repo = DjangoEventoDeCalibracaoRepository()
+        try:
+            with transaction.atomic():
+                out = calcular_orcamento_executar(inp, cal_repo, orc_repo)
+                append_evento_executar(
+                    AppendEventoCalibracaoInput(
+                        tenant_id=tenant_id_ctx,
+                        calibracao_id=cal_id,
+                        tipo="IncertezaCalculada",
+                        payload_raw={
+                            "orcamento_id": str(out.orcamento.id),
+                            "U_expandida": str(out.orcamento.U_expandida),
+                            "k": str(out.orcamento.k),
+                            "versao_motor_calculo": out.orcamento.versao_motor_calculo,
+                            "replay_determinismo_hash": (
+                                out.orcamento.replay_determinismo_hash
+                            ),
+                        },
+                        finalidade="incerteza_calculada",
+                        actor_user_id=usuario_id,
+                        occurred_at=datetime.now(UTC),
+                        correlation_id=dados["correlation_id"],
+                        causation_id=novo.chave_id,
+                    ),
+                    evento_repo,
+                )
+        except CalibracaoNaoEncontrada as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
+            raise NotFound(str(exc)) from exc
+        except CalibracaoEstadoNaoPermiteCalcular as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "EstadoInvalido"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except (
+            EscalonamentoNaoSuportadoError,
+            TipoAAusenteError,
+            TipoAInsuficienteError,
+        ) as exc:
+            # Perfil A fail-closed (ADR-0077): Tipo B b!=0 1a fatia / Tipo A
+            # ausente ou n<6 sem s_pooled valido => 412 (nao subestimar U).
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "IncertezaPorPontoFailClosed"},
+                status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+
+        body = _serializar_orcamento(out.orcamento)
+        body["n_pontos"] = len(out.pontos)
+        logger.info(
+            "calibracao.calcular_incerteza OK calibracao_id=%s orcamento_id=%s",
+            cal_id,
+            out.orcamento.id,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(dados["correlation_id"]),
+                "endpoint": ENDPOINT_CAL_CALC_ORCAMENTO,
+                "calibracao_id": str(cal_id),
+                "usuario_id": str(usuario_id),
+            },
+        )
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id_ctx,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
+
+    # authz-check: skip -- RequireAuthz resolve via ACTION_MAP da base
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="calibracoes/(?P<calibracao_pk>[^/.]+)/avaliar-conformidade",
+    )
+    def avaliar_conformidade(
+        self, request: Request, calibracao_pk: str | None = None
+    ) -> Response:
+        """POST /api/v1/calibracoes/{id}/avaliar-conformidade/ (US-CAL-006)."""
+        serializer = AvaliarConformidadeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+
+        try:
+            cal_id = UUID(str(calibracao_pk))
+        except (ValueError, TypeError) as exc:
+            raise NotFound(f"calibracao_id invalido: {exc}") from exc
+
+        tenant_id_ctx = active_tenant_context.get()
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id_ctx,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_CAL_AVALIAR_CONF,
+            payload_fingerprint={
+                "calibracao_id": str(cal_id),
+                "revision_esperada": dados["revision_esperada"],
+                "valor_medido": str(dados["valor_medido"]),
+                "U_expandida": str(dados["U_expandida"]),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+
+        try:
+            inp = AvaliarConformidadeInput(
+                calibracao_id=cal_id,
+                revision_esperada=dados["revision_esperada"],
+                valor_medido=dados["valor_medido"],
+                U_expandida=dados["U_expandida"],
+                k=dados["k"],
+                lsl=dados.get("lsl"),
+                usl=dados.get("usl"),
+            )
+        except (ValueError, TypeError) as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response({"erro": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        repo = DjangoCalibracaoRepository()
+        evento_repo = DjangoEventoDeCalibracaoRepository()
+        try:
+            with transaction.atomic():
+                out = avaliar_conformidade_executar(inp, repo)
+                append_evento_executar(
+                    AppendEventoCalibracaoInput(
+                        tenant_id=tenant_id_ctx,
+                        calibracao_id=cal_id,
+                        tipo="ConformidadeAvaliada",
+                        payload_raw={
+                            "zona_ilac_g8": out.zona.value,
+                            "decisao": out.snapshot.decisao,
+                            "revision": out.snapshot.revision,
+                        },
+                        finalidade="conformidade_avaliada",
+                        actor_user_id=usuario_id,
+                        occurred_at=datetime.now(UTC),
+                        correlation_id=out.snapshot.correlation_id,
+                        causation_id=novo.chave_id,
+                    ),
+                    evento_repo,
+                )
+        except CalibracaoNaoEncontrada as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
+            raise NotFound(str(exc)) from exc
+        except CalibracaoEstadoNaoPermiteAvaliar as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "EstadoInvalido"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except ConflitoVersaoCalibracao as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "ConflitoVersao",
+                    "revision_atual": exc.snapshot_atual.revision,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        body = _serializar_snapshot(out.snapshot)
+        body["zona_ilac_g8"] = out.zona.value
+        body["decisao"] = out.snapshot.decisao
+        body["pfa"] = str(out.pfa) if out.pfa is not None else None
+        body["pra"] = str(out.pra) if out.pra is not None else None
+        logger.info(
+            "calibracao.avaliar_conformidade OK calibracao_id=%s zona=%s",
+            cal_id,
+            out.zona.value,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_CAL_AVALIAR_CONF,
+                "calibracao_id": str(cal_id),
+                "usuario_id": str(usuario_id),
             },
         )
         concluir_chave(

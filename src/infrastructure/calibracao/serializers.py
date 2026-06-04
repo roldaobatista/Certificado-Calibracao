@@ -15,6 +15,18 @@ from typing import Any
 
 from rest_framework import serializers
 
+from src.domain.metrologia.calibracao.enums import (
+    DistribuicaoIncerteza,
+    FormulaCalculoComponente,
+    LeiEscalonamento,
+    TipoOrigemComponente,
+)
+
+
+def _choices(enum_cls: type) -> list[str]:
+    """Lista de `.value` do enum — choices DRY (sem hardcode duplicado)."""
+    return [membro.value for membro in enum_cls]
+
 
 class RecepcionarCalibracaoSerializer(serializers.Serializer):
     """POST /api/v1/calibracoes/recepcionar — cria Calibracao em RECEPCIONADA.
@@ -402,3 +414,125 @@ class RegistrarRecebimentoSubcontratadoSerializer(serializers.Serializer):
 
     revision_esperada = serializers.IntegerField(min_value=0)
     certificado_subcontratado_snapshot_json = serializers.JSONField()
+
+
+# =============================================================
+# OrcamentoIncerteza (T-CAL-125 — calcular-incerteza + avaliar-conformidade)
+# =============================================================
+
+
+class AvaliarConformidadeSerializer(serializers.Serializer):
+    """POST /api/v1/calibracoes/{id}/avaliar-conformidade — US-CAL-006.
+
+    Regra de decisao ISO 17025 cl. 7.8.6 + ILAC G8. `regra_decisao` ja vem
+    cravada da configuracao (nao no body). Decimais como string p/ precisao.
+    """
+
+    revision_esperada = serializers.IntegerField(min_value=0)
+    valor_medido = serializers.DecimalField(max_digits=30, decimal_places=12)
+    U_expandida = serializers.DecimalField(
+        max_digits=30, decimal_places=12, min_value=0
+    )
+    k = serializers.DecimalField(
+        max_digits=10, decimal_places=6, required=False, default="2.0"
+    )
+    lsl = serializers.DecimalField(
+        max_digits=30, decimal_places=12, required=False, allow_null=True
+    )
+    usl = serializers.DecimalField(
+        max_digits=30, decimal_places=12, required=False, allow_null=True
+    )
+    correlation_id = serializers.UUIDField(required=False)
+
+
+class _ComponenteIncertezaInSerializer(serializers.Serializer):
+    """Um componente de entrada do orcamento GUM (proveniencia NIT-DICLA-030 §16.6).
+
+    Tipo A exige s_x + n_amostras>=6 (INV-CAL-INC-003 — re-validado no use case).
+    """
+
+    nome = serializers.CharField(max_length=120)
+    tipo = serializers.ChoiceField(choices=["A", "B"])
+    u_i = serializers.DecimalField(max_digits=30, decimal_places=12, min_value=0)
+    grau_liberdade = serializers.IntegerField(required=False, allow_null=True)
+    tipo_origem_componente = serializers.ChoiceField(
+        choices=_choices(TipoOrigemComponente)
+    )
+    distribuicao = serializers.ChoiceField(choices=_choices(DistribuicaoIncerteza))
+    divisor = serializers.DecimalField(
+        max_digits=20, decimal_places=12, min_value=0
+    )
+    formula_calculo = serializers.ChoiceField(
+        choices=_choices(FormulaCalculoComponente)
+    )
+    s_x = serializers.DecimalField(
+        max_digits=30, decimal_places=12, required=False, allow_null=True
+    )
+    n_amostras = serializers.IntegerField(required=False, allow_null=True)
+    correlacao_com_componente_id = serializers.UUIDField(
+        required=False, allow_null=True
+    )
+    coeficiente_correlacao = serializers.DecimalField(
+        max_digits=10, decimal_places=6, required=False, allow_null=True
+    )
+    fonte_default_padrao_id = serializers.UUIDField(
+        required=False, allow_null=True
+    )
+    lei_escalonamento = serializers.ChoiceField(
+        choices=_choices(LeiEscalonamento),
+        required=False,
+        default=LeiEscalonamento.CONSTANTE.value,
+    )
+
+
+class _PontoIncertezaInSerializer(serializers.Serializer):
+    """Um ponto com repeticoes — deriva Tipo A por ponto (ADR-0077, modo por-ponto).
+
+    `s_pooled` = {s, dof} desvio combinado validado do metodo (2<=n<6 ou n=1).
+    """
+
+    ponto_calibracao = serializers.DecimalField(max_digits=30, decimal_places=12)
+    valores_repeticoes = serializers.ListField(
+        child=serializers.DecimalField(max_digits=30, decimal_places=12),
+        allow_empty=True,
+    )
+    s_pooled_s = serializers.DecimalField(
+        max_digits=30, decimal_places=12, required=False, allow_null=True
+    )
+    s_pooled_dof = serializers.IntegerField(
+        required=False, allow_null=True, min_value=1
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        s = attrs.get("s_pooled_s")
+        dof = attrs.get("s_pooled_dof")
+        if (s is None) != (dof is None):
+            raise serializers.ValidationError(
+                "s_pooled_s e s_pooled_dof devem vir juntos (ou ambos ausentes)"
+            )
+        return attrs
+
+
+class CalcularOrcamentoIncertezaSerializer(serializers.Serializer):
+    """POST /api/v1/calibracoes/{id}/calcular-incerteza — US-CAL-005 (GUM cl. 5).
+
+    `perfil_tenant` NAO vem do body (ADR-0067 — perfil canonico do contexto
+    server-side). Modo por-ponto (ADR-0077): `pontos` nao-vazio + `componentes`
+    so Tipo B (Tipo A derivado das repeticoes) — re-validado no use case.
+    `calculado_em` derivado server-side (now UTC).
+    """
+
+    componentes = _ComponenteIncertezaInSerializer(many=True, allow_empty=False)
+    correlacoes = serializers.ListField(
+        child=serializers.ListField(), required=False, default=list
+    )
+    versao_motor_calculo = serializers.CharField(max_length=120)
+    documentacao_agregacao = serializers.CharField(min_length=50)
+    bias_orcado = serializers.DecimalField(
+        max_digits=30, decimal_places=12, required=False, allow_null=True
+    )
+    bias_origem = serializers.CharField(
+        required=False, allow_blank=True, default="", max_length=200
+    )
+    correlation_id = serializers.UUIDField()
+    pontos = _PontoIncertezaInSerializer(many=True, required=False, default=list)

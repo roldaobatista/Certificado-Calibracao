@@ -19,6 +19,7 @@ from .views import (
     ConferenciaViewSet,
     LeituraViewSet,
     NaoConformidadeViewSet,
+    OrcamentoIncertezaViewSet,
     ReclamacaoViewSet,
     RevisaoViewSet,
     SubcontratacaoViewSet,
@@ -94,5 +95,16 @@ urlpatterns = [
         "calibracoes/<str:calibracao_pk>/registrar-recebimento-subcontratado/",
         SubcontratacaoViewSet.as_view({"post": "registrar_recebimento"}),
         name="calibracao-registrar-recebimento-subcontratado",
+    ),
+    # T-CAL-125 OrcamentoIncertezaViewSet (US-CAL-005 + US-CAL-006)
+    path(
+        "calibracoes/<str:calibracao_pk>/calcular-incerteza/",
+        OrcamentoIncertezaViewSet.as_view({"post": "calcular_incerteza"}),
+        name="calibracao-calcular-incerteza",
+    ),
+    path(
+        "calibracoes/<str:calibracao_pk>/avaliar-conformidade/",
+        OrcamentoIncertezaViewSet.as_view({"post": "avaliar_conformidade"}),
+        name="calibracao-avaliar-conformidade",
     ),
 ]
