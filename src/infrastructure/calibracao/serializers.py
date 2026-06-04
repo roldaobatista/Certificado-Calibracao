@@ -357,3 +357,48 @@ class ResponderReclamacaoSerializer(serializers.Serializer):
         ]
     )
     respondida_em = serializers.DateTimeField()
+
+
+# =============================================================
+# Subcontratacao ISO 17025 cl. 6.6 (T-CAL-129 — US-CAL-017)
+# =============================================================
+
+
+class SubcontratarSerializer(serializers.Serializer):
+    """POST /api/v1/calibracoes/{id}/subcontratar — CONFIGURADA -> AGUARDANDO.
+
+    SEG-CAL-07 style: `motivo_hash` derivado server-side a partir de
+    `motivo_canonicalizado` (>=30 chars + anti-PII + NFC). assinatura_modo
+    TOUCH exige declaracao (AC-CAL-017-7 + Lei 14.063 art. 4o);
+    eh_pais_estrangeiro exige DPA (AC-CAL-017-8 + LGPD art. 33) — use case
+    re-valida e levanta excecao especifica que a view traduz pra 412.
+    """
+
+    revision_esperada = serializers.IntegerField(min_value=0)
+    subcontratado_id = serializers.UUIDField()
+    aceite_subcontratacao_id = serializers.UUIDField()
+    motivo_canonicalizado = serializers.CharField(min_length=30)
+    eh_pais_estrangeiro = serializers.BooleanField(default=False)
+    dpa_clausulas_internacionais_id = serializers.UUIDField(
+        required=False, allow_null=True
+    )
+    assinatura_modo = serializers.ChoiceField(
+        choices=["A3", "TOUCH"], default="A3"
+    )
+    declaracao_aceite_touch_alto_risco_id = serializers.UUIDField(
+        required=False, allow_null=True
+    )
+
+
+class RegistrarRecebimentoSubcontratadoSerializer(serializers.Serializer):
+    """POST /api/v1/calibracoes/{id}/registrar-recebimento-subcontratado.
+
+    SEG-CAL-04: `recebedor_user_id` NAO aceito no body — eh o usuario logado
+    (actor do contexto auth). O use case enforce `recebedor == actor` (anti
+    spoofing) E `recebedor != executor` (separacao de funcoes cl. 6.2.5 —
+    INV-CAL-FRAUDE-RECEB-001). As chaves obrigatorias do snapshot do cert
+    externo (AC-CAL-017-3) sao validadas no `__post_init__` do use case.
+    """
+
+    revision_esperada = serializers.IntegerField(min_value=0)
+    certificado_subcontratado_snapshot_json = serializers.JSONField()

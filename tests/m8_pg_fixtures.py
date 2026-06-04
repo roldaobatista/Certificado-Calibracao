@@ -94,6 +94,47 @@ def criar_calibracao_aprovada(
         )
 
 
+def criar_calibracao_em_estado(
+    tenant,
+    equipamento,
+    *,
+    status: EstadoCalibracao,
+    subcontratado_id=None,
+    executor_id=None,
+    grandeza: str = "massa",
+    unidade: str = "g",
+) -> Calibracao:
+    """1 INSERT de `Calibracao` num `status` arbitrario (trigger anti-mutacao
+    so dispara em UPDATE/DELETE — criar ja num estado intermediario eh permitido).
+
+    Usado por testes de subcontratacao (T-CAL-129): CONFIGURADA para o caminho
+    `subcontratar`; AGUARDANDO_SUBCONTRATADO + `subcontratado_id` para o
+    caminho `registrar_recebimento`. `executor_id` opcional alimenta o teste de
+    separacao de funcoes (recebedor != executor — INV-CAL-FRAUDE-RECEB-001)."""
+    with run_in_tenant_context(tenant.id):
+        with connection.cursor() as cur:
+            cur.execute("SELECT nextval('calibracao_numero_seq_global')")
+            numero = cur.fetchone()[0]
+        campos = {
+            "tenant": tenant,
+            "instrumento": equipamento,
+            "numero_interno": numero,
+            "cliente_referencia_hash": "v01$cli",
+            "cliente_key_id": "cli-key-v1",
+            "status": status.value,
+            "grandeza_calibrada": grandeza,
+            "faixa_calibrada_min": Decimal("0"),
+            "faixa_calibrada_max": Decimal("1000"),
+            "unidade_calibrada": unidade,
+            "snapshot_equipamento_json": {"tag": equipamento.tag},
+        }
+        if subcontratado_id is not None:
+            campos["subcontratado_id"] = subcontratado_id
+        if executor_id is not None:
+            campos["executor_id"] = executor_id
+        return Calibracao.objects.create(**campos)
+
+
 def criar_orcamento_incerteza(tenant, calibracao) -> OrcamentoIncerteza:
     """Pai dos `OrcamentoPorPonto` (FK NOT NULL). Agregado pior-caso não-normativo."""
     with run_in_tenant_context(tenant.id):

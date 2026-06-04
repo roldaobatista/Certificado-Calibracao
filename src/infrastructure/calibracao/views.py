@@ -139,6 +139,22 @@ from src.application.metrologia.calibracao.rejeitar_revisao import (
 from src.application.metrologia.calibracao.rejeitar_revisao import (
     executar as rejeitar_revisao_executar,
 )
+from src.application.metrologia.calibracao.subcontratacao import (
+    AssinaturaTouchAltoRiscoSemDeclaracao,
+    EstadoInvalidoParaRegistrarRecebimento,
+    EstadoInvalidoParaSubcontratar,
+    RecebedorIgualExecutorProibido,
+    RecebedorSpoofingProibido,
+    RegistrarRecebimentoSubcontratadoInput,
+    SubcontratarCalibracaoInput,
+    TransferenciaInternacionalSemBaseLGPD,
+)
+from src.application.metrologia.calibracao.subcontratacao import (
+    registrar_recebimento_subcontratado as registrar_recebimento_executar,
+)
+from src.application.metrologia.calibracao.subcontratacao import (
+    subcontratar_calibracao as subcontratar_executar,
+)
 from src.domain.metrologia.calibracao.entities import OrigemLeitura
 from src.domain.metrologia.calibracao.enums import (
     DecisaoReclamacao,
@@ -172,8 +188,10 @@ from src.infrastructure.calibracao.serializers import (
     FecharNCSerializer,
     RecepcionarCalibracaoSerializer,
     RegistrarLeituraSerializer,
+    RegistrarRecebimentoSubcontratadoSerializer,
     RejeitarRevisaoSerializer,
     ResponderReclamacaoSerializer,
+    SubcontratarSerializer,
 )
 from src.infrastructure.idempotencia.services_idempotencia import (
     ErroValidacao,
@@ -217,6 +235,8 @@ ENDPOINT_NC_FECHAR = "calibracao.nc_fechar"
 ENDPOINT_RECL_ABRIR = "calibracao.reclamacao_abrir"
 ENDPOINT_RECL_ATRIBUIR_RT = "calibracao.reclamacao_atribuir_rt"
 ENDPOINT_RECL_RESPONDER = "calibracao.reclamacao_responder"
+ENDPOINT_SUBC_SUBCONTRATAR = "calibracao.subcontratar"
+ENDPOINT_SUBC_RECEBIMENTO = "calibracao.registrar_recebimento_subcontratado"
 
 
 def _resposta_erro_idempotencia(erro: ErroValidacao) -> Response:
@@ -2587,6 +2607,399 @@ class ReclamacaoViewSet(viewsets.ViewSet):
                 "reclamacao_id": str(out.snapshot.id),
                 "usuario_id": str(usuario_id),
                 "dispara_recall_m5": out.dispara_recall_m5,
+            },
+        )
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id_ctx,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body)
+
+
+# authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+class SubcontratacaoViewSet(viewsets.ViewSet):
+    """ViewSet REST de subcontratacao ISO 17025 cl. 6.6 (T-CAL-129 — US-CAL-017).
+
+      POST /api/v1/calibracoes/{id}/subcontratar
+        CONFIGURADA -> AGUARDANDO_SUBCONTRATADO (AC-CAL-017-1/2/7/8)
+      POST /api/v1/calibracoes/{id}/registrar-recebimento-subcontratado
+        AGUARDANDO_SUBCONTRATADO -> RECEBIDA_DO_SUBCONTRATADO (AC-CAL-017-3)
+
+    Use cases puros em application/.../calibracao/subcontratacao.py. Mesmo
+    molde das demais actions M4: Idempotency-Key obrigatoria (IDEMP-CAL-01),
+    evento WORM no mesmo `transaction.atomic` (OBS-CAL-01), `motivo_hash`
+    derivado server-side (SEG-CAL-07), `recebedor` = usuario logado e enforce
+    `recebedor != executor` no use case (SEG-CAL-04 + INV-CAL-FRAUDE-RECEB-001).
+
+    Autorizacao: `RequireAuthz` (deny-by-default) resolve a acao via
+    `get_authz_action` -> `ACTION_MAP[self.action]` (mesmo molde de
+    `metrologia/certificados/views.py`). `self.action` vem do `action_map`
+    de `as_view({"post": "<metodo>"})`.
+    """
+
+    authz_purpose = "execucao_contrato"
+    ACTION_MAP = {
+        "subcontratar": "calibracao.subcontratar",
+        "registrar_recebimento": "calibracao.registrar_recebimento_subcontratado",
+    }
+
+    def get_authz_action(self, request: Request) -> str | None:
+        action_name = getattr(self, "action", None)
+        return self.ACTION_MAP.get(action_name) if action_name else None
+
+    def get_authz_resource(self, request: Request) -> dict[str, Any]:
+        return {}
+
+    # authz-check: skip -- RequireAuthz resolve via get_authz_action/ACTION_MAP acima
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="calibracoes/(?P<calibracao_pk>[^/.]+)/subcontratar",
+    )
+    def subcontratar(
+        self, request: Request, calibracao_pk: str | None = None
+    ) -> Response:
+        """POST /api/v1/calibracoes/{id}/subcontratar/.
+
+        US-CAL-017 cl. 6.6. CONFIGURADA -> AGUARDANDO_SUBCONTRATADO via CAS.
+        """
+        serializer = SubcontratarSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+
+        try:
+            cal_id = UUID(str(calibracao_pk))
+        except (ValueError, TypeError) as exc:
+            raise NotFound(f"calibracao_id invalido: {exc}") from exc
+
+        tenant_id_ctx = active_tenant_context.get()
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        # SEG-CAL-07: derivar hash do motivo server-side (ADR-0064).
+        motivo_hash = derivar_hash_texto_canonicalizado(
+            texto=dados["motivo_canonicalizado"],
+            tenant_id=tenant_id_ctx,
+        )
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id_ctx,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_SUBC_SUBCONTRATAR,
+            payload_fingerprint={
+                "calibracao_id": str(cal_id),
+                "revision_esperada": dados["revision_esperada"],
+                "subcontratado_id": str(dados["subcontratado_id"]),
+                "aceite_subcontratacao_id": str(dados["aceite_subcontratacao_id"]),
+                "motivo_hash_fingerprint": hashlib.sha256(
+                    motivo_hash.encode()
+                ).hexdigest(),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+
+        repo = DjangoCalibracaoRepository()
+        evento_repo = DjangoEventoDeCalibracaoRepository()
+        try:
+            inp = SubcontratarCalibracaoInput(
+                calibracao_id=cal_id,
+                revision_esperada=dados["revision_esperada"],
+                subcontratado_id=dados["subcontratado_id"],
+                aceite_subcontratacao_id=dados["aceite_subcontratacao_id"],
+                motivo_canonicalizado=dados["motivo_canonicalizado"],
+                motivo_hash=motivo_hash,
+                eh_pais_estrangeiro=dados["eh_pais_estrangeiro"],
+                dpa_clausulas_internacionais_id=dados.get(
+                    "dpa_clausulas_internacionais_id"
+                ),
+                assinatura_modo=dados["assinatura_modo"],
+                declaracao_aceite_touch_alto_risco_id=dados.get(
+                    "declaracao_aceite_touch_alto_risco_id"
+                ),
+            )
+        except ValueError as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response(
+                {"erro": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                out = subcontratar_executar(inp, repo)
+                append_evento_executar(
+                    AppendEventoCalibracaoInput(
+                        tenant_id=tenant_id_ctx,
+                        calibracao_id=out.snapshot.id,
+                        tipo="SubcontratadaParaLab",
+                        payload_raw={
+                            "calibracao_id": str(out.snapshot.id),
+                            "revision": out.snapshot.revision,
+                            "subcontratado_id": str(dados["subcontratado_id"]),
+                            "motivo_hash": motivo_hash,
+                            "status": out.snapshot.status.value,
+                        },
+                        finalidade="subcontratacao_lab",
+                        actor_user_id=usuario_id,
+                        occurred_at=datetime.now(UTC),
+                        correlation_id=out.snapshot.correlation_id,
+                        causation_id=novo.chave_id,
+                    ),
+                    evento_repo,
+                )
+        except CalibracaoNaoEncontrada as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
+            raise NotFound(str(exc)) from exc
+        except EstadoInvalidoParaSubcontratar as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "EstadoInvalido"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except TransferenciaInternacionalSemBaseLGPD as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": (
+                        "SubcontratadoForaBR_TransferenciaInternacionalSemBase"
+                    ),
+                },
+                status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+        except AssinaturaTouchAltoRiscoSemDeclaracao as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "TouchAltoRiscoSemDeclaracao"},
+                status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+        except ConflitoVersaoCalibracao as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "ConflitoVersao",
+                    "revision_atual": exc.snapshot_atual.revision,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        body = _serializar_snapshot(out.snapshot)
+        logger.info(
+            "calibracao.subcontratar OK calibracao_id=%s revision=%d",
+            out.snapshot.id,
+            out.snapshot.revision,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_SUBC_SUBCONTRATAR,
+                "calibracao_id": str(out.snapshot.id),
+                "usuario_id": str(usuario_id),
+                "revision": out.snapshot.revision,
+            },
+        )
+        concluir_chave(
+            chave_id=novo.chave_id,  # type: ignore[arg-type]
+            tenant_id=tenant_id_ctx,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body)
+
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path=(
+            "calibracoes/(?P<calibracao_pk>[^/.]+)/"
+            "registrar-recebimento-subcontratado"
+        ),
+    )
+    def registrar_recebimento(
+        self, request: Request, calibracao_pk: str | None = None
+    ) -> Response:
+        """POST /api/v1/calibracoes/{id}/registrar-recebimento-subcontratado/.
+
+        US-CAL-017 AC-CAL-017-3. AGUARDANDO_SUBCONTRATADO ->
+        RECEBIDA_DO_SUBCONTRATADO via CAS. `recebedor` = usuario logado
+        (SEG-CAL-04); use case enforce separacao de funcoes (cl. 6.2.5).
+        """
+        serializer = RegistrarRecebimentoSubcontratadoSerializer(
+            data=request.data
+        )
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+
+        try:
+            cal_id = UUID(str(calibracao_pk))
+        except (ValueError, TypeError) as exc:
+            raise NotFound(f"calibracao_id invalido: {exc}") from exc
+
+        tenant_id_ctx = active_tenant_context.get()
+        if tenant_id_ctx is None:
+            return Response(
+                {"erro": "tenant_id ausente no contexto"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id_ctx,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_SUBC_RECEBIMENTO,
+            payload_fingerprint={
+                "calibracao_id": str(cal_id),
+                "revision_esperada": dados["revision_esperada"],
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None
+
+        repo = DjangoCalibracaoRepository()
+        evento_repo = DjangoEventoDeCalibracaoRepository()
+        try:
+            inp = RegistrarRecebimentoSubcontratadoInput(
+                calibracao_id=cal_id,
+                revision_esperada=dados["revision_esperada"],
+                recebedor_user_id=usuario_id,
+                actor_user_id=usuario_id,
+                certificado_subcontratado_snapshot_json=dados[
+                    "certificado_subcontratado_snapshot_json"
+                ],
+            )
+        except ValueError as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_400_BAD_REQUEST,
+            )
+            return Response(
+                {"erro": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                out = registrar_recebimento_executar(inp, repo)
+                append_evento_executar(
+                    AppendEventoCalibracaoInput(
+                        tenant_id=tenant_id_ctx,
+                        calibracao_id=out.snapshot.id,
+                        tipo="RecebidaDoSubcontratado",
+                        payload_raw={
+                            "calibracao_id": str(out.snapshot.id),
+                            "revision": out.snapshot.revision,
+                            "status": out.snapshot.status.value,
+                        },
+                        finalidade="recebimento_subcontratado",
+                        actor_user_id=usuario_id,
+                        occurred_at=datetime.now(UTC),
+                        correlation_id=out.snapshot.correlation_id,
+                        causation_id=novo.chave_id,
+                    ),
+                    evento_repo,
+                )
+        except CalibracaoNaoEncontrada as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
+            raise NotFound(str(exc)) from exc
+        except RecebedorSpoofingProibido as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_403_FORBIDDEN,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "RecebedorSpoofingProibido"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        except RecebedorIgualExecutorProibido as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "SeparacaoFuncoesViolada"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except EstadoInvalidoParaRegistrarRecebimento as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {"erro": str(exc), "codigo": "EstadoInvalido"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except ConflitoVersaoCalibracao as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tenant_id_ctx,
+                response_status=status.HTTP_409_CONFLICT,
+            )
+            return Response(
+                {
+                    "erro": str(exc),
+                    "codigo": "ConflitoVersao",
+                    "revision_atual": exc.snapshot_atual.revision,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        body = _serializar_snapshot(out.snapshot)
+        logger.info(
+            "calibracao.registrar_recebimento_subcontratado OK "
+            "calibracao_id=%s revision=%d",
+            out.snapshot.id,
+            out.snapshot.revision,
+            extra={
+                "tenant_id": str(tenant_id_ctx),
+                "correlation_id": str(out.snapshot.correlation_id),
+                "endpoint": ENDPOINT_SUBC_RECEBIMENTO,
+                "calibracao_id": str(out.snapshot.id),
+                "usuario_id": str(usuario_id),
+                "revision": out.snapshot.revision,
             },
         )
         concluir_chave(

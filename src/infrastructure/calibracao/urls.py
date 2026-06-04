@@ -21,6 +21,7 @@ from .views import (
     NaoConformidadeViewSet,
     ReclamacaoViewSet,
     RevisaoViewSet,
+    SubcontratacaoViewSet,
 )
 
 router = DefaultRouter()
@@ -82,5 +83,16 @@ urlpatterns = [
         "reclamacoes/<str:reclamacao_pk>/responder/",
         ReclamacaoViewSet.as_view({"post": "responder"}),
         name="reclamacao-responder",
+    ),
+    # T-CAL-129 SubcontratacaoViewSet (US-CAL-017 cl. 6.6)
+    path(
+        "calibracoes/<str:calibracao_pk>/subcontratar/",
+        SubcontratacaoViewSet.as_view({"post": "subcontratar"}),
+        name="calibracao-subcontratar",
+    ),
+    path(
+        "calibracoes/<str:calibracao_pk>/registrar-recebimento-subcontratado/",
+        SubcontratacaoViewSet.as_view({"post": "registrar_recebimento"}),
+        name="calibracao-registrar-recebimento-subcontratado",
     ),
 ]
