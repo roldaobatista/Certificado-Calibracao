@@ -300,8 +300,33 @@ def _serializar_snapshot(snapshot: Any) -> dict[str, Any]:
     }
 
 
-# authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
-class CalibracaoViewSet(viewsets.ViewSet):
+# authz-check: skip -- esta base IMPLEMENTA a resolucao de acao p/ RequireAuthz
+# (get_authz_action -> ACTION_MAP[self.action]); nao decide permissao por conta
+# propria. Molde de metrologia/certificados/views.py.
+class _CalibracaoAuthzViewSet(viewsets.ViewSet):
+    """Base dos ViewSets M4 — resolve a acao authz via `ACTION_MAP[self.action]`.
+
+    `RequireAuthz` (deny-by-default, DEFAULT_PERMISSION_CLASSES) chama
+    `get_authz_action`; sem `ACTION_MAP` a porta de rede fica fechada (era o
+    estado dos ViewSets "esqueleto Wave A" antes da consolidacao — fecha
+    GATE-CAL-SEG "10 ViewSets ACTION_MAP"). `self.action` vem do `action_map`
+    de `as_view({"<metodo_http>": "<metodo_viewset>"})` ou do DefaultRouter.
+    Cada subclasse declara so o seu `ACTION_MAP`.
+    """
+
+    authz_purpose = "execucao_contrato"
+    ACTION_MAP: dict[str, str] = {}
+
+    def get_authz_action(self, request: Request) -> str | None:
+        action_name = getattr(self, "action", None)
+        return self.ACTION_MAP.get(action_name) if action_name else None
+
+    def get_authz_resource(self, request: Request) -> dict[str, Any]:
+        return {}
+
+
+# authz-check: skip -- RequireAuthz resolve via ACTION_MAP da base _CalibracaoAuthzViewSet
+class CalibracaoViewSet(_CalibracaoAuthzViewSet):
     """ViewSet REST de Calibracao (CRUD + transicoes de estado).
 
     Endpoints production-ready (3 actions POST + 1 GET):
@@ -310,6 +335,13 @@ class CalibracaoViewSet(viewsets.ViewSet):
       - configurar: POST /api/v1/calibracoes/{id}/configurar/  (US-CAL-002)
       - cancelar: POST /api/v1/calibracoes/{id}/cancelar/  (US-CAL-007)
     """
+
+    ACTION_MAP = {
+        "retrieve": "calibracao.ler",
+        "recepcionar": "calibracao.recepcionar",
+        "configurar": "calibracao.configurar",
+        "cancelar": "calibracao.cancelar",
+    }
 
     def retrieve(self, request: Request, pk: str | None = None) -> Response:
         """GET /api/v1/calibracoes/{id}/."""
@@ -957,14 +989,19 @@ def _serializar_leitura_correcao(snapshot: Any) -> dict[str, Any]:
 
 
 # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
-class LeituraViewSet(viewsets.ViewSet):
+class LeituraViewSet(_CalibracaoAuthzViewSet):
     """ViewSet REST de Leitura (T-CAL-124 — registrar + corrigir).
 
       POST /api/v1/calibracoes/{calibracao_pk}/registrar-leitura
       POST /api/v1/leituras/{leitura_pk}/corrigir
     """
 
-    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    ACTION_MAP = {
+        "registrar": "calibracao.registrar_leitura",
+        "corrigir": "calibracao.corrigir_leitura",
+    }
+
+    # authz-check: skip -- RequireAuthz resolve via ACTION_MAP da base
     # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
     @action(
         detail=False,
@@ -1324,15 +1361,20 @@ class LeituraViewSet(viewsets.ViewSet):
         return Response(body, status=status.HTTP_201_CREATED)
 
 
-# authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
-class RevisaoViewSet(viewsets.ViewSet):
+# authz-check: skip -- RequireAuthz resolve via ACTION_MAP da base _CalibracaoAuthzViewSet
+class RevisaoViewSet(_CalibracaoAuthzViewSet):
     """ViewSet REST de Revisao (T-CAL-126 — aprovar + rejeitar).
 
       POST /api/v1/calibracoes/{id}/aprovar-revisao   (US-CAL-007)
       POST /api/v1/calibracoes/{id}/rejeitar-revisao  (US-CAL-007 caminho B)
     """
 
-    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    ACTION_MAP = {
+        "aprovar": "calibracao.aprovar_revisao",
+        "rejeitar": "calibracao.rejeitar_revisao",
+    }
+
+    # authz-check: skip -- RequireAuthz resolve via ACTION_MAP da base
     # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
     @action(
         detail=False,
@@ -1660,14 +1702,18 @@ class RevisaoViewSet(viewsets.ViewSet):
         return Response(body)
 
 
-# authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
-class ConferenciaViewSet(viewsets.ViewSet):
+# authz-check: skip -- RequireAuthz resolve via ACTION_MAP da base _CalibracaoAuthzViewSet
+class ConferenciaViewSet(_CalibracaoAuthzViewSet):
     """ViewSet REST de 2a Conferencia (T-CAL-127 — aprovar).
 
       POST /api/v1/calibracoes/{id}/aprovar-2a-conferencia  (US-CAL-008)
     """
 
-    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    ACTION_MAP = {
+        "aprovar_2a": "calibracao.aprovar_2a_conferencia",
+    }
+
+    # authz-check: skip -- RequireAuthz resolve via ACTION_MAP da base
     # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
     @action(
         detail=False,
@@ -1899,7 +1945,7 @@ def _serializar_nc(snapshot: Any) -> dict[str, Any]:
 
 
 # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
-class NaoConformidadeViewSet(viewsets.ViewSet):
+class NaoConformidadeViewSet(_CalibracaoAuthzViewSet):
     """ViewSet REST de Nao-Conformidade (T-CAL-128 — abrir + fechar).
 
       POST /api/v1/nao-conformidades/abrir         (US-CAL-013 marcar-nc)
@@ -1911,6 +1957,11 @@ class NaoConformidadeViewSet(viewsets.ViewSet):
     fechar so funciona quando NC ja esta em EFICACIA_VERIFICADA (admin
     pode avancar via shell ate as 3 transicoes intermediarias entrarem).
     """
+
+    ACTION_MAP = {
+        "abrir": "calibracao.nc_abrir",
+        "fechar": "calibracao.nc_fechar",
+    }
 
     # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
     # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
@@ -2166,8 +2217,8 @@ def _serializar_reclamacao(snapshot: Any) -> dict[str, Any]:
     }
 
 
-# authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
-class ReclamacaoViewSet(viewsets.ViewSet):
+# authz-check: skip -- RequireAuthz resolve via ACTION_MAP da base _CalibracaoAuthzViewSet
+class ReclamacaoViewSet(_CalibracaoAuthzViewSet):
     """ViewSet REST de ReclamacaoCalibracao (T-CAL-132 — 3 actions).
 
       POST /api/v1/reclamacoes/abrir                (US-CAL-018-1)
@@ -2177,7 +2228,13 @@ class ReclamacaoViewSet(viewsets.ViewSet):
     cl. 7.9 ISO 17025 + CDC art. 26 (janela 90d).
     """
 
-    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+    ACTION_MAP = {
+        "abrir": "calibracao.reclamacao_abrir",
+        "atribuir_rt": "calibracao.reclamacao_atribuir_rt",
+        "responder": "calibracao.reclamacao_responder",
+    }
+
+    # authz-check: skip -- RequireAuthz resolve via ACTION_MAP da base
     # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
     @action(
         detail=False,
@@ -2618,8 +2675,8 @@ class ReclamacaoViewSet(viewsets.ViewSet):
         return Response(body)
 
 
-# authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
-class SubcontratacaoViewSet(viewsets.ViewSet):
+# authz-check: skip -- RequireAuthz resolve via ACTION_MAP da base _CalibracaoAuthzViewSet
+class SubcontratacaoViewSet(_CalibracaoAuthzViewSet):
     """ViewSet REST de subcontratacao ISO 17025 cl. 6.6 (T-CAL-129 — US-CAL-017).
 
       POST /api/v1/calibracoes/{id}/subcontratar
@@ -2633,26 +2690,16 @@ class SubcontratacaoViewSet(viewsets.ViewSet):
     derivado server-side (SEG-CAL-07), `recebedor` = usuario logado e enforce
     `recebedor != executor` no use case (SEG-CAL-04 + INV-CAL-FRAUDE-RECEB-001).
 
-    Autorizacao: `RequireAuthz` (deny-by-default) resolve a acao via
-    `get_authz_action` -> `ACTION_MAP[self.action]` (mesmo molde de
-    `metrologia/certificados/views.py`). `self.action` vem do `action_map`
-    de `as_view({"post": "<metodo>"})`.
+    Autorizacao via base `_CalibracaoAuthzViewSet` (ACTION_MAP[self.action]).
+    `self.action` vem do `action_map` de `as_view({"post": "<metodo>"})`.
     """
 
-    authz_purpose = "execucao_contrato"
     ACTION_MAP = {
         "subcontratar": "calibracao.subcontratar",
         "registrar_recebimento": "calibracao.registrar_recebimento_subcontratado",
     }
 
-    def get_authz_action(self, request: Request) -> str | None:
-        action_name = getattr(self, "action", None)
-        return self.ACTION_MAP.get(action_name) if action_name else None
-
-    def get_authz_resource(self, request: Request) -> dict[str, Any]:
-        return {}
-
-    # authz-check: skip -- RequireAuthz resolve via get_authz_action/ACTION_MAP acima
+    # authz-check: skip -- RequireAuthz resolve via ACTION_MAP da base
     # idempotency-key: skip -- _aplicar_idempotencia consome HTTP_IDEMPOTENCY_KEY no corpo
     @action(
         detail=False,

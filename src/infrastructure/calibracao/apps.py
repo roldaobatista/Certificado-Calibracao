@@ -14,66 +14,46 @@ class CalibracaoConfig(AppConfig):
     verbose_name = "Calibracao Metrologica (ISO 17025)"
 
     def ready(self) -> None:
-        """Registra predicates ABAC do modulo (T-CAL-069..075 / Fase 4 Batch B).
+        """Predicates ABAC do modulo — NENHUM bound (decisao consolidacao 2026-06).
 
-        ADR-0012 (AuthorizationProvider) + ADR-0024 + ADR-0026 + ADR-0063.
+        ADR-0012 (AuthorizationProvider) + ADR-0073 (validacao metrologica no
+        USE CASE, nao no permission layer DRF).
 
-        Predicates registrados nesta release (Fase 2 Batch C + Fase 4):
-          - `cmc_cobre` — calibracao.configurar + iniciar_leituras
-            (RBC tenant tem CMC cobrindo grandeza+faixa).
-          - `procedimento_vigente_para` — calibracao.configurar
-            (cl. 7.2 — procedimento tecnico vigente na data).
-          - `pode_aprovar_revisao_2a_conferencia` —
-            calibracao.aprovar_revisao + calibracao.aprovar_2a_conferencia
-            (segregacao funcoes cl. 6.2.5 + INV-CAL-FRAUDE-REV-001 +
-            INV-CAL-FRAUDE-CONF-001 + ADR-0026 excecao 4 condicoes).
+        **Remocao coordenada (ADR-0073 §3) executada na consolidacao da porta
+        REST do Marco 4** — os 3 predicates ABAC antes registrados aqui foram
+        DESVINCULADOS do authz (review tech-lead 2026-06, Opcao A):
 
-        Predicates pendentes pra Fase 5+ (use cases que carregam payload
-        ainda nao existem; sao stubs ou diferidos):
-          - `padrao_vigente_no_uso` (INV-PAD-003 + INV-PAD-004 — modulo
-            metrologia/padroes Wave A separado, ADR-0040).
-          - `regra_decisao_acordada_cobre` (cliente_id+regra na data —
-            consulta AceiteRegraDecisao; use case `configurarCalibracao`
-            instancia, predicate puro em Fase 5).
-          - `clausula_override_vigente` (NOVO P-CAL-A3 advogado).
-          - `subcontratado_vigente_para` (avaliacao periodica em dia).
-          - `pode_marcar_nc_calibracao`, `pode_corrigir_leitura`,
-            `pode_registrar_leitura`, `pode_subcontratar` — papeis
-            operacionais; mapeados na matriz authz_perfil_acao (seed
-            0013) e RBAC ja cobre. ABAC predicate so quando houver
-            regra dependente de contexto alem do perfil.
+          - `cmc_cobre` / `procedimento_vigente_para` (eram: calibracao.configurar
+            + iniciar_leituras): a validacao de cobertura metrologica migrou pro
+            use case `configurar_calibracao` via portas `escopos_cmc.cobre` /
+            `procedimentos_calibracao.cobre_procedimento` (ADR-0073/0074/0076 —
+            GATE-CAL-CMC-PREDICATE + GATE-CAL-PROC-VIGENTE-PREDICATE FECHADOS).
+            O binding aqui era debito de "remocao coordenada" da ADR-0073 §3:
+            como exigia resource {grandeza,faixa,...} que o ViewSet nao alimenta
+            (`get_authz_resource -> {}`), retornava `cmc_resource_invalido` =>
+            403 espurio, fechando a porta REST de configurar.
+
+          - `pode_aprovar_revisao_2a_conferencia` (era: aprovar_revisao +
+            aprovar_2a_conferencia): segregacao de funcoes cl. 6.2.5 exige o
+            `executor_id` da Calibracao PERSISTIDA — regra que ADR-0073 §2 manda
+            ficar no use case, nao no permission layer. Os use cases
+            `aprovar_revisao` / `aprovar_2a_conferencia` JA invocam
+            `pode_aprovar_revisao_2a_conferencia` com `executor_id` real
+            (FraudeRevisorEhExecutor / FraudeConferenteEhRevisorOuExecutor =>
+            422). O binding no authz era redundante e MASCARAVA o 422 correto
+            com um 403 (resource invalido).
+
+        Authz dessas acoes = RBAC puro (matriz `authz_perfil_acao`, seeds 0013 +
+        0021 + 0022). Os enforcements de negocio (cobertura, competencia,
+        segregacao) vivem nos use cases com estado server-side — alinhado a
+        ADR-0007 + ADR-0073. As funcoes em `predicates_calibracao.py` seguem:
+        `pode_aprovar_revisao_2a_conferencia` continua IMPORTADO pelos use cases;
+        `cmc_cobre`/`procedimento_vigente_para` ficam orfaos (debito rastreado
+        ADR-0073 §3 — nao remover no mesmo commit do desbind).
+
+        Predicates futuros (Fase 5+) so quando houver regra dependente de
+        contexto que NAO exija fetch de estado persistido (senao vai pro use
+        case por ADR-0073): clausula_override_vigente, subcontratado_vigente_para.
         """
-        from src.infrastructure.authz.predicates import register_predicate
-        from src.infrastructure.calibracao.predicates_calibracao import (
-            cmc_cobre,
-            pode_aprovar_revisao_2a_conferencia,
-            procedimento_vigente_para,
-        )
-
-        # cmc_cobre — escopo: configurar + iniciar_leituras (CMC vigente
-        # na data da configuracao + persiste cobertura ate execucao).
-        register_predicate(
-            "cmc_cobre",
-            cmc_cobre,
-            actions={"calibracao.configurar", "calibracao.iniciar_leituras"},
-        )
-
-        # procedimento_vigente_para — escopo: configurar
-        # (cl. 7.2 — procedimento documentado vigente NA configuracao;
-        # depois cravado em snapshot de Calibracao).
-        register_predicate(
-            "procedimento_vigente_para",
-            procedimento_vigente_para,
-            actions={"calibracao.configurar"},
-        )
-
-        # pode_aprovar_revisao_2a_conferencia — escopo: aprovar_revisao +
-        # aprovar_2a_conferencia (segregacao funcoes cl. 6.2.5).
-        register_predicate(
-            "pode_aprovar_revisao_2a_conferencia",
-            pode_aprovar_revisao_2a_conferencia,
-            actions={
-                "calibracao.aprovar_revisao",
-                "calibracao.aprovar_2a_conferencia",
-            },
-        )
+        # Nenhum predicate ABAC registrado (ver docstring — ADR-0073 Opcao A).
+        return

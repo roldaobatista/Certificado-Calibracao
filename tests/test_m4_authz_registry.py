@@ -1,19 +1,28 @@
-"""Testes registro ABAC M4 calibracao (P4 Fase 4 Batch B — T-CAL-069..075).
+"""Contrato authz M4 calibracao APOS consolidacao da porta REST (ADR-0073 Opcao A).
 
-Verifica que CalibracaoConfig.ready() registrou os 3 predicates
-(cmc_cobre, procedimento_vigente_para, pode_aprovar_revisao_2a_conferencia)
-no registry authz com escopo correto.
+ATUALIZADO 2026-06 (consolidacao da porta REST do Marco 4 + review tech-lead):
+os 3 predicates ABAC que ANTES eram bound aqui (cmc_cobre,
+procedimento_vigente_para, pode_aprovar_revisao_2a_conferencia) foram
+DESVINCULADOS do authz (`CalibracaoConfig.ready()` nao registra mais nada).
 
-Por que importante:
-- Sem o ready() rodando, predicate cmc_cobre nao bloqueia configuracao
-  fora do CMC — RBC com falso positivo em escopo CGCRE = risco regulatorio.
-- Sem escopo declarado, predicate poderia rodar em acoes nao-calibracao
-  (ex: cliente.criar) — bug FB-A1 reportado no T-FB-01.
+Por que mudou (ADR-0073 — "validacao metrologica no USE CASE, nao no permission
+layer DRF"):
+- `cmc_cobre`/`procedimento_vigente_para`: cobertura metrologica migrou pros use
+  cases via portas `escopos_cmc.cobre`/`procedimentos.cobre_procedimento`
+  (GATE-CAL-CMC-PREDICATE + GATE-CAL-PROC-VIGENTE-PREDICATE FECHADOS). O binding
+  exigia resource {grandeza,faixa,...} que o ViewSet nao alimenta — retornava
+  `cmc_resource_invalido` => 403 espurio, FECHANDO a porta REST de configurar.
+- `pode_aprovar_revisao_2a_conferencia`: segregacao cl. 6.2.5 exige `executor_id`
+  da Calibracao PERSISTIDA (ADR-0073 §2 manda no use case). Os use cases
+  `aprovar_revisao`/`aprovar_2a_conferencia` JA invocam o predicate com o
+  `executor_id` real => 422 FraudeRevisorEhExecutor/FraudeConferente. O binding
+  no authz MASCARAVA esse 422 com um 403 (resource invalido).
 
-Padroes:
-  - Testa apenas o registry; comportamento dos predicates ja coberto em
-    test_m4_predicates_calibracao.py.
-  - Sem chamadas a DB (registry eh estrutura in-memory).
+Estes testes agora TRAVAM o contrato novo (predicates NAO bound) e pegam
+RE-BINDING acidental — alerta explicito do tech-lead. O comportamento das
+FUNCOES dos predicates (puras) segue coberto em test_m4_predicates_calibracao.py;
+o enforcement ponta-a-ponta no use case em test_m7_wire_in_configurar_p3.py +
+test_m4_uc_aprovar_revisao.py.
 """
 
 from __future__ import annotations
@@ -23,91 +32,48 @@ from src.infrastructure.authz.predicates import get_predicates, predicates_aplic
 # Sem pytest.mark.django_db — registry eh estrutura in-memory populada por
 # AppConfig.ready() no import do Django settings; nao depende de DB.
 
+_PREDICATES_DESVINCULADOS_ADR0073 = {
+    "cmc_cobre",
+    "procedimento_vigente_para",
+    "pode_aprovar_revisao_2a_conferencia",
+}
 
-def test_cmc_cobre_registrado_com_escopo_correto() -> None:
-    """cmc_cobre aplica em calibracao.configurar + iniciar_leituras."""
+
+def test_predicates_metrologicos_nao_bound_no_authz() -> None:
+    """ADR-0073 Opcao A: nenhum dos 3 predicates M4 fica registrado no authz.
+
+    Validacao de cobertura/competencia/segregacao vive nos use cases com estado
+    server-side. Se algum reaparecer aqui = regressao de re-binding (reabre o
+    403-espurio + mascara o 422 de dominio).
+    """
     registry = get_predicates()
-    assert "cmc_cobre" in registry, (
-        "cmc_cobre nao foi registrado — CalibracaoConfig.ready() nao rodou "
-        "ou esta com erro. Conferir src/infrastructure/calibracao/apps.py."
+    presentes = _PREDICATES_DESVINCULADOS_ADR0073 & set(registry)
+    assert presentes == set(), (
+        f"Predicates M4 RE-BOUND no authz (viola ADR-0073 Opcao A): {presentes}. "
+        "Cobertura metrologica + segregacao cl. 6.2.5 sao enforcadas nos use "
+        "cases (configurar_calibracao / aprovar_revisao / aprovar_2a_conferencia), "
+        "nao no permission layer. Conferir src/infrastructure/calibracao/apps.py."
     )
-    pred = registry["cmc_cobre"]
-    assert pred.aplica("calibracao.configurar")
-    assert pred.aplica("calibracao.iniciar_leituras")
 
 
-def test_procedimento_vigente_para_registrado_so_em_configurar() -> None:
-    """procedimento_vigente_para aplica APENAS em calibracao.configurar."""
-    registry = get_predicates()
-    assert "procedimento_vigente_para" in registry
-    pred = registry["procedimento_vigente_para"]
-    assert pred.aplica("calibracao.configurar")
-    # NAO aplica em iniciar (snapshot ja cravado em configurar)
-    assert not pred.aplica("calibracao.iniciar_leituras")
+def test_acoes_m4_nao_tem_predicate_aplicavel() -> None:
+    """As acoes antes gated por predicate agora sao RBAC puro (sem ABAC)."""
+    for acao in (
+        "calibracao.configurar",
+        "calibracao.iniciar_leituras",
+        "calibracao.aprovar_revisao",
+        "calibracao.aprovar_2a_conferencia",
+    ):
+        aplicaveis = predicates_aplicaveis(acao)
+        nomes_m4 = {p.nome for p in aplicaveis} & _PREDICATES_DESVINCULADOS_ADR0073
+        assert nomes_m4 == set(), (
+            f"{acao} ainda tem predicate ABAC M4 aplicavel: {nomes_m4} "
+            "(deveria ser RBAC puro pos-ADR-0073)."
+        )
 
 
-def test_pode_aprovar_revisao_registrado_nas_duas_aprovacoes() -> None:
-    """pode_aprovar_revisao_2a_conferencia aplica nas 2 aprovacoes (cl. 6.2.5)."""
-    registry = get_predicates()
-    assert "pode_aprovar_revisao_2a_conferencia" in registry
-    pred = registry["pode_aprovar_revisao_2a_conferencia"]
-    assert pred.aplica("calibracao.aprovar_revisao")
-    assert pred.aplica("calibracao.aprovar_2a_conferencia")
-
-
-def test_predicates_nao_vazam_em_acoes_nao_calibracao() -> None:
-    """Predicates M4 NAO aplicam em acoes fora de calibracao.*."""
-    registry = get_predicates()
-    for nome_pred in [
-        "cmc_cobre",
-        "procedimento_vigente_para",
-        "pode_aprovar_revisao_2a_conferencia",
-    ]:
-        if nome_pred not in registry:
-            continue
-        pred = registry[nome_pred]
-        # Acoes de outros modulos NAO devem disparar predicates M4
-        assert not pred.aplica("os.criar")
-        assert not pred.aplica("clientes.criar")
-        assert not pred.aplica("certificado.emitir")
-        assert not pred.aplica("equipamentos.criar")
-
-
-def test_predicates_aplicaveis_em_configurar() -> None:
-    """predicates_aplicaveis('calibracao.configurar') retorna 2 predicates."""
-    aplicaveis = predicates_aplicaveis("calibracao.configurar")
-    nomes = {p.nome for p in aplicaveis}
-    # cmc_cobre + procedimento_vigente_para (Fase 4 atual; mais virao em Fase 5)
-    assert "cmc_cobre" in nomes
-    assert "procedimento_vigente_para" in nomes
-
-
-def test_predicates_aplicaveis_em_aprovar_revisao() -> None:
-    aplicaveis = predicates_aplicaveis("calibracao.aprovar_revisao")
-    nomes = {p.nome for p in aplicaveis}
-    assert "pode_aprovar_revisao_2a_conferencia" in nomes
-    # cmc_cobre NAO aplica em aprovar (RBC ja validado em configurar)
-    assert "cmc_cobre" not in nomes
-
-
-def test_predicates_aplicaveis_em_acao_sem_predicate_retorna_lista_vazia() -> None:
-    """ABAC neutro pra actions sem predicate aplicavel — segue RBAC."""
-    # calibracao.subcontratar nao tem predicate ABAC (so RBAC matriz authz)
+def test_subcontratar_segue_rbac_puro() -> None:
+    """calibracao.subcontratar nunca teve ABAC — segue so RBAC (matriz seed)."""
     aplicaveis = predicates_aplicaveis("calibracao.subcontratar")
-    nomes_m4 = {p.nome for p in aplicaveis} & {
-        "cmc_cobre",
-        "procedimento_vigente_para",
-        "pode_aprovar_revisao_2a_conferencia",
-    }
-    # Nenhum predicate M4 aplica em subcontratar
+    nomes_m4 = {p.nome for p in aplicaveis} & _PREDICATES_DESVINCULADOS_ADR0073
     assert nomes_m4 == set()
-
-
-def test_registry_tem_3_predicates_m4() -> None:
-    """Exatamente 3 predicates M4 registrados nesta release."""
-    registry = get_predicates()
-    nomes_m4 = {"cmc_cobre", "procedimento_vigente_para", "pode_aprovar_revisao_2a_conferencia"}
-    presentes_m4 = nomes_m4 & set(registry)
-    assert presentes_m4 == nomes_m4, (
-        f"Predicates M4 ausentes: {nomes_m4 - presentes_m4}"
-    )
