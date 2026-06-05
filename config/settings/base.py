@@ -276,6 +276,9 @@ MIDDLEWARE = [
     # F-C2: PRIMEIRO da cadeia — correlation_id no contexto ANTES de tudo
     # (cobre request publico / 401 / 403); injetado em todo log + header resp.
     "src.infrastructure.observabilidade.middleware.CorrelationIdMiddleware",
+    # F-C2 Fatia D: cronometra request + conta por (method, view, status_class).
+    # Logo apos CorrelationId pra capturar quase todo o tempo do request.
+    "src.infrastructure.observabilidade.metricas.MetricasMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

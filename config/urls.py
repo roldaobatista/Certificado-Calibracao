@@ -7,6 +7,7 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from src.infrastructure.observabilidade.health import healthz, livez, readyz
+from src.infrastructure.observabilidade.metricas import metrics_view
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -14,6 +15,7 @@ urlpatterns = [
     path("healthz/", healthz, name="healthz"),  # legado, alias de liveness
     path("livez/", livez, name="livez"),
     path("readyz/", readyz, name="readyz"),
+    path("metrics", metrics_view, name="metrics"),  # exposicao Prometheus
     # OpenAPI / docs
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),

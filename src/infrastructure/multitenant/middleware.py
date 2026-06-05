@@ -48,6 +48,7 @@ PUBLIC_PATHS_PREFIX = (
     "/healthz",
     "/livez",
     "/readyz",
+    "/metrics",
     "/api/schema",
     "/api/docs",
     "/static/",
