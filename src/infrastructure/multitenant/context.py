@@ -27,6 +27,17 @@ active_tenant_context: ContextVar[UUID | None] = ContextVar("active_tenant_conte
 # - audit trail (Marco 4)
 usuario_id_context: ContextVar[UUID | None] = ContextVar("usuario_id_context", default=None)
 
+# F-C2 (observabilidade): correlation_id do request. Gerado/propagado por
+# `observabilidade.middleware.CorrelationIdMiddleware` (1o da cadeia, ANTES de
+# auth/tenant — cobre ate request publico / 401 / 403). Injetado em TODO log
+# pelo processor structlog `injetar_contexto_observabilidade` (fecha OBS-002 na
+# raiz: logs carregam correlation_id sem `extra=` manual). Tambem viaja pro
+# header de resposta `X-Correlation-ID`. Vazio fora de request HTTP (ex.: task
+# procrastinate antes do bridge — F-C2 fatia futura propaga no job context).
+correlation_id_context: ContextVar[str] = ContextVar(
+    "correlation_id_context", default=""
+)
+
 # T-FB-04 / AC-FB-008-1: HMAC do IP do request (NUNCA IP cru). Setado
 # por RequireAuthz/@requires_authz na borda; lido por _gravar_audit pra
 # preencher authz_decisions.ip_hash. Vazio fora de request HTTP (task).

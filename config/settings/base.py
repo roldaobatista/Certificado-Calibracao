@@ -273,6 +273,9 @@ AUTH_USER_MODEL = "usuario.Usuario"
 # Middleware
 # =============================================================
 MIDDLEWARE = [
+    # F-C2: PRIMEIRO da cadeia — correlation_id no contexto ANTES de tudo
+    # (cobre request publico / 401 / 403); injetado em todo log + header resp.
+    "src.infrastructure.observabilidade.middleware.CorrelationIdMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -484,25 +487,15 @@ SPECTACULAR_SETTINGS = {
 }
 
 # =============================================================
-# Logging — placeholder, structlog completo entra no Marco 4 (audit trail)
+# Logging estruturado — F-C2 (structlog + ProcessorFormatter).
+# JSON 1-linha-por-evento em prod/test (ingerivel Grafana/Axiom — AGENTS.md §2);
+# console legivel em dev (DEBUG=True). correlation_id/tenant_id/usuario_id
+# injetados em TODO log pelo processor `injetar_contexto_observabilidade`
+# (fecha OBS-002 na raiz). Integra os loggers stdlib existentes sem reescrever
+# call-site. Detalhes: src/infrastructure/observabilidade/logging_config.py.
 # =============================================================
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "simples": {
-            "format": "[{asctime}] {levelname} {name} | {message}",
-            "style": "{",
-        },
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "simples",
-        },
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "INFO",
-    },
-}
+from src.infrastructure.observabilidade.logging_config import (  # noqa: E402
+    configurar_logging,
+)
+
+LOGGING = configurar_logging(json_logs=not DEBUG)
