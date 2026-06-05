@@ -47,3 +47,32 @@ def test_readyz_503_quando_db_degradado(monkeypatch):
     body = r.json()
     assert body["status"] == "degraded"
     assert body["checks"]["db"].startswith("erro")
+
+
+def test_readyz_503_draining_durante_shutdown():
+    """SIGTERM -> iniciar_desligamento() -> /readyz 503 draining (precede checks),
+    mas /livez segue 200 (processo vivo, so drenando)."""
+    from src.infrastructure.observabilidade import desligamento
+
+    desligamento.iniciar_desligamento()
+    try:
+        r = Client().get("/readyz/")
+        assert r.status_code == 503, r.content
+        assert r.json()["status"] == "draining"
+        # liveness NAO reflete o drain — matar abortaria requests em voo
+        assert Client().get("/livez/").status_code == 200
+    finally:
+        desligamento._resetar_para_teste()
+
+
+def test_drain_flag_idempotente():
+    from src.infrastructure.observabilidade import desligamento
+
+    assert desligamento.esta_desligando() is False
+    desligamento.iniciar_desligamento()
+    desligamento.iniciar_desligamento()  # 2a chamada nao quebra
+    try:
+        assert desligamento.esta_desligando() is True
+    finally:
+        desligamento._resetar_para_teste()
+    assert desligamento.esta_desligando() is False

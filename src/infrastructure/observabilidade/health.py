@@ -20,11 +20,17 @@ from django.db import connections
 from django.http import HttpRequest, JsonResponse
 
 from src.infrastructure.authz.decorators import public
+from src.infrastructure.observabilidade.desligamento import esta_desligando
 
 
 @public
 def livez(_request: HttpRequest) -> JsonResponse:
-    """Liveness — o processo responde. Sem checagem de dependencia."""
+    """Liveness — o processo responde. Sem checagem de dependencia.
+
+    NAO reflete o drain: durante o graceful shutdown o processo continua VIVO
+    (so esta drenando) — matar via liveness abortaria requests em voo. Quem
+    tira do balanceador e o /readyz.
+    """
     return JsonResponse({"status": "ok"})
 
 
@@ -53,7 +59,17 @@ def _checar_cache() -> tuple[bool, str]:
 
 @public
 def readyz(_request: HttpRequest) -> JsonResponse:
-    """Readiness — apto a receber trafego (DB + cache OK). 503 se degradado."""
+    """Readiness — apto a receber trafego (DB + cache OK). 503 se degradado.
+
+    Drain (F-C2 Fatia C): se o processo recebeu SIGTERM, responde 503 "draining"
+    ANTES de checar dependencia — o balanceador para de mandar trafego e os
+    requests em voo terminam dentro da graceful-timeout do gunicorn.
+    """
+    if esta_desligando():
+        return JsonResponse(
+            {"status": "draining", "checks": {}},
+            status=503,
+        )
     db_ok, db_detalhe = _checar_db()
     cache_ok, cache_detalhe = _checar_cache()
     pronto = db_ok and cache_ok
