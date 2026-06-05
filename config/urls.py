@@ -4,21 +4,16 @@ Wave A · Marco 1 acrescenta `/api/v1/clientes/` ao Foundation.
 """
 
 from django.contrib import admin
-from django.http import JsonResponse
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from src.infrastructure.authz.decorators import public
-
-
-@public
-def healthz(_request):
-    """Endpoint trivial pra docker-compose validar que app esta de pe."""
-    return JsonResponse({"status": "ok", "fase": "wave-a"})
-
+from src.infrastructure.observabilidade.health import healthz, livez, readyz
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("healthz/", healthz, name="healthz"),
+    # F-C2: liveness (processo de pe) vs readiness (DB+cache OK -> 503 se nao).
+    path("healthz/", healthz, name="healthz"),  # legado, alias de liveness
+    path("livez/", livez, name="livez"),
+    path("readyz/", readyz, name="readyz"),
     # OpenAPI / docs
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),

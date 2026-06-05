@@ -46,6 +46,8 @@ def _extrair_ip(request: HttpRequest) -> str:
 # Paths que NAO exigem tenant context. Mantido pequeno e explicito.
 PUBLIC_PATHS_PREFIX = (
     "/healthz",
+    "/livez",
+    "/readyz",
     "/api/schema",
     "/api/docs",
     "/static/",
