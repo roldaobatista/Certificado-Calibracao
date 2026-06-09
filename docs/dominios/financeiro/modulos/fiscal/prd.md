@@ -11,6 +11,7 @@ historico:
   - 2026-05-23 — Onda 5 saneamento AC binário GIVEN-WHEN-THEN (US-FIS-001..010 + US-FIS-CUT-001).
   - 2026-05-23 — Onda 8 fluxo corrigido Cert/OS → NF → CR (INV-FIS-CR-001).
   - 2026-05-27 — Onda PRE-A.3 BATCH B1 saneamento perfil ADR-0067 (matriz NFS-e × perfil + INV-INT-001 perfil + AC-FIS-001-1 cita perfil + emendas ADR-0008/0009 explicitadas).
+  - 2026-06-09 — Frente fiscal/NFS-e Fatia 3 P8 (T-FIS-050): predicate `documento_metrologico_obrigatorio_por_perfil` roda no USE CASE (`emitir_nfse`), NÃO em `authz/predicates.py` (coerência ADR-0073 / D-FIS-5); fonte do vínculo RBC = snapshot `Certificado.tipo_acreditacao` do M8 (INV-FIS-002, nunca reconsulta Tenant); perfil A pode emitir NFS-e de cert NAO_RBC (D-FIS-6); AC-FIS-001-9 `tipo_servico` perfil D = `calibracao` simples (sem `_basica` — decisão Roldão D-FIS-7). Família INV-FIS-001..009 + 3 hooks.
 ---
 
 # PRD — Fiscal (NFS-e + NFe)
@@ -98,7 +99,8 @@ Predicate canônico consumido por todas as US fiscais que dependem de documento 
 - **AC-FIS-001-6 (OCSP revoked — ADR-0046):** GIVEN A3 do tenant revogado pela AC (OCSP `revoked`), WHEN POST, THEN retorna 409 `{erro: "CERT_REVOGADO"}` + publica `A3.RevogacaoDetectada` + escalação P1.
 - **AC-FIS-001-7 (município sem cobertura BaaS):** GIVEN onboarding de tenant em município sem cobertura BaaS declarada em `fiscal-contingencia.md`, WHEN tenant tenta ativar fiscal, THEN bloqueia ativação com 422 + mensagem clara + opção "cadastrar mecanismo manual" (V2).
 - **AC-FIS-001-8 (perfil incompatível com documento):** GIVEN tenant `perfil=B` envia payload com `certificado_id` apontando para cert emitido com `tipo_acreditacao=RBC` (perfil B não pode emitir RBC), WHEN POST `/api/v1/fiscal/nfse`, THEN predicate `documento_metrologico_obrigatorio_por_perfil` rejeita com 403 `{erro: "DOC_INCOMPATIVEL_COM_PERFIL", perfil: "B", esperado: "cert_simples", recebido: "cert_RBC"}` AND publica `Fiscal.EmissaoBloqueadaPerfilSemDoc` AND NENHUMA emissão (defesa anti-fraude documental L6 SAN-PERFIL-TENANT).
-- **AC-FIS-001-9 (perfil D + declaração):** GIVEN tenant `perfil=D` envia `declaracao_calibracao_basica_id` (sem certificado emitido), WHEN POST, THEN predicate aceita, emissão prossegue com `tipo_servico=calibracao_basica` + retém 5a (matriz retenção perfil D — `matriz-feature-perfil.md`).
+- **AC-FIS-001-9 (perfil D + declaração):** GIVEN tenant `perfil=D` envia `declaracao_calibracao_basica_id` (sem certificado emitido), WHEN POST, THEN predicate aceita, emissão prossegue com `tipo_servico=calibracao` (termo simples — decisão Roldão D-FIS-7; **proibido** "RBC"/"ISO 17025"/"acreditada" na descrição — INV-FIS-007) + retém 5a (matriz retenção perfil D — `matriz-feature-perfil.md`).
+- **AC-FIS-001-10 (perfil A + cert NAO_RBC — D-FIS-6):** GIVEN tenant `perfil=A` referencia `certificado_id` que saiu `tipo_acreditacao=NAO_RBC` (lab acreditado faturando calibração não-RBC), WHEN POST, THEN emite normalmente (201) sem selo RBC. A obrigatoriedade RBC do perfil A é sobre *capacidade*, não sobre *todo certificado*. Trava roda no use case (ADR-0073); vínculo lido do snapshot M8 (INV-FIS-002).
 - **Teste:** `tests/test_fiscal_us_001*.py`
 
 ### US-FIS-002 — Contingência automática SEFAZ/município fora
@@ -231,7 +233,7 @@ Enum `regime_tributario`: `NORMAL`, `SIMPLES_NACIONAL`, `MEI`, `ST_INDICADOR` (i
 Ver `glossario.md` do módulo + `docs/comum/glossario.md`. Termos canônicos adicionados nesta sanação:
 
 - **Perfil regulatório:** atributo `Tenant.perfil_regulatorio` enum `{A_ACREDITADO_RBC, B_RASTREAVEL, C_EM_PREPARACAO, D_COMERCIAL_PURO}` — fonte única consultada por todo predicate fiscal (ADR-0067).
-- **Predicate `documento_metrologico_obrigatorio_por_perfil`:** função canônica em `src/infrastructure/authz/predicates.py` que decide qual documento (cert RBC/cert simples/declaração) é obrigatório por perfil. Lê tenant, nunca payload.
+- **Predicate `documento_metrologico_obrigatorio_por_perfil`:** função canônica PURA em `src/domain/fiscal/perfil_documento.py`, executada **dentro do use case `emitir_nfse`** (coerência ADR-0073 — validação metrológica com estado persistido vai no use case, não no permission layer DRF). Decide qual documento (cert RBC/cert simples/declaração) é compatível por perfil. O perfil vem server-side (ContextVar), **nunca do payload** (INV-FIS-001); o `tipo_acreditacao` vem do snapshot `Certificado` do M8 (INV-FIS-002, nunca reconsulta vigência do Tenant). *(Atualizado 2026-06-09 — antes citava `authz/predicates.py`; movido ao use case na implementação.)*
 - **ContextVar `perfil_tenant_context`:** variável Python isolada por request (populada pelo middleware Sprint 2 SAN-PERFIL-TENANT) — fonte de leitura do perfil para predicate `documento_metrologico_obrigatorio_por_perfil`.
 - **GUC `app.perfil_tenant`:** seção `current_setting()` no PostgreSQL setada por `setar_contexto_pg_na_conexao` — usada por triggers BEFORE INSERT que preenchem `perfil_no_evento`.
 - **DeclaracaoCalibracaoBasica:** documento metrológico não-RBC emitido por perfil D (sem rituais 17025) — entidade no módulo `metrologia/calibracao`.

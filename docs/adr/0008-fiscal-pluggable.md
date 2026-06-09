@@ -14,6 +14,13 @@
 > - Perfil D (comercial puro): aceita `declaracao_calibracao_basica_id` (sem certificado emitido).
 > - Predicate `documento_metrologico_obrigatorio_por_perfil(tenant_id, tipo_servico)` consultado pelo FiscalProvider antes de emitir.
 
+> **Emenda 2026-06-09 (frente fiscal/NFS-e Fatia 2/3 — implementação do núcleo; `docs/faseamento/fiscal-nfse/plan.md`):**
+> - **(a) Trava de perfil no USE CASE, não no FiscalProvider/DRF (D-FIS-5, coerência ADR-0073):** `documento_metrologico_obrigatorio_por_perfil` roda DENTRO do `emitir_nfse`, recebendo `perfil` (server-side via ContextVar, nunca payload — INV-FIS-001) + `tipo_acreditacao` do certificado já carregado. A revisão consultor-rbc+tech-lead corrigiu a redação original "consultado pelo FiscalProvider" — o provider é agnóstico e não conhece perfil.
+> - **(b) Fonte de verdade do vínculo RBC = snapshot `Certificado.tipo_acreditacao` do M8 (INV-FIS-002):** a NFS-e NUNCA reconsulta `Tenant.acreditacao_vigencia_fim`; a vigência foi consumada 1x na emissão do certificado (INV-CER-CGCRE-VIG-001). Perfil A pode emitir NFS-e de cert NAO_RBC (D-FIS-6 — obrigatoriedade RBC é sobre *capacidade*, não *todo certificado*).
+> - **(c) VO `FiscalProvider`/`InvoicePayload`/`InvoiceResult` agnósticos (D-FIS-1):** campos BR (`chave_acesso_44`/`numero`) vivem em `InvoiceResult.metadata`/`raw_response`, NUNCA atributo nomeado; tradução BR só no serializer de infra.
+> - **(d) 14 cláusulas mínimas do contrato BaaS** (substituem as 6 da §5 — GATE-FIS-CONTRATO, minuta escrita / assinada só pré-produção): SLA 99,5%; DPA back-to-back; aviso ≥90d reajuste; aviso ≥180d descontinuação; direito de retirada XML (XSD); sub-processadores transparentes; papel LGPD explícito (sub-operador, vedado uso secundário); resp. por erro transmissão vs conteúdo fiscal; notificação incidente ≤24h; direito de auditoria/SOC 2-ISO 27001; retenção/devolução ao término; localização/transferência internacional (art. 33); lei BR + foro; limitação de resp. + seguro RC do BaaS.
+> - **Implementação:** porta + `MockFiscalProvider` + domínio + use cases + REST + INV-FIS-001..009 + 3 hooks entregues (Fatias 1a/1b/2/3). Adapters reais PlugNotas/Focus + B2 + circuit breaker = GATEs pré-produção.
+
 ---
 
 ## Glossário rápido (pra Roldão)
