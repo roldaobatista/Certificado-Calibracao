@@ -2,7 +2,7 @@
 owner: agente-ia
 revisado-em: 2026-06-09
 proximo-review: 2026-09-09
-status: draft
+status: stable
 diataxis: reference
 audiencia: [agente, auditor, advogado, tech-lead, consultor-rbc]
 frente: fiscal-nfse
@@ -89,10 +89,29 @@ nomeado + hook/trigger/RLS, 3 hooks verdes, 62 testes fiscais verdes (32+8+12+10
 contagens sincronizadas (70/543/80/148). Emendas ADR-0008 + PRD cravadas.
 **Pronto para P9** (auditores roteados).
 
-## 8. P9 — ritual auditores roteados (INV-RITUAL-003)
+## 8. P9 — ritual auditores roteados (INV-RITUAL-003) — FECHADO 2026-06-09
 
-A rotear (risco da frente): **seguranca** (perfil server-side L6 + cross-tenant +
-WORM) · **conformidade-lgpd** (PII do tomador em 2 regimes INV-FIS-009 + retenção
-zona B) · **supplychain** (porta agnóstica + deps futuras plugnotas/focus/pybreaker) ·
-**idempotencia** (2 camadas INV-FIS-005) · **llm-correctness** (docstrings/`Any`) ·
-**produto** (AC binários núcleo vs diferido). *(Preenchido no fechamento P9.)*
+6 auditores roteados pelo risco da frente: **seguranca · conformidade-lgpd ·
+supplychain · idempotencia · llm-correctness · produto** = **6/6 PASS, ZERO
+CRÍTICO/ALTO/MÉDIO**. INV-RITUAL-001 satisfeito.
+
+Achados BAIXO (não bloqueiam — regra resolver-TUDO aplicou na causa-raiz onde barato):
+
+| Auditor | Achado BAIXO | Tratamento |
+|---------|--------------|------------|
+| seguranca | OBS-FIS-01 — `snapshot_hash` sha256 (não HMAC-KMS) | **GATE pré-produção** (infra `hash_kms` inexistente; débito alinhado M4/M8/ADR-0064; formato `vNN$` pronto) |
+| conformidade-lgpd | GATE-LGPD-FIS-DENYLIST-01 — denylist sem chaves estilo-fiscal | **RESOLVIDO** — +`customer_name`/`customer_taxid`/`issuer_taxid` na denylist de `sanitizar_payload_audit` |
+| idempotencia | GATE-IDEMP-FIS-EMITIR-RACE — corrida dupla-origem sem lock no emitir | **RESOLVIDO** — advisory lock por `(tenant,origem_id)` no emitir (IDEMP-FIS-03), espelha o cancelar |
+| produto | falta E2E cancelar >24h (422) + cross-tenant (404) | **RESOLVIDO** — 2 E2E adicionados |
+| llm-correctness | vocab "query-then-CAS" no comentário do consultar | **RESOLVIDO** — "leitura-e-transição sob advisory lock (não CAS)" |
+| supplychain | — | PASS limpo (zero dep nova; porta agnóstica) |
+
+**Pré-P9, auto-review (FIS-SEG-01/02 + IDEMP-FIS-02):** docstring/help_text de
+`revision` corrigidos (UPDATE escopado + advisory lock, NÃO CAS — batiam falso com
+o corpo); hook perfil-server-side endurecido a matching por-linha; `consultar`
+marcado idempotency-exempt justificado.
+
+**Frente `fiscal/NFS-e` (núcleo de emissão) FECHADA.** GATEs pré-produção
+rastreados (não bloqueiam): GATE-FIS-PLUGNOTAS/FOCUS-REAL · GATE-FIS-B2-XML ·
+GATE-FIS-SMOKE-TRIMESTRAL · GATE-FIS-CONTRATO (14 cláusulas) · GATE-FIS-CIRCUIT-
+BREAKER · GATE-FIS-A3-OCSP · OBS-FIS-01 (HMAC-KMS).
