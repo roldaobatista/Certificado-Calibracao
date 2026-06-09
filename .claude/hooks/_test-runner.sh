@@ -1148,6 +1148,28 @@ run_case "LEA3 override PASS"                            PASS  lic-emergencial-a
 run_case "LEA4 entities lar isento PASS"                PASS  lic-emergencial-a3-check.sh '{"tool_input":{"file_path":"src/domain/metrologia/licencas_acreditacoes/entities.py","content":"class EventoEmergencial(\n  id: UUID\n)"}}'
 run_case "LEA5 teste ignora PASS"                       PASS  lic-emergencial-a3-check.sh '{"tool_input":{"file_path":"tests/test_m9.py","content":"evento = EventoEmergencial(id=uuid4())"}}'
 
+echo "===== fiscal-perfil-server-side (fiscal/NFS-e Fatia 3 / INV-FIS-001) ====="
+run_case "FPS1 perfil de request.data BLOCK"            BLOCK fiscal-perfil-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/views.py","content":"perfil = request.data[\"perfil\"]"}}'
+run_case "FPS2 perfil de validated_data BLOCK"          BLOCK fiscal-perfil-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/views.py","content":"perfil = validated_data[\"perfil\"]"}}'
+run_case "FPS3 perfil server-side PASS"                 PASS  fiscal-perfil-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/views.py","content":"perfil = obter_perfil_tenant_corrente()"}}'
+run_case "FPS4 override PASS"                            PASS  fiscal-perfil-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/views.py","content":"# fiscal-perfil-server-side: skip -- perfil resolvido em camada anterior DR-2026-100\nperfil = payload[\"perfil\"]"}}'
+run_case "FPS5 fora de path fiscal PASS"                PASS  fiscal-perfil-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/views.py","content":"perfil = request.data[\"perfil\"]"}}'
+run_case "FPS6 teste ignora PASS"                       PASS  fiscal-perfil-server-side-check.sh '{"tool_input":{"file_path":"tests/test_fiscal.py","content":"perfil = request.data[\"perfil\"]"}}'
+
+echo "===== fiscal-provider-import-fronteira (fiscal/NFS-e Fatia 3 / INV-FIS-003) ====="
+run_case "FPI1 import plugnotas no dominio BLOCK"       BLOCK fiscal-provider-import-fronteira-check.sh '{"tool_input":{"file_path":"src/domain/fiscal/x.py","content":"import plugnotas"}}'
+run_case "FPI2 from focusnfe no use case BLOCK"         BLOCK fiscal-provider-import-fronteira-check.sh '{"tool_input":{"file_path":"src/application/fiscal/emitir_nfse.py","content":"from focusnfe import Client"}}'
+run_case "FPI3 import pybreaker no dominio BLOCK"        BLOCK fiscal-provider-import-fronteira-check.sh '{"tool_input":{"file_path":"src/domain/fiscal/x.py","content":"import pybreaker"}}'
+run_case "FPI4 import na infra/fiscal PASS"             PASS  fiscal-provider-import-fronteira-check.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/adapters.py","content":"import plugnotas"}}'
+run_case "FPI5 override PASS"                            PASS  fiscal-provider-import-fronteira-check.sh '{"tool_input":{"file_path":"src/domain/fiscal/x.py","content":"# fiscal-provider-import: skip -- stub de tipos so para anotacao DR-2026-101\nimport pybreaker"}}'
+
+echo "===== fiscal-anti-rbc-em-descricao (fiscal/NFS-e Fatia 3 / INV-FIS-007) ====="
+run_case "FAR1 descricao com RBC hardcoded BLOCK"       BLOCK fiscal-anti-rbc-em-descricao.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/x.py","content":"service_description = \"Calibracao RBC acreditada\""}}'
+run_case "FAR2 descricao ISO 17025 BLOCK"               BLOCK fiscal-anti-rbc-em-descricao.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/x.py","content":"descricao = \"Servico ISO 17025\""}}'
+run_case "FAR3 calibracao generica PASS"                PASS  fiscal-anti-rbc-em-descricao.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/x.py","content":"service_description = \"Calibracao de balanca\""}}'
+run_case "FAR4 comentario citando RBC PASS"             PASS  fiscal-anti-rbc-em-descricao.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/x.py","content":"# perfil A pode exibir RBC na descricao acreditada"}}'
+run_case "FAR5 override PASS"                            PASS  fiscal-anti-rbc-em-descricao.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/x.py","content":"# fiscal-anti-rbc-descricao: skip -- perfil A acreditado legitimamente DR-2026-102\nservice_description = \"Calibracao RBC\""}}'
+
 # --- Gate anti-drift de contagens (auditoria maquina-dev 2026-05-29) ---
 # So no modo completo (sem filtro). Garante que os numeros a mao nos docs
 # canonicos (README/AGENTS/CLAUDE) batem com a fonte direta. Mata os

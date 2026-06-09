@@ -30,8 +30,8 @@ Cada categoria de dado tem:
 
 | Categoria de dado | Prazo mín | Prazo máx | Base legal | Local | Ação fim de prazo |
 |-------------------|-----------|-----------|------------|-------|---------------------|
-| **NF-e / NFS-e emitida** | 5 anos | 5 anos + 90 dias | Receita Federal art. 173 CTN | PG (1 ano quente) → B2 WORM (4 anos) | Anonimização + crypto-shredding |
-| **Lote fiscal (XML completo)** | 5 anos | 5 anos | Receita Federal | B2 WORM | Crypto-shredding |
+| **NF-e / NFS-e emitida** | 5 anos | 5 anos + 90 dias (prudencial até 10a se compõe audit de path sensível) | art. 173/174 CTN (decadência/prescrição) c/c art. 195 §único CTN + legislação municipal ISS | PG (1 ano quente) → B2 WORM (resto) | **Zona B (INV-FIS-008 / ADR-0021)** — pedido de eliminação do titular = recusa fundamentada LGPD art. 16 I; anonimização só APÓS o prazo fiscal (preserva dados fiscais obrigatórios) |
+| **Lote fiscal (XML completo)** | 5 anos | 5 anos (prudencial 10a quando compõe audit sensível) | art. 173/174 + 195 §único CTN + ISS municipal | B2 WORM Object Lock | Zona B — anonimização só após o prazo fiscal (INV-FIS-008) |
 | **Certificado de calibração emitido** | ~25 anos | Permanente | ISO 17025 cláusula 8.4 + boas práticas RBC | B2 WORM | Manter (NÃO eliminar — necessário pra rastreabilidade metrológica histórica) |
 | **Dados de medição associados ao certificado** | ~25 anos | Permanente | ISO 17025 8.4 | B2 WORM | Manter |
 | **Audit trail (toda ação de usuário)** | 2 anos | 5 anos | Boas práticas LGPD + governança | PG (90 dias) → B2 frio (resto) | Crypto-shredding |

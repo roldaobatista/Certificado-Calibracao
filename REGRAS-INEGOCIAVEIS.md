@@ -326,6 +326,38 @@
 
 ---
 
+## INV-FIS-* — Invariantes da frente fiscal/NFS-e (Wave A `fiscal`)
+
+> **Família canônica cravada 2026-06-08 (fiscal/NFS-e Fatia 3 — T-FIS-040).** Fonte:
+> spec/plan revisados por `advogado` + `tech-lead` + `consultor-rbc`
+> (`docs/faseamento/fiscal-nfse/plan.md` §1/§3, D-FIS-1..10; 26 achados incorporados).
+> Classes nomeadas `TestINV_FIS_*` em `tests/regressao/test_inv_fis_classes_nomeadas.py`
+> (TST-004). Núcleo agnóstico de país/fornecedor (ADR-0008); trava de perfil no use
+> case (ADR-0073). Deadline regulatório 01/09/2026.
+
+| ID | Regra | Base normativa | Hook que valida | Escopo por perfil | Consequência de violar |
+|---|---|---|---|---|---|
+| INV-FIS-001 | **Emissão de NFS-e `tipo_servico=calibracao` valida compatibilidade `perfil × Certificado.tipo_acreditacao` DENTRO do use case (ADR-0073)**, com o perfil lido **server-side via ContextVar — NUNCA do payload** (defesa L6); incompatível → 422/403 fail-closed. Formaliza INV-INT-001 do PRD na porta de emissão. | ISO 17025 cl. 7.8 + cl. 8.1.3 + ADR-0067/0073 | `documento_metrologico_obrigatorio_por_perfil` no use case + hook `fiscal-perfil-server-side-check` (bloqueia perfil do payload) | A: cert RBC ou NAO_RBC; B/C: cert simples; D: declaração | Tenant D forja NFS-e RBC = fraude documental viável |
+| INV-FIS-002 | **O vínculo RBC da NFS-e provém EXCLUSIVAMENTE do `Certificado.tipo_acreditacao` snapshotado pelo M8** (lido server-side de `certificado_id`, nunca do payload); a NFS-e **nunca** reavalia a vigência da acreditação nem reconsulta `Tenant.acreditacao_vigencia_fim`. A vigência foi consumada 1x na emissão do certificado (INV-CER-CGCRE-VIG-001). | ISO 17025 cl. 7.8 + cl. 8.4 + ADR-0008 emenda (D-FIS-5) | `vinculo_metrologico.ler_tipo_acreditacao` (server-side) + use case | Absoluta (todos perfis) | Reconsulta rebaixaria NFS-e legitimamente RBC (serviço já prestado) — veredito divergente do documento oficial |
+| INV-FIS-003 | **Domínio/use case NUNCA importam SDK de fornecedor; toda emissão passa pela porta `FiscalProvider` (Protocol).** `import plugnotas*`/`focus*`/`pybreaker` só em `infrastructure/fiscal/`. | ADR-0008 §1 (porta agnóstica) + D-FIS-8 | Hook `fiscal-provider-import-fronteira-check` (anti-import fora da fronteira) | Absoluta (todos perfis) | Acoplamento ao SDK = reescrita ao trocar fornecedor / sair pra LATAM |
+| INV-FIS-004 | **`NotaFiscalServico` + eventos `fiscal.nfse_emitida`/`fiscal.nfse_cancelada` na cadeia hash são append-only (WORM Padrão B)**; cancelamento é transição de estado + evento append-only (não UPDATE destrutivo); XML/JSON probatório canonicalizado (ADR-0029) + hash versionado (ADR-0064). `status` mutável só por transição válida; `emitido_em`/`cancelado_em` one-shot. | ISO 17025 cl. 8.4 + Receita Federal + ADR-0029/0031/0064 | Triggers WORM (migration 0003) + `audit-immutability-check` | Absoluta (todos perfis) | Nota adulterada/apagada = trilha fiscal probatória quebrada |
+| INV-FIS-005 | **`emitir_nfse` é idempotente em 2 camadas:** (a) `Idempotency-Key` (serviço central) — replay de request; (b) UNIQUE de negócio `(tenant_id, origem_id, versao)` — dupla emissão da mesma origem → 409 retorna a nota existente, sem 2ª chamada ao provider. | IDEMP-001 (ADR-0033) + D-FIS-2/3 | UNIQUE `uq_nfse_origem_versao` (migration 0001) + `existe_chave`/`obter_por_origem` no use case | Absoluta (todos perfis) | Dupla emissão fiscal = duplicidade tributária / dupla cobrança |
+| INV-FIS-006 | **Payload referenciando cliente/cert de outro tenant → bloqueio hard anti-oracle** (reusa INV-TENANT-001). RLS isola a nota por tenant. | ADR-0002 §6 + INV-TENANT-001 | RLS pattern v2 (migration 0002) + escopo por tenant no repo/use case | Absoluta (todos perfis) | Vazamento cross-tenant / oracle de existência |
+| INV-FIS-007 | **`service_description` + campos impressos da NFS-e de perfis B/C/D são proibidos de conter "RBC"/"ISO 17025"/"acreditada"/"acreditado"**; a flag `em_preparacao_para_rbc` (perfil C) é metadado interno, proibida na descrição. | ISO 17025 cl. 8.1.3 (uso indevido de acreditação) + ADR-0075 | Hook `fiscal-anti-rbc-em-descricao` (defesa estática) + validador na renderização (PDF/template — diferido) | B/C/D bloqueiam termo acreditado; A pode | Tomador interpreta serviço não-acreditado como RBC = uso indevido de acreditação |
+| INV-FIS-008 | **NFS-e emitida + XML probatório = zona B (ADR-0021): retenção fiscal mínima 5 anos** (art. 173/174 CTN + art. 195 §único CTN + legislação municipal ISS; prudencial até 10a quando compõe audit de path sensível). Pedido de eliminação do titular = recusa fundamentada (LGPD art. 16 I); anonimização só APÓS o prazo fiscal, preservando dados fiscais obrigatórios. DELETE físico bloqueado por trigger. | Receita/CTN + LGPD art. 16 I + ADR-0021 | Trigger `nota_fiscal_servico_block_delete` (migration 0003) + matriz retenção | Absoluta (todos perfis) | Apagar NFS-e no prazo fiscal = infração tributária / perda de prova |
+| INV-FIS-009 | **PII em 2 regimes: `InvoicePayload` ao provider carrega PII clara do tomador** (CNPJ/CPF/nome — base LGPD art. 7º II, só a operador sob DPA); **o evento WORM leva só `cliente_referencia_hash`** (ADR-0064) — PII clara NUNCA vaza para a trilha de eventos. | LGPD art. 7º II + art. 39 (operador/sub-operador) + ADR-0064 | `sanitizar_payload_audit` (event helper) + `cliente_referencia_hash` no payload do evento | Absoluta (todos perfis) | PII clara na trilha imutável = retenção indevida não-shreddável (conflito LGPD×fiscal) |
+
+> **Reusadas:** INV-INT-001 (matriz perfil), INV-FIS-CR-001 (evento dispara título —
+> consumer `contas-receber` diferido), INV-007/008 (audit + contingência — contingência
+> diferida), INV-TENANT-001..004, INV-TENANT-PERFIL-001/003/004, INV-HMAC-001..005,
+> INV-DOC-CANON-001 (ADR-0029), INV-ANON-001..004 (PII do tomador). Hooks novos da frente
+> fiscal: `fiscal-perfil-server-side-check`, `fiscal-provider-import-fronteira-check`,
+> `fiscal-anti-rbc-em-descricao` (T-FIS-041). GATEs pré-produção: GATE-FIS-PLUGNOTAS-REAL,
+> GATE-FIS-FOCUS-REAL, GATE-FIS-B2-XML, GATE-FIS-SMOKE-TRIMESTRAL, GATE-FIS-CONTRATO
+> (14 cláusulas), GATE-FIS-CIRCUIT-BREAKER, GATE-FIS-A3-OCSP (`plan.md` §5).
+
+---
+
 ## RAT-* — Registros de tratamento LGPD
 
 > Promovidos em 2026-05-23 — eram citados nos PRDs mas não existiam em catálogo canônico (achado da auditoria 10 lentes).
