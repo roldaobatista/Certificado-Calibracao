@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from django.db import models
+
 from src.domain.fiscal.entities import NotaFiscalServico
 from src.infrastructure.fiscal import mappers
 from src.infrastructure.fiscal.models import NotaFiscalServico as NotaFiscalServicoModel
@@ -49,26 +51,22 @@ class DjangoNotaFiscalServicoRepository:
         )
 
     def atualizar_status(
-        self,
-        *,
-        tenant_id: UUID,
-        nfse_id: UUID,
-        nota: NotaFiscalServico,
-        revision_atual: int,
+        self, *, tenant_id: UUID, nfse_id: UUID, nota: NotaFiscalServico
     ) -> None:
-        """Transição de estado via CAS (WHERE revision). Só campos mutáveis
-        (status/timestamps/motivo) — trigger WORM bloqueia o resto. `revision_atual`
-        é detalhe de infra (optimistic lock), não vive na entidade (molde M8)."""
+        """Transição de estado (status/timestamps/motivo). Concorrência protegida
+        pelo advisory lock da view + triggers one-shot do banco; o trigger WORM
+        bloqueia campos probatórios. `revision` bumpa por expressão (observabilidade,
+        não CAS)."""
         atualizadas = NotaFiscalServicoModel.objects.filter(
-            tenant_id=tenant_id, id=nfse_id, revision=revision_atual
+            tenant_id=tenant_id, id=nfse_id
         ).update(
             status=nota.status.value,
             emitido_em=nota.emitido_em,
             cancelado_em=nota.cancelado_em,
             motivo_cancelamento=nota.motivo_cancelamento or "",
-            revision=revision_atual + 1,
+            revision=models.F("revision") + 1,
         )
         if atualizadas != 1:
             raise RuntimeError(
-                "CAS falhou em NotaFiscalServico (revision divergente ou corrida)."
+                f"atualizar_status: esperava 1 linha, afetou {atualizadas} (nfse {nfse_id})."
             )

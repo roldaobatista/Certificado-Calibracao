@@ -30,4 +30,5 @@ urlpatterns = [
     path("api/v1/", include("src.infrastructure.metrologia.procedimentos_calibracao.urls")),
     path("api/v1/", include("src.infrastructure.metrologia.certificados.urls")),
     path("api/v1/", include("src.infrastructure.metrologia.licencas_acreditacoes.urls")),
+    path("api/v1/", include("src.infrastructure.fiscal.urls")),
 ]

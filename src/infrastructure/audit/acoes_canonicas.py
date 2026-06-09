@@ -314,6 +314,18 @@ ACOES_LICENCAS: Final[frozenset[str]] = frozenset(
 )
 
 
+# Frente fiscal/NFS-e (T-FIS-030/031) — emissao/cancelamento de NFS-e de servico.
+# Probatorias fiscais (retencao 5a — INV-FIS-008). Slug lowercase (vao ao
+# bus_outbox; `fiscal.nfse_emitida` tem consumer cross-modulo previsto
+# contas-receber — D-FIS-9/INV-FIS-CR-001).
+ACOES_FISCAL: Final[frozenset[str]] = frozenset(
+    {
+        "fiscal.nfse_emitida",
+        "fiscal.nfse_cancelada",
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -327,6 +339,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_PROCEDIMENTOS_CALIBRACAO
     | ACOES_CERTIFICADOS
     | ACOES_LICENCAS
+    | ACOES_FISCAL
 )
 
 
