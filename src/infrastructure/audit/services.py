@@ -130,6 +130,12 @@ _CHAVES_PII_DENYLIST = frozenset(
         "justificativa_bruta",
         "motivo_observacao",
         "procedencia_declarada",
+        # Chaves estilo-fiscal (NFS-e) — defesa em profundidade GATE-LGPD-FIS-DENYLIST-01.
+        # Hoje nenhum caminho grava PII clara fiscal no WORM (só cliente_referencia_hash),
+        # mas blinda payloads futuros do tomador/emitente cujo valor não case o regex PII.
+        "customer_name",
+        "customer_taxid",
+        "issuer_taxid",
     }
 )
 

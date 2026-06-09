@@ -255,6 +255,50 @@ def test_cancelar_motivo_curto_400(monkeypatch):
     assert cc.status_code == 400
 
 
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_cancelar_prazo_expirado_422(monkeypatch):
+    # AC-FIS-003-2: cancelamento fora da janela de 24h → 422.
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
+
+    c = _cenario(perfil_a=True)
+    _patch_vinculo(monkeypatch, TipoAcreditacaoVinculo.RBC)
+    client = APIClient()
+    _autenticar(client, c["admin"], c["tenant"])
+    r = _post(client, "/api/v1/fiscal/nfse/emitir/", _payload())
+    nfse_id = r.json()["nfse_id"]
+    # Avança o relógio do servidor +25h só no cancelamento (a nota foi emitida agora).
+    futuro = _dt.now(_UTC) + _td(hours=25)
+
+    class _Clock:
+        @staticmethod
+        def now(tz=None):
+            return futuro
+
+    monkeypatch.setattr("src.infrastructure.fiscal.views.datetime", _Clock)
+    motivo = "cancelamento tardio fora da janela legal de 24 horas ja permitida"
+    cc = _post(client, f"/api/v1/fiscal/nfse/{nfse_id}/cancelar/", {"motivo": motivo})
+    assert cc.status_code == 422, cc.content
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_cancelar_cross_tenant_404(monkeypatch):
+    # AC-FIS-003-3: tenant B não cancela nota do tenant A (RLS → 404 não-vazante).
+    c_a = _cenario(perfil_a=True)
+    c_b = _cenario(perfil_a=True)
+    _patch_vinculo(monkeypatch, TipoAcreditacaoVinculo.RBC)
+    client_a = APIClient()
+    _autenticar(client_a, c_a["admin"], c_a["tenant"])
+    r = _post(client_a, "/api/v1/fiscal/nfse/emitir/", _payload())
+    nfse_id = r.json()["nfse_id"]
+    client_b = APIClient()
+    _autenticar(client_b, c_b["admin"], c_b["tenant"])
+    motivo = "tentativa de cancelamento cross-tenant que deve ser barrada pela RLS"
+    cc = _post(client_b, f"/api/v1/fiscal/nfse/{nfse_id}/cancelar/", {"motivo": motivo})
+    assert cc.status_code == 404, cc.content
+
+
 # === cross-tenant (INV-FIS-006) ===
 
 

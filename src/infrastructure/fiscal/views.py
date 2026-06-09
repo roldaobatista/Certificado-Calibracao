@@ -256,6 +256,11 @@ class NotaFiscalServicoViewSet(viewsets.ViewSet):
                 tipo_acreditacao_vinculo=vinculo,
             )
             with transaction.atomic():
+                # Serializa emissões concorrentes da MESMA origem (IDEMP-FIS-03):
+                # a 2ª request bloqueia até a 1ª commitar, então `obter_por_origem`
+                # acha a nota existente e devolve 409 — sem 2ª chamada ao provider
+                # nem IntegrityError do UNIQUE de negócio. Fecha GATE-IDEMP-FIS-EMITIR-RACE.
+                self._advisory_lock_origem(tenant_id, d["origem_id"])
                 out = emitir_nfse.executar(inp, provider=provider, repo=repo)
                 if not out.ja_existia:
                     _publicar_evento_fiscal(
@@ -367,8 +372,9 @@ class NotaFiscalServicoViewSet(viewsets.ViewSet):
     def consultar(self, request: Request, pk: str | None = None) -> Response:
         """POST — resolve PENDING via provider (D-FIS-3).
 
-        # idempotency-key: exempt -- query-then-CAS idempotente sob advisory lock;
-        no-op em estado terminal; sem efeito colateral duplicável (IDEMP-FIS-02).
+        # idempotency-key: exempt -- leitura-e-transição idempotente sob advisory
+        lock (não CAS); no-op em estado terminal; sem efeito colateral duplicável
+        (IDEMP-FIS-02).
         """
         tenant_id = _tenant_ou_none()
         if tenant_id is None:
@@ -395,6 +401,16 @@ class NotaFiscalServicoViewSet(viewsets.ViewSet):
         """Serializa transições concorrentes da mesma nota (cancelar/consultar)."""
         with connection.cursor() as cur:
             cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [str(nfse_id)])
+
+    @staticmethod
+    def _advisory_lock_origem(tenant_id: UUID, origem_id: UUID) -> None:
+        """Serializa emissões concorrentes da mesma origem (IDEMP-FIS-03).
+
+        Namespace próprio (`fiscal:emitir:`) pra não colidir com o lock por nfse_id.
+        """
+        chave = f"fiscal:emitir:{tenant_id}:{origem_id}"
+        with connection.cursor() as cur:
+            cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [chave])
 
     @staticmethod
     def _uuid_ou_404(raw: str | None) -> UUID:
