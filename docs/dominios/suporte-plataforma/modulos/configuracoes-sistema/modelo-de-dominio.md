@@ -35,15 +35,15 @@ relacionados:
 
 ### SerieDocumento
 
-- **Atributos obrigatórios:** id, tenant_id, filial_id (nullable se global), tipo (os/orcamento/fatura/certificado/nf), prefixo, proximo_numero, formato (template string), padding.
-- **Invariantes:** `INV-028` (proximo_numero estritamente crescente, nunca diminui), `INV-006` (idempotência na emissão).
+- **Atributos obrigatórios:** id, tenant_id, filial_id (nullable se global), tipo (os/orcamento/fatura/certificado/recibo/interno — **NFS-e/NF não**, BaaS é dono), prefixo, proximo_numero (ou contador por (serie,ano) se reset anual), formato (template string), padding, `regime_numeracao` (GAP_LESS|BURACOS_ACEITOS — derivado do tipo, ADR-0080).
+- **Invariantes:** `INV-028` (proximo_numero nunca diminui; chave `(tenant,filial,tipo,prefixo)`), `INV-CFG-NUM-ATOMICA` (reserva atômica sem duplicata; gap-less p/ fatura/certificado via reserva-TTL ADR-0080, buraco-por-rollback aceito p/ operacionais). *(Era `INV-006` — corrigido P2/TL-01: INV-006 é regra do DPO/LGPD.)*
 - **Ciclo de vida:** criada por admin; contador atualizado atomicamente.
 
 ### Imposto
 
-- **Atributos obrigatórios:** id, tenant_id, tipo (ICMS/ISS/PIS/COFINS/IRRF/CSLL/INSS), aliquota, vigencia_inicio.
-- **Atributos opcionais:** cfop_padrao, ncm_padrao, vigencia_fim, observacoes.
-- **Invariantes:** `INV-026` (imutável após emissão de documento que o use — versionamento de catálogo); ADR-0008.
+- **Atributos obrigatórios:** id, tenant_id, filial_id (nullable), tipo (ICMS/ISS/PIS/COFINS/IRRF/CSLL/INSS), aliquota, vigencia_inicio.
+- **Atributos opcionais:** cfop_padrao, ncm_padrao, vigencia_fim, observacoes; **figuras fiscais (P2/ADV-02/03):** `iss_retido_fonte` (bool — LC 116/2003 art. 6º), `tem_st` (bool — substituição tributária do ICMS), `simples_excedeu_sublimite` (bool).
+- **Invariantes:** `INV-CFG-IMPOSTO-IMUTAVEL` (TL-04 — trigger bloqueia UPDATE de aliquota/tipo/vigencia_inicio; só vigencia_fim one-shot NULL→data; mudar alíquota = nova linha), `INV-CFG-IMPOSTO-SEM-SOBREPOSICAO` (TL-05 — exclusion constraint btree_gist por tenant+tipo+filial+daterange), `INV-026` (não-retroação fecha no consumidor via snapshot); ADR-0008.
 
 ### Papel (Role)
 
@@ -153,10 +153,17 @@ relacionados:
 
 ## Value Objects
 
+> **Emenda 2026-06-09 (P2 da frente configuracoes-sistema — ADV-03/04):** `RegimeTributario`
+> completado e reconciliado com a spec (`docs/faseamento/configuracoes-sistema/spec.md` §5);
+> `ST_INDICADOR` NÃO é regime (substituição tributária é atributo do `Imposto`: `tem_st`);
+> `nf`/`nfse` REMOVIDO de `TipoDocumento` (NFS-e é numerada pelo BaaS/município, não local —
+> ADR-0008 + ADR-0080). Figuras fiscais `iss_retido_fonte`/`tem_st`/`simples_excedeu_sublimite`
+> são atributos do `Imposto`. Conjunto final de regimes = `[OAB/contador-pré-prod]`.
+
 | VO | Definição | Imutável? |
 |---|---|---|
-| RegimeTributario | enum: Simples / Lucro Presumido / Lucro Real / MEI | Sim |
-| TipoDocumento | enum: os / orcamento / fatura / certificado / nf | Sim |
+| RegimeTributario | enum: NORMAL / SIMPLES_NACIONAL / MEI / LUCRO_PRESUMIDO / LUCRO_REAL / IMUNE / ISENTO | Sim |
+| TipoDocumento | enum: os / orcamento / fatura / certificado / recibo / interno (NFS-e/NF **não** — BaaS é dono) | Sim |
 | AcaoPermissao | enum: criar / ler / editar / aprovar / excluir | Sim |
 | CanalNotificacao | enum: email / push / sms / whatsapp | Sim |
 | TipoIntegracao | enum: nf / banco / email / whatsapp / sefaz | Sim |

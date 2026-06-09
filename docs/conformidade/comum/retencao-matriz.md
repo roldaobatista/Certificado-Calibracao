@@ -86,6 +86,14 @@ Cada categoria de dado tem:
 | **`Licenca`/`DocumentoRegulatorio` (ACREDITACAO_CGCRE) + `RevisaoDocumento` (M9 — ADR-0079, D-LIC-9)** | 5 anos (Receita/operacional) | **25 anos** (A/B/C — fonte de verdade da vigência que sustenta os certificados RBC emitidos) / **5 anos** (D — sem acreditação) | **ISO 17025 cl. 8.4 + NIT-DICLA-021 cl. 4.2 + LGPD art. 16 I** | PG (vigente) → B2 WORM (revisões append-only — INV-LIC-WORM-001) | Número CGCRE/órgão/vigência preservados (não-PII); anexo probatório cifrado por chave KMS do tenant. Soft-delete B (revogação one-shot, sem DELETE físico). Manter |
 | **`DocumentoRegulatorio` (ART/RRT) + titular RT (M9 — US-LIC-005, D-LIC-9)** | Enquanto vínculo do RT ativo + 5 anos | **25 anos** se a ART/RRT compôs a assinatura de um certificado RBC (A/B/C) / 5 anos (D) | **ISO 17025 cl. 6.2 + cl. 8.4 + NIT-DICLA-021 + LGPD art. 16 I** | PG (vínculo ativo) → B2 WORM | **Número da ART NÃO é anonimizado** (dado de conselho profissional); **CPF/nome do RT via `ReferenciaPIIAnonimizavel`** (hash) — preserva número+órgão+vigência. Manter evidência de habilitação |
 | **`EventoEmergencial` (liberação excepcional — M9 INV-033/INV-LIC-BLOQUEIO-001, D-LIC-9)** | 5 anos | **25 anos** (A/B/C — rastro de NC para supervisão CGCRE) / 5 anos (D) | **ISO 17025 cl. 8.7 (controle de NC) + cl. 8.4 + LGPD art. 16 I** | B2 WORM (append-only — INV-LIC-WORM-001) | `justificativa_hash` versionado (tamper-evidence); `assinatura_a3_id` + janela ≤7d preservados. Texto cru da justificativa é dado técnico-administrativo (não PII). Manter |
+| **`Imposto` / catálogo tributário (linha de vigência usada por documento emitido — configuracoes-sistema P2/ADV-05)** | 5 anos após a emissão do **último** documento que referenciou a linha | **10 anos** (prudencial quando compõe path fiscal sensível) | **CTN art. 173/174 + art. 195 §único + INV-026 + INV-CFG-IMPOSTO-IMUTAVEL** | PG (vigente) → B2 WORM (encerrada e referenciada) | **Encerrar `vigencia_fim` ≠ apagar:** é prova da regra aplicada na emissão. Manter enquanto houver documento fiscal/certificado no prazo legal que use a linha. Não-PII |
+| **`SerieDocumento` (contador + faixa numérica usada — configuracoes-sistema P2/ADV-05)** | Igual ao maior prazo do tipo numerado (5a fiscal; até 25a se numerou certificado ISO 17025) | idem | **CTN art. 173/174 + ISO 17025 cl. 7.8/8.4 + INV-028/INV-CFG-NUM-ATOMICA** | PG (série ativa) → B2 WORM (encerrada) | A sequência é **prova de ausência de gap** (sonegação/emissão paralela). **Desativar série ≠ apagar contador.** Não-PII |
+| **`Empresa`/`Filial` (cadastro tributário do tenant — configuracoes-sistema P2/ADV-05/06)** | Vigência do tenant + 5 anos | + 5 anos | **LGPD art. 7º V (execução) + art. 7º II (obrigação fiscal) + Receita** | PG (vigência) → B2 (5 anos) | Crypto-shredding alinhado à linha "Cadastro de cliente (tenant)": **PII de MEI (=CPF no CNPJ)/contato anonimizada**; razão social/CNPJ preservados enquanto houver documento fiscal no prazo |
+
+> **Nota CTN art. 195 §único (P2/ADV-05):** encerrar a vigência de um `Imposto` ou desativar
+> uma `SerieDocumento` NÃO autoriza apagar o registro — enquanto existir documento emitido no
+> prazo legal que dependa daquela alíquota/série, ela é prova fiscal e deve ser conservada. A
+> ação de "fim de prazo" só dispara quando NENHUM documento dependente está dentro do prazo.
 
 ---
 
@@ -184,6 +192,7 @@ Cada categoria de dado tem:
 | DRILL-RET-10 | Cliente pede exclusão foto facial 2026 que compõe evidência ISO 17025 | Face borrada + EXIF removido in-place, audit registra ✓ |
 | DRILL-RET-11 | `bus_outbox` retenção 7 dias pós-processado (T-CLI-107) | `SELECT COUNT(*) FROM bus_outbox WHERE processado_em < now() - interval '7 days'` retorna 0. **Mensal** (BLOQ-A2 advogado) |
 | DRILL-RET-PAD-01 | Recalibração externa de padrão registrada em 2026 (com nome do executor/responsável + PDF cert externo cifrado) lida em 2031 (M5 — análogo DRILL-RET-07) | CPF executor = hash; nome do responsável preservado na evidência técnica; PDF cert externo legível via descriptografia da chave KMS do tenant; dados técnicos do recal completos |
+| DRILL-RET-CFG-01 | Alíquota de ISS vigente em 2026 (configuracoes-sistema), com `vigencia_fim` encerrada em 2027, ainda legível em 2031 para reconstituir uma NFS-e daquele ano | Linha de `Imposto` de 2026 preservada (não apagada ao encerrar vigência); alíquota/CFOP/NCM lidos; série do documento sem gap. Prova da regra aplicada na emissão (CTN art. 195) |
 
 ---
 

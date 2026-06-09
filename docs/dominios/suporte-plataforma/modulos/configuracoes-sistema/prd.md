@@ -86,9 +86,10 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 **Critérios de aceite:**
 - **AC-CFG-002-1**: GIVEN nova série, WHEN configurada, THEN define prefixo, próximo número, padding e formato (ex: `OS-{ano}-{seq:6}`).
 - **AC-CFG-002-2**: GIVEN série em uso, WHEN tenta diminuir o "próximo número", THEN bloqueia (números gerados são imutáveis).
-- **AC-CFG-002-3**: GIVEN documento emitido, WHEN gera, THEN incrementa contador de forma atômica (sem gap nem duplicata).
+<!-- # feature-perfil-matriz: skip -- numeracao de documento e por TIPO (ADR-0080), regra igual para todos os perfis A/B/C/D, nao e feature condicional por perfil -->
+- **AC-CFG-002-3**: GIVEN documento emitido, WHEN gera, THEN incrementa contador de forma atômica **sem duplicata em nenhum tipo**; **sem gap proposital**; nos tipos `GAP_LESS` (fatura/certificado) sem gap algum (reserva-TTL — ADR-0080); nos tipos `BURACOS_ACEITOS` (os/orcamento/recibo/interno) buraco por rollback é aceito (ADR-0056). Cancelamento não reusa número.
 
-**Invariantes:** `INV-028` (numeração estritamente crescente), `INV-006` (idempotência na emissão).
+**Invariantes:** `INV-028` (numeração nunca diminui, sem gap proposital, por tenant+filial+tipo+prefixo), `INV-CFG-NUM-ATOMICA` (reserva atômica sem duplicata — 2 regimes ADR-0080). *(Correção 2026-06-09 P2/TL-01: antes citava `INV-006`, que é a regra do DPO/LGPD, não numeração.)*
 
 ---
 
