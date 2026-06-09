@@ -28,14 +28,17 @@ from src.infrastructure.usuario.models import Usuario, UsuarioPerfilTenant
 @pytest.mark.django_db
 class TestTenantBasico:
     def test_cria_tenant_com_default_ativo(self) -> None:
-        t = Tenant.objects.create(slug="balancas-solution", nome_fantasia="Balanças Solution")
+        t = Tenant.objects.create(
+            slug="balancas-solution", nome_fantasia="Balanças Solution",
+            perfil_regulatorio="D",
+        )
         assert t.status_lifecycle == StatusLifecycle.ATIVO
-        assert str(t) == "Balanças Solution (balancas-solution)"
+        assert str(t) == "Balanças Solution (balancas-solution) [perfil=D]"
 
     def test_slug_unique(self) -> None:
-        Tenant.objects.create(slug="dup", nome_fantasia="A")
+        Tenant.objects.create(slug="dup", nome_fantasia="A", perfil_regulatorio="D")
         with pytest.raises(IntegrityError):
-            Tenant.objects.create(slug="dup", nome_fantasia="B")
+            Tenant.objects.create(slug="dup", nome_fantasia="B", perfil_regulatorio="D")
 
 
 @pytest.mark.django_db
@@ -72,7 +75,9 @@ class TestUsuarioPerfilTenant:
     def test_unique_constraint_usuario_tenant_perfil(self) -> None:
         uid = uuid4().hex[:8]
         with run_as_system():
-            t = Tenant.objects.create(slug=f"upt-u-{uid}", nome_fantasia="UPT")
+            t = Tenant.objects.create(
+                slug=f"upt-u-{uid}", nome_fantasia="UPT", perfil_regulatorio="D"
+            )
             u = Usuario.objects.create_user(
                 email=f"upt-u-{uid}@x.com", password="senha-teste-12-chars"
             )
@@ -83,7 +88,9 @@ class TestUsuarioPerfilTenant:
     def test_perfis_diferentes_no_mesmo_tenant_sao_permitidos(self) -> None:
         uid = uuid4().hex[:8]
         with run_as_system():
-            t = Tenant.objects.create(slug=f"upt-m-{uid}", nome_fantasia="UPT")
+            t = Tenant.objects.create(
+                slug=f"upt-m-{uid}", nome_fantasia="UPT", perfil_regulatorio="D"
+            )
             u = Usuario.objects.create_user(
                 email=f"upt-m-{uid}@x.com", password="senha-teste-12-chars"
             )
@@ -116,7 +123,9 @@ class TestAuditoriaImutabilidadeCodigo:
     def test_insert_permitido(self) -> None:
         uid = uuid4().hex[:8]
         with run_as_system():
-            t = Tenant.objects.create(slug=f"aud-i-{uid}", nome_fantasia="Aud")
+            t = Tenant.objects.create(
+                slug=f"aud-i-{uid}", nome_fantasia="Aud", perfil_regulatorio="D"
+            )
             u = Usuario.objects.create_user(
                 email=f"aud-i-{uid}@x.com", password="senha-teste-12-chars"
             )
@@ -127,7 +136,9 @@ class TestAuditoriaImutabilidadeCodigo:
     def test_update_bloqueado_em_codigo(self) -> None:
         uid = uuid4().hex[:8]
         with run_as_system():
-            t = Tenant.objects.create(slug=f"aud-u-{uid}", nome_fantasia="Aud")
+            t = Tenant.objects.create(
+                slug=f"aud-u-{uid}", nome_fantasia="Aud", perfil_regulatorio="D"
+            )
             u = Usuario.objects.create_user(
                 email=f"aud-u-{uid}@x.com", password="senha-teste-12-chars"
             )
@@ -140,7 +151,9 @@ class TestAuditoriaImutabilidadeCodigo:
     def test_delete_bloqueado_em_codigo(self) -> None:
         uid = uuid4().hex[:8]
         with run_as_system():
-            t = Tenant.objects.create(slug=f"aud-d-{uid}", nome_fantasia="Aud")
+            t = Tenant.objects.create(
+                slug=f"aud-d-{uid}", nome_fantasia="Aud", perfil_regulatorio="D"
+            )
             u = Usuario.objects.create_user(
                 email=f"aud-d-{uid}@x.com", password="senha-teste-12-chars"
             )
@@ -158,7 +171,9 @@ class TestFeatureFlag:
     def test_flag_por_tenant_unique_com_modulo_e_key(self) -> None:
         uid = uuid4().hex[:8]
         with run_as_system():
-            t = Tenant.objects.create(slug=f"ff-uniq-{uid}", nome_fantasia="FF")
+            t = Tenant.objects.create(
+                slug=f"ff-uniq-{uid}", nome_fantasia="FF", perfil_regulatorio="D"
+            )
         with run_in_tenant_context(tenant_id=t.id, usuario_id=None):
             FeatureFlag.objects.create(tenant=t, modulo="m", feature_key=f"k-{uid}", ativo=True)
             with pytest.raises(IntegrityError):
