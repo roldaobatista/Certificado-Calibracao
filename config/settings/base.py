@@ -257,6 +257,11 @@ LOCAL_APPS = [
     # vigencia CGCRE (ADR-0079) — popula cache Tenant.acreditacao_vigencia_fim via
     # aplicar_evento_cgcre -> fecha GATE-CER-CGCRE-VIG-DATA-POPULAR do M8. WORM Padrao B.
     "src.infrastructure.metrologia.licencas_acreditacoes.apps.LicencasAcreditacoesConfig",
+    # Wave A frente fiscal/NFS-e — raiz propria (NAO sob metrologia; TL-08).
+    # NotaFiscalServico via porta agnostica FiscalProvider (ADR-0008) + trava
+    # metrologica por perfil no use case (ADR-0073). Deadline 01/09/2026. WORM
+    # Padrao B; idempotencia de negocio (tenant, origem_id, versao) — INV-FIS-005.
+    "src.infrastructure.fiscal.apps.FiscalConfig",
     # F-C1 P4 — adapter canonico OutboundWebhookProvider (ADR-0054 aceita
     # dentro desta fase). SSRF guard + HMAC canonical + DNS rebinding lock
     # + DPA enforcement (INV-WEBHOOK-OUT-001..005).

@@ -41,9 +41,15 @@ class NotaFiscalServicoRepository(Protocol):
         ...
 
     def atualizar_status(
-        self, *, tenant_id: UUID, nfse_id: UUID, nota: NotaFiscalServico
+        self,
+        *,
+        tenant_id: UUID,
+        nfse_id: UUID,
+        nota: NotaFiscalServico,
+        revision_atual: int,
     ) -> None:
         """Aplica transição de estado válida (PENDING→terminal; AUTHORIZED→CANCELED
-        — D-FIS-4). A imutabilidade probatória vive no evento append-only, não no
-        bloqueio do UPDATE de `status`."""
+        — D-FIS-4) via CAS optimistic lock (`revision_atual` é detalhe de infra, não
+        vive na entidade de domínio — molde M8). A imutabilidade probatória vive no
+        evento append-only, não no bloqueio do UPDATE de `status`."""
         ...
