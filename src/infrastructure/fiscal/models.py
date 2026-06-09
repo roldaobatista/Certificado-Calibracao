@@ -113,7 +113,12 @@ class NotaFiscalServico(models.Model):
         blank=True, default="", help_text=">=30 chars quando cancelada (AC-FIS-003-1)."
     )
     revision = models.IntegerField(
-        default=0, help_text="Optimistic lock CAS na transição de status."
+        default=0,
+        help_text=(
+            "Contador de transições de status (observabilidade). Concorrência "
+            "garantida por advisory lock da view + triggers one-shot do banco "
+            "(cancelado_em/emitido_em), NÃO por CAS — FIS-SEG-01."
+        ),
     )
     correlation_id = models.UUIDField(default=uuid.uuid4, help_text="Cadeia forense.")
     criado_em = models.DateTimeField(auto_now_add=True, db_index=True)

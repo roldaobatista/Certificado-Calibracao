@@ -71,12 +71,12 @@ if printf '%s' "$content" | grep -qE '#[[:space:]]*fiscal-perfil-server-side:[[:
     exit 0
 fi
 
-# Gate server-side no mesmo conteudo isenta.
-if printf '%s' "$content" | grep -qE '(obter_perfil_tenant_corrente|tenant_perfil_e|documento_metrologico_obrigatorio_por_perfil)[[:space:]]*\(?'; then
-    exit 0
-fi
-
-if printf '%s' "$content" | grep -qE 'perfil["'"'"']?[[:space:]]*[:=][^=].*((request\.(data|POST|JSON|json|body))|validated_data|payload|initial_data)'; then
+# Line-oriented (FIS-SEG-02): bloqueia se QUALQUER linha de CODIGO (nao comentario)
+# atribui `perfil` a partir do payload — mesmo que um token server-side legitimo
+# apareca noutra linha (a linha maliciosa nao pode ser encoberta). Comentarios/
+# docstrings de linha (iniciados por #) sao ignorados.
+if printf '%s' "$content" | grep -vE '^[[:space:]]*#' \
+    | grep -qE 'perfil["'"'"']?[[:space:]]*[:=][^=].*((request\.(data|POST|JSON|json|body))|validated_data|payload|initial_data)'; then
     echo "fiscal-perfil-server-side (INV-FIS-001): perfil de emissao NFS-e vindo do payload em $file_path" >&2
     echo "O perfil regulatorio NUNCA vem da request (ADR-0067) — tenant D forjaria NFS-e RBC." >&2
     echo "Derive server-side e valide no use case:" >&2

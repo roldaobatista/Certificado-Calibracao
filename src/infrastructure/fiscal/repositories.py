@@ -1,9 +1,10 @@
 """Adapter Django do Protocol `NotaFiscalServicoRepository` (Fatia 1b, T-FIS-022).
 
-Implementa o repository do domínio sobre o ORM. Mutação de status via CAS
-(`atualizar_status` com WHERE revision) — o trigger WORM permite só transição de
-`status`/timestamps; campos probatórios são imutáveis. Consumido pelos use cases
-(Fatia 2). NÃO é singleton.
+Implementa o repository do domínio sobre o ORM. Mutação de status via `UPDATE`
+escopado por `(tenant_id, id)`; concorrência garantida pelo advisory lock da view
++ triggers one-shot do banco (`cancelado_em`/`emitido_em`), NÃO por CAS (FIS-SEG-01).
+O trigger WORM permite só transição de `status`/timestamps; campos probatórios são
+imutáveis. Consumido pelos use cases (Fatia 2). NÃO é singleton.
 """
 
 from __future__ import annotations

@@ -365,7 +365,11 @@ class NotaFiscalServicoViewSet(viewsets.ViewSet):
     # ---------------------------------------------------------------- POST consultar
     @action(detail=True, methods=["post"], url_path="consultar")
     def consultar(self, request: Request, pk: str | None = None) -> Response:
-        """POST — resolve PENDING via provider (D-FIS-3). Idempotente por natureza."""
+        """POST — resolve PENDING via provider (D-FIS-3).
+
+        # idempotency-key: exempt -- query-then-CAS idempotente sob advisory lock;
+        no-op em estado terminal; sem efeito colateral duplicável (IDEMP-FIS-02).
+        """
         tenant_id = _tenant_ou_none()
         if tenant_id is None:
             return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
