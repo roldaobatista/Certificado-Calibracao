@@ -28,7 +28,11 @@ from src.domain.configuracoes_sistema.entities import (
     Imposto,
     SerieDocumento,
 )
-from src.domain.configuracoes_sistema.enums import RegimeNumeracao, TipoImposto
+from src.domain.configuracoes_sistema.enums import (
+    RegimeNumeracao,
+    TipoDocumento,
+    TipoImposto,
+)
 from src.domain.metrologia.certificados.numeracao import TTL_RESERVA, proximo_sequencial
 from src.infrastructure.configuracoes_sistema import mappers
 from src.infrastructure.configuracoes_sistema.models import (
@@ -112,11 +116,13 @@ class DjangoImpostoRepository:
             **mappers.imposto_para_campos(imposto),
         )
 
-    def encerrar_vigencia(self, *, tenant_id: UUID, imposto_id: UUID, fim: object) -> None:
+    def obter_por_id(self, *, tenant_id: UUID, imposto_id: UUID) -> Imposto | None:
+        m = ImpostoModel.objects.filter(tenant_id=tenant_id, id=imposto_id).first()
+        return mappers.imposto_model_para_entidade(m) if m is not None else None
+
+    def encerrar_vigencia(self, *, tenant_id: UUID, imposto_id: UUID, fim: datetime) -> None:
         """One-shot NULL→data (D-CFG-3). Só encerra vigência ABERTA e não-revogada;
         rowcount 0 = já encerrada/revogada/inexistente (caller decide o erro)."""
-        if not isinstance(fim, datetime):
-            raise TypeError(f"fim deve ser datetime, veio {type(fim)!r}")
         atualizadas = ImpostoModel.objects.filter(
             tenant_id=tenant_id,
             id=imposto_id,
@@ -134,11 +140,11 @@ class DjangoSerieDocumentoRepository:
     """Séries de numeração local — 2 regimes por tipo (ADR-0080)."""
 
     def obter(
-        self, *, tenant_id: UUID, tipo: object, prefixo: str, filial_id: UUID | None
+        self, *, tenant_id: UUID, tipo: TipoDocumento, prefixo: str, filial_id: UUID | None
     ) -> SerieDocumento | None:
         qs = SerieDocumentoModel.objects.filter(
             tenant_id=tenant_id,
-            tipo=getattr(tipo, "value", tipo),
+            tipo=tipo.value,
             prefixo=prefixo,
         )
         qs = qs.filter(filial__isnull=True) if filial_id is None else qs.filter(filial_id=filial_id)

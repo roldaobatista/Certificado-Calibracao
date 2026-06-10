@@ -107,13 +107,16 @@ def imposto_vigente_em(
 ) -> Imposto | None:
     """Retorna o `Imposto` do (tipo, filial) vigente em `momento`, ou None.
 
-    Determinístico: a não-sobreposição (constraint INV-CFG-IMPOSTO-SEM-SOBREPOSICAO)
+    Linha REVOGADA nunca resolve (cadastro errado — espelha o
+    `WHERE revogado_em IS NULL` da exclusion constraint 0004). Determinístico:
+    entre as não-revogadas, a não-sobreposição (INV-CFG-IMPOSTO-SEM-SOBREPOSICAO)
     garante no máximo 1 resultado.
     """
     for imp in impostos:
         if (
             imp.tipo == tipo
             and imp.filial_id == filial_id
+            and imp.vigencia.revogado_em is None
             and imp.vigencia.vigente_em(momento)
         ):
             return imp
