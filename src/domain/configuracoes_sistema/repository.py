@@ -30,6 +30,9 @@ class SerieDocumentoRepository(Protocol):
     def obter(
         self, *, tenant_id: UUID, tipo: object, prefixo: str, filial_id: UUID | None
     ) -> SerieDocumento | None: ...
+    def obter_por_id(
+        self, *, tenant_id: UUID, serie_id: UUID
+    ) -> SerieDocumento | None: ...
     def salvar(self, serie: SerieDocumento) -> None: ...
     def reservar_numero(
         self, *, tenant_id: UUID, serie_id: UUID, ano: int | None = None

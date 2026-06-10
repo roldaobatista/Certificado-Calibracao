@@ -326,6 +326,24 @@ ACOES_FISCAL: Final[frozenset[str]] = frozenset(
 )
 
 
+# Frente configuracoes-sistema (T-CFG-033) — mudancas de configuracao do tenant
+# (empresa/filial/imposto/serie). PascalCase PROPOSITAL (nomes da spec US-CFG-001
+# `Config.EmpresaAtualizada`): vao SO na cadeia hash central (cadeia=True,
+# outbox=False) — o CHECK do bus_outbox exige slug lowercase (precedente
+# Certificados.CertificadoReconciliado). Reserva de numero NAO gera evento Config
+# (consumo operacional de alto volume; trilha fica com o emissor + tabela
+# numero_documento_reservado).
+ACOES_CONFIG: Final[frozenset[str]] = frozenset(
+    {
+        "Config.EmpresaAtualizada",
+        "Config.FilialAdicionada",
+        "Config.ImpostoCadastrado",
+        "Config.ImpostoVigenciaEncerrada",
+        "Config.SerieCriada",
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -340,6 +358,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_CERTIFICADOS
     | ACOES_LICENCAS
     | ACOES_FISCAL
+    | ACOES_CONFIG
 )
 
 
