@@ -1170,6 +1170,27 @@ run_case "FAR3 calibracao generica PASS"                PASS  fiscal-anti-rbc-em
 run_case "FAR4 comentario citando RBC PASS"             PASS  fiscal-anti-rbc-em-descricao.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/x.py","content":"# perfil A pode exibir RBC na descricao acreditada"}}'
 run_case "FAR5 override PASS"                            PASS  fiscal-anti-rbc-em-descricao.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/x.py","content":"# fiscal-anti-rbc-descricao: skip -- perfil A acreditado legitimamente DR-2026-102\nservice_description = \"Calibracao RBC\""}}'
 
+echo "===== serie-numeracao-regime (configuracoes-sistema Fatia 3 / INV-CFG-NUM-ATOMICA) ====="
+run_case "SNR1 regime em Serializer BLOCK"              BLOCK serie-numeracao-regime-check.sh '{"tool_input":{"file_path":"src/infrastructure/configuracoes_sistema/serializers.py","content":"regime_numeracao = serializers.ChoiceField(choices=[1])"}}'
+run_case "SNR2 reset_anual em Serializer BLOCK"         BLOCK serie-numeracao-regime-check.sh '{"tool_input":{"file_path":"src/infrastructure/configuracoes_sistema/serializers.py","content":"reset_anual = serializers.BooleanField()"}}'
+run_case "SNR3 regime do payload BLOCK"                 BLOCK serie-numeracao-regime-check.sh '{"tool_input":{"file_path":"src/infrastructure/configuracoes_sistema/views.py","content":"regime_numeracao = request.data[\"regime_numeracao\"]"}}'
+run_case "SNR4 tipo nfse no enum local BLOCK"           BLOCK serie-numeracao-regime-check.sh '{"tool_input":{"file_path":"src/domain/configuracoes_sistema/enums.py","content":"    NFSE = \"nfse\""}}'
+run_case "SNR5 derivacao legitima PASS"                 PASS  serie-numeracao-regime-check.sh '{"tool_input":{"file_path":"src/application/configuracoes_sistema/serie.py","content":"regime_numeracao=regime_numeracao_do_tipo(inp.tipo),"}}'
+run_case "SNR6 transicoes (lar da derivacao) PASS"      PASS  serie-numeracao-regime-check.sh '{"tool_input":{"file_path":"src/domain/configuracoes_sistema/transicoes.py","content":"def regime_numeracao_do_tipo(tipo): ..."}}'
+run_case "SNR7 fora da frente PASS"                     PASS  serie-numeracao-regime-check.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/views.py","content":"regime_numeracao = request.data[\"x\"]"}}'
+run_case "SNR8 override PASS"                            PASS  serie-numeracao-regime-check.sh '{"tool_input":{"file_path":"src/infrastructure/configuracoes_sistema/views.py","content":"# serie-numeracao-regime: skip -- migracao assistida de series legadas DR-2026-110\nregime_numeracao = payload[\"regime_numeracao\"]"}}'
+
+echo "===== imposto-imutavel (configuracoes-sistema Fatia 3 / INV-CFG-IMPOSTO-IMUTAVEL) ====="
+run_case "IIM1 update de aliquota BLOCK"                BLOCK imposto-imutavel-check.sh '{"tool_input":{"file_path":"src/infrastructure/configuracoes_sistema/repositories.py","content":"Imposto.objects.filter(id=x).update(aliquota=v)"}}'
+run_case "IIM2 update de vigencia_inicio BLOCK"         BLOCK imposto-imutavel-check.sh '{"tool_input":{"file_path":"src/application/configuracoes_sistema/imposto.py","content":"ImpostoModel.objects.filter(id=x).update(vigencia_inicio=d)"}}'
+run_case "IIM3 delete fisico BLOCK"                     BLOCK imposto-imutavel-check.sh '{"tool_input":{"file_path":"src/infrastructure/configuracoes_sistema/repositories.py","content":"Imposto.objects.filter(id=x).delete()"}}'
+run_case "IIM4 migration derruba trigger BLOCK"         BLOCK imposto-imutavel-check.sh '{"tool_input":{"file_path":"src/infrastructure/configuracoes_sistema/migrations/0099_drop.py","content":"DROP TRIGGER IF EXISTS imposto_worm_check_trg ON imposto;"}}'
+run_case "IIM5 encerrar vigencia legitimo PASS"         PASS  imposto-imutavel-check.sh '{"tool_input":{"file_path":"src/infrastructure/configuracoes_sistema/repositories.py","content":"Imposto.objects.filter(id=x).update(vigencia_fim=fim)"}}'
+run_case "IIM6 revogacao legitima PASS"                 PASS  imposto-imutavel-check.sh '{"tool_input":{"file_path":"src/infrastructure/configuracoes_sistema/repositories.py","content":"Imposto.objects.filter(id=x).update(revogado_em=agora, motivo_revogacao=m)"}}'
+run_case "IIM7 reverse da propria 0003 PASS"            PASS  imposto-imutavel-check.sh '{"tool_input":{"file_path":"src/infrastructure/configuracoes_sistema/migrations/0003_triggers_worm.py","content":"DROP TRIGGER IF EXISTS imposto_worm_check_trg ON imposto;"}}'
+run_case "IIM8 teste ignora PASS"                       PASS  imposto-imutavel-check.sh '{"tool_input":{"file_path":"tests/test_configuracoes_schema_fatia1b.py","content":"Imposto.objects.filter(id=x).update(aliquota=v)"}}'
+run_case "IIM9 override PASS"                            PASS  imposto-imutavel-check.sh '{"tool_input":{"file_path":"src/infrastructure/configuracoes_sistema/repositories.py","content":"# imposto-imutavel: skip -- correcao assistida com aprovacao DPO DR-2026-111\nImposto.objects.filter(id=x).update(aliquota=v)"}}'
+
 # --- Gate anti-drift de contagens (auditoria maquina-dev 2026-05-29) ---
 # So no modo completo (sem filtro). Garante que os numeros a mao nos docs
 # canonicos (README/AGENTS/CLAUDE) batem com a fonte direta. Mata os

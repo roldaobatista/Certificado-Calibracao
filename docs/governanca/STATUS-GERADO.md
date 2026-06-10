@@ -18,7 +18,7 @@ relacionados:
 
 | Métrica | Valor | Fonte direta |
 |---|---|---|
-| Hooks ativos | **70** | `.claude/hooks/*.sh` (excl. _test-runner) |
-| Casos no _test-runner | **543** | `grep -c run_case .claude/hooks/_test-runner.sh` |
-| ADRs | **80** | `docs/adr/*.md` |
+| Hooks ativos | **72** | `.claude/hooks/*.sh` (excl. _test-runner) |
+| Casos no _test-runner | **560** | `grep -c run_case .claude/hooks/_test-runner.sh` |
+| ADRs | **81** | `docs/adr/*.md` |
 | Invariantes (IDs INV-*) | **148** | `REGRAS-INEGOCIAVEIS.md` |
