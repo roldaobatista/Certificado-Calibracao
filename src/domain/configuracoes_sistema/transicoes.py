@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from datetime import datetime
+from uuid import UUID
 
 from .entities import Filial, Imposto, SerieDocumento
-from .enums import RegimeNumeracao, TipoDocumento
+from .enums import RegimeNumeracao, TipoDocumento, TipoImposto
 from .erros import MatrizInvalidaError, NumeroNuncaDiminuiError
 
 # Tipos cuja numeração é gap-less obrigatória (exigência fiscal/ISO — ADR-0080).
@@ -100,8 +101,8 @@ def ha_sobreposicao_vigencia(
 
 def imposto_vigente_em(
     impostos: Iterable[Imposto],
-    tipo: object,
-    filial_id: object,
+    tipo: TipoImposto,
+    filial_id: UUID | None,
     momento: datetime,
 ) -> Imposto | None:
     """Retorna o `Imposto` do (tipo, filial) vigente em `momento`, ou None.

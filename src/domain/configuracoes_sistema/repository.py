@@ -5,10 +5,12 @@ Interfaces (sem Django). Implementação Django na infra (Fatia 1b).
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
 from .entities import Empresa, Filial, Imposto, SerieDocumento
+from .enums import TipoDocumento, TipoImposto
 
 
 class EmpresaRepository(Protocol):
@@ -20,15 +22,21 @@ class EmpresaRepository(Protocol):
 
 class ImpostoRepository(Protocol):
     def listar(
-        self, *, tenant_id: UUID, tipo: object | None = None, filial_id: UUID | None = None
+        self,
+        *,
+        tenant_id: UUID,
+        tipo: TipoImposto | None = None,
+        filial_id: UUID | None = None,
     ) -> list[Imposto]: ...
     def salvar_nova_linha(self, imposto: Imposto) -> None: ...
-    def encerrar_vigencia(self, *, tenant_id: UUID, imposto_id: UUID, fim: object) -> None: ...
+    def encerrar_vigencia(
+        self, *, tenant_id: UUID, imposto_id: UUID, fim: datetime
+    ) -> None: ...
 
 
 class SerieDocumentoRepository(Protocol):
     def obter(
-        self, *, tenant_id: UUID, tipo: object, prefixo: str, filial_id: UUID | None
+        self, *, tenant_id: UUID, tipo: TipoDocumento, prefixo: str, filial_id: UUID | None
     ) -> SerieDocumento | None: ...
     def obter_por_id(
         self, *, tenant_id: UUID, serie_id: UUID

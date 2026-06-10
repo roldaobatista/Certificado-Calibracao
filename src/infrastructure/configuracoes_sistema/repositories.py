@@ -28,7 +28,7 @@ from src.domain.configuracoes_sistema.entities import (
     Imposto,
     SerieDocumento,
 )
-from src.domain.configuracoes_sistema.enums import RegimeNumeracao
+from src.domain.configuracoes_sistema.enums import RegimeNumeracao, TipoImposto
 from src.domain.metrologia.certificados.numeracao import TTL_RESERVA, proximo_sequencial
 from src.infrastructure.configuracoes_sistema import mappers
 from src.infrastructure.configuracoes_sistema.models import (
@@ -91,12 +91,12 @@ class DjangoImpostoRepository:
         self,
         *,
         tenant_id: UUID,
-        tipo: object | None = None,
+        tipo: TipoImposto | None = None,
         filial_id: UUID | None = None,
     ) -> list[Imposto]:
         qs = ImpostoModel.objects.filter(tenant_id=tenant_id)
         if tipo is not None:
-            qs = qs.filter(tipo=getattr(tipo, "value", tipo))
+            qs = qs.filter(tipo=tipo.value)
         if filial_id is not None:
             qs = qs.filter(filial_id=filial_id)
         return [
