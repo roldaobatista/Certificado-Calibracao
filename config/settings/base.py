@@ -257,6 +257,12 @@ LOCAL_APPS = [
     # vigencia CGCRE (ADR-0079) — popula cache Tenant.acreditacao_vigencia_fim via
     # aplicar_evento_cgcre -> fecha GATE-CER-CGCRE-VIG-DATA-POPULAR do M8. WORM Padrao B.
     "src.infrastructure.metrologia.licencas_acreditacoes.apps.LicencasAcreditacoesConfig",
+    # Wave A frente configuracoes-sistema — raiz da cadeia de preco (plano-
+    # dependencia-sistema #1). Empresa/Filial (INV-036/037) + Imposto catalogo
+    # versionado imutavel (INV-CFG-IMPOSTO-*) + SerieDocumento 2 regimes de
+    # numeracao por tipo (ADR-0080, INV-028) com reserva gap-less reusando o
+    # motor do M8 certificados (TL-02).
+    "src.infrastructure.configuracoes_sistema.apps.ConfiguracoesSistemaConfig",
     # Wave A frente fiscal/NFS-e — raiz propria (NAO sob metrologia; TL-08).
     # NotaFiscalServico via porta agnostica FiscalProvider (ADR-0008) + trava
     # metrologica por perfil no use case (ADR-0073). Deadline 01/09/2026. WORM
