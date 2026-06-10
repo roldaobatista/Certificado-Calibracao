@@ -270,8 +270,10 @@ def test_buracos_aceitos_aloca_sequencial() -> None:
     serie = _cria_serie(tenant, tipo="os", regime="buracos_aceitos")
     repo = DjangoSerieDocumentoRepository()
     with run_in_tenant_context(tenant.id):
-        assert repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id) == 1
-        assert repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id) == 2
+        r1 = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
+        assert r1.sequencial == 1
+        assert r1.reserva_id is None  # buracos-aceitos: nada a confirmar
+        assert repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id).sequencial == 2
 
 
 @pytest.mark.django_db(transaction=True)
@@ -280,11 +282,20 @@ def test_reset_anual_volta_para_1_sem_violar_inv028() -> None:
     serie = _cria_serie(tenant, tipo="orcamento", prefixo="ORC", reset_anual=True)
     repo = DjangoSerieDocumentoRepository()
     with run_in_tenant_context(tenant.id):
-        assert repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id, ano=2026) == 1
-        assert repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id, ano=2026) == 2
+        assert (
+            repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id, ano=2026).sequencial
+            == 1
+        )
+        assert (
+            repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id, ano=2026).sequencial
+            == 2
+        )
         # Virada de ano: contador reinicia (TL-07) — trigger INV-028 permite
         # porque ano_corrente troca junto.
-        assert repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id, ano=2027) == 1
+        assert (
+            repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id, ano=2027).sequencial
+            == 1
+        )
 
 
 # === ADR-0080: regime GAP_LESS (motor M8 — INV-CFG-NUM-ATOMICA) ===
@@ -296,11 +307,14 @@ def test_gap_less_reserva_densa_e_confirmacao_one_shot() -> None:
     serie = _cria_serie(tenant, tipo="fatura", prefixo="FAT", regime="gap_less")
     repo = DjangoSerieDocumentoRepository()
     with run_in_tenant_context(tenant.id):
-        assert repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id) == 1
-        assert repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id) == 2
-        assert repo.confirmar_numero(tenant_id=tenant.id, serie_id=serie.id, sequencial=1)
-        # One-shot: segunda confirmação do mesmo número é recusada.
-        assert not repo.confirmar_numero(tenant_id=tenant.id, serie_id=serie.id, sequencial=1)
+        r1 = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
+        assert r1.sequencial == 1
+        assert r1.reserva_id is not None  # gap-less: alvo do confirmar
+        r2 = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
+        assert r2.sequencial == 2
+        assert repo.confirmar_numero(tenant_id=tenant.id, reserva_id=r1.reserva_id)
+        # One-shot: segunda confirmação da mesma reserva é recusada.
+        assert not repo.confirmar_numero(tenant_id=tenant.id, reserva_id=r1.reserva_id)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -309,13 +323,21 @@ def test_gap_less_reserva_expirada_devolve_numero() -> None:
     serie = _cria_serie(tenant, tipo="fatura", prefixo="FAT", regime="gap_less")
     repo = DjangoSerieDocumentoRepository()
     with run_in_tenant_context(tenant.id):
-        seq = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
-        assert seq == 1
+        r_velha = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
+        assert r_velha.sequencial == 1
         # Reserva não-confirmada expira (TTL no passado) → número volta à sequência.
         NumeroDocumentoReservado.objects.filter(serie_id=serie.id, sequencial=1).update(
             ttl_expira_em=timezone.now() - timedelta(minutes=1)
         )
-        assert repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id) == 1
+        r_nova = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
+        assert r_nova.sequencial == 1
+        # CFG-IDEMP-01: a reserva NOVA tem id próprio — confirmar com o id da
+        # reserva expirada NÃO confirma a reserva viva de fluxo alheio.
+        assert r_nova.reserva_id != r_velha.reserva_id
+        assert r_velha.reserva_id is not None
+        assert not repo.confirmar_numero(tenant_id=tenant.id, reserva_id=r_velha.reserva_id)
+        viva = NumeroDocumentoReservado.objects.get(id=r_nova.reserva_id)
+        assert viva.confirmado is False
 
 
 @pytest.mark.django_db(transaction=True)
@@ -338,8 +360,9 @@ def test_gap_less_delete_confirmado_raise() -> None:
     serie = _cria_serie(tenant, tipo="fatura", prefixo="FAT", regime="gap_less")
     repo = DjangoSerieDocumentoRepository()
     with run_in_tenant_context(tenant.id):
-        repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
-        assert repo.confirmar_numero(tenant_id=tenant.id, serie_id=serie.id, sequencial=1)
+        r = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
+        assert r.reserva_id is not None
+        assert repo.confirmar_numero(tenant_id=tenant.id, reserva_id=r.reserva_id)
         with pytest.raises(DatabaseError):
             NumeroDocumentoReservado.objects.filter(serie_id=serie.id, sequencial=1).delete()
 

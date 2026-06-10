@@ -100,13 +100,14 @@ class TestINV_CFG_NUM_ATOMICA:
         serie = _serie(tenant)
         repo = DjangoSerieDocumentoRepository()
         with run_in_tenant_context(tenant.id):
-            assert repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id) == 1
-            assert repo.confirmar_numero(
-                tenant_id=tenant.id, serie_id=serie.id, sequencial=1
-            )
+            reserva = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
+            assert reserva.sequencial == 1
+            assert reserva.reserva_id is not None
+            # CFG-IDEMP-01: confirmação endereça pela PK da reserva (molde M8).
+            assert repo.confirmar_numero(tenant_id=tenant.id, reserva_id=reserva.reserva_id)
             # one-shot: 2ª confirmação recusada
             assert not repo.confirmar_numero(
-                tenant_id=tenant.id, serie_id=serie.id, sequencial=1
+                tenant_id=tenant.id, reserva_id=reserva.reserva_id
             )
             # número confirmado é preservado (cancelamento não devolve)
             with pytest.raises(DatabaseError):

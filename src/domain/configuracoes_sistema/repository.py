@@ -9,7 +9,13 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from .entities import Empresa, Filial, Imposto, SerieDocumento
+from .entities import (
+    Empresa,
+    Filial,
+    Imposto,
+    ReservaNumeroDocumento,
+    SerieDocumento,
+)
 from .enums import TipoDocumento, TipoImposto
 
 
@@ -44,10 +50,28 @@ class SerieDocumentoRepository(Protocol):
     def salvar(self, serie: SerieDocumento) -> None: ...
     def reservar_numero(
         self, *, tenant_id: UUID, serie_id: UUID, ano: int | None = None
-    ) -> int:
-        """Reserva e retorna o próximo número atômico.
+    ) -> ReservaNumeroDocumento:
+        """Reserva e retorna o próximo número atômico (resultado estruturado).
 
-        Gap-less (fatura/certificado): reserva-TTL + consecutividade densa.
-        Buracos-aceitos (demais): UPDATE atômico (buraco por rollback aceito).
+        Gap-less (fatura/certificado): reserva-TTL + consecutividade densa —
+        `reserva_id` preenchido (confirmação one-shot endereça por ele).
+        Buracos-aceitos (demais): UPDATE atômico (buraco por rollback aceito) —
+        `reserva_id=None` (não há reserva a confirmar).
         """
+        ...
+
+    def confirmar_numero(self, *, tenant_id: UUID, reserva_id: UUID) -> bool:
+        """One-shot do gap-less, DENTRO da transação do emissor (molde M8).
+
+        Endereça pela PK da reserva — NUNCA por (serie, ano, sequencial), que
+        após expiração+reuso apontaria para reserva viva de fluxo alheio.
+        False se expirada/já confirmada/inexistente (caller re-reserva).
+        """
+        ...
+
+    def liberar_expirados(
+        self, *, tenant_id: UUID, serie_id: UUID, ano: int | None = None
+    ) -> int:
+        """Remove reservas não-confirmadas vencidas (devolve número à sequência).
+        Retorna a quantidade liberada."""
         ...

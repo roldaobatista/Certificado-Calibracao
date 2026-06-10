@@ -26,6 +26,7 @@ from src.domain.configuracoes_sistema.entities import (
     Empresa,
     Filial,
     Imposto,
+    ReservaNumeroDocumento,
     SerieDocumento,
 )
 from src.domain.configuracoes_sistema.enums import (
@@ -164,13 +165,15 @@ class DjangoSerieDocumentoRepository:
 
     # === reserva de número (INV-CFG-NUM-ATOMICA / INV-028) ===
 
-    def reservar_numero(self, *, tenant_id: UUID, serie_id: UUID, ano: int | None = None) -> int:
+    def reservar_numero(
+        self, *, tenant_id: UUID, serie_id: UUID, ano: int | None = None
+    ) -> ReservaNumeroDocumento:
         """Reserva e retorna o próximo número atômico, conforme o regime da série.
 
         GAP_LESS: reserva-TTL no `numero_documento_reservado` (densa; precisa de
-        `confirmar_numero` na transação do emissor — reserva não-confirmada
-        expira e devolve o número). BURACOS_ACEITOS: UPDATE atômico já consome o
-        número (buraco por rollback aceito — D-CFG-10).
+        `confirmar_numero(reserva_id=...)` na transação do emissor — reserva
+        não-confirmada expira e devolve o número). BURACOS_ACEITOS: UPDATE
+        atômico já consome o número (buraco por rollback aceito — D-CFG-10).
         """
         serie = SerieDocumentoModel.objects.filter(tenant_id=tenant_id, id=serie_id).first()
         if serie is None:
@@ -186,7 +189,7 @@ class DjangoSerieDocumentoRepository:
 
     def _reservar_gap_less(
         self, *, serie: SerieDocumentoModel, tenant_id: UUID, ano: int | None
-    ) -> int:
+    ) -> ReservaNumeroDocumento:
         """Motor M8 (TL-02): advisory lock por (tenant, serie, ano) → libera
         expirados → menor sequencial livre → INSERT (trigger valida densidade)."""
         ano_dim = self._ano_dimensao(serie, ano)
@@ -211,7 +214,7 @@ class DjangoSerieDocumentoRepository:
                 ).values_list("sequencial", flat=True)
             )
             seq = proximo_sequencial(em_uso)
-            NumeroDocumentoReservado.objects.create(
+            reserva = NumeroDocumentoReservado.objects.create(
                 tenant_id=tenant_id,
                 serie_id=serie.id,
                 ano=ano_dim,
@@ -219,11 +222,11 @@ class DjangoSerieDocumentoRepository:
                 ttl_expira_em=agora + TTL_RESERVA,
                 confirmado=False,
             )
-            return seq
+            return ReservaNumeroDocumento(sequencial=seq, reserva_id=reserva.id)
 
     def _alocar_buracos_aceitos(
         self, *, serie: SerieDocumentoModel, tenant_id: UUID, ano: int | None
-    ) -> int:
+    ) -> ReservaNumeroDocumento:
         """UPDATE atômico estilo ADR-0056 (row lock serializa); reset anual TL-07
         resolvido no MESMO statement — o trigger INV-028 permite o "decremento"
         apenas quando `ano_corrente` troca junto."""
@@ -244,22 +247,18 @@ class DjangoSerieDocumentoRepository:
             row = cur.fetchone()
         if row is None:
             raise LookupError(f"serie {serie.id} inexistente para o tenant.")
-        return int(row[0])
+        return ReservaNumeroDocumento(sequencial=int(row[0]), reserva_id=None)
 
-    def confirmar_numero(
-        self, *, tenant_id: UUID, serie_id: UUID, sequencial: int, ano: int | None = None
-    ) -> bool:
+    def confirmar_numero(self, *, tenant_id: UUID, reserva_id: UUID) -> bool:
         """One-shot do gap-less: só confirma reserva viva e não-confirmada (caller
-        re-reserva se False). Roda DENTRO da `transaction.atomic` do emissor."""
-        serie = SerieDocumentoModel.objects.filter(tenant_id=tenant_id, id=serie_id).first()
-        if serie is None:
-            return False
+        re-reserva se False). Endereça pela PK da reserva (molde M8) — endereçar
+        por (serie, ano, sequencial) confirmaria reserva viva de fluxo alheio
+        após expiração+reuso do sequencial (CFG-IDEMP-01). Roda DENTRO da
+        `transaction.atomic` do emissor."""
         agora = timezone.now()
         n = NumeroDocumentoReservado.objects.filter(
+            id=reserva_id,
             tenant_id=tenant_id,
-            serie_id=serie_id,
-            ano=self._ano_dimensao(serie, ano),
-            sequencial=sequencial,
             confirmado=False,
             ttl_expira_em__gte=agora,
         ).update(confirmado=True)

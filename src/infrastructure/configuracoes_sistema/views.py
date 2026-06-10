@@ -432,11 +432,20 @@ class ImpostoViewSet(_ConfigViewSetBase):
             tenant_id=tenant_id,
             usuario_id=usuario_id,
             endpoint="configuracoes_sistema.cadastrar_imposto",
+            # Fingerprint = payload COMPLETO (B6): payload diferente sob a mesma
+            # chave deve dar 422 PAYLOAD_DIVERGENTE, não replay silencioso.
             payload_fingerprint={
                 "tipo": d["tipo"],
                 "aliquota": str(d["aliquota"]),
                 "vigencia_inicio": d["vigencia_inicio"].isoformat(),
+                "vigencia_fim": d["vigencia_fim"].isoformat() if d["vigencia_fim"] else None,
                 "filial_id": str(d["filial_id"]) if d["filial_id"] else None,
+                "cfop_padrao": d["cfop_padrao"],
+                "ncm_padrao": d["ncm_padrao"],
+                "iss_retido_fonte": d["iss_retido_fonte"],
+                "tem_st": d["tem_st"],
+                "simples_excedeu_sublimite": d["simples_excedeu_sublimite"],
+                "observacoes": d["observacoes"],
             },
         )
         if resp is not None:
@@ -507,7 +516,9 @@ class ImpostoViewSet(_ConfigViewSetBase):
             tenant_id=tenant_id,
             usuario_id=usuario_id,
             endpoint="configuracoes_sistema.encerrar_imposto",
-            payload_fingerprint={"imposto_id": str(imposto_id)},
+            # Fingerprint = payload completo (B6): mesma chave com `fim` diferente
+            # é payload divergente, não replay.
+            payload_fingerprint={"imposto_id": str(imposto_id), "fim": d["fim"].isoformat()},
         )
         if resp is not None:
             return resp
@@ -591,9 +602,12 @@ class SerieDocumentoViewSet(_ConfigViewSetBase):
             tenant_id=tenant_id,
             usuario_id=usuario_id,
             endpoint="configuracoes_sistema.criar_serie",
+            # Fingerprint = payload completo (B6).
             payload_fingerprint={
                 "tipo": d["tipo"],
                 "prefixo": d["prefixo"],
+                "formato": d["formato"],
+                "padding": d["padding"],
                 "filial_id": str(d["filial_id"]) if d["filial_id"] else None,
             },
         )
@@ -685,6 +699,9 @@ class SerieDocumentoViewSet(_ConfigViewSetBase):
             "numero_formatado": out.numero_formatado,
             "regime_numeracao": out.regime_numeracao.value,
             "ano": out.ano,
+            # GAP_LESS: alvo do confirmar_numero (CFG-IDEMP-01); None em
+            # BURACOS_ACEITOS (número já consumido, nada a confirmar).
+            "reserva_id": str(out.reserva_id) if out.reserva_id else None,
         }
         concluir_chave(
             chave_id=chave_id,

@@ -100,6 +100,7 @@ class ReservarNumeroOutput:
     numero_formatado: str
     regime_numeracao: RegimeNumeracao
     ano: int | None  # dimensão usada (None quando série sem reset anual)
+    reserva_id: UUID | None  # GAP_LESS: alvo do confirmar_numero (CFG-IDEMP-01)
 
 
 def reservar_numero(
@@ -107,19 +108,21 @@ def reservar_numero(
 ) -> ReservarNumeroOutput:
     """Reserva o próximo número da série (AC-CFG-002-2 / INV-028).
 
-    GAP_LESS: reserva-TTL — o EMISSOR confirma na própria transação (fluxo
-    reservar→confirmar do motor M8); não confirmada expira e o número volta.
+    GAP_LESS: reserva-TTL — o EMISSOR confirma na própria transação via
+    `confirmar_numero(reserva_id=...)` (fluxo reservar→confirmar do motor M8);
+    não confirmada expira e o número volta.
     BURACOS_ACEITOS: número já consumido (buraco por rollback aceito — D-CFG-10).
     """
     serie = repo.obter_por_id(tenant_id=inp.tenant_id, serie_id=inp.serie_id)
     if serie is None:
         raise SerieNaoEncontradaError(str(inp.serie_id))
     ano = inp.agora.year if serie.reset_anual else None
-    seq = repo.reservar_numero(tenant_id=inp.tenant_id, serie_id=inp.serie_id, ano=ano)
+    reserva = repo.reservar_numero(tenant_id=inp.tenant_id, serie_id=inp.serie_id, ano=ano)
     return ReservarNumeroOutput(
         serie_id=inp.serie_id,
-        sequencial=seq,
-        numero_formatado=proximo_formatado(serie, seq, ano),
+        sequencial=reserva.sequencial,
+        numero_formatado=proximo_formatado(serie, reserva.sequencial, ano),
         regime_numeracao=serie.regime_numeracao,
         ano=ano,
+        reserva_id=reserva.reserva_id,
     )

@@ -15,6 +15,20 @@ from .enums import RegimeNumeracao, RegimeTributario, TipoDocumento, TipoImposto
 from .value_objects import Aliquota
 
 
+@dataclass(frozen=True, slots=True)
+class ReservaNumeroDocumento:
+    """Resultado da reserva de número (ADR-0080 — molde M8 `ReservaNumero`).
+
+    GAP_LESS: `reserva_id` identifica a reserva-TTL — a confirmação one-shot
+    endereça por ele (NUNCA por (serie, ano, sequencial): replay velho poderia
+    confirmar reserva viva de fluxo alheio com o mesmo sequencial reusado).
+    BURACOS_ACEITOS: número já consumido no UPDATE atômico — `reserva_id=None`.
+    """
+
+    sequencial: int
+    reserva_id: UUID | None
+
+
 @dataclass(frozen=True)
 class Empresa:
     """Cadastro tributário do tenant (US-CFG-001). INV-036 (CNPJ único por tenant)."""
