@@ -2,7 +2,7 @@
 owner: agente-ia
 revisado-em: 2026-06-09
 proximo-review: 2026-09-09
-status: draft
+status: stable
 diataxis: reference
 audiencia: [agente, auditor, advogado, tech-lead]
 frente: configuracoes-sistema

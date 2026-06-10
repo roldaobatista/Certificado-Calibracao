@@ -2,7 +2,7 @@
 owner: agente-ia
 revisado-em: 2026-06-09
 proximo-review: 2026-09-09
-status: ready-for-implement
+status: stable
 diataxis: reference
 frente: configuracoes-sistema
 tipo: tasks-faseamento

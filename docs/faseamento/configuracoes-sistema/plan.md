@@ -2,7 +2,7 @@
 owner: agente-ia
 revisado-em: 2026-06-09
 proximo-review: 2026-09-09
-status: ready-for-tasks
+status: stable
 diataxis: reference
 audiencia: [agente, tech-lead]
 frente: configuracoes-sistema

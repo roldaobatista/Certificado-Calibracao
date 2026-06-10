@@ -1,7 +1,7 @@
 ---
 owner: agente-ia
-revisado-em: 2026-06-09
-status: proposta
+revisado-em: 2026-06-10
+status: aceito
 relacionados:
   - docs/adr/0056-numeracao-os-buracos-aceitos.md
   - docs/faseamento/configuracoes-sistema/spec.md
