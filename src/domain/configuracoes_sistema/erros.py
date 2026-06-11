@@ -19,7 +19,11 @@ class MatrizInvalidaError(ConfiguracoesSistemaError):
 
 
 class CnpjDuplicadoError(ConfiguracoesSistemaError):
-    """INV-036 — CNPJ único por tenant (empresa/filial)."""
+    """INV-036 — CNPJ único por tenant (empresa/filial).
+
+    Enforcement hoje é a UNIQUE do banco (view mapeia IntegrityError→409);
+    classe reservada pra consumidor de domínio puro (sem caller ainda — nota
+    consultiva da 2ª passada P9)."""
 
 
 class ImpostoVigenciaSobrepostaError(ConfiguracoesSistemaError):
@@ -27,8 +31,14 @@ class ImpostoVigenciaSobrepostaError(ConfiguracoesSistemaError):
 
 
 class ImpostoImutavelError(ConfiguracoesSistemaError):
-    """INV-CFG-IMPOSTO-IMUTAVEL — alíquota/tipo/vigencia_inicio de linha existente não muda."""
+    """INV-CFG-IMPOSTO-IMUTAVEL — alíquota/tipo/vigencia_inicio de linha existente não muda.
+
+    Enforcement hoje é o trigger WORM (0003); classe reservada pra consumidor
+    de domínio puro (sem caller ainda — nota consultiva da 2ª passada P9)."""
 
 
 class TipoDocumentoNaoNumeravelError(ConfiguracoesSistemaError):
-    """NFS-e/NF não são numeradas localmente (BaaS/município — ADR-0080)."""
+    """NFS-e/NF não são numeradas localmente (BaaS/município — ADR-0080).
+
+    Enforcement hoje é o ChoiceField/enum `TipoDocumento` (nf/nfse nem existem
+    como tipo de série); classe reservada pra consumidor de domínio puro."""

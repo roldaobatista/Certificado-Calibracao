@@ -101,4 +101,12 @@ prematuro dos emissores existentes. **Pronto para P9** (auditores roteados INV-R
 
 ## 8. P9 — ritual auditores roteados (INV-RITUAL-003)
 
-_Preenchido no fechamento do P9 (T-CFG-044)._
+**FECHADO 2026-06-11.** 1ª passada (2026-06-10, 8 auditores roteados): 0 CRÍTICO /
+0 ALTO / **7 MÉDIO** / ~16 BAIXO. Conserto causa-raiz em 6 commits (`b817e2b`
+`4cc64f3` `b54d26d` `62d51ee` `86b87c3` `e1d3dc1`) — destaque: `editar_filial`
+completo (M6), menor-livre SQL anti-join (M7), rota de eliminação PII migration
+0007 (M5), `confirmar_numero(reserva_id)` molde M8 (M3). 2ª passada (2026-06-11,
+7 auditores: 5 com MÉDIO + seguranca/observabilidade por área tocada): **7/7 PASS
+ZERO C/A/M** — INV-RITUAL-001 satisfeito. Notas residuais rastreadas (replay=resumo
+sem PII; B2 molde seed; GATE-IDEMP-EM-PROCESSO-TTL; CHANGELOG transversal) em
+`auditoria-familia5.md` §6. **Frente FECHADA.**

@@ -72,7 +72,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 
 **Critérios de aceite:**
 - **AC-CFG-001-1**: GIVEN admin com permissão, WHEN edita razão social/CNPJ/IE, THEN persiste e dispara evento `Config.EmpresaAtualizada`.
-- **AC-CFG-001-2**: GIVEN tenant multi-filial, WHEN cadastra nova filial, THEN exige CNPJ próprio, endereço, e marca uma como matriz.
+- **AC-CFG-001-2**: GIVEN tenant multi-filial, WHEN cadastra nova filial, THEN exige CNPJ próprio e marca exatamente uma como matriz (INV-037); endereço é opcional (minimização ADV-06 — reconciliado com a spec §3 na 2ª passada P9).
 - **AC-CFG-001-3**: GIVEN edição em massa, WHEN salva, THEN registra auditoria (quem, quando, valor antes/depois).
 
 **Invariantes:** `INV-TENANT-001` (ADR-0002 — toda config isolada por tenant), `SEC-005` (auditoria de mudanças sensíveis).
