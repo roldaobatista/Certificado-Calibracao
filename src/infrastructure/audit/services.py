@@ -121,6 +121,8 @@ _CHAVES_PII_DENYLIST = frozenset(
     {
         "nome",
         "nome_fantasia",
+        # MEI: razao social = nome civil do titular (auditoria P9 configuracoes B8).
+        "razao_social",
         "documento",
         "cpf",
         "cnpj",

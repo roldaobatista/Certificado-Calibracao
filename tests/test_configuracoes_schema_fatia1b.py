@@ -410,3 +410,108 @@ def test_reservar_em_serie_inexistente_raise() -> None:
     repo = DjangoSerieDocumentoRepository()
     with run_in_tenant_context(tenant.id), pytest.raises(LookupError):
         repo.reservar_numero(tenant_id=tenant.id, serie_id=uuid4())
+
+
+# === M2 (auditoria P9): linha revogada nunca resolve como vigente ===
+
+
+@pytest.mark.django_db(transaction=True)
+def test_imposto_vigente_ignora_revogada_e_resolve_substituta_mesma_janela() -> None:
+    """Regressão M2: revogada + substituta na MESMA janela (a exclusion 0004
+    permite, pois a revogada sai do WHERE) → `imposto_vigente_em` resolve a
+    SUBSTITUTA, nunca a revogada (consumidor pegaria a alíquota errada)."""
+    from src.domain.configuracoes_sistema.enums import TipoImposto
+    from src.domain.configuracoes_sistema.transicoes import imposto_vigente_em
+    from src.infrastructure.configuracoes_sistema.repositories import (
+        DjangoImpostoRepository,
+    )
+
+    tenant = TenantFactory()
+    errada = _cria_imposto(tenant)  # ISS [jan/2026, ∞)
+    with run_in_tenant_context(tenant.id):
+        Imposto.objects.filter(id=errada.id).update(
+            revogado_em=timezone.now(),
+            motivo_revogacao="aliquota errada — regressao M2 auditoria P9",
+        )
+        substituta = Imposto.objects.create(
+            tenant=tenant,
+            tipo="iss",
+            aliquota="3.5000",
+            vigencia_inicio=_INICIO_2026,
+            vigencia_fim=None,
+        )
+        catalogo = DjangoImpostoRepository().listar(tenant_id=tenant.id)
+        vigente = imposto_vigente_em(
+            catalogo, TipoImposto.ISS, filial_id=None, momento=_MEIO_2026
+        )
+        assert vigente is not None
+        assert vigente.id == substituta.id  # a revogada NUNCA resolve
+        assert str(vigente.aliquota.valor) == "3.5000"
+
+
+# === M5 (auditoria P9 — LGPD-MEC-003): rota de eliminação de PII ===
+
+
+@pytest.mark.django_db(transaction=True)
+def test_apagar_pii_empresa_filial_anonimiza_contato_preserva_fiscal() -> None:
+    """Migration 0007: anonimiza contato (endereco/telefone/site/logo_url);
+    PRESERVA razao_social/cnpj/nome/IE/IM (prova fiscal — retencao-matriz).
+    RLS FORCE: tenant vizinho fica intacto."""
+    tenant_a, tenant_b = TenantFactory(), TenantFactory()
+    with run_in_tenant_context(tenant_a.id):
+        empresa_a = Empresa.objects.create(
+            tenant=tenant_a,
+            razao_social="Balanças Solution LTDA",
+            cnpj=CNPJ_A,
+            regime_tributario="simples_nacional",
+            endereco="Rua das Balanças, 100 — Cuiabá/MT",
+            telefone="65999990000",
+            site="https://exemplo.test",
+            logo_url="https://exemplo.test/logo.png",
+        )
+        Filial.objects.create(
+            tenant=tenant_a,
+            empresa=empresa_a,
+            cnpj=CNPJ_B,
+            nome="Matriz Cuiabá",
+            eh_matriz=True,
+            endereco="Rua das Balanças, 100",
+            telefone="65999990001",
+            inscricao_estadual="1234567",
+        )
+    with run_in_tenant_context(tenant_b.id):
+        empresa_b = Empresa.objects.create(
+            tenant=tenant_b,
+            razao_social="Vizinha LTDA",
+            cnpj=CNPJ_A,
+            regime_tributario="simples_nacional",
+            endereco="Av. Vizinha, 1",
+            telefone="65888880000",
+        )
+
+    with run_in_tenant_context(tenant_a.id):
+        with connection.cursor() as cur:
+            cur.execute("SELECT apagar_pii_empresa_filial(%s);", [tenant_a.id])
+            assert cur.fetchone()[0] == 2  # 1 empresa + 1 filial anonimizadas
+        emp = Empresa.objects.get(id=empresa_a.id)
+        assert (emp.endereco, emp.telefone, emp.site, emp.logo_url) == ("", "", "", "")
+        assert emp.razao_social == "Balanças Solution LTDA"  # prova fiscal preservada
+        assert emp.cnpj == CNPJ_A
+        fil = Filial.objects.get(empresa_id=empresa_a.id)
+        assert (fil.endereco, fil.telefone) == ("", "")
+        assert fil.nome == "Matriz Cuiabá"
+        assert fil.inscricao_estadual == "1234567"
+        # Idempotente: segunda chamada não encontra nada a anonimizar.
+        with connection.cursor() as cur:
+            cur.execute("SELECT apagar_pii_empresa_filial(%s);", [tenant_a.id])
+            assert cur.fetchone()[0] == 0
+
+    # RLS FORCE: a função roda como caller — não alcança o tenant vizinho
+    # nem quando chamada com o id dele a partir de outro contexto.
+    with run_in_tenant_context(tenant_a.id), connection.cursor() as cur:
+        cur.execute("SELECT apagar_pii_empresa_filial(%s);", [tenant_b.id])
+        assert cur.fetchone()[0] == 0
+    with run_in_tenant_context(tenant_b.id):
+        emp_b = Empresa.objects.get(id=empresa_b.id)
+        assert emp_b.endereco == "Av. Vizinha, 1"
+        assert emp_b.telefone == "65888880000"

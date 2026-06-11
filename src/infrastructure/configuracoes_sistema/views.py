@@ -330,7 +330,9 @@ class EmpresaConfigViewSet(_ConfigViewSetBase):
             chave_id=chave_id,
             tenant_id=tenant_id,
             response_status=http_status,
-            response_body_resumo=body,
+            # B9 (P9 LGPD): resumo PERSISTIDO sem PII (cnpj/endereco/telefone
+            # ficam só na resposta original; replay devolve o resumo reduzido).
+            response_body_resumo={"empresa_id": str(out.empresa.id), "criada": out.criada},
         )
         return Response(body, status=http_status)
 
@@ -395,7 +397,13 @@ class EmpresaConfigViewSet(_ConfigViewSetBase):
             chave_id=chave_id,
             tenant_id=tenant_id,
             response_status=status.HTTP_201_CREATED,
-            response_body_resumo=body,
+            # B9 (P9 LGPD): resumo PERSISTIDO sem PII (cnpj/endereco/telefone
+            # ficam só na resposta original; replay devolve o resumo reduzido).
+            response_body_resumo={
+                "filial_id": str(filial.id),
+                "empresa_id": str(filial.empresa_id),
+                "eh_matriz": filial.eh_matriz,
+            },
         )
         return Response(body, status=status.HTTP_201_CREATED)
 

@@ -59,6 +59,10 @@ class Empresa(models.Model):
     tenant = models.ForeignKey(
         "tenant.tenant", on_delete=models.PROTECT, related_name="empresas_config"
     )
+    # lgpd-base: art. 7º II (obrigação fiscal) + V (execução de contrato) —
+    # RAT-CFG-EMPRESA. PII PJ; em MEI o CNPJ embute CPF (ADV-06). Eliminação:
+    # `apagar_pii_empresa_filial()` (migration 0007) anonimiza contato;
+    # razao_social/cnpj preservados enquanto doc fiscal no prazo (retencao-matriz).
     razao_social = models.CharField(max_length=200)
     cnpj = models.CharField(
         max_length=14,
@@ -71,6 +75,8 @@ class Empresa(models.Model):
     )
     inscricao_estadual = models.CharField(max_length=20, blank=True, default="")
     inscricao_municipal = models.CharField(max_length=20, blank=True, default="")
+    # lgpd-base: art. 7º V — contato/endereço (RAT-CFG-EMPRESA); rota de
+    # eliminação = apagar_pii_empresa_filial() (migration 0007).
     endereco = models.TextField(blank=True, default="")
     logo_url = models.CharField(max_length=300, blank=True, default="")
     site = models.CharField(max_length=200, blank=True, default="")
@@ -102,6 +108,9 @@ class Filial(models.Model):
         "tenant.tenant", on_delete=models.PROTECT, related_name="filiais_config"
     )
     empresa = models.ForeignKey(Empresa, on_delete=models.PROTECT, related_name="filiais")
+    # lgpd-base: art. 7º II + V — RAT-CFG-EMPRESA (mesma base da Empresa).
+    # Eliminação: apagar_pii_empresa_filial() anonimiza endereco/telefone;
+    # nome/cnpj/IE/IM preservados (prova fiscal — retencao-matriz).
     cnpj = models.CharField(
         max_length=14, help_text="CNPJ próprio da filial (AC-CFG-001-2; VO ADR-0017)."
     )
