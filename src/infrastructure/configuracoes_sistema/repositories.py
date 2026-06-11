@@ -1,8 +1,10 @@
 """Adapters Django dos Protocols de `configuracoes-sistema` (T-CFG-026 — ADR-0007).
 
-A reserva de número REUSA o motor gap-less do M8 (`proximo_sequencial` + TTL +
-advisory lock — TL-02/ADR-0080), sobre a tabela própria
-`numero_documento_reservado` (dimensão por série, não por tipo de certificado).
+A reserva de número REUSA o motor gap-less do M8 (TTL + advisory lock —
+TL-02/ADR-0080), sobre a tabela própria `numero_documento_reservado` (dimensão
+por série, não por tipo de certificado). O menor sequencial livre é calculado
+em SQL puro (anti-join — equivalente ao `proximo_sequencial` do domínio, sem
+materializar a série em Python sob o lock; achado PERF M7 da auditoria P9).
 Concorrência:
 - GAP_LESS (fatura/certificado): `pg_advisory_xact_lock` por (tenant, serie, ano)
   + trigger de consecutividade (0003) + reserva-TTL 5min. Fluxo reserva →
@@ -34,7 +36,7 @@ from src.domain.configuracoes_sistema.enums import (
     TipoDocumento,
     TipoImposto,
 )
-from src.domain.metrologia.certificados.numeracao import TTL_RESERVA, proximo_sequencial
+from src.domain.metrologia.certificados.numeracao import TTL_RESERVA
 from src.infrastructure.configuracoes_sistema import mappers
 from src.infrastructure.configuracoes_sistema.models import (
     Empresa as EmpresaModel,
@@ -208,12 +210,36 @@ class DjangoSerieDocumentoRepository:
                 confirmado=False,
                 ttl_expira_em__lt=agora,
             ).delete()
-            em_uso = list(
-                NumeroDocumentoReservado.objects.filter(
-                    tenant_id=tenant_id, serie_id=serie.id, ano=ano_dim
-                ).values_list("sequencial", flat=True)
-            )
-            seq = proximo_sequencial(em_uso)
+            # Menor sequencial livre em SQL puro (anti-join sobre a UNIQUE
+            # uq_num_doc_reservado) — não materializa a série em Python sob o
+            # advisory lock (série sem reset anual cresce pra sempre: O(n²)
+            # agregado). Equivale a `proximo_sequencial` do domínio (teste de
+            # equivalência em test_configuracoes_schema_fatia1b). MAX(confirmado)
+            # seria INCORRETO: confirmados podem ter buraco temporário (reserva 2
+            # confirma, 1 e 3 expiram → livre=1, não 3).
+            with connection.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT c.candidato
+                    FROM (
+                        SELECT 1 AS candidato
+                        UNION ALL
+                        SELECT sequencial + 1
+                        FROM numero_documento_reservado
+                        WHERE tenant_id = %s AND serie_id = %s AND ano = %s
+                    ) AS c
+                    WHERE NOT EXISTS (
+                        SELECT 1
+                        FROM numero_documento_reservado r
+                        WHERE r.tenant_id = %s AND r.serie_id = %s AND r.ano = %s
+                              AND r.sequencial = c.candidato
+                    )
+                    ORDER BY c.candidato
+                    LIMIT 1;
+                    """,
+                    [tenant_id, serie.id, ano_dim, tenant_id, serie.id, ano_dim],
+                )
+                seq = int(cur.fetchone()[0])
             reserva = NumeroDocumentoReservado.objects.create(
                 tenant_id=tenant_id,
                 serie_id=serie.id,

@@ -548,13 +548,8 @@ class ImpostoViewSet(_ConfigViewSetBase):
         except ValueError as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
 
-        imposto = next(
-            (
-                i
-                for i in DjangoImpostoRepository().listar(tenant_id=tenant_id)
-                if i.id == imposto_id
-            ),
-            None,
+        imposto = DjangoImpostoRepository().obter_por_id(
+            tenant_id=tenant_id, imposto_id=imposto_id
         )
         body = _serializar_imposto(imposto) if imposto else {"imposto_id": str(imposto_id)}
         concluir_chave(

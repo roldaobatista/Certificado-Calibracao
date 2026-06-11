@@ -341,6 +341,40 @@ def test_gap_less_reserva_expirada_devolve_numero() -> None:
 
 
 @pytest.mark.django_db(transaction=True)
+def test_gap_less_menor_livre_sql_equivale_ao_dominio_com_buraco() -> None:
+    """PERF M7 (auditoria P9): o menor-livre via SQL anti-join deve equivaler ao
+    `proximo_sequencial` puro do domínio — inclusive com BURACO interno entre
+    confirmados (reserva 2 confirma; 1 e 3 expiram → livre=1, não 3; o atalho
+    MAX(confirmado)+1 daria 3 e furaria a densidade)."""
+    from src.domain.metrologia.certificados.numeracao import proximo_sequencial
+
+    tenant = TenantFactory()
+    serie = _cria_serie(tenant, tipo="fatura", prefixo="FAT", regime="gap_less")
+    repo = DjangoSerieDocumentoRepository()
+    with run_in_tenant_context(tenant.id):
+        r1 = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
+        r2 = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
+        r3 = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
+        assert (r1.sequencial, r2.sequencial, r3.sequencial) == (1, 2, 3)
+        assert r2.reserva_id is not None
+        assert repo.confirmar_numero(tenant_id=tenant.id, reserva_id=r2.reserva_id)
+        # 1 e 3 expiram → buraco interno {2 confirmado}.
+        NumeroDocumentoReservado.objects.filter(
+            serie_id=serie.id, sequencial__in=(1, 3)
+        ).update(ttl_expira_em=timezone.now() - timedelta(minutes=1))
+
+        # Oráculo puro do domínio sobre o conjunto vivo pós-liberação ({2}).
+        assert proximo_sequencial([2]) == 1
+
+        r4 = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
+        assert r4.sequencial == 1  # SQL == domínio: preenche o buraco
+        r5 = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
+        assert r5.sequencial == proximo_sequencial([1, 2]) == 3
+        r6 = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
+        assert r6.sequencial == proximo_sequencial([1, 2, 3]) == 4
+
+
+@pytest.mark.django_db(transaction=True)
 def test_gap_less_insert_fora_de_sequencia_raise() -> None:
     tenant = TenantFactory()
     serie = _cria_serie(tenant, tipo="certificado", prefixo="CERT", regime="gap_less")
