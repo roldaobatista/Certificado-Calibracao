@@ -54,6 +54,11 @@ class AdicionarFilialSerializer(serializers.Serializer):
     telefone = serializers.CharField(max_length=20, required=False, allow_blank=True, default="")
 
 
+class EditarFilialSerializer(AdicionarFilialSerializer):
+    """Edição de filial (conserto M6 P9) — mesmo shape do adicionar; o id vem
+    na URL e o INV-037 (troca atômica de matriz) é validado no use case."""
+
+
 class CadastrarImpostoSerializer(serializers.Serializer):
     """Nova linha de catálogo (US-CFG-003) — imutável pós-INSERT."""
 

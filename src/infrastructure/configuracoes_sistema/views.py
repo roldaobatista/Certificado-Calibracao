@@ -5,6 +5,7 @@ Actions:
   POST /api/v1/configuracoes/empresa/atualizar/              upsert (US-CFG-001)
   GET  /api/v1/configuracoes/empresa/filiais/                lista filiais
   POST /api/v1/configuracoes/empresa/adicionar-filial/       INV-037 no use case
+  POST /api/v1/configuracoes/empresa/filiais/{id}/editar/    M6 P9 — troca atômica matriz
   GET  /api/v1/configuracoes/impostos/                       catálogo do tenant
   POST /api/v1/configuracoes/impostos/cadastrar/             nova linha imutável
   POST /api/v1/configuracoes/impostos/{id}/encerrar-vigencia/ one-shot D-CFG-3
@@ -57,6 +58,7 @@ from src.infrastructure.configuracoes_sistema.serializers import (
     AtualizarEmpresaSerializer,
     CadastrarImpostoSerializer,
     CriarSerieSerializer,
+    EditarFilialSerializer,
     EncerrarVigenciaImpostoSerializer,
 )
 from src.infrastructure.idempotencia.services_idempotencia import (
@@ -245,6 +247,7 @@ class EmpresaConfigViewSet(_ConfigViewSetBase):
         "filiais": "configuracoes_sistema.ver",
         "atualizar": "configuracoes_sistema.atualizar_empresa",
         "adicionar_filial": "configuracoes_sistema.gerenciar_filial",
+        "editar_filial": "configuracoes_sistema.gerenciar_filial",
     }
 
     @action(detail=False, methods=["get"], url_path="atual")
@@ -406,6 +409,99 @@ class EmpresaConfigViewSet(_ConfigViewSetBase):
             },
         )
         return Response(body, status=status.HTTP_201_CREATED)
+
+    # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP
+    # (editar_filial -> configuracoes_sistema.gerenciar_filial)
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path=r"filiais/(?P<filial_pk>[^/.]+)/editar",
+    )
+    def editar_filial(self, request: Request, filial_pk: str | None = None) -> Response:
+        """POST — conserto M6 P9 (spec §3 "adicionar/EDITAR filial").
+
+        INV-037 no conjunto resultante; marcar `eh_matriz=True` desmarca a
+        anterior na MESMA transação (troca atômica); desmarcar a única matriz
+        → 422. # idempotency-key: required
+        """
+        s = EditarFilialSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        tenant_id, usuario_id = self._contexto()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+        filial_id = self._uuid_ou_404(filial_pk)
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint="configuracoes_sistema.editar_filial",
+            # Fingerprint = payload completo + alvo (B6).
+            payload_fingerprint={**dict(d), "filial_id": str(filial_id)},
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None and novo.chave_id is not None
+        chave_id = novo.chave_id
+
+        try:
+            inp = uc_empresa.EditarFilialInput(
+                tenant_id=tenant_id,
+                filial_id=filial_id,
+                cnpj=d["cnpj"],
+                nome=d["nome"],
+                eh_matriz=d["eh_matriz"],
+                endereco=d["endereco"],
+                inscricao_estadual=d["inscricao_estadual"],
+                inscricao_municipal=d["inscricao_municipal"],
+                telefone=d["telefone"],
+            )
+            with transaction.atomic():
+                out = uc_empresa.editar_filial(inp, repo=DjangoEmpresaRepository())
+                _publicar_evento_config(
+                    acao="Config.FilialEditada",
+                    payload={
+                        "filial_id": str(out.filial.id),
+                        "empresa_id": str(out.filial.empresa_id),
+                        "eh_matriz": out.filial.eh_matriz,
+                        "ex_matriz_id": str(out.ex_matriz.id) if out.ex_matriz else None,
+                        "antes": _serializar_filial(out.antes),
+                        "depois": _serializar_filial(out.filial),
+                    },
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"filial {out.filial.id} editada",
+                )
+        except uc_empresa.FilialAusenteError as exc:
+            falhar_chave(
+                chave_id=chave_id, tenant_id=tenant_id, response_status=status.HTTP_404_NOT_FOUND
+            )
+            raise NotFound(str(exc)) from exc
+        except uc_empresa.EmpresaAusenteError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except MatrizInvalidaError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except IntegrityError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
+        except ValueError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
+
+        body = _serializar_filial(out.filial)
+        concluir_chave(
+            chave_id=chave_id,
+            tenant_id=tenant_id,
+            response_status=status.HTTP_200_OK,
+            # B9: resumo persistido sem PII (mesma regra do adicionar-filial).
+            response_body_resumo={
+                "filial_id": str(out.filial.id),
+                "empresa_id": str(out.filial.empresa_id),
+                "eh_matriz": out.filial.eh_matriz,
+                "ex_matriz_id": str(out.ex_matriz.id) if out.ex_matriz else None,
+            },
+        )
+        return Response(body, status=status.HTTP_200_OK)
 
 
 # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)

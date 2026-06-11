@@ -80,6 +80,12 @@ frente (0 falso-positivo).
 
 ## 6. Pendências (não bloqueiam fechamento do núcleo)
 
+- **B10 (P9 produto) — interpretação registrada do AC-CFG-002-1:** `proximo_numero`
+  inicial é SEMPRE 1 na criação da série (não configurável). Início ≠ 1 só faz
+  sentido em regime BURACOS_ACEITOS (migração de numeração legada de OS/orçamento
+  vinda de outro sistema) — em GAP_LESS um início > 1 criaria buraco congênito,
+  violando INV-CFG-NUM-ATOMICA. Entra junto com **GATE-CFG-RETROFIT-SERIE**
+  (Wave B), quando emissores legados migrarem pra série central.
 - **GATE-CFG-NUM-DRILL-LOCAL** — concorrência cronometrada PG-real (TRACK Wave A).
 - **Consumidores a jusante** (greenfield, seam pronto): `produtos-pecas-servicos` (frente
   #2), `precificacao`, `orcamentos` — consomem `Imposto.vigente_em` e `reservar_numero`.

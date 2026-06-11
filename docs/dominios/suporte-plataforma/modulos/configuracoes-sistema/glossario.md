@@ -20,7 +20,7 @@ relacionados:
 | Configuração | Parâmetro modificável por tenant que altera comportamento do sistema | "setting" (em PT, evitar) | "ajuste que o cliente pode mudar pra mudar como o sistema se comporta" | derivado |
 | Tenant | Empresa-cliente isolada (multi-tenancy) | "conta" (ambíguo) | "a empresa do cliente, separada das outras" | ADR-0002 |
 | Filial | Unidade física/fiscal da empresa-cliente, com CNPJ próprio | "unidade" (subset) | "um endereço da empresa, geralmente com outro CNPJ" | `novas funcionalidades.txt:1147` |
-| Série de documento | Sequência numérica isolada por tipo (OS, orçamento, fatura, certificado, NF) | — | "uma sequência de numeração separada por tipo de papel" | `novas funcionalidades.txt:1149` |
+| Série de documento | Sequência numérica isolada por tipo (OS, orçamento, fatura, certificado — NF/NFS-e não tem série local: numeração do BaaS/município, ADR-0080/ADV-04) | — | "uma sequência de numeração separada por tipo de papel" | `novas funcionalidades.txt:1149` |
 | Numeração | Formato + contador atual da série | "código" (genérico) | "o próximo número que vai sair quando emitir o documento" | `novas funcionalidades.txt:1148` |
 | Papel (Role) | Conjunto de permissões aplicado a usuário(s) | "perfil" (ambíguo com "perfil do usuário") | "o cargo do usuário no sistema, que define o que ele pode fazer" | RBAC |
 | Permissão | Direito específico de executar ação em recurso | "autorização" (subset) | "uma ação que o papel pode ou não fazer" | `novas funcionalidades.txt:1151` |

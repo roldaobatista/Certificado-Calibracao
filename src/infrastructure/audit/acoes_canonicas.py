@@ -337,6 +337,7 @@ ACOES_CONFIG: Final[frozenset[str]] = frozenset(
     {
         "Config.EmpresaAtualizada",
         "Config.FilialAdicionada",
+        "Config.FilialEditada",
         "Config.ImpostoCadastrado",
         "Config.ImpostoVigenciaEncerrada",
         "Config.SerieCriada",

@@ -10,7 +10,7 @@ relacionados:
 
 # ADR-0080 — Numeração de `SerieDocumento` em dois regimes por tipo
 
-**Status:** proposta (criada na P2 da frente `configuracoes-sistema`; promover a aceito no P8)
+**Status:** aceito (2026-06-10 — P8 da frente `configuracoes-sistema`; criada na P2)
 
 ## Contexto
 

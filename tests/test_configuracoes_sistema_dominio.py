@@ -140,3 +140,138 @@ def test_aliquota_fracao():
 def test_aliquota_fora_de_faixa():
     with pytest.raises(ValueError):
         Aliquota(Decimal("150"))
+
+
+# === use case editar_filial (conserto M6 da auditoria P9) — Fakes, sem banco ===
+
+
+class _FakeEmpresaRepo:
+    """Fake do EmpresaRepository (TST-005) — registra a ORDEM dos salvar_filial
+    (a troca atômica DEVE desmarcar a ex-matriz antes de salvar a nova)."""
+
+    def __init__(self, empresa, filiais):
+        self._empresa = empresa
+        self._filiais = {f.id: f for f in filiais}
+        self.salvas_em_ordem = []
+
+    def obter(self, *, tenant_id):
+        return self._empresa
+
+    def salvar(self, empresa):
+        self._empresa = empresa
+
+    def listar_filiais(self, *, tenant_id, empresa_id):
+        return list(self._filiais.values())
+
+    def salvar_filial(self, filial):
+        self._filiais[filial.id] = filial
+        self.salvas_em_ordem.append(filial)
+
+
+def _cenario_editar(matriz=True):
+    from src.domain.configuracoes_sistema.entities import Empresa
+    from src.domain.configuracoes_sistema.enums import RegimeTributario
+
+    tenant_id, empresa_id = uuid4(), uuid4()
+    empresa = Empresa(
+        id=empresa_id, tenant_id=tenant_id, razao_social="E", cnpj=CNPJ(_CNPJ_OK),
+        regime_tributario=RegimeTributario.SIMPLES_NACIONAL,
+    )
+    f_matriz = Filial(
+        id=uuid4(), tenant_id=tenant_id, empresa_id=empresa_id,
+        cnpj=CNPJ("11222333000181"), nome="Matriz", eh_matriz=matriz,
+    )
+    f_comum = Filial(
+        id=uuid4(), tenant_id=tenant_id, empresa_id=empresa_id,
+        cnpj=CNPJ("34238864000168"), nome="Comum", eh_matriz=False,
+    )
+    return tenant_id, empresa, f_matriz, f_comum
+
+
+def test_editar_filial_muda_nome_preserva_matriz():
+    from src.application.configuracoes_sistema.empresa import EditarFilialInput, editar_filial
+
+    tenant_id, empresa, f_matriz, f_comum = _cenario_editar()
+    repo = _FakeEmpresaRepo(empresa, [f_matriz, f_comum])
+    out = editar_filial(
+        EditarFilialInput(
+            tenant_id=tenant_id, filial_id=f_comum.id, cnpj=f_comum.cnpj.value,
+            nome="Comum Renomeada", eh_matriz=False,
+        ),
+        repo=repo,
+    )
+    assert out.filial.nome == "Comum Renomeada"
+    assert out.ex_matriz is None
+    assert out.antes.nome == "Comum"
+
+
+def test_editar_filial_troca_atomica_de_matriz_desmarca_anterior_primeiro():
+    from src.application.configuracoes_sistema.empresa import EditarFilialInput, editar_filial
+
+    tenant_id, empresa, f_matriz, f_comum = _cenario_editar()
+    repo = _FakeEmpresaRepo(empresa, [f_matriz, f_comum])
+    out = editar_filial(
+        EditarFilialInput(
+            tenant_id=tenant_id, filial_id=f_comum.id, cnpj=f_comum.cnpj.value,
+            nome="Comum", eh_matriz=True,
+        ),
+        repo=repo,
+    )
+    assert out.filial.eh_matriz is True
+    assert out.ex_matriz is not None and out.ex_matriz.id == f_matriz.id
+    assert out.ex_matriz.eh_matriz is False
+    # Ordem: desmarca a ex-matriz ANTES (UNIQUE parcial não-deferrable).
+    assert [f.id for f in repo.salvas_em_ordem] == [f_matriz.id, f_comum.id]
+    matrizes = [f for f in repo.listar_filiais(tenant_id=tenant_id, empresa_id=empresa.id) if f.eh_matriz]
+    assert len(matrizes) == 1 and matrizes[0].id == f_comum.id
+
+
+def test_editar_filial_desmarcar_unica_matriz_falha():
+    from src.application.configuracoes_sistema.empresa import EditarFilialInput, editar_filial
+
+    tenant_id, empresa, f_matriz, f_comum = _cenario_editar()
+    repo = _FakeEmpresaRepo(empresa, [f_matriz, f_comum])
+    with pytest.raises(MatrizInvalidaError):
+        editar_filial(
+            EditarFilialInput(
+                tenant_id=tenant_id, filial_id=f_matriz.id, cnpj=f_matriz.cnpj.value,
+                nome="Matriz", eh_matriz=False,
+            ),
+            repo=repo,
+        )
+    assert repo.salvas_em_ordem == []  # nada persiste quando INV-037 falha
+
+
+def test_editar_filial_inexistente_falha():
+    from src.application.configuracoes_sistema.empresa import (
+        EditarFilialInput,
+        FilialAusenteError,
+        editar_filial,
+    )
+
+    tenant_id, empresa, f_matriz, f_comum = _cenario_editar()
+    repo = _FakeEmpresaRepo(empresa, [f_matriz, f_comum])
+    with pytest.raises(FilialAusenteError):
+        editar_filial(
+            EditarFilialInput(
+                tenant_id=tenant_id, filial_id=uuid4(), cnpj=_CNPJ_OK,
+                nome="X", eh_matriz=False,
+            ),
+            repo=repo,
+        )
+
+
+def test_editar_filial_matriz_continua_matriz_sem_ex_matriz():
+    from src.application.configuracoes_sistema.empresa import EditarFilialInput, editar_filial
+
+    tenant_id, empresa, f_matriz, f_comum = _cenario_editar()
+    repo = _FakeEmpresaRepo(empresa, [f_matriz, f_comum])
+    out = editar_filial(
+        EditarFilialInput(
+            tenant_id=tenant_id, filial_id=f_matriz.id, cnpj=f_matriz.cnpj.value,
+            nome="Matriz Renomeada", eh_matriz=True,
+        ),
+        repo=repo,
+    )
+    assert out.ex_matriz is None  # já era a matriz — não há troca
+    assert out.filial.eh_matriz is True

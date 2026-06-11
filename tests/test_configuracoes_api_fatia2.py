@@ -165,6 +165,88 @@ def test_segunda_matriz_422():
     assert len(g.json()["filiais"]) == 1
 
 
+# === editar filial (conserto M6 da auditoria P9) ===
+
+CNPJ_C = "34238864000168"  # DV válido — 3ª filial dos cenários de edição
+
+
+def _cenario_duas_filiais(client):
+    """Empresa + matriz (CNPJ_A) + filial comum (CNPJ_B). Retorna (matriz, comum)."""
+    assert (
+        _post(client, "/api/v1/configuracoes/empresa/atualizar/", _payload_empresa()).status_code
+        == 201
+    )
+    m = _post(
+        client,
+        "/api/v1/configuracoes/empresa/adicionar-filial/",
+        {"cnpj": CNPJ_A, "nome": "Matriz Cuiabá", "eh_matriz": True},
+    )
+    assert m.status_code == 201, m.content
+    f = _post(
+        client,
+        "/api/v1/configuracoes/empresa/adicionar-filial/",
+        {"cnpj": CNPJ_B, "nome": "Filial Rondonópolis", "eh_matriz": False},
+    )
+    assert f.status_code == 201, f.content
+    return m.json(), f.json()
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_editar_filial_nome_200():
+    client = _client_admin(_cenario())
+    _, comum = _cenario_duas_filiais(client)
+    r = _post(
+        client,
+        f"/api/v1/configuracoes/empresa/filiais/{comum['id']}/editar/",
+        {"cnpj": CNPJ_B, "nome": "Filial Rondonópolis Renomeada", "eh_matriz": False},
+    )
+    assert r.status_code == 200, r.content
+    g = client.get("/api/v1/configuracoes/empresa/filiais/")
+    nomes = {f["id"]: f["nome"] for f in g.json()["filiais"]}
+    assert nomes[comum["id"]] == "Filial Rondonópolis Renomeada"
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_editar_filial_troca_atomica_de_matriz():
+    client = _client_admin(_cenario())
+    matriz, comum = _cenario_duas_filiais(client)
+    # Marcar a comum como matriz desmarca a anterior na MESMA transação.
+    r = _post(
+        client,
+        f"/api/v1/configuracoes/empresa/filiais/{comum['id']}/editar/",
+        {"cnpj": CNPJ_B, "nome": "Filial Rondonópolis", "eh_matriz": True},
+    )
+    assert r.status_code == 200, r.content
+    g = client.get("/api/v1/configuracoes/empresa/filiais/")
+    matrizes = [f for f in g.json()["filiais"] if f["eh_matriz"]]
+    assert len(matrizes) == 1  # INV-037 — exatamente 1 matriz no resultante
+    assert matrizes[0]["id"] == comum["id"]
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_editar_filial_desmarcar_unica_matriz_422():
+    client = _client_admin(_cenario())
+    matriz, _ = _cenario_duas_filiais(client)
+    r = _post(
+        client,
+        f"/api/v1/configuracoes/empresa/filiais/{matriz['id']}/editar/",
+        {"cnpj": CNPJ_A, "nome": "Matriz Cuiabá", "eh_matriz": False},
+    )
+    assert r.status_code == 422, r.content  # tenant nunca fica sem matriz
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_editar_filial_inexistente_404():
+    client = _client_admin(_cenario())
+    _cenario_duas_filiais(client)
+    r = _post(
+        client,
+        f"/api/v1/configuracoes/empresa/filiais/{uuid4()}/editar/",
+        {"cnpj": CNPJ_C, "nome": "Fantasma", "eh_matriz": False},
+    )
+    assert r.status_code == 404, r.content
+
+
 # === imposto (US-CFG-003) ===
 
 

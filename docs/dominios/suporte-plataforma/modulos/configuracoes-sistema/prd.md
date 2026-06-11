@@ -21,7 +21,7 @@ relacionados:
 
 ## 1. O que este módulo é
 
-Central única e bem estruturada de parâmetros do Aferê por tenant. Cobre configuração da empresa, filiais, numeração de documentos, séries (OS, orçamento, fatura, certificado, NF), impostos, permissões, workflows, status personalizados, campos obrigatórios, modelos de PDF, assinatura, integrações, notificações, regras comerciais, SLA, estoque, financeiro, metrologia, backup e retenção de dados.
+Central única e bem estruturada de parâmetros do Aferê por tenant. Cobre configuração da empresa, filiais, numeração de documentos, séries (OS, orçamento, fatura, certificado — NF/NFS-e NÃO tem série local: numeração é do BaaS/município, ADR-0080/ADV-04), impostos, permissões, workflows, status personalizados, campos obrigatórios, modelos de PDF, assinatura, integrações, notificações, regras comerciais, SLA, estoque, financeiro, metrologia, backup e retenção de dados.
 
 ## 2. Por que este módulo existe (problema a resolver)
 
@@ -38,7 +38,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 - Configuração dos dados da empresa (razão social, CNPJ, IE, endereço, logo).
 - Cadastro e configuração de filiais.
 - Numeração de documentos (formato, prefixo, próximo número).
-- Séries de OS, orçamento, fatura, certificado e nota fiscal.
+- Séries de OS, orçamento, fatura e certificado (nota fiscal NÃO: numeração da NFS-e é do BaaS/município — ADR-0080/ADV-04).
 - Configuração de impostos (regime, alíquotas, CFOP, NCM padrão).
 - Configuração de permissões (papéis/roles → recursos).
 - Configuração de workflows (etapas, transições, automações por módulo).
@@ -81,7 +81,7 @@ Ver `personas.md` deste módulo + transversais em `../../personas.md` + `docs/co
 
 ### US-CFG-002: Numeração e séries de documentos
 
-**Como** admin, **quero** configurar formato e numeração de OS, orçamento, fatura, certificado e NF, **para** seguir padrões fiscais e internos.
+**Como** admin, **quero** configurar formato e numeração de OS, orçamento, fatura e certificado, **para** seguir padrões fiscais e internos (NF/NFS-e fora: numeração emitida pelo BaaS/município — ADR-0080/ADV-04).
 
 **Critérios de aceite:**
 - **AC-CFG-002-1**: GIVEN nova série, WHEN configurada, THEN define prefixo, próximo número, padding e formato (ex: `OS-{ano}-{seq:6}`).
