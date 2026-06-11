@@ -14,10 +14,10 @@ from __future__ import annotations
 
 import re
 import uuid
+from typing import Any, NoReturn
 
 from django.core.exceptions import ValidationError
 from django.db import models
-
 
 # Regex oficial do numero RBC — formato CRL NNNN ou CRL NNNN-NN (filial).
 # Fonte: NIT-DICLA-080 (CGCRE). Validado em Tenant.clean() quando perfil='A'.
@@ -148,7 +148,7 @@ class Tenant(models.Model):
     def __str__(self) -> str:
         return f"{self.nome_fantasia} ({self.slug}) [perfil={self.perfil_regulatorio}]"
 
-    def clean(self):
+    def clean(self) -> None:
         """Validacoes de coerencia entre perfil e campos auxiliares (AC-001-1e).
 
         DB tambem tem CHECK constraints redundantes — clean() apanha em forms/admin
@@ -291,14 +291,14 @@ class TenantPerfilHistorico(models.Model):
             f"[{self.direcao}] em {self.registrado_em.isoformat()}"
         )
 
-    def delete(self, *args, **kwargs):
+    def delete(self, *args: Any, **kwargs: Any) -> NoReturn:
         """Bloqueio em Python antes do banco — defesa em profundidade."""
         raise RuntimeError(
             "TenantPerfilHistorico e append-only. DELETE proibido "
             "(INV-TENANT-PERFIL-002 + trigger tph_anti_delete_trigger)."
         )
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """Bloqueio em Python contra UPDATE — defesa em profundidade.
 
         INSERT (pk ainda nao gravada) e permitido; UPDATE (pk ja existe) nao.

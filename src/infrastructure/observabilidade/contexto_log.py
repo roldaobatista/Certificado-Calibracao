@@ -12,12 +12,13 @@ importar `multitenant.context` no topo arriscaria ciclo.
 
 from __future__ import annotations
 
+from collections.abc import MutableMapping
 from typing import Any
 
 
 def injetar_contexto_observabilidade(
-    _logger: Any, _method_name: str, event_dict: dict[str, Any]
-) -> dict[str, Any]:
+    _logger: Any, _method_name: str, event_dict: MutableMapping[str, Any]
+) -> MutableMapping[str, Any]:
     """structlog processor: adiciona correlation_id/tenant_id/usuario_id.
 
     Assinatura padrao de processor structlog `(logger, method_name, event_dict)`.

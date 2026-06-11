@@ -1,6 +1,6 @@
 """Settings de desenvolvimento (local docker compose)."""
 
-from typing import Any, cast
+from typing import Any
 
 from .base import *  # — overlay padrao Django: base define tudo, dev sobrepoe
 
@@ -14,8 +14,8 @@ INSTALLED_APPS += [
 ]  # — INSTALLED_APPS vem do star import de base.py (padrao Django settings overlay)
 
 # Logging verboso pra agente IA debugar.
-# LOGGING vem do star import de base.py; cast pra dict pra mypy.
-_LOGGING: dict[str, Any] = cast(dict[str, Any], LOGGING)  # — star import
+# LOGGING vem do star import de base.py (ja tipado dict[str, Any]).
+_LOGGING: dict[str, Any] = LOGGING  # — star import
 _LOGGING["root"]["level"] = "DEBUG"
 
 # Em dev permite SECRET_KEY default insegura via .env, mas registra warning.

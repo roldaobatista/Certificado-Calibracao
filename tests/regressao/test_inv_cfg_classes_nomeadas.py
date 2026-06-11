@@ -14,7 +14,6 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from django.db import DatabaseError, IntegrityError
 from django.utils import timezone
-
 from src.domain.configuracoes_sistema.enums import RegimeNumeracao, TipoDocumento
 from src.domain.configuracoes_sistema.transicoes import regime_numeracao_do_tipo
 from src.infrastructure.configuracoes_sistema.models import (
