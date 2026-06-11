@@ -84,6 +84,10 @@ da frente (0 falso-positivo; fingerprint de idempotência com `motivo` NÃO disp
 | GATE-PPS-XLSX | 🟡 V2 | dep `openpyxl` (DEP-001); "salvar como CSV" resolve onboarding |
 | GATE-PPS-OUTBOX-ESTOQUE | 🟡 Wave A/B | eventos `Catalogo.*` promovem a outbox `_schema_version: v1` quando estoque/orçamentos chegarem (TL-PPS-05) |
 | `[OAB-PRE-PROD]` ToS importação | 🟡 pré-produção | cláusula titularidade/indenidade dados importados (ADV-PPS-07 — lote único ToS/DPA) |
+| GATE-PPS-KIT-BATCH (P9 PERF-B2) | 🟡 condição do WIREIN-OS | decomposição de kit resolve versões POR filho (K+1 queries); aceitável kit<10 partes — método em lote (`item_id IN (...)`) obrigatório ANTES do wire-in na OS (M×(K+1) no caminho quente) |
+| GATE-PPS-RETRIEVE-PAGINACAO (P9 PERF-B3) | 🟡 UI Wave A | `tabelas/{id}/` serializa TODAS as linhas (vigentes+encerradas+revogadas) — paginação/filtro `?vigentes_em=` quando a UI consumir |
+| GATE-IDEMP-EM-PROCESSO (P9 IDEMP-B1) | 🟡 transversal F-C | chave presa `em_processo` após crash sem `falhar_chave` devolve 425 além do TTL (`_avaliar_existente` checa EM_PROCESSO antes de `expira_em`) — carryover do serviço compartilhado (M2/M4/CFG idem); conserto transversal, não desta frente |
+| GATE-OBS-METRIC-PPS (OBS-003) | 🟡 carryover M5..M9 | métrica de endpoint fecha quando Prometheus fizer scrape (GATE-OBS-METRIC-SCRAPE-1) |
 
 ## 6. Pendências (não bloqueiam fechamento do núcleo)
 
@@ -103,7 +107,24 @@ lock). A porta `preco_para_os` nasce fail-closed com contrato probatório comple
 
 ## 8. P9 — ritual auditores roteados (INV-RITUAL-003)
 
-_A preencher no P9._ Roteamento previsto (plan §Fatias): seguranca · qualidade ·
-llm-correctness · produto · idempotencia · conformidade-lgpd (PII eventos/importação)
-· performance (porta+kit) · observabilidade (views novas). Supplychain N/A (CSV-only
-mantido — zero dep nova).
+**1ª passada (2026-06-11, 8 auditores roteados):** seguranca · qualidade ·
+llm-correctness · produto · idempotencia · conformidade-lgpd · performance ·
+observabilidade = **8× CONCERNS — 0 CRÍTICO / 0 ALTO / 9 MÉDIO / ~20 BAIXO**.
+Supplychain N/A (CSV-only mantido — zero dep nova).
+
+**Conserto causa-raiz (mesmo dia — regra resolver-TUDO):** 9/9 MÉDIOS + 14 BAIXOs
+de código + 6 emendas de doc. Destaques: migration **0010** (colunas motivo
+200→600 — DataError 500 eliminado) + **0011** (trigger `item_catalogo_imutavel_trg`
+QUAL-M1; CHECK `fim>=inicio` ×2; patch WORM motivo pré-revogação); parser valida
+agrupamento de milhar (QUAL-M2) + comprimento por campo (SEG-M1b); `montar_kit`
+com advisory lock + IntegrityError→409 (IDEMP-M1); `nome_tabela_hash` em WORM +
+hook estendido PEPH7 (LGPD-M1); `obter_linha` pontual (PERF-M1);
+`Catalogo.LinhaImportacaoRejeitada` (OBS-M1); glossário do módulo emendado
+(PROD-M1); `ImportacaoAusenteError`/`agora_utc`/`listar` órfãos removidos
+(LLM-M1/B2/B4); `_falha` sem detail PG cru + `codigo` estável; logs OBS-B1..B4;
+RLS estrutural 7/7 + UNHAPPY staging em pytest. BAIXOs não-acionáveis viraram
+GATE rastreado (§5). Verificado PG real: suíte PPS **106/106** + hooks 573/573 +
+anti-drift (74/573/82/148) + makemigrations limpo.
+
+**2ª passada:** _pendente — re-passada dos 8 auditores sobre o conserto
+(INV-RITUAL-001 fecha a frente só com zero C/A/M)._

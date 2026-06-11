@@ -105,10 +105,12 @@ def _validar_header_uuid(valor: str | None) -> UUID | ErroValidacao:
 def _calcular_payload_hash(payload: dict[str, Any]) -> str:
     """SHA256-hex do payload canonicalizado.
 
-    NAO e hash de PII — e fingerprint de PAYLOAD da requisicao (sem dados
-    pessoais; campos como `equipamento_id` UUID, `chave` UUID, endpoint
-    string). Usado pra detectar "mesma chave + payload diferente" -> 422.
-    Sal por tenant nao se aplica.
+    NAO e hash de PII — e fingerprint de PAYLOAD da requisicao. Persiste-se
+    APENAS o digest; o payload pode conter texto livre/pseudonimos (ex.:
+    `motivo`/`descricao` dos fingerprints da frente produtos-pecas-servicos —
+    emenda P9 LGPD-B4), e o texto cru NUNCA e persistido por aqui. Usado pra
+    detectar "mesma chave + payload diferente" -> 422. Sal por tenant nao se
+    aplica.
     """
     canon = canonicalizar(payload).encode("utf-8")
     return hashlib.sha256(canon).hexdigest()  # audit-pii-salt: skip -- fingerprint de payload (UUIDs/endpoint), nao PII

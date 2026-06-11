@@ -106,7 +106,11 @@ distinto — NÃO inventar regra (TL-PPS-14).**
   ATÔMICO — TL-PPS-03: preço digitado errado é o erro nº1 de catálogo; sem caminho
   composto o operador contorna).** Kit na tabela exige **linha própria** (fail-closed
   simples; soma das partes é default sugerido na criação, nunca resolução runtime —
-  TL-PPS-09 evita 422 em cascata e N+1).
+  TL-PPS-09 evita 422 em cascata e N+1). **Decisão consciente (emenda P9 SEG-B5):
+  `criar_linha`/`encerrar_linha` de VENDA aceitam janela passada (backfill legítimo de
+  política comercial já praticada) — a anti-retroatividade INV-PPS-PRECO-NAO-RETROATIVO
+  cobre a LISTA; na venda, a proteção é o caller persistir as refs probatórias do
+  `PrecoResolvido` (INV-026 ponto 3) + evento WORM auditando cada linha criada.**
 - **Porta `preco_para_os(tenant, item_id, data_referencia) -> PrecoResolvido |
   PrecoTabelaAusente`** — resolve na TABELA PADRÃO, fail-closed, sem fallback ao
   `preco_padrao` (D-PPS-2; fallback silencioso cobraria preço não aprovado — ADV-PPS-09c).
@@ -119,8 +123,9 @@ distinto — NÃO inventar regra (TL-PPS-14).**
 - **`ImportacaoCatalogo`** — staging RASCUNHO (linhas validada|rejeitada|aceita; aceitar =
   use case canônico; one-shot; molde INV-ECMC-007). **Minimização (ADV-PPS-06): célula fora
   do layout fixo NUNCA persiste; TTL do staging 90 dias (linhas rejeitadas/abandonadas
-  eliminadas); arquivo original retido ≤90d cifrado, SHA-256 no evento WORM é a prova
-  permanente de integridade.** CSV via hook `csv-safety-import`.
+  eliminadas); **o arquivo original NÃO é retido** (lido, hasheado e descartado na
+  request — emenda P9 LGPD-B3: minimização SUPERIOR à planejada; o SHA-256 no evento
+  WORM é a prova permanente de integridade).** CSV via hook `csv-safety-import`.
 
 **Transversais:** INV-TENANT-001 (RLS v2 em todas); Idempotency-Key nos POST; sem
 perfil-gating (D-PPS-7; snapshot `perfil_no_evento` automático); eventos `Catalogo.*`
@@ -176,7 +181,7 @@ Domínio puro (entidades + VO `Preco` + transições + erros + Protocols) + sche
 (migrations RLS v2 + triggers imutabilidade versão/linha molde Imposto + exclusions +
 CHECK preco>0 + grants + seed authz `catalogo.*`) + use cases (cadastrar / nova-versão
 [anti-retroativa] / corrigir [revoga+recria] / montar-kit / inativar / criar-tabela /
-criar-linha / corrigir-linha / importar-staging / aceitar-linha / TTL-staging) + REST
+criar-linha / corrigir-linha / encerrar-linha [one-shot — emenda P9 PROD-B3] / importar-staging / aceitar-linha / rejeitar-linha / TTL-staging) + REST
 ACTION_MAP + Idempotency + porta `preco_para_os` (contrato completo + testes: vigente
 resolve; ausente/revogada/kit-sem-linha-própria → PrecoTabelaAusente; histórico imutável)
 + drill `validar_produtos_pecas_servicos` + família INV-PPS-* em REGRAS + hooks P7 +
