@@ -1,15 +1,14 @@
 ---
 owner: agente-ia
 revisado-em: 2026-06-11
-status: proposta
+status: aceito
 adr: 0081
 relacionados: [0030, 0031, 0080]
 ---
 
 # ADR-0081 — Duas fontes de preço com papéis distintos (lista histórica × tabela de venda vigente)
 
-**Status:** proposta (criada na P2 da frente `produtos-pecas-servicos` — TL-PPS-02;
-promover a aceito no P8)
+**Status:** aceito (2026-06-11 — P8 da frente `produtos-pecas-servicos`; criada na P2 — TL-PPS-02. Implementada nas Fatias 1a..3: porta `preco_para_os` fail-closed + WORM versao/linha + INV-PPS-* + hooks)
 
 ## Contexto
 
