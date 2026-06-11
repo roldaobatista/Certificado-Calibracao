@@ -7,13 +7,20 @@
 from __future__ import annotations
 
 from src.domain.produtos_pecas_servicos.entities import (
+    ImportacaoCatalogo,
     ItemCatalogo,
     ItemCatalogoVersao,
     KitComposicao,
+    LinhaImportacaoCatalogo,
     LinhaTabelaPreco,
     TabelaPreco,
 )
-from src.domain.produtos_pecas_servicos.enums import OrigemPreco, StatusItem, TipoItem
+from src.domain.produtos_pecas_servicos.enums import (
+    OrigemPreco,
+    StatusItem,
+    StatusLinhaImportacao,
+    TipoItem,
+)
 from src.domain.produtos_pecas_servicos.value_objects import Preco
 from src.domain.shared.value_objects import JanelaVigencia
 from src.infrastructure.produtos_pecas_servicos import models
@@ -96,4 +103,38 @@ def linha_model_para_entidade(m: models.LinhaTabelaPreco) -> LinhaTabelaPreco:
         vigencia=_vigencia(m),
         criado_por=m.criado_por,
         origem_sugestao=OrigemPreco(m.origem_sugestao),
+    )
+
+
+def importacao_model_para_entidade(m: models.ImportacaoCatalogo) -> ImportacaoCatalogo:
+    return ImportacaoCatalogo(
+        id=m.id,
+        tenant_id=m.tenant_id,
+        arquivo_sha256=m.arquivo_sha256,
+        arquivo_nome_hash=m.arquivo_nome_hash,
+        total_linhas=m.total_linhas,
+        criado_por=m.criado_por,
+        criado_em=m.criado_em,
+    )
+
+
+def linha_importacao_model_para_entidade(
+    m: models.ImportacaoCatalogoLinha,
+) -> LinhaImportacaoCatalogo:
+    return LinhaImportacaoCatalogo(
+        id=m.id,
+        tenant_id=m.tenant_id,
+        importacao_id=m.importacao_id,
+        linha_numero=m.linha_numero,
+        status=StatusLinhaImportacao(m.status),
+        codigo_interno=m.codigo_interno,
+        tipo=m.tipo,
+        nome=m.nome,
+        unidade_medida=m.unidade_medida,
+        preco_padrao=m.preco_padrao,
+        categoria=m.categoria,
+        descricao=m.descricao,
+        codigo_fabricante=m.codigo_fabricante,
+        motivo_rejeicao=m.motivo_rejeicao,
+        item_criado_id=m.item_criado_id,
     )

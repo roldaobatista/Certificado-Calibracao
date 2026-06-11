@@ -1,15 +1,16 @@
-"""Drill `validar_produtos_pecas_servicos` (Fatia 1b, estrutural — T-PPS-023).
+"""Drill `validar_produtos_pecas_servicos` (Fatias 1b+3, estrutural — T-PPS-023/041).
 
 Verifica que migrations + RLS + triggers + exclusions + grants + seed authz do
 módulo foram aplicados. Espelha o molde `validar_configuracoes_sistema`. Cobre
 o verificável por introspecção PG:
-  1. 5 tabelas existem
+  1. 7 tabelas existem (5 núcleo + 2 staging de importação CSV)
   2. RLS ENABLED + FORCE + >=4 policies em cada (INV-TENANT-001/002)
-  3. UNIQUEs de negócio (INV-PPS-CODIGO-UNICO; versao_n; eh_padrao parcial; kit)
+  3. UNIQUEs de negócio (INV-PPS-CODIGO-UNICO; versao_n; eh_padrao parcial; kit;
+     linha de importação por lote)
   4. CHECKs preco>0 ×2 + quantidade>0 (TL-PPS-16)
   5. 2 exclusion constraints btree_gist (não-sobreposição WHERE revogado IS NULL)
-  6. 4 triggers WORM (versão/linha worm + block delete)
-  7. app_user tem SELECT/INSERT/UPDATE/DELETE nas 5 tabelas
+  6. 4 triggers WORM (versão/linha worm + block delete; staging NÃO tem WORM)
+  7. app_user tem SELECT/INSERT/UPDATE/DELETE nas 7 tabelas
   8. seed authz `catalogo.*` presente (4 ações)
 
 Comportamento PG real (RLS cross-tenant + triggers + exclusions) é coberto por
@@ -32,6 +33,9 @@ TABELAS = (
     "kit_composicao",
     "tabela_preco",
     "linha_tabela_preco",
+    # staging da importação CSV (Fatia 3 — T-PPS-041; mutável, sem WORM)
+    "importacao_catalogo",
+    "importacao_catalogo_linha",
 )
 
 UNIQUES = (
@@ -39,6 +43,7 @@ UNIQUES = (
     "uq_pps_versao_n",
     "uq_pps_kit_filho",
     "uq_pps_tabela_padrao",
+    "uq_pps_imp_linha_numero",
 )
 
 CHECKS = (

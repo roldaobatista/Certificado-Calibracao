@@ -14,7 +14,12 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from src.domain.produtos_pecas_servicos.enums import OrigemPreco, StatusItem, TipoItem
+from src.domain.produtos_pecas_servicos.enums import (
+    OrigemPreco,
+    StatusItem,
+    StatusLinhaImportacao,
+    TipoItem,
+)
 from src.domain.produtos_pecas_servicos.value_objects import Preco
 from src.domain.shared.value_objects import JanelaVigencia
 
@@ -100,6 +105,46 @@ class LinhaTabelaPreco:
     vigencia: JanelaVigencia
     criado_por: UUID
     origem_sugestao: OrigemPreco = OrigemPreco.MANUAL
+
+
+@dataclass(frozen=True)
+class ImportacaoCatalogo:
+    """Lote de importação CSV em STAGING (US-CAT-004 — molde INV-ECMC-007).
+
+    Mutável no banco (staging, NÃO WORM); TTL 90d (ADV-PPS-06). A prova
+    permanente de integridade é o `arquivo_sha256` no evento WORM
+    `Catalogo.ImportacaoConcluida` — o arquivo em si não é retido aqui.
+    """
+
+    id: UUID
+    tenant_id: UUID
+    arquivo_sha256: str
+    arquivo_nome_hash: str  # nome de arquivo pode carregar PII — só o hash
+    total_linhas: int
+    criado_por: UUID
+    criado_em: datetime
+
+
+@dataclass(frozen=True)
+class LinhaImportacaoCatalogo:
+    """Linha do staging — validada|rejeitada|aceita (aceite é one-shot e
+    reusa `cadastrar_item`, o caminho canônico; INV-PPS-IMPORTACAO-STAGING)."""
+
+    id: UUID
+    tenant_id: UUID
+    importacao_id: UUID
+    linha_numero: int
+    status: StatusLinhaImportacao
+    codigo_interno: str = ""
+    tipo: str = ""  # produto|peca|servico (kit não importa via CSV)
+    nome: str = ""
+    unidade_medida: str = ""
+    preco_padrao: Decimal | None = None  # parseado (dialeto BR); None se rejeitada
+    categoria: str = ""
+    descricao: str = ""
+    codigo_fabricante: str = ""
+    motivo_rejeicao: str = ""
+    item_criado_id: UUID | None = None  # preenchido no aceite
 
 
 @dataclass(frozen=True)

@@ -350,7 +350,8 @@ ACOES_CONFIG: Final[frozenset[str]] = frozenset(
 # SO na cadeia hash central (cadeia=True, outbox=False); promocao a outbox e
 # GATE-PPS-OUTBOX-ESTOQUE. LGPD (ADV-PPS-01/02): payload leva
 # `criado_por_id_hash` + `descricao_hash`/`motivo_hash` (HMAC-tenant ADR-0029);
-# `Catalogo.ImportacaoConcluida` entra na Fatia 3 (staging CSV).
+# `Catalogo.ImportacaoConcluida` leva o SHA-256 do arquivo (prova permanente
+# de integridade — staging expira em 90d, o evento WORM nao; ADV-PPS-06).
 ACOES_CATALOGO: Final[frozenset[str]] = frozenset(
     {
         "Catalogo.ItemCadastrado",
@@ -361,6 +362,7 @@ ACOES_CATALOGO: Final[frozenset[str]] = frozenset(
         "Catalogo.LinhaPrecoCriada",
         "Catalogo.LinhaPrecoCorrigida",
         "Catalogo.LinhaPrecoEncerrada",
+        "Catalogo.ImportacaoConcluida",  # T-PPS-042 — lote em staging criado
     }
 )
 

@@ -127,3 +127,22 @@ class EncerrarLinhaSerializer(serializers.Serializer):
 
     linha_id = serializers.UUIDField()
     fim = serializers.DateTimeField()
+
+
+class ImportarCatalogoSerializer(serializers.Serializer):
+    """US-CAT-004 — upload CSV (layout fixo; extras descartadas no parse)."""
+
+    arquivo = serializers.FileField()
+
+
+class AceitarLinhaImportacaoSerializer(serializers.Serializer):
+    """Aceite POR LINHA (one-shot; reusa cadastrar_item)."""
+
+    linha_id = serializers.UUIDField()
+
+
+class RejeitarLinhaImportacaoSerializer(serializers.Serializer):
+    """Rejeição manual na conferência (one-shot)."""
+
+    linha_id = serializers.UUIDField()
+    motivo = serializers.CharField(max_length=300)

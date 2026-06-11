@@ -40,6 +40,7 @@ from django.db import models
 from src.domain.produtos_pecas_servicos.enums import (
     OrigemPreco,
     StatusItem,
+    StatusLinhaImportacao,
     TipoItem,
 )
 
@@ -277,3 +278,85 @@ class LinhaTabelaPreco(models.Model):
 
     def __str__(self) -> str:
         return f"LinhaTabelaPreco(tabela={self.tabela_id} item={self.item_id})"
+
+
+class ImportacaoCatalogo(models.Model):
+    """Lote de importação CSV em STAGING (US-CAT-004 — molde EscopoExtraido M6).
+
+    Mutável, NÃO WORM; TTL 90d via command `limpar_importacoes_expiradas`
+    (ADV-PPS-06). Prova permanente = `arquivo_sha256` no evento WORM
+    `Catalogo.ImportacaoConcluida`. NUNCA persiste item sem aceite humano
+    (INV-PPS-IMPORTACAO-STAGING).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, serialize=False)
+    tenant = models.ForeignKey(
+        "tenant.tenant", on_delete=models.PROTECT, related_name="importacoes_catalogo"
+    )
+    arquivo_sha256 = models.CharField(
+        max_length=64, help_text="SHA-256 do arquivo original (prova de integridade)."
+    )
+    arquivo_nome_hash = models.CharField(
+        max_length=80, blank=True, default="",
+        help_text="Nome de arquivo pode carregar PII — só o hash (minimização).",
+    )
+    total_linhas = models.PositiveIntegerField()
+    criado_por = models.UUIDField()
+    criado_em = models.DateTimeField(db_index=True)
+
+    class Meta:
+        db_table = "importacao_catalogo"
+        verbose_name = "Importação de catálogo (staging)"
+        verbose_name_plural = "Importações de catálogo (staging)"
+        ordering = ["-criado_em"]
+
+    def __str__(self) -> str:
+        return f"ImportacaoCatalogo({self.id})"
+
+
+class ImportacaoCatalogoLinha(models.Model):
+    """Linha do staging — validada|rejeitada|aceita (StatusLinhaImportacao)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, serialize=False)
+    tenant = models.ForeignKey(
+        "tenant.tenant", on_delete=models.PROTECT, related_name="linhas_importacao_catalogo"
+    )
+    importacao = models.ForeignKey(
+        ImportacaoCatalogo, on_delete=models.CASCADE, related_name="linhas"
+    )
+    linha_numero = models.PositiveIntegerField(help_text="2-based (linha 1 = header).")
+    status = models.CharField(max_length=10, choices=_choices(StatusLinhaImportacao))
+    codigo_interno = models.CharField(max_length=60, blank=True, default="")
+    tipo = models.CharField(max_length=10, blank=True, default="")
+    nome = models.CharField(max_length=200, blank=True, default="")
+    unidade_medida = models.CharField(max_length=20, blank=True, default="")
+    preco_padrao = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text="Parseado (dialeto BR); NULL em linha rejeitada no parse.",
+    )
+    categoria = models.CharField(max_length=100, blank=True, default="")
+    descricao = models.CharField(max_length=2000, blank=True, default="")
+    codigo_fabricante = models.CharField(max_length=60, blank=True, default="")
+    motivo_rejeicao = models.CharField(max_length=300, blank=True, default="")
+    item_criado_id = models.UUIDField(
+        null=True, blank=True, help_text="Preenchido no aceite (one-shot)."
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "importacao_catalogo_linha"
+        verbose_name = "Linha de importação de catálogo (staging)"
+        verbose_name_plural = "Linhas de importação de catálogo (staging)"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "importacao", "linha_numero"],
+                name="uq_pps_imp_linha_numero",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "importacao", "status"], name="ix_pps_imp_linha_status"),
+        ]
+
+    def __str__(self) -> str:
+        return f"ImportacaoCatalogoLinha({self.id} {self.status})"

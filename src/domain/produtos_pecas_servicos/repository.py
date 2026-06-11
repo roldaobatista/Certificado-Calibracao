@@ -11,9 +11,11 @@ from typing import Protocol
 from uuid import UUID
 
 from src.domain.produtos_pecas_servicos.entities import (
+    ImportacaoCatalogo,
     ItemCatalogo,
     ItemCatalogoVersao,
     KitComposicao,
+    LinhaImportacaoCatalogo,
     LinhaTabelaPreco,
     TabelaPreco,
 )
@@ -64,4 +66,35 @@ class TabelaPrecoRepository(Protocol):
 
     def revogar_linha(self, *, tenant_id: UUID, linha_id: UUID, motivo: str) -> None:
         """One-shot; já revogada/inexistente → RuntimeError (→ 409)."""
+        ...
+
+
+class ImportacaoCatalogoRepository(Protocol):
+    """Staging da importação CSV (US-CAT-004 — mutável, TTL 90d)."""
+
+    def salvar_importacao(
+        self, importacao: ImportacaoCatalogo, linhas: list[LinhaImportacaoCatalogo]
+    ) -> None: ...
+    def obter_importacao(
+        self, *, tenant_id: UUID, importacao_id: UUID
+    ) -> ImportacaoCatalogo | None: ...
+    def listar_linhas(
+        self, *, tenant_id: UUID, importacao_id: UUID
+    ) -> list[LinhaImportacaoCatalogo]: ...
+    def obter_linha(
+        self, *, tenant_id: UUID, linha_id: UUID
+    ) -> LinhaImportacaoCatalogo | None: ...
+    def marcar_linha_aceita(
+        self, *, tenant_id: UUID, linha_id: UUID, item_criado_id: UUID
+    ) -> None:
+        """One-shot VALIDADA→ACEITA; outro estado → RuntimeError (→ 409)."""
+        ...
+
+    def marcar_linha_rejeitada(self, *, tenant_id: UUID, linha_id: UUID, motivo: str) -> None:
+        """One-shot VALIDADA→REJEITADA; outro estado → RuntimeError (→ 409)."""
+        ...
+
+    def eliminar_importacoes_anteriores_a(self, *, tenant_id: UUID, limite: datetime) -> int:
+        """TTL 90d (ADV-PPS-06) — elimina lotes antigos (linhas em cascata);
+        retorna quantos lotes saíram. Idempotente."""
         ...

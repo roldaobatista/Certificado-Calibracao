@@ -19,13 +19,21 @@ from uuid import UUID
 from django.db import connection
 
 from src.domain.produtos_pecas_servicos.entities import (
+    ImportacaoCatalogo,
     ItemCatalogo,
     ItemCatalogoVersao,
     KitComposicao,
+    LinhaImportacaoCatalogo,
     LinhaTabelaPreco,
     TabelaPreco,
 )
 from src.infrastructure.produtos_pecas_servicos import mappers
+from src.infrastructure.produtos_pecas_servicos.models import (
+    ImportacaoCatalogo as ImportacaoModel,
+)
+from src.infrastructure.produtos_pecas_servicos.models import (
+    ImportacaoCatalogoLinha as LinhaImportacaoModel,
+)
 from src.infrastructure.produtos_pecas_servicos.models import (
     ItemCatalogo as ItemCatalogoModel,
 )
@@ -211,3 +219,90 @@ class DjangoTabelaPrecoRepository:
         ).update(revogado_em=timezone.now(), motivo_revogacao=motivo)
         if atualizadas == 0:
             raise RuntimeError(f"linha {linha_id} já revogada ou inexistente.")
+
+
+class DjangoImportacaoCatalogoRepository:
+    """Staging da importação CSV (US-CAT-004 — mutável, TTL 90d ADV-PPS-06).
+
+    `marcar_linha_*` são one-shot por UPDATE escopado em `status='validada'`
+    (rowcount 0 → RuntimeError → 409): aceite/rejeição nunca reprocessa.
+    """
+
+    def salvar_importacao(
+        self,
+        importacao: ImportacaoCatalogo,
+        linhas: list[LinhaImportacaoCatalogo],
+    ) -> None:
+        ImportacaoModel.objects.create(
+            id=importacao.id,
+            tenant_id=importacao.tenant_id,
+            arquivo_sha256=importacao.arquivo_sha256,
+            arquivo_nome_hash=importacao.arquivo_nome_hash,
+            total_linhas=importacao.total_linhas,
+            criado_por=importacao.criado_por,
+            criado_em=importacao.criado_em,
+        )
+        LinhaImportacaoModel.objects.bulk_create(
+            LinhaImportacaoModel(
+                id=li.id,
+                tenant_id=li.tenant_id,
+                importacao_id=li.importacao_id,
+                linha_numero=li.linha_numero,
+                status=li.status.value,
+                codigo_interno=li.codigo_interno,
+                tipo=li.tipo,
+                nome=li.nome,
+                unidade_medida=li.unidade_medida,
+                preco_padrao=li.preco_padrao,
+                categoria=li.categoria,
+                descricao=li.descricao,
+                codigo_fabricante=li.codigo_fabricante,
+                motivo_rejeicao=li.motivo_rejeicao,
+            )
+            for li in linhas
+        )
+
+    def obter_importacao(
+        self, *, tenant_id: UUID, importacao_id: UUID
+    ) -> ImportacaoCatalogo | None:
+        m = ImportacaoModel.objects.filter(tenant_id=tenant_id, id=importacao_id).first()
+        return mappers.importacao_model_para_entidade(m) if m is not None else None
+
+    def listar_linhas(
+        self, *, tenant_id: UUID, importacao_id: UUID
+    ) -> list[LinhaImportacaoCatalogo]:
+        qs = LinhaImportacaoModel.objects.filter(
+            tenant_id=tenant_id, importacao_id=importacao_id
+        ).order_by("linha_numero")
+        return [mappers.linha_importacao_model_para_entidade(m) for m in qs]
+
+    def obter_linha(
+        self, *, tenant_id: UUID, linha_id: UUID
+    ) -> LinhaImportacaoCatalogo | None:
+        m = LinhaImportacaoModel.objects.filter(tenant_id=tenant_id, id=linha_id).first()
+        return mappers.linha_importacao_model_para_entidade(m) if m is not None else None
+
+    def marcar_linha_aceita(
+        self, *, tenant_id: UUID, linha_id: UUID, item_criado_id: UUID
+    ) -> None:
+        atualizadas = LinhaImportacaoModel.objects.filter(
+            tenant_id=tenant_id, id=linha_id, status="validada"
+        ).update(status="aceita", item_criado_id=item_criado_id)
+        if atualizadas == 0:
+            raise RuntimeError(f"linha {linha_id} não está 'validada' — aceite é one-shot.")
+
+    def marcar_linha_rejeitada(self, *, tenant_id: UUID, linha_id: UUID, motivo: str) -> None:
+        atualizadas = LinhaImportacaoModel.objects.filter(
+            tenant_id=tenant_id, id=linha_id, status="validada"
+        ).update(status="rejeitada", motivo_rejeicao=motivo)
+        if atualizadas == 0:
+            raise RuntimeError(
+                f"linha {linha_id} não está 'validada' — rejeição é one-shot."
+            )
+
+    def eliminar_importacoes_anteriores_a(self, *, tenant_id: UUID, limite: datetime) -> int:
+        antigos = ImportacaoModel.objects.filter(tenant_id=tenant_id, criado_em__lt=limite)
+        total = antigos.count()
+        # FK CASCADE elimina as linhas junto (staging — DELETE legítimo).
+        antigos.delete()
+        return total

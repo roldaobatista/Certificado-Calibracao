@@ -43,12 +43,14 @@ from rest_framework.exceptions import NotFound
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from src.application.produtos_pecas_servicos import importacao as uc_importacao
 from src.application.produtos_pecas_servicos import item as uc_item
 from src.application.produtos_pecas_servicos import tabela as uc_tabela
 from src.domain.produtos_pecas_servicos.entities import (
     ItemCatalogo,
     ItemCatalogoVersao,
     KitComposicao,
+    LinhaImportacaoCatalogo,
     LinhaTabelaPreco,
     PrecoResolvido,
     TabelaPreco,
@@ -61,6 +63,10 @@ from src.domain.produtos_pecas_servicos.erros import (
     PrecoTabelaAusenteError,
     TabelaPadraoDuplicadaError,
     VersaoRetroativaError,
+)
+from src.domain.produtos_pecas_servicos.extracao_csv import (
+    ErroLayoutCsvError,
+    parsear_linhas_catalogo,
 )
 from src.infrastructure.calibracao.lgpd import (
     derivar_hash_texto_canonicalizado,
@@ -80,18 +86,22 @@ from src.infrastructure.multitenant.context import (
 )
 from src.infrastructure.produtos_pecas_servicos import query_service
 from src.infrastructure.produtos_pecas_servicos.repositories import (
+    DjangoImportacaoCatalogoRepository,
     DjangoItemCatalogoRepository,
     DjangoTabelaPrecoRepository,
 )
 from src.infrastructure.produtos_pecas_servicos.serializers import (
+    AceitarLinhaImportacaoSerializer,
     CadastrarItemSerializer,
     CorrigirLinhaSerializer,
     CorrigirVersaoSerializer,
     CriarLinhaSerializer,
     CriarTabelaSerializer,
     EncerrarLinhaSerializer,
+    ImportarCatalogoSerializer,
     MontarKitSerializer,
     NovaVersaoPrecoSerializer,
+    RejeitarLinhaImportacaoSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -1145,3 +1155,341 @@ class TabelaPrecoViewSet(_CatalogoViewSetBase):
             response_body_resumo=body,
         )
         return Response(body, status=status.HTTP_200_OK)
+
+
+# authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
+class ImportacaoCatalogoViewSet(_CatalogoViewSetBase):
+    """Importação CSV em STAGING (US-CAT-004 — INV-PPS-IMPORTACAO-STAGING).
+
+    Importar NUNCA cria item; aceite é POR LINHA (one-shot) e reusa o caminho
+    canônico `cadastrar_item`. Leitura física reusa `clientes/csv_io` (UTF-8/
+    BOM + sniffer `;`/`,` + limites) e TODAS as células passam por
+    `sanitizar_celula_csv` (anti formula-injection) ANTES do staging.
+    """
+
+    ACTION_MAP = {
+        "retrieve": "catalogo.importar",
+        "importar": "catalogo.importar",
+        "aceitar_linha": "catalogo.importar",
+        "rejeitar_linha": "catalogo.importar",
+    }
+
+    def retrieve(self, request: Request, pk: str | None = None) -> Response:
+        tenant_id = _tenant_ou_none()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+        importacao_id = self._uuid_ou_404(pk)
+        repo = DjangoImportacaoCatalogoRepository()
+        importacao = repo.obter_importacao(tenant_id=tenant_id, importacao_id=importacao_id)
+        if importacao is None:
+            raise NotFound(f"importação {pk} não encontrada")
+        linhas = repo.listar_linhas(tenant_id=tenant_id, importacao_id=importacao_id)
+        return Response(
+            {
+                "id": str(importacao.id),
+                "arquivo_sha256": importacao.arquivo_sha256,
+                "total_linhas": importacao.total_linhas,
+                "criado_em": importacao.criado_em.isoformat(),
+                "linhas": [_serializar_linha_importacao(li) for li in linhas],
+            }
+        )
+
+    @action(detail=False, methods=["post"], url_path="importar")
+    def importar(self, request: Request) -> Response:
+        """POST multipart — cria o lote em STAGING. # idempotency-key: required"""
+        import contextlib
+        import hashlib
+
+        from src.infrastructure.clientes.csv_io import (
+            LIMITE_BYTES,
+            ErroCsvIo,
+            ler_csv_normalizado,
+            sanitizar_celula_csv,
+        )
+
+        s = ImportarCatalogoSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        upload = s.validated_data["arquivo"]
+        tenant_id, usuario_id = self._contexto()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            arquivo_bytes = upload.read()
+            if len(arquivo_bytes) > LIMITE_BYTES:
+                return Response(
+                    {"erro": "arquivo_excede_limite", "limite_bytes": LIMITE_BYTES},
+                    status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                )
+            try:
+                norm = ler_csv_normalizado(arquivo_bytes)
+            except ErroCsvIo as exc:
+                return Response(
+                    {"erro": str(exc), "codigo": exc.code},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        finally:
+            with contextlib.suppress(Exception):
+                upload.close()
+
+        arquivo_sha256 = hashlib.sha256(arquivo_bytes).hexdigest()
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint="catalogo.importar_csv",
+            payload_fingerprint={"arquivo_sha256": arquivo_sha256},
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None and novo.chave_id is not None
+        chave_id = novo.chave_id
+
+        # Sanitização anti formula-injection ANTES do staging (SEC-CSV-001).
+        linhas_sanitizadas = tuple(
+            tuple(sanitizar_celula_csv(c) for c in linha) for linha in norm.linhas
+        )
+        try:
+            parseadas = parsear_linhas_catalogo(norm.headers, linhas_sanitizadas)
+            inp = uc_importacao.RegistrarImportacaoInput(
+                tenant_id=tenant_id,
+                arquivo_sha256=arquivo_sha256,
+                arquivo_nome_hash=_hash_texto_ou_none(
+                    getattr(upload, "name", "") or "", tenant_id
+                )
+                or "",
+                criado_por=usuario_id,
+                agora=datetime.now(UTC),
+                linhas_parseadas=parseadas,
+            )
+            with transaction.atomic():
+                out = uc_importacao.registrar_importacao(
+                    inp, repo=DjangoImportacaoCatalogoRepository()
+                )
+                _publicar_evento_catalogo(
+                    acao="Catalogo.ImportacaoConcluida",
+                    payload={
+                        "importacao_id": str(out.importacao.id),
+                        # Prova PERMANENTE de integridade (ADV-PPS-06) — o
+                        # staging expira em 90d; o evento WORM não.
+                        "arquivo_sha256": out.importacao.arquivo_sha256,
+                        "arquivo_nome_hash": out.importacao.arquivo_nome_hash,
+                        "total_linhas": out.importacao.total_linhas,
+                        "validadas": out.total_validadas,
+                        "rejeitadas": out.total_rejeitadas,
+                        "criado_por_id_hash": derivar_user_id_hash(
+                            usuario_id=usuario_id, tenant_id=tenant_id
+                        ),
+                    },
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"importacao {out.importacao.id} em staging",
+                )
+        except ErroLayoutCsvError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
+        except ValueError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
+
+        body = {
+            "id": str(out.importacao.id),
+            "arquivo_sha256": out.importacao.arquivo_sha256,
+            "total_linhas": out.importacao.total_linhas,
+            "validadas": out.total_validadas,
+            "rejeitadas": out.total_rejeitadas,
+            "linhas": [_serializar_linha_importacao(li) for li in out.linhas],
+        }
+        concluir_chave(
+            chave_id=chave_id,
+            tenant_id=tenant_id,
+            response_status=status.HTTP_201_CREATED,
+            # B9: resumo persistido sem conteúdo de linha (texto livre fica fora).
+            response_body_resumo={
+                "importacao_id": str(out.importacao.id),
+                "arquivo_sha256": out.importacao.arquivo_sha256,
+                "validadas": out.total_validadas,
+                "rejeitadas": out.total_rejeitadas,
+            },
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="aceitar-linha")
+    def aceitar_linha(self, request: Request, pk: str | None = None) -> Response:
+        """POST — one-shot VALIDADA→ACEITA (reusa cadastrar_item). # idempotency-key: required"""
+        s = AceitarLinhaImportacaoSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        tenant_id, usuario_id = self._contexto()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+        importacao_id = self._uuid_ou_404(pk)
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint="catalogo.aceitar_linha_importacao",
+            payload_fingerprint={
+                "importacao_id": str(importacao_id),
+                "linha_id": str(d["linha_id"]),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None and novo.chave_id is not None
+        chave_id = novo.chave_id
+
+        repo = DjangoImportacaoCatalogoRepository()
+        linha = repo.obter_linha(tenant_id=tenant_id, linha_id=d["linha_id"])
+        if linha is None or linha.importacao_id != importacao_id:
+            return self._falha_404(
+                chave_id,
+                tenant_id,
+                uc_importacao.LinhaImportacaoAusenteError(
+                    f"linha {d['linha_id']} inexistente no lote {importacao_id}."
+                ),
+            )
+
+        try:
+            with transaction.atomic():
+                out = uc_importacao.aceitar_linha(
+                    uc_importacao.AceitarLinhaInput(
+                        tenant_id=tenant_id,
+                        linha_id=d["linha_id"],
+                        criado_por=usuario_id,
+                        agora=datetime.now(UTC),
+                    ),
+                    importacao_repo=repo,
+                    item_repo=DjangoItemCatalogoRepository(),
+                )
+                _publicar_evento_catalogo(
+                    acao="Catalogo.ItemCadastrado",
+                    payload={
+                        "item_id": str(out.item.item.id),
+                        "codigo_interno": out.item.item.codigo_interno,
+                        "tipo": out.item.item.tipo.value,
+                        "controla_estoque": out.item.item.controla_estoque,
+                        "nome_item": out.item.versao.nome,
+                        "versao_n": out.item.versao.versao_n,
+                        "preco_padrao": str(out.item.versao.preco_padrao.valor),
+                        "vigencia_inicio": out.item.versao.vigencia.inicio.isoformat(),
+                        "origem_importacao_id": str(importacao_id),
+                        "criado_por_id_hash": derivar_user_id_hash(
+                            usuario_id=usuario_id, tenant_id=tenant_id
+                        ),
+                        "descricao_hash": _hash_texto_ou_none(
+                            out.item.versao.descricao, tenant_id
+                        ),
+                    },
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=(
+                        f"item {out.item.item.codigo_interno} aceito da importacao"
+                    ),
+                )
+        except uc_importacao.LinhaImportacaoAusenteError as exc:
+            return self._falha_404(chave_id, tenant_id, exc)
+        except CodigoDuplicadoError as exc:
+            # código passou a existir entre upload e aceite — linha fica validada
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
+        except IntegrityError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
+        except RuntimeError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
+        except ValueError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
+
+        body = _serializar_item(out.item.item)
+        body["versao"] = _serializar_versao(out.item.versao)
+        body["linha_id"] = str(out.linha_id)
+        concluir_chave(
+            chave_id=chave_id,
+            tenant_id=tenant_id,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo={
+                "linha_id": str(out.linha_id),
+                "item_id": str(out.item.item.id),
+                "codigo_interno": out.item.item.codigo_interno,
+            },
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="rejeitar-linha")
+    def rejeitar_linha(self, request: Request, pk: str | None = None) -> Response:
+        """POST — one-shot VALIDADA→REJEITADA. # idempotency-key: required"""
+        s = RejeitarLinhaImportacaoSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        tenant_id, usuario_id = self._contexto()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+        importacao_id = self._uuid_ou_404(pk)
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint="catalogo.rejeitar_linha_importacao",
+            payload_fingerprint={
+                "importacao_id": str(importacao_id),
+                "linha_id": str(d["linha_id"]),
+                "motivo": d["motivo"],
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None and novo.chave_id is not None
+        chave_id = novo.chave_id
+
+        repo = DjangoImportacaoCatalogoRepository()
+        linha = repo.obter_linha(tenant_id=tenant_id, linha_id=d["linha_id"])
+        if linha is None or linha.importacao_id != importacao_id:
+            return self._falha_404(
+                chave_id,
+                tenant_id,
+                uc_importacao.LinhaImportacaoAusenteError(
+                    f"linha {d['linha_id']} inexistente no lote {importacao_id}."
+                ),
+            )
+        try:
+            with transaction.atomic():
+                uc_importacao.rejeitar_linha(
+                    uc_importacao.RejeitarLinhaInput(
+                        tenant_id=tenant_id, linha_id=d["linha_id"], motivo=d["motivo"]
+                    ),
+                    importacao_repo=repo,
+                )
+        except uc_importacao.LinhaImportacaoAusenteError as exc:
+            return self._falha_404(chave_id, tenant_id, exc)
+        except RuntimeError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
+        except ValueError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
+
+        body = {"linha_id": str(d["linha_id"]), "status": "rejeitada"}
+        concluir_chave(
+            chave_id=chave_id,
+            tenant_id=tenant_id,
+            response_status=status.HTTP_200_OK,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_200_OK)
+
+
+def _serializar_linha_importacao(li: LinhaImportacaoCatalogo) -> dict[str, Any]:
+    return {
+        "id": str(li.id),
+        "linha_numero": li.linha_numero,
+        "status": li.status.value,
+        "codigo_interno": li.codigo_interno,
+        "tipo": li.tipo,
+        "nome": li.nome,
+        "unidade_medida": li.unidade_medida,
+        "preco_padrao": str(li.preco_padrao) if li.preco_padrao is not None else None,
+        "categoria": li.categoria,
+        "descricao": li.descricao,
+        "codigo_fabricante": li.codigo_fabricante,
+        "motivo_rejeicao": li.motivo_rejeicao,
+        "item_criado_id": str(li.item_criado_id) if li.item_criado_id else None,
+    }
