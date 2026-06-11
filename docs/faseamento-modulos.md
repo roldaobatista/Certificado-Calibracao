@@ -92,7 +92,7 @@ status: stable
 | `financeiro/` | `custeio-real` 🆕 | Custeio por OS/certificado/contrato |
 | `financeiro/` | `despesas` 🆕 | Reembolso, adiantamento |
 | `financeiro/` | `relatorios-financeiros` 🆕 | DRE gerencial, fluxo de caixa |
-| `suporte-plataforma/` | `produtos-pecas-servicos` | Catálogo (estoque já no MVP-1) |
+| `suporte-plataforma/` | ~~`produtos-pecas-servicos`~~ | **MOVIDO pra Wave A (2026-06-11 — frente #2 do plano-dependencia-sistema):** PRD de `orcamentos` o declara GATE Wave A (A-ORC-001) e US-OS-015 exige `TabelaPreco` vigente (422). Spec: `docs/faseamento/produtos-pecas-servicos/spec.md` (TabelaPreco promovida de V2) |
 | `suporte-plataforma/` | `fornecedores` | Cadastro auxiliar |
 | `suporte-plataforma/` | `onboarding` 🆕 | Self-service de novo tenant |
 | `suporte-plataforma/` | `configuracoes-sistema` 🆕 | Temas, idioma, fuso |

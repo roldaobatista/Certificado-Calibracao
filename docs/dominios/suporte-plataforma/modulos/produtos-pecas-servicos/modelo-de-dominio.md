@@ -13,9 +13,11 @@ dominio: suporte-plataforma
 ### ItemCatalogo (agregado raiz)
 
 - **Atributos imutáveis:** `codigo_interno`, `tipo` (produto/peca/servico/kit), `criado_em`
-- **Atributos versionáveis (via ItemCatalogoVersao):** `nome`, `descricao`, `categoria`, `unidade_medida`, `controla_estoque`, `preco_padrao`
-- **Atributos operacionais:** `status` (ativo/inativo)
-- **Invariantes:** `INV-026` (preço não-retroativo), `INV-TENANT-001`
+- **Atributos estruturais (mutáveis com auditoria):** `controla_estoque` *(movido da versão
+  em 2026-06-11 — P2 frente, TL-PPS-12: é propriedade estrutural do item, não atributo
+  temporal de preço/apresentação)*, `status` (ativo/inativo)
+- **Atributos versionáveis (via ItemCatalogoVersao):** `nome`, `descricao`, `categoria`, `unidade_medida`, `preco_padrao`
+- **Invariantes:** `INV-026` (preço não-retroativo), `INV-PPS-CODIGO-UNICO`, `INV-TENANT-001`
 - **Ciclo de vida:** criada → ativa → inativa (terminal lógico; nunca deletada).
 
 ### ItemCatalogoVersao (entidade filha)
@@ -25,12 +27,29 @@ dominio: suporte-plataforma
 
 ### KitComposicao
 
-- **Atributos:** `kit_item_id`, `item_filho_id`, `quantidade`, `unidade_medida`
-- **Restrições:** kit não pode conter kit (anti-ciclo). Item filho deve ser produto/peça/serviço.
+- **Atributos:** `kit_item_id`, `item_filho_id`, `quantidade` *(UM **derivada da versão
+  vigente do filho** — campo próprio removido em 2026-06-11, P2 TL-PPS-11: duplicar
+  divergia kit "un" × filho "kg")*
+- **Restrições:** kit não pode conter kit (anti-ciclo estrutural, 1 nível). Item filho deve ser produto/peça/serviço.
 
-### TabelaPreco (V2 / Wave futura)
+### TabelaPreco (PROMOVIDA pra Wave A — 2026-06-11, frente #2 do plano de dependência)
 
-- `nome`, `descricao`. Linhas: `(tabela_id, item_id, preco, vigente_de)`.
+> Era "V2 / Wave futura"; **US-OS-015 (OS avulsa, Wave A) exige consulta de preço vigente
+> fail-closed (422 `PrecoTabelaAusente`)** → entra no núcleo da frente. **ADR-0081** (duas
+> fontes com papéis distintos: `preco_padrao` = LISTA histórica; `LinhaTabelaPreco` = VENDA
+> vigente; sem fallback runtime). Spec: `docs/faseamento/produtos-pecas-servicos/spec.md`.
+
+- **`TabelaPreco`:** `nome`, `descricao`, `eh_padrao` (ÚNICA por tenant no MVP — UNIQUE
+  parcial; schema já suporta N tabelas pra V2 sem migration de quebra).
+- **`LinhaTabelaPreco`:** `(tabela_id, item_id, preco > 0, JanelaVigencia)` — **imutável**
+  pós-INSERT (molde `Imposto`: trigger Padrão B + revogação one-shot + block DELETE +
+  exclusion de não-sobreposição por `(tenant, tabela, item)`); correção = use case composto
+  revoga+recria atômico. Kit exige **linha própria** (soma das partes é default sugerido na
+  criação, nunca resolução em runtime).
+- **Porta `preco_para_os(tenant, item, data_referencia)`** → `PrecoResolvido (item_id,
+  item_versao_n, linha_tabela_id, tabela_id, preco, data_referencia, origem_preco,
+  composicao_resolvida?)` | `PrecoTabelaAusente`. `data_referencia` = data do fato gerador
+  COMERCIAL (contratação), não do faturamento.
 
 ---
 
@@ -49,14 +68,20 @@ dominio: suporte-plataforma
 
 | Agregado raiz | Entidades incluídas | Invariantes |
 |---|---|---|
-| ItemCatalogo | ItemCatalogoVersao, KitComposicao | `INV-026`, `INV-TENANT-001` |
-| TabelaPreco (V2) | linhas de preço | `INV-026` |
+| ItemCatalogo | ItemCatalogoVersao, KitComposicao | `INV-026`/`INV-PPS-VERSAO-IMUTAVEL`, `INV-PPS-CODIGO-UNICO`, `INV-PPS-PRECO-NAO-RETROATIVO`, `INV-PPS-KIT-SEM-CICLO`, `INV-TENANT-001` |
+| TabelaPreco (Wave A — ADR-0081) | LinhaTabelaPreco | `INV-PPS-LINHA-IMUTAVEL`, `INV-PPS-LINHA-SEM-SOBREPOSICAO`, `INV-TENANT-001` |
 
 ---
 
 ## Eventos publicados
 
 > **Nomenclatura canônica:** PascalCase no segundo segmento (ex: `Catalogo.ItemCadastrado`). Aliases snake_case ficam como **deprecated** até V2.
+>
+> **Núcleo Wave A (P2 2026-06-11):** eventos vão SÓ na cadeia hash (`outbox=False`, molde
+> `Config.*`) — promoção a outbox com `_schema_version: v1` quando estoque/orçamentos
+> chegarem (**GATE-PPS-OUTBOX-ESTOQUE**, TL-PPS-05). **LGPD (ADV-PPS-01/02):** payload leva
+> `criado_por_id_hash` (nunca UUID/nome em claro) e `descricao`/`motivo` como hash
+> canonicalizado ADR-0029; `nome` do item em claro passa pelo sanitizador padrão.
 
 | Evento | Quando dispara | Payload | Consumidores |
 |---|---|---|---|

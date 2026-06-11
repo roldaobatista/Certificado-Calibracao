@@ -69,7 +69,7 @@ Ver `personas.md` + `../../personas.md` (P-SUP-01 almoxarife, P-SUP-03 comprador
 
 **Como** Roldão (onboarding), **quero** importar 500 itens via planilha, **para** começar a operar.
 
-- **AC-CAT-004-1**: GIVEN planilha XLSX com colunas mapeadas, WHEN importo, THEN sistema valida linha-a-linha + permite aceite/rejeição por linha.
+- **AC-CAT-004-1** *(emendado 2026-06-11 — P2 frente, TL-PPS-07/D-PPS-6)*: GIVEN planilha **CSV** (dialeto Excel BR: `;` + vírgula decimal + BOM) com layout fixo documentado, WHEN importo, THEN sistema valida linha-a-linha em **staging** (nada persiste no catálogo sem aceite explícito por linha — molde INV-ECMC-007); colunas fora do layout são descartadas no parse (LGPD minimização). **XLSX = GATE-PPS-XLSX** (dep openpyxl avaliada em DEP-001; interim: "salvar como CSV").
 
 ### US-CAT-005: Inativar item
 
