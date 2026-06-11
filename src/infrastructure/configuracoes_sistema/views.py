@@ -39,6 +39,12 @@ from rest_framework.response import Response
 from src.application.configuracoes_sistema import empresa as uc_empresa
 from src.application.configuracoes_sistema import imposto as uc_imposto
 from src.application.configuracoes_sistema import serie as uc_serie
+from src.domain.configuracoes_sistema.entities import (
+    Empresa,
+    Filial,
+    Imposto,
+    SerieDocumento,
+)
 from src.domain.configuracoes_sistema.enums import (
     RegimeTributario,
     TipoDocumento,
@@ -81,7 +87,7 @@ def _tenant_ou_none() -> UUID | None:
     return active_tenant_context.get()
 
 
-def _serializar_empresa(e: Any) -> dict[str, Any]:
+def _serializar_empresa(e: Empresa) -> dict[str, Any]:
     return {
         "id": str(e.id),
         "razao_social": e.razao_social,
@@ -96,7 +102,7 @@ def _serializar_empresa(e: Any) -> dict[str, Any]:
     }
 
 
-def _serializar_filial(f: Any) -> dict[str, Any]:
+def _serializar_filial(f: Filial) -> dict[str, Any]:
     return {
         "id": str(f.id),
         "empresa_id": str(f.empresa_id),
@@ -110,7 +116,7 @@ def _serializar_filial(f: Any) -> dict[str, Any]:
     }
 
 
-def _serializar_imposto(i: Any) -> dict[str, Any]:
+def _serializar_imposto(i: Imposto) -> dict[str, Any]:
     return {
         "id": str(i.id),
         "tipo": i.tipo.value,
@@ -128,7 +134,7 @@ def _serializar_imposto(i: Any) -> dict[str, Any]:
     }
 
 
-def _serializar_serie(s: Any) -> dict[str, Any]:
+def _serializar_serie(s: SerieDocumento) -> dict[str, Any]:
     return {
         "id": str(s.id),
         "tipo": s.tipo.value,
@@ -230,6 +236,17 @@ class _ConfigViewSetBase(viewsets.ViewSet):
 
     @staticmethod
     def _falha(chave_id: UUID, tenant_id: UUID, exc: Exception, http_status: int) -> Response:
+        # B13 (P9 obs): erro de domínio 4xx deixa rastro no servidor (o processor
+        # F-C2 injeta correlation_id/tenant_id/usuario_id — OBS-002).
+        logger.warning(
+            "configuracoes acao recusada",
+            extra={
+                "chave_id": str(chave_id),
+                "http_status": http_status,
+                "erro": type(exc).__name__,
+                "detalhe": str(exc),
+            },
+        )
         falhar_chave(chave_id=chave_id, tenant_id=tenant_id, response_status=http_status)
         return Response({"erro": str(exc)}, status=http_status)
 

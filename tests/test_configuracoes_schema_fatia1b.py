@@ -134,6 +134,42 @@ def test_rls_isola_empresa_entre_tenants() -> None:
         assert Empresa.objects.filter(id=empresa_a.id).exists()
 
 
+@pytest.mark.django_db(transaction=True)
+def test_rls_isola_as_outras_4_tabelas_entre_tenants() -> None:
+    """B1 (P9 seguranca): UNHAPPY cross-tenant pra filial, imposto,
+    serie_documento e numero_documento_reservado (empresa já coberta acima)."""
+    tenant_a, tenant_b = TenantFactory(), TenantFactory()
+    empresa_a = _cria_empresa(tenant_a)
+    with run_in_tenant_context(tenant_a.id):
+        filial_a = Filial.objects.create(
+            tenant=tenant_a,
+            empresa=empresa_a,
+            cnpj=CNPJ_B,
+            nome="Matriz",
+            eh_matriz=True,
+        )
+    imposto_a = _cria_imposto(tenant_a)
+    serie_a = _cria_serie(tenant_a, tipo="fatura", prefixo="FAT", regime="gap_less")
+    repo = DjangoSerieDocumentoRepository()
+    with run_in_tenant_context(tenant_a.id):
+        reserva_a = repo.reservar_numero(tenant_id=tenant_a.id, serie_id=serie_a.id)
+
+    with run_in_tenant_context(tenant_b.id):
+        assert not Filial.objects.filter(id=filial_a.id).exists()
+        assert not Imposto.objects.filter(id=imposto_a.id).exists()
+        assert not SerieDocumento.objects.filter(id=serie_a.id).exists()
+        assert not NumeroDocumentoReservado.objects.filter(id=reserva_a.reserva_id).exists()
+        # E o motor não reserva em série alheia (LookupError — série invisível).
+        with pytest.raises(LookupError):
+            repo.reservar_numero(tenant_id=tenant_b.id, serie_id=serie_a.id)
+
+    with run_in_tenant_context(tenant_a.id):
+        assert Filial.objects.filter(id=filial_a.id).exists()
+        assert Imposto.objects.filter(id=imposto_a.id).exists()
+        assert SerieDocumento.objects.filter(id=serie_a.id).exists()
+        assert NumeroDocumentoReservado.objects.filter(id=reserva_a.reserva_id).exists()
+
+
 # === INV-036: CNPJ único por tenant ===
 
 
@@ -410,6 +446,39 @@ def test_reservar_em_serie_inexistente_raise() -> None:
     repo = DjangoSerieDocumentoRepository()
     with run_in_tenant_context(tenant.id), pytest.raises(LookupError):
         repo.reservar_numero(tenant_id=tenant.id, serie_id=uuid4())
+
+
+# === B3 (auditoria P9): contrato direto de liberar_expirados ===
+
+
+@pytest.mark.django_db(transaction=True)
+def test_liberar_expirados_remove_so_nao_confirmada_vencida() -> None:
+    """B3: contrato do motor — remove SÓ reserva não-confirmada vencida
+    (confirmada e viva ficam); série inexistente retorna 0 sem erro."""
+    tenant = TenantFactory()
+    serie = _cria_serie(tenant, tipo="fatura", prefixo="FAT", regime="gap_less")
+    repo = DjangoSerieDocumentoRepository()
+    with run_in_tenant_context(tenant.id):
+        repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)  # seq 1
+        r2 = repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)
+        repo.reservar_numero(tenant_id=tenant.id, serie_id=serie.id)  # seq 3
+        assert r2.reserva_id is not None
+        assert repo.confirmar_numero(tenant_id=tenant.id, reserva_id=r2.reserva_id)
+        # 1 (não-confirmada) e 2 (confirmada) com TTL vencido; 3 segue viva.
+        NumeroDocumentoReservado.objects.filter(
+            serie_id=serie.id, sequencial__in=(1, 2)
+        ).update(ttl_expira_em=timezone.now() - timedelta(minutes=1))
+
+        assert repo.liberar_expirados(tenant_id=tenant.id, serie_id=serie.id) == 1
+        vivos = set(
+            NumeroDocumentoReservado.objects.filter(serie_id=serie.id).values_list(
+                "sequencial", flat=True
+            )
+        )
+        assert vivos == {2, 3}  # confirmada vencida NÃO sai; viva NÃO sai
+        # Idempotente + série inexistente → 0.
+        assert repo.liberar_expirados(tenant_id=tenant.id, serie_id=serie.id) == 0
+        assert repo.liberar_expirados(tenant_id=tenant.id, serie_id=uuid4()) == 0
 
 
 # === M2 (auditoria P9): linha revogada nunca resolve como vigente ===

@@ -388,7 +388,9 @@ def test_reservar_sem_idempotency_key_falha():
     r = client.post(
         f"/api/v1/configuracoes/series/{serie['id']}/reservar-numero/", {}, format="json"
     )
-    assert r.status_code in (400, 422, 428), r.content
+    # B4 (P9 qualidade): código FIXADO no observado — 400 idempotency_key_ausente.
+    assert r.status_code == 400, r.content
+    assert r.json()["codigo"] == "idempotency_key_ausente"
 
 
 # === cross-tenant (INV-TENANT-001) ===

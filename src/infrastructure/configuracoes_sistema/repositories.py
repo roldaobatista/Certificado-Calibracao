@@ -18,6 +18,7 @@ NÃO são singletons.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from uuid import UUID
 
@@ -53,6 +54,8 @@ from src.infrastructure.configuracoes_sistema.models import (
 from src.infrastructure.configuracoes_sistema.models import (
     SerieDocumento as SerieDocumentoModel,
 )
+
+logger = logging.getLogger(__name__)
 
 # Namespace do advisory lock da numeração de documentos (distinto do 880_401 dos
 # certificados M8 e dos namespaces de audit/hash-chain). Serializa por
@@ -203,13 +206,19 @@ class DjangoSerieDocumentoRepository:
                 )
             agora = timezone.now()
             # Libera expirados ANTES de calcular o próximo (reuso → densidade).
-            NumeroDocumentoReservado.objects.filter(
+            n_expiradas, _ = NumeroDocumentoReservado.objects.filter(
                 tenant_id=tenant_id,
                 serie_id=serie.id,
                 ano=ano_dim,
                 confirmado=False,
                 ttl_expira_em__lt=agora,
             ).delete()
+            if n_expiradas:
+                # B14 (P9 obs): DELETE de reserva expirada deixa rastro de contagem.
+                logger.info(
+                    "reservas gap-less expiradas liberadas",
+                    extra={"serie_id": str(serie.id), "ano": ano_dim, "total": n_expiradas},
+                )
             # Menor sequencial livre em SQL puro (anti-join sobre a UNIQUE
             # uq_num_doc_reservado) — não materializa a série em Python sob o
             # advisory lock (série sem reset anual cresce pra sempre: O(n²)
@@ -303,4 +312,10 @@ class DjangoSerieDocumentoRepository:
             confirmado=False,
             ttl_expira_em__lt=agora,
         ).delete()
+        if total:
+            # B14 (P9 obs): rastro de contagem do DELETE de expiradas.
+            logger.info(
+                "reservas gap-less expiradas liberadas",
+                extra={"serie_id": str(serie_id), "total": total},
+            )
         return total
