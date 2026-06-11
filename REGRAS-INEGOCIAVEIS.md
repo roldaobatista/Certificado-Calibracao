@@ -385,6 +385,38 @@
 
 ---
 
+## INV-PPS-* — Invariantes da frente produtos-pecas-servicos + TabelaPreco (Wave A `produtos_pecas_servicos`)
+
+> **Família canônica cravada 2026-06-11 (produtos-pecas-servicos Fatia 4/P7 — T-PPS-050).**
+> Fonte: spec v2 revisada por `tech-lead` (TL-PPS-01..16) + `advogado` (ADV-PPS-01..09),
+> ambos APROVA COM CORREÇÕES (`docs/faseamento/produtos-pecas-servicos/spec.md` §5/§10) +
+> ADR-0081 (duas fontes de preço). Classes nomeadas `TestINV_PPS_*` em
+> `tests/regressao/test_inv_pps_classes_nomeadas.py` (TST-004). Frente #2 da cadeia de
+> preço (plano-dependencia-sistema); consumida por `precificacao`/`orcamentos`/OS
+> (GATE-PPS-WIREIN-OS **bloqueante pré-1º tenant externo**).
+
+| ID | Regra | Base normativa | Hook que valida | Escopo por perfil | Consequência de violar |
+|---|---|---|---|---|---|
+| INV-PPS-CODIGO-UNICO | **`codigo_interno` é único por tenant e imutável pós-criação** (junto com `tipo`). Duplicado → 409 em 2 camadas: use case consulta antes + UNIQUE `uq_pps_item_codigo` (a verdade na corrida). | US-CAT-001 AC-001-2 | UNIQUE (migration 0001) + use case `cadastrar_item` + `TestINV_PPS_CODIGO_UNICO` | Absoluta (todos perfis) | SKU ambíguo quebra OS/orçamento/estoque a jusante |
+| INV-PPS-VERSAO-IMUTAVEL | **`ItemCatalogoVersao` (preço de LISTA) é WORM Padrão B (molde Imposto — D-PPS-8/INV-026):** campos probatórios congelados pós-INSERT; `vigencia_fim` e `revogado_em`+motivo one-shot; DELETE bloqueado (retenção 10a — CC art. 205). Corrigir = revogar+recriar na MESMA janela (use case composto `corrigir_versao`), nunca UPDATE. `versao_n` denso `max+1` sob advisory lock 880_403 (TL-PPS-04). | INV-026 + ADR-0031 Padrão B + CC art. 205 | Triggers `item_catalogo_versao_{worm,block_delete}_trg` (migration 0003) + `TestINV_PPS_VERSAO_IMUTAVEL` | Absoluta (todos perfis) | Preço de lista reescrito ex-post diverge do que orçamentos/OS snapshotaram |
+| INV-PPS-PRECO-NAO-RETROATIVO | **Nova versão de lista exige `inicio_nova ≥ max(agora, inicio_da_vigente)` (TL-PPS-08)** — encerrar a anterior (na MESMA transação, em `inicio_nova`) NUNCA trunca vigência já decorrida: a consulta histórica `preco_vigente_em(D)` NUNCA muda de resposta. Exceção única: 1ª versão de item novo via importação pode carregar vigência passada. | INV-026 ponto 2 + TL-PPS-08 | `validar_vigencia_nao_retroativa` (domínio) + teste de regressão DURA (`test_regressao_inv026_dura_*`) + `TestINV_PPS_PRECO_NAO_RETROATIVO` | Absoluta (todos perfis) | História truncada = orçamento antigo passa a apontar preço inexistente |
+| INV-PPS-LINHA-IMUTAVEL | **`LinhaTabelaPreco` (preço de VENDA) é WORM Padrão B completo (decisão conjunta TL-(c)+ADV-PPS-04):** imutável pós-INSERT + one-shot + block DELETE; preço digitado errado → `corrigir_linha` (revoga+recria atômico). | ADR-0081 + ADR-0031 Padrão B | Triggers `linha_tabela_preco_{worm,block_delete}_trg` (migration 0003) + `TestINV_PPS_LINHA_IMUTAVEL` | Absoluta (todos perfis) | Preço de venda mutável sem trilha = prova fraca em disputa de cobrança (CDC) |
+| INV-PPS-LINHA-SEM-SOBREPOSICAO | **Duas linhas não-revogadas do MESMO (tenant, tabela, item) não sobrepõem vigência** — "preço vigente em D" é determinístico (≤1 resultado). Exclusion `btree_gist` half-open `[)`; revogada sai (`WHERE revogado_em IS NULL` — revogada+substituta na MESMA janela é o caminho da correção). Defesa também no domínio (`janelas_sobrepoem`). Vale igualmente pra versão de lista por item. | ADR-0081 + D-PPS-4 | Exclusions `excl_pps_{versao,linha}_vigencia` (migration 0004) + `TestINV_PPS_LINHA_SEM_SOBREPOSICAO` | Absoluta (todos perfis) | Dois preços vigentes no mesmo dia = cobrança não-determinística |
+| INV-PPS-PRECO-FAIL-CLOSED | **A porta `preco_para_os` resolve EXCLUSIVAMENTE na linha de VENDA vigente não-revogada da tabela padrão; SEM fallback runtime ao `preco_padrao` da lista (D-PPS-2/ADR-0081)** — ausência → `PrecoTabelaAusenteError` (422 na OS, US-OS-015). Kit exige linha PRÓPRIA (soma das partes é só default sugerido na CRIAÇÃO — TL-PPS-09). `PrecoResolvido` sai COMPLETO (refs probatórias: item_versao_n + linha_tabela_id + origem_preco + composição) e o caller PERSISTE as refs junto do valor. | ADR-0081 §4 + ADV-PPS-09c + CDC art. 39 X (`data_referencia` = contratação) | Hook `pps-porta-fail-closed-check` (porta não regride a fallback) + `TestINV_PPS_PRECO_FAIL_CLOSED` | Absoluta (todos perfis) | Fallback silencioso cobraria preço de lista não aprovado como preço de venda |
+| INV-PPS-KIT-SEM-CICLO | **Kit só contém produto/peça/serviço (1 nível — filho NUNCA é kit);** sem filho repetido, inexistente ou inativo (AC-CAT-005-1). UM da parte deriva da versão vigente do filho (TL-PPS-11 — sem campo próprio que divergiria). | US-CAT-003 + TL anti-ciclo | `validar_kit_sem_ciclo` (domínio) + `TestINV_PPS_KIT_SEM_CICLO` | Absoluta (todos perfis) | Ciclo estrutural = recursão infinita na decomposição/soma |
+| INV-PPS-PRECO-POSITIVO | **`preco`/`preco_padrao` > 0 em VO `Preco` (escala 2, ROUND_HALF_EVEN) E em CHECK no banco (TL-PPS-15/16).** 0 é SENTINELA de `PrecoTabelaAusente` na OS avulsa — preservada; cortesia/desconto 100% é responsabilidade da frente `precificacao`, não do catálogo. | TL-PPS-15/16 + US-OS-015 | CHECKs `ck_pps_{versao,linha}_preco_positivo` (migration 0001) + VO `Preco` + `TestINV_PPS_PRECO_POSITIVO` | Absoluta (todos perfis) | Preço 0 no catálogo mascara a sentinela da OS = item "grátis" silencioso |
+| INV-PPS-IMPORTACAO-STAGING | **Importação CSV NUNCA auto-persiste item de catálogo (molde INV-ECMC-007):** o upload cria lote em STAGING mutável; cada linha só vira item por ACEITE humano one-shot que REUSA `cadastrar_item` (caminho canônico). Colunas fora do layout fixo são DESCARTADAS no parse; células sanitizadas (`sanitizar_celula_csv`) ANTES do staging; preço ambíguo ("1.234" sem vírgula) REJEITA a linha (fail-closed contra preço errado silencioso). TTL 90d elimina lotes antigos (ADV-PPS-06); prova permanente = SHA-256 no evento WORM `Catalogo.ImportacaoConcluida`. | ADV-PPS-06 (minimização LGPD art. 6º III) + SEC-CSV-001 + molde INV-ECMC-007 | Hook `csv-safety-import` (reusado) + `pps-evento-pii-hash-check` + `TestINV_PPS_IMPORTACAO_STAGING` | Absoluta (todos perfis) | Auto-persistência importaria catálogo errado em massa; célula extra retida = PII sem finalidade |
+
+> **Reusadas:** INV-TENANT-001..003 (RLS v2 nas 7 tabelas), INV-VIG-001..004 (VO
+> `JanelaVigencia`), IDEMP-001 (Idempotency-Key nos POST; fingerprint = payload completo
+> + alvo). **LGPD nos eventos `Catalogo.*` (ADV-PPS-01/02):** `criado_por_id_hash`
+> (HMAC-tenant) + `descricao`/`motivo` HASHIFICADOS (ADR-0029) — texto livre NUNCA cru
+> em WORM (hook `pps-evento-pii-hash-check`). Hooks novos: `pps-porta-fail-closed-check`,
+> `pps-evento-pii-hash-check` (T-PPS-051). GATEs: GATE-PPS-WIREIN-OS (**bloqueante
+> pré-1º tenant externo**), GATE-PPS-XLSX, GATE-PPS-OUTBOX-ESTOQUE.
+
+---
+
 ## RAT-* — Registros de tratamento LGPD
 
 > Promovidos em 2026-05-23 — eram citados nos PRDs mas não existiam em catálogo canônico (achado da auditoria 10 lentes).
