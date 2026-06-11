@@ -111,16 +111,20 @@ class DjangoItemCatalogoRepository:
     def encerrar_vigencia_versao(
         self, *, tenant_id: UUID, versao_id: UUID, fim: datetime
     ) -> None:
-        VersaoModel.objects.filter(
+        atualizadas = VersaoModel.objects.filter(
             tenant_id=tenant_id, id=versao_id, vigencia_fim__isnull=True
         ).update(vigencia_fim=fim)
+        if atualizadas == 0:  # one-shot violado / inexistente (molde Imposto → 409)
+            raise RuntimeError(f"versão {versao_id} sem vigência aberta pra encerrar.")
 
     def revogar_versao(self, *, tenant_id: UUID, versao_id: UUID, motivo: str) -> None:
         from django.utils import timezone
 
-        VersaoModel.objects.filter(
+        atualizadas = VersaoModel.objects.filter(
             tenant_id=tenant_id, id=versao_id, revogado_em__isnull=True
         ).update(revogado_em=timezone.now(), motivo_revogacao=motivo)
+        if atualizadas == 0:
+            raise RuntimeError(f"versão {versao_id} já revogada ou inexistente.")
 
     def listar_composicao(self, *, tenant_id: UUID, kit_item_id: UUID) -> list[KitComposicao]:
         qs = KitComposicaoModel.objects.filter(tenant_id=tenant_id, kit_item_id=kit_item_id)
@@ -193,13 +197,17 @@ class DjangoTabelaPrecoRepository:
     def encerrar_vigencia_linha(
         self, *, tenant_id: UUID, linha_id: UUID, fim: datetime
     ) -> None:
-        LinhaModel.objects.filter(
+        atualizadas = LinhaModel.objects.filter(
             tenant_id=tenant_id, id=linha_id, vigencia_fim__isnull=True
         ).update(vigencia_fim=fim)
+        if atualizadas == 0:  # one-shot violado / inexistente (molde Imposto → 409)
+            raise RuntimeError(f"linha {linha_id} sem vigência aberta pra encerrar.")
 
     def revogar_linha(self, *, tenant_id: UUID, linha_id: UUID, motivo: str) -> None:
         from django.utils import timezone
 
-        LinhaModel.objects.filter(
+        atualizadas = LinhaModel.objects.filter(
             tenant_id=tenant_id, id=linha_id, revogado_em__isnull=True
         ).update(revogado_em=timezone.now(), motivo_revogacao=motivo)
+        if atualizadas == 0:
+            raise RuntimeError(f"linha {linha_id} já revogada ou inexistente.")

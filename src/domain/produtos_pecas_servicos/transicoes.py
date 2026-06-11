@@ -23,6 +23,7 @@ from src.domain.produtos_pecas_servicos.erros import (
     KitComCicloError,
     VersaoRetroativaError,
 )
+from src.domain.shared.value_objects import JanelaVigencia
 
 
 def validar_vigencia_nao_retroativa(
@@ -124,6 +125,14 @@ def linha_vigente_em(
         ):
             return linha
     return None
+
+
+def janelas_sobrepoem(a: JanelaVigencia, b: JanelaVigencia) -> bool:
+    """Sobreposição half-open `[inicio, fim)` — defesa no domínio (mensagem
+    clara no use case); a VERDADE é a exclusion `btree_gist` 0004 no banco."""
+    fim_a = a.fim or datetime.max.replace(tzinfo=UTC)
+    fim_b = b.fim or datetime.max.replace(tzinfo=UTC)
+    return a.inicio < fim_b and b.inicio < fim_a
 
 
 def agora_utc() -> datetime:

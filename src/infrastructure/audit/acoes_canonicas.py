@@ -345,6 +345,26 @@ ACOES_CONFIG: Final[frozenset[str]] = frozenset(
 )
 
 
+# Frente produtos-pecas-servicos (T-PPS-034) — catalogo do tenant + TabelaPreco
+# (ADR-0081). PascalCase PROPOSITAL (shape do modelo-de-dominio — D-PPS-9): vao
+# SO na cadeia hash central (cadeia=True, outbox=False); promocao a outbox e
+# GATE-PPS-OUTBOX-ESTOQUE. LGPD (ADV-PPS-01/02): payload leva
+# `criado_por_id_hash` + `descricao_hash`/`motivo_hash` (HMAC-tenant ADR-0029);
+# `Catalogo.ImportacaoConcluida` entra na Fatia 3 (staging CSV).
+ACOES_CATALOGO: Final[frozenset[str]] = frozenset(
+    {
+        "Catalogo.ItemCadastrado",
+        "Catalogo.PrecoAlterado",  # nova versao E correcao (payload distingue)
+        "Catalogo.ItemInativado",
+        "Catalogo.KitAlterado",
+        "Catalogo.TabelaCriada",
+        "Catalogo.LinhaPrecoCriada",
+        "Catalogo.LinhaPrecoCorrigida",
+        "Catalogo.LinhaPrecoEncerrada",
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -360,6 +380,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_LICENCAS
     | ACOES_FISCAL
     | ACOES_CONFIG
+    | ACOES_CATALOGO
 )
 
 
