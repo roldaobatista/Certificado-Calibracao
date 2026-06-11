@@ -80,7 +80,7 @@ a frente #2 cria a FONTE (catálogo + tabela vigente), não mexe nos snapshots.
 1. `ItemCatalogo` (peça/serviço/kit; código único por tenant INV a criar; UM;
    controla_estoque flag — saldo é non-goal) + `ItemCatalogoVersao` (preço padrão
    versionado imutável — molde Imposto da frente #1).
-2. `TabelaPreco` + `ItemTabelaPreco` (vigência JanelaVigencia; tabela única MVP —
+2. `TabelaPreco` + `LinhaTabelaPreco` (vigência JanelaVigencia; tabela única MVP —
    multi-canal/segmento = non-goal V1; consulta `preco_vigente_em(item, momento)`
    fail-closed 422 — contrato que US-OS-015 espera).
 3. Kit (preço = soma OU manual — AC-CAT-003-1).
