@@ -134,7 +134,3 @@ def janelas_sobrepoem(a: JanelaVigencia, b: JanelaVigencia) -> bool:
     fim_b = b.fim or datetime.max.replace(tzinfo=UTC)
     return a.inicio < fim_b and b.inicio < fim_a
 
-
-def agora_utc() -> datetime:
-    """Relógio canônico do domínio (testes injetam `agora` explícito)."""
-    return datetime.now(UTC)

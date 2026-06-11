@@ -134,12 +134,12 @@ class ItemCatalogoVersao(models.Model):
         null=True, blank=True,
         help_text="One-shot — versão errada sai da exclusion e nunca resolve (lição M2).",
     )
-    motivo_revogacao = models.CharField(max_length=200, blank=True, default="")
+    motivo_revogacao = models.CharField(max_length=600, blank=True, default="")
     criado_por = models.UUIDField(
         help_text="Pseudônimo art. 12 LGPD (RAT-PPS-CRIADO-POR); evento WORM leva só hash."
     )
     motivo = models.CharField(
-        max_length=200, blank=True, default="",
+        max_length=600, blank=True, default="",
         help_text="Texto livre — em evento WORM vai HASHIFICADO (ADV-PPS-02).",
     )
     criado_em = models.DateTimeField(auto_now_add=True)
@@ -253,13 +253,14 @@ class LinhaTabelaPreco(models.Model):
     vigencia_inicio = models.DateTimeField()
     vigencia_fim = models.DateTimeField(null=True, blank=True)
     revogado_em = models.DateTimeField(null=True, blank=True)
-    motivo_revogacao = models.CharField(max_length=200, blank=True, default="")
+    motivo_revogacao = models.CharField(max_length=600, blank=True, default="")
     origem_sugestao = models.CharField(
         max_length=12,
         choices=_choices(OrigemPreco),
         default=OrigemPreco.MANUAL.value,
         help_text="manual|soma_partes — origem do VALOR sugerido na criação (ADV-PPS-08).",
     )
+    # lgpd-base: pseudônimo art. 12 (RAT-PPS-CRIADO-POR) — evento WORM leva só o hash
     criado_por = models.UUIDField()
     criado_em = models.DateTimeField(auto_now_add=True)
 
@@ -301,6 +302,7 @@ class ImportacaoCatalogo(models.Model):
         help_text="Nome de arquivo pode carregar PII — só o hash (minimização).",
     )
     total_linhas = models.PositiveIntegerField()
+    # lgpd-base: pseudônimo art. 12 (RAT-PPS-CRIADO-POR — inclui quem subiu o arquivo)
     criado_por = models.UUIDField()
     criado_em = models.DateTimeField(db_index=True)
 

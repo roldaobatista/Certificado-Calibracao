@@ -33,10 +33,6 @@ class LinhaImportacaoAusenteError(Exception):
     """Linha inexistente no lote/tenant — view mapeia 404."""
 
 
-class ImportacaoAusenteError(Exception):
-    """Lote inexistente no tenant — view mapeia 404."""
-
-
 # === registrar_importacao (staging — NÃO cria item) ===
 
 

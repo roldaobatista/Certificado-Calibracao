@@ -39,10 +39,14 @@ def item_model_para_entidade(m: models.ItemCatalogo) -> ItemCatalogo:
 
 
 def item_para_campos(item: ItemCatalogo) -> dict[str, object]:
-    """Campos pro update_or_create (sem id/tenant — chaves do lookup)."""
+    """Campos MUTÁVEIS pro update_or_create (sem id/tenant — chaves do lookup).
+
+    `codigo_interno`/`tipo` ficam FORA (P9 QUAL-M1 — imutáveis pós-criação,
+    INV-PPS-CODIGO-UNICO; trigger `item_catalogo_imutavel_trg` da 0011 é a
+    verdade no banco; aqui evita o UPDATE redundante). No INSERT eles entram
+    via `create_defaults` do `salvar`.
+    """
     return {
-        "codigo_interno": item.codigo_interno,
-        "tipo": item.tipo.value,
         "controla_estoque": item.controla_estoque,
         "status": item.status.value,
         "codigo_fabricante": item.codigo_fabricante,

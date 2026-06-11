@@ -1207,6 +1207,7 @@ run_case "PEPH3 payload com criado_por cru BLOCK"         BLOCK pps-evento-pii-h
 run_case "PEPH4 payload hashificado PASS"                 PASS  pps-evento-pii-hash-check.sh '{"tool_input":{"file_path":"src/infrastructure/produtos_pecas_servicos/views.py","content":"_publicar_evento_catalogo(\n    acao=\"Catalogo.ItemCadastrado\",\n    payload={\"nome_item\": v.nome, \"motivo_hash\": h, \"criado_por_id_hash\": uh},\n    causation_id=c)"}}'
 run_case "PEPH5 motivo em fingerprint (fora do evento) PASS" PASS pps-evento-pii-hash-check.sh '{"tool_input":{"file_path":"src/infrastructure/produtos_pecas_servicos/views.py","content":"payload_fingerprint={\"motivo\": d[\"motivo\"]}\n_publicar_evento_catalogo(\n    acao=\"Catalogo.LinhaPrecoCorrigida\",\n    payload={\"motivo_hash\": h},\n    causation_id=c)"}}'
 run_case "PEPH6 outro modulo PASS"                        PASS  pps-evento-pii-hash-check.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/views.py","content":"_publicar_evento_catalogo(payload={\"motivo\": m}, causation_id=c)"}}'
+run_case "PEPH7 payload com nome_tabela cru BLOCK"        BLOCK pps-evento-pii-hash-check.sh '{"tool_input":{"file_path":"src/infrastructure/produtos_pecas_servicos/views.py","content":"_publicar_evento_catalogo(\n    acao=\"Catalogo.TabelaCriada\",\n    payload={\"nome_tabela\": tabela.nome},\n    causation_id=c)"}}'
 
 # --- Gate anti-drift de contagens (auditoria maquina-dev 2026-05-29) ---
 # So no modo completo (sem filtro). Garante que os numeros a mao nos docs

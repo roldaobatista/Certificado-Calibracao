@@ -12,6 +12,7 @@ Uso:
 
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 from typing import Any
 from uuid import UUID
@@ -27,6 +28,8 @@ from src.infrastructure.produtos_pecas_servicos.repositories import (
     DjangoImportacaoCatalogoRepository,
 )
 from src.infrastructure.tenant.models import Tenant
+
+logger = logging.getLogger(__name__)
 
 TTL_DIAS_DEFAULT = 90
 
@@ -75,6 +78,16 @@ class Command(BaseCommand):
         for tenant_id, n in resultados.items():
             if n:
                 self.stdout.write(f"[{tenant_id}] {n} lote(s) eliminado(s).")
+                # P9 OBS-B4: rastro estruturado da execucao da matriz de
+                # retencao (ADV-PPS-06) — stdout de cron e efemero.
+                logger.info(
+                    "staging de importacao expirado eliminado",
+                    extra={
+                        "tenant_id": str(tenant_id),
+                        "lotes": n,
+                        "corte": limite.isoformat(),
+                    },
+                )
         self.stdout.write(
             self.style.SUCCESS(
                 f"Processados {len(tenants)} tenant(s); {total} lote(s) de staging "

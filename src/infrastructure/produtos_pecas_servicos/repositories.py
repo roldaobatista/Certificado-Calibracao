@@ -76,17 +76,18 @@ class DjangoItemCatalogoRepository:
         ).first()
         return mappers.item_model_para_entidade(m) if m is not None else None
 
-    def listar(self, *, tenant_id: UUID, apenas_ativos: bool = False) -> list[ItemCatalogo]:
-        qs = ItemCatalogoModel.objects.filter(tenant_id=tenant_id).order_by("codigo_interno")
-        if apenas_ativos:
-            qs = qs.filter(status="ativo")
-        return [mappers.item_model_para_entidade(m) for m in qs]
-
     def salvar(self, item: ItemCatalogo) -> None:
+        mutaveis = mappers.item_para_campos(item)
         ItemCatalogoModel.objects.update_or_create(
             id=item.id,
             tenant_id=item.tenant_id,
-            defaults=mappers.item_para_campos(item),
+            defaults=mutaveis,
+            # codigo_interno/tipo so no INSERT (imutaveis — 0011 QUAL-M1)
+            create_defaults={
+                **mutaveis,
+                "codigo_interno": item.codigo_interno,
+                "tipo": item.tipo.value,
+            },
         )
 
     def travar_item(self, *, tenant_id: UUID, item_id: UUID) -> None:
@@ -180,6 +181,16 @@ class DjangoTabelaPrecoRepository:
     def travar_linha(self, *, tenant_id: UUID, tabela_id: UUID, item_id: UUID) -> None:
         """Advisory lock por (tabela, item) — chamar DENTRO de transaction.atomic."""
         _advisory_lock(f"{tenant_id}:linha:{tabela_id}:{item_id}")
+
+    def obter_linha(
+        self, *, tenant_id: UUID, tabela_id: UUID, linha_id: UUID
+    ) -> LinhaTabelaPreco | None:
+        # P9 PERF-M1: lookup pontual por PK (corrigir/encerrar nao materializam
+        # a tabela inteira — linha WORM acumula pra sempre).
+        m = LinhaModel.objects.filter(
+            tenant_id=tenant_id, tabela_id=tabela_id, id=linha_id
+        ).first()
+        return mappers.linha_model_para_entidade(m) if m is not None else None
 
     def listar_linhas(
         self, *, tenant_id: UUID, tabela_id: UUID, item_id: UUID | None = None
@@ -301,8 +312,9 @@ class DjangoImportacaoCatalogoRepository:
             )
 
     def eliminar_importacoes_anteriores_a(self, *, tenant_id: UUID, limite: datetime) -> int:
-        antigos = ImportacaoModel.objects.filter(tenant_id=tenant_id, criado_em__lt=limite)
-        total = antigos.count()
         # FK CASCADE elimina as linhas junto (staging — DELETE legítimo).
-        antigos.delete()
-        return total
+        # P9 IDEMP-B3: contagem vem do próprio delete() (sem TOCTOU count/delete).
+        _, por_modelo = ImportacaoModel.objects.filter(
+            tenant_id=tenant_id, criado_em__lt=limite
+        ).delete()
+        return por_modelo.get("produtos_pecas_servicos.ImportacaoCatalogo", 0)

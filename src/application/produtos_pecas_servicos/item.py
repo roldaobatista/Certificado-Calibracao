@@ -332,6 +332,9 @@ def montar_kit(
     inexistente/repetido barra (validação no domínio). Preço de VENDA do kit é
     linha PRÓPRIA na tabela (TL-PPS-09) — montar não mexe em preço.
     """
+    # P9 IDEMP-M1: serializa recomposições concorrentes do MESMO kit (o
+    # DELETE+bulk_create do substituir_composicao não é atômico entre transações).
+    repo.travar_item(tenant_id=inp.tenant_id, item_id=inp.kit_item_id)
     kit = repo.obter(tenant_id=inp.tenant_id, item_id=inp.kit_item_id)
     if kit is None:
         raise ItemAusenteError(f"item {inp.kit_item_id} inexistente no tenant.")

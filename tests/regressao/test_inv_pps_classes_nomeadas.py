@@ -88,6 +88,23 @@ class TestINV_PPS_CODIGO_UNICO:
         with pytest.raises(IntegrityError):
             _item_pg(tenant, codigo="P-DUP")
 
+    @pytest.mark.django_db(transaction=True)
+    def test_codigo_e_tipo_imutaveis_por_trigger(self) -> None:
+        """P9 QUAL-M1: a INV declara imutabilidade — trigger 0011 é a verdade.
+
+        Cada UPDATE em contexto próprio: o RAISE do trigger envenena a
+        transação corrente (TransactionManagementError mascararia o 2º caso).
+        """
+        tenant = TenantFactory()
+        item = _item_pg(tenant, codigo="P-IMUT")
+        with run_in_tenant_context(tenant.id), pytest.raises(DatabaseError):
+            ItemCatalogo.objects.filter(id=item.id).update(codigo_interno="P-OUTRO")
+        with run_in_tenant_context(tenant.id), pytest.raises(DatabaseError):
+            ItemCatalogo.objects.filter(id=item.id).update(tipo="servico")
+        with run_in_tenant_context(tenant.id):
+            # estruturais seguem mutáveis (status/controla_estoque/codigo_fabricante)
+            ItemCatalogo.objects.filter(id=item.id).update(status="inativo")
+
 
 class TestINV_PPS_VERSAO_IMUTAVEL:
     @pytest.mark.django_db(transaction=True)

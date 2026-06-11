@@ -36,12 +36,27 @@ LAYOUT_FIXO: Final[dict[str, bool]] = {
     "codigo_fabricante": False,
 }
 
+# P9 SEG-M1(b): limite por campo = varchar da coluna de staging (campo maior
+# REJEITA a linha — antes estourava DataError 500 no bulk_create).
+LIMITES_CAMPO: Final[dict[str, int]] = {
+    "codigo_interno": 60,
+    "nome": 200,
+    "unidade_medida": 20,
+    "categoria": 100,
+    "descricao": 2000,
+    "codigo_fabricante": 60,
+}
+
+_MAX_MOTIVO_REJEICAO: Final[int] = 300  # varchar da coluna motivo_rejeicao
+
 _TIPOS_IMPORTAVEIS: Final[frozenset[str]] = frozenset(
     {TipoItem.PRODUTO.value, TipoItem.PECA.value, TipoItem.SERVICO.value}
 )
 
 _RE_DECIMAL_EN: Final[re.Pattern[str]] = re.compile(r"^\d+(\.\d{1,2})?$")
-_RE_DECIMAL_BR: Final[re.Pattern[str]] = re.compile(r"^[\d.]+,\d{1,2}$")
+# P9 QUAL-M2: agrupamento de milhar VALIDADO ("12.3,45"/"....,55" rejeitam —
+# antes qualquer [\d.]+ passava e virava preço errado silencioso).
+_RE_DECIMAL_BR: Final[re.Pattern[str]] = re.compile(r"^(\d{1,3}(\.\d{3})*|\d+),\d{1,2}$")
 
 
 class ErroLayoutCsvError(Exception):
@@ -138,7 +153,9 @@ def parsear_linhas_catalogo(
             return LinhaImportacaoParseada(
                 linha_numero=n,
                 status=StatusLinhaImportacao.REJEITADA,
-                motivo_rejeicao=motivo,
+                # truncado ao varchar(300) da coluna (motivo pode embutir a
+                # célula de preço crua — P9 SEG-M1b)
+                motivo_rejeicao=motivo[:_MAX_MOTIVO_REJEICAO],
             )
 
         codigo = _campo(linha, "codigo_interno")
@@ -150,6 +167,22 @@ def parsear_linhas_catalogo(
         if not codigo or not nome or not um:
             resultado.append(
                 _rejeitada("campo obrigatório vazio (codigo_interno/nome/unidade_medida).")
+            )
+            continue
+        campo_longo = next(
+            (
+                campo
+                for campo, limite in LIMITES_CAMPO.items()
+                if len(_campo(linha, campo)) > limite
+            ),
+            None,
+        )
+        if campo_longo is not None:
+            resultado.append(
+                _rejeitada(
+                    f"campo '{campo_longo}' excede {LIMITES_CAMPO[campo_longo]} "
+                    "caracteres (limite do catálogo)."
+                )
             )
             continue
         if tipo == TipoItem.KIT.value:

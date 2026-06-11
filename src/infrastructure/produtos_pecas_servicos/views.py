@@ -15,7 +15,7 @@ Actions:
   GET  /api/v1/catalogo/tabelas/preco-vigente/            porta `preco_para_os`
 
 Autorização: RequireAuthz (DEFAULT_PERMISSION_CLASSES) + ACTION_MAP (seed
-0006: catalogo.ver/editar/gerenciar_tabela). Idempotency-Key nos POST
+0006: catalogo.ver/editar/gerenciar_tabela/importar). Idempotency-Key nos POST
 mutadores — fingerprint = payload completo + alvo (lição B6); resumo
 persistido sem texto livre (lição B9); `_falha` com log (lição B13).
 
@@ -36,7 +36,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from django.db import IntegrityError, transaction
+from django.db import DataError, IntegrityError, transaction
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
@@ -257,7 +257,7 @@ def _publicar_evento_catalogo(
         outbox=False,
     )
     logger.info(
-        "catalogo evento WORM publicado",
+        "catalogo evento WORM registrado na transacao",
         extra={
             "tenant_id": str(tenant_id),
             "acao": acao,
@@ -300,7 +300,18 @@ class _CatalogoViewSetBase(viewsets.ViewSet):
             },
         )
         falhar_chave(chave_id=chave_id, tenant_id=tenant_id, response_status=http_status)
-        return Response({"erro": str(exc)}, status=http_status)
+        if isinstance(exc, IntegrityError | DataError):
+            # P9 SEG-B3: nunca vazar detail do PG (constraint/valores) no corpo.
+            body = {
+                "erro": "conflito de unicidade/vigencia ou dado fora do limite — operação não aplicada",
+                "codigo": "CONFLITO" if isinstance(exc, IntegrityError) else "DADO_INVALIDO",
+            }
+        else:
+            body = {"erro": str(exc)}
+            codigo = getattr(exc, "reason", None)
+            if codigo:
+                body["codigo"] = codigo
+        return Response(body, status=http_status)
 
     def _falha_404(self, chave_id: UUID, tenant_id: UUID, exc: Exception) -> Response:
         logger.warning(
@@ -421,6 +432,9 @@ class ItemCatalogoViewSet(_CatalogoViewSetBase):
             return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
         except VersaoRetroativaError as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except DataError as exc:
+            # P9 SEG-M1: input excede coluna — 400 com chave liberada, nunca 500.
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
         except IntegrityError as exc:
             # corrida no UNIQUE codigo_interno — a verdade no banco
             return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
@@ -520,6 +534,9 @@ class ItemCatalogoViewSet(_CatalogoViewSetBase):
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
         except (VersaoRetroativaError, ItemInativoError) as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except DataError as exc:
+            # P9 SEG-M1: input excede coluna — 400 com chave liberada, nunca 500.
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
         except IntegrityError as exc:
             # exclusion 0004 (a verdade) — colisão de janela que escapou
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -615,6 +632,9 @@ class ItemCatalogoViewSet(_CatalogoViewSetBase):
             return self._falha_404(chave_id, tenant_id, exc)
         except uc_item.VersaoAusenteError as exc:
             return self._falha_404(chave_id, tenant_id, exc)
+        except DataError as exc:
+            # P9 SEG-M1: input excede coluna — 400 com chave liberada, nunca 500.
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
         except IntegrityError as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
         except RuntimeError as exc:
@@ -749,6 +769,12 @@ class ItemCatalogoViewSet(_CatalogoViewSetBase):
             return self._falha_404(chave_id, tenant_id, exc)
         except (KitComCicloError, ItemInativoError) as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except DataError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
+        except IntegrityError as exc:
+            # P9 IDEMP-M1: corrida residual no uq_pps_kit_filho (lock 880_403
+            # serializa o caminho normal; isto cobre quem burlar o use case).
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
         except ValueError as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
 
@@ -838,6 +864,10 @@ class TabelaPrecoViewSet(_CatalogoViewSetBase):
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
         except ItemInativoError as exc:
+            logger.warning(
+                "catalogo preco item inativo",
+                extra={"item_id": str(item_id), "erro": type(exc).__name__},
+            )
             return Response(
                 {"erro": str(exc), "codigo": exc.reason},
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -881,7 +911,7 @@ class TabelaPrecoViewSet(_CatalogoViewSetBase):
                     acao="Catalogo.TabelaCriada",
                     payload={
                         "tabela_id": str(tabela.id),
-                        "nome_tabela": tabela.nome,
+                        "nome_tabela_hash": _hash_texto_ou_none(tabela.nome, tenant_id),
                         "eh_padrao": tabela.eh_padrao,
                         "criado_por_id_hash": derivar_user_id_hash(
                             usuario_id=usuario_id, tenant_id=tenant_id
@@ -890,10 +920,13 @@ class TabelaPrecoViewSet(_CatalogoViewSetBase):
                     causation_id=chave_id,
                     tenant_id=tenant_id,
                     usuario_id=usuario_id,
-                    resource_summary=f"tabela {tabela.nome} criada",
+                    resource_summary=f"tabela {tabela.id} criada",
                 )
         except TabelaPadraoDuplicadaError as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except DataError as exc:
+            # P9 SEG-M1: input excede coluna — 400 com chave liberada, nunca 500.
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
         except IntegrityError as exc:
             # UNIQUE parcial eh_padrao (a verdade) — corrida que escapou
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -982,6 +1015,9 @@ class TabelaPrecoViewSet(_CatalogoViewSetBase):
             uc_tabela.SugestaoPrecoIndisponivelError,
         ) as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except DataError as exc:
+            # P9 SEG-M1: input excede coluna — 400 com chave liberada, nunca 500.
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
         except IntegrityError as exc:
             # exclusion 0004 / CHECK preco>0 (a verdade no banco)
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -1062,6 +1098,9 @@ class TabelaPrecoViewSet(_CatalogoViewSetBase):
                 )
         except uc_tabela.LinhaAusenteError as exc:
             return self._falha_404(chave_id, tenant_id, exc)
+        except DataError as exc:
+            # P9 SEG-M1: input excede coluna — 400 com chave liberada, nunca 500.
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
         except IntegrityError as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
         except RuntimeError as exc:
@@ -1139,6 +1178,8 @@ class TabelaPrecoViewSet(_CatalogoViewSetBase):
             return self._falha_404(chave_id, tenant_id, exc)
         except RuntimeError as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
+        except DataError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
         except (IntegrityError, ValueError) as exc:
             http = (
                 status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -1215,8 +1256,23 @@ class ImportacaoCatalogoViewSet(_CatalogoViewSetBase):
             return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
 
         try:
+            tamanho_declarado = getattr(upload, "size", None)
+            if tamanho_declarado is not None and tamanho_declarado > LIMITE_BYTES:
+                # P9 SEG-B4: rejeita ANTES do read (sem materializar o corpo).
+                logger.warning(
+                    "catalogo importacao recusada",
+                    extra={"codigo": "arquivo_excede_limite", "tamanho_bytes": tamanho_declarado},
+                )
+                return Response(
+                    {"erro": "arquivo_excede_limite", "limite_bytes": LIMITE_BYTES},
+                    status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                )
             arquivo_bytes = upload.read()
             if len(arquivo_bytes) > LIMITE_BYTES:
+                logger.warning(
+                    "catalogo importacao recusada",
+                    extra={"codigo": "arquivo_excede_limite", "tamanho_bytes": len(arquivo_bytes)},
+                )
                 return Response(
                     {"erro": "arquivo_excede_limite", "limite_bytes": LIMITE_BYTES},
                     status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -1224,6 +1280,10 @@ class ImportacaoCatalogoViewSet(_CatalogoViewSetBase):
             try:
                 norm = ler_csv_normalizado(arquivo_bytes)
             except ErroCsvIo as exc:
+                logger.warning(
+                    "catalogo importacao recusada",
+                    extra={"codigo": exc.code, "tamanho_bytes": len(arquivo_bytes)},
+                )
                 return Response(
                     {"erro": str(exc), "codigo": exc.code},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -1340,17 +1400,14 @@ class ImportacaoCatalogoViewSet(_CatalogoViewSetBase):
         chave_id = novo.chave_id
 
         repo = DjangoImportacaoCatalogoRepository()
-        linha = repo.obter_linha(tenant_id=tenant_id, linha_id=d["linha_id"])
-        if linha is None or linha.importacao_id != importacao_id:
-            return self._falha_404(
-                chave_id,
-                tenant_id,
-                uc_importacao.LinhaImportacaoAusenteError(
-                    f"linha {d['linha_id']} inexistente no lote {importacao_id}."
-                ),
-            )
-
         try:
+            # P9 IDEMP-B2: lookup DENTRO do try — erro inesperado não deixa
+            # a chave presa em_processo.
+            linha = repo.obter_linha(tenant_id=tenant_id, linha_id=d["linha_id"])
+            if linha is None or linha.importacao_id != importacao_id:
+                raise uc_importacao.LinhaImportacaoAusenteError(
+                    f"linha {d['linha_id']} inexistente no lote {importacao_id}."
+                )
             with transaction.atomic():
                 out = uc_importacao.aceitar_linha(
                     uc_importacao.AceitarLinhaInput(
@@ -1393,6 +1450,9 @@ class ImportacaoCatalogoViewSet(_CatalogoViewSetBase):
         except CodigoDuplicadoError as exc:
             # código passou a existir entre upload e aceite — linha fica validada
             return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
+        except DataError as exc:
+            # P9 SEG-M1: input excede coluna — 400 com chave liberada, nunca 500.
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
         except IntegrityError as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
         except RuntimeError as exc:
@@ -1443,22 +1503,38 @@ class ImportacaoCatalogoViewSet(_CatalogoViewSetBase):
         chave_id = novo.chave_id
 
         repo = DjangoImportacaoCatalogoRepository()
-        linha = repo.obter_linha(tenant_id=tenant_id, linha_id=d["linha_id"])
-        if linha is None or linha.importacao_id != importacao_id:
-            return self._falha_404(
-                chave_id,
-                tenant_id,
-                uc_importacao.LinhaImportacaoAusenteError(
-                    f"linha {d['linha_id']} inexistente no lote {importacao_id}."
-                ),
-            )
         try:
+            # P9 IDEMP-B2: lookup DENTRO do try — erro inesperado não deixa
+            # a chave presa em_processo.
+            linha = repo.obter_linha(tenant_id=tenant_id, linha_id=d["linha_id"])
+            if linha is None or linha.importacao_id != importacao_id:
+                raise uc_importacao.LinhaImportacaoAusenteError(
+                    f"linha {d['linha_id']} inexistente no lote {importacao_id}."
+                )
             with transaction.atomic():
                 uc_importacao.rejeitar_linha(
                     uc_importacao.RejeitarLinhaInput(
                         tenant_id=tenant_id, linha_id=d["linha_id"], motivo=d["motivo"]
                     ),
                     importacao_repo=repo,
+                )
+                # P9 OBS-M1: rejeição é decisão humana one-shot e o staging
+                # expira em 90d — sem evento WORM a decisão sumiria sem rastro.
+                _publicar_evento_catalogo(
+                    acao="Catalogo.LinhaImportacaoRejeitada",
+                    payload={
+                        "linha_id": str(d["linha_id"]),
+                        "importacao_id": str(importacao_id),
+                        "linha_numero": linha.linha_numero,
+                        "motivo_hash": _hash_texto_ou_none(d["motivo"], tenant_id),
+                        "criado_por_id_hash": derivar_user_id_hash(
+                            usuario_id=usuario_id, tenant_id=tenant_id
+                        ),
+                    },
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"linha {d['linha_id']} rejeitada na conferencia",
                 )
         except uc_importacao.LinhaImportacaoAusenteError as exc:
             return self._falha_404(chave_id, tenant_id, exc)

@@ -38,6 +38,9 @@ TABELAS = (
     "kit_composicao",
     "tabela_preco",
     "linha_tabela_preco",
+    # P9 SEG-B2/QUAL-B4: staging tambem no teste estrutural (nao so no drill)
+    "importacao_catalogo",
+    "importacao_catalogo_linha",
 )
 
 _JAN = datetime(2026, 1, 1, tzinfo=UTC)
@@ -78,7 +81,7 @@ def _cria_linha(tenant, tabela, item, *, preco="55.00", inicio=_JAN, fim=None) -
 
 
 @pytest.mark.django_db
-def test_rls_force_e_4_policies_nas_5_tabelas() -> None:
+def test_rls_force_e_4_policies_nas_7_tabelas() -> None:
     with connection.cursor() as cur:
         for tabela in TABELAS:
             cur.execute(
@@ -258,3 +261,29 @@ def test_linhas_adjacentes_half_open_nao_colidem() -> None:
     tabela = _cria_tabela(tenant)
     _cria_linha(tenant, tabela, item, inicio=_JAN, fim=_JUN)
     _cria_linha(tenant, tabela, item, inicio=_JUN)  # [JUN, ∞) — encadeado OK
+
+
+@pytest.mark.django_db(transaction=True)
+def test_rls_isola_staging_entre_tenants() -> None:
+    """P9 SEG-B2: UNHAPPY cross-tenant também nas 2 tabelas de staging."""
+    from src.infrastructure.produtos_pecas_servicos.models import (
+        ImportacaoCatalogo,
+        ImportacaoCatalogoLinha,
+    )
+
+    tenant_a, tenant_b = TenantFactory(), TenantFactory()
+    with run_in_tenant_context(tenant_a.id):
+        lote = ImportacaoCatalogo.objects.create(
+            tenant=tenant_a, arquivo_sha256="a" * 64, total_linhas=1,
+            criado_por=uuid4(), criado_em=timezone.now(),
+        )
+        linha = ImportacaoCatalogoLinha.objects.create(
+            tenant=tenant_a, importacao=lote, linha_numero=2, status="validada",
+            codigo_interno="P-1", tipo="peca", nome="X", unidade_medida="un",
+            preco_padrao=Decimal("10.00"),
+        )
+    with run_in_tenant_context(tenant_b.id):
+        assert not ImportacaoCatalogo.objects.filter(id=lote.id).exists()
+        assert not ImportacaoCatalogoLinha.objects.filter(id=linha.id).exists()
+    with run_in_tenant_context(tenant_a.id):
+        assert ImportacaoCatalogo.objects.filter(id=lote.id).exists()

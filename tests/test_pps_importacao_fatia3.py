@@ -53,9 +53,18 @@ def test_parse_preco_br_dialeto():
 
 
 def test_parse_preco_ambiguo_ou_invalido_raise():
-    for ruim in ("1.234", "abc", "", "1,2,3", "10.123"):
+    # P9 QUAL-M2: agrupamento de milhar malformado tambem rejeita (fail-closed
+    # contra preco errado silencioso — "12.3,45"/"....,55" parseavam antes).
+    for ruim in (
+        "1.234", "abc", "", "1,2,3", "10.123",
+        "12.3,45", "....,55", "1.2.3,45", "10.00,50", ".5,00",
+    ):
         with pytest.raises(ValueError):
             parse_preco_br(ruim)
+
+
+def test_parse_preco_br_milhar_bem_formado_aceita():
+    assert parse_preco_br("1.234.567,89") == Decimal("1234567.89")
 
 
 def test_parser_valida_e_rejeita_por_linha():
@@ -273,3 +282,35 @@ def test_ttl_elimina_lotes_antigos_e_preserva_recentes():
     call_command("limpar_importacoes_expiradas", tenant=str(c["tenant"].id))
     with run_in_tenant_context(c["tenant"].id):
         assert ImportacaoCatalogo.objects.filter(id=recente["id"]).exists()
+
+
+def test_parser_campo_excede_limite_rejeita_linha_e_trunca_motivo():
+    """P9 SEG-M1(b): campo maior que a coluna do staging REJEITA a linha (antes
+    estourava DataError 500 no bulk_create); motivo_rejeicao cabe no varchar(300)."""
+    nome_gigante = "X" * 250  # coluna nome = 200
+    linhas = (
+        ("P-001", "peca", nome_gigante, "un", "10,00", ""),
+        ("P-002", "peca", "Ok", "un", "Z" * 400, ""),  # preço inválido GIGANTE
+    )
+    r1, r2 = parsear_linhas_catalogo(HEADERS, linhas)
+    assert r1.status.value == "rejeitada"
+    assert "excede 200" in r1.motivo_rejeicao
+    assert r2.status.value == "rejeitada"
+    assert len(r2.motivo_rejeicao) <= 300  # truncado ao limite da coluna
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_ttl_caminho_todos_os_tenants_idempotente():
+    """P9 QUAL-B5: o ramo SEM --tenant (iter_tenants_ativos) também elimina."""
+    from src.infrastructure.multitenant.connection import run_in_tenant_context
+    from src.infrastructure.produtos_pecas_servicos.models import ImportacaoCatalogo
+
+    c = _cenario()
+    antigo = _importar(_client(c)).json()
+    with run_in_tenant_context(c["tenant"].id):
+        ImportacaoCatalogo.objects.filter(id=antigo["id"]).update(
+            criado_em=datetime.now(UTC) - timedelta(days=120)
+        )
+    call_command("limpar_importacoes_expiradas")  # todos os tenants
+    with run_in_tenant_context(c["tenant"].id):
+        assert not ImportacaoCatalogo.objects.filter(id=antigo["id"]).exists()

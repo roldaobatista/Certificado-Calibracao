@@ -236,10 +236,11 @@ def corrigir_linha(
     janela (TL-PPS-03). Ordem revoga→recria na mesma transação do caller."""
     if len(inp.motivo.strip()) < 10:
         raise ValueError("correção exige motivo com ≥10 chars (INV-VIG-002).")
-    linhas = tabela_repo.listar_linhas(
-        tenant_id=inp.tenant_id, tabela_id=inp.tabela_id
+    # P9 PERF-M1: lookup pontual — linha WORM acumula; listar a tabela inteira
+    # degradava linear com o histórico.
+    alvo = tabela_repo.obter_linha(
+        tenant_id=inp.tenant_id, tabela_id=inp.tabela_id, linha_id=inp.linha_id
     )
-    alvo = next((linha for linha in linhas if linha.id == inp.linha_id), None)
     if alvo is None:
         raise LinhaAusenteError(f"linha {inp.linha_id} inexistente na tabela.")
     if alvo.vigencia.revogado_em is not None:
@@ -284,10 +285,9 @@ def encerrar_linha(
 ) -> None:
     """Encerra a vigência ABERTA da linha (one-shot). Já encerrada/revogada →
     RuntimeError do repo (view mapeia 409)."""
-    linhas = tabela_repo.listar_linhas(
-        tenant_id=inp.tenant_id, tabela_id=inp.tabela_id
+    alvo = tabela_repo.obter_linha(
+        tenant_id=inp.tenant_id, tabela_id=inp.tabela_id, linha_id=inp.linha_id
     )
-    alvo = next((linha for linha in linhas if linha.id == inp.linha_id), None)
     if alvo is None:
         raise LinhaAusenteError(f"linha {inp.linha_id} inexistente na tabela.")
     if inp.fim < alvo.vigencia.inicio:

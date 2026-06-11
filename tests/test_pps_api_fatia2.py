@@ -405,3 +405,19 @@ def test_concorrencia_2_criar_versao_simultaneos_densidade_preservada():
     assert sorted(v["versao_n"] for v in versoes) == [1, 2, 3]  # densa, sem buraco
     abertas = [v for v in versoes if v["vigencia_fim"] is None and v["revogado_em"] is None]
     assert len(abertas) == 1  # só a última vigente aberta
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_corrigir_versao_com_motivo_longo_500_chars_201():
+    """P9 SEG-M1: motivo no teto do serializer (500) + prefixo de correção
+    cabem na coluna ampliada (600) — antes era DataError 500 com chave presa."""
+    client = _client(_cenario())
+    body = _cadastrar_item(client)
+    versao_id = body["versao"]["id"]
+    r = _post(
+        client,
+        f"/api/v1/catalogo/itens/{body['id']}/corrigir-versao/",
+        {"versao_id": versao_id, "motivo": "m" * 500, "preco_padrao": "111.00"},
+    )
+    assert r.status_code == 201, r.content
+    assert r.json()["versao_revogada_id"] == versao_id

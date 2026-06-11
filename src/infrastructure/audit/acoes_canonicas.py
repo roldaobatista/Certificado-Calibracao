@@ -363,6 +363,9 @@ ACOES_CATALOGO: Final[frozenset[str]] = frozenset(
         "Catalogo.LinhaPrecoCorrigida",
         "Catalogo.LinhaPrecoEncerrada",
         "Catalogo.ImportacaoConcluida",  # T-PPS-042 — lote em staging criado
+        # P9 OBS-M1 — rejeicao e decisao humana one-shot; staging expira em 90d,
+        # sem evento a decisao sumiria sem rastro permanente.
+        "Catalogo.LinhaImportacaoRejeitada",
     }
 )
 

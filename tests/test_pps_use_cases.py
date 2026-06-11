@@ -64,12 +64,6 @@ class FakeItemRepo:
                 return i
         return None
 
-    def listar(self, *, tenant_id: UUID, apenas_ativos: bool = False) -> list[ItemCatalogo]:
-        itens = [i for i in self.itens.values() if i.tenant_id == tenant_id]
-        if apenas_ativos:
-            itens = [i for i in itens if i.status == StatusItem.ATIVO]
-        return itens
-
     def salvar(self, item: ItemCatalogo) -> None:
         self.chamadas.append("salvar")
         self.itens[item.id] = item
@@ -138,6 +132,14 @@ class FakeTabelaRepo:
 
     def travar_linha(self, *, tenant_id: UUID, tabela_id: UUID, item_id: UUID) -> None:
         self.chamadas.append("travar_linha")
+
+    def obter_linha(
+        self, *, tenant_id: UUID, tabela_id: UUID, linha_id: UUID
+    ) -> LinhaTabelaPreco | None:
+        linha = self.linhas.get(linha_id)
+        if linha is None or linha.tenant_id != tenant_id or linha.tabela_id != tabela_id:
+            return None
+        return linha
 
     def listar_linhas(
         self, *, tenant_id: UUID, tabela_id: UUID, item_id: UUID | None = None
@@ -777,3 +779,51 @@ def test_porta_kit_com_linha_propria_resolve_com_composicao():
     assert parte.item_filho_id == p1.item.id
     assert parte.quantidade == Decimal("2")
     assert parte.preco_unitario.valor == Decimal("10.00")
+
+
+def test_porta_kit_decomposicao_all_or_nothing_vazia_quando_parte_sem_versao():
+    """P9 QUAL-B3: parte sem versão de lista vigente → composicao_resolvida=()
+    (decomposição parcial enganaria a reconciliação de soma — ADV-PPS-08);
+    o PREÇO segue resolvendo pela linha própria (TL-PPS-09, sem 422 cascata)."""
+    item_repo, tabela_repo = FakeItemRepo(), FakeTabelaRepo()
+    kit = _cadastrar(item_repo, codigo="K-001", tipo=TipoItem.KIT)
+    # filho com vigência passada (importação) pra poder ENCERRAR antes de _AGORA
+    p1 = _cadastrar(
+        item_repo, codigo="P-001", preco="10.00", vigencia_inicio=_T0, importacao=True
+    )
+    uc_item.montar_kit(
+        uc_item.MontarKitInput(
+            tenant_id=TENANT,
+            kit_item_id=kit.item.id,
+            componentes=((p1.item.id, Decimal("2")),),
+        ),
+        repo=item_repo,
+    )
+    # encerra a única versão de lista do filho ANTES da data de referência
+    item_repo.encerrar_vigencia_versao(
+        tenant_id=TENANT,
+        versao_id=p1.versao.id,
+        fim=datetime(2026, 6, 1, tzinfo=UTC),
+    )
+    tabela = _tabela_padrao(tabela_repo)
+    uc_tabela.criar_linha(
+        uc_tabela.CriarLinhaInput(
+            tenant_id=TENANT,
+            tabela_id=tabela.id,
+            item_id=kit.item.id,
+            criado_por=USUARIO,
+            agora=_AGORA,
+            preco=Decimal("18.00"),
+        ),
+        tabela_repo=tabela_repo,
+        item_repo=item_repo,
+    )
+    r = preco_para_os(
+        tenant_id=TENANT,
+        item_id=kit.item.id,
+        data_referencia=_AGORA,
+        item_repo=item_repo,
+        tabela_repo=tabela_repo,
+    )
+    assert r.preco.valor == Decimal("18.00")  # linha própria resolve normal
+    assert r.composicao_resolvida == ()  # decomposição indisponível, NUNCA parcial

@@ -14,7 +14,8 @@
 #   Atua em '*/produtos_pecas_servicos/*.py'. Para cada chamada
 #   `_publicar_evento_catalogo(` ... ate `causation_id`, BLOCK se o bloco do
 #   payload contiver chave proibida CRUA: "descricao":, "motivo":, "nome":,
-#   "criado_por": (as versoes _hash/nome_item sao as permitidas).
+#   "criado_por": ou "nome_tabela": (P9 LGPD-M1 — nome de tabela e texto livre;
+#   as versoes *_hash/nome_item sao as permitidas).
 #
 # Override: '# pps-evento-pii-hash: skip -- <razao com >=10 chars>'
 #
@@ -65,7 +66,7 @@ fi
 achado=$(printf '%s' "$content" | perl -0777 -ne '
     while (/_publicar_evento_catalogo\((.*?)causation_id/sg) {
         my $blk = $1;
-        if ($blk =~ /"(descricao|motivo|nome|criado_por)"\s*:/) {
+        if ($blk =~ /"(descricao|motivo|nome|criado_por|nome_tabela)"\s*:/) {
             print "$1";
             last;
         }
