@@ -263,6 +263,11 @@ LOCAL_APPS = [
     # numeracao por tipo (ADR-0080, INV-028) com reserva gap-less reusando o
     # motor do M8 certificados (TL-02).
     "src.infrastructure.configuracoes_sistema.apps.ConfiguracoesSistemaConfig",
+    # Wave A frente produtos-pecas-servicos + TabelaPreco — #2 da cadeia de
+    # preco (plano-dependencia-sistema). Catalogo (4 tipos) com preco de LISTA
+    # versionado imutavel (INV-026/INV-PPS-*) + TabelaPreco de VENDA vigente
+    # fail-closed (ADR-0081 — porta preco_para_os; GATE-PPS-WIREIN-OS).
+    "src.infrastructure.produtos_pecas_servicos.apps.ProdutosPecasServicosConfig",
     # Wave A frente fiscal/NFS-e — raiz propria (NAO sob metrologia; TL-08).
     # NotaFiscalServico via porta agnostica FiscalProvider (ADR-0008) + trava
     # metrologica por perfil no use case (ADR-0073). Deadline 01/09/2026. WORM
