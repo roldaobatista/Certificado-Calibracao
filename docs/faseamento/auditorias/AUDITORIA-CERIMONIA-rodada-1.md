@@ -140,4 +140,8 @@ Hook `fatiamento-plano-check` · automação banco-real one-shot · gerador da t
 
 ---
 
-*Investigações executadas por 6 agentes paralelos em 2026-06-12; relatórios integrais nas transcrições da sessão. Nenhuma recomendação aplicada — aguardando veto item a item do Roldão.*
+*Investigações executadas por 6 agentes paralelos em 2026-06-12; relatórios integrais nas transcrições da sessão.*
+
+## §8 Decisão do Roldão (2026-06-12, AskUserQuestion)
+
+**APROVADO TUDO — os 4 pacotes integrais, incluindo R10** (BAIXOs em lote pós-fechamento em módulo não-metrológico; todos continuam sendo consertados — muda só o momento). Aplicação iniciada na mesma data: pacotes B/C/D primeiro (governança + docs + gates), pacote A (dispatcher de hooks + migração pré-commit) na sequência como frente técnica própria.
