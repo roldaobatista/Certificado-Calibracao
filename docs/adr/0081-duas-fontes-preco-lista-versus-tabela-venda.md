@@ -43,6 +43,16 @@ re-apontamento ou mudaria preço implicitamente).
    suporta N tabelas — multi-canal/cliente entra na frente `precificacao`/V2 sem
    migration de quebra.
 
+> **Emenda P2 `precificacao` (2026-06-12 — TL-PRC-13 / D-PRC-12):** a porta
+> `preco_para_os` ganha parâmetro ADITIVO `tabela_id: UUID | None = None`
+> (`None` = tabela padrão — comportamento atual intacto). O matching
+> cliente→tabela mora na frente `precificacao` (`VinculoTabelaPrecoCliente`,
+> tabela própria — zero retrofit no schema desta frente), com **fallback POR
+> ITEM na tabela padrão** quando a tabela vinculada não cobre o item — ambas
+> são tabelas de VENDA aprovadas, então o anti-fallback desta ADR segue valendo
+> integralmente para venda→lista. `PrecoResolvido.tabela_id` aponta a tabela
+> realmente usada (rastreabilidade preservada).
+
 ## Consequências
 
 - `precificacao` (#3) estende com N tabelas/segmentos SEM tocar o contrato da porta.
