@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado_em: 2026-05-18
-proximo_review: 2026-08-18
+revisado_em: 2026-06-12
+proximo_review: 2026-09-12
 status: stable
 diataxis: how-to
 audiencia: agente
@@ -37,6 +37,8 @@ Pra cada Story: /specify → /plan → review 4 subagentes (lista defeitos de do
 ```
 
 > **Atualizado 2026-05-29** (auditoria da máquina de dev — decisões do Roldão): fatiamento obrigatório (INV-RITUAL-002), roteamento de auditores por risco com travas (INV-RITUAL-003), e revisão profunda do plano reforçada. INV-RITUAL-001 (MÉDIO bloqueia fechamento) **mantido intacto** por decisão do Roldão.
+>
+> **Atualizado 2026-06-12** (auditoria de cerimônia do processo — aprovação integral Roldão): emendas R5/R6/R7/R8/R10/R20/R21/R22 incorporadas. Ver §7 Histórico.
 
 ---
 
@@ -165,7 +167,7 @@ Cada T-MOD-NNN tem:
 
 **Mini-revisão por fatia (§3.5):** ao fim de cada fatia, rodar só os essenciais + os roteados pela camada daquela fatia. A **passada completa dos 10 + suite completa** é o veredito de fechamento do Marco (não se pula).
 
-**Na re-revisão (2ª passada):** rodar só os auditores que falharam + os cuja área foi tocada pelo conserto. Auditor de área não-mexida não pode ter regredido — não re-roda.
+**Na re-revisão (2ª passada — emenda R5 2026-06-12 — auditoria de cerimônia):** re-rodar SOMENTE os auditores que tiveram achado MÉDIO+, escopados ao diff do conserto. PROIBIDA "passada de confirmação" adicional após a re-passada (M5 gastou 4h numa 2ª passada completa que achou ZERO). Full re-run só se o conserto adicionou código novo substancial (nova feature/endpoint — não correção pontual de causa-raiz).
 
 **Como invocar:** `Agent` tool com `subagent_type=auditor-<nome>`. Prompt completo em `docs/governanca/auditor-<nome>-prompt.md`.
 
@@ -173,7 +175,52 @@ Cada T-MOD-NNN tem:
 
 **Loop:** se FAIL, corrige e re-revisa. 5 reprovações da mesma Story = escalation.
 
+**Verificação adversarial obrigatória (emenda R6 2026-06-12 — auditoria de cerimônia):** ANTES de iniciar o mutirão de conserto, todo achado MÉDIO+ da 1ª passada passa por 1 verificador cético independente. Prompt padrão: "tente REFUTAR este achado com evidência no código — cite arquivo, linha e argumento". Achado refutado é rebaixado/descartado com registro na matriz §8 (ata do P9). Padrão observado em M8: 4 de 5 MÉDIOs foram rebaixados/descartados na adversarial, poupando 4h de mutirão desnecessário. Agora é praxe obrigatória.
+
+**Roteamento e aposentadorias formais (emenda R7 2026-06-12 — auditoria de cerimônia):**
+- `auditor-drift-docs` SAI da lista de auditores de fechamento. Substituído por: (a) gate mecânico `scripts/status-projeto.sh --check` (contagens + status) + (b) varredura SEMÂNTICA mensal autônoma (pendência stale, ADR proposta já superada, draft fossilizado, link quebrado, frase que afirma "pronto" sobre código que não entrega). Evidência: 32 achados históricos, 0 bugs de produto.
+- `auditor-supplychain` roda APENAS quando o diff da frente toca `pyproject.toml`, `poetry.lock`, `package*.json`, `Dockerfile`, `.github/workflows/**`. Fora disso: NÃO roda no fechamento. Evidência: 0 achados MÉDIO+ em toda a história.
+- `auditor-conformidade-lgpd` roda APENAS quando o diff toca `models.py`, `serializers.py`, `migrations/**` ou `src/domain/**` com campo de pessoa física, ou eventos com payload de pessoa (PII). Fora disso: NÃO roda no fechamento. Formaliza a prática observada de M6 a M9.
+
 **Gate de fechamento (INV-RITUAL-001 — inegociável):** a Fase/Marco/Story **só fecha** com os 3 auditores em **PASS** e **ZERO CRÍTICO / ZERO ALTO / ZERO MÉDIO** nas 3 lentes + pareceres dos subagentes sem REPROVADO. **MÉDIO bloqueia o fechamento igual a CRÍTICO/ALTO** — só é tolerável transitoriamente *dentro* do loop de correção, nunca no fechamento. Apenas BAIXO pode ser rastreado como GATE-* e não bloqueia. "Resolvido" exige evidência verificável (rodar o ambiente real), não suposição. Não existe "MÉDIO aceitável", "cosmético", "pré-existente" ou "diferido pra Wave A" — ver `feedback_resolver_nao_documentar`. Override exclusivo do Roldão via `# ritual-gate: skip -- APROVADO POR ROLDAO: <razão>` no commit; o agente nunca decide derrubar este gate. O hook `ritual-gate-check.sh` materializa a barreira.
+
+**Tabela normativa de severidade por tipo de achado (emenda R8 2026-06-12 — auditoria de cerimônia):**
+
+| Tipo de achado | Severidade canônica | Notas |
+|---|---|---|
+| Drift de contagem/status/data em doc (número desatualizado) | **BAIXO sempre** | Nunca ALTO/MÉDIO — M3 teve 8× errado |
+| Nome/formato de teste (TST-004/006) | **BAIXO** | Verificação mecânica: usar `scripts/checa-tst-mecanico.sh --report` |
+| Débito "forward-looking" de código que não existe ainda | **BAIXO ou GATE rastreado** | Nunca MÉDIO+ |
+| Log/observabilidade ausente em path não-crítico | **BAIXO** | Path crítico = financeiro/auth/kms/audit/tenant |
+| PII/segurança/WORM/isolamento tenant | **Régua cheia (pode ser CRÍTICO)** | OBS-CAL-01 M4 era "log" mas era trilha WORM obrigatória |
+| Regulatório/perda de dados irreversível | **Régua cheia** | Sem rebaixamento por "já existe em outra camada" |
+
+Auditor que quiser fugir desta tabela **precisa justificar explicitamente** no veredito. Achado sem justificativa de desvio = regulado pela tabela.
+
+**BAIXOs em lote pós-fechamento (emenda R10 2026-06-12 — decisão Roldão — auditoria de cerimônia):** em módulo NÃO-metrológico, achados BAIXO são registrados na matriz §8 e consertados em LOTE imediatamente APÓS o fechamento (mesma sessão ou seguinte) — não travam nem serializam o ciclo. Em módulo metrológico (`metrologia/*`, calibração, certificados) o conserto de BAIXO continua dentro do ciclo antes de fechar. TODOS os achados continuam sendo consertados — a regra "resolver tudo" do Roldão não muda; muda apenas o momento em módulo operacional.
+
+### 3.7. P8 enxuto — matriz-reconciliação (emenda R20 2026-06-12 — auditoria de cerimônia)
+
+A matriz-reconciliação de cada módulo mantém SOMENTE:
+- **§1 Rastreabilidade US/INV↔código** — qual US/INV está em qual arquivo/classe (única rastreabilidade que não existe em outro lugar).
+- **§2 INV↔teste** — qual teste cobre qual INV (idem — não é verificável em git log).
+- **§8 Ata do P9** — achados da 1ª passada + veredito adversarial + consertos + veredito 2ª passada.
+
+**ABOLIDAS** as seções "entregas por fase" e "hooks novos por fase" — duplicam `git log` e `settings.json`; nenhum auditor as lê na prática.
+
+**Rastreabilidade oficial:** portada por `INV-*` e `T-*`. IDs `AC-*` formais são opcionais — zero uso observado nas frentes M6→PPS, que fecharam 8/8 PASS sem eles.
+
+### 3.8. Geração de tasks.md — workflow por risco (emenda R21 2026-06-12 — auditoria de cerimônia)
+
+O workflow completo (multi-leitores + 3 lentes adversariais) para geração do `tasks.md` aplica-se SOMENTE em módulo de:
+- Risco metrológico (`metrologia/*`, calibração, certificados, padrões, escopos-cmc, procedimentos).
+- Risco financeiro alto (faturamento, billing-saas, NFS-e, gateway de pagamento).
+
+Em módulo operacional comum (clientes, equipamentos, OS, agenda, agenda-tecnico, comunicação, etc.): usar P3 padrão (plano → revisão tech-lead → tasks). Não inflar o processo de geração de tasks com lentes extras.
+
+### 3.9. Frontmatter draft→stable (emenda R22 2026-06-12 — auditoria de cerimônia)
+
+Promoção de `status: draft` → `status: stable` deixa de ser passo formal de cada fechamento de módulo. Faz-se em **lote periódico**: fechamento de bloco de módulos (ex: fim de Wave A) ou auditoria mensal de docs. Docs estáveis há mais de 4 semanas sem edição substancial são candidatos à promoção em lote. O `auditor-drift-docs` semântico mensal identifica esses candidatos.
 
 ---
 
@@ -231,3 +278,5 @@ Agent({
 | Data | Mudança |
 |------|---------|
 | 2026-05-18 | Criação após Roldão exigir "agente como orquestrador de verdade". Causa: agente entregou F-A, F-B e Wave A Marco 1 (clientes) sem seguir o ciclo. Débito retroativo em `docs/governanca/debitos-ritual.md`. |
+| 2026-05-29 | Fatiamento obrigatório (INV-RITUAL-002), roteamento de auditores por risco com travas (INV-RITUAL-003), revisão profunda do plano reforçada. INV-RITUAL-001 mantido por decisão do Roldão. |
+| 2026-06-12 | **Auditoria de cerimônia do processo — aprovação integral Roldão (pacote B+D).** Emendas incorporadas: R5 (2ª passada escopada — proibida passada confirmatória), R6 (verificação adversarial de TODO MÉDIO+ antes do mutirão), R7 (aposentadoria drift-docs do fechamento; supplychain e conformidade-lgpd por gatilho de diff), R8 (tabela normativa de severidade por tipo de achado), R10 (BAIXOs em lote pós-fechamento em módulo não-metrológico — decisão explícita Roldão), R20 (P8 enxuto — matriz-reconciliação só §1/§2/§8), R21 (workflow multi-leitores de tasks só em módulo metrológico/financeiro), R22 (promoção draft→stable em lote periódico). |

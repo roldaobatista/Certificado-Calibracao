@@ -7,6 +7,8 @@ status: draft
 
 # Matriz de retenção de dados
 
+> ❄️ **CONGELADO por módulo (decisão Roldão 2026-06-12, auditoria de cerimônia R17):** atualização consolidada desta matriz acontece no **GATE-LGPD-RAT-CONSOLIDACAO** (1 passe único antes do deploy com dados reais de pessoa física). Exceção: acrescentar linha nova SÓ quando o módulo **CODIFICA** retenção (job/trigger com dado real — ex: `verificar_vigencia_acreditacao_perfil_a`). Specs novas de módulo mantêm apontador-PII de 1 linha mas NÃO emitem linha de retenção completa até o GATE.
+
 > **Pra quê:** reconciliar prazos de retenção que conflitam — Receita Federal (5 anos), ISO 17025 cláusula 8.4 (~25 anos), LGPD direito ao esquecimento (sob demanda). Sem matriz explícita, time engenharia escolhe sob pressão e cria risco regulatório.
 >
 > **Origem:** Auditor 1+4+5 da 2ª auditoria de 10 agentes (16/05/2026).

@@ -1,6 +1,6 @@
 ---
 owner: roldao
-revisado-em: 2026-05-23
+revisado-em: 2026-06-12
 status: minuta
 aguarda-corretora-susep: true
 selo: "PRÉ-COTAÇÃO — REQUER CORRETORA SUSEP CREDENCIADA"
@@ -9,6 +9,8 @@ finalidade: tabela única pronta pra corretora SUSEP cotar — 7 modalidades Wav
 ---
 
 # Planilha de cotação Wave A — 7 modalidades
+
+> ❄️ **CONGELADO (decisão Roldão 2026-06-12, auditoria de cerimônia R19):** emendas de cláusulas/coberturas por módulo estão suspensas até os gates GATE-SEG-* correspondentes. O subagente `corretora-seguros-saas` atua no P2 SOMENTE para risco de DESIGN (novo fluxo de dados, nova exposição cyber) — não para ajustar esta planilha que será preenchida por corretora SUSEP credenciada pré-produção.
 
 > Selo: este documento NÃO substitui apólice. Apólice exige corretora SUSEP credenciada (Lei 4.594/64).
 

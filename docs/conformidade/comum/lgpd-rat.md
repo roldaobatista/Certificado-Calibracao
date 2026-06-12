@@ -6,6 +6,8 @@ status: draft
 
 # LGPD — Registro de Atividades de Tratamento (RAT)
 
+> ❄️ **CONGELADO por módulo (decisão Roldão 2026-06-12, auditoria de cerimônia R17):** atualização consolidada deste RAT acontece no **GATE-LGPD-RAT-CONSOLIDACAO** (1 passe único antes do deploy com dados reais de pessoa física — clientes da Balanças Solution). Exceção: acrescentar linha nova SÓ quando o módulo **CODIFICA** retenção (job/trigger com dado real). Specs novas de módulo mantêm apontador-PII de 1 linha ("PII: campos X,Y — base legal Z") mas NÃO emitem entrada RAT completa por módulo até o GATE.
+
 > **Pra quê:** atender LGPD art. 37 (controlador e operador devem manter registro das operações de tratamento). Fonte primária do RAT do Aferê. Atualizar a cada operação nova ou base legal alterada.
 >
 > **Base normativa:** Lei 13.709/2018 (LGPD), Resolução ANPD 15/2024 (incidentes), Enunciado CD/ANPD 4 (DPO obrigatório em larga escala).

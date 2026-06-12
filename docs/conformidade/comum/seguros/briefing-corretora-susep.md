@@ -1,12 +1,14 @@
 ---
 owner: roldao
-revisado-em: 2026-05-23
+revisado-em: 2026-06-12
 status: minuta
 aguarda-corretora-susep: true
 selo: "PRÉ-COTAÇÃO — REQUER CORRETORA SUSEP CREDENCIADA (Lei 4.594/64 + Res. CNSP)"
 finalidade: briefing técnico completo pra corretora SUSEP humana cotar 7 modalidades Wave A
 audiencia: corretora de seguros SUSEP credenciada (perfil tech E&O + cyber + RC consequente)
 ---
+
+> ❄️ **CONGELADO (decisão Roldão 2026-06-12, auditoria de cerimônia R19):** emendas de escopo/cobertura por módulo estão suspensas até os gates GATE-SEG-* correspondentes. Subagente `corretora-seguros-saas` atua no P2 SOMENTE para risco de DESIGN — não para atualizar este briefing que será revisado por corretora SUSEP credenciada pré-produção.
 
 # Briefing técnico — corretora SUSEP
 

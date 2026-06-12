@@ -1,12 +1,14 @@
 ---
 owner: roldao
-revisado-em: 2026-05-23
+revisado-em: 2026-06-12
 status: minuta
 aguarda-revisao-oab: true
 selo: "MINUTA — REQUER VALIDAÇÃO OAB ANTES DE EXECUÇÃO/PUBLICAÇÃO"
 ---
 
 # Política de Privacidade — Plataforma Aferê (PoP v1.0)
+
+> ❄️ **CONGELADO (decisão Roldão 2026-06-12, auditoria de cerimônia R19):** emendas de cláusulas por módulo estão suspensas até o gate GATE-LGPD-POP-1. O subagente `advogado-saas-regulado` atua no P2 SOMENTE para risco de DESIGN (estrutura de dado, texto de tela visível ao titular) — não para polir prosa desta minuta que será reescrita por OAB humana pré-publicação.
 
 > Minuta preparada por subagente IA (`advogado-saas-regulado`) conforme LGPD (Lei 13.709/2018), Marco Civil da Internet e Resoluções CD/ANPD 2/2022, 15/2024, 18/2024 e 19/2024. **Não substitui validação por advogado(a) com OAB ativa.**
 

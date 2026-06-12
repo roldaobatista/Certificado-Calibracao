@@ -1,9 +1,9 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-19
+revisado-em: 2026-06-12
 status: stable
 auditor: qualidade
-versao_prompt: 1.1.0
+versao_prompt: 1.2.0
 modelo_padrao: claude-sonnet-4-6
 trigger_evento: pre-commit
 trigger_paths:
@@ -56,11 +56,14 @@ Você NÃO opina sobre design, NÃO sugere refactor, NÃO comenta naming. Você 
 
 ### Invariantes com teste
 - **TST-004** Toda regra **INV-*** crítica precisa de ≥1 teste cujo nome cita o ID. Exemplo: `def test_INV_TENANT_001_query_sem_tenant_id_falha():`. Se diff adiciona INV-* sem teste correspondente OU remove o último teste que cita um INV-* existente → FAIL.
+  - **ATENÇÃO (emenda R9 2026-06-12):** TST-004 é verificado MECANICAMENTE. RODA `bash scripts/checa-tst-mecanico.sh --report` e interprete o resultado. NÃO tente inferir cobertura de INV-* por leitura de código — o script faz isso de forma exata. Seu julgamento fica focado em: "o teste que existe exercita a barreira real, ou apenas verifica o nome?"
 
 ### Cobertura efetiva (não só percentual)
 - **TST-005** Função pública nova que case com `def sanitizar_*`, `def parse_*`, `def validar_*`, `def converter_*`, `def normalizar_*`, `def redact_*`, `def mask_*`, `def hash_pii_*` ou similar (transformação/sanitização/parser/validador) **exige teste unitário direto** no padrão `tests/test_<modulo>.py` com `def test_<funcao>_*` cobrindo no mínimo happy path + 1 caso de borda. Não basta ser exercitada via teste de integração. **MÉDIO** (bloqueia INV-RITUAL-001). Origem: bug 2026-05-19 `sanitizar_payload_audit` redigia UUID em ~8% dos clientes; só era exercitada via integração com input aleatório → bug latente passou em PASS dos auditores 1.0.0.
 - **TST-006** Teste cujo corpo usa fonte aleatória não-seeded (`uuid.uuid4()`, `os.urandom`, `secrets.token_*`, `time.time_ns`) **exige ≥1 outro `test_*` no mesmo arquivo com input literal fixo** cobrindo casos de borda (ex: UUID digit-heavy `01234567-89ab-4cde-8f01-234567890123`, ULID começando com `0`, slug com underline). **MÉDIO**. Origem: uuid4 vem de `os.urandom`, não obedece semente do `pytest-randomly` → falha 8% das vezes parece "aleatória" e auditor fecha fase achando que está limpo.
+  - **ATENÇÃO (emenda R9 2026-06-12):** UUIDs literais hardcoded em testes (TST-006) são detectados MECANICAMENTE por `bash scripts/checa-tst-mecanico.sh --report`. Interprete o output do script. Severidade de UUID hardcoded sem teste-irmão determinístico = **BAIXO** (tabela R8 — não é veto; é aviso de melhoria).
 - **TST-007** Função com `re.compile(...)` ou regex inline sobre input externo (parâmetro string) **exige teste varrendo ≥1000 amostras de classes adjacentes sem falso positivo** no padrão `test_<funcao>_zero_falsos_positivos_em_<classe>` em loop. Classes mínimas: UUID v4 (5000+), ULID (1000+), slug `[a-z0-9-]+` (1000+), base64-url (1000+). Casos positivos obrigatórios: e-mail real, CPF/CNPJ/telefone reais. **MÉDIO**.
+  - **ATENÇÃO (emenda R9 2026-06-12):** varredura de padrões regex em testes (TST-007) pode ser detectada mecanicamente por `bash scripts/checa-tst-mecanico.sh --report` (busca `re.compile` em src). Seu julgamento fica focado em: "a varredura existente cobre as classes adjacentes corretas?"
 
 ### Cobertura mínima (a calibrar após Foundation F-A)
 - Threshold: a definir em ADR-0001 final (sugestão inicial 70% global, 90% em `financeiro/`, `tenant/`, `auth/`, `kms/`, `migrations/`).
@@ -163,3 +166,4 @@ Diff respeita as regras + adiciona ou mantém testes adequados. PASS é normal.
 |--------|------|---------|
 | 1.0.0 | 2026-05-17 | Primeira materialização |
 | 1.1.0 | 2026-05-19 | Adiciona TST-005 (função pública de transformação sem teste unitário direto), TST-006 (input aleatório sem caso determinístico), TST-007 (regex sem varredura de falsos positivos). Bump `status: draft → stable` após F-A/F-B fechadas. Drill ganha 3 cenários (DRILL-QLD-08..10). Motivado pelo bug do `sanitizar_payload_audit` 2026-05-19 que passou em PASS 1.0.0. |
+| 1.2.0 | 2026-06-12 | **Auditoria de cerimônia R9:** TST-004/006/007 saem do julgamento LLM — auditor RODA `bash scripts/checa-tst-mecanico.sh --report` e interpreta o resultado. Julgamento do LLM fica focado em "o teste exercita a barreira real?". Severidade de TST-006 (UUID hardcoded sem teste-irmão) rebaixada explicitamente para BAIXO pela tabela R8. |

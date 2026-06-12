@@ -1,12 +1,14 @@
 ---
 owner: roldao
-revisado-em: 2026-05-23
+revisado-em: 2026-06-12
 status: minuta
 aguarda-revisao-oab: true
 selo: "MINUTA — REQUER VALIDAÇÃO OAB ANTES DE EXECUÇÃO/PUBLICAÇÃO"
 ---
 
 # Termo de Uso — Plataforma Aferê
+
+> ❄️ **CONGELADO (decisão Roldão 2026-06-12, auditoria de cerimônia R19):** emendas de cláusulas por módulo estão suspensas até os gates GATE-LGPD-TOU-1 / GATE-LGPD-DPA-MASTER-1. O subagente `advogado-saas-regulado` atua no P2 (revisão de plano) SOMENTE para risco de DESIGN (estrutura de dado, texto de tela visível ao titular) — não para polir prosa desta minuta que será reescrita por OAB humana pré-produção.
 
 > Minuta jurídica preparada por subagente IA (`advogado-saas-regulado`). **Não substitui parecer de advogado(a) com OAB ativa.** Antes de publicação ou aceite com tenant externo, esta minuta deve ser revista por advogado humano.
 

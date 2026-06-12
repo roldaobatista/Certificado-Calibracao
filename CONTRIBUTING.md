@@ -46,6 +46,28 @@
 
 ---
 
+## Disciplina pós-auditoria de cerimônia (2026-06-12)
+
+Aprovação integral do Roldão — pacotes B e D. Duas regras operacionais aplicadas a partir desta data:
+
+### R4 — Crescimento de hooks: dispatcher consolidado
+
+Verificação nova de invariante de módulo **nasce como check de pré-commit no dispatcher consolidado** (`scripts/dispatcher-precommit.sh` — criado na frente técnica do Pacote A). Hook write-time (executado a cada edição de arquivo) é reservado para anti-desastre:
+- `block-destructive` — operações destrutivas irreversíveis
+- `secrets-scanner` — segredos/credenciais no código
+- `anti-mascaramento` — bypass silencioso de teste
+- `mock-in-production` — mock em path de produção real
+- `seed-anti-pii-real` — PII real em seeds
+- `csv-safety-import` — CSV com dados reais sem validação
+
+Todos os demais checks de invariante de domínio pertencem ao pré-commit, não ao write-time. Não criar hook write-time novo sem aprovação explícita do Roldão.
+
+### R16 — Fim dos commits isolados de estado
+
+**Proibido commit isolado contendo somente `.agent/CURRENT.md`.** A atualização de estado do agente entra no commit da própria fatia de trabalho (junto com os arquivos de código/doc que a fatia modificou). Commits de handoff puro eram 12,4% do histórico (113 de 913 commits) sem valor de código — não se repetem.
+
+---
+
 ## Como atualizar este arquivo
 
 Mudança no fluxo → ADR formal + atualizar este arquivo + atualizar `docs/roteamento-dual.md`.

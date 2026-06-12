@@ -1,12 +1,14 @@
 ---
 owner: roldao
-revisado-em: 2026-05-23
+revisado-em: 2026-06-12
 status: minuta
 aguarda-corretora-susep: true
 selo: "PRÉ-COTAÇÃO — REQUER CORRETORA SUSEP CREDENCIADA"
 finalidade: desenho de apólice RC profissional individual pra RT vendor próprio (V2 — quando Aferê fornecer RT credenciado próprio aos tenants)
 gatilho: ADR-0022 V2 (RT vendor) — não se aplica em Wave A
 ---
+
+> ❄️ **CONGELADO (decisão Roldão 2026-06-12, auditoria de cerimônia R19):** documento não se aplica em Wave A (ADR-0022 V1 vigente). Emendas suspensas até GATE-SEG-* de RT vendor. Não editar até o gatilho de ativação.
 
 # RC profissional individual — RT vendor Aferê (V2)
 

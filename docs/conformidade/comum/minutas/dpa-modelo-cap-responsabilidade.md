@@ -1,6 +1,6 @@
 ---
 owner: roldao
-revisado-em: 2026-05-23
+revisado-em: 2026-06-12
 status: minuta
 aguarda-revisao-oab: true
 selo: "MINUTA — REQUER VALIDAÇÃO OAB ANTES DE EXECUÇÃO/ASSINATURA"
@@ -9,6 +9,8 @@ relacao-com: dpa-modelo.md (versão draft anterior) — esta extensão deve ser 
 ---
 
 # Extensão DPA — Cláusulas 11, 13 e adendos
+
+> ❄️ **CONGELADO (decisão Roldão 2026-06-12, auditoria de cerimônia R19):** emendas de cláusulas por módulo estão suspensas até o gate GATE-LGPD-DPA-MASTER-1. O subagente `advogado-saas-regulado` atua no P2 SOMENTE para risco de DESIGN — não para polir prosa que será reescrita por OAB humana pré-assinatura.
 
 > Esta minuta consolida as cláusulas críticas (Cap de Responsabilidade + Penal de Vazamento + Foro Arbitral) que devem ser integradas ao `dpa-modelo.md` quando promovido a `stable`. Documento separado para facilitar revisão OAB focada.
 

@@ -1,6 +1,6 @@
 ---
 owner: roldao
-revisado-em: 2026-05-23
+revisado-em: 2026-06-12
 status: stable
 finalidade: Catálogo único e vivo de todos os GATEs Wave A do projeto Aferê. Substitui as listas dispersas em 6 arquivos diferentes (F-A/auditoria-familia5.md, F-B/auditoria-familia5.md, M1-clientes/auditoria-familia5.md, M2-equipamentos/auditoria-familia5.md, OS-CAL-RESOLUCAO-rodada-1.md, OS-CAL-RESOLUCAO-rodada-2.md).
 fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation gaps + auditoria-familia5 dos marcos fechados)
@@ -13,12 +13,12 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 
 ---
 
-## Resumo por categoria (estado em 2026-05-23 pós Onda 1-8 saneamento)
+## Resumo por categoria (estado em 2026-06-12 pós auditoria de cerimônia)
 
 | Categoria | Total | Abertos | Fechados | Em andamento |
 |---|---|---|---|---|
 | Seguros (SEG-*) | 13 | 12 | 0 | 1 (CAP-1 — DPA Onda 7) |
-| LGPD / Jurídico (LGPD-*) | 11 | 9 | 0 | 2 (minutas + cap DPA) |
+| LGPD / Jurídico (LGPD-*) | 13 | 11 | 0 | 2 (minutas + cap DPA) |
 | Foundation F-A (1-7) | 7 | 7 | 0 | 0 |
 | Foundation F-B (FB-1..4) | 4 | 4 | 0 | 0 |
 | Marco 1 clientes (CLI-1..8) | 8 | 8 | 0 | 0 |
@@ -27,7 +27,9 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | Modelo dados / convenções (DOM-*) | 5 | 0 | 5 | 0 (Onda 2 fechou) |
 | Bus / integração (BUS-*) | 5 | 4 | 1 | 0 (envelope retrofit Onda 3) |
 | Operação / Drill (OPS-*) | 6 | 6 | 0 | 0 |
-| **TOTAL** | **85** | **75** | **7** | **3** |
+| **TOTAL** | **87** | **77** | **7** | **3** |
+
+> Adicionados em 2026-06-12 (auditoria de cerimônia R17/R18): GATE-LGPD-RAT-CONSOLIDACAO + GATE-CGCRE-DOSSIE-PROSA.
 
 ---
 
@@ -50,7 +52,7 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | GATE-SEG-VEIC-1 | 🟡 | OS campo com padrão em trânsito | Roldão + corretora | Pré-OS campo |
 | GATE-SEG-DRILL-1 | 🔴 | Aderência ANPD 3 dias úteis | DPO + Roldão | Anual — antes 1º tenant externo |
 
-### LGPD / Jurídico (9)
+### LGPD / Jurídico (11)
 
 | GATE | Severidade | Bloqueia | Owner | Prazo |
 |---|---|---|---|---|
@@ -65,6 +67,12 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | GATE-LGPD-SUB-OUTROS | 🟡 | Wave A completa | Aferê com Anthropic/Grafana/Axiom | Pré-Wave A externa |
 | GATE-LGPD-DRILL | 🔴 | Aderência ANPD | DPO designado | Anual — pré-1º tenant externo |
 | GATE-LGPD-ART18-MODULOS | 🔴 | Tenant externo em módulo cobre titular | Tech-lead + DPO | Por módulo (equipamentos/OS/cal/cert/billing) |
+| **GATE-LGPD-RAT-CONSOLIDACAO** | 🔴 | **Deploy do dogfooding com dados reais** (1º titular real = clientes da Balanças Solution — gatilho correto, não o 1º tenant externo) | Tech-lead + advogado-saas-regulado + DPO | Antes do 1º dado real de pessoa física entrar em produção |
+| **GATE-CGCRE-DOSSIE-PROSA** | 🟡 | Tenant perfil A real OU auditoria CGCRE marcada | Consultor RBC + tech-lead | Disparado por evento externo (não por módulo) |
+
+> **GATE-LGPD-RAT-CONSOLIDACAO (novo — R17 auditoria cerimônia 2026-06-12):** 1 passe consolidado de RAT LGPD + DPIA + censo de retenção por entidade. Insumo: apontadores-PII de 1 linha mantidos nas specs de cada módulo ("PII: campos X,Y — base legal Z"). Linha de retenção por módulo continua SÓ quando o módulo codifica retenção (job/trigger). Specs novas mantêm o apontador-PII de 1 linha mas NÃO emitem RAT/DPIA completo por módulo até este GATE.
+>
+> **GATE-CGCRE-DOSSIE-PROSA (novo — R18 auditoria cerimônia 2026-06-12):** redação consolidada dos dossiês/URS cl. 7.11 (parte narrativa IQ/OQ/PQ). A EVIDÊNCIA executável (replay fixtures, `versao_motor`, marcadores OQ em migrations) **continua obrigatória por módulo durante a construção** — essa é irrecuperável depois. O que vai pra este GATE é só a prosa narrativa do dossiê consolidado.
 
 ### Foundation F-A (7)
 

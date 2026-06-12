@@ -7,6 +7,18 @@
 > **Status atual (2026-05-27):** **10 auditores em operação stable** — provados em 5+ ciclos PASS (F-A, F-B, M1 clientes, M2 equipamentos, F-C1, M3 OS, M4 calibração). Marco 4 (2026-05-27) exercitou os 10 em 2 passadas completas: 1ª passada 2 PASS / 1 CONCERNS / 7 FAIL (41 C/A/M) → 6 batches conserto causa-raiz → 2ª passada 8 PASS + 2 CONCERNS BAIXO carryover. LLM-correctness subiu CONCERNS→PASS. Convergência observada após o ritual S1..S6.1.
 >
 > **Motivação do Tier 1+2+3:** o bug 2026-05-19 do `sanitizar_payload_audit` (UUID redigido como PII em ~8% dos clientes) **passou em PASS dos 3 auditores 1.0.0** porque a função era exercitada só via teste de integração com input aleatório. Lacuna concreta provou que precisamos endurecer (Tier 1: TST-005..007 + SEC-SANITIZE-001) e expandir cobertura (Tier 2: LLM correctness; Tier 3: performance, observabilidade, idempotência, supply chain, LGPD mecânico).
+>
+> **Atualizado 2026-06-12 — auditoria de cerimônia (aprovação Roldão — pacote B R7):** drift-docs aposentado do fechamento; supplychain roteado por diff de deps; conformidade-lgpd roteado por diff PII. Ver §"Roteamento pós-reforma" abaixo.
+
+---
+
+## Roteamento pós-reforma (emenda R7 2026-06-12 — auditoria de cerimônia)
+
+| Auditor | Status no fechamento | Novo gatilho | Evidência de decisão |
+|---|---|---|---|
+| **drift-docs** | **APOSENTADO do fechamento** | Varredura semântica mensal autônoma (pendência stale, ADR proposta superada, draft fossilizado, link quebrado) + gate mecânico `scripts/status-projeto.sh --check` | 32 achados históricos / **0 bugs de produto** (100% contagem/status) — sem valor de fechamento |
+| **supplychain** | Roteado — **SOMENTE por diff** | Roda quando diff toca `pyproject.toml`, `poetry.lock`, `package*.json`, `Dockerfile`, `.github/workflows/**`. Fora disso: não roda | **0 achados MÉDIO+ em toda a história** do projeto |
+| **conformidade-lgpd** | Roteado — **SOMENTE por diff PII** | Roda quando diff toca `models.py`, `serializers.py`, `migrations/**` ou `src/domain/**` com campo de pessoa física, ou eventos com payload de pessoa | Formaliza prática observada de M6 a M9 — já era assim na prática; agora é norma escrita |
 
 ---
 
