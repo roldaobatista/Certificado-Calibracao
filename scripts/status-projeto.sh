@@ -10,7 +10,7 @@
 #
 # Uso:
 #   bash scripts/status-projeto.sh            # imprime as contagens e regenera docs/governanca/STATUS-GERADO.md
-#   bash scripts/status-projeto.sh --check    # verifica se os números à mão nos docs canônicos batem; sai 1 se divergir
+#   bash scripts/status-projeto.sh --check    # denylist: falha (exit 1) se AGENTS/CLAUDE/README contiverem contagem viva (\d+ hooks/casos/ADRs/INVs)
 #   bash scripts/status-projeto.sh --quiet    # só regenera o arquivo, sem imprimir
 #
 # Janela Windows + Git Bash: sem jq, sem bc — só awk/grep/ls.
@@ -26,46 +26,39 @@ GERADO="docs/governanca/STATUS-GERADO.md"
 # ---- Contagens da FONTE DIRETA (nunca doc-contra-doc) ----------------------
 HOOKS=$(ls .claude/hooks/*.sh 2>/dev/null | grep -v "_test-runner.sh" | wc -l | tr -d ' ')
 CASOS=$(grep -c "run_case " .claude/hooks/_test-runner.sh 2>/dev/null | tr -d ' ')
-ADRS=$(ls docs/adr/*.md 2>/dev/null | wc -l | tr -d ' ')
+ADRS=$(ls docs/adr/[0-9]*.md 2>/dev/null | wc -l | tr -d ' ')
 INVS=$(grep -ohE "\bINV-[A-Z]*-?[0-9]{3}" REGRAS-INEGOCIAVEIS.md 2>/dev/null | sort -u | wc -l | tr -d ' ')
 
-# ---- Modo --check: os números à mão nos docs batem com o real? -------------
+# ---- Modo --check: denylist — falha se encontrar contagem viva nos contratos -
+# Rationale (R11 auditoria-cerimonia-2026-06-12): policiar cópia-de-número é
+# estruturalmente furado (auditoria mediu "72 ativos" quando o real era 74).
+# Fonte única = STATUS-GERADO.md. AGENTS/CLAUDE/README devem usar ponteiro, não
+# número. O gate agora FALHA se encontrar padrão de contagem viva nesses arquivos.
 if [[ "${1:-}" == "--check" ]]; then
-  divergencias=0
-  reportar() { # arquivo  rotulo  esperado  encontrado
-    echo "  DIVERGE: $1 diz '$4' para $2, mas o real é '$3'"
-    divergencias=$((divergencias + 1))
-  }
+  ocorrencias=0
 
-  for arq in AGENTS.md README.md CLAUDE.md; do
+  # Padrões de contagem viva (regex ERE):
+  #   \d+ hooks ativos | \d+ casos | \d+/\d+ casos | \d+ ADRs | \d+ INVs(ariantes)
+  DENYLIST_RE='[0-9]+ hooks? ativos|[0-9]+(/[0-9]+)? casos? (verdes?|no _test-runner)|[0-9]+ ADRs|[0-9]+ INVs?'
+
+  for arq in AGENTS.md CLAUDE.md README.md; do
     [[ -f "$arq" ]] || continue
-    # "N hooks ativos"
-    while IFS= read -r n; do
-      [[ -z "$n" ]] && continue
-      [[ "$n" != "$HOOKS" ]] && reportar "$arq" "hooks ativos" "$HOOKS" "$n"
-    done < <(grep -oE "[0-9]+ hooks? ativos" "$arq" | grep -oE "^[0-9]+")
-    # "N/N casos" ou "N casos"
-    while IFS= read -r n; do
-      [[ -z "$n" ]] && continue
-      [[ "$n" != "$CASOS" ]] && reportar "$arq" "casos de teste" "$CASOS" "$n"
-    done < <(grep -oE "[0-9]+(/[0-9]+)? (casos|verdes)" "$arq" | grep -oE "^[0-9]+")
+    matches=$(grep -Ec "$DENYLIST_RE" "$arq" 2>/dev/null || true)
+    if [[ "$matches" -gt 0 ]]; then
+      echo "  DENYLIST: $arq contém $matches linha(s) com contagem viva."
+      grep -En "$DENYLIST_RE" "$arq" | head -5 | sed "s/^/    /"
+      ocorrencias=$((ocorrencias + matches))
+    fi
   done
 
-  # README também anuncia "N ADRs" no resumo público
-  if [[ -f README.md ]]; then
-    while IFS= read -r n; do
-      [[ -z "$n" ]] && continue
-      [[ "$n" != "$ADRS" ]] && reportar "README.md" "ADRs" "$ADRS" "$n"
-    done < <(grep -oE "[0-9]+ ADRs" README.md | grep -oE "^[0-9]+")
-  fi
-
-  if [[ "$divergencias" -gt 0 ]]; then
+  if [[ "$ocorrencias" -gt 0 ]]; then
     echo ""
-    echo "FALHA: $divergencias número(s) à mão divergem do real (hooks=$HOOKS casos=$CASOS ADRs=$ADRS)."
-    echo "Corrija o doc OU rode 'bash scripts/status-projeto.sh' e use a fonte gerada."
+    echo "FALHA: $ocorrencias linha(s) com contagem viva encontradas em AGENTS/CLAUDE/README."
+    echo "Substitua o número por ponteiro para docs/governanca/STATUS-GERADO.md."
+    echo "Contagens reais: hooks=$HOOKS casos=$CASOS ADRs=$ADRS INVs=$INVS"
     exit 1
   fi
-  echo "OK: números à mão nos docs canônicos batem com o real (hooks=$HOOKS casos=$CASOS ADRs=$ADRS INVs=$INVS)."
+  echo "OK: AGENTS.md, CLAUDE.md e README.md não contêm contagens vivas (hooks=$HOOKS casos=$CASOS ADRs=$ADRS INVs=$INVS)."
   exit 0
 fi
 

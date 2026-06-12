@@ -4,24 +4,20 @@
 
 ---
 
-## Status atual (2026-05-27)
+## Status atual (Wave A em curso)
 
-- **Foundation F-A FECHADA** (multi-tenant + RLS + audit imutável + 4 entidades núcleo) — 10/10 auditores Família 5 PASS ZERO CRÍTICO/ALTO/MÉDIO
-- **Foundation F-B FECHADA** (auth + RBAC + AuthorizationProvider + MFA TOTP) — 10/10 PASS ZERO C/A/M
-- **Marco 1 `clientes` FECHADO** (Wave A) — cadastro PF/PJ, visão 360, importação CSV, bloqueio, dedup
-- **Marco 2 `equipamentos` FECHADO** (Wave A) — equipamentos, RT, vigência, competências por grandeza
-- **Foundation F-C1 FECHADA** — hardening (admin, prod-settings, webhook-out, break-glass U2F)
-- **Marco 3 `ordens_servico` FECHADO 2026-05-25** — OS com Atividades (ADR-0023), saga compensação, sync mobile (ADR-0027), append-only WORM
-- **Marco 4 `metrologia/calibracao` FECHADO 2026-05-27** — ISO 17025 (recepção, configuração, leituras, NC, subcontratação, hash-chain WORM ADR-0064/0065, fail-open lazy ADR-0066)
-- **Foundation F-C2/F-C3 reservadas** (observabilidade + instrumentação+resiliência) — pré-requisito do 1º deploy externo
-- **Stack ativa:** Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry + Docker Compose
-- **LICENSE:** BUSL-1.1 aplicada na Onda 0 do plano-v2 (parecer subagente `advogado-saas-regulado`; confirmação OAB humano pendente)
-- **82 ADRs aceitas/propostas** (0000..0081) — ADR-0081 da frente produtos-pecas-servicos (duas fontes de preço: lista histórica × tabela de venda vigente fail-closed, proposta); ADR-0080 da frente configuracoes-sistema (numeração SerieDocumento em 2 regimes por tipo, aceita); ADR-0079 do Marco 9 licencas-acreditacoes (Licenca fonte rica + cache Tenant.acreditacao via aplicar_evento_cgcre); ADR-0077/0078 do Marco 8 certificados (incerteza por ponto + tabela achatada); ADR-0073/0074/0075/0076 do Marco 6 escopos-cmc; ADR-0070/0071/0072 do Marco 5; ADR-0064/0065/0066 do Marco 4; ADR-0063 do Marco 3
-- **Suite:** pytest M4 chave 629/629 verde em ~27s; pytest geral 905/0/0 (último full run 2026-05-24); 74 hooks ativos; 573/573 casos no `_test-runner.sh`
+- **Foundations F-A, F-B, F-C1 FECHADAS** — multi-tenant + RLS + auth + RBAC + hardening
+- **Marcos 1-4 FECHADOS** — clientes, equipamentos, ordens de serviço, calibração ISO 17025
+- **Bloco metrologia Wave A COMPLETO** — padrões, escopos-cmc, procedimentos, certificados, licenças-acreditações
+- **Módulos operacionais entregues** — fiscal/NFS-e, configuracoes-sistema, produtos-pecas-servicos
+- **Frente ativa** — `precificacao` (parcial, stub custo) — ver `.agent/CURRENT.md`
+- **Stack:** Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry + Docker Compose
+- **LICENSE:** BUSL-1.1 (parecer subagente `advogado-saas-regulado`; confirmação OAB humano pendente)
+- **ADRs vivas e frias:** `docs/adr/INDICE.md`
 
-> Contagens (hooks/casos/ADRs) são geradas por `scripts/status-projeto.sh` — ver `docs/governanca/STATUS-GERADO.md`. Anti-drift: `bash scripts/status-projeto.sh --check`.
+> **Contagens reais** (hooks / casos de teste / ADRs / INVs) são geradas automaticamente por `scripts/status-projeto.sh` — ver `docs/governanca/STATUS-GERADO.md`. Verificar denylist: `bash scripts/status-projeto.sh --check`.
 
-> Detalhamento vivo: `docs/faseamento-foundation-waves.md` + `.agent/CURRENT.md`.
+> **Detalhamento vivo:** `.agent/CURRENT.md` (frente em curso + próximos passos).
 
 ---
 
