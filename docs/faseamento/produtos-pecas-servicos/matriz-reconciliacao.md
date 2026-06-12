@@ -56,9 +56,9 @@ relacionados:
 | Hook | INV | Casos `_test-runner` | Status |
 |------|-----|----------------------|--------|
 | pps-porta-fail-closed-check.sh | INV-PPS-PRECO-FAIL-CLOSED / ADR-0081 | 6 (PPFC1..6) | ✅ |
-| pps-evento-pii-hash-check.sh | ADV-PPS-01/02 / ADR-0029 | 6 (PEPH1..6) | ✅ |
+| pps-evento-pii-hash-check.sh | ADV-PPS-01/02 / ADR-0029 | 7 (PEPH1..7 — PEPH7 `nome_tabela` adicionado no conserto LGPD-M1) | ✅ |
 
-Total `_test-runner`: **572/572 verdes / 74 hooks ativos** (gate anti-drift verde).
+Total `_test-runner`: **573/573 verdes / 74 hooks ativos** (gate anti-drift verde).
 Ambos testados contra payloads maliciosos (5 BLOCK) e contra os arquivos REAIS
 da frente (0 falso-positivo; fingerprint de idempotência com `motivo` NÃO dispara).
 
@@ -123,8 +123,26 @@ hook estendido PEPH7 (LGPD-M1); `obter_linha` pontual (PERF-M1);
 (PROD-M1); `ImportacaoAusenteError`/`agora_utc`/`listar` órfãos removidos
 (LLM-M1/B2/B4); `_falha` sem detail PG cru + `codigo` estável; logs OBS-B1..B4;
 RLS estrutural 7/7 + UNHAPPY staging em pytest. BAIXOs não-acionáveis viraram
-GATE rastreado (§5). Verificado PG real: suíte PPS **106/106** + hooks 573/573 +
-anti-drift (74/573/82/148) + makemigrations limpo.
+GATE rastreado (§5). Verificado PG real: suíte PPS **105/105** (contagem por
+`--collect-only`: 16 domínio + 31 use cases + 17 E2E + 14 importação + 14 schema
++ 13 INV nomeadas; o "106" anotado no commit do conserto era soma manual com
+off-by-one) + hooks 573/573 + anti-drift (74/573/82/148) + makemigrations limpo.
 
-**2ª passada:** _pendente — re-passada dos 8 auditores sobre o conserto
-(INV-RITUAL-001 fecha a frente só com zero C/A/M)._
+**2ª passada (2026-06-11, mesmos 8 auditores roteados):** **8/8 PASS — ZERO
+CRÍTICO / ZERO ALTO / ZERO MÉDIO.** Cada auditor confirmou seu(s) MÉDIO(s) da
+1ª passada resolvido(s) na CAUSA-RAIZ + varreu o diff do conserto sem regressão
+nova: seguranca (SEG-M1 em 4 camadas: coluna 600 + LIMITES_CAMPO + DataError→400
+com falhar_chave + teste) · qualidade (trigger `item_catalogo_imutavel_trg` real
+no banco + patch WORM estritamente aditivo, listas de campos idênticas à 0003) ·
+llm-correctness (órfãos zero referências; docstrings verazes) · produto (glossário
+stable coerente ADR-0081; ACs reconferidos; zero scope creep) · idempotencia
+(lock 880_403 no `montar_kit` + IntegrityError→409 + chave nunca presa; GATE
+carryover legítimo) · conformidade-lgpd (PEPH7 executado com evidência BLOCK/PASS;
+8 eventos `Catalogo.*` 100% hashificados) · performance (obter_linha nas 4 camadas;
+GATEs KIT-BATCH/PAGINACAO com condição objetiva) · observabilidade
+(`LinhaImportacaoRejeitada` atômica na mesma transação; processor F-C2 confirmado
+no código). Único resíduo da 2ª passada (BAIXO drift interno — contador PEPH §3)
+corrigido neste mesmo fechamento. **Verificação dinâmica do fechamento (PG real,
+2026-06-11):** suíte PPS 105/105 + drill `validar_produtos_pecas_servicos` 36/36
++ hooks `_test-runner` 573/573 + gate anti-drift OK (74/573/82/148) +
+makemigrations --check limpo. **INV-RITUAL-001 SATISFEITO — frente FECHADA.**
