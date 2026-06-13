@@ -11,15 +11,14 @@
 - P2 FECHADO (`88cd519`): revisões tech-lead+advogado AMBAS APROVA COM CORREÇÕES; spec v2 stable.
 - Emendas cross-doc P2→P3 APLICADAS (`dcb8621`): retencao-matriz, lgpd-rat, ADR-0081 emenda.
 - Decisões Roldão batch (2026-06-12): dois modos de preço; alçadas 3 níveis; semáforo de margem.
-- **PRÓXIMO: P3 — `plan.md` + `tasks.md` (T-PRC-010..) → implement → P7 → P8 → P9.**
+- P3 FECHADO (2026-06-12): plan+tasks ready-for-implement (23 T-PRC; lock 880_404; 6 migrations;
+  emenda modelo-de-dominio no P8). **EM CURSO: implement Fatia 1a (domínio puro, T-PRC-010..016).**
 - Docs em `docs/faseamento/precificacao/`.
 
 ## Frente AUDITORIA DE CERIMÔNIA — CONCLUÍDA E APLICADA (2026-06-12)
 
-- R1..R22 aplicados em 5 commits: hooks→pré-commit (write-time só anti-desastre) + ritual reformado
-  (2ª passada escopada, adversarial, severidade por tipo, BAIXOs em lote) + fonte única denylist +
-  conformidade→GATEs + REGRAS fatiada (invariantes-futuras.md).
-- Validado: `_test-runner` completo verde + gate anti-órfão + 1º bloqueio real do pré-commit (gerador corrigido).
+- R1..R22 aplicados em 5 commits: hooks→pré-commit (write-time só anti-desastre) + ritual reformado +
+  fonte única denylist + conformidade→GATEs + REGRAS fatiada. Validado: test-runner completo verde.
 - Relatório: `docs/faseamento/auditorias/AUDITORIA-CERIMONIA-rodada-1.md` (§8 decisão+aplicação).
 
 ## Ordem das próximas frentes (#4 em diante)
