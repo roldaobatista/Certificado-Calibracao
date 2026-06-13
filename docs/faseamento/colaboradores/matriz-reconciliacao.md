@@ -95,12 +95,30 @@ relacionados:
 
 ---
 
-## 8. P9 — ritual auditores roteados (INV-RITUAL-003) — a preencher no P9
+## 8. P9 — ata do mutirão de auditores (INV-RITUAL-003) — 2026-06-13
 
-> Seção reservada para a ata do P9 (mutirão de auditores — T-COL-061).
-> Auditores roteados: qualidade · segurança · llm-correctness · idempotência ·
-> **conformidade-lgpd OBRIGATÓRIO (PII pesado)** · produto · performance
-> (list/elegiveis N+1) · observabilidade (PII em log + tenant_id/correlation_id).
-> Supplychain: SÓ se dep nova. Drift-docs: FORA (R7).
-> Verificação adversarial de TODO MÉDIO+ antes do mutirão (R6); 2ª passada escopada (R5).
-> Zero CRÍTICO/ALTO/MÉDIO → INV-RITUAL-001 satisfeito → FECHADA.
+**8 auditores roteados** (supplychain fora — sem dep nova; drift-docs fora — R7).
+
+**1ª passada:** 4 PASS (conformidade-lgpd · performance · observabilidade · idempotência) +
+**4 FAIL** (segurança · qualidade · llm-correctness · produto). Achados MÉDIO+:
+
+| # | Sev | Auditor | Achado | Conserto (commit 6ab2475) |
+|---|-----|---------|--------|----------|
+| A | ALTO | segurança | `documentos[]` (CTPS/CNH: tipo/storage_key/sha256) vazava p/ qualquer papel; `MATRIZ_VISAO_PII` com chaves fantasma `ctps_info`/`cnh_info` | `filtrar_visao_pii` redige storage_key/sha256 de docs restritos fail-closed + chaves fantasma removidas + teste UNHAPPY |
+| B | ALTO | qualidade | `test_desligamento_publica_evento_mock` placebo (`assert callable`) | reescrito: chama use case + assert cascade + evento outbox 1x |
+| C | MÉDIO | qualidade | `pytest.raises((...,Exception))` anula teste do trigger INATIVO | `(ProtectedError, InternalError, OperationalError)` |
+| D | MÉDIO | qualidade | idem no CHECK comissão | `pytest.raises(IntegrityError)` |
+| E | MÉDIO | llm-correctness | `storage_port: object` + `type:ignore` (escape de tipagem) | Protocol `AnexoStoragePort` em portas.py + tipado |
+| F | MÉDIO | produto | `partial_update` sem audit ao mudar comissão (AC-COL-04/D-COL-14) | evento `colaborador.comissao_alterada` outbox + teste HAPPY/UNHAPPY |
+
+**2ª passada escopada (R5) + adversarial (R6):** os 4 auditores reauditaram só o diff do
+conserto → **8/8 PASS**, zero CRÍTICO/ALTO/MÉDIO. **INV-RITUAL-001 satisfeito → FRENTE FECHADA.**
+
+**BAIXOs diferidos (lote pós-fechamento R10):**
+- segurança: `DjangoPapelRepository.salvar` dead code com `tenant_id=None` (remover/tipar).
+- conformidade-lgpd: campo `nome` sem `help_text` de base legal; minimização da lista `documentos[]` (ocultar tipo/existência além do storage_key/sha256 já redigidos).
+- produto: `ACTION_MAP["documentos"]` reusa `colaboradores.gerir_habilidade` → criar `gerir_documento`.
+- llm: `_colaborador_dict` com `Any`; `montar_payload_desligamento -> dict[str, object]`; `anexo_storage.py` sem ID T-COL-*.
+- performance: `assertNumQueries` no path HTTP do `list` (GATE-COL-LIST-ASSERTNUMQUERIES); índice composto `(tenant_id, papel, ativo)` em `colaborador_papel`.
+- observabilidade: `correlation_id` ausente em loggers de use case (path não-crítico).
+- idempotência: `causation_id` do `colaborador.cadastrado` não-estável entre tentativas (documentar assimetria vs desligamento).

@@ -4,27 +4,22 @@
 
 **Modo:** AUTÔNOMO. **Fase:** Wave A em curso.
 
-## Última frente FECHADA — #3 `precificacao` (2026-06-13)
+## Última frente FECHADA — #4 `colaboradores` (2026-06-13)
 
-- Ritual P0→P9 completo. 5 fatias (domínio/schema/use cases+REST/P7/P8) + auditoria.
-- P9: 8 auditores roteados → **8/8 PASS zero C/A/M após 3 passadas** (INV-RITUAL-001 satisfeito).
-  1ª passada 4 MÉDIO (qual/prod/perf/obs) → conserto → 2ª passada adversarial **pegou 2 consertos
-  falsos** (obter_padrao docstring mentindo + correlation_id de fonte vazia) → conserto focado → 3ª PASS.
-- Entregue: motor de preço por cesta + 2 modos + alçadas 3 níveis + semáforo + vínculo cliente→tabela REST.
-- Decisões Roldão: 2 modos de preço / alçadas 10/20/dono / semáforo de margem (não reabrir).
-- Detalhe: `docs/faseamento/precificacao/matriz-reconciliacao.md` §8.
+- Ritual P0→P9 completo. P9: 8 auditores → **8/8 PASS zero C/A/M após 2 passadas** (INV-RITUAL-001).
+  1ª passada 4 FAIL (documentos[] vazava por papel · teste placebo · raises genéricos · storage_port:object ·
+  partial_update sem audit comissão) → conserto causa-raiz → 2ª passada adversarial **8/8 PASS**. BAIXOs → R10.
+- Entregue: CRUD + papéis (signatário↔RT por usuario_id · DONO único · motorista pendência) + matriz
+  habilidades (catálogo seed global) + comissão default + documentos + desligamento (cascade+outbox) +
+  mascaramento PII multi-papel + /elegiveis DTO mínimo. Roldão: R-COL-1 motorista pendência / R-COL-2 ASO fora.
+- Detalhe: `docs/faseamento/colaboradores/matriz-reconciliacao.md` §8. (#3 precificacao FECHADA — diário.)
 
-## Frente AUDITORIA DE CERIMÔNIA — CONCLUÍDA E APLICADA (2026-06-12)
+## PRÓXIMA frente — #5 `orcamentos` (1ª ponta de receita)
 
-- R1..R22 aplicados (Roldão aprovou tudo): hooks→pré-commit, ritual reformado, denylist de contagens,
-  conformidade→GATEs, REGRAS fatiada. Relatório: `docs/faseamento/auditorias/AUDITORIA-CERIMONIA-rodada-1.md`.
-
-## Frente EM CURSO — #4 `colaboradores` (base, seed habilidade estático)
-
-- P0→P7 fechados: domínio + schema + use cases/REST + INV-COL-* (11) + 3 hooks col-* + evento Anonimizado.
-  140 testes verdes (55+12+27+46). Decisões Roldão R-COL-1 (motorista pendência) + R-COL-2 (ASO fora).
-- PRÓXIMO: P8 emendas cross-doc (faseamento Wave B→A · api/ui/exports · matriz-perfil) · P9 auditores.
-- Ritual P0→P9 sem perguntar (feedback_ordem_dependencia).
+- Ordem cravada: `docs/faseamento/plano-dependencia-sistema.md` §7 (#5 orcamentos — consome
+  catálogo+precificacao; produz `Orcamento.Aprovado` → OS já tem consumer passivo).
+- Pré-reqs prontos: configuracoes-sistema ✅ · produtos-pecas-servicos ✅ · precificacao ✅ · colaboradores ✅.
+- Seguir ritual P0→P9 sem perguntar (feedback_ordem_dependencia).
 
 ## Pendência de produto aberta
 
