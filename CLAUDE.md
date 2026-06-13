@@ -41,5 +41,6 @@ Mapa completo em `docs/INDICE.md`.
 - Path com espaços (`C:\PROJETOS\Certificado de calibracao`) — sempre `"${CLAUDE_PROJECT_DIR}"` com aspas.
 - `chmod +x` não é confiável no Windows — invocar hooks via `bash script.sh`.
 - Sandboxing nativo não suportado (só WSL2).
-- Testar hooks: `bash .claude/hooks/_test-runner.sh`.
+- Testar hooks: `bash .claude/hooks/_test-runner.sh` (ou `bash .claude/hooks/_test-runner.sh <nome-hook>` para filtrar).
 - Verificar denylist de contagens: `bash scripts/status-projeto.sh --check`.
+- Hooks de invariante rodam no pré-commit via `.githooks/pre-commit` + manifest `.claude/hooks/pre-commit-manifest.tsv`; write-time é só anti-desastre. Ativar após clonar: `git config core.hooksPath .githooks`.

@@ -1231,6 +1231,56 @@ if [ -z "$FILTER" ]; then
         echo "  [FAIL] migration de semente fora do catalogo _SEED_MIGRATIONS (risco do incidente 197 testes)"
         fail=$((fail+1))
     fi
+
+    echo ""
+    echo "===== gate anti-orfao: todo hook ativo tem casa (settings.json ou pre-commit-manifest.tsv) ====="
+    # Coleta hooks registrados no settings.json via perl.
+    _settings_hooks="$(perl -MJSON::PP -e '
+        local $/;
+        my $raw = <STDIN>;
+        my $j = JSON::PP->new->decode($raw);
+        my @hooks;
+        for my $event (values %{ $j->{hooks} // {} }) {
+            for my $block (@$event) {
+                for my $h (@{ $block->{hooks} // [] }) {
+                    my $cmd = $h->{command} // "";
+                    if ($cmd =~ m{/([^/]+\.sh)\"?\s*$}) {
+                        push @hooks, $1;
+                    }
+                }
+            }
+        }
+        print join("\n", @hooks), "\n";
+    ' < "$(cd "$(dirname "$0")/../.." && pwd)/.claude/settings.json" 2>/dev/null)"
+
+    # Coleta hooks no manifest.
+    _manifest_file="$(cd "$(dirname "$0")/../.." && pwd)/.claude/hooks/pre-commit-manifest.tsv"
+    _manifest_hooks=""
+    if [ -f "$_manifest_file" ]; then
+        _manifest_hooks="$(awk -F'\t' '{print $1}' "$_manifest_file" 2>/dev/null | grep '\.sh$')"
+    fi
+
+    _all_registered="$(printf '%s\n%s\n' "$_settings_hooks" "$_manifest_hooks" | sort -u | grep -v '^$')"
+
+    _orphans=()
+    for _hook_file in "$(cd "$(dirname "$0")" && pwd)"/*.sh; do
+        _hname="$(basename "$_hook_file")"
+        # Exclui scripts utilitarios e o proprio test-runner.
+        case "$_hname" in _*) continue ;; esac
+        if ! printf '%s\n' "$_all_registered" | grep -qxF "$_hname"; then
+            _orphans+=("$_hname")
+        fi
+    done
+
+    if [ "${#_orphans[@]}" -eq 0 ]; then
+        echo "  [OK]   nenhum hook orfao detectado"
+    else
+        echo "  [FAIL] hooks ativos sem casa em settings.json nem pre-commit-manifest.tsv:"
+        for _o in "${_orphans[@]}"; do
+            echo "         - $_o"
+        done
+        fail=$((fail+1))
+    fi
 fi
 
 echo ""

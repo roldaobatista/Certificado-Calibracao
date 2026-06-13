@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+# =============================================================
+# .githooks/pre-commit
+# Dispatcher de hooks de invariante do Aferê — roda no git commit.
+#
+# Arquitetura (pacote A — auditoria de cerimônia 2026-06-12):
+#   - Write-time: só anti-desastre (secrets-scanner, anti-mascaramento,
+#     mock-in-production, seed-anti-pii-real, csv-safety-import, block-destructive).
+#   - Pré-commit (este script): todos os hooks de invariante de negócio,
+#     disparados uma vez por commit, só para arquivos staged que casam
+#     com o regex de path de cada hook.
+#
+# Notas Windows/Git Bash:
+#   - Sem jq. JSON montado e parseado via perl -MJSON::PP.
+#   - Path com espaços: sempre aspas.
+#   - chmod +x não confiável: invocar via "bash hook.sh".
+#   - CRLF-safe: este arquivo salvo com LF.
+# =============================================================
+
+set -u
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+MANIFEST="$REPO_ROOT/.claude/hooks/pre-commit-manifest.tsv"
+LOG_DIR="$REPO_ROOT/.claude/hooks/_log"
+LOG_FILE="$LOG_DIR/bloqueios.log"
+HOOKS_DIR="$REPO_ROOT/.claude/hooks"
+
+# Garante diretório de log.
+mkdir -p "$LOG_DIR"
+
+# Coleta arquivos staged (adicionados, copiados, modificados) — exclui deletados.
+STAGED_LIST="$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null)"
+
+if [ -z "$STAGED_LIST" ]; then
+    exit 0
+fi
+
+# Diretório temporário para resultados dos jobs paralelos.
+TMP_DIR="$(mktemp -d 2>/dev/null)"
+if [ -z "$TMP_DIR" ]; then
+    TMP_DIR="/tmp/afere-precommit-$$"
+    mkdir -p "$TMP_DIR"
+fi
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+# Função que roda um hook para um arquivo e grava resultado em arquivo temp.
+run_hook_for_file() {
+    local hook="$1"
+    local rel_path="$2"
+    local out_file="$3"
+    local abs_path="$REPO_ROOT/$rel_path"
+
+    # Obtém conteúdo do arquivo staged (índice git).
+    local content
+    content="$(git show ":$rel_path" 2>/dev/null)" || content=""
+
+    # Monta JSON via perl para escape correto.
+    local json
+    json="$(perl -MJSON::PP -e '
+        my ($fp, $ct) = @ARGV;
+        print JSON::PP->new->encode({
+            tool_name  => "Write",
+            tool_input => { file_path => $fp, content => $ct }
+        });
+    ' -- "$abs_path" "$content" 2>/dev/null)"
+
+    if [ -z "$json" ]; then
+        return 0  # fail open se perl falhou
+    fi
+
+    local stderr_file="$out_file.err"
+    local exit_code
+
+    printf '%s' "$json" | bash "$HOOKS_DIR/$hook" 2>"$stderr_file"
+    exit_code=$?
+
+    if [ "$exit_code" -eq 2 ]; then
+        # Violação — grava descrição no arquivo de resultado.
+        local err_msg=""
+        [ -f "$stderr_file" ] && err_msg="$(cat "$stderr_file" | head -3 | tr '\n' ' ')"
+        printf '%s\t%s\t%s\n' "$hook" "$rel_path" "$err_msg" > "$out_file"
+    fi
+}
+
+# Lê manifest e constrói pares (hook, arquivo) a executar.
+MAX_JOBS=8
+active=0
+pids=()
+
+job_idx=0
+
+while IFS=$'\t' read -r hook_name path_regex || [ -n "$hook_name" ]; do
+    # Ignora linhas em branco e comentários.
+    [[ -z "$hook_name" || "$hook_name" == \#* ]] && continue
+
+    # Para cada arquivo staged que casa com o regex.
+    while IFS= read -r staged_file; do
+        [ -z "$staged_file" ] && continue
+
+        if printf '%s' "$staged_file" | grep -qE "$path_regex" 2>/dev/null; then
+            out_file="$TMP_DIR/job_${job_idx}"
+            job_idx=$((job_idx + 1))
+
+            # Paralelismo: máx MAX_JOBS simultâneos.
+            if [ "${#pids[@]}" -ge "$MAX_JOBS" ]; then
+                # Aguarda o job mais antigo.
+                wait "${pids[0]}" 2>/dev/null || true
+                pids=("${pids[@]:1}")
+            fi
+
+            run_hook_for_file "$hook_name" "$staged_file" "$out_file" &
+            pids+=("$!")
+        fi
+    done <<< "$STAGED_LIST"
+
+done < "$MANIFEST"
+
+# Aguarda todos os jobs restantes.
+for pid in "${pids[@]}"; do
+    wait "$pid" 2>/dev/null || true
+done
+
+# Coleta violações dos arquivos de resultado.
+TIMESTAMP="$(date '+%Y-%m-%dT%H:%M:%S')"
+VIOLATION_COUNT=0
+
+for out_file in "$TMP_DIR"/job_[0-9]*; do
+    # Filtra só arquivos sem extensão (exclui .err).
+    case "$out_file" in *.err) continue ;; esac
+    [ -f "$out_file" ] || continue
+    # Se o arquivo tem conteúdo, é uma violação.
+    if [ -s "$out_file" ]; then
+        VIOLATION_COUNT=$((VIOLATION_COUNT + 1))
+    fi
+done
+
+if [ "$VIOLATION_COUNT" -gt 0 ]; then
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════════╗"
+    echo "║  COMMIT BLOQUEADO — invariantes de negócio violadas             ║"
+    echo "╚══════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    for out_file in "$TMP_DIR"/job_[0-9]*; do
+        case "$out_file" in *.err) continue ;; esac
+        [ -f "$out_file" ] && [ -s "$out_file" ] || continue
+        IFS=$'\t' read -r v_hook v_file v_msg < "$out_file"
+        echo "  ✗ ${v_hook}: ${v_file}"
+        [ -n "$v_msg" ] && echo "    ${v_msg}"
+        # Registra no log imutável de bloqueios (R1).
+        printf '%s\t%s\t%s\t%s\n' "$TIMESTAMP" "$v_hook" "$v_file" "$v_msg" >> "$LOG_FILE"
+    done
+
+    echo ""
+    echo "Corrija as violações acima e tente o commit novamente."
+    echo "Log: $LOG_FILE"
+    exit 1
+fi
+
+exit 0

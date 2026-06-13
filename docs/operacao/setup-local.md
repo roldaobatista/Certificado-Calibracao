@@ -122,6 +122,19 @@ O `-v` apaga o volume com os dados. Sem ele, os dados ficam pra próxima.
 
 ---
 
+## Hooks de invariante (pré-commit)
+
+Os hooks de regra de negócio rodam automaticamente a cada `git commit` via `.githooks/pre-commit` — não no write-time. Para ativar após clonar o repositório:
+
+```bash
+cd "/c/PROJETOS/Certificado de calibracao"
+git config core.hooksPath .githooks
+```
+
+Write-time guarda apenas os 5 anti-desastre: `secrets-scanner`, `anti-mascaramento`, `mock-in-production`, `seed-anti-pii-real`, `csv-safety-import`. O manifest completo está em `.claude/hooks/pre-commit-manifest.tsv`.
+
+---
+
 ## Rodar a suite de testes
 
 Em outro Git Bash (deixa o `docker compose up` rodando):
