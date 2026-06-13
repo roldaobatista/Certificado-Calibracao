@@ -541,6 +541,7 @@ Auditor Segurança em pre-commit:
 | `Colaborador.PapelAtribuido` / `PapelRevogado` | colaboradores | acesso-seguranca (RBAC) | — |
 | `Colaborador.HabilidadeAtualizada` | colaboradores | operacao (re-elegibilidade) | — |
 | `Colaborador.Desligado` | colaboradores | operacao, financeiro/comissoes | `ColaboradorDesligado` |
+| `Colaborador.Anonimizado` (A5) | colaboradores | lgpd/dpo (crypto-shredding confirmado) | — |
 | `Colaboradores.AusenciaRegistrada` | colaboradores | capacity-planning, agenda | — |
 | `Colaboradores.EscalaAtualizada` | colaboradores | capacity-planning | — |
 

@@ -457,6 +457,42 @@
 
 ---
 
+## INV-COL-* — Invariantes da frente colaboradores (Wave A nível 2 `colaboradores`)
+
+> **Família canônica cravada 2026-06-13 (colaboradores Fatia 3/P7 — T-COL-050).**
+> Fonte: spec v2 revisada por `tech-lead` (TL-COL-01..15) + `advogado` (ADV-COL-01..08),
+> ambos APROVA COM CORREÇÕES (`docs/faseamento/colaboradores/spec.md` §5/§10). Classes
+> nomeadas `TestINV_COL_*` em `tests/test_inv_colaboradores.py` (TST-004). Frente #4
+> da cadeia (plano-dependencia-sistema); pré-requisito DURO de agenda/app-tecnico/
+> treinamentos/SST/frota/comissoes (6 módulos a jusante por UUID opaco).
+
+| ID | Regra | Base normativa | Hook que valida | Escopo por perfil | Consequência de violar |
+|---|---|---|---|---|---|
+| INV-COL-CPF | **CPF é UNIQUE parcial `(tenant_id, cpf) WHERE deletado_em IS NULL` + VO `CPF` valida dígitos verificadores.** Segundo cadastro com mesmo CPF → 409 `DUPLICATE_CPF`. Soft-delete (`deletado_em IS NOT NULL`) libera o slot — re-cadastro pós-correção é permitido. CPF é **imutável** pós-criação (PATCH proibido no campo). | LGPD art. 6º V (qualidade) + boa prática identidade | Constraint UNIQUE parcial (migration 0001) + domínio `VO CPF.validar` + `TestINV_COL_CPF` | Absoluta (todos perfis) | Colaborador duplicado quebra dedup em modules a jusante; CPF mutável invalida rastreabilidade de identidade |
+| INV-COL-SIGNATARIO-IDENTIDADE | **Atribuir papel SIGNATARIO exige `colaborador.usuario_id IS NOT NULL` + `RTCompetencia` vigente cujo `usuario_id` casa com o do colaborador.** Não basta "ter RT no tenant" — tem que ser o RT da mesma pessoa. 422 `SIGNATARIO_SEM_USUARIO` (sem usuario_id) ou `SIGNATARIO_RT_NAO_CASA` (RT de outra pessoa). | ISO 17025 cl. 6.2 + TL-COL-01 | Domínio `pode_atribuir_signatario(usuario_id, rt_casa)` + use case `atribuir_papel` + `TestINV_COL_SIGNATARIO_IDENTIDADE` | Hard em perfil A; configurável B/C/D via `tenant_perfil_e` | Signatário assinando fora de sua competência formal → certificado nulo retroativo (NC CGCRE cl. 6.2) |
+| INV-COL-SIGNATARIO-ESCOPO | **SIGNATARIO só assina dentro do escopo de autorização vigente na data** (INV-003 estendida a colaboradores). `RTCompetencia.escopo_vigente_em(data)` deve retornar True. 422 `SIGNATARIO_SEM_ESCOPO`. | ISO 17025 cl. 6.2 + NIT-DICLA-021 + INV-003 | Domínio `pode_atribuir_signatario(escopo_vigente)` + `TestINV_COL_SIGNATARIO_ESCOPO` | Hard em perfil A; configurável B/C/D | Certificado assinado fora do escopo autorizado = NC em auditoria CGCRE |
+| INV-COL-DONO-UNICO | **Exatamente 1 papel DONO ativo por tenant** — UNIQUE parcial `WHERE papel='DONO' AND data_fim IS NULL AND revogado_em IS NULL`. Troca de DONO via advisory lock namespace 880_405 (ADR-0065). 409 `DONO_JA_EXISTE` em tentativa de criar 2º DONO. | Boa prática governance + INV-029 (análogo) | Constraint `uq_col_papel_dono_unico` (migration 0001) + advisory lock `travar_dono_por_tenant` + `TestINV_COL_DONO_UNICO` | Absoluta (todos perfis) | Dois DONOs divergem em decisões de gestão; RBAC entende "dono = 1" — dois tornam permissão ambígua |
+| INV-COL-INATIVO | **Hard-delete físico de colaborador bloqueado se há OS/cert/comissão referenciando.** Dupla barreira: (a) use case verifica `ColaboradorReferenciadoPort` (stub conservador fail-safe); (b) trigger PG BEFORE DELETE defensivo. 409 `HARD_DELETE_BLOQUEADO`. `deletado_em` (soft-delete) é o caminho legítimo de correção de cadastro errado. | ADR-0066 (fail-open lazy/conservador) + boa prática audit | Trigger `col_block_hard_delete_trg` (migration 0003) + `ColaboradorReferenciadoPort` (stub bloqueia) + hook `col-hard-delete-check` + `TestINV_COL_INATIVO` | Absoluta (todos perfis) | Colaborador excluído com OS/cert referenciando → FK quebrada; certificado histórico aponta para ID inexistente → fraude regulatória |
+| INV-COL-DESLIGAMENTO-CASCADE | **`desligar_colaborador` deve: (1) gravar `data_desligamento`; (2) revogar todos os papéis ativos (`revogado_em`); (3) publicar `Colaborador.Desligado` via outbox na MESMA transação atômica.** Colaborador desligado some de `/elegiveis` imediatamente. | ADR-0033 (outbox transacional) + TL-COL-02 | Use case `desligar_colaborador` com `transaction.atomic` + outbox + `TestINV_COL_DESLIGAMENTO_CASCADE` | Absoluta (todos perfis) | Papéis não-revogados continuam elegíveis → acesso indevido a módulos; evento tardio quebra consumers de 6 módulos (INV-INT-011) |
+| INV-COL-PII-MASCARA | **`filtrar_visao_pii()` é o choke-point ÚNICO aplicado em TODOS os serializers de saída da frente.** CPF só DONO (demais: `***.***.***-NN` últimos 2 dígitos); e-mail/telefone: Dono/Gerente/próprio; ctps/cnh: Dono/próprio; foto: Dono/Gerente/próprio. Fail-closed: sem papel reconhecido → campo mascarado. | LGPD art. 6º III (necessidade) + D-COL-7 + TL-COL-05 + ADV-COL-04 | Hook `col-pii-mascara-check` (manifest pré-commit) + `TestINV_COL_PII_MASCARA` | Absoluta (todos perfis) | Vazamento de CPF/doc a papel sem autorização = incidente LGPD art. 46; Técnico lendo CPF de colega → risco de fraude de identidade |
+| INV-COL-ELEGIVEIS-MINIMO | **DTO `/elegiveis` tem allowlist explícita mínima: `colaborador_id`, `nome_exibicao`, `papel`, `habilidades`, `ativo`.** NUNCA CPF/e-mail/telefone/documentos/comissão/foto/vínculo/observação. Fail-closed por construção — serializer separado `ElegivelDTOSerializer`. | LGPD art. 6º III (necessidade) + ADV-COL-04 + INV-COL-PII-MASCARA | Serializer `ElegivelDTOSerializer` (allowlist) + `TestINV_COL_ELEGIVEIS_MINIMO` | Absoluta (todos perfis) | PII vaza para agenda/OS/frota que consomem `/elegiveis` sem precisar dela — propagação cross-módulo incontrolável |
+| INV-COL-DOC-VINCULO | **ALERTA (não-bloqueante): TERCEIRIZADO/PJ anexando CTPS → `DocumentoIncompativelVinculo` logado no audit trail.** Minimalização LGPD art. 6º III: CTPS é dado trabalhista exclusivo de CLT/ESTAGIÁRIO/SÓCIO. Não retorna 422 — salva com alerta para o Dono auditar. | LGPD art. 6º III (necessidade) + ADV-COL-01 | Domínio `coerencia_documento_vinculo` (alerta) + `TestINV_COL_DOC_VINCULO` | Absoluta (todos perfis) | Coleta de CTPS de terceirizado = tratamento de dado sem base legal (art. 7º) → autuação ANPD + risco passivo trabalhista |
+| INV-COL-PII-LOG | **CPF/nome/documento NUNCA em claro em payload de evento, log estruturado, corpo 4xx/5xx ou mensagem de exceção** — só hash HMAC-tenant (ADR-0029/0064, pseudonimização D-COL-8). `_falha()` loga só `type(exc).__name__`. `motivo_desligamento` → `motivo_hash` no outbox. | LGPD art. 6º (finalidade) + ADR-0029 + ADV-COL-06 | Hook `col-evento-pii-hash-check` (manifest pré-commit) + `TestINV_COL_PII_LOG` | Absoluta (todos perfis) | CPF/nome em log de acesso = PII em texto simples em qualquer caminho de log; WORM com CPF cru = ineliminável (LGPD art. 18 impossível) |
+| INV-COL-COMISSAO-AUDIT | **Qualquer alteração em `comissao_default_pct` grava trilha imutável via `publicar_evento` (INV-001, hash encadeado).** CHECK `0 ≤ comissao_default_pct ≤ 100` no banco. 422 `COMISSAO_FORA_DA_FAIXA` em valor fora da faixa. | INV-001 + ADR-0031 + TL-COL-15 | CHECK constraint (migration 0001) + `publicar_evento` no use case de edição + `TestINV_COL_COMISSAO_AUDIT` | Absoluta (todos perfis) | Comissão alterada sem rastro = histórico inconsistente com OS/pagamentos (comissoes); valor fora de 0..100 = dado incoerente |
+
+> **Reusadas:** INV-TENANT-001 (RLS nas 4 tabelas-tenant; `catalogo_habilidade` GLOBAL, isento),
+> INV-TENANT-002 (tenant_id NOT NULL em todas as linhas tenant-scoped),
+> INV-TENANT-003 (RLS force nas 4 tabelas + policies), INV-001 (trilha audit imutável
+> em operações sensíveis), INV-016 (dado servido pronto pra UI acessível WCAG 2.1 AA).
+> **LGPD nos eventos `Colaborador.*` (ADV-COL-06):** campos pseudonimizados por evento —
+> `cpf_hash`, `nome_hash`, `ator_id_hash`, `motivo_hash` via HMAC-tenant (ADR-0029/0064);
+> UUIDs/refs em claro; hook `col-evento-pii-hash-check`. Hooks novos: `col-pii-mascara-check`,
+> `col-evento-pii-hash-check`, `col-hard-delete-check` (T-COL-052).
+> GATEs: GATE-COL-ANEXO-B2, GATE-COL-COMISSAO-COUNT, GATE-COL-CONSUMERS (6 reatores),
+> GATE-COL-PERFIL-MATRIZ, GATE-LGPD-RAT-CONSOLIDACAO (CONGELADO).
+
+---
+
 ## RAT-* — Registros de tratamento LGPD
 
 > Promovidos em 2026-05-23 — eram citados nos PRDs mas não existiam em catálogo canônico (achado da auditoria 10 lentes).

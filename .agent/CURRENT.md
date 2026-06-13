@@ -21,9 +21,9 @@
 
 ## Frente EM CURSO — #4 `colaboradores` (base, seed habilidade estático)
 
-- P0→P6 fechados: domínio + schema PG + use cases/REST (Fatia 1a/1b/2). 94 testes verdes
-  (55 domínio + 12 schema + 27 API E2E). Decisões Roldão R-COL-1 (motorista pendência) + R-COL-2 (ASO fora).
-- PRÓXIMO: P7 — INV-COL-* + hooks + evento Colaborador.Anonimizado · P8 emendas · P9 auditores.
+- P0→P7 fechados: domínio + schema + use cases/REST + INV-COL-* (11) + 3 hooks col-* + evento Anonimizado.
+  140 testes verdes (55+12+27+46). Decisões Roldão R-COL-1 (motorista pendência) + R-COL-2 (ASO fora).
+- PRÓXIMO: P8 emendas cross-doc (faseamento Wave B→A · api/ui/exports · matriz-perfil) · P9 auditores.
 - Ritual P0→P9 sem perguntar (feedback_ordem_dependencia).
 
 ## Pendência de produto aberta
