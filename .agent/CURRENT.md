@@ -19,7 +19,9 @@
   e `_derivar_papel_decisor` migrados para `DjangoAuthorizationProvider` (has_perm Django não usa
   authz_perfil_acao); migration 0009 expandida com `alcada_dono`/`alcada_gerente`; RLS context em
   query ORM do teste; `MARGEM_ALVO` exige `custo_referencia_em` (TL-PRC-07).
-- **EM CURSO: Fatia 3 (P7 — INV-PRC em REGRAS + TestINV_PRC + 3 hooks no manifest pré-commit, T-PRC-050..052) → P8 → P9.**
+- Fatia 3/P7 FECHADA: 12 INV-PRC em REGRAS + 27 TestINV_PRC + 3 hooks no manifest pré-commit (77 hooks/595 casos).
+- P8 FECHADO: matriz enxuta R20 (§1/§2/§8) + emenda modelo-dominio (CalculoPreco transiente) + 7 GATE-PRC-* + faseamento Wave B→A.
+- **EM CURSO: P9 — auditores roteados (qualidade·seg·llm·idemp·lgpd·produto + perf + obs) + adversarial MÉDIO+ → fecha frente.**
 - Docs em `docs/faseamento/precificacao/`.
 
 ## Frente AUDITORIA DE CERIMÔNIA — CONCLUÍDA E APLICADA (2026-06-12)

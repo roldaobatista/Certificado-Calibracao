@@ -1,6 +1,6 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-27
+revisado-em: 2026-06-13
 status: stable
 ---
 
@@ -62,6 +62,7 @@ status: stable
 | `suporte-plataforma/` | `acesso-seguranca` 🆕 | ✅ | RBAC avançado, MFA, audit log (pré-requisito de qualquer externo) |
 | `comercial/` | `clientes` | ✅ | F-C da Foundation já cobre cadastro; módulo expande |
 | `comercial/` | `orcamentos` | ✅ | Funil comercial mínimo |
+| `comercial/` | `precificacao` 🆕 ⏩ | ✅ | **Promovido (era Wave B): 2026-06-13 — frente #3 da cadeia de preço, GATE-PPS-WIREIN-OS bloqueia 1º tenant externo, consumida por `orcamentos` + `os` (US-OS-015)** |
 | `financeiro/` | `fiscal` | ✅ | OP7 da v7 — NFS-e (cutover 09/2026) |
 | `financeiro/` | `contas-receber` | ✅ | OP-FIN da v7 — mínimo viável |
 | `financeiro/` | `caixa-tecnico` | ✅ | OP3.2 da v7 — avulsos do técnico |
@@ -84,7 +85,7 @@ status: stable
 | `comercial/` | `crm` | Funil pós-orçamento |
 | `comercial/` | `contratos` | Renovação, vigência |
 | `comercial/` | `portal-cliente` 🆕 | Cliente externo acompanha — pré-requisito 1º cliente externo |
-| `comercial/` | `precificacao` 🆕 | Régua de preços, tabelas, descontos |
+| `comercial/` | ~~`precificacao`~~ 🆕 | **MOVIDO pra Wave A (2026-06-13 — frente #3 do plano-dependencia-sistema):** frente `orcamentos` (#5) e `os` (US-OS-015 + GATE-PPS-WIREIN-OS) consomem a porta `calcular_precos` / `preco_para_os` desta frente. Implementada e fechada nas Fatias 1a/1b/2/3 + P8. Spec: `docs/faseamento/precificacao/spec.md` |
 | `comercial/` | `sla-contratual` 🆕 | SLA por contrato/cliente |
 | `comercial/` | `comunicacao-omnichannel` 🆕 | WhatsApp/e-mail/SMS unificados |
 | `financeiro/` | `contas-pagar` | Fornecedores, recorrências |

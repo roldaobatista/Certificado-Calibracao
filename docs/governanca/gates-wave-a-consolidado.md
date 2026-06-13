@@ -1,6 +1,6 @@
 ---
 owner: roldao
-revisado-em: 2026-06-12
+revisado-em: 2026-06-13
 status: stable
 finalidade: Catálogo único e vivo de todos os GATEs Wave A do projeto Aferê. Substitui as listas dispersas em 6 arquivos diferentes (F-A/auditoria-familia5.md, F-B/auditoria-familia5.md, M1-clientes/auditoria-familia5.md, M2-equipamentos/auditoria-familia5.md, OS-CAL-RESOLUCAO-rodada-1.md, OS-CAL-RESOLUCAO-rodada-2.md).
 fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation gaps + auditoria-familia5 dos marcos fechados)
@@ -13,7 +13,7 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 
 ---
 
-## Resumo por categoria (estado em 2026-06-12 pós auditoria de cerimônia)
+## Resumo por categoria (estado em 2026-06-13 pós P8 precificacao)
 
 | Categoria | Total | Abertos | Fechados | Em andamento |
 |---|---|---|---|---|
@@ -27,9 +27,11 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | Modelo dados / convenções (DOM-*) | 5 | 0 | 5 | 0 (Onda 2 fechou) |
 | Bus / integração (BUS-*) | 5 | 4 | 1 | 0 (envelope retrofit Onda 3) |
 | Operação / Drill (OPS-*) | 6 | 6 | 0 | 0 |
-| **TOTAL** | **87** | **77** | **7** | **3** |
+| Precificacao (PRC-* + WIREIN) | 7 | 7 | 0 | 0 |
+| **TOTAL** | **94** | **84** | **7** | **3** |
 
 > Adicionados em 2026-06-12 (auditoria de cerimônia R17/R18): GATE-LGPD-RAT-CONSOLIDACAO + GATE-CGCRE-DOSSIE-PROSA.
+> Adicionados em 2026-06-13 (P8 precificacao): GATE-PRC-CUSTEIO-REAL + GATE-PRC-HISTORICO-ORCAMENTOS + GATE-PRC-ALERTA-GESTOR + GATE-PRC-NOTIFICACAO + GATE-PRC-COMISSAO-REAL + GATE-PRC-TABELA-CONTRATO + GATE-PPS-WIREIN-OS (movido da seção PPS para cá, onde o contexto do consumidor `precificacao` está completo).
 
 ---
 
@@ -186,6 +188,20 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | GATE-OPS-RUNBOOK | 🔴 | 1º tenant externo | DevOps | Runbook + DR + observabilidade |
 | GATE-OPS-OBSERV | 🔴 | 1º tenant externo | DevOps | Grafana + Axiom + alertas SLO |
 | GATE-OPS-CCREATE-FAR | 🟡 | Marco 4 cal | DevOps | DR provedor B (Magalu/Oracle/AWS) |
+
+### Frente `precificacao` (#3 cadeia de preço)
+
+> Adicionados em 2026-06-13 (P8 precificacao). Nenhum bloqueia o fechamento do núcleo da frente; cada um destrava um módulo futuro específico.
+
+| GATE | Severidade | Bloqueia | Owner | Prazo |
+|---|---|---|---|---|
+| GATE-PRC-CUSTEIO-REAL | 🟡 | Publicar modo `COST_PLUS` + preço mínimo real + alerta de staleness do `custo_referencia_em` | Tech-lead | Quando `custeio-real` (N7) implementar `CustoProvider` real |
+| GATE-PRC-HISTORICO-ORCAMENTOS | 🟡 | Materialização de `Precificacao.PrecoPraticado` / `HistoricoPrecoPraticado` — **pré-condição: LIA art. 7º IX documentada** | Tech-lead + Advogado (OAB) | Quando frente `orcamentos` (#5) existir |
+| GATE-PRC-ALERTA-GESTOR | 🟡 | Alerta ativo + dashboard de margem (US-PRC-007 parte 2) | Tech-lead | Wave A / frente de telas |
+| GATE-PRC-NOTIFICACAO | 🟡 | Push/e-mail de pedido de aprovação (ADR-0060); resolve contexto na ENTREGA, margem só com `ver_margem` (ADV-PRC-02) | Tech-lead | Quando `comunicacao-omnichannel` (ADR-0060) estiver disponível |
+| GATE-PRC-COMISSAO-REAL | 🟡 | Comissão real (módulo `comissoes` próprio); hoje só simulação por % parâmetro | Tech-lead | Wave B / módulo `comissoes` |
+| GATE-PRC-TABELA-CONTRATO | 🟡 | Precedência contrato/segmento/região (AC-005-4 completo); Wave A só cliente-específico > padrão | Tech-lead | Wave B |
+| GATE-PPS-WIREIN-OS | 🔴 **bloqueante pré-1º tenant externo** | Preço da OS avulsa hoje é client-supplied (`ordens_servico/views.py:507`); conserto via porta `preco_para_os` fail-closed **consome a frente `precificacao`** (resolução de tabela por cliente via `VinculoTabelaPrecoCliente` + `_resolver_preco_com_fallback`). Porta pronta e testada — o wire-in é da frente OS | Tech-lead | Antes do 1º tenant externo pago |
 
 ---
 

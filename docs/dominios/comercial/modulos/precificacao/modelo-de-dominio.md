@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado_em: 2026-05-17
-proximo_review: 2026-08-17
+revisado_em: 2026-06-13
+proximo_review: 2026-09-13
 status: draft
 diataxis: reference
 audiencia: agente
@@ -39,10 +39,25 @@ relacionados:
 - **Atributos obrigatórios:** id, tenant_id, escopo (global / item / categoria / cliente / vendedor), de_percentual, ate_percentual, aprovador_papel (role), ativa.
 - **Invariantes:** INV-TENANT-001; faixas não podem sobrepor no mesmo escopo.
 
-### CalculoPreco (read model / snapshot)
-- **Atributos obrigatórios:** id, tenant_id, item_catalogo_id, orcamento_id (FK opcional — quando calculado pra orçamento específico), regra_id_versao, tabela_id_versao, custo_direto_snapshot, custo_deslocamento_snapshot, imposto_simulado_snapshot, comissao_simulada_snapshot, preco_minimo_calculado, preco_sugerido_calculado, preco_aplicado, margem_resultante, calculado_em.
-- **Invariantes:** INV-026 (snapshot imutável); INV-TENANT-001.
-- **Ciclo de vida:** gerado a cada cálculo; preservado quando vinculado a orçamento emitido.
+### CalculoPreco — TRANSIENTE / snapshot do consumidor
+
+> **emenda P8 precificacao 2026-06-13:** `CalculoPreco` NÃO é tabela desta frente.
+> O motor `calcular_precos` (`src/domain/precificacao/transicoes.py`) é função pura
+> determinística que retorna `CalculoPrecoResultado` frozen **sem persistir nada**
+> (D-PRC-9 da spec v2 / INV-026). É o CONSUMIDOR (frente `orcamentos` #5, ou `os`
+> via US-OS-015) quem carimba o snapshot autossuficiente como parte do seu próprio
+> agregado. Este modelo de domínio estava divergente: o agregado `CalculoPreco`
+> listado aqui era artefato pré-spec-v2 (2026-05-17) e foi superado pela decisão
+> D-PRC-9 confirmada em 2026-06-12 pelo orquestrador.
+>
+> **O que existe em código:** `CalculoPrecoResultado` (frozen dataclass —
+> `src/domain/precificacao/value_objects.py`) é o resultado transiente da cesta;
+> carrega refs probatórias (`motor_versao`, `faixas_versao`, `imposto_ref`,
+> `parametros_versao`, eco das entradas) pra replay/carimbo pelo consumidor.
+> Não há model Django `CalculoPreco` nesta frente.
+
+- **Invariantes:** INV-026 (motor não persiste — verificado por `TestINV_026_MOTOR_NAO_PERSISTE` em `tests/regressao/test_inv_prc_classes_nomeadas.py`).
+- **Ciclo de vida:** `CalculoPrecoResultado` é retornado pela porta de aplicação `calcular_precos`; o consumidor decide se persiste (e como).
 
 ### PedidoAprovacaoDesconto
 - **Atributos obrigatórios:** id, tenant_id, orcamento_id, item_orcamento_id (opcional, se for por item), desconto_solicitado_percentual, margem_resultante_simulada, solicitado_por_usuario_id, faixa_aplicada_id, status (pendente / aprovado / negado / cancelado), criado_em.
