@@ -33,4 +33,5 @@ urlpatterns = [
     path("api/v1/", include("src.infrastructure.fiscal.urls")),
     path("api/v1/", include("src.infrastructure.configuracoes_sistema.urls")),
     path("api/v1/", include("src.infrastructure.produtos_pecas_servicos.urls")),
+    path("api/v1/", include("src.infrastructure.precificacao.urls")),
 ]

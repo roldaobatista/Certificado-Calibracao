@@ -273,6 +273,11 @@ LOCAL_APPS = [
     # metrologica por perfil no use case (ADR-0073). Deadline 01/09/2026. WORM
     # Padrao B; idempotencia de negocio (tenant, origem_id, versao) — INV-FIS-005.
     "src.infrastructure.fiscal.apps.FiscalConfig",
+    # Wave A frente precificacao — #3 da cadeia de preco (plano-dependencia-sistema).
+    # Motor de formacao de preco por item (PRECO_FIXO/MARGEM_ALVO/COST_PLUS via stub
+    # Wave A), faixas de aprovacao de desconto one-shot WORM, vinculo cliente->tabela
+    # (ADR-0081 / D-PRC-1..15). Advisory lock namespace 880_404.
+    "src.infrastructure.precificacao.apps.PrecificacaoConfig",
     # F-C1 P4 — adapter canonico OutboundWebhookProvider (ADR-0054 aceita
     # dentro desta fase). SSRF guard + HMAC canonical + DNS rebinding lock
     # + DPA enforcement (INV-WEBHOOK-OUT-001..005).
