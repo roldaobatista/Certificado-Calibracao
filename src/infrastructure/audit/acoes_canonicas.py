@@ -370,6 +370,27 @@ ACOES_CATALOGO: Final[frozenset[str]] = frozenset(
 )
 
 
+# Frente precificacao (T-PRC-037) — regras de formacao, faixas de desconto,
+# aprovacoes de desconto, parametros e perfil de composicao.
+# PascalCase PROPOSITAL (shape do modelo-de-dominio — D-PRC-9): vao SO na cadeia
+# hash central (cadeia=True, outbox=False — segredo comercial; custo/margem NUNCA
+# em claro — INV-PRC-SEGREDO-LOG). Payload NUNCA inclui Parametros/Faixas em claro.
+ACOES_PRECIFICACAO: Final[frozenset[str]] = frozenset(
+    {
+        # US-PRC-001 — publicar / revogar regra de formacao de preco por item
+        "Precificacao.RegraPublicada",
+        "Precificacao.RegraRevogada",
+        # US-PRC-003/004 — aprovacao de desconto one-shot WORM
+        "Precificacao.AprovacaoSolicitada",
+        "Precificacao.AprovacaoDecidida",
+        # US-PRC-004 — configuracoes do tenant (faixas replace-all, perfil, parametros)
+        "Precificacao.FaixasDescontoAlteradas",
+        "Precificacao.PerfilComposicaoAlterado",
+        "Precificacao.ParametrosAlterados",
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -386,6 +407,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_FISCAL
     | ACOES_CONFIG
     | ACOES_CATALOGO
+    | ACOES_PRECIFICACAO
 )
 
 

@@ -27,6 +27,7 @@ from src.domain.precificacao.entities import (
     FaixaAprovacaoDesconto,
     ParametrosPrecificacaoTenant,
     PedidoAprovacaoDesconto,
+    PerfilComposicaoPreco,
     RegraFormacaoPreco,
     VinculoTabelaPrecoCliente,
 )
@@ -275,6 +276,47 @@ class DjangoVinculoTabelaRepository:
         ).update(revogado_em=revogado_em, motivo_revogacao=motivo)
         if atualizadas == 0:
             raise RuntimeError(f"vínculo {vinculo_id} já revogado ou inexistente.")
+
+
+class DjangoPerfilComposicaoRepository:
+    """Repositório de PerfilComposicaoPreco — upsert por (tenant, item_servico) (D-PRC-2)."""
+
+    def obter_por_item(
+        self, *, tenant_id: UUID, item_servico_id: UUID
+    ) -> PerfilComposicaoPreco | None:
+        from src.infrastructure.precificacao.models import (  # -- import local evita ciclo circular models→repositories; padrao consolidado neste modulo
+            PerfilComposicaoPreco as PerfilModel,
+        )
+
+        m = PerfilModel.objects.filter(
+            tenant_id=tenant_id, item_servico_id=item_servico_id, deletado_em__isnull=True
+        ).first()
+        return mappers.perfil_model_para_entidade(m) if m is not None else None
+
+    def salvar(self, perfil: PerfilComposicaoPreco) -> None:
+        from src.infrastructure.precificacao.models import (  # -- idem acima
+            PerfilComposicaoPreco as PerfilModel,
+        )
+
+        PerfilModel.objects.create(
+            id=perfil.id,
+            tenant_id=perfil.tenant_id,
+            item_servico_id=perfil.item_servico_id,
+            componentes_esperados=[str(c) for c in perfil.componentes_esperados],
+            criado_por=perfil.criado_por,
+            aviso_texto=perfil.aviso_texto or "",
+        )
+
+    def atualizar(self, perfil: PerfilComposicaoPreco) -> None:
+        from src.infrastructure.precificacao.models import (  # -- idem acima
+            PerfilComposicaoPreco as PerfilModel,
+        )
+
+        PerfilModel.objects.filter(tenant_id=perfil.tenant_id, id=perfil.id).update(
+            componentes_esperados=[str(c) for c in perfil.componentes_esperados],
+            criado_por=perfil.criado_por,
+            aviso_texto=perfil.aviso_texto or "",
+        )
 
 
 class DjangoParametrosRepository:

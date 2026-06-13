@@ -11,9 +11,15 @@
 - P2 FECHADO (`88cd519`): revisões tech-lead+advogado AMBAS APROVA COM CORREÇÕES; spec v2 stable.
 - Emendas cross-doc P2→P3 APLICADAS (`dcb8621`): retencao-matriz, lgpd-rat, ADR-0081 emenda.
 - Decisões Roldão batch (2026-06-12): dois modos de preço; alçadas 3 níveis; semáforo de margem.
-- P3 FECHADO (2026-06-12): plan+tasks ready-for-implement (23 T-PRC; lock 880_404; 6 migrations;
-  emenda modelo-de-dominio no P8). Fatia 1a FECHADA (47 testes puros; fingerprint via canonicalizador
-  de DOMÍNIO — conserto orquestrador: domínio não importa infrastructure). **EM CURSO: Fatia 1b schema PG.**
+- P3 FECHADO (2026-06-12): plan+tasks ready-for-implement (23 T-PRC; lock 880_404; emenda modelo-dominio no P8).
+- Fatia 1a FECHADA (47 testes puros; fingerprint via canonicalizador de DOMÍNIO — conserto: domínio não importa infra).
+- Fatia 1b FECHADA (7 tabelas RLS v2/WORM/exclusion/advisory 880_404; drill 31/31; 14 testes PG; migrate 7/7).
+- **Fatia 2 FECHADA:** 11 E2E PG-real 11/11 verdes + 67 puros + ruff/mypy/hooks/makemigrations PASS.
+  Correções: `serializar_regra`+`serializar_pedido` alias `regra_id`/`pedido_id`; `_pode_ver_margem`
+  e `_derivar_papel_decisor` migrados para `DjangoAuthorizationProvider` (has_perm Django não usa
+  authz_perfil_acao); migration 0009 expandida com `alcada_dono`/`alcada_gerente`; RLS context em
+  query ORM do teste; `MARGEM_ALVO` exige `custo_referencia_em` (TL-PRC-07).
+- **PRÓXIMO: P3 plan já fechado → Fatia 3 (integração OS ↔ precificacao), ou próxima frente #4 `colaboradores`.**
 - Docs em `docs/faseamento/precificacao/`.
 
 ## Frente AUDITORIA DE CERIMÔNIA — CONCLUÍDA E APLICADA (2026-06-12)

@@ -193,6 +193,11 @@ module = [
     "config.settings.base",
     "config.settings.dev",
     "config.settings.prod",
+    "src.infrastructure.precificacao.views",
+    "src.infrastructure.precificacao.serializers",
+    "src.infrastructure.precificacao.apps",
+    "src.infrastructure.precificacao.repositories",
+    "src.infrastructure.precificacao.migrations.*",
 ]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false

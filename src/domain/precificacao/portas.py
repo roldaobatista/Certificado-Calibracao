@@ -25,6 +25,10 @@ class CustoProvider(Protocol):
     Levanta `CustoIndisponivel` quando o provider não tem dado para o item
     (INV-PRC-CUSTO-EXPLICITO: ausência é EXPLÍCITA, nunca 0 silencioso).
 
+    `disponivel()` indica se o provider real está conectado (True = provider real;
+    False = stub). Usado pelo use case `publicar_regra` para bloquear COST_PLUS
+    sob stub em tempo de CONFIGURAÇÃO (D-PRC-6 / INV-PRC-COSTPLUS-STUB).
+
     Args:
       tenant_id: UUID do tenant isolado (multi-tenancy ADR-0002).
       item_id: UUID do item de catálogo a costar.
@@ -38,6 +42,10 @@ class CustoProvider(Protocol):
 
     def __call__(self, *, tenant_id: UUID, item_id: UUID) -> Decimal: ...
 
+    def disponivel(self) -> bool:
+        """Retorna True se o provider real está disponível; False se stub."""
+        ...
+
 
 class StubCustoProvider:
     """Implementação stub do `CustoProvider` para Wave A (D-PRC-5).
@@ -47,6 +55,10 @@ class StubCustoProvider:
 
     Injetado na view até `custeio-real` (N7) substituir sem mudar contrato.
     """
+
+    def disponivel(self) -> bool:
+        """Stub: sempre retorna False (provider real não disponível — D-PRC-6)."""
+        return False
 
     def __call__(self, *, tenant_id: UUID, item_id: UUID) -> Decimal:
         """Levanta CustoIndisponivel para todo item — stub sem dados reais.
@@ -60,3 +72,7 @@ class StubCustoProvider:
             f"(tenant {tenant_id}) — provider real não configurado "
             "(INV-PRC-CUSTO-EXPLICITO / GATE-PRC-CUSTEIO-REAL)."
         )
+
+
+# Alias: views Wave A importam `CustoProviderStub` (nome alternativo usado na geração do código)
+CustoProviderStub = StubCustoProvider
