@@ -117,8 +117,15 @@ esac
 #    `.chave_ativa()` ou `.chave(` do QR_HMAC_KEY_REGISTRO fora do
 #    helper unico — qualquer codigo que pretenda recomputar e
 #    suspeito (INV-EQP-QR-NUNCA-RECOMPUTA).
+#    Settings ISENTO (registry + sua documentacao vivem em
+#    config/settings/** — conforme bloco "Auto-allow" do cabecalho;
+#    base.py cita `hmac.new(QR_HMAC_KEY_REGISTRO...)` em comentario de doc).
 # =============================================================
-if [ "$auto_allow" -eq 0 ]; then
+recompute_isento=0
+case "$norm_path" in
+    config/settings/*|*/config/settings/*) recompute_isento=1 ;;
+esac
+if [ "$auto_allow" -eq 0 ] && [ "$recompute_isento" -eq 0 ]; then
     # Patterns que indicam uso direto do registry pra recomputar
     if printf '%s' "$content" | grep -qE 'QR_HMAC_KEY_REGISTRO\.(chave_ativa|chave[[:space:]]*\()'; then
         echo "qr-hmac-check (RECOMPUTA): acesso direto a QR_HMAC_KEY_REGISTRO.chave* em $file_path" >&2

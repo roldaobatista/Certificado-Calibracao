@@ -375,6 +375,7 @@ run_case "QR8 override com motivo"                   PASS  qr-hmac-check.sh '{"t
 run_case "QR9 .md ignora"                            PASS  qr-hmac-check.sh '{"tool_input":{"file_path":"docs/x.md","content":"QR_HMAC_KEY = \"abc12345\""}}'
 run_case "QRa base.py settings tem registry OK"      PASS  qr-hmac-check.sh '{"tool_input":{"file_path":"config/settings/base.py","content":"QR_HMAC_KEY_REGISTRO = _RegistroChavesPII(QR_HMAC_KEY_ID, _qr_chaves)"}}'
 run_case "QRb codigo sem QR_HMAC sem-op"             PASS  qr-hmac-check.sh '{"tool_input":{"file_path":"src/x.py","content":"def foo(): return 1"}}'
+run_case "QRc base.py comentario cita hmac.new"      PASS  qr-hmac-check.sh '{"tool_input":{"file_path":"config/settings/base.py","content":"# Hook valida hmac.new(QR_HMAC_KEY_REGISTRO.chave_ativa()) so dentro do helper\nQR_HMAC_KEY_REGISTRO = _RegistroChavesPII(QR_HMAC_KEY_ID, _qr_chaves)"}}'
 
 echo ""
 echo "===== equipamento-imutabilidade-check (T-EQP-071 / INV-025) ====="

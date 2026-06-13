@@ -48,13 +48,16 @@ run_hook_for_file() {
     local hook="$1"
     local rel_path="$2"
     local out_file="$3"
-    local abs_path="$REPO_ROOT/$rel_path"
 
     # Obtém conteúdo do arquivo staged (índice git).
     local content
     content="$(git show ":$rel_path" 2>/dev/null)" || content=""
 
     # Monta JSON via perl para escape correto.
+    # file_path = caminho RELATIVO ao repo (o git hook roda a partir do top-level):
+    # os hooks e os 573 casos do _test-runner avaliam auto-allow por caminho
+    # relativo (ex.: `config/settings/*`, `tests/*`). Passar absoluto fura esses
+    # auto-allows e gera falso-positivo (qr-hmac em base.py, etc.).
     local json
     json="$(perl -MJSON::PP -e '
         my ($fp, $ct) = @ARGV;
@@ -62,7 +65,7 @@ run_hook_for_file() {
             tool_name  => "Write",
             tool_input => { file_path => $fp, content => $ct }
         });
-    ' -- "$abs_path" "$content" 2>/dev/null)"
+    ' -- "$rel_path" "$content" 2>/dev/null)"
 
     if [ -z "$json" ]; then
         return 0  # fail open se perl falhou
