@@ -387,6 +387,9 @@ ACOES_PRECIFICACAO: Final[frozenset[str]] = frozenset(
         "Precificacao.FaixasDescontoAlteradas",
         "Precificacao.PerfilComposicaoAlterado",
         "Precificacao.ParametrosAlterados",
+        # AC-PRC-005-1 — vinculo cliente <-> tabela de preco (MÉDIO-2 P9)
+        "Precificacao.VinculoTabelaCriado",
+        "Precificacao.VinculoTabelaRevogado",
     }
 )
 

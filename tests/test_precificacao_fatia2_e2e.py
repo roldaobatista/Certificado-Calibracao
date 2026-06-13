@@ -1,6 +1,6 @@
 """Precificação Fatia 2 — E2E PG-real (T-PRC-038).
 
-11 invariantes que os testes puros não provam:
+13 invariantes que os testes puros não provam:
   1. COST_PLUS + StubCustoProvider → 422 CustoRealIndisponivel (D-PRC-6).
   2. RBAC de campo: sem `ver_margem` → resposta NÃO contém custo/margem.
   3. predicate alcada_cobre: gerente tenta decidir pedido DONO → 403.
@@ -52,7 +52,14 @@ def _autenticar(client: APIClient, usuario, tenant) -> None:
 
 
 def _cenario(*, perfil_b: bool = True, sfx: str | None = None) -> dict:
-    """Cria tenant+usuários para um cenário de teste."""
+    """Cria tenant+usuários para um cenário de teste.
+
+    `gerente` usa perfil `gerente_operacional` (sistêmico) — tem
+    `precificacao.aprovar_desconto` + `precificacao.alcada_gerente` mas NÃO
+    `precificacao.alcada_dono` (seed 0006+0009). Isso permite provar
+    MÉDIO-1: o 403 em decidir pedido DONO vem de `_alcada_papel_cobre`
+    (AlcadaInsuficiente), não da ação ausente.
+    """
     from src.infrastructure.authz.django_provider import invalidate_user_cache
 
     sfx = sfx or uuid4().hex[:8]
@@ -62,7 +69,10 @@ def _cenario(*, perfil_b: bool = True, sfx: str | None = None) -> dict:
     gerente = UsuarioFactory(email=f"ger-prc-{sfx}@e2e.local")
     UsuarioPerfilTenantFactory(usuario=admin, tenant=tenant, perfil="admin_tenant")
     UsuarioPerfilTenantFactory(usuario=vendedor, tenant=tenant, perfil="atendente")
-    UsuarioPerfilTenantFactory(usuario=gerente, tenant=tenant, perfil="gerente_tenant")
+    # MÉDIO-1: gerente_operacional tem aprovar_desconto + alcada_gerente (nunca alcada_dono).
+    # gerente_tenant é perfil por-tenant, ausente do seed sistêmico → 403 viria da ação,
+    # não da alçada. gerente_operacional prova que o predicate alcada_cobre é o bloqueio.
+    UsuarioPerfilTenantFactory(usuario=gerente, tenant=tenant, perfil="gerente_operacional")
     for u in (admin, vendedor, gerente):
         invalidate_user_cache(u.id, tenant.id)
     return {
@@ -159,10 +169,31 @@ def _calcular(client: APIClient, itens_payload: list[dict], **kw) -> object:
     return client.post("/api/v1/calcular/", payload, format="json")
 
 
+def _criar_vinculo_rest(
+    client: APIClient, cliente_id: UUID, tabela_id: UUID
+) -> dict:
+    """Cria VinculoTabelaPrecoCliente via REST (AC-PRC-005-1 — MÉDIO-2 P9)."""
+    r = _post(
+        client,
+        "/api/v1/vinculos/criar/",
+        {
+            "cliente_id": str(cliente_id),
+            "tabela_id": str(tabela_id),
+        },
+    )
+    assert r.status_code == 201, r.content
+    return r.json()
+
+
 def _criar_vinculo_cliente(
     tenant_id: UUID, cliente_id: UUID, tabela_id: UUID, criado_por: UUID
 ) -> None:
-    """Persiste VinculoTabelaPrecoCliente diretamente no banco (sem endpoint REST ainda)."""
+    """Persiste VinculoTabelaPrecoCliente diretamente no banco via contexto tenant.
+
+    Mantido como helper de compatibilidade para cenários que precisam de contexto
+    PG explícito (teste #7 de fallback usa run_in_tenant_context). Os novos testes
+    de AC-PRC-005-1 usam _criar_vinculo_rest (MÉDIO-2 P9).
+    """
     from src.infrastructure.precificacao.models import VinculoTabelaPrecoCliente as VinculoModel
 
     agora = datetime.now(UTC)
@@ -292,7 +323,9 @@ def test_e2e_predicate_alcada_gerente_nao_decide_dono_403() -> None:
     assert r_sol.status_code == 201, r_sol.content
     pedido_id = r_sol.json()["pedido_id"]
 
-    # gerente tenta decidir → 403 (alcada_cobre nega)
+    # gerente (alcada_gerente) tenta decidir pedido DONO → 403 de AlcadaInsuficiente
+    # MÉDIO-1: gerente_operacional TEM aprovar_desconto — 403 NÃO vem de ação ausente.
+    # Vem de _alcada_papel_cobre(papel=GERENTE, alcada_exigida=DONO) → AlcadaInsuficiente.
     r_dec = _post(
         gerente_client,
         f"/api/v1/aprovacoes/{pedido_id}/decidir/",
@@ -303,6 +336,10 @@ def test_e2e_predicate_alcada_gerente_nao_decide_dono_403() -> None:
         },
     )
     assert r_dec.status_code == 403, r_dec.content
+    # Prova que o bloqueio veio do predicate de alçada, não de permissão ausente:
+    assert r_dec.json().get("codigo") == "AlcadaInsuficiente", (
+        f"esperado AlcadaInsuficiente, obteve {r_dec.json()}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -653,16 +690,33 @@ def test_e2e_calcular_sem_n_mais_1() -> None:
 
     # Cesta de 1 item
     q1 = _contar_queries_calcular(1)
-    # Cesta de 3 itens — contagem deve crescer NO MÁXIMO linearmente
-    # com os itens (regex por item aceitável), mas Params/Faixas/Imposto são memoizados.
-    q3 = _contar_queries_calcular(3)
+    # Cesta de 10 itens (3 distintos, repetidos — reutiliza faixas/params/tabela-padrão)
+    q10 = _contar_queries_calcular(10)
 
-    # Garantia: a diferença NÃO é proporcional a N (N+1 seria q1 + (N-1)*q1/1).
-    # Com memoização, a diferença cresce com queries por item (item+versao+linha),
-    # mas Params/Faixas/Imposto são fixos. Limite pragmático: q3 < q1 * 3.
-    assert q3 < q1 * 3, (
-        f"Possível N+1 detectado: q1={q1}, q3={q3} (esperado q3 < {q1 * 3}). "
-        "Params/Faixas devem ser memoizados por request (TL-PRC-14)."
+    # Garantia HARD (MÉDIO-3 P9 anti-N+1):
+    # Pós-conserto PERF-MÉDIO-3 P9 (2ª passada): `obter_padrao` é resolvido
+    # UMA vez por request via `_construir_resolver_com_tabela_padrao` (closure
+    # injetado na view). Queries restantes POR ITEM são genuinamente intrínsecas
+    # ao `preco_para_os` atual: item_catalogo + item_catalogo_versao + linha_tabela_preco
+    # (~3 por item). Batch-completo de preco_para_os é GATE-PRC-CALCULAR-BATCH-FULL
+    # (otimização diferida — aceitável no dogfooding).
+    #
+    # - q1: auth + tabela_padrao (1) + params (1) + faixas (1) + imposto (1) +
+    #        regras_batch (1) + item(1) + versao(1) + linhas_padrao(1) = fixas + 3 por item
+    # - q10 = q1 + 3 * (10 - 1) = q1 + 27
+    # Delta máximo tolerado: 3 por item extra + margem 1 = 4 * (10-1) = 36 ANTES;
+    # pós-conserto delta deve ser ~27 (3/item); toleramos até 30 (margem de 1/item).
+    # Um N+1 futuro de +1 q/item adicionaria ~9 → estoura o teto imediatamente.
+    delta = q10 - q1
+    # Medido pós-conserto PERF-MÉDIO-3 P9: q1=36, q10=63, delta=27
+    # (36 queries fixas no q1 incluem auth + middleware + tabela_padrao (1x) + params + faixas +
+    # imposto + regras_batch + 3 por item; delta=27 = 3 q/item × 9 extras — sem obter_padrao N vezes)
+    max_delta_tolerado = 30  # 3 q/item intrínseco × 9 extras + margem ≤ 30
+    assert delta <= max_delta_tolerado, (
+        f"N+1 detectado: q1={q1}, q10={q10}, delta={delta} "
+        f"(máximo tolerado: {max_delta_tolerado} = 3 q/item × 9 itens extras + margem). "
+        "obter_padrao deve ser constante (1x/request); regras em batch (TL-PRC-14 / MÉDIO-3 P9). "
+        "GATE-PRC-CALCULAR-BATCH-FULL rastreia otimização restante."
     )
 
 
@@ -692,3 +746,184 @@ def test_e2e_cortesia_100_preco_final_zero() -> None:
     assert (
         body["alcada_exigida"] == "dono"
     ), f"cortesia 100% deve exigir alçada DONO, obteve {body['alcada_exigida']}"
+
+
+# ---------------------------------------------------------------------------
+# 12. AC-PRC-005-1 — vínculo cliente↔tabela via REST (MÉDIO-2 P9)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_e2e_vinculos_criar_listar_revogar() -> None:
+    """AC-PRC-005-1: criar / listar / revogar vínculo cliente↔tabela via REST.
+
+    Prova que DjangoVinculoTabelaRepository.salvar()/revogar() são atingíveis
+    pela camada REST — sem bypass ORM. A listagem confirma que só vínculos
+    ativos aparecem após revogação.
+    """
+    c = _cenario()
+    client = _client(c)
+
+    # Cria tabela via REST
+    tabela = _criar_tabela(client, nome="VIP REST")
+    tabela_id = UUID(tabela["id"])
+    cliente_id = uuid4()
+
+    # Cria vínculo via REST (AC-PRC-005-1)
+    vinculo = _criar_vinculo_rest(client, cliente_id=cliente_id, tabela_id=tabela_id)
+    assert "vinculo_id" in vinculo
+    vinculo_id = vinculo["vinculo_id"]
+
+    # Listagem: vínculo ativo aparece
+    r_list = client.get("/api/v1/vinculos/")
+    assert r_list.status_code == 200, r_list.content
+    ids_listados = [v["vinculo_id"] for v in r_list.json()]
+    assert vinculo_id in ids_listados, "vínculo recém-criado deve aparecer na listagem"
+
+    # Revoga via REST
+    r_rev = _post(
+        client,
+        f"/api/v1/vinculos/{vinculo_id}/revogar/",
+        {"motivo": "Teste de revogação via REST — motivo suficientemente longo"},
+    )
+    assert r_rev.status_code == 200, r_rev.content
+    assert r_rev.json()["revogado"] is True
+
+    # Listagem após revogação: vínculo revogado NÃO aparece
+    r_list2 = client.get("/api/v1/vinculos/")
+    assert r_list2.status_code == 200, r_list2.content
+    ids_pos_revogacao = [v["vinculo_id"] for v in r_list2.json()]
+    assert vinculo_id not in ids_pos_revogacao, (
+        "vínculo revogado não deve aparecer na listagem (revogado_em IS NOT NULL)"
+    )
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_e2e_fallback_usa_vinculo_criado_via_rest() -> None:
+    """AC-PRC-005-1 + D-PRC-12: calcular com cliente vinculado via REST usa tabela do cliente.
+
+    Prova o E2E end-to-end: criar vínculo via REST → calcular passando cliente_id
+    → item usa preço da tabela vinculada (não a padrão).
+    """
+    c = _cenario()
+    client = _client(c)
+    tenant_id = c["tenant"].id
+    admin_uuid = c["admin"].id
+
+    item = _cadastrar_item(client, preco_padrao="100.00")
+
+    # Tabela padrão com preço 120
+    tabela_padrao = _criar_tabela(client, nome="Padrão REST")
+    _criar_linha(client, tabela_padrao["id"], item["id"], preco="120.00")
+
+    # Tabela específica do cliente com preço 150 — criada via ORM no contexto tenant
+    # (necessário para RLS INSERT — tabela PPS exige contexto ativo)
+    from src.infrastructure.multitenant.connection import run_in_tenant_context
+    from src.infrastructure.produtos_pecas_servicos.models import LinhaTabelaPreco as LinhaModel
+    from src.infrastructure.produtos_pecas_servicos.models import TabelaPreco as TabelaModel
+
+    tabela_cli_id = uuid4()
+    cliente_id = uuid4()
+    agora = datetime.now(UTC)
+
+    with run_in_tenant_context(tenant_id):
+        TabelaModel.objects.create(
+            id=tabela_cli_id,
+            tenant_id=tenant_id,
+            nome="Tabela VIP REST",
+            eh_padrao=False,
+        )
+        LinhaModel.objects.create(
+            id=uuid4(),
+            tenant_id=tenant_id,
+            tabela_id=tabela_cli_id,
+            item_id=UUID(item["id"]),
+            preco=Decimal("150.00"),
+            vigencia_inicio=agora - timedelta(hours=1),
+            vigencia_fim=None,
+            origem_sugestao="manual",
+            criado_por=admin_uuid,
+        )
+
+    # Vínculo criado via REST (AC-PRC-005-1 — MÉDIO-2 P9)
+    _configurar_params(client)
+    vinculo = _criar_vinculo_rest(client, cliente_id=cliente_id, tabela_id=tabela_cli_id)
+    assert "vinculo_id" in vinculo
+
+    # Calcular com cliente_id → deve usar tabela do cliente (preco=150)
+    r = _calcular(client, [{"item_id": item["id"]}], cliente_id=str(cliente_id))
+    assert r.status_code == 200, r.content
+    preco_base = r.json()["itens"][0]["preco_base"]
+    assert preco_base == "150.00", (
+        f"calcular com vínculo REST deve usar tabela do cliente (150.00), obteve {preco_base}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 13. Correlation-ID no log de falha (MÉDIO-4 P9 — OBS)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_e2e_falha_loga_correlation_id_do_request(caplog: pytest.LogCaptureFixture) -> None:
+    """MÉDIO-4 P9: log de falha em _falha() carrega o correlation_id do request.
+
+    Prova que `_obter_correlation_id_views()` lê `correlation_id_context`
+    (ContextVar setado pelo CorrelationIdMiddleware) — NÃO mais o GUC PG
+    `app.correlation_id` (nunca setado, sempre None).
+
+    Cenário: POST /calcular/ sem parâmetros configurados (sem tabela → 422
+    ParametrosInviaveis ou sem itens). Usamos `decidir_aprovacao` com pedido
+    ausente (→ 404) pra garantir que `_falha` é chamado sem precisar de setup
+    de itens/tabelas. Verifica via caplog que o log de aviso contém o
+    X-Correlation-ID exato passado no request.
+    """
+    import logging
+
+    c = _cenario()
+    client = _client(c)
+
+    # Correlation-ID conhecido e seguro (padrão aceito pelo middleware: 8-64 chars hex)
+    correlation_id_conhecido = uuid4().hex  # 32 chars hex — aceito pelo _TOKEN_SEGURO
+
+    # Dispara recusa: POST calcular/ sem parâmetros configurados para o tenant
+    # → ParametrosInviaveis → _falha() é chamado
+    with caplog.at_level(logging.WARNING, logger="src.infrastructure.precificacao.views"):
+        r = client.post(
+            "/api/v1/calcular/",
+            {
+                "itens": [{"item_id": str(uuid4())}],
+                "desconto_pct": "0.00",
+                "modo_montagem": "fechado_com_aviso",
+                "km": "0.0000",
+                "parcelas": 1,
+            },
+            format="json",
+            HTTP_X_CORRELATION_ID=correlation_id_conhecido,
+        )
+
+    # Deve retornar 422 (ParametrosInviaveis — tenant sem params configurados)
+    assert r.status_code == 422, (
+        f"esperado 422 ParametrosInviaveis (tenant sem params), obteve {r.status_code}: {r.content}"
+    )
+
+    # Prova OBS: o correlation_id do request deve aparecer no log de falha
+    registros_falha = [
+        rec for rec in caplog.records
+        if rec.levelname == "WARNING" and "precificacao acao recusada" in rec.getMessage()
+    ]
+    assert registros_falha, (
+        "esperado ao menos 1 registro WARNING 'precificacao acao recusada' no log "
+        f"(registros disponíveis: {[r.getMessage() for r in caplog.records]})"
+    )
+    rec = registros_falha[0]
+    correlation_no_log = getattr(rec, "correlation_id", None)
+    assert correlation_no_log is not None, (
+        "log de falha deve conter 'correlation_id' no extra — era None (GUC não setado). "
+        "Conserto: _obter_correlation_id_views() deve ler correlation_id_context (ContextVar)."
+    )
+    assert correlation_no_log == correlation_id_conhecido, (
+        f"correlation_id no log ({correlation_no_log!r}) deve ser o mesmo do "
+        f"X-Correlation-ID do request ({correlation_id_conhecido!r}). "
+        "Prova que CorrelationIdMiddleware → correlation_id_context → _falha() funciona end-to-end."
+    )

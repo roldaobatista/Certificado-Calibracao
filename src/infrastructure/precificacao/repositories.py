@@ -97,6 +97,33 @@ class DjangoRegraRepository:
         )
         return [mappers.regra_model_para_entidade(m) for m in qs]
 
+    def listar_vigentes_por_itens(
+        self, *, tenant_id: UUID, item_ids: list[UUID], em: datetime
+    ) -> dict[UUID, RegraFormacaoPreco]:
+        """Batch: devolve dict item_id→regra vigente em `em` para N itens.
+
+        UMA query em vez de N (anti N+1 — TL-PRC-14 / MÉDIO-3 P9).
+        Items sem regra vigente simplesmente não aparecem no dict.
+        """
+        if not item_ids:
+            return {}
+        qs = (
+            RegraModel.objects.filter(
+                tenant_id=tenant_id,
+                item_id__in=item_ids,
+                vigencia_inicio__lte=em,
+                revogado_em__isnull=True,
+            )
+            .filter(Q(vigencia_fim__isnull=True) | Q(vigencia_fim__gt=em))
+            .order_by("item_id", "-versao_n")  # mais recente por item
+        )
+        # Deduplica por item_id: primeiro (mais recente por -versao_n) vence.
+        resultado: dict[UUID, RegraFormacaoPreco] = {}
+        for m in qs:
+            if m.item_id not in resultado:
+                resultado[m.item_id] = mappers.regra_model_para_entidade(m)
+        return resultado
+
     def travar_item(self, *, tenant_id: UUID, item_id: UUID) -> None:
         """Advisory lock por (tenant, item) — chamar DENTRO de transaction.atomic."""
         _advisory_lock(f"{tenant_id}:regra:{item_id}")

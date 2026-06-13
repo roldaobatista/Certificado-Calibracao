@@ -87,7 +87,7 @@ class ItemCestaSerializer(serializers.Serializer):
 class CalcularPrecosSerializer(serializers.Serializer):
     """Validação de entrada para calcular_precos (D-PRC-11 — cesta)."""
 
-    itens = ItemCestaSerializer(many=True, min_length=1)  # type: ignore[call-arg]  # DRF 3.14+ aceita min_length em many=True (stubs desatualizadas)
+    itens = ItemCestaSerializer(many=True, min_length=1, max_length=200)  # type: ignore[call-arg]  # DRF 3.14+ aceita min/max_length em many=True (stubs desatualizadas)
     desconto_pct = serializers.DecimalField(
         max_digits=5, decimal_places=2, min_value=Decimal("0"), max_value=Decimal("100")
     )
@@ -152,6 +152,21 @@ class ConfigurarPerfilComposicaoSerializer(serializers.Serializer):
     item_servico_id = serializers.UUIDField()
     componentes_esperados = serializers.ListField(child=serializers.UUIDField(), allow_empty=True)
     aviso_texto = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class CriarVinculoTabelaSerializer(serializers.Serializer):
+    """Validação de entrada para criar vínculo cliente↔tabela (AC-PRC-005-1 — MÉDIO-2 P9)."""
+
+    cliente_id = serializers.UUIDField()
+    tabela_id = serializers.UUIDField()
+    vigencia_inicio = serializers.DateTimeField(required=False, allow_null=True, default=None)
+    vigencia_fim = serializers.DateTimeField(required=False, allow_null=True, default=None)
+
+
+class RevogarVinculoSerializer(serializers.Serializer):
+    """Validação de entrada para revogar vínculo cliente↔tabela."""
+
+    motivo = serializers.CharField(min_length=10)
 
 
 class ConfigurarParametrosSerializer(serializers.Serializer):

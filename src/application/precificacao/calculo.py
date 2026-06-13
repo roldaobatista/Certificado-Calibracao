@@ -7,7 +7,7 @@ Consiste de:
 - Resolver preço de venda via `preco_para_os(tabela_id=)` com fallback
   POR ITEM na tabela padrão (D-PRC-12).
 - Buscar regras de formação vigentes.
-- Buscar parâmetros, faixas e alíquota de imposto (memoizados no objeto).
+- Buscar parâmetros, faixas e alíquota de imposto (uma vez por request, sem cache cross-request).
 - Chamar `calcular_precos` puro do domínio (D-PRC-11 — entrada canônica é a cesta).
 
 O uso de `Imposto` vigente é SIMULAÇÃO (D-PRC-10): alíquota vigente da frente
@@ -75,9 +75,15 @@ def calcular_precos(
 ) -> CalculoPrecoResultado:
     """Porta de aplicação `calcular_precos` POR CESTA (T-PRC-031 / D-PRC-11).
 
-    Stateless: memoiza Imposto/Parâmetros/Faixas POR REQUEST (sem cache cross-
-    request — TL-PRC-14). Consome `preco_para_os(..., tabela_id=)` com fallback
-    POR ITEM na tabela padrão (D-PRC-12). Chama o motor puro do domínio.
+    Stateless: busca Imposto/Parâmetros/Faixas UMA VEZ por request (sem cache
+    cross-request — TL-PRC-14). Consome `preco_para_os(..., tabela_id=)` com
+    fallback POR ITEM na tabela padrão (D-PRC-12). Chama o motor puro do domínio.
+
+    Anti-N+1 (MÉDIO-3 P9): usa `listar_vigentes_por_itens` para buscar regras
+    de TODOS os itens da cesta em UMA query batch. `obter_padrao` deve ser
+    resolvido pelo chamador UMA vez por request (via `_construir_resolver_com_tabela_padrao`
+    em views.py) e injetado via `resolver_preco_fn` — este use case delega a
+    resolução da tabela padrão inteiramente ao `resolver_preco_fn` fornecido.
 
     Args:
       inp: entradas da cesta (itens + parâmetros de contexto).
@@ -97,7 +103,7 @@ def calcular_precos(
     """
     agora = inp.agora if inp.agora is not None else datetime.now(UTC)
 
-    # Memoiza por request (TL-PRC-14 / assertNumQueries)
+    # Memoiza por request (TL-PRC-14 / assertNumQueries) — UMA query cada
     params: ParametrosPrecificacaoTenant | None = repo_params.obter_vigentes(
         tenant_id=inp.tenant_id
     )
@@ -117,14 +123,11 @@ def calcular_precos(
     ids_itens = [i.item_id for i in inp.itens]
     tabela_id_por_item: dict[UUID, UUID | None] = {i.item_id: i.tabela_id for i in inp.itens}
 
-    # Mapa item_id → RegraFormacaoPreco vigente (batch por ids_itens)
-    regras: dict[UUID, RegraFormacaoPreco] = {}
-    for item_id in ids_itens:
-        r = repo_regra.obter_vigente(
-            tenant_id=inp.tenant_id, item_id=item_id, em=agora
-        )
-        if r is not None:
-            regras[item_id] = r
+    # Mapa item_id → RegraFormacaoPreco vigente — BATCH (anti-N+1 MÉDIO-3 P9)
+    # UMA query para todos os itens em vez de 1 query por item.
+    regras: dict[UUID, RegraFormacaoPreco] = repo_regra.listar_vigentes_por_itens(
+        tenant_id=inp.tenant_id, item_ids=ids_itens, em=agora
+    )
 
     # Resolve preços via porta `preco_para_os` com fallback por item (D-PRC-12)
     itens_resolvidos: list[PrecoResolvido] = []

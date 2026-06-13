@@ -760,4 +760,4 @@ class TestPercentual:
 
     def test_percentual_tipo_errado(self):
         with pytest.raises(TypeError):
-            Percentual(18.5)  # type: ignore[arg-type]
+            Percentual(18.5)  # type: ignore[arg-type] -- passa float de propósito para provar rejeição de tipo

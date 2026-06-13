@@ -28,6 +28,9 @@ Eventos `Precificacao.*` (ACOES_PRECIFICACAO) vão SÓ na cadeia hash central
 (cadeia=True, outbox=False — D-PRC-9). Payload NUNCA inclui Parametros/Faixas
 em claro. Hash via HMAC-tenant ADR-0029.
 
+VinculoTabelaClienteViewSet e _derivar_papel_decisor vivem em _views_vinculo.py
+(refactor mecânico — sem mudança de comportamento).
+
 # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
 """
 
@@ -36,13 +39,15 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
+if TYPE_CHECKING:
+    from src.domain.produtos_pecas_servicos.entities import PrecoResolvido
+
 from django.db import DataError, IntegrityError, transaction
-from rest_framework import status, viewsets
+from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -65,17 +70,24 @@ from src.infrastructure.calibracao.lgpd import (
     derivar_user_id_hash,
 )
 from src.infrastructure.idempotencia.services_idempotencia import (
-    ErroValidacao,
-    NovoProcessamento,
-    Replay,
-    avaliar_chave_idempotencia,
     concluir_chave,
     falhar_chave,
 )
-from src.infrastructure.multitenant.context import (
-    active_tenant_context,
-    usuario_id_context,
+
+# Helpers compartilhados (extraídos em _views_suporte.py — refactor mecânico)
+from src.infrastructure.precificacao._views_suporte import (
+    _aplicar_idempotencia,
+    _falha,
+    _falha_404,
+    _pode_ver_margem,
+    _PrecificacaoViewSetBase,
+    _publicar_evento_precificacao,
+    _tenant_ou_none,
+    _usuario_id_ou_none,
 )
+
+# _derivar_papel_decisor vive em _views_vinculo (extraído junto com VinculoTabelaClienteViewSet)
+from src.infrastructure.precificacao._views_vinculo import _derivar_papel_decisor
 from src.infrastructure.precificacao.repositories import (
     DjangoFaixaRepository,
     DjangoParametrosRepository,
@@ -102,162 +114,6 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Helpers de contexto
-# ---------------------------------------------------------------------------
-
-
-def _tenant_ou_none() -> UUID | None:
-    return active_tenant_context.get()
-
-
-def _usuario_id_ou_none() -> UUID | None:
-    return usuario_id_context.get()
-
-
-def _pode_ver_margem(request: Request) -> bool:
-    """Verifica se o usuário tem permissão `precificacao.ver_margem` (D-PRC-4).
-
-    Usa DjangoAuthorizationProvider (authz_perfil_acao) — NÃO o `has_perm` Django
-    nativo que usa auth_permission/ContentType (esses modelos não são populados
-    pelo seed de precificacao). Fail-closed: qualquer ausência de contexto → False.
-    """
-    usuario_id = usuario_id_context.get()
-    tenant_id = active_tenant_context.get()
-    if not request.user or usuario_id is None or tenant_id is None:
-        return False
-    from src.infrastructure.authz.django_provider import get_provider
-
-    decision = get_provider().can(
-        usuario_id=usuario_id,
-        action="precificacao.ver_margem",
-        resource={},
-        tenant_id=tenant_id,
-        purpose="rbac_campo_margem",
-    )
-    return decision.allowed
-
-
-# ---------------------------------------------------------------------------
-# Idempotência (molde PPS / configuracoes)
-# ---------------------------------------------------------------------------
-
-
-def _resposta_erro_idempotencia(erro: ErroValidacao) -> Response:
-    body = {"codigo": erro.codigo, "detalhe": erro.detalhe}
-    if erro.headers:
-        return Response(body, status=erro.http_status, headers=erro.headers)
-    return Response(body, status=erro.http_status)
-
-
-def _aplicar_idempotencia(
-    request: Request,
-    *,
-    tenant_id: UUID,
-    usuario_id: UUID,
-    endpoint: str,
-    payload_fingerprint: dict[str, Any],
-) -> tuple[NovoProcessamento | None, Response | None]:
-    avaliacao = avaliar_chave_idempotencia(
-        tenant_id=tenant_id,
-        usuario_id=usuario_id,
-        endpoint=endpoint,
-        chave_header=request.META.get("HTTP_IDEMPOTENCY_KEY"),
-        payload=payload_fingerprint,
-    )
-    if isinstance(avaliacao, ErroValidacao):
-        return None, _resposta_erro_idempotencia(avaliacao)
-    if isinstance(avaliacao, Replay):
-        return None, Response(
-            avaliacao.response_body_resumo or {}, status=avaliacao.response_status
-        )
-    assert isinstance(avaliacao, NovoProcessamento)
-    return avaliacao, None
-
-
-# ---------------------------------------------------------------------------
-# Eventos precificacao (cadeia hash — outbox=False, D-PRC-9)
-# ---------------------------------------------------------------------------
-
-
-def _publicar_evento_precificacao(
-    *,
-    acao: str,
-    payload: dict[str, Any],
-    causation_id: UUID,
-    tenant_id: UUID,
-    usuario_id: UUID,
-    resource_summary: str,
-) -> None:
-    """Evento `Precificacao.*` na cadeia hash central (outbox=False — D-PRC-9).
-
-    Payload NUNCA inclui Parametros/Faixas em claro (INV-PRC-SEGREDO-LOG).
-    Import local (molde fiscal/configuracoes).
-    """
-    from src.infrastructure.audit.event_helpers import (
-        publicar_evento,  # -- import local evita ciclo infra→infra detectado em M8/M9
-    )
-
-    publicar_evento(
-        acao=acao,
-        payload=payload,
-        causation_id=causation_id,
-        tenant_id=tenant_id,
-        usuario_id=usuario_id if usuario_id != UUID(int=0) else None,
-        resource_summary=resource_summary,
-        outbox=False,
-    )
-    logger.info(
-        "precificacao evento WORM registrado na transacao",
-        extra={
-            "tenant_id": str(tenant_id),
-            "acao": acao,
-            "correlation_id": str(causation_id),
-        },
-    )
-
-
-# ---------------------------------------------------------------------------
-# Helpers de erro sem custo/margem (INV-PRC-SEGREDO-LOG)
-# ---------------------------------------------------------------------------
-
-
-def _falha(
-    chave_id: UUID,
-    tenant_id: UUID,
-    exc: Exception,
-    http_status: int,
-    chave_idempotencia: NovoProcessamento | None = None,
-) -> Response:
-    """Registra erro 4xx SEM custo/margem no log (INV-PRC-SEGREDO-LOG)."""
-    logger.warning(
-        "precificacao acao recusada",
-        extra={
-            "chave_id": str(chave_id),
-            "http_status": http_status,
-            "erro": type(exc).__name__,
-            # Não loga str(exc) — pode conter margem/custo (INV-PRC-SEGREDO-LOG)
-            "tenant_id": str(tenant_id),
-        },
-    )
-    if chave_idempotencia is not None and chave_idempotencia.chave_id is not None:
-        try:
-            falhar_chave(
-                chave_id=chave_idempotencia.chave_id,
-                tenant_id=tenant_id,
-                response_status=http_status,
-            )
-        except Exception:  # noqa: S110 -- falha no registro de idempotencia nunca mascara o erro original de negocio (design intencional)
-            pass
-    return Response(
-        {"codigo": type(exc).__name__, "detalhe": type(exc).__name__}, status=http_status
-    )
-
-
-def _falha_404(msg: str) -> Response:
-    return Response({"codigo": "NaoEncontrado", "detalhe": msg}, status=status.HTTP_404_NOT_FOUND)
-
-
-# ---------------------------------------------------------------------------
 # Helpers de resolução de preço com fallback (D-PRC-12)
 # ---------------------------------------------------------------------------
 
@@ -267,7 +123,9 @@ def _resolver_preco_com_fallback(
     item_id: UUID,
     tabela_id: UUID | None,
     data_ref: datetime,
-) -> Any:
+    *,
+    tabela_padrao_pre_resolvida: Any | None = None,
+) -> PrecoResolvido:
     """Resolve preço via `preco_para_os` com fallback por item (D-PRC-12).
 
     D-PRC-12: se `tabela_id` não veio no ItemCestaInput, tenta resolver o
@@ -275,6 +133,11 @@ def _resolver_preco_com_fallback(
     na data_ref (ver chamador em `calcular`). Tabela específica → usa ela;
     sem linha na específica OU sem vínculo → tabela padrão (fallback por item
     — não viola ADR-0081: ambas são tabelas VENDA, nunca VENDA→lista).
+
+    Anti-N+1 (TL-PRC-14 / PERF-MÉDIO-3 P9): `tabela_padrao_pre_resolvida`
+    deve ser passada pelo chamador de cesta (resolvida UMA vez antes do loop).
+    Quando None, delega ao `preco_para_os` que faz o `obter_padrao` — compatível
+    com chamadas isoladas fora de cesta (PPS 100% preservado).
     """
     from src.infrastructure.produtos_pecas_servicos import (
         query_service,  # -- import local evita ciclo infra→infra; padrão consolidado no projeto (molde PPS views)
@@ -294,7 +157,46 @@ def _resolver_preco_com_fallback(
         tabela_id=tabela_id,  # None → fallback padrão (D-PRC-12)
         item_repo=item_repo,
         tabela_repo=tabela_repo,
+        tabela_padrao=tabela_padrao_pre_resolvida,  # anti-N+1: None faz obter_padrao no serviço
     )
+
+
+def _construir_resolver_com_tabela_padrao(
+    tenant_id: UUID,
+    data_ref: datetime,
+) -> uc_calculo.ResolverPrecoFn:
+    """Cria closure de `ResolverPrecoFn` com tabela padrão resolvida UMA vez.
+
+    Anti-N+1 (TL-PRC-14 / PERF-MÉDIO-3 P9): resolve `obter_padrao` ANTES
+    de entrar no loop de itens do `calcular_precos`. A tabela padrão é
+    constante por (tenant, request) — não precisa ser re-consultada por item.
+
+    Se o tenant não tem tabela padrão (None), passa None → o `preco_para_os`
+    vai levantar `PrecoTabelaAusenteError` no primeiro item sem linha específica
+    (comportamento fail-closed preservado — D-PPS-2).
+    """
+    from src.infrastructure.produtos_pecas_servicos.repositories import (  # -- import local evita ciclo infra→infra
+        DjangoTabelaPrecoRepository,
+    )
+
+    tabela_repo = DjangoTabelaPrecoRepository()
+    tabela_padrao = tabela_repo.obter_padrao(tenant_id=tenant_id)  # 1 query por request
+
+    def _resolver(
+        t_id: UUID,
+        item_id: UUID,
+        tabela_id: UUID | None,
+        data_ref_inner: datetime,
+    ) -> PrecoResolvido:
+        return _resolver_preco_com_fallback(
+            t_id,
+            item_id,
+            tabela_id,
+            data_ref_inner,
+            tabela_padrao_pre_resolvida=tabela_padrao,
+        )
+
+    return _resolver
 
 
 def _aliquota_imposto_fn(
@@ -327,8 +229,11 @@ def _aliquota_imposto_fn(
         if imposto is not None:
             fracao = imposto.aliquota.valor / Decimal("100")
             return fracao, (imposto.id, 1)  # versao_n=1 (D-PRC-10 simulacao)
-    except Exception:  # noqa: S110 -- imposto ausente nao bloqueia calculo (D-PRC-10 simulacao; fallback zero-taxa intencional, nao e mascaramento)
-        pass
+    except Exception as _exc_imp:  # -- imposto ausente nao bloqueia calculo (D-PRC-10 simulacao; fallback zero-taxa intencional, nao e mascaramento)
+        logger.debug(
+            "precificacao imposto ausente — fallback zero-taxa (D-PRC-10 simulacao)",
+            extra={"tenant_id": str(tenant_id), "erro": type(_exc_imp).__name__},
+        )
     return Decimal("0"), None
 
 
@@ -356,32 +261,6 @@ def _salvar_justificativa(pedido_id: UUID, tenant_id: UUID, texto: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Base ViewSet (molde _CatalogoViewSetBase PPS)
-# ---------------------------------------------------------------------------
-
-
-class _PrecificacaoViewSetBase(viewsets.ViewSet):
-    """Base: ACTION_MAP authz + helpers comuns (molde PPS / configuracoes)."""
-
-    authz_purpose = "execucao_contrato"
-    ACTION_MAP: dict[str, str] = {}
-
-    def get_authz_action(self, request: Request) -> str | None:
-        action_name = getattr(self, "action", None)
-        return self.ACTION_MAP.get(action_name) if action_name else None
-
-    def get_authz_resource(self, request: Request) -> dict[str, Any]:
-        return {}
-
-    @staticmethod
-    def _uuid_ou_404(raw: str | None) -> UUID:
-        try:
-            return UUID(str(raw))
-        except (ValueError, TypeError) as exc:
-            raise NotFound(f"id inválido: {exc}") from exc
-
-
-# ---------------------------------------------------------------------------
 # T-PRC-035a: RegraFormacaoPrecoViewSet
 # ---------------------------------------------------------------------------
 
@@ -389,7 +268,7 @@ class _PrecificacaoViewSetBase(viewsets.ViewSet):
 class RegraFormacaoPrecoViewSet(_PrecificacaoViewSetBase):
     """US-PRC-001 — publicar / revogar regra de formação de preço."""
 
-    ACTION_MAP: dict[str, str] = {
+    ACTION_MAP: ClassVar[dict[str, str]] = {
         "publicar": "precificacao.configurar",
         "revogar": "precificacao.configurar",
         "retrieve": "precificacao.ver",
@@ -607,7 +486,7 @@ class RegraFormacaoPrecoViewSet(_PrecificacaoViewSetBase):
 class CalculoPrecoView(_PrecificacaoViewSetBase):
     """US-PRC-002 — calcular preços por cesta (stateless, SEM Idempotency-Key)."""
 
-    ACTION_MAP: dict[str, str] = {
+    ACTION_MAP: ClassVar[dict[str, str]] = {
         "calcular": "precificacao.calcular",
     }
 
@@ -649,6 +528,14 @@ class CalculoPrecoView(_PrecificacaoViewSetBase):
                 if vinculo is not None:
                     tabela_id_cliente = vinculo.tabela_id
 
+            # Anti-N+1 (TL-PRC-14 / PERF-MÉDIO-3 P9): tabela padrão resolvida
+            # UMA vez por request (constante por tenant+data_ref). O closure
+            # injeta essa tabela em cada chamada de preco_para_os sem re-query.
+            resolver_preco_fn = _construir_resolver_com_tabela_padrao(
+                tenant_id=tenant_id,
+                data_ref=agora,
+            )
+
             resultado = uc_calculo.calcular_precos(
                 uc_calculo.CalcularPrecosInput(
                     tenant_id=tenant_id,
@@ -674,7 +561,7 @@ class CalculoPrecoView(_PrecificacaoViewSetBase):
                 repo_faixa=repo_faixa,
                 repo_params=repo_params,
                 custo_provider=CustoProviderStub(),
-                resolver_preco_fn=_resolver_preco_com_fallback,
+                resolver_preco_fn=resolver_preco_fn,
                 aliquota_imposto_fn=_aliquota_imposto_fn,
             )
         except ParametrosInviaveis as exc:
@@ -697,7 +584,7 @@ class CalculoPrecoView(_PrecificacaoViewSetBase):
 class AprovacaoDescontoViewSet(_PrecificacaoViewSetBase):
     """US-PRC-003/004 — solicitar / decidir aprovação de desconto."""
 
-    ACTION_MAP: dict[str, str] = {
+    ACTION_MAP: ClassVar[dict[str, str]] = {
         "solicitar": "precificacao.solicitar_aprovacao",
         "decidir": "precificacao.aprovar_desconto",
         "pendentes": "precificacao.ver",
@@ -934,7 +821,7 @@ class AprovacaoDescontoViewSet(_PrecificacaoViewSetBase):
 class ConfiguracaoPrecificacaoViewSet(_PrecificacaoViewSetBase):
     """US-PRC-004 — configurar faixas, perfil de composição e parâmetros."""
 
-    ACTION_MAP: dict[str, str] = {
+    ACTION_MAP: ClassVar[dict[str, str]] = {
         "faixas": "precificacao.configurar",
         "perfil": "precificacao.configurar",
         "parametros": "precificacao.configurar",
@@ -1193,41 +1080,10 @@ class ConfiguracaoPrecificacaoViewSet(_PrecificacaoViewSetBase):
 
 
 # ---------------------------------------------------------------------------
-# Helper: derivar papel do decisor a partir das permissões do usuário
+# VinculoTabelaClienteViewSet e _derivar_papel_decisor vivem em _views_vinculo.py
+# Re-exportados aqui para compatibilidade com urls.py e imports externos.
 # ---------------------------------------------------------------------------
 
-
-def _derivar_papel_decisor(request: Request, tenant_id: UUID) -> Alcada:
-    """Deriva a Alcada do decisor a partir das permissões do authz_perfil_acao.
-
-    Predicate `alcada_cobre` (apps.py) verifica se o papel do usuário
-    cobre a alçada exigida no pedido (T-PRC-036 / INV-PRC-APROVACAO-INDEPENDENTE).
-
-    Hierarquia: DONO > GERENTE > LIVRE.
-
-    Usa DjangoAuthorizationProvider — NÃO o `has_perm` Django nativo (que usa
-    auth_permission/ContentType, não authz_perfil_acao).
-    """
-    usuario_id = usuario_id_context.get()
-    if not request.user or usuario_id is None:
-        return Alcada.LIVRE
-    from src.infrastructure.authz.django_provider import get_provider
-
-    provider = get_provider()
-    if provider.can(
-        usuario_id=usuario_id,
-        action="precificacao.alcada_dono",
-        resource={},
-        tenant_id=tenant_id,
-        purpose="alcada_decisor",
-    ).allowed:
-        return Alcada.DONO
-    if provider.can(
-        usuario_id=usuario_id,
-        action="precificacao.alcada_gerente",
-        resource={},
-        tenant_id=tenant_id,
-        purpose="alcada_decisor",
-    ).allowed:
-        return Alcada.GERENTE
-    return Alcada.LIVRE
+from src.infrastructure.precificacao._views_vinculo import (  # noqa: E402, F401
+    VinculoTabelaClienteViewSet,
+)

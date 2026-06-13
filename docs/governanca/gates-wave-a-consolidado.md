@@ -27,7 +27,7 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | Modelo dados / convenções (DOM-*) | 5 | 0 | 5 | 0 (Onda 2 fechou) |
 | Bus / integração (BUS-*) | 5 | 4 | 1 | 0 (envelope retrofit Onda 3) |
 | Operação / Drill (OPS-*) | 6 | 6 | 0 | 0 |
-| Precificacao (PRC-* + WIREIN) | 7 | 7 | 0 | 0 |
+| Precificacao (PRC-* + WIREIN) | 8 | 8 | 0 | 0 |
 | **TOTAL** | **94** | **84** | **7** | **3** |
 
 > Adicionados em 2026-06-12 (auditoria de cerimônia R17/R18): GATE-LGPD-RAT-CONSOLIDACAO + GATE-CGCRE-DOSSIE-PROSA.
@@ -202,6 +202,8 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | GATE-PRC-COMISSAO-REAL | 🟡 | Comissão real (módulo `comissoes` próprio); hoje só simulação por % parâmetro | Tech-lead | Wave B / módulo `comissoes` |
 | GATE-PRC-TABELA-CONTRATO | 🟡 | Precedência contrato/segmento/região (AC-005-4 completo); Wave A só cliente-específico > padrão | Tech-lead | Wave B |
 | GATE-PPS-WIREIN-OS | 🔴 **bloqueante pré-1º tenant externo** | Preço da OS avulsa hoje é client-supplied (`ordens_servico/views.py:507`); conserto via porta `preco_para_os` fail-closed **consome a frente `precificacao`** (resolução de tabela por cliente via `VinculoTabelaPrecoCliente` + `_resolver_preco_com_fallback`). Porta pronta e testada — o wire-in é da frente OS | Tech-lead | Antes do 1º tenant externo pago |
+| GATE-PRC-CALCULAR-BATCH-FULL | 🟡 | Batch completo de `preco_para_os` para a cesta — hoje ~3 q/item intrínsecas (item_catalogo + item_catalogo_versao + linha_tabela_preco). Otimização requer redesign do `preco_para_os` para resolver múltiplos itens em queries batch. Aceitável no dogfooding com cesta pequena. `obter_padrao` já é 1x/request (PERF-MÉDIO-3 P9 consertado). | Tech-lead | Wave B / antes de cesta com N>50 itens |
+| GATE-PRC-ANONIMIZACAO-CONSUMER | 🟡 | `apps.py ready()` precisa `registrar_consumer("Cliente.Anonimizado", ...)` que revoga o `VinculoTabelaPrecoCliente` vigente do cliente anonimizado (repo `revogar` pronto; estrutura ADR-0032 correta; só falta o wiring do consumer no bus). Achado BAIXO LGPD P9. Sem ele, o `cliente_id` pseudônimo permanece no vínculo pós-anonimização. | Tech-lead | Junto do wiring de eventos cross-módulo (integração OS) |
 
 ---
 

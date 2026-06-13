@@ -191,7 +191,8 @@ def _calcular_item(
             "bloqueio DURO, não aprovável (INV-PRC-MINIMO-BLOQUEIO / D-PRC-8)."
         )
 
-    # Margem líquida estimada = (preco_final - custo - impostos - comissao) / preco_final
+    # Margem líquida estimada = (preco_final - custo_total - impostos - comissao) / preco_final
+    # custo_total = custo + custo_km (linha 161 — deslocamento incluso)
     imposto_estimado = _quantizar(preco_final * aliquota_imposto_fracao)
     comissao_estimada = _quantizar(preco_final * comissao_fracao)
     margem_estimada_valor = _ZERO

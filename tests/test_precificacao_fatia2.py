@@ -194,6 +194,17 @@ class FakeRegraRepository:
     def listar_por_item(self, *, tenant_id: UUID, item_id: UUID) -> list[RegraFormacaoPreco]:
         return [r for r in self._regras.values() if r.tenant_id == tenant_id and r.item_id == item_id]
 
+    def listar_vigentes_por_itens(
+        self, *, tenant_id: UUID, item_ids: list[UUID], em: datetime
+    ) -> dict[UUID, RegraFormacaoPreco]:
+        """Fake batch: delega para obter_vigente por item (sem N+1 real em testes isolados)."""
+        resultado: dict[UUID, RegraFormacaoPreco] = {}
+        for item_id in item_ids:
+            r = self.obter_vigente(tenant_id=tenant_id, item_id=item_id, em=em)
+            if r is not None:
+                resultado[item_id] = r
+        return resultado
+
     def travar_item(self, *, tenant_id: UUID, item_id: UUID) -> None:
         self._travar_calls.append((tenant_id, item_id))
 
@@ -634,7 +645,7 @@ def test_calcular_precos_memoiza_params_e_faixas_por_request() -> None:
         listar_calls.append(str(tenant_id))
         return original_listar(tenant_id=tenant_id)
 
-    repo_faixa_spy.listar = _listar_spy  # type: ignore[method-assign]
+    repo_faixa_spy.listar = _listar_spy  # type: ignore[method-assign] -- spy injetado no dataclass para contar chamadas; mypy não aceita método-assign em dataclass
 
     repo_regra = FakeRegraRepository()
 

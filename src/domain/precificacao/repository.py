@@ -39,6 +39,16 @@ class RegraRepository(Protocol):
         self, *, tenant_id: UUID, item_id: UUID
     ) -> list[RegraFormacaoPreco]: ...
 
+    def listar_vigentes_por_itens(
+        self, *, tenant_id: UUID, item_ids: list[UUID], em: datetime
+    ) -> dict[UUID, RegraFormacaoPreco]:
+        """Batch: dict item_id→regra vigente em `em` para N itens (anti N+1 — TL-PRC-14).
+
+        Items sem regra vigente não aparecem no resultado.
+        Fake implementa via loop sobre `obter_vigente` (testes isolados).
+        """
+        ...
+
     def travar_item(self, *, tenant_id: UUID, item_id: UUID) -> None:
         """Advisory lock namespace 880_404 por (tenant, item) — Fatia 1b.
 
