@@ -282,6 +282,11 @@ LOCAL_APPS = [
     # dentro desta fase). SSRF guard + HMAC canonical + DNS rebinding lock
     # + DPA enforcement (INV-WEBHOOK-OUT-001..005).
     "src.infrastructure.webhook_out.apps.WebhookOutConfig",
+    # Wave A frente colaboradores — #4 da cadeia (rh mínimo base nível 2).
+    # RH mínimo: identidade, papéis de negócio, habilidades, documentos, comissão.
+    # Tabela global CatalogoHabilidade (sem tenant_id, sem RLS — D-COL-5/TL-COL-10).
+    # Advisory lock namespace 880_405 (troca de DONO — ADR-0065/D-COL-4).
+    "src.infrastructure.colaboradores.apps.ColaboradoresConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
