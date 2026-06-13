@@ -6,20 +6,27 @@
 
 ## Última frente FECHADA — #4 `colaboradores` (2026-06-13)
 
-- Ritual P0→P9 completo. P9: 8 auditores → **8/8 PASS zero C/A/M após 2 passadas** (INV-RITUAL-001).
-  1ª passada 4 FAIL (documentos[] vazava por papel · teste placebo · raises genéricos · storage_port:object ·
-  partial_update sem audit comissão) → conserto causa-raiz → 2ª passada adversarial **8/8 PASS**. BAIXOs → R10.
-- Entregue: CRUD + papéis (signatário↔RT por usuario_id · DONO único · motorista pendência) + matriz
-  habilidades (catálogo seed global) + comissão default + documentos + desligamento (cascade+outbox) +
-  mascaramento PII multi-papel + /elegiveis DTO mínimo. Roldão: R-COL-1 motorista pendência / R-COL-2 ASO fora.
-- Detalhe: `docs/faseamento/colaboradores/matriz-reconciliacao.md` §8. (#3 precificacao FECHADA — diário.)
+- Ritual P0→P9. P9: 8 auditores → **8/8 PASS zero C/A/M após 2 passadas** (1ª pegou documentos[] vazando por
+  papel + teste placebo + storage_port:object + audit comissão; conserto causa-raiz). BAIXOs → R10. Detalhe: matriz §8.
+- Entregue: CRUD + papéis (signatário↔RT por usuario_id · DONO único · motorista pendência) + matriz habilidades
+  (catálogo seed global) + comissão + documentos + desligamento (cascade+outbox) + mascaramento PII + /elegiveis DTO.
+  Roldão: R-COL-1 motorista pendência / R-COL-2 ASO fora. (#3 precificacao FECHADA — diário.)
 
-## PRÓXIMA frente — #5 `orcamentos` (1ª ponta de receita)
+## Frente #5 `orcamentos` — P0/P1/P2 feitos, **PAUSADA por dependência** (2026-06-13)
 
-- Ordem cravada: `docs/faseamento/plano-dependencia-sistema.md` §7 (#5 orcamentos — consome
-  catálogo+precificacao; produz `Orcamento.Aprovado` → OS já tem consumer passivo).
-- Pré-reqs prontos: configuracoes-sistema ✅ · produtos-pecas-servicos ✅ · precificacao ✅ · colaboradores ✅.
-- Seguir ritual P0→P9 sem perguntar (feedback_ordem_dependencia).
+- P0 (T-ORC-000) + spec v1 + P2 (tech-lead+advogado APROVA C/ CORREÇÕES) prontos. Decisões Roldão:
+  R-ORC-1 equipamento no orçamento · R-ORC-2 aprovação lógica-agora/PDF-depois · **R-ORC-3 N equipamentos
+  por orçamento E OS + itens compartilhados**. Detalhe: `docs/faseamento/orcamentos/reviews-consolidado.md`.
+- ⛔ R-ORC-3 exige retrofit OS (1→N equip.). Envelope `Orcamento.Aprovado` muda (equip. por item).
+
+## PRÓXIMA frente — `os-multi-equipamento` (PRÉ-REQUISITO de orcamentos)
+
+- Retrofit CIRÚRGICO da OS (módulo fechado): `OS.equipamento` → nullable; equipamento por ATIVIDADE
+  (coluna `equipamento_id_desnormalizado` JÁ existe; índice INV-OS-CONC-001 já chaveia por ela — não move).
+  Migration RELAXANTE (não destrutiva) + ADR nova + emenda ADR-0023/INV-OS-ATIV-002/INV-OS-EQP-001 +
+  envelope header→item + OS publica `OS.Aberta` de volta. Esforço M, aditivo/reversível.
+- Acionar `consultor-rbc-iso17025`: recebimento por instrumento (cl. 7.5) — `equipamento_recebimento_id` por OS hoje.
+- Depois: orcamentos v2 (envelope por item + correções TL/ADV) → P3 → impl → P9.
 
 ## Pendência de produto aberta
 
