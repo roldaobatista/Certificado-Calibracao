@@ -23,6 +23,7 @@ from uuid import UUID
 from src.domain.produtos_pecas_servicos.entities import (
     ComponenteResolvido,
     PrecoResolvido,
+    TabelaPreco,
 )
 from src.domain.produtos_pecas_servicos.enums import StatusItem, TipoItem
 from src.domain.produtos_pecas_servicos.erros import (
@@ -51,6 +52,7 @@ def preco_para_os(
     tabela_id: UUID | None = None,
     item_repo: ItemCatalogoRepository | None = None,
     tabela_repo: TabelaPrecoRepository | None = None,
+    tabela_padrao: TabelaPreco | None = None,
 ) -> PrecoResolvido:
     """Resolve o preço de venda do item, com fallback por item (D-PRC-12).
 
@@ -70,6 +72,11 @@ def preco_para_os(
 
     `data_referencia` exige tz-aware (INV-VIG-004 propaga ValueError → 400).
     Repos injetáveis (Protocols) — default = adapters Django (RLS no contexto).
+
+    `tabela_padrao` (opcional, anti-N+1 TL-PRC-14): quando fornecida pelo chamador,
+    pula o `obter_padrao()` — constante por (tenant, request). Permite ao chamador
+    resolver a tabela UMA vez e reutilizá-la em cestas com N itens sem tabela
+    específica (PERF-MÉDIO-3 P9 — GATE-PRC-CALCULAR-BATCH-FULL).
     """
     itens = item_repo if item_repo is not None else DjangoItemCatalogoRepository()
     tabelas = tabela_repo if tabela_repo is not None else DjangoTabelaPrecoRepository()
@@ -103,9 +110,11 @@ def preco_para_os(
             if linha is not None:
                 tabela = tabela_especifica
 
-    # Fallback para tabela padrão se tabela_id=None ou sem linha na específica
+    # Fallback para tabela padrão se tabela_id=None ou sem linha na específica.
+    # Anti-N+1 (TL-PRC-14): usa `tabela_padrao` pré-resolvida pelo chamador quando
+    # fornecida — evita 1 query por item em cestas (GATE-PRC-CALCULAR-BATCH-FULL).
     if linha is None:
-        tabela = tabelas.obter_padrao(tenant_id=tenant_id)
+        tabela = tabela_padrao if tabela_padrao is not None else tabelas.obter_padrao(tenant_id=tenant_id)
         if tabela is None:
             raise PrecoTabelaAusenteError(
                 "tenant sem tabela de preço padrão — cadastre a tabela (ADR-0081)."
