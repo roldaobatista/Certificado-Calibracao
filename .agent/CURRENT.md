@@ -14,11 +14,13 @@
 - **PRÓXIMO: P3 — `plan.md` + `tasks.md` (T-PRC-010..) → implement → P7 → P8 → P9.**
 - Docs em `docs/faseamento/precificacao/`.
 
-## Frente AUDITORIA DE CERIMÔNIA — aplicação em curso
+## Frente AUDITORIA DE CERIMÔNIA — CONCLUÍDA E APLICADA (2026-06-12)
 
-- APROVADA INTEGRAL pelo Roldão 2026-06-12 (4 pacotes: A hooks / B auditores / C docs / D conformidade).
-- Pacotes B/C/D sendo aplicados nesta sessão; pacote A (dispatcher hooks pré-commit) = frente técnica própria.
-- Relatório: `docs/faseamento/auditorias/AUDITORIA-CERIMONIA-rodada-1.md`.
+- R1..R22 aplicados em 5 commits: hooks→pré-commit (write-time só anti-desastre) + ritual reformado
+  (2ª passada escopada, adversarial, severidade por tipo, BAIXOs em lote) + fonte única denylist +
+  conformidade→GATEs + REGRAS fatiada (invariantes-futuras.md).
+- Validado: `_test-runner` completo verde + gate anti-órfão + 1º bloqueio real do pré-commit (gerador corrigido).
+- Relatório: `docs/faseamento/auditorias/AUDITORIA-CERIMONIA-rodada-1.md` (§8 decisão+aplicação).
 
 ## Ordem das próximas frentes (#4 em diante)
 
