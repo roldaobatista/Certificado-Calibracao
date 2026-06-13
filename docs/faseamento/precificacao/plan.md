@@ -2,7 +2,7 @@
 owner: agente-ia
 revisado-em: 2026-06-12
 proximo-review: 2026-09-12
-status: draft
+status: stable
 proximo-passo: ready-for-implement (revisado pelo orquestrador 2026-06-12; stable em lote R22)
 diataxis: reference
 audiencia: [agente, tech-lead, auditor]

@@ -4,38 +4,25 @@
 
 **Modo:** AUTÔNOMO. **Fase:** Wave A em curso.
 
-## Frente EM CURSO — #3 `precificacao` (parcial, stub custo)
+## Última frente FECHADA — #3 `precificacao` (2026-06-13)
 
-- P0 FECHADO (`0f511d4`): greenfield; seams prontos (PPS, Imposto, moldes de porta, WORM Padrão B).
-- P1 FECHADO (`e9f5799`): spec v1 recorte Wave A sobre PRD US-PRC-001..008.
-- P2 FECHADO (`88cd519`): revisões tech-lead+advogado AMBAS APROVA COM CORREÇÕES; spec v2 stable.
-- Emendas cross-doc P2→P3 APLICADAS (`dcb8621`): retencao-matriz, lgpd-rat, ADR-0081 emenda.
-- Decisões Roldão batch (2026-06-12): dois modos de preço; alçadas 3 níveis; semáforo de margem.
-- P3 FECHADO (2026-06-12): plan+tasks ready-for-implement (23 T-PRC; lock 880_404; emenda modelo-dominio no P8).
-- Fatia 1a FECHADA (47 testes puros; fingerprint via canonicalizador de DOMÍNIO — conserto: domínio não importa infra).
-- Fatia 1b FECHADA (7 tabelas RLS v2/WORM/exclusion/advisory 880_404; drill 31/31; 14 testes PG; migrate 7/7).
-- **Fatia 2 FECHADA:** 11 E2E PG-real 11/11 verdes + 67 puros + ruff/mypy/hooks/makemigrations PASS.
-  Correções: `serializar_regra`+`serializar_pedido` alias `regra_id`/`pedido_id`; `_pode_ver_margem`
-  e `_derivar_papel_decisor` migrados para `DjangoAuthorizationProvider` (has_perm Django não usa
-  authz_perfil_acao); migration 0009 expandida com `alcada_dono`/`alcada_gerente`; RLS context em
-  query ORM do teste; `MARGEM_ALVO` exige `custo_referencia_em` (TL-PRC-07).
-- Fatia 3/P7 FECHADA: 12 INV-PRC em REGRAS + 27 TestINV_PRC + 3 hooks no manifest pré-commit (77 hooks/595 casos).
-- P8 FECHADO: matriz enxuta R20 (§1/§2/§8) + emenda modelo-dominio (CalculoPreco transiente) + 7 GATE-PRC-* + faseamento Wave B→A.
-- **EM CURSO: P9 — auditores roteados (qualidade·seg·llm·idemp·lgpd·produto + perf + obs) + adversarial MÉDIO+ → fecha frente.**
-- Docs em `docs/faseamento/precificacao/`.
+- Ritual P0→P9 completo. 5 fatias (domínio/schema/use cases+REST/P7/P8) + auditoria.
+- P9: 8 auditores roteados → **8/8 PASS zero C/A/M após 3 passadas** (INV-RITUAL-001 satisfeito).
+  1ª passada 4 MÉDIO (qual/prod/perf/obs) → conserto → 2ª passada adversarial **pegou 2 consertos
+  falsos** (obter_padrao docstring mentindo + correlation_id de fonte vazia) → conserto focado → 3ª PASS.
+- Entregue: motor de preço por cesta + 2 modos + alçadas 3 níveis + semáforo + vínculo cliente→tabela REST.
+- Decisões Roldão: 2 modos de preço / alçadas 10/20/dono / semáforo de margem (não reabrir).
+- Detalhe: `docs/faseamento/precificacao/matriz-reconciliacao.md` §8.
 
 ## Frente AUDITORIA DE CERIMÔNIA — CONCLUÍDA E APLICADA (2026-06-12)
 
-- R1..R22 aplicados em 5 commits: hooks→pré-commit (write-time só anti-desastre) + ritual reformado +
-  fonte única denylist + conformidade→GATEs + REGRAS fatiada. Validado: test-runner completo verde.
-- Relatório: `docs/faseamento/auditorias/AUDITORIA-CERIMONIA-rodada-1.md` (§8 decisão+aplicação).
+- R1..R22 aplicados (Roldão aprovou tudo): hooks→pré-commit, ritual reformado, denylist de contagens,
+  conformidade→GATEs, REGRAS fatiada. Relatório: `docs/faseamento/auditorias/AUDITORIA-CERIMONIA-rodada-1.md`.
 
-## Ordem das próximas frentes (#4 em diante)
+## PRÓXIMA frente — #4 `colaboradores` (base, seed habilidade estático)
 
-(plano: `docs/faseamento/plano-dependencia-sistema.md`)
-
-4. `colaboradores` (base, seed habilidade estático)
-5. `orcamentos`
+- Ordem cravada: `docs/faseamento/plano-dependencia-sistema.md` (#4 colaboradores → #5 orcamentos).
+- Seguir ritual P0→P9 sem perguntar (feedback_ordem_dependencia).
 
 ## Pendência de produto aberta
 
@@ -43,8 +30,6 @@ Terminologia B/C/D do M6 — veto item-a-item do Roldão pendente (cl. 8.1.3 "ca
 
 ## Ponteiros
 
-- Contagens (hooks/casos/ADRs/INVs): `docs/governanca/STATUS-GERADO.md`
-- ADRs vivas/frias: `docs/adr/INDICE.md`
+- Contagens: `docs/governanca/STATUS-GERADO.md` · ADRs: `docs/adr/INDICE.md`
 - Histórico M5→PPS: `docs/faseamento/diario/2026-06-12-consolidado-m5-a-pps.md`
-- Gates consolidados: `docs/governanca/STATUS-GERADO.md` + docs de cada frente
 - Proibido commit isolado de CURRENT.md — handoff entra no commit da fatia (R16).

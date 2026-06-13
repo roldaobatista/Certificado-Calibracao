@@ -217,8 +217,12 @@ fiscal) · `AprovacaoDescontoViewSet`: solicitar / decidir (one-shot; predicate
 ABAC **`alcada_cobre`** vinculado à action, resource={alcada_exigida, papel} —
 TL-PRC-11 molde M3) / pendentes · `ConfiguracaoPrecificacaoViewSet`:
 faixas-desconto (replace-all) / perfil-composicao / parametros (gated
-`configurar`|`ver_margem` — NUNCA só `calcular`). Ações authz `precificacao.*`
-(`configurar`, `calcular`, `ver_margem`, `aprovar_desconto`) + seed migration.
+`configurar`|`ver_margem` — NUNCA só `calcular`) · `VinculoTabelaClienteViewSet`:
+criar / revogar / listar vínculo cliente→tabela (gated `configurar`|`ver` —
+fecha AC-PRC-005-1 via REST). Ações authz `precificacao.*`: núcleo
+(`configurar`, `calcular`, `ver_margem`, `aprovar_desconto`) + granulares de RBAC
+(`ver` leitura sem margem, `solicitar_aprovacao`, `alcada_dono`, `alcada_gerente`
+— derivam o papel do decisor server-side; seed migrations 0006/0009).
 
 ## 8. Non-goals (além dos do PRD §5)
 

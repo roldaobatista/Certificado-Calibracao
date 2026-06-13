@@ -2,7 +2,7 @@
 owner: agente-ia
 revisado-em: 2026-06-13
 proximo-review: 2026-09-13
-status: draft
+status: stable
 diataxis: reference
 audiencia: [agente, auditor]
 frente: precificacao
@@ -65,15 +65,29 @@ relacionados:
 
 ---
 
-## 8. P9 — ritual auditores roteados (INV-RITUAL-003)
+## 8. P9 — ritual auditores roteados (INV-RITUAL-003) — VEREDITO FINAL
 
-> **Placeholder — preenchido no P9 (T-PRC-061).**
->
-> Auditores roteados: qualidade · segurança · llm-correctness · idempotência ·
-> conformidade-lgpd (PII em eventos/justificativa/RAT) · produto (6 essenciais
-> sempre) + performance (motor+porta+cesta — N+1/200ms) + observabilidade
-> (views financeiras + segredo em log). Supplychain N/A (núcleo sem dep nova).
-> Drift-docs FORA do fechamento (ritual R7).
->
-> Verificação adversarial de TODO MÉDIO+ antes do mutirão (ritual R6);
-> 2ª passada escopada (ritual R5). Meta: zero CRÍTICO/ALTO/MÉDIO (INV-RITUAL-001).
+**8 auditores roteados** (qualidade · segurança · llm-correctness · idempotência ·
+conformidade-lgpd · produto · performance · observabilidade). Supplychain N/A
+(núcleo sem dep nova); drift-docs FORA do fechamento (ritual R7). **Resultado:
+8/8 PASS ZERO CRÍTICO/ALTO/MÉDIO após 3 passadas — INV-RITUAL-001 satisfeito.**
+
+| Passada | Resultado |
+|---|---|
+| **1ª** | 4 PASS (segurança · llm · idempotência · lgpd) + **4 MÉDIO**: QUAL (E2E alçada provava barreira errada — perfil sem a ação) · PROD (vínculo cliente→tabela sem endpoint REST — AC-PRC-005-1 não-alcançável) · PERF (N+1 no calcular por cesta + teste na borda) · OBS (`_falha` sem correlation_id). Cada MÉDIO passou por **verificação adversarial** (R6) — os 4 confirmados reais. |
+| **conserto rodada 1** | 4 MÉDIO endereçados (gerente_operacional+assert codigo · `VinculoTabelaClienteViewSet` · batch regra · correlation_id). |
+| **2ª (escopada R5 + adversarial)** | QUAL·PROD PASS; SEG·IDEMP·LGPD PASS (endpoint vínculo novo); **PERF MÉDIO remanescente** (obter_padrao ainda 1×/item + docstring falsa + teste na borda) + **OBS FAIL** (correlation_id lido de GUC inexistente → sempre None). **A verificação adversarial pegou 2 consertos falsos** que a 1ª rodada declarou prontos. |
+| **conserto rodada 2 (focado)** | PERF: obter_padrao hoisteado 1×/request (closure + param `tabela_padrao` aditivo na PPS) + teste delta 36→27 teto 30 + GATE-PRC-CALCULAR-BATCH-FULL. OBS: lê `correlation_id_context` ContextVar real + teste prova id do header no log. |
+| **3ª (escopada PERF+OBS)** | **PERF PASS** (medição real: slope constante 3 q/item, regressão detectada por reversão) · **OBS PASS** (id real `317b7be0…` no log de falha). |
+
+**Achados BAIXO** (lote pós-fechamento R10): glossário "semáforo" (✅ aplicado) ·
+spec §7 ações authz granulares (ver/solicitar_aprovacao/alcada_*) (✅ aplicado) ·
+predicate `alcada_cobre` registrado é declarativo (barreira efetiva =
+`_alcada_papel_cobre` no use case) · GATE-PRC-ANONIMIZACAO-CONSUMER (wiring
+`Cliente.Anonimizado`→revoga vínculo) · script `checa-tst-mecanico` cego a
+famílias INV nomeadas (registro p/ dono do script).
+
+**Lição registrada:** a 1ª rodada de conserto "fechou" os 4 MÉDIO mas 2 eram
+aparência (docstring mentindo sobre obter_padrao; correlation_id de fonte vazia).
+A verificação adversarial da 2ª passada (R6) + a regra anti-mascaramento foram o
+que pegou — confirmação do valor da verificação cética antes de aceitar conserto.

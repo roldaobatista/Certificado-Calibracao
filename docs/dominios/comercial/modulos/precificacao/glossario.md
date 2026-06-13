@@ -34,6 +34,7 @@ relacionados:
 | histórico de preço praticado | série temporal imutável dos preços efetivamente fechados por item/cliente | "histórico de venda" sem qualificar | timeline WORM para análise | US-PRC-008 |
 | margem realizada | margem efetivamente obtida após fechamento (não a planejada) | "margem real" sem qualificar | número obtido após confronto preço × custo real | módulo `custeio-real` |
 | aprovação de desconto | registro imutável de quem aprovou/negou pedido de desconto fora da faixa | "ok do gerente" | evento auditável | US-PRC-004 |
+| semáforo de margem | indicador visual verde/amarelo/vermelho da saúde da margem, exibível ao vendedor sem revelar números (verde = acima do alvo, amarelo = entre alvo e piso, vermelho = abaixo do piso/mínimo, indisponível = sem custo/regra) | "alerta de margem" sem qualificar | sinal qualitativo de margem; números (custo/margem %) só com `precificacao.ver_margem` | US-PRC-003 (decisão Roldão 2026-06-12) |
 
 ---
 
