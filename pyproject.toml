@@ -198,6 +198,8 @@ module = [
     "src.infrastructure.precificacao.apps",
     "src.infrastructure.precificacao.repositories",
     "src.infrastructure.precificacao.migrations.*",
+    "src.infrastructure.colaboradores.views",
+    "src.infrastructure.colaboradores.serializers",
 ]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false

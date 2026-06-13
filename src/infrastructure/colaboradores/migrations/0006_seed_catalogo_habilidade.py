@@ -23,19 +23,39 @@ CATALOGO = [
     ("massa", "Calibração de instrumentos de pesagem e medição de massa", "massa"),
     ("volume", "Calibração de instrumentos de medição de volume e vazão estática", "volume"),
     ("temperatura", "Calibração de instrumentos de medição de temperatura", "temperatura"),
-    ("dimensional", "Calibração de instrumentos de medição dimensional e geométrica", "dimensional"),
+    (
+        "dimensional",
+        "Calibração de instrumentos de medição dimensional e geométrica",
+        "dimensional",
+    ),
     ("pressao", "Calibração de instrumentos de medição de pressão e vácuo", "pressao"),
-    ("eletricidade", "Calibração de instrumentos elétricos (tensão, corrente, resistência, potência)", "eletricidade"),
+    (
+        "eletricidade",
+        "Calibração de instrumentos elétricos (tensão, corrente, resistência, potência)",
+        "eletricidade",
+    ),
     ("tempo_frequencia", "Calibração de instrumentos de tempo e frequência", "tempo_frequencia"),
     ("vazao", "Calibração de medidores de vazão dinâmica (líquidos e gases)", "vazao"),
     ("torque", "Calibração de instrumentos de medição de torque e força", "torque"),
-    ("dureza", "Calibração de equipamentos de ensaio de dureza (Rockwell, Vickers, Brinell)", "dureza"),
+    (
+        "dureza",
+        "Calibração de equipamentos de ensaio de dureza (Rockwell, Vickers, Brinell)",
+        "dureza",
+    ),
     ("acustica", "Calibração de instrumentos de medição acústica e vibração", "acustica"),
     ("otica", "Calibração de instrumentos ópticos e de iluminância", "otica"),
     ("umidade", "Calibração de higrômetros e instrumentos de medição de umidade", "umidade"),
-    ("ph_condutividade", "Calibração de medidores de pH, condutividade e parâmetros eletroquímicos", "ph_condutividade"),
+    (
+        "ph_condutividade",
+        "Calibração de medidores de pH, condutividade e parâmetros eletroquímicos",
+        "ph_condutividade",
+    ),
     ("laboratorio_geral", "Habilidade geral de laboratório de calibração (suporte técnico)", None),
-    ("inspecao_metrologia_legal", "Inspeção e verificação em metrologia legal (INMETRO/IPEM)", "dimensional"),
+    (
+        "inspecao_metrologia_legal",
+        "Inspeção e verificação em metrologia legal (INMETRO/IPEM)",
+        "dimensional",
+    ),
 ]
 
 _CODIGOS = [row[0] for row in CATALOGO]

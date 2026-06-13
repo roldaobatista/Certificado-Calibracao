@@ -62,9 +62,7 @@ class _AtivoManager(models.Manager["Colaborador"]):
 
     def get_queryset(self) -> models.QuerySet[Colaborador]:
         return (
-            super()
-            .get_queryset()
-            .filter(data_desligamento__isnull=True, deletado_em__isnull=True)
+            super().get_queryset().filter(data_desligamento__isnull=True, deletado_em__isnull=True)
         )
 
 

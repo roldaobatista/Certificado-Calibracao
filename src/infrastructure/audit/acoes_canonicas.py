@@ -394,6 +394,23 @@ ACOES_PRECIFICACAO: Final[frozenset[str]] = frozenset(
 )
 
 
+# Frente colaboradores (T-COL-036) — Wave A nível 2.
+# Eventos cross-módulo via outbox=True (6 consumers INV-INT-011 — módulos futuros).
+# PII pseudonimizada por evento (D-COL-8 / ADV-COL-06): cpf_hash, nome_hash,
+# ator_id_hash, motivo_hash via HMAC-tenant (ADR-0029/0064). UUIDs/refs em claro.
+ACOES_COLABORADORES: Final[frozenset[str]] = frozenset(
+    {
+        "colaborador.cadastrado",
+        "colaborador.papel_atribuido",
+        "colaborador.papel_revogado",
+        "colaborador.habilidade_atualizada",
+        "colaborador.desligado",
+        # Contrato futuro — materialização no GATE-LGPD-RAT-CONSOLIDACAO (A5)
+        "colaborador.anonimizado",
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -411,6 +428,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_CONFIG
     | ACOES_CATALOGO
     | ACOES_PRECIFICACAO
+    | ACOES_COLABORADORES
 )
 
 

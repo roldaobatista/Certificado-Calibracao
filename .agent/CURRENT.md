@@ -19,10 +19,12 @@
 - R1..R22 aplicados (Roldão aprovou tudo): hooks→pré-commit, ritual reformado, denylist de contagens,
   conformidade→GATEs, REGRAS fatiada. Relatório: `docs/faseamento/auditorias/AUDITORIA-CERIMONIA-rodada-1.md`.
 
-## PRÓXIMA frente — #4 `colaboradores` (base, seed habilidade estático)
+## Frente EM CURSO — #4 `colaboradores` (base, seed habilidade estático)
 
-- Ordem cravada: `docs/faseamento/plano-dependencia-sistema.md` (#4 colaboradores → #5 orcamentos).
-- Seguir ritual P0→P9 sem perguntar (feedback_ordem_dependencia).
+- P0→P6 fechados: domínio + schema PG + use cases/REST (Fatia 1a/1b/2). 94 testes verdes
+  (55 domínio + 12 schema + 27 API E2E). Decisões Roldão R-COL-1 (motorista pendência) + R-COL-2 (ASO fora).
+- PRÓXIMO: P7 — INV-COL-* + hooks + evento Colaborador.Anonimizado · P8 emendas · P9 auditores.
+- Ritual P0→P9 sem perguntar (feedback_ordem_dependencia).
 
 ## Pendência de produto aberta
 

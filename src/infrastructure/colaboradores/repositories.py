@@ -103,7 +103,11 @@ class DjangoColaboradorRepository:
         """Lista colaboradores ativos, opcionalmente filtrados por papel."""
         qs = ColaboradorModel.ativos.filter(tenant_id=tenant_id)
         if papel is not None:
-            qs = qs.filter(papeis__papel=papel.value, papeis__data_fim__isnull=True, papeis__revogado_em__isnull=True)
+            qs = qs.filter(
+                papeis__papel=papel.value,
+                papeis__data_fim__isnull=True,
+                papeis__revogado_em__isnull=True,
+            )
         return [mappers.colaborador_model_para_entidade(m) for m in qs.distinct()]
 
     def salvar(self, colaborador: Colaborador) -> None:
@@ -139,9 +143,7 @@ class DjangoColaboradorRepository:
         motivo_desligamento: str,
     ) -> None:
         """Registra desligamento: preenche data_desligamento + motivo."""
-        ColaboradorModel.objects.filter(
-            tenant_id=tenant_id, id=colaborador_id
-        ).update(
+        ColaboradorModel.objects.filter(tenant_id=tenant_id, id=colaborador_id).update(
             data_desligamento=data_desligamento,
             motivo_desligamento=motivo_desligamento,
         )
@@ -156,9 +158,7 @@ class DjangoColaboradorRepository:
         deletado_motivo: str,
     ) -> None:
         """Soft-delete Padrão C (D-COL-3): preenche deletado_em + auditoria."""
-        ColaboradorModel.objects.filter(
-            tenant_id=tenant_id, id=colaborador_id
-        ).update(
+        ColaboradorModel.objects.filter(tenant_id=tenant_id, id=colaborador_id).update(
             deletado_em=deletado_em,
             deletado_por_usuario_id=deletado_por_usuario_id,
             deletado_motivo=deletado_motivo,
@@ -180,9 +180,9 @@ class DjangoPapelRepository:
         colaborador_id: UUID,
     ) -> list[PapelColaboradorAtribuido]:
         """Retorna todos os papéis do colaborador (incluindo revogados — audit)."""
-        qs = PapelModel.objects.filter(
-            tenant_id=tenant_id, colaborador_id=colaborador_id
-        ).order_by("criado_em")
+        qs = PapelModel.objects.filter(tenant_id=tenant_id, colaborador_id=colaborador_id).order_by(
+            "criado_em"
+        )
         return [mappers.papel_model_para_entidade(m) for m in qs]
 
     def existe_dono_ativo(self, *, tenant_id: UUID) -> bool:
@@ -218,9 +218,7 @@ class DjangoPapelRepository:
         revogado_em: datetime,
     ) -> None:
         """Revogação: seta revogado_em; nunca apaga a linha (audit)."""
-        PapelModel.objects.filter(
-            tenant_id=tenant_id, id=papel_id
-        ).update(revogado_em=revogado_em)
+        PapelModel.objects.filter(tenant_id=tenant_id, id=papel_id).update(revogado_em=revogado_em)
 
     def revogar_todos_ativos(
         self,
@@ -282,9 +280,7 @@ class DjangoHabilidadeRepository:
         tenant_id: UUID,
         habilidade_id: UUID,
     ) -> None:
-        HabilidadeModel.objects.filter(
-            tenant_id=tenant_id, id=habilidade_id
-        ).delete()
+        HabilidadeModel.objects.filter(tenant_id=tenant_id, id=habilidade_id).delete()
 
 
 # =============================================================
@@ -325,9 +321,7 @@ class DjangoDocumentoRepository:
         tenant_id: UUID,
         documento_id: UUID,
     ) -> None:
-        DocumentoModel.objects.filter(
-            tenant_id=tenant_id, id=documento_id
-        ).delete()
+        DocumentoModel.objects.filter(tenant_id=tenant_id, id=documento_id).delete()
 
 
 # =============================================================

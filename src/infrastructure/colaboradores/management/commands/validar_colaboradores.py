@@ -63,7 +63,12 @@ ACOES_SEED = (
     "colaboradores.consultar_elegiveis",
 )
 
-GRANTS_FULL = ("colaborador", "colaborador_papel", "colaborador_habilidade", "colaborador_documento")
+GRANTS_FULL = (
+    "colaborador",
+    "colaborador_papel",
+    "colaborador_habilidade",
+    "colaborador_documento",
+)
 
 
 def _fetchone(cur: Any) -> Any:
@@ -134,8 +139,7 @@ class Command(BaseCommand):
             # 5. CHECKs
             for ck in CHECKS:
                 cur.execute(
-                    "SELECT COUNT(*) FROM pg_constraint "
-                    "WHERE conname=%s AND contype='c';",
+                    "SELECT COUNT(*) FROM pg_constraint " "WHERE conname=%s AND contype='c';",
                     [ck],
                 )
                 check(_fetchone(cur)[0] >= 1, f"CHECK {ck} existe")
@@ -169,8 +173,7 @@ class Command(BaseCommand):
 
             # 8. Seed authz — 10 ações colaboradores.*
             cur.execute(
-                "SELECT COUNT(DISTINCT acao) FROM authz_perfil_acao "
-                "WHERE acao = ANY(%s);",
+                "SELECT COUNT(DISTINCT acao) FROM authz_perfil_acao " "WHERE acao = ANY(%s);",
                 [list(ACOES_SEED)],
             )
             n_acoes = _fetchone(cur)[0]

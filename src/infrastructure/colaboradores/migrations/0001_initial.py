@@ -64,7 +64,6 @@ DROP INDEX IF EXISTS uq_col_cpf_ativo;
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
