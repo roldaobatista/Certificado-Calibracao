@@ -1,6 +1,6 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
+revisado-em: 2026-06-13
 status: draft
 modulo: colaboradores
 dominio: rh-frota-qualidade
@@ -30,12 +30,12 @@ dominio: rh-frota-qualidade
 
 ### E-COL-04 — Documentos do colaborador (ZIP)
 - **Quem dispara:** Dono (próprio colaborador também via self-service).
-- **Conteúdo:** PDF + ZIP de CTPS, CNH, certificados, ASO.
+- **Conteúdo:** PDF + ZIP de CTPS, CNH, certificados de curso. **ASO não está incluso** (R-COL-2 — dado de saúde art. 11; dono é módulo `seguranca-trabalho`).
 - **Uso:** Auditoria fiscal ou solicitação do colaborador (LGPD art. 18 — direito de acesso).
 
 ## Mascaramento LGPD
 
-- CPF: visível só pra Dono. Demais perfis veem `***.***.***-**` ou últimos 3 dígitos.
+- CPF: visível só pra Dono. Demais perfis veem `***.***.***-NN` (**últimos 2 dígitos** — TL-COL-05 / D-COL-7).
 - E-mail e telefone: visíveis pra Dono / Gerente / próprio colaborador.
 - Documentos pessoais (CTPS, CNH): só Dono + próprio colaborador.
 

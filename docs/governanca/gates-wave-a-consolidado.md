@@ -28,10 +28,12 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | Bus / integração (BUS-*) | 5 | 4 | 1 | 0 (envelope retrofit Onda 3) |
 | Operação / Drill (OPS-*) | 6 | 6 | 0 | 0 |
 | Precificacao (PRC-* + WIREIN) | 8 | 8 | 0 | 0 |
-| **TOTAL** | **94** | **84** | **7** | **3** |
+| **Colaboradores (COL-*)** | **4** | **4** | **0** | **0** |
+| **TOTAL** | **98** | **88** | **7** | **3** |
 
 > Adicionados em 2026-06-12 (auditoria de cerimônia R17/R18): GATE-LGPD-RAT-CONSOLIDACAO + GATE-CGCRE-DOSSIE-PROSA.
 > Adicionados em 2026-06-13 (P8 precificacao): GATE-PRC-CUSTEIO-REAL + GATE-PRC-HISTORICO-ORCAMENTOS + GATE-PRC-ALERTA-GESTOR + GATE-PRC-NOTIFICACAO + GATE-PRC-COMISSAO-REAL + GATE-PRC-TABELA-CONTRATO + GATE-PPS-WIREIN-OS (movido da seção PPS para cá, onde o contexto do consumidor `precificacao` está completo).
+> Adicionados em 2026-06-13 (P8 colaboradores — T-COL-060): GATE-COL-ANEXO-B2 + GATE-COL-COMISSAO-COUNT + GATE-COL-CONSUMERS + GATE-COL-PERFIL-MATRIZ. GATE-LGPD-RAT-CONSOLIDACAO já existia — colaboradores adiciona insumos A3/A4/A6/A7/OAB-PRE-PROD ao seu escopo (ver nota na seção COL).
 
 ---
 
@@ -204,6 +206,21 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | GATE-PPS-WIREIN-OS | 🔴 **bloqueante pré-1º tenant externo** | Preço da OS avulsa hoje é client-supplied (`ordens_servico/views.py:507`); conserto via porta `preco_para_os` fail-closed **consome a frente `precificacao`** (resolução de tabela por cliente via `VinculoTabelaPrecoCliente` + `_resolver_preco_com_fallback`). Porta pronta e testada — o wire-in é da frente OS | Tech-lead | Antes do 1º tenant externo pago |
 | GATE-PRC-CALCULAR-BATCH-FULL | 🟡 | Batch completo de `preco_para_os` para a cesta — hoje ~3 q/item intrínsecas (item_catalogo + item_catalogo_versao + linha_tabela_preco). Otimização requer redesign do `preco_para_os` para resolver múltiplos itens em queries batch. Aceitável no dogfooding com cesta pequena. `obter_padrao` já é 1x/request (PERF-MÉDIO-3 P9 consertado). | Tech-lead | Wave B / antes de cesta com N>50 itens |
 | GATE-PRC-ANONIMIZACAO-CONSUMER | 🟡 | `apps.py ready()` precisa `registrar_consumer("Cliente.Anonimizado", ...)` que revoga o `VinculoTabelaPrecoCliente` vigente do cliente anonimizado (repo `revogar` pronto; estrutura ADR-0032 correta; só falta o wiring do consumer no bus). Achado BAIXO LGPD P9. Sem ele, o `cliente_id` pseudônimo permanece no vínculo pós-anonimização. | Tech-lead | Junto do wiring de eventos cross-módulo (integração OS) |
+
+---
+
+### Frente `colaboradores` (#4 cadeia de construção)
+
+> Adicionados em 2026-06-13 (P8 colaboradores — T-COL-060). Nenhum bloqueia o fechamento do núcleo da frente; cada um destrava um módulo ou capacidade futura específica.
+
+| GATE | Severidade | Bloqueia | Owner | Prazo |
+|---|---|---|---|---|
+| GATE-COL-ANEXO-B2 | 🟡 | B2 WORM real de documentos+foto de colaborador (hoje `AnexoStorageLocal`) | Tech-lead | Antes do 1º dado pessoal real em produção (junto GATE-LGPD-RAT-CONSOLIDACAO) |
+| GATE-COL-COMISSAO-COUNT | 🟡 | `comissoes_pendentes_count` real no payload `Colaborador.Desligado`; hoje `=0` stub | Tech-lead | Quando frente `comissoes` (N6) for construída |
+| GATE-COL-CONSUMERS | 🔴 | 6 handlers de `Colaborador.Desligado` ativos: `acesso-seguranca`, `os`, `comissoes`, `caixa-tecnico`, `certificados`, `suporte-saas` | Tech-lead | Quando cada módulo downstream for construído (plugam no outbox sem retrofit do publisher) |
+| GATE-COL-PERFIL-MATRIZ | 🟡 | Predicate `can_assign_signatario` perfil-aware em produção (linha adicionada à `matriz-feature-perfil.md` — T-COL-060) | Tech-lead | Wave A / junto das demais features perfil-aware (ADR-0067) |
+
+> **GATE-LGPD-RAT-CONSOLIDACAO** (já listado na seção LGPD acima): colaboradores adiciona ao escopo desse GATE os insumos A3 (RAT CTPS/CNH/foto/cert), A4 (retenção por campo), A6 (zona ADR-0021 por campo), A7 (DPIA cadastro) e `[OAB-PRE-PROD]` listados na `docs/faseamento/colaboradores/matriz-reconciliacao.md`. A constante `BASE_LEGAL_POR_VINCULO_E_CATEGORIA` (`src/domain/rh_frota_qualidade/colaboradores/base_legal.py`) é o insumo de domínio que o RAT irá fotografar.
 
 ---
 

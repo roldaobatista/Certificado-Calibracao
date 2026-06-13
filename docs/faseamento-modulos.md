@@ -102,7 +102,7 @@ status: stable
 | `suporte-plataforma/` | `gestao-documental` 🆕 | DMS interno (versões, retenção, WORM) |
 | `suporte-plataforma/` | `suporte-saas` 🆕 | Suporte interno do Aferê pros tenants |
 | `suporte-plataforma/` | `release-management` 🆕 | Changelog visível pro cliente |
-| `rh-frota-qualidade/` | `colaboradores` | Cadastro RH base (treinamentos já no MVP-1) |
+| `rh-frota-qualidade/` | ~~`colaboradores`~~ 🆕 ⏩ | **MOVIDO pra Wave A nível 2 (2026-06-13 — frente #4 do plano-dependencia-sistema):** pré-req DURO de 6 módulos Wave A (agenda, app-tecnico, treinamentos, SST, frota, comissoes); seed `CatalogoHabilidade` literal global em `colaboradores` (quebra aresta runtime com `calibracao` — gap #4). Spec: `docs/faseamento/colaboradores/spec.md` |
 | `rh-frota-qualidade/` | `qualidade` | SGQ, NC, ação corretiva |
 | `rh-frota-qualidade/` | `auditoria-externa` 🆕 | Suporte a auditoria RBC/ISO/cliente |
 | `dados/` | `bi` 🆕 | Cubos, painéis gerenciais, exports |

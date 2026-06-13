@@ -1,6 +1,6 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
+revisado-em: 2026-06-13
 status: draft
 modulo: colaboradores
 dominio: rh-frota-qualidade
@@ -22,7 +22,7 @@ dominio: rh-frota-qualidade
 - **Seções:** Dados pessoais, Vínculo, Papéis, Habilidades, Documentos, Comissão.
 - **Validação CPF:** Formato + dígito verificador + dedup tenant (INV-024 espelhado) com mensagem: "Já existe colaborador com este CPF nesta empresa".
 - **Papel "Signatário":** Habilita campo "Escopo de assinatura" (link para módulo responsabilidade-técnica). Sem escopo → botão "Salvar" bloqueado com tooltip "Signatário precisa de escopo declarado (regra ISO)".
-- **Papel "Motorista UMC":** Habilita anexo CNH obrigatório + categoria (B/C/D/E).
+- **Papel "Motorista UMC":** Habilita campo de CNH + categoria (B/C/D/E). Se CNH não for anexada, o botão "Salvar" **não bloqueia** — salva com `pendencia_cnh=true` e exibe aviso "CNH pendente: este colaborador não poderá ser alocado em OS de campo até regularização" (R-COL-1). O bloqueio de alocação acontece em frota/agenda, não no cadastro.
 - **Habilidades:** Multi-select com sugestão do catálogo + livre. Cada habilidade tem nível.
 - **Comissão padrão:** Slider 0-100% com 2 casas decimais. Mudança grava audit (INV-001).
 - **Acessibilidade:** WCAG 2.1 AA (INV-016) — labels, foco visível, contraste 4.5:1, navegação teclado.
@@ -43,7 +43,7 @@ dominio: rh-frota-qualidade
 |---|---|
 | INV-024 violation | "Já existe colaborador com este CPF nesta empresa." |
 | INV-003 violation | "Pra atribuir o papel de Signatário, o escopo de assinatura precisa estar declarado." |
-| CNH ausente em motorista UMC | "Motorista UMC precisa de CNH anexada e categoria selecionada (regra de trânsito)." |
+| CNH ausente em motorista UMC (cadastro) | Aviso não-bloqueante: "CNH pendente: este colaborador não poderá ser alocado em OS de campo até regularização." (R-COL-1 — salva com pendência; não bloqueia cadastro) |
 | Validação CPF | "Esse CPF não parece válido. Confira os números." |
 
 ## Componentes reutilizáveis

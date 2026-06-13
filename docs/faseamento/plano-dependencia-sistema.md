@@ -123,6 +123,8 @@ configuracoes-sistema   →   produtos-pecas-servicos   →   precificacao   →
 
 9. **Engine de automações (ADR-0005) ainda PROPOSTA.** Pré-req duro de `automacoes-bpm` e do motor de régua do `crm`. **Ação:** aceitar ADR-0005 antes do nível 8.
 
+> **NOTA (2026-06-13 — colaboradores P8 / T-COL-060):** o gap #4 desta seção apontava `configuracoes-sistema` como opção de casa para o seed `CatalogoHabilidade`. Após implementação da frente `colaboradores` (spec §3 D-COL-5 / TL-COL-10 / plan.md §decisões nº 4), **a decisão foi criar o model `CatalogoHabilidade` em `src/infrastructure/colaboradores/` com seed literal global** (lista de grandezas: massa, volume, temperatura, dimensional, pressão, …) via `RunPython` na migration da frente, seguindo o molde global de `authz/0003`. Isso quebra a aresta runtime com `calibracao` sem poluir `configuracoes-sistema` com tabela de RH. A opção (a) do gap #4 foi implementada, mas com modelo próprio em `colaboradores` — não em `configuracoes-sistema`.
+
 > **NÃO é gap:** `responsabilidade-tecnica`. Auditoria adversarial #3 + verificação no código confirmam que `src/infrastructure/responsavel_tecnico/` **JÁ existe como módulo de 1ª classe** (models `ResponsavelTecnicoTenant` + `RTCompetencia`, `predicates.py`, `services_rt.py`, `views.py`, `urls.py`, migrations) e já é consumido pelos módulos de metrologia. Nenhuma ação de criação necessária. (A premissa "conceito sem dono" das verificações iniciais estava factualmente errada — corrigida aqui.)
 
 ---

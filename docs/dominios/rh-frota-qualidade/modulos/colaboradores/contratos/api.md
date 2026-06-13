@@ -1,6 +1,6 @@
 ---
 owner: Roldão
-revisado-em: 2026-05-17
+revisado-em: 2026-06-13
 status: draft
 modulo: colaboradores
 dominio: rh-frota-qualidade
@@ -25,7 +25,7 @@ dominio: rh-frota-qualidade
   - CPF formato + dígito verificador.
   - UNIQUE (tenant_id, cpf) → 409 `{ error: "DUPLICATE_CPF", message: "..." }` (INV-024 espelhado).
   - Papel SIGNATARIO sem escopo → 422 `{ error: "SIGNATARIO_SEM_ESCOPO" }` (INV-003).
-  - Papel MOTORISTA_UMC sem CNH → 422 `{ error: "MOTORISTA_SEM_CNH" }`.
+  - Papel MOTORISTA_UMC sem CNH → **salva com `pendencia_cnh=true`** (R-COL-1). Não retorna 422 no cadastro; o bloqueio ocorre na alocação (frota/agenda).
 - **Audit:** Grava INV-001.
 
 ### `GET /api/v1/colaboradores/{id}`
@@ -66,7 +66,9 @@ dominio: rh-frota-qualidade
 { "error": "CODIGO", "message": "Mensagem em PT-BR sem jargão", "field": "campo_opcional" }
 ```
 
-Códigos: `DUPLICATE_CPF`, `SIGNATARIO_SEM_ESCOPO`, `MOTORISTA_SEM_CNH`, `CPF_INVALIDO`, `TENANT_LIMIT_EXCEEDED`, `COLABORADOR_INATIVO`.
+Códigos: `DUPLICATE_CPF`, `SIGNATARIO_SEM_ESCOPO`, `CPF_INVALIDO`, `TENANT_LIMIT_EXCEEDED`, `COLABORADOR_INATIVO`.
+
+> **Removidos (R-COL-1/2):** `MOTORISTA_SEM_CNH` — MOTORISTA_UMC sem CNH salva com pendência (não 422); `ASO` — dado de saúde art. 11, dono é módulo `seguranca-trabalho`.
 
 ## Rate limit
 
