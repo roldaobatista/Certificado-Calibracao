@@ -12,7 +12,8 @@
 - Emendas cross-doc P2→P3 APLICADAS (`dcb8621`): retencao-matriz, lgpd-rat, ADR-0081 emenda.
 - Decisões Roldão batch (2026-06-12): dois modos de preço; alçadas 3 níveis; semáforo de margem.
 - P3 FECHADO (2026-06-12): plan+tasks ready-for-implement (23 T-PRC; lock 880_404; 6 migrations;
-  emenda modelo-de-dominio no P8). **EM CURSO: implement Fatia 1a (domínio puro, T-PRC-010..016).**
+  emenda modelo-de-dominio no P8). Fatia 1a FECHADA (47 testes puros; fingerprint via canonicalizador
+  de DOMÍNIO — conserto orquestrador: domínio não importa infrastructure). **EM CURSO: Fatia 1b schema PG.**
 - Docs em `docs/faseamento/precificacao/`.
 
 ## Frente AUDITORIA DE CERIMÔNIA — CONCLUÍDA E APLICADA (2026-06-12)
