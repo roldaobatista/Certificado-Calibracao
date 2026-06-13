@@ -19,7 +19,7 @@
   e `_derivar_papel_decisor` migrados para `DjangoAuthorizationProvider` (has_perm Django não usa
   authz_perfil_acao); migration 0009 expandida com `alcada_dono`/`alcada_gerente`; RLS context em
   query ORM do teste; `MARGEM_ALVO` exige `custo_referencia_em` (TL-PRC-07).
-- **PRÓXIMO: P3 plan já fechado → Fatia 3 (integração OS ↔ precificacao), ou próxima frente #4 `colaboradores`.**
+- **EM CURSO: Fatia 3 (P7 — INV-PRC em REGRAS + TestINV_PRC + 3 hooks no manifest pré-commit, T-PRC-050..052) → P8 → P9.**
 - Docs em `docs/faseamento/precificacao/`.
 
 ## Frente AUDITORIA DE CERIMÔNIA — CONCLUÍDA E APLICADA (2026-06-12)

@@ -419,6 +419,44 @@
 
 ---
 
+## INV-PRC-* — Invariantes da frente precificacao (Wave A `precificacao`)
+
+> **Família canônica cravada 2026-06-13 (precificacao Fatia 3/P7 — T-PRC-050).**
+> Fonte: spec v2 revisada por `tech-lead` (TL-PRC-01..18) + `advogado` (ADV-PRC-01..09),
+> ambos APROVA COM CORREÇÕES (`docs/faseamento/precificacao/spec.md` §5/§10). Classes
+> nomeadas `TestINV_PRC_*` em `tests/regressao/test_inv_prc_classes_nomeadas.py`
+> (TST-004). Frente #3 da cadeia de preço (plano-dependencia-sistema); consumida por
+> `orcamentos`/`os` (GATE-PPS-WIREIN-OS **bloqueante pré-1º tenant externo**).
+
+| ID | Regra | Base normativa | Hook que valida | Escopo por perfil | Consequência de violar |
+|---|---|---|---|---|---|
+| INV-PRC-COSTPLUS-STUB | **Publicar regra `COST_PLUS` exige `CustoProvider.disponivel() == True`; sob stub → 422 `CustoRealIndisponivel` (D-PRC-6).** Mecânica: função de domínio pura recebe `custo_real_disponivel: bool`; use case `publicar_regra` consulta o `CustoProvider`. Gate em tempo de CONFIGURAÇÃO — fail-open geraria prejuízo silencioso (gap #6 spec). Assimetria com m7 (fail-open lazy) é LEGÍTIMA. | D-PRC-5/6; INV-026 | Hook `prc-costplus-stub-check` (manifest pré-commit) + `TestINV_PRC_COSTPLUS_STUB` | Absoluta (todos perfis) | COST_PLUS publicado com custo fictício → preço calculado sem custo real → margem negativa não detectada na emissão da OS |
+| INV-PRC-REGRA-IMUTAVEL | **`RegraFormacaoPreco` é WORM Padrão B (molde Imposto — D-PRC-7):** campos probatórios congelados pós-INSERT; `vigencia_fim` one-shot; `revogado_em`+motivo one-shot; DELETE bloqueado (retenção — CC art. 205). Corrigir = revogar+recriar na MESMA transação, nunca UPDATE. `versao_n` denso `max+1` sob advisory lock namespace 880_404. | D-PRC-7; INV-026; ADR-0031 Padrão B; CC art. 205 | Triggers `regra_formacao_preco_{worm,block_delete}_trg` (migration 0003) + `TestINV_PRC_REGRA_IMUTAVEL` | Absoluta (todos perfis) | Preço de regra reescrito ex-post diverge do que orçamentos/OS snapshotaram — história apagada |
+| INV-PRC-REGRA-SEM-SOBREPOSICAO | **Duas regras não-revogadas do MESMO `(tenant, item)` não sobrepõem vigência** — "regra vigente em D" é determinístico (≤1 resultado). Exclusion `btree_gist` half-open `[)` `WHERE revogado_em IS NULL` (molde PPS 0004). Revogada+substituta na MESMA janela é o caminho de correção. | D-PRC-7; ADR-0031 | Exclusion `excl_prc_regra_vigencia` (migration 0004) + `TestINV_PRC_REGRA_SEM_SOBREPOSICAO` | Absoluta (todos perfis) | Duas regras ativas no mesmo dia = preço não-determinístico; OS aplica regra errada |
+| INV-PRC-APROVACAO-ONE-SHOT | **`PedidoAprovacaoDesconto.estado` transita SOLICITADO→APROVADO|NEGADO e NUNCA volta.** UPDATE escopado em SOLICITADO + trigger one-shot no banco bloqueiam 2ª decisão (molde trigger one-shot pedido ADR-0031 Padrão B probatório). | D-PRC-14; ADR-0031 | Trigger `pedido_aprovacao_estado_one_shot_trg` (migration 0003) + `TestINV_PRC_APROVACAO_ONE_SHOT` | Absoluta (todos perfis) | Desconto re-negado ou re-aprovado após decisão = fraude contratual; histórico probatório invalida |
+| INV-PRC-APROVACAO-INDEPENDENTE | **`decisor_id != solicitante_id` em `PedidoAprovacaoDesconto`.** Dupla barreira: domínio (`validar_decisor_independente`) + CHECK constraint no banco (TL-PRC-10 / molde ADR-0026 2ª conferência metrológica). | D-PRC-14; TL-PRC-10; ADR-0026 (molde) | CHECK `ck_prc_pedido_decisor_independente` (migration 0001) + domínio `validar_decisor_independente` + `TestINV_PRC_APROVACAO_INDEPENDENTE` | Absoluta (todos perfis) | Auto-aprovação de desconto = controle interno nulo; nenhum rastro probatório de supervisão |
+| INV-PRC-MINIMO-BLOQUEIO | **422 duro `PrecoMinimoViolado` quando mínimo é calculável e preço_final < mínimo (D-PRC-8). NUNCA aprovável via alçada** — o limite existe para proteger margem mínima, não para ser negociado. Sem custo → mínimo `INDISPONIVEL`, governam só as alçadas. | D-PRC-8; AC-PRC-003-3 | Lógica `_calcular_item` em `transicoes.py` + `TestINV_PRC_MINIMO_BLOQUEIO` | Absoluta (todos perfis) | Desconto abaixo do mínimo calculável = venda abaixo do custo; prejuízo direto por autorização |
+| INV-PRC-CUSTO-EXPLICITO | **`StubCustoProvider` NUNCA retorna 0 — ausência de custo real é `CustoIndisponivel` TIPADO.** 0 silencioso mascararia custo ausente como "custo zero" e calcularia margem fictícia de 100% (D-PRC-5). Origin `INDISPONIVEL` explícita no resultado do motor. | D-PRC-5; INV-026 | `StubCustoProvider` em `portas.py` (levanta `CustoIndisponivel`) + `TestINV_PRC_CUSTO_EXPLICITO` | Absoluta (todos perfis) | Custo "zero" gera semáforo VERDE falso — vendedor acredita que não há custo e pratica preço inviável |
+| INV-PRC-MARGEM-RBAC | **`filtrar_visao_margem()` é o choke-point ÚNICO aplicado em TODOS os serializers de saída da frente** (incluindo pedido de aprovação — ADV-PRC-06). `semaforo`/`preco_minimo` visíveis a qualquer papel com `calcular`; `margem_estimada`/`custo_estimado` SÓ com `ver_margem`. | D-PRC-4; ADV-PRC-06 | Hook `prc-margem-rbac-check` (manifest pré-commit) + teste UNHAPPY por endpoint + `TestINV_PRC_MARGEM_RBAC` | Absoluta (todos perfis) | Vazamento de custo/margem expõe segredo comercial ao vendedor; CDC + LGPD art. 6º (finalidade) violados |
+| INV-PRC-SEGREDO-LOG | **Custo, margem, parâmetros comerciais e justificativa NUNCA aparecem em log estruturado, mensagem de exceção, payload de evento em claro, corpo 4xx/5xx.** `_falha()` loga só `type(exc).__name__` (ADV-PRC-06). Valores de Parâmetros/Faixas NUNCA entram em evento (diff de NOMES — segredo comercial D-PRC-15). | ADV-PRC-06; D-PRC-15; LGPD art. 6º | Revisão manual em code review (D-PRC-4) + `TestINV_PRC_SEGREDO_LOG` (E2E confirma que log não vaza) | Absoluta (todos perfis) | Stack trace com custo/margem em log = exposição de segredo comercial a qualquer operador com acesso a logs |
+| INV-PRC-JUSTIFICATIVA-HASH | **Texto livre de justificativa NUNCA cru em WORM ou evento** — WORM recebe `justificativa_hash` (ADR-0029 + HMAC-tenant); cru fica em `JustificativaDecisaoDesconto` mutável + soft-delete (D-PRC-15). Garante eliminabilidade por crypto-shredding (LGPD art. 18 VI). | D-PRC-15; ADR-0029; LGPD art. 18 VI | Hook `prc-evento-pii-hash-check` (manifest pré-commit) + `TestINV_PRC_JUSTIFICATIVA_HASH` | Absoluta (todos perfis) | Texto cru em WORM = PII ineliminável após solicitação titular; LGPD art. 18 impossível de cumprir |
+| INV-PRC-FAIXAS-CONTIGUAS | **O conjunto de faixas de desconto DEVE cobrir 0..100 sem buraco nem sobreposição** — replace-all atômico valida o CONJUNTO (use case `configurar_faixas` + `validar_faixas_contiguas` no domínio). Alteração é replace-all inteiro, nunca patch parcial (TL-PRC-16). | D-PRC-3; TL-PRC-16 | `validar_faixas_contiguas` em `transicoes.py` + `TestINV_PRC_FAIXAS_CONTIGUAS` | Absoluta (todos perfis) | Buraco nas faixas = desconto sem alçada definida → motor lança erro não previsto na OS; sobreposição = alçada ambígua |
+| INV-026 (herdada — motor não persiste) | **Motor `calcular_precos` é stateless e NÃO persiste o resultado.** `CalculoPrecoResultado` frozen é autossuficiente para replay (motor_versao + eco das entradas + refs probatórias). Consumidor (orcamentos, OS) carimba o snapshot (D-PRC-9; INV-026 da cadeia). | D-PRC-9; INV-026; TL-PRC-01 | Revisão estrutural: motor em `transicoes.py` não importa ORM — `TestINV_026_MOTOR_NAO_PERSISTE` | Absoluta (todos perfis) | Resultado persistido pelo motor quebraria o contrato de snapshot do consumidor; dois registros para o mesmo cálculo com versões distintas |
+
+> **Reusadas:** INV-TENANT-001..003 (RLS v2 nas 7 tabelas), INV-VIG-001..004 (VO
+> `JanelaVigencia`), IDEMP-001 (Idempotency-Key nos POST: publicar/revogar/solicitar/
+> decidir/configurar; fingerprint = payload+alvo). **LGPD nos eventos `Precificacao.*`
+> (ADV-PRC-03):** campos hashificados por evento — `*_id_hash` de pessoa +
+> `*_hash` de justificativa/motivo/aviso_texto (ADR-0029 + HMAC-tenant); valores de
+> Parâmetros/Faixas NUNCA em claro (diff de NOMES — segredo comercial); hook
+> `prc-evento-pii-hash-check`. Hooks novos: `prc-costplus-stub-check`,
+> `prc-margem-rbac-check`, `prc-evento-pii-hash-check` (T-PRC-052). GATEs:
+> GATE-PRC-CUSTEIO-REAL (cost-plus real + mínimo real), GATE-PRC-HISTORICO-ORCAMENTOS
+> (LIA documentada), GATE-PRC-ALERTA-GESTOR, GATE-PRC-NOTIFICACAO, GATE-PRC-COMISSAO-REAL,
+> GATE-PRC-TABELA-CONTRATO, **GATE-PPS-WIREIN-OS** (bloqueante pré-1º tenant externo).
+
+---
+
 ## RAT-* — Registros de tratamento LGPD
 
 > Promovidos em 2026-05-23 — eram citados nos PRDs mas não existiam em catálogo canônico (achado da auditoria 10 lentes).

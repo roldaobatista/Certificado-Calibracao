@@ -64,4 +64,7 @@ serie-numeracao-regime-check.sh	/configuracoes_sistema/.*\.py$|configuracoes_sis
 imposto-imutavel-check.sh	\.py$
 pps-porta-fail-closed-check.sh	/produtos_pecas_servicos/query_service\.py$
 pps-evento-pii-hash-check.sh	/produtos_pecas_servicos/.*\.py$
+prc-costplus-stub-check.sh	/application/precificacao/regra\.py$
+prc-margem-rbac-check.sh	/precificacao/serializers\.py$|/precificacao/.*serializer.*\.py$
+prc-evento-pii-hash-check.sh	/precificacao/.*\.py$
 INV-checker.sh	REGRAS-INEGOCIAVEIS\.md$
