@@ -656,6 +656,21 @@ class ColaboradorViewSet(ViewSet):
         try:
             with transaction.atomic():
                 d = ser.validated_data
+                nova_comissao = (
+                    Decimal(str(d["comissao_default_pct"]))
+                    if "comissao_default_pct" in d
+                    else None
+                )
+
+                repo = DjangoColaboradorRepository()
+
+                # Captura valor anterior de comissao_default_pct ANTES de editar
+                # (AC-COL-04 / D-COL-14 / INV-COL-COMISSAO-AUDIT)
+                colab_antes = repo.obter(tenant_id=tenant_id, colaborador_id=colab_id)
+                comissao_anterior = (
+                    colab_antes.comissao_default_pct if colab_antes is not None else None
+                )
+
                 cmd = uc_cadastro.ComandoEditarColaborador(
                     tenant_id=tenant_id,
                     colaborador_id=colab_id,
@@ -664,14 +679,37 @@ class ColaboradorViewSet(ViewSet):
                     telefone=d.get("telefone"),
                     vinculo=Vinculo(d["vinculo"]) if "vinculo" in d else None,
                     data_admissao=d.get("data_admissao"),
-                    comissao_default_pct=Decimal(str(d["comissao_default_pct"]))
-                    if "comissao_default_pct" in d
-                    else None,
+                    comissao_default_pct=nova_comissao,
                     observacao=d.get("observacao"),
                     usuario_id=d.get("usuario_id"),
                 )
-                repo = DjangoColaboradorRepository()
                 uc_cadastro.editar_colaborador(cmd, repo_colab=repo)
+
+                # Publica evento de auditoria se comissão mudou (AC-COL-04 / INV-COL-COMISSAO-AUDIT)
+                comissao_mudou = (
+                    nova_comissao is not None
+                    and comissao_anterior is not None
+                    and nova_comissao != comissao_anterior
+                )
+                if comissao_mudou:
+                    import uuid as _uuid
+
+                    causation_id = _uuid.uuid5(
+                        _uuid.NAMESPACE_URL,
+                        f"colaborador.comissao_alterada:{tenant_id}:{colab_id}",
+                    )
+                    ator_hash = _hmac_user(usuario_id, tenant_id)
+                    _publicar_evento_colaborador(
+                        acao="colaborador.comissao_alterada",
+                        payload={
+                            "colaborador_id": str(colab_id),
+                            "ator_id_hash": ator_hash,
+                        },
+                        causation_id=causation_id,
+                        tenant_id=tenant_id,
+                        usuario_id=usuario_id,
+                        resource_summary=f"colaborador:{colab_id}",
+                    )
         except ColaboradorInativo as exc:
             return _falha(colab_id, tenant_id, exc, status.HTTP_409_CONFLICT, chave_idemp)
         except ComissaoForaDaFaixa as exc:

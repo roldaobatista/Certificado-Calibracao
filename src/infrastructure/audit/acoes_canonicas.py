@@ -405,6 +405,9 @@ ACOES_COLABORADORES: Final[frozenset[str]] = frozenset(
         "colaborador.papel_revogado",
         "colaborador.habilidade_atualizada",
         "colaborador.desligado",
+        # AC-COL-04 / D-COL-14 / INV-COL-COMISSAO-AUDIT — alteração de comissão
+        # grava trilha auditável via outbox (PATCH partial_update).
+        "colaborador.comissao_alterada",
         # Contrato futuro — materialização no GATE-LGPD-RAT-CONSOLIDACAO (A5)
         "colaborador.anonimizado",
     }

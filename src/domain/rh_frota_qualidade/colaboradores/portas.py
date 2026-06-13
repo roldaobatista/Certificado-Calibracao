@@ -9,6 +9,10 @@
   Substituto até os módulos a jusante existirem (fail-open lazy ADR-0066 cabe
   aqui: consulta a módulo inexistente, porta síncrona, blocking adequado).
 
+`AnexoStoragePort`: contrato para persistência de arquivo de documento do
+  colaborador (CTPS, CNH, foto, etc.). Molde:
+  `src/application/metrologia/procedimentos_calibracao/anexo_storage.py`.
+
 Molde: `CustoProvider` / `StubCustoProvider` da precificacao.
 """
 
@@ -16,6 +20,21 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 from uuid import UUID
+
+
+@runtime_checkable
+class AnexoStoragePort(Protocol):
+    """Porta de armazenamento de arquivo de documento do colaborador (T-COL-032).
+
+    Contrato estrutural (duck-typing) — qualquer implementação que exponha
+    `salvar(pdf_bytes, nome_sugerido)` satisfaz a porta.
+
+    Molde: `src/application/metrologia/procedimentos_calibracao/anexo_storage.py`.
+    """
+
+    def salvar(self, *, pdf_bytes: bytes, nome_sugerido: str) -> str:
+        """Persiste o conteúdo e retorna a storage_key opaca."""
+        ...
 
 
 @runtime_checkable

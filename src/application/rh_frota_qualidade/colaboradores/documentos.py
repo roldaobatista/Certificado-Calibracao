@@ -19,6 +19,7 @@ from uuid import UUID, uuid4
 from src.domain.rh_frota_qualidade.colaboradores.entities import Documento
 from src.domain.rh_frota_qualidade.colaboradores.enums import TipoDocumento
 from src.domain.rh_frota_qualidade.colaboradores.erros import ColaboradorInativo
+from src.domain.rh_frota_qualidade.colaboradores.portas import AnexoStoragePort
 from src.domain.rh_frota_qualidade.colaboradores.regras import coerencia_documento_vinculo
 from src.domain.rh_frota_qualidade.colaboradores.repository import (
     ColaboradorRepository,
@@ -120,7 +121,7 @@ def anexar_documento(
     cmd: ComandoAnexarDocumento,
     *,
     repo_colab: ColaboradorRepository,
-    storage_port: object,  # AnexoStoragePort — typed structurally
+    storage_port: AnexoStoragePort,
 ) -> UUID:
     """Anexa documento ao colaborador (AC-COL-05 / D-COL-6 / TL-COL-06).
 
@@ -156,8 +157,8 @@ def anexar_documento(
     # SHA-256 server-side do conteúdo FINAL (pós-strip)
     sha256 = _sha256_server_side(conteudo_final)
 
-    # Salva via porta
-    storage_key: str = storage_port.salvar(  # type: ignore[attr-defined]
+    # Salva via porta (AnexoStoragePort — tipagem estrutural)
+    storage_key: str = storage_port.salvar(
         pdf_bytes=conteudo_final,
         nome_sugerido=cmd.nome_sugerido,
     )

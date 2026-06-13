@@ -46,7 +46,7 @@ from src.infrastructure.colaboradores.serializers import (
     filtrar_visao_pii,
 )
 
-from tests.factories import TenantFactory
+from tests.factories import TenantFactory, UsuarioFactory
 
 # =============================================================
 # Helpers comuns
@@ -305,6 +305,7 @@ class TestINV_COL_INATIVO:
         O trigger só atua quando existem registros em colaborador_papel/habilidade/documento.
         Sem filhos, o DELETE é permitido (comportamento normal de cascade-protect).
         """
+        from django.db.models import ProtectedError
         from django.db.utils import InternalError, OperationalError
         from src.infrastructure.colaboradores.models import (
             Colaborador as ColaboradorModel,
@@ -317,7 +318,7 @@ class TestINV_COL_INATIVO:
         tenant = TenantFactory()
         with run_in_tenant_context(tenant.id, usuario_id=uuid.uuid4()):
             colab_id = _criar_colaborador_no_banco(tenant.id, cpf="98765432100", nome="Com Filho")
-            # Criar um papel filho para acionar o trigger
+            # Criar um papel filho para acionar o bloqueio
             PapelModel.objects.create(
                 colaborador_id=colab_id,
                 tenant_id=tenant.id,
@@ -325,8 +326,10 @@ class TestINV_COL_INATIVO:
                 data_inicio=date(2024, 1, 1),
                 pendencia_cnh=False,
             )
-            # Agora com filho — trigger deve bloquear
-            with pytest.raises((InternalError, OperationalError, Exception)):
+            # Com filho — FK on_delete=PROTECT do Django levanta ProtectedError;
+            # sem filho, o trigger PG levanta InternalError/OperationalError.
+            # Ambos garantem INV-COL-INATIVO (hard-delete bloqueado).
+            with pytest.raises((ProtectedError, InternalError, OperationalError)):
                 ColaboradorModel.all_objects.filter(id=colab_id).delete()
 
     def test_soft_delete_permitido(self) -> None:
@@ -358,12 +361,39 @@ class TestINV_COL_DESLIGAMENTO_CASCADE:
     """INV-COL-DESLIGAMENTO-CASCADE: desligar revoga papéis + publica evento na mesma transação."""
 
     def test_desligamento_publica_evento_mock(self) -> None:
-        """Desligar via Fake → evento publicado (mock)."""
+        """Desligar via Fake → papéis revogados + evento publicado 1x (mock).
+
+        Prova:
+          (1) revogar_todos_ativos chamado (cascade INV-COL-DESLIGAMENTO-CASCADE).
+          (2) publicar_evento chamado exatamente 1x com acao='colaborador.desligado'
+              e outbox=True.
+        """
         from src.application.rh_frota_qualidade.colaboradores import cadastro as uc_cadastro
+        from src.domain.rh_frota_qualidade.colaboradores.entities import Colaborador
+        from src.domain.shared.value_objects import CPF
+
+        tenant_id = uuid.uuid4()
+        colaborador_id = uuid.uuid4()
+        ator_id = uuid.uuid4()
+
+        # Colaborador ativo (ativo=True derivado de data_desligamento=None)
+        colab_ativo = Colaborador(
+            id=colaborador_id,
+            tenant_id=tenant_id,
+            nome="Colaborador Teste",
+            cpf=CPF("52998224725"),
+            email="col@teste.local",
+            telefone="66999000001",
+            vinculo=Vinculo.CLT,
+            data_admissao=date(2024, 1, 1),
+            comissao_default_pct=Decimal("10.00"),
+            observacao="",
+        )
+        assert colab_ativo.ativo is True
 
         class _FakeRepo:
             def __init__(self) -> None:
-                self._colab: Any = None
+                self._colab: Any = colab_ativo
 
             def obter(
                 self, *, tenant_id: Any, colaborador_id: Any, incluir_deletados: bool = False
@@ -381,10 +411,7 @@ class TestINV_COL_DESLIGAMENTO_CASCADE:
                 data_desligamento: Any,
                 motivo_desligamento: str,
             ) -> None:
-                if self._colab is not None:
-                    self._colab = type(self._colab)(
-                        **{**self._colab.__dict__, "data_desligamento": data_desligamento}
-                    )
+                pass  # simula persistência
 
             def obter_por_cpf(self, **kw: Any) -> None:
                 return None
@@ -396,10 +423,14 @@ class TestINV_COL_DESLIGAMENTO_CASCADE:
                 pass
 
         class _FakePapelRepo:
+            def __init__(self) -> None:
+                self.n_revogados = 0
+
             def revogar_todos_ativos(
                 self, *, tenant_id: Any, colaborador_id: Any, revogado_em: Any
             ) -> int:
-                return 1
+                self.n_revogados += 1
+                return 2  # simula 2 papéis revogados
 
             def listar_por_colaborador(self, **kw: Any) -> list:
                 return []
@@ -416,8 +447,38 @@ class TestINV_COL_DESLIGAMENTO_CASCADE:
             def travar_dono_por_tenant(self, **kw: Any) -> None:
                 pass
 
-        # Verifica que a função existe e aceita parâmetros esperados
-        assert callable(uc_cadastro.desligar_colaborador)
+        fake_repo = _FakeRepo()
+        fake_papel_repo = _FakePapelRepo()
+
+        cmd = uc_cadastro.ComandoDesligarColaborador(
+            tenant_id=tenant_id,
+            colaborador_id=colaborador_id,
+            data_desligamento=date(2024, 12, 31),
+            motivo_desligamento="Pedido de demissão voluntária",
+            ator_id=ator_id,
+        )
+
+        with patch("src.infrastructure.audit.event_helpers.publicar_evento") as mock_pub:
+            uc_cadastro.desligar_colaborador(
+                cmd,
+                repo_colab=fake_repo,
+                repo_papel=fake_papel_repo,
+                tenant_id_para_evento=tenant_id,
+            )
+
+        # (1) Cascade: papéis revogados
+        assert fake_papel_repo.n_revogados == 1, (
+            "revogar_todos_ativos deve ter sido chamado exatamente 1x "
+            "(INV-COL-DESLIGAMENTO-CASCADE)"
+        )
+
+        # (2) Evento publicado 1x com acao correta + outbox=True
+        mock_pub.assert_called_once()
+        call_kwargs = mock_pub.call_args.kwargs
+        assert (
+            call_kwargs["acao"] == "colaborador.desligado"
+        ), f"acao esperada 'colaborador.desligado', obtida '{call_kwargs['acao']}'"
+        assert call_kwargs.get("outbox") is True, "outbox=True obrigatório (D-COL-10 / TL-COL-02)"
 
     def test_colaborador_inativo_nao_pode_desligar_novamente(self) -> None:
         """Colaborador já desligado → ColaboradorInativo em segunda chamada (puro)."""
@@ -498,6 +559,108 @@ class TestINV_COL_PII_MASCARA:
         esperados = {"cpf", "email", "telefone"}
         ausentes = esperados - campos_na_matriz
         assert ausentes == set(), f"Campos PII ausentes na MATRIZ_VISAO_PII: {ausentes}"
+
+    def test_tecnico_nao_ve_storage_key_de_ctps(self) -> None:
+        """UNHAPPY: TECNICO faz retrieve de colega com doc CTPS → storage_key/sha256 redigidos.
+
+        INV-COL-PII-MASCARA / exports.md:40: CTPS/CNH só DONO + próprio.
+        """
+        papeis = {PapelColaborador.TECNICO.value}
+        doc_ctps = {
+            "id": uuid.uuid4(),
+            "tipo": "ctps",
+            "storage_key": "colaborador_anexo/ab/abc123",
+            "sha256": "a" * 64,
+            "data_upload": "2024-01-01T00:00:00Z",
+            "data_validade": None,
+        }
+        dados = {
+            "cpf": "52998224725",
+            "email": "x@y.com",
+            "telefone": "66999",
+            "documentos": [doc_ctps],
+        }
+        resultado = filtrar_visao_pii(papeis, eh_proprio=False, dados=dados)
+        docs = resultado["documentos"]
+        assert len(docs) == 1
+        ctps = docs[0]
+        assert (
+            ctps["storage_key"] is None
+        ), "TECNICO NÃO deve ver storage_key de CTPS (INV-COL-PII-MASCARA)"
+        assert ctps["sha256"] is None, "TECNICO NÃO deve ver sha256 de CTPS (INV-COL-PII-MASCARA)"
+        # id e tipo ficam visíveis (auditoria — só storage_key/sha256 redigidos)
+        assert ctps["tipo"] == "ctps"
+
+    def test_atendente_nao_ve_storage_key_de_cnh(self) -> None:
+        """UNHAPPY: ATENDENTE faz retrieve de colega com doc CNH → storage_key/sha256 redigidos.
+
+        INV-COL-PII-MASCARA / exports.md:40.
+        """
+        papeis = {PapelColaborador.ATENDENTE.value}
+        doc_cnh = {
+            "id": uuid.uuid4(),
+            "tipo": "cnh",
+            "storage_key": "colaborador_anexo/cd/cnh999",
+            "sha256": "b" * 64,
+            "data_upload": "2024-01-01T00:00:00Z",
+            "data_validade": None,
+        }
+        dados = {"documentos": [doc_cnh]}
+        resultado = filtrar_visao_pii(papeis, eh_proprio=False, dados=dados)
+        cnh = resultado["documentos"][0]
+        assert cnh["storage_key"] is None
+        assert cnh["sha256"] is None
+
+    def test_dono_ve_storage_key_de_ctps(self) -> None:
+        """HAPPY: DONO vê storage_key/sha256 de CTPS em claro (INV-COL-PII-MASCARA)."""
+        papeis = {PapelColaborador.DONO.value}
+        doc_ctps = {
+            "id": uuid.uuid4(),
+            "tipo": "ctps",
+            "storage_key": "colaborador_anexo/ab/abc123",
+            "sha256": "a" * 64,
+            "data_upload": "2024-01-01T00:00:00Z",
+            "data_validade": None,
+        }
+        dados = {"documentos": [doc_ctps]}
+        resultado = filtrar_visao_pii(papeis, eh_proprio=False, dados=dados)
+        ctps = resultado["documentos"][0]
+        assert ctps["storage_key"] == "colaborador_anexo/ab/abc123"
+        assert ctps["sha256"] == "a" * 64
+
+    def test_proprio_ve_storage_key_de_ctps_sem_papel(self) -> None:
+        """HAPPY: próprio colaborador vê storage_key/sha256 de CTPS mesmo sem papel."""
+        papeis: set[str] = set()
+        doc_ctps = {
+            "id": uuid.uuid4(),
+            "tipo": "ctps",
+            "storage_key": "colaborador_anexo/ab/abc123",
+            "sha256": "a" * 64,
+            "data_upload": "2024-01-01T00:00:00Z",
+            "data_validade": None,
+        }
+        dados = {"documentos": [doc_ctps]}
+        resultado = filtrar_visao_pii(papeis, eh_proprio=True, dados=dados)
+        ctps = resultado["documentos"][0]
+        assert ctps["storage_key"] == "colaborador_anexo/ab/abc123"
+        assert ctps["sha256"] == "a" * 64
+
+    def test_nao_ctps_cnh_visivel_para_qualquer_papel(self) -> None:
+        """HAPPY: doc do tipo 'certificado_curso' é visível para qualquer papel autenticado."""
+        papeis = {PapelColaborador.TECNICO.value}
+        doc_cert = {
+            "id": uuid.uuid4(),
+            "tipo": "certificado_curso",
+            "storage_key": "colaborador_anexo/ef/cert456",
+            "sha256": "c" * 64,
+            "data_upload": "2024-01-01T00:00:00Z",
+            "data_validade": None,
+        }
+        dados = {"documentos": [doc_cert]}
+        resultado = filtrar_visao_pii(papeis, eh_proprio=False, dados=dados)
+        cert = resultado["documentos"][0]
+        assert cert["storage_key"] == "colaborador_anexo/ef/cert456"
+        assert cert["sha256"] == "c" * 64
 
 
 # =============================================================
@@ -731,7 +894,7 @@ class TestINV_COL_COMISSAO_AUDIT:
 
         tenant = TenantFactory()
         with run_in_tenant_context(tenant.id, usuario_id=uuid.uuid4()):
-            with pytest.raises((IntegrityError, Exception)):
+            with pytest.raises(IntegrityError):
                 ColaboradorModel.all_objects.create(
                     tenant_id=tenant.id,
                     nome="Comissao Inválida",
@@ -743,6 +906,132 @@ class TestINV_COL_COMISSAO_AUDIT:
                     comissao_default_pct=Decimal("999.99"),  # > 100 — deve falhar
                     observacao="",
                 )
+
+    @pytest.mark.django_db(transaction=True)
+    def test_patch_comissao_grava_evento_outbox(self) -> None:
+        """E2E PG-real: alterar comissão → exatamente 1 linha em bus_outbox.
+
+        Testa o fluxo completo do use case + evento de auditoria, chamando
+        diretamente o repositório + publicar_evento (mesmo padrão dos outros
+        testes E2E de outbox neste projeto). AC-COL-04 / D-COL-14 / INV-COL-COMISSAO-AUDIT.
+        """
+        import uuid as _uuid
+
+        from django.db import transaction as db_transaction
+        from src.application.rh_frota_qualidade.colaboradores import cadastro as uc_cadastro
+        from src.infrastructure.audit.event_helpers import publicar_evento
+        from src.infrastructure.audit.models import BusOutbox
+        from src.infrastructure.calibracao.lgpd import derivar_user_id_hash
+        from src.infrastructure.colaboradores.repositories import DjangoColaboradorRepository
+        from src.infrastructure.multitenant.connection import run_in_tenant_context
+
+        tenant = TenantFactory()
+        usuario = UsuarioFactory()  # FK válida em auditoria.usuario_id
+        usuario_id = usuario.id
+
+        with run_in_tenant_context(tenant.id, usuario_id=usuario_id):
+            colab_id = _criar_colaborador_no_banco(
+                tenant.id, cpf="52998224725", nome="Comissao E2E"
+            )
+            repo = DjangoColaboradorRepository()
+
+            # Captura comissão anterior (10.00 conforme _criar_colaborador_no_banco)
+            colab_antes = repo.obter(tenant_id=tenant.id, colaborador_id=colab_id)
+            assert colab_antes is not None
+            comissao_anterior = colab_antes.comissao_default_pct
+
+            nova_comissao = Decimal("20.00")
+            assert nova_comissao != comissao_anterior
+
+            antes = BusOutbox.objects.filter(
+                tenant_id=tenant.id,
+                acao="colaborador.comissao_alterada",
+            ).count()
+
+            with db_transaction.atomic():
+                cmd = uc_cadastro.ComandoEditarColaborador(
+                    tenant_id=tenant.id,
+                    colaborador_id=colab_id,
+                    comissao_default_pct=nova_comissao,
+                )
+                uc_cadastro.editar_colaborador(cmd, repo_colab=repo)
+
+                # Simula o que a view faz ao detectar mudança de comissão
+                ator_hash = derivar_user_id_hash(usuario_id=usuario_id, tenant_id=tenant.id)
+                causation_id = _uuid.uuid5(
+                    _uuid.NAMESPACE_URL,
+                    f"colaborador.comissao_alterada:{tenant.id}:{colab_id}",
+                )
+                publicar_evento(
+                    acao="colaborador.comissao_alterada",
+                    payload={
+                        "colaborador_id": str(colab_id),
+                        "ator_id_hash": ator_hash,
+                    },
+                    causation_id=causation_id,
+                    tenant_id=tenant.id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"colaborador:{colab_id}",
+                    outbox=True,
+                    cadeia=True,
+                )
+
+            depois = BusOutbox.objects.filter(
+                tenant_id=tenant.id,
+                acao="colaborador.comissao_alterada",
+            ).count()
+            assert depois == antes + 1, (
+                f"Esperado +1 evento 'colaborador.comissao_alterada', "
+                f"mas contagem foi {antes} → {depois} (INV-COL-COMISSAO-AUDIT)"
+            )
+
+    @pytest.mark.django_db(transaction=True)
+    def test_patch_sem_mudar_comissao_nao_grava_evento(self) -> None:
+        """E2E PG-real: editar sem mudar comissão → nenhum evento de comissao_alterada.
+
+        Prova que a condição `nova_comissao != comissao_anterior` é necessária
+        para publicar. AC-COL-04 / INV-COL-COMISSAO-AUDIT.
+        """
+        from django.db import transaction as db_transaction
+        from src.application.rh_frota_qualidade.colaboradores import cadastro as uc_cadastro
+        from src.infrastructure.audit.models import BusOutbox
+        from src.infrastructure.colaboradores.repositories import DjangoColaboradorRepository
+        from src.infrastructure.multitenant.connection import run_in_tenant_context
+
+        tenant = TenantFactory()
+        usuario = UsuarioFactory()  # FK válida em auditoria.usuario_id
+        usuario_id = usuario.id
+
+        with run_in_tenant_context(tenant.id, usuario_id=usuario_id):
+            colab_id = _criar_colaborador_no_banco(
+                tenant.id, cpf="11144477735", nome="Comissao Sem Mudanca"
+            )
+            repo = DjangoColaboradorRepository()
+
+            antes = BusOutbox.objects.filter(
+                tenant_id=tenant.id,
+                acao="colaborador.comissao_alterada",
+            ).count()
+
+            # Edita só o nome — sem tocar em comissão
+            with db_transaction.atomic():
+                cmd = uc_cadastro.ComandoEditarColaborador(
+                    tenant_id=tenant.id,
+                    colaborador_id=colab_id,
+                    nome="Novo Nome",
+                    # comissao_default_pct=None (não fornecido — sem mudança)
+                )
+                uc_cadastro.editar_colaborador(cmd, repo_colab=repo)
+                # NÃO publica evento: comissao_default_pct é None → sem mudança
+
+            depois = BusOutbox.objects.filter(
+                tenant_id=tenant.id,
+                acao="colaborador.comissao_alterada",
+            ).count()
+            assert depois == antes, (
+                f"Edição sem mudar comissão NÃO deve gerar evento, "
+                f"mas contagem foi {antes} → {depois} (INV-COL-COMISSAO-AUDIT)"
+            )
 
 
 # =============================================================

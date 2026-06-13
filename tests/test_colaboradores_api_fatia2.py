@@ -21,15 +21,12 @@ Refs: T-COL-037; D-COL-7/8/10/12; INV-COL-*; ADV-COL-04/06/08.
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, UTC
+from datetime import date
 from decimal import Decimal
-from typing import Any
-from unittest.mock import MagicMock, patch
+from typing import Any, ClassVar
 
 import pytest
 from django.db import connection, transaction
-from django.test import override_settings
-
 from src.application.rh_frota_qualidade.colaboradores import cadastro as uc_cadastro
 from src.application.rh_frota_qualidade.colaboradores import papeis as uc_papeis
 from src.domain.rh_frota_qualidade.colaboradores.enums import (
@@ -39,7 +36,6 @@ from src.domain.rh_frota_qualidade.colaboradores.enums import (
 from src.domain.rh_frota_qualidade.colaboradores.erros import (
     ColaboradorInativo,
     DuplicateCpf,
-    DonoJaExiste,
     SignatarioRtNaoCasa,
     SignatarioSemEscopo,
     SignatarioSemUsuario,
@@ -49,13 +45,11 @@ from src.domain.rh_frota_qualidade.colaboradores.regras import (
     pode_atribuir_signatario,
 )
 from src.infrastructure.colaboradores.serializers import (
-    MATRIZ_VISAO_PII,
     filtrar_visao_pii,
 )
 from src.infrastructure.multitenant.connection import run_in_tenant_context
 
 from tests.factories import TenantFactory, UsuarioFactory
-
 
 # =============================================================
 # Fakes (testes puros — sem banco)
@@ -68,11 +62,13 @@ class _FakeColaboradorRepo:
     def __init__(self, colaboradores: list[Any] | None = None) -> None:
         self._dados: dict[uuid.UUID, Any] = {}
         self._por_cpf: dict[str, Any] = {}
-        for c in (colaboradores or []):
+        for c in colaboradores or []:
             self._dados[c.id] = c
             self._por_cpf[c.cpf.value] = c
 
-    def obter(self, *, tenant_id: uuid.UUID, colaborador_id: uuid.UUID, incluir_deletados: bool = False) -> Any | None:
+    def obter(
+        self, *, tenant_id: uuid.UUID, colaborador_id: uuid.UUID, incluir_deletados: bool = False
+    ) -> Any | None:
         c = self._dados.get(colaborador_id)
         if c is None:
             return None
@@ -90,7 +86,14 @@ class _FakeColaboradorRepo:
         self._dados[colaborador.id] = colaborador
         self._por_cpf[colaborador.cpf.value] = colaborador
 
-    def desligar(self, *, tenant_id: uuid.UUID, colaborador_id: uuid.UUID, data_desligamento: date, motivo_desligamento: str) -> None:
+    def desligar(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        colaborador_id: uuid.UUID,
+        data_desligamento: date,
+        motivo_desligamento: str,
+    ) -> None:
         pass
 
     def soft_delete(self, **kwargs: Any) -> None:
@@ -102,7 +105,9 @@ class _FakePapelRepo:
         self._papeis: list[Any] = []
         self._dono_existe = False
 
-    def listar_por_colaborador(self, *, tenant_id: uuid.UUID, colaborador_id: uuid.UUID) -> list[Any]:
+    def listar_por_colaborador(
+        self, *, tenant_id: uuid.UUID, colaborador_id: uuid.UUID
+    ) -> list[Any]:
         return [p for p in self._papeis if p.colaborador_id == colaborador_id]
 
     def existe_dono_ativo(self, *, tenant_id: uuid.UUID) -> bool:
@@ -114,7 +119,9 @@ class _FakePapelRepo:
     def revogar(self, *, tenant_id: uuid.UUID, papel_id: uuid.UUID, revogado_em: Any) -> None:
         pass
 
-    def revogar_todos_ativos(self, *, tenant_id: uuid.UUID, colaborador_id: uuid.UUID, revogado_em: Any) -> int:
+    def revogar_todos_ativos(
+        self, *, tenant_id: uuid.UUID, colaborador_id: uuid.UUID, revogado_em: Any
+    ) -> int:
         return 0
 
     def travar_dono_por_tenant(self, *, tenant_id: uuid.UUID) -> None:
@@ -174,9 +181,10 @@ class TestCadastroColaboradorPuro:
             uc_cadastro.cadastrar_colaborador(cmd2, repo_colab=repo)
 
     def test_cpf_invalido_levanta_erro(self) -> None:
-        """CPF com dígitos inválidos → CpfInvalido."""
+        """CPF com dígitos inválidos → ValueError (VO `CPF` em shared valida eagerly)."""
         from src.domain.shared.value_objects import CPF
-        with pytest.raises(Exception):
+
+        with pytest.raises(ValueError):
             CPF("11111111111")
 
 
@@ -244,7 +252,7 @@ class TestPayloadDesligamentoPuro:
 class TestFiltrarVisaoPii:
     """Testes do choke-point filtrar_visao_pii (D-COL-7 / INV-COL-PII-MASCARA)."""
 
-    _DADOS_EXEMPLO: dict = {
+    _DADOS_EXEMPLO: ClassVar[dict] = {
         "id": str(uuid.uuid4()),
         "nome": "Maria Técnica",
         "cpf": "52998224725",
@@ -303,10 +311,18 @@ class TestFiltrarVisaoPii:
 class TestElegiveisDTOAllowlist:
     """Verifica que ElegivelDTO NUNCA contém campos PII (INV-COL-ELEGIVEIS-MINIMO)."""
 
-    _CAMPOS_PROIBIDOS = {
-        "cpf", "email", "telefone", "ctps_info", "cnh_info",
-        "foto_storage_key", "comissao_default_pct", "vinculo",
-        "observacao", "motivo_desligamento", "documento",
+    _CAMPOS_PROIBIDOS: ClassVar[set[str]] = {
+        "cpf",
+        "email",
+        "telefone",
+        "ctps_info",
+        "cnh_info",
+        "foto_storage_key",
+        "comissao_default_pct",
+        "vinculo",
+        "observacao",
+        "motivo_desligamento",
+        "documento",
     }
 
     def test_elegiveis_nao_tem_campo_pii(self) -> None:
@@ -340,8 +356,9 @@ def _criar_colaborador_no_banco(
     usuario_id: uuid.UUID | None = None,
 ) -> uuid.UUID:
     """Helper: cria colaborador diretamente via ORM (sem use case)."""
-    from src.infrastructure.colaboradores.models import Colaborador as ColaboradorModel
     from datetime import date
+
+    from src.infrastructure.colaboradores.models import Colaborador as ColaboradorModel
 
     colab = ColaboradorModel.all_objects.create(
         tenant_id=tenant_id,
@@ -375,18 +392,21 @@ class TestColaboradoresE2E:
         with run_in_tenant_context(tenant.id, usuario_id=uuid.uuid4()):
             primeiro_id = _criar_colaborador_no_banco(tenant.id, cpf="52998224725", nome="Primeiro")
 
-            repo = __import__("src.infrastructure.colaboradores.repositories", fromlist=["DjangoColaboradorRepository"]).DjangoColaboradorRepository()
+            repo = __import__(
+                "src.infrastructure.colaboradores.repositories",
+                fromlist=["DjangoColaboradorRepository"],
+            ).DjangoColaboradorRepository()
             existente = repo.obter_por_cpf(tenant_id=tenant.id, cpf_value="52998224725")
             assert existente is not None
             assert existente.id == primeiro_id
 
     def test_desligar_publica_evento_outbox(self) -> None:
         """Desligar → exatamente 1 linha bus_outbox com payload v9 (D-COL-10 / TL-COL-02)."""
+        from src.infrastructure.audit.models import BusOutbox
         from src.infrastructure.colaboradores.repositories import (
             DjangoColaboradorRepository,
             DjangoPapelRepository,
         )
-        from src.infrastructure.audit.models import BusOutbox
 
         tenant = TenantFactory()
         usuario = UsuarioFactory()  # FK válida em auditoria.usuario_id
@@ -394,9 +414,13 @@ class TestColaboradoresE2E:
         colab_id = None
 
         with run_in_tenant_context(tenant.id, usuario_id=usuario_id):
-            colab_id = _criar_colaborador_no_banco(tenant.id, cpf="98765432100", nome="Para Desligar")
+            colab_id = _criar_colaborador_no_banco(
+                tenant.id, cpf="98765432100", nome="Para Desligar"
+            )
 
-            n_outbox_antes = BusOutbox.objects.filter(tenant_id=tenant.id, acao="colaborador.desligado").count()
+            n_outbox_antes = BusOutbox.objects.filter(
+                tenant_id=tenant.id, acao="colaborador.desligado"
+            ).count()
 
             cmd = uc_cadastro.ComandoDesligarColaborador(
                 tenant_id=tenant.id,
@@ -413,7 +437,9 @@ class TestColaboradoresE2E:
                     tenant_id_para_evento=tenant.id,
                 )
 
-            n_outbox_depois = BusOutbox.objects.filter(tenant_id=tenant.id, acao="colaborador.desligado").count()
+            n_outbox_depois = BusOutbox.objects.filter(
+                tenant_id=tenant.id, acao="colaborador.desligado"
+            ).count()
             assert n_outbox_depois == n_outbox_antes + 1, (
                 f"Esperado 1 evento 'colaborador.desligado' no bus_outbox, "
                 f"mas encontrou {n_outbox_depois - n_outbox_antes} novos. "
@@ -421,10 +447,14 @@ class TestColaboradoresE2E:
             )
 
             # Verifica payload v9
-            evento = BusOutbox.objects.filter(
-                tenant_id=tenant.id,
-                acao="colaborador.desligado",
-            ).order_by("-criado_em").first()
+            evento = (
+                BusOutbox.objects.filter(
+                    tenant_id=tenant.id,
+                    acao="colaborador.desligado",
+                )
+                .order_by("-criado_em")
+                .first()
+            )
             assert evento is not None
             envelope = evento.envelope_jsonb
             payload = envelope.get("payload", {})
@@ -436,19 +466,20 @@ class TestColaboradoresE2E:
 
     def test_desligar_idempotencia_2x_1_evento(self) -> None:
         """Desligar 2x → 1 evento no outbox (idempotência TL-COL-13 / D-COL-10)."""
+        from src.infrastructure.audit.models import BusOutbox
         from src.infrastructure.colaboradores.repositories import (
             DjangoColaboradorRepository,
             DjangoPapelRepository,
         )
-        from src.infrastructure.audit.models import BusOutbox
-        from src.domain.rh_frota_qualidade.colaboradores.erros import ColaboradorInativo
 
         tenant = TenantFactory()
         usuario = UsuarioFactory()  # FK válida em auditoria.usuario_id
         usuario_id = usuario.id
 
         with run_in_tenant_context(tenant.id, usuario_id=usuario_id):
-            colab_id = _criar_colaborador_no_banco(tenant.id, cpf="11144477735", nome="Para Desligar 2x")
+            colab_id = _criar_colaborador_no_banco(
+                tenant.id, cpf="11144477735", nome="Para Desligar 2x"
+            )
             cmd = uc_cadastro.ComandoDesligarColaborador(
                 tenant_id=tenant.id,
                 colaborador_id=colab_id,
@@ -488,9 +519,9 @@ class TestColaboradoresE2E:
                 envelope_jsonb__payload__colaborador_id=str(colab_id),
             ).count()
 
-            assert n_apos_2a == n_apos_1a, (
-                "2ª chamada não deve adicionar evento (idempotência TL-COL-13)"
-            )
+            assert (
+                n_apos_2a == n_apos_1a
+            ), "2ª chamada não deve adicionar evento (idempotência TL-COL-13)"
 
     def test_signatario_unhappy_sem_usuario_id(self) -> None:
         """UNHAPPY #1: atribuir SIGNATARIO sem usuario_id → SignatarioSemUsuario."""
@@ -551,18 +582,19 @@ class TestColaboradoresE2E:
                     repo_papel=DjangoPapelRepository(),
                 )
 
-    def test_signatario_unhappy_rt_de_outro_tenant(self) -> None:
-        """UNHAPPY #3: usuario_id tem RT em outro tenant → SignatarioRtNaoCasa."""
+    def test_signatario_unhappy_sem_rt_casando_no_tenant(self) -> None:
+        """UNHAPPY #3: colaborador com usuario_id mas SEM RTCompetencia vigente casando
+        no tenant → SignatarioRtNaoCasa (a busca de RT é por usuario_id no tenant ativo;
+        RLS isola RT de outro tenant, então RT alheio nunca casa)."""
         from src.infrastructure.colaboradores.repositories import (
             DjangoColaboradorRepository,
             DjangoPapelRepository,
         )
 
         tenant_a = TenantFactory()
-        tenant_b = TenantFactory()
         usuario = UsuarioFactory()
 
-        # Colaborador criado no TENANT A (sem RT associado em tenant_a — RT está em tenant_b)
+        # Colaborador com usuario_id, mas nenhum RT vigente casando em tenant_a.
         with run_in_tenant_context(tenant_a.id, usuario_id=usuario.id):
             colab_id = _criar_colaborador_no_banco(
                 tenant_a.id, cpf="44455566619", usuario_id=usuario.id
@@ -576,7 +608,8 @@ class TestColaboradoresE2E:
                 data_inicio=date(2024, 1, 1),
                 perfil_tenant="A",
             )
-            with pytest.raises((SignatarioRtNaoCasa, SignatarioSemUsuario, SignatarioSemEscopo)):
+            # usuario_id presente + rt_casa False → SignatarioRtNaoCasa (específico).
+            with pytest.raises(SignatarioRtNaoCasa):
                 uc_papeis.atribuir_papel(
                     cmd,
                     repo_colab=DjangoColaboradorRepository(),
@@ -593,8 +626,17 @@ class TestColaboradoresE2E:
             _criar_colaborador_no_banco(tenant.id, cpf="55566677720", nome="Elegível")
 
             elegiveis = consultar_elegiveis(tenant_id=tenant.id)
-            campos_proibidos = {"cpf", "email", "telefone", "ctps_info", "cnh_info",
-                                "foto_storage_key", "comissao_default_pct", "vinculo", "observacao"}
+            campos_proibidos = {
+                "cpf",
+                "email",
+                "telefone",
+                "ctps_info",
+                "cnh_info",
+                "foto_storage_key",
+                "comissao_default_pct",
+                "vinculo",
+                "observacao",
+            }
             for e in elegiveis:
                 dados_dto = e.__dict__
                 for campo in campos_proibidos:
@@ -605,8 +647,8 @@ class TestColaboradoresE2E:
 
     def test_list_sem_n1_queries(self) -> None:
         """assertNumQueries: list colaboradores não gera N+1 (TL-COL-12)."""
-        from src.application.rh_frota_qualidade.colaboradores.consultas import consultar_elegiveis
         from django.test.utils import CaptureQueriesContext
+        from src.application.rh_frota_qualidade.colaboradores.consultas import consultar_elegiveis
 
         tenant = TenantFactory()
 
@@ -665,14 +707,17 @@ class TestINV_COL_ELEGIVEIS_MINIMO:
 
     def test_serializer_elegiveis_tem_apenas_campos_allowlist(self) -> None:
         from src.infrastructure.colaboradores.serializers import ElegivelDTOSerializer
+
         campos_permitidos = {"colaborador_id", "nome_exibicao", "papel", "habilidades", "ativo"}
-        ser = ElegivelDTOSerializer({
-            "colaborador_id": uuid.uuid4(),
-            "nome_exibicao": "Técnico",
-            "papel": "tecnico",
-            "habilidades": [],
-            "ativo": True,
-        })
+        ser = ElegivelDTOSerializer(
+            {
+                "colaborador_id": uuid.uuid4(),
+                "nome_exibicao": "Técnico",
+                "papel": "tecnico",
+                "habilidades": [],
+                "ativo": True,
+            }
+        )
         campos_retornados = set(ser.data.keys())
         extra = campos_retornados - campos_permitidos
         assert extra == set(), f"Campos extras não permitidos em /elegiveis: {extra}"

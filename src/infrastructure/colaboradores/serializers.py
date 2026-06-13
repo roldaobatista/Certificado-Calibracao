@@ -7,9 +7,9 @@ Regras (spec §3 D-COL-7 / TL-COL-05 / ADV-COL-04):
   CPF       → só DONO (demais: `***.***.***-NN` — últimos 2 dígitos).
   e-mail    → Dono/Gerente/próprio colaborador.
   telefone  → Dono/Gerente/próprio colaborador.
-  ctps_*    → Dono + próprio colaborador.
-  cnh_*     → Dono + próprio colaborador.
   foto_*    → Dono/Gerente + próprio (por omissão: URL segura se Gerente).
+  documentos[] (CTPS/CNH) → Dono + próprio: storage_key/sha256 redigidos para
+    quem não é DONO nem próprio (INV-COL-PII-MASCARA / exports.md:40).
   Fail-closed: sem papel reconhecido → campo mascarado.
 
 Serializer `ElegivelDTO` (INV-COL-ELEGIVEIS-MINIMO):
@@ -46,6 +46,8 @@ _QUALIDADE = PapelColaborador.QUALIDADE.value
 _MOTORISTA = PapelColaborador.MOTORISTA_UMC.value
 
 # MATRIZ_VISAO_PII[campo][papel] = True se visível (sem ser o próprio)
+# Nota: documentos[] com tipo CTPS/CNH são filtrados separadamente em
+# filtrar_visao_pii (lógica de lista, não campo escalar).
 MATRIZ_VISAO_PII: dict[str, dict[str, bool]] = {
     "cpf": {
         _DONO: True,
@@ -58,17 +60,14 @@ MATRIZ_VISAO_PII: dict[str, dict[str, bool]] = {
         _DONO: True,
         _GERENTE: True,
     },
-    "ctps_info": {
-        _DONO: True,
-    },
-    "cnh_info": {
-        _DONO: True,
-    },
     "foto_storage_key": {
         _DONO: True,
         _GERENTE: True,
     },
 }
+
+# Tipos de documento restritos a DONO + próprio (INV-COL-PII-MASCARA / D-COL-7)
+_TIPOS_DOC_RESTRITOS: frozenset[str] = frozenset({"ctps", "cnh"})
 
 _MASCARA_CPF_DEFAULT = "***.***.***-{ultimos2}"
 
@@ -94,8 +93,9 @@ def filtrar_visao_pii(
     Regras:
     - CPF: só DONO (ou próprio) → `***.***.***-NN` (últimos 2 dígitos).
     - e-mail/telefone: Dono/Gerente/próprio.
-    - ctps/cnh: Dono/próprio.
     - foto: Dono/Gerente/próprio.
+    - documentos[] com tipo CTPS/CNH: DONO ou próprio vêem em claro;
+      demais papéis recebem storage_key=None e sha256=None (redigidos).
     - Fail-closed: sem papel reconhecido → mascarado.
 
     Args:
@@ -130,6 +130,22 @@ def filtrar_visao_pii(
             else:
                 # Campos ocultos viram None
                 resultado[campo] = None
+
+    # Filtra documentos[] com tipo CTPS/CNH (INV-COL-PII-MASCARA / exports.md:40).
+    # DONO ou próprio colaborador vêem em claro; demais têm storage_key/sha256 redigidos.
+    if "documentos" in resultado and isinstance(resultado["documentos"], list):
+        pode_ver_docs_restritos = eh_proprio or (_DONO in papeis_solicitante)
+        if not pode_ver_docs_restritos:
+            documentos_filtrados = []
+            for doc in resultado["documentos"]:
+                tipo_val = (doc.get("tipo") or "").lower()
+                if tipo_val in _TIPOS_DOC_RESTRITOS:
+                    # Redige campos sensíveis mas mantém id/tipo/data para auditoria
+                    doc = dict(doc)
+                    doc["storage_key"] = None
+                    doc["sha256"] = None
+                documentos_filtrados.append(doc)
+            resultado["documentos"] = documentos_filtrados
 
     return resultado
 
