@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado_em: gerado-automaticamente
-status: generated
+revisado-em: 2026-06-12
+status: stable
 diataxis: reference
 audiencia: agente+roldao
 relacionados:
@@ -21,4 +21,4 @@ relacionados:
 | Hooks ativos | **74** | `.claude/hooks/*.sh` (excl. _test-runner) |
 | Casos no _test-runner | **573** | `grep -c run_case .claude/hooks/_test-runner.sh` |
 | ADRs | **82** | `docs/adr/*.md` |
-| Invariantes (IDs INV-*) | **148** | `REGRAS-INEGOCIAVEIS.md` |
+| Invariantes (IDs INV-*) | **143** | `REGRAS-INEGOCIAVEIS.md` |

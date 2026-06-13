@@ -66,8 +66,8 @@ fi
 cat > "$GERADO" <<EOF
 ---
 owner: roldao
-revisado_em: gerado-automaticamente
-status: generated
+revisado-em: $(date +%F)
+status: stable
 diataxis: reference
 audiencia: agente+roldao
 relacionados:
