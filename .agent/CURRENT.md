@@ -12,11 +12,14 @@
 - **Fatia 1a DONE:** enum `TipoItemComercial` + `ItemComercialOSSnapshot` + `ItemOrcamento.equipamento_id`.
 - **Fatia 1b DONE:** rename `equipamento_id_desnormalizado`→`equipamento_id` (19 call-sites) + migration **0018**
   (RenameField atômico + triggers V2 COALESCE / reverse V1 + índice `atv_tenant_equip_est_idx` +
-  add `AtividadeDaOS.equipamento_recebimento_id`). **Drill banco COM dados 5/5 + regressão OS 12/12 + mypy/ruff verdes.**
-  Trigger forward = COALESCE (fallback OS, compat single-equip). `OS.equipamento_recebimento_id` NÃO dropado (depreciado).
-- **PRÓXIMO:** `OS.equipamento` null=True + `OSSnapshot.equipamento_id` UUID|None (~7 call-sites) + índice parcial ·
-  `ItemComercialOS` model+migration+RLS · Fatia 2 (envelope header→item + 3 call-sites + detecção por atividade) ·
-  Fatia 3 (INVs + carga) · P8 (ADR-0082 + emendas) · P9 auditores. GATE-OSME-RECEBIMENTO-7.5 (seam, app equipamentos).
+  add `AtividadeDaOS.equipamento_recebimento_id`). Trigger forward = COALESCE (fallback OS, compat single-equip).
+- **Fatia 1c DONE:** `OS.equipamento` null=True + índice parcial (migration **0019**) + `OSSnapshot.equipamento_id`
+  UUID|None (DTOs query) + entidade **`ItemComercialOS`** model+repo+migration **0020** (RLS v2 + INV-OSME-ITEMCOM-001).
+  **mypy Success (sem type:ignore) + 4 testes (RLS cross-tenant UNHAPPY) + regressão 20 verdes.**
+- **PRÓXIMO:** Fatia 2 (envelope header→item: `ItemOrcamento.equipamento_id` no consumer + `abrir_os_via_orcamento`
+  cria atividade c/ equip. do item OU `ItemComercialOS` se None; 3 call-sites `adicionar_atividade`/reabertura/avulsa;
+  detecção baixado por atividade em `consumers/equipamento.py`) · Fatia 3 (INVs + carga) · P8 (ADR-0082) · P9.
+  GATE-OSME-RECEBIMENTO-7.5 (seam, app equipamentos). Débito pré-existente: DJ001 `perfil_no_evento` (SAN-PERFIL).
 - ✅ Descoberta T-OSME-000: `os.aberta` JÁ cruza o bus (INT-01) — TL-ORC-03 estava desatualizado (corrige escopo).
 
 ## Frente #5 `orcamentos` — P0/P1/P2 feitos, **PAUSADA** (retomar após os-multi-equipamento)

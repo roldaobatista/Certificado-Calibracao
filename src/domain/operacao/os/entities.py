@@ -34,7 +34,7 @@ class OSSnapshot:
     cliente_id: UUID | None  # NULL pos-anonimizacao (ADR-0032)
     cliente_referencia_hash: str  # HMAC-SHA256
     cliente_key_id: str
-    equipamento_id: UUID
+    equipamento_id: UUID | None  # NULL em OS multi-equipamento (ADR-0082 / D-OSME-2); OS legada/avulsa single-equip pode manter
     equipamento_recebimento_id: UUID | None  # NULL em OS de campo (P-OS-R4)
     orcamento_origem_id: UUID | None
     os_origem_id: UUID | None  # FK reabertura (US-OS-006)

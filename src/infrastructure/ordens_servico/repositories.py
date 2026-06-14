@@ -28,6 +28,7 @@ from src.domain.operacao.os.entities import (
     DispensaAceiteAtividadeSnapshot,
     EventoDeOSSnapshot,
     EvidenciaFotoAtividadeSnapshot,
+    ItemComercialOSSnapshot,
     NaoConformidadeAtividadeSnapshot,
     OSSnapshot,
     SLAContratoSnapshot,
@@ -42,6 +43,7 @@ from src.domain.operacao.os.value_objects import (
     TipoAtividade,
     TipoEventoDeOS,
     TipoFotoEvidencia,
+    TipoItemComercial,
 )
 from src.infrastructure.ordens_servico.models import (
     OS,
@@ -52,6 +54,7 @@ from src.infrastructure.ordens_servico.models import (
     DispensaAceiteAtividade,
     EventoDeOS,
     EvidenciaFotoAtividade,
+    ItemComercialOS,
     NaoConformidadeAtividade,
     SLAContrato,
     TipoAtividadeConfig,
@@ -284,6 +287,19 @@ def _tipo_config_to_snapshot(t: TipoAtividadeConfig) -> TipoAtividadeConfigSnaps
         deletado_em=t.deletado_em,
         criado_em=t.criado_em,
         atualizado_em=t.atualizado_em,
+    )
+
+
+def _item_comercial_to_snapshot(i: ItemComercialOS) -> ItemComercialOSSnapshot:
+    return ItemComercialOSSnapshot(
+        id=i.id,
+        tenant_id=i.tenant_id,
+        os_id=i.os_id,
+        tipo=TipoItemComercial(i.tipo),
+        descricao_publica=i.descricao_publica,
+        valor=Decimal(i.valor),
+        quantidade=i.quantidade,
+        origem_item_id=i.origem_item_id,
     )
 
 
@@ -771,6 +787,43 @@ class DjangoOSRepository:
             for t in TipoAtividadeConfig.objects.filter(
                 tenant_id=tenant_id, deletado_em__isnull=True
             ).order_by("tipo")
+        ]
+
+    # ---- ItemComercialOS (D-OSME-3 / INV-OSME-ITEMCOM-001) ----
+
+    def salvar_item_comercial(
+        self, snapshot: ItemComercialOSSnapshot, /
+    ) -> ItemComercialOSSnapshot:
+        """INSERT do ItemComercialOS. Padrao A — deletar via deletado_em (UPDATE direto)."""
+        try:
+            obj = ItemComercialOS.all_objects.get(id=snapshot.id)
+            # UPDATE apenas campos mutaveis (tipo, descricao, valor, quantidade).
+            obj.tipo = snapshot.tipo.value
+            obj.descricao_publica = snapshot.descricao_publica
+            obj.valor = snapshot.valor
+            obj.quantidade = snapshot.quantidade
+            obj.origem_item_id = snapshot.origem_item_id
+            obj.save()
+        except ItemComercialOS.DoesNotExist:
+            obj = ItemComercialOS.objects.create(
+                id=snapshot.id,
+                tenant_id=snapshot.tenant_id,
+                os_id=snapshot.os_id,
+                tipo=snapshot.tipo.value,
+                descricao_publica=snapshot.descricao_publica,
+                valor=snapshot.valor,
+                quantidade=snapshot.quantidade,
+                origem_item_id=snapshot.origem_item_id,
+            )
+        return _item_comercial_to_snapshot(obj)
+
+    def listar_itens_comerciais_por_os(
+        self, os_id: UUID, /
+    ) -> list[ItemComercialOSSnapshot]:
+        """Retorna itens comerciais ativos (nao deletados) da OS, por ordem de criacao."""
+        return [
+            _item_comercial_to_snapshot(i)
+            for i in ItemComercialOS.objects.filter(os_id=os_id).order_by("criado_em")
         ]
 
 

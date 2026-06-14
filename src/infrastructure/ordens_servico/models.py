@@ -51,8 +51,15 @@ class OS(models.Model):
     equipamento = models.ForeignKey(
         "equipamentos.Equipamento",
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="ordens_servico",
-        help_text="INV-OS-EQP-001: equipamento BAIXADO/DESCARTADO bloqueia abertura.",
+        help_text=(
+            "INV-OS-EQP-001: equipamento BAIXADO/DESCARTADO bloqueia abertura. "
+            "NULL em OS multi-equipamento (ADR-0082 / D-OSME-2): cada atividade "
+            "tecnica carrega o SEU equipamento em AtividadeDaOS.equipamento_id. "
+            "OS single-equip legada/avulsa pode manter valor aqui."
+        ),
     )
     orcamento_origem_id = models.UUIDField(
         null=True,
@@ -156,7 +163,14 @@ class OS(models.Model):
         indexes = [
             models.Index(fields=["tenant", "estado", "criada_em"], name="os_tenant_est_cri_idx"),
             models.Index(fields=["tenant", "cliente"], name="os_tenant_cliente_idx"),
-            models.Index(fields=["tenant", "equipamento"], name="os_tenant_equip_idx"),
+            # ADR-0082 / D-OSME-2: indice parcial — cobre apenas OS com equipamento
+            # na cabeca (single-equip legada/avulsa). OS multi-equip tem equipamento=NULL
+            # e nao entra neste indice (sem desperdicio de pagina).
+            models.Index(
+                fields=["tenant", "equipamento"],
+                name="os_tenant_equip_idx",
+                condition=models.Q(equipamento__isnull=False),
+            ),
         ]
 
     def __str__(self) -> str:
@@ -1106,3 +1120,101 @@ class SLAContrato(models.Model):
 
     def __str__(self) -> str:
         return f"SLA cli={self.cliente_id} prio={self.prioridade}"
+
+
+# =============================================================
+# Managers para ItemComercialOS (Padrao A soft-delete ADR-0031)
+# =============================================================
+
+
+class ItemComercialOSAtivosManager(models.Manager["ItemComercialOS"]):
+    """Manager default — filtra soft-deleted (Padrao A ADR-0031)."""
+
+    def get_queryset(self) -> models.QuerySet[ItemComercialOS]:
+        return super().get_queryset().filter(deletado_em__isnull=True)
+
+
+class ItemComercialOS(models.Model):
+    """Item comercial sem equipamento em uma OS (D-OSME-3 / spec os-multi-equipamento §4).
+
+    Linha propria na OS para custos comerciais: deslocamento, taxa de visita,
+    ou outros encargos que nao correspondem a uma atividade tecnica em equipamento.
+
+    INV-OSME-ITEMCOM-001:
+    - NUNCA possui equipamento_id.
+    - NUNCA entra no indice de concorrencia metrologica.
+    - Valor soma em OS.valor_total / OS.valor_total_atualizado.
+
+    Padrao A soft-delete (ADR-0031): pode ser editado/cancelado antes do
+    faturamento. Manager `objects` filtra ativos; `all_objects` expoe deletados.
+    RLS herdado via `tenant_id` (policies criadas em migration 0020).
+    """
+
+    TIPO_CHOICES = [
+        ("deslocamento", "Deslocamento"),
+        ("taxa_visita", "Taxa de visita"),
+        ("outro", "Outro"),
+    ]
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+    tenant = models.ForeignKey(
+        "tenant.Tenant",
+        on_delete=models.PROTECT,
+        related_name="itens_comerciais_os",
+        help_text="Tenant do item; herdado da OS pai (INV-TENANT-001).",
+    )
+    os = models.ForeignKey(
+        OS,
+        on_delete=models.PROTECT,
+        related_name="itens_comerciais",
+        help_text="OS pai do item comercial.",
+    )
+    tipo = models.CharField(
+        max_length=30,
+        choices=TIPO_CHOICES,
+        help_text="Enum dos 3 tipos comerciais (INV-OSME-ITEMCOM-001).",
+    )
+    descricao_publica = models.CharField(
+        max_length=200,
+        help_text="Descricao sem PII exibida na OS e no faturamento.",
+    )
+    valor = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        help_text="Valor unitario (INV-OSME-ITEMCOM-001: soma em OS.valor_total).",
+    )
+    quantidade = models.IntegerField(
+        default=1,
+        help_text="Quantidade de unidades do item comercial.",
+    )
+    origem_item_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Rastreio do item de orcamento de origem (db_constraint=False — "
+            "modulo orcamentos ainda nao existe). NULL em item avulso."
+        ),
+    )
+    # Padrao A soft-delete (ADR-0031)
+    deletado_em = models.DateTimeField(null=True, blank=True)
+    deletado_por_usuario_id = models.UUIDField(null=True, blank=True)
+    deletado_motivo = models.CharField(max_length=200, blank=True, default="")
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    # Manager default filtra ativos; all_objects expoe deletados (auditoria).
+    objects = ItemComercialOSAtivosManager()
+    all_objects = models.Manager()  # noqa: DJ012
+
+    class Meta:
+        app_label = "ordens_servico"
+        db_table = "item_comercial_os"
+        verbose_name = "Item comercial da OS"
+        verbose_name_plural = "Itens comerciais da OS"
+        ordering = ["os", "criado_em"]
+        indexes = [
+            models.Index(fields=["tenant", "os"], name="itemcom_tenant_os_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"ItemComercialOS({self.tipo} R${self.valor}x{self.quantidade} os={self.os_id})"

@@ -22,6 +22,7 @@ from .entities import (
     DispensaAceiteAtividadeSnapshot,
     EventoDeOSSnapshot,
     EvidenciaFotoAtividadeSnapshot,
+    ItemComercialOSSnapshot,
     NaoConformidadeAtividadeSnapshot,
     OSSnapshot,
     SLAContratoSnapshot,
@@ -162,3 +163,16 @@ class OSRepository(Protocol):
     def listar_tipos_atividade_config(
         self, tenant_id: UUID, /
     ) -> Iterable[TipoAtividadeConfigSnapshot]: ...
+
+    # ---- ItemComercialOS (D-OSME-3 / INV-OSME-ITEMCOM-001) ----
+    def salvar_item_comercial(
+        self, snapshot: ItemComercialOSSnapshot, /
+    ) -> ItemComercialOSSnapshot:
+        """INSERT/UPDATE de item comercial. Padrao A — soft-delete via deletado_em."""
+        ...
+
+    def listar_itens_comerciais_por_os(
+        self, os_id: UUID, /
+    ) -> list[ItemComercialOSSnapshot]:
+        """Retorna itens comerciais ativos (nao deletados) da OS, por ordem de criacao."""
+        ...

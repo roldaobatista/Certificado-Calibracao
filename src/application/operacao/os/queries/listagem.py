@@ -23,7 +23,7 @@ class OSItemListagem:
     estado: str
     tipo_predominante: str
     cliente_id: UUID | None
-    equipamento_id: UUID
+    equipamento_id: UUID | None  # NULL em OS multi-equipamento (ADR-0082 / D-OSME-2)
     valor_total_atualizado: Decimal
     nao_conformidade_global: bool
     criada_em: datetime

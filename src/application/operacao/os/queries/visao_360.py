@@ -42,7 +42,7 @@ class OSVisao360:
     tenant_id: UUID
     cliente_id: UUID | None
     cliente_referencia_hash: str
-    equipamento_id: UUID
+    equipamento_id: UUID | None  # NULL em OS multi-equipamento (ADR-0082 / D-OSME-2)
     equipamento_recebimento_id: UUID | None
     orcamento_origem_id: UUID | None
     os_origem_id: UUID | None
