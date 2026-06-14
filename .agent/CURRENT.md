@@ -4,11 +4,14 @@
 
 **Modo:** AUTÔNOMO. **Fase:** Wave A em curso.
 
-## Frente ATIVA — `orcamentos` (retomar) (2026-06-14)
+## Frente ATIVA — `orcamentos` (P3 DONE → implementação) (2026-06-14)
 
-- Estava PAUSADA por dependência do envelope header→item de `os-multi-equipamento` — agora **FECHADA**,
-  envelope disponível. Spec sobe a v2.
-- P0/P1/P2 feitos; **PRÓXIMO = P3 (plan + tasks)**. Detalhe: `docs/faseamento/orcamentos/reviews-consolidado.md`.
+- Dependência `os-multi-equipamento` FECHADA; envelope por item disponível. **Spec v2 + plan + tasks prontos (P3).**
+- Revisão do plan: `tech-lead` + `consultor-rbc` **APROVA COM CORREÇÕES** — todas incorporadas (CRIT-1
+  `ACOES_ORCAMENTOS` lowercase no bus; ALTO-1/2 casamento `handle_os_aberta`+reuso resolver anti-N+1;
+  análise crítica cl.7.1: `itens_avaliados` ricos C1 + confirmação de ressalva cl.7.1.1-d C2/C3).
+- **PRÓXIMO = implementação Fatia 1a** (domínio puro `src/domain/comercial/orcamentos/`) → 1b schema →
+  2 use cases/REST → 3 INVs → P8/P9. Detalhe: `docs/faseamento/orcamentos/{spec,plan,tasks}.md`.
 
 ## Última frente FECHADA — `os-multi-equipamento` (2026-06-14)
 
