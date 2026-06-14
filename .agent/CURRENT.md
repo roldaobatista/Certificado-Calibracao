@@ -4,12 +4,12 @@
 
 **Modo:** AUTÔNOMO. **Fase:** Wave A em curso.
 
-## Frente ATIVA — `os-multi-equipamento` (P0/P1/P2 feitos — PRÓXIMO = P3 plan/tasks) (2026-06-13)
+## Frente ATIVA — `os-multi-equipamento` (P0..P3 feitos — PRÓXIMO = impl Fatia 1a domínio) (2026-06-13)
 
 - Retrofit cirúrgico da OS (fechada): 1→N equipamentos (equipamento por ATIVIDADE) + entidade
   `ItemComercialOS` (deslocamento/taxa) + recebimento por instrumento (cl. 7.5). Aditivo/reversível, esforço L.
-- P0 (T-OSME-000) + spec **v2** + P2 (tech-lead + consultor-rbc, ambos APROVA C/ CORREÇÕES) prontos.
-  Detalhe: `docs/faseamento/os-multi-equipamento/reviews-consolidado.md`.
+- P0 (T-OSME-000) + spec **v2** + P2 (tech-lead + consultor-rbc, ambos APROVA C/ CORREÇÕES) + **P3 plan/tasks**
+  (T-OSME-010..061, 4 fatias) prontos. Detalhe: `docs/faseamento/os-multi-equipamento/reviews-consolidado.md`.
 - Decisões: **Roldão D-OSME-3** = item comercial como LINHA na OS (não diferir). D-OSME-1 renomear
   `equipamento_id_desnormalizado`→`equipamento_id`. D-OSME-5/RBC = recebimento migra OS→atividade.
 - 3 CRÍTICOS p/ P3: TL-01 RenameField quebra triggers PL/pgSQL (CREATE OR REPLACE ambas + reverse) ·
