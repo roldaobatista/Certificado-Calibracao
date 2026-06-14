@@ -6,19 +6,20 @@
 
 ## Frente ATIVA — `orcamentos` (P3 DONE → implementação) (2026-06-14)
 
-- Dependência `os-multi-equipamento` FECHADA; envelope por item disponível. **Spec v2 + plan + tasks prontos (P3).**
-- Revisão do plan: `tech-lead` + `consultor-rbc` **APROVA COM CORREÇÕES** — todas incorporadas (CRIT-1
-  `ACOES_ORCAMENTOS` lowercase no bus; ALTO-1/2 casamento `handle_os_aberta`+reuso resolver anti-N+1;
-  análise crítica cl.7.1: `itens_avaliados` ricos C1 + confirmação de ressalva cl.7.1.1-d C2/C3).
+- Dependência `os-multi-equipamento` FECHADA; envelope por item disponível. **P3 (spec v2+plan+tasks)
+  revisado por `tech-lead`+`consultor-rbc` — APROVA COM CORREÇÕES, todas incorporadas.** Detalhe no plan.
 - **Fatia 1a+1b DONE (2026-06-14):** domínio puro (45 testes) + schema PG `src/infrastructure/orcamentos/`
   (7 models + RLS v2 + WORM + 6 migrations + repos/mappers + `ACOES_ORCAMENTOS`). **Drill PG-real 20/20**
   (RLS UNHAPPY cross-tenant + WORM UPDATE/DELETE + constraints). Decisões: `item.versao` FK NOT NULL (sem
   `orcamento_id` — espelha entidade); `versao` congelamento one-shot; CHECK do outbox é SINTÁTICO →
   migration de CHECK desnecessária (não criada — REGRA #0). `get_link_por_token`/numeração SerieDocumento
   diferidos p/ Fatia 2.
-- **PRÓXIMO = Fatia 2** (use cases + consumers + REST: criar/adicionar-item/enviar/aprovar c/ análise crítica
-  cl.7.1 perfil-aware/recusar/cancelar + `handle_os_aberta` + REST público token). Detalhe:
-  `docs/faseamento/orcamentos/{spec,plan,tasks}.md`.
+- **Fatia 2 MAPEADA (2026-06-14):** briefing dos 12 seams + 3 decisões REGRA #0 em `tasks.md`
+  (D-FATIA2-A numeração **BURACOS_ACEITOS** — Roldão pode pedir gap-less; D-FATIA2-B série provisionada
+  **LAZY** — `serie_documento` vazia; D-FATIA2-C deps `calcular_precos` na view, use case fino).
+- **PRÓXIMO = implementar Onda 2a** (`criar_orcamento` + `adicionar_item`/`editar_item` + view) → 2b transições
+  → 2c aprovar c/ análise crítica cl.7.1 perfil-aware → 2d consumers → 2e REST público → 2f testes.
+  Detalhe: `docs/faseamento/orcamentos/{spec,plan,tasks}.md`.
 
 ## Última frente FECHADA — `os-multi-equipamento` (2026-06-14)
 

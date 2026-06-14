@@ -78,8 +78,35 @@ relacionados:
 
 ## Fatia 2 — use cases + consumers + REST
 
-- [ ] **T-ORC-030** `criar_orcamento` — cliente ativo/não-bloqueado (D-ORC-4); numero gap-less; rascunho.
-      Ref: AC-ORC-001; INV-ORC-... .
+> **Preparação (2026-06-14 — briefing dos 12 seams + investigação REGRA #0):**
+> Seams verificados (paths/assinaturas): `calcular_precos` (injetável; deps montadas na view via
+> `_construir_resolver_com_tabela_padrao` — `precificacao/views.py:164`); `ItemCalculado` (preco_base
+> `PrecoResolvido`, preco_final `Decimal`, desconto_pct `Percentual`, semaforo `Semaforo`; margem/custo
+> `Decimal|None` — NÃO persistir); `SerieDocumento` (`reservar_numero`/`confirmar_numero` — `serie.py`);
+> cliente bloqueado (`Cliente.bloqueado` property + `ClienteBloqueio`); análise crítica (`escopos_cmc.cobre`,
+> `procedimentos.cobre_procedimento`/`vigente_em`, `perfil_tenant_helper.tenant_perfil_e`); `publicar_evento`
+> (`audit/event_helpers` — cadeia+outbox, idempotência por `(causation_id,acao)`); idempotência REST
+> (`_aplicar_idempotencia` — `precificacao/_views_suporte.py`); rate-limit (`equipamentos/services_ratelimit`
+> `avaliar_limite_ip`); consumer (`@consumer_idempotente` — `bus/consumer_base`; `registrar_consumer` —
+> `audit/outbox_worker`); HMAC PII (`calibracao/lgpd` `derivar_*`); canonicalização ADR-0029
+> (`domain/metrologia/calibracao/hash_versionado` `canonicalizar_payload_para_hmac`).
+>
+> **DECISÕES (REGRA #0):**
+> - **D-FATIA2-A — Numeração = BURACOS_ACEITOS** (NÃO gap-less). O regime é DERIVADO do tipo
+>   (`regime_numeracao_do_tipo`, ADR-0080 fixa gap-less só p/ fatura/certificado — exigência fiscal/ISO).
+>   Reconcilia D-ORC-18: buracos só ocorrem em ROLLBACK de criação (falha rara) — não em cancelamento —
+>   logo na prática a numeração é sequencial limpa. Diferença com gap-less é desprezível; evita mexer no
+>   motor central (configuracoes_sistema fechado). **Roldão pode pedir gap-less se quiser nº 100% garantido.**
+> - **D-FATIA2-B — Provisionamento de série LAZY.** `serie_documento` está VAZIA (Wave A não fez onboarding
+>   de séries). `criar_orcamento` faz obter-ou-criar a série de orçamento do tenant (advisory lock, idempotente)
+>   antes de `reservar_numero`. Confirmar API `criar_serie`/`obter` de configuracoes_sistema na implementação.
+> - **D-FATIA2-C — Arquitetura use-case×view (TL-ORC ALTO-2).** A VIEW (infra) monta as deps de
+>   `calcular_precos`, chama-o, e passa o `ItemCalculado` resolvido ao use case `adicionar_item` (fino), que
+>   persiste SÓ PrecoResolvido+preco_final+desconto_pct+semaforo (INV-ORC-MARGEM-OFF). Use case NÃO instancia
+>   repos de precificacao.
+
+- [ ] **T-ORC-030** `criar_orcamento` — cliente ativo/não-bloqueado (D-ORC-4); numero (buracos-aceitos via
+      SerieDocumento, D-FATIA2-A/B); rascunho + VersaoOrcamento V1 snapshot={}. Ref: AC-ORC-001.
 - [ ] **T-ORC-031** `adicionar_item`/`editar_item` — `calcular_precos` (cesta) → persiste SÓ `PrecoResolvido`+
       `preco_final`+`desconto_pct`+`semaforo` (INV-ORC-MARGEM-OFF); `equipamento_id` no item calibração;
       rejeita tabela expirada (422). **(TL-ORC ALTO-2)** deps de `calcular_precos` montadas na VIEW (infra),
