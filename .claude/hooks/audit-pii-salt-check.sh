@@ -74,7 +74,11 @@ esac
 # Procura padrao perigoso: hashlib.sha256(<algo>).hexdigest()
 # Regex permissiva (`.*`) pra capturar parenteses aninhados como
 # `.encode("utf-8")`.
-if printf '%s' "$content" | grep -nE 'hashlib\.sha256\(.*\.hexdigest\(\)' > /tmp/_apsc_hits 2>/dev/null; then
+# Arquivo temp UNICO por PID ($$): o pre-commit roda hooks em paralelo
+# (MAX_JOBS=8); um temp fixo era truncado por invocacoes concorrentes no
+# meio da leitura -> falso bloqueio (linha lida sem o comentario de skip).
+HITS_FILE="/tmp/_apsc_hits.$$"
+if printf '%s' "$content" | grep -nE 'hashlib\.sha256\(.*\.hexdigest\(\)' > "$HITS_FILE" 2>/dev/null; then
     while IFS=: read -r linha_num linha_conteudo; do
         # Skip se linha contem override
         if printf '%s' "$linha_conteudo" | grep -qE '# *audit-pii-salt: *skip -- .{10,}'; then
@@ -109,10 +113,10 @@ if printf '%s' "$content" | grep -nE 'hashlib\.sha256\(.*\.hexdigest\(\)' > /tmp
         echo "" >&2
         echo "Override (com justificativa >=10 chars):" >&2
         echo "  hashlib.sha256(x).hexdigest()  # audit-pii-salt: skip -- <razao>" >&2
-        rm -f /tmp/_apsc_hits
+        rm -f "$HITS_FILE"
         exit 2
-    done < /tmp/_apsc_hits
+    done < "$HITS_FILE"
 fi
-rm -f /tmp/_apsc_hits 2>/dev/null
+rm -f "$HITS_FILE" 2>/dev/null
 
 exit 0
