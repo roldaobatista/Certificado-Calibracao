@@ -35,6 +35,7 @@ from src.domain.operacao.os.entities import (
     DispensaAceiteAtividadeSnapshot,
     EventoDeOSSnapshot,
     EvidenciaFotoAtividadeSnapshot,
+    ItemComercialOSSnapshot,
     OSSnapshot,
 )
 from src.domain.operacao.os.repository import OSRepository
@@ -46,6 +47,7 @@ from src.domain.operacao.os.value_objects import (
     TipoAtividade,
     TipoEventoDeOS,
     TipoFotoEvidencia,
+    TipoItemComercial,
 )
 
 # =============================================================
@@ -137,6 +139,8 @@ def reabrir_os(
     repository.salvar_os(nova)
 
     # Clona atividades (PENDENTE + sequencia=1..N).
+    # AC-OSME-003-2: clone usa equipamento_id PROPRIO da atividade-mae (nao da OS-mae
+    # que agora pode ser NULL em OS multi-equip). Cada atividade carrega seu equipamento.
     atividades_mae = repository.listar_atividades_por_os(os_mae.id)
     clonadas: list[UUID] = []
     valor_total_novo = Decimal("0")
@@ -158,7 +162,10 @@ def reabrir_os(
             geo_lat=None,
             geo_long=None,
             geo_municipio_hash="",
-            equipamento_id=None,
+            # AC-OSME-003-2: clone do equipamento_id PROPRIO da atividade-mae.
+            # Se ativ.equipamento_id for None (legado pre-retrofit), o trigger
+            # COALESCE copia de OS-filha.equipamento_id (que clonou da OS-mae).
+            equipamento_id=ativ.equipamento_id,
             tipo_bloqueia_concorrencia=False,
         )
         repository.salvar_atividade(clone)
@@ -696,6 +703,14 @@ class ItemOSAvulsa:
     sequencia: int
     valor_unitario_snapshot: Decimal  # da tabela vigente NA DATA (INV-CLI-PRICE-001)
     requer_recebimento: bool
+    equipamento_id: UUID | None = None
+    """Equipamento proprio do item (D-OSME-4 / AC-OSME-003-3).
+
+    None => item comercial (ItemComercialOS, tipo OUTRO). UUID => atividade tecnica
+    com esse equipamento. O payload_fingerprint de idempotencia inclui os equipamentos
+    dos itens (TL-OSME-03 — evita colisao entre OS avulsas com header igual mas
+    equipamentos diferentes).
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -704,7 +719,8 @@ class CriarOSAvulsaInput:
     cliente_id: UUID
     cliente_referencia_hash: str
     cliente_key_id: str
-    equipamento_id: UUID
+    equipamento_id: UUID | None
+    """Header legado (fallback para itens sem equipamento proprio em D-OSME-4). None em multi-equip."""
     equipamento_recebimento_id: UUID | None
     itens: tuple[ItemOSAvulsa, ...]
     analise_critica_inline_id: UUID  # AC-OS-001-7 — analise inline obrigatoria
@@ -779,6 +795,18 @@ def criar_os_avulsa(
         (item.valor_unitario_snapshot for item in payload.itens), start=Decimal("0")
     )
 
+    # D-OSME-4: OS avulsa multi-equip. OS.equipamento_id = primeiro se single-equip,
+    # NULL se multi-equip, payload.equipamento_id (header) como fallback.
+    equip_ids_avulsa = {
+        item.equipamento_id for item in payload.itens if item.equipamento_id is not None
+    }
+    if len(equip_ids_avulsa) > 1:
+        os_equip_avulsa: UUID | None = None  # multi-equip -> NULL na OS
+    elif len(equip_ids_avulsa) == 1:
+        os_equip_avulsa = next(iter(equip_ids_avulsa))
+    else:
+        os_equip_avulsa = payload.equipamento_id  # header legado ou None
+
     os_snapshot = OSSnapshot(
         id=os_id,
         tenant_id=payload.tenant_id,
@@ -786,7 +814,7 @@ def criar_os_avulsa(
         cliente_id=payload.cliente_id,
         cliente_referencia_hash=payload.cliente_referencia_hash,
         cliente_key_id=payload.cliente_key_id,
-        equipamento_id=payload.equipamento_id,
+        equipamento_id=os_equip_avulsa,
         equipamento_recebimento_id=payload.equipamento_recebimento_id,
         orcamento_origem_id=None,  # avulsa
         os_origem_id=None,
@@ -805,35 +833,56 @@ def criar_os_avulsa(
     )
     repository.salvar_os(os_snapshot)
 
+    # D-OSME-4: distribui equipamento por atividade (espelhando abrir_os_via_orcamento).
+    # Com equip -> atividade tecnica; sem equip -> ItemComercialOS (D-OSME-3).
     planejadas: list[UUID] = []
+    itens_comerciais_avulsa = 0
     for item in payload.itens:
-        ativ_id = uuid4()
-        ativ = AtividadeSnapshot(
-            id=ativ_id,
-            tenant_id=payload.tenant_id,
-            os_id=os_id,
-            tipo=item.tipo,
-            sequencia=item.sequencia,
-            estado=EstadoAtividade.PENDENTE,
-            tecnico_executor_id=None,
-            agendada_para=None,
-            iniciada_em=None,
-            concluida_em=None,
-            valor_unitario_snapshot=item.valor_unitario_snapshot,
-            link_modulo_tecnico_id=None,
-            geo_lat=None,
-            geo_long=None,
-            geo_municipio_hash="",
-            equipamento_id=None,
-            tipo_bloqueia_concorrencia=False,
-        )
-        repository.salvar_atividade(ativ)
-        planejadas.append(ativ_id)
+        if item.equipamento_id is not None:
+            ativ_id = uuid4()
+            ativ = AtividadeSnapshot(
+                id=ativ_id,
+                tenant_id=payload.tenant_id,
+                os_id=os_id,
+                tipo=item.tipo,
+                sequencia=item.sequencia,
+                estado=EstadoAtividade.PENDENTE,
+                tecnico_executor_id=None,
+                agendada_para=None,
+                iniciada_em=None,
+                concluida_em=None,
+                valor_unitario_snapshot=item.valor_unitario_snapshot,
+                link_modulo_tecnico_id=None,
+                geo_lat=None,
+                geo_long=None,
+                geo_municipio_hash="",
+                equipamento_id=item.equipamento_id,
+                tipo_bloqueia_concorrencia=False,
+            )
+            repository.salvar_atividade(ativ)
+            planejadas.append(ativ_id)
+        else:
+            # Item sem equipamento -> ItemComercialOS (D-OSME-3).
+            item_com_id = uuid4()
+            descricao_com = item.tipo.value.replace("_", " ").capitalize() if item.tipo else "Item comercial"
+            item_com = ItemComercialOSSnapshot(
+                id=item_com_id,
+                tenant_id=payload.tenant_id,
+                os_id=os_id,
+                tipo=TipoItemComercial.OUTRO,
+                descricao_publica=descricao_com,
+                valor=item.valor_unitario_snapshot,
+                quantidade=1,
+                origem_item_id=None,
+            )
+            repository.salvar_item_comercial(item_com)
+            itens_comerciais_avulsa += 1
 
     ev_payload: dict[str, object] = {
         "numero_os": numero_os,
         "balcao": True,
         "atividades": [str(aid) for aid in planejadas],
+        "itens_comerciais_count": itens_comerciais_avulsa,
     }
     ev_canonico = json.dumps(ev_payload, sort_keys=True, ensure_ascii=False)
     ev_hash = hashlib.sha256(ev_canonico.encode("utf-8")).hexdigest()  # audit-pii-salt: skip -- payload sanitizado

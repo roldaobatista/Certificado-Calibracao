@@ -436,26 +436,38 @@ class DjangoOSRepository:
             obj.geo_municipio_hash = snapshot.geo_municipio_hash
             obj.save()
         except AtividadeDaOS.DoesNotExist:
-            obj = AtividadeDaOS.objects.create(
-                id=snapshot.id,
-                tenant_id=snapshot.tenant_id,
-                os_id=snapshot.os_id,
-                tipo=snapshot.tipo.value,
-                sequencia=snapshot.sequencia,
-                estado=snapshot.estado.value,
-                tecnico_executor_id=snapshot.tecnico_executor_id,
-                agendada_para=snapshot.agendada_para,
-                iniciada_em=snapshot.iniciada_em,
-                concluida_em=snapshot.concluida_em,
-                valor_unitario_snapshot=snapshot.valor_unitario_snapshot,
-                link_modulo_tecnico_id=snapshot.link_modulo_tecnico_id,
-                geo_lat=snapshot.geo_lat,
-                geo_long=snapshot.geo_long,
-                geo_municipio_hash=snapshot.geo_municipio_hash,
-                # equipamento_id + tipo_bloqueia_concorrencia sao preenchidos
-                # via trigger BEFORE INSERT (ADR-0082 / INV-OS-CONC-001) —
-                # adapter NUNCA passa esses campos no INSERT.
-            )
+            # ADR-0082 / INV-OS-ATIV-002 (emenda os-multi-equipamento):
+            # equipamento_id e PROPRIO da atividade. O trigger BEFORE INSERT usa
+            # COALESCE(NEW.equipamento_id, OS.equipamento_id): se o snapshot traz o
+            # equipamento_id, passamos no INSERT para que o trigger preserve o valor.
+            # Em OS single-equip legada com snapshot.equipamento_id=None o trigger
+            # copia de OS.equipamento_id (compat). Em OS multi-equip com OS.equipamento_id=NULL
+            # o trigger devolveria NULL — por isso o snapshot DEVE trazer o valor (AC-OSME-002-2).
+            # tipo_bloqueia_concorrencia: sempre omitido no INSERT (trigger preenche via config).
+            create_kwargs: dict[str, object] = {
+                "id": snapshot.id,
+                "tenant_id": snapshot.tenant_id,
+                "os_id": snapshot.os_id,
+                "tipo": snapshot.tipo.value,
+                "sequencia": snapshot.sequencia,
+                "estado": snapshot.estado.value,
+                "tecnico_executor_id": snapshot.tecnico_executor_id,
+                "agendada_para": snapshot.agendada_para,
+                "iniciada_em": snapshot.iniciada_em,
+                "concluida_em": snapshot.concluida_em,
+                "valor_unitario_snapshot": snapshot.valor_unitario_snapshot,
+                "link_modulo_tecnico_id": snapshot.link_modulo_tecnico_id,
+                "geo_lat": snapshot.geo_lat,
+                "geo_long": snapshot.geo_long,
+                "geo_municipio_hash": snapshot.geo_municipio_hash,
+                # tipo_bloqueia_concorrencia preenchido via trigger BEFORE INSERT
+                # (ADR-0082 / INV-OS-CONC-001) — adapter NUNCA passa no INSERT.
+            }
+            if snapshot.equipamento_id is not None:
+                # Passa equipamento_id para que o trigger preserve (nao substitua pelo da OS).
+                # Trigger usa IF NEW.equipamento_id IS NULL THEN copia OS, senao preserva.
+                create_kwargs["equipamento_id"] = snapshot.equipamento_id
+            obj = AtividadeDaOS.objects.create(**create_kwargs)
         return _atividade_to_snapshot(obj)
 
     # ---- AceiteAtividade (Padrao B imutavel) ----

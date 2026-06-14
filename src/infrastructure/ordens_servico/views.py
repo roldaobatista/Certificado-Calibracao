@@ -506,8 +506,19 @@ class OSViewSet(viewsets.ViewSet):
                 sequencia=int(item["sequencia"]),
                 valor_unitario_snapshot=Decimal(str(item["valor_unitario_snapshot"])),
                 requer_recebimento=bool(item.get("requer_recebimento", False)),
+                # D-OSME-4 / AC-OSME-003-3: equipamento_id por item.
+                equipamento_id=(
+                    UUID(str(item["equipamento_id"]))
+                    if item.get("equipamento_id")
+                    else None
+                ),
             )
             for item in itens_raw
+        )
+        # TL-OSME-03 / AC-OSME-003-3: payload_fingerprint inclui equipamentos dos itens.
+        # Evita colisao entre OS avulsas com header igual mas equipamentos diferentes.
+        equip_fingerprint = sorted(
+            str(item.equipamento_id) for item in itens if item.equipamento_id is not None
         )
         novo, resp = _aplicar_idempotencia(
             request,
@@ -519,6 +530,8 @@ class OSViewSet(viewsets.ViewSet):
                 "equipamento_id": str(d.get("equipamento_id", "")),
                 "itens_qtd": len(itens),
                 "analise_critica_inline_id": str(d.get("analise_critica_inline_id", "")),
+                # D-OSME-4: equipamentos dos itens no fingerprint (TL-OSME-03).
+                "equip_ids": equip_fingerprint,
             },
         )
         if resp is not None:
@@ -533,7 +546,11 @@ class OSViewSet(viewsets.ViewSet):
                         cliente_id=UUID(d["cliente_id"]),
                         cliente_referencia_hash=str(d.get("cliente_referencia_hash", "")),
                         cliente_key_id=str(d.get("cliente_key_id", "")),
-                        equipamento_id=UUID(d["equipamento_id"]),
+                        equipamento_id=(
+                            UUID(d["equipamento_id"])
+                            if d.get("equipamento_id")
+                            else None
+                        ),
                         equipamento_recebimento_id=(
                             UUID(d["equipamento_recebimento_id"])
                             if d.get("equipamento_recebimento_id")

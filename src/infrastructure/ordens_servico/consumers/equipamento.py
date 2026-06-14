@@ -1,14 +1,22 @@
-"""T-OS-034 + T-OS-036 — Consumers de eventos do modulo `equipamentos`.
+"""T-OS-034 + T-OS-036 + T-OSME-033 — Consumers de eventos do modulo `equipamentos`.
 
-- `Equipamento.Baixado` / `Equipamento.Descartado` (T-OS-034):
+- `Equipamento.Baixado` / `Equipamento.Descartado` (T-OS-034 + T-OSME-033):
   INV-OS-EQP-001. Equipamento baixado/descartado bloqueia abertura de
   novas OS. Atividades JA pendentes (OS em curso) sao marcadas como
   cancelaveis — operador humano decide via use case `cancelar_os` /
   `cancelar_atividade` (Fase 5). Consumer apenas LOGA + grava evento
   pra timeline (saga humana decide o que fazer).
+
+  T-OSME-033 (AC-OSME-004-1): deteccao agora usa `AtividadeDaOS.equipamento_id`
+  (nao mais `OS.equipamento_id`) — cobre OS multi-equipamento onde OS.equipamento_id
+  pode ser NULL. Usa o indice `atv_tenant_equip_est_idx` (TL-OSME-02) via
+  `distinct().values_list("os_id")` em 1 query so (sem N+1).
+
 - `EquipamentoRecebimento.Registrado` (T-OS-036): preenche
   `OS.equipamento_recebimento_id` quando recebimento tem `os_id` no
-  payload (cl. 7.5 ISO 17025 / P-OS-R4).
+  payload (cl. 7.5 ISO 17025 / P-OS-R4). Estrutura de recebimento por
+  atividade (GATE-OSME-RECEBIMENTO-7.5) fica para quando app equipamentos
+  publicar `atividade_id` no payload.
 """
 
 from __future__ import annotations
@@ -23,6 +31,11 @@ logger = logging.getLogger(__name__)
 
 
 def _logar_equipamento_inutilizado(envelope: dict[str, Any], *, consumer_id: str) -> None:
+    """T-OSME-033 (AC-OSME-004-1): detecta OSs afetadas via AtividadeDaOS.equipamento_id.
+
+    Usa 1 query com indice atv_tenant_equip_est_idx (TL-OSME-02) — sem N+1.
+    Mantém comportamento de APENAS LOGAR (nao cancela — saga humana decide).
+    """
     payload = envelope.get("payload", {})
     equipamento_id_raw = payload.get("equipamento_id")
     if equipamento_id_raw is None:
@@ -34,20 +47,29 @@ def _logar_equipamento_inutilizado(envelope: dict[str, Any], *, consumer_id: str
         logger.warning("%s: equipamento_id invalido", consumer_id)
         return
 
-    from src.infrastructure.ordens_servico.models import OS
+    from src.infrastructure.ordens_servico.models import AtividadeDaOS
 
-    estados_pendentes = ("rascunho", "agendada", "em_execucao")
-    pendentes = OS.objects.filter(
-        equipamento_id=equipamento_uuid,
-        estado__in=estados_pendentes,
-    ).count()
+    # AC-OSME-004-1: localiza OSs via AtividadeDaOS.equipamento_id (nao OS.equipamento_id).
+    # Cobre OS multi-equip onde OS.equipamento_id = NULL. Indice atv_tenant_equip_est_idx
+    # cobre (tenant_id, equipamento_id, estado) — 1 query, sem N+1.
+    estados_ativos = ("pendente", "agendada", "em_execucao")
+    os_ids_afetados = list(
+        AtividadeDaOS.objects.filter(
+            equipamento_id=equipamento_uuid,
+            estado__in=estados_ativos,
+        )
+        .values_list("os_id", flat=True)
+        .distinct()
+    )
+    pendentes = len(os_ids_afetados)
     logger.info(
         "%s: equipamento=%s — %d OS pendentes precisam de cancelamento humano "
         "(INV-OS-EQP-001 bloqueia ABERTURA de novas; pendentes ficam pra "
-        "decisao do operador)",
+        "decisao do operador). OS ids: %s",
         consumer_id,
         equipamento_uuid,
         pendentes,
+        os_ids_afetados[:10],  # log primeiros 10 p/ nao poluir
     )
 
 

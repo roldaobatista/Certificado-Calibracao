@@ -1,18 +1,25 @@
-"""Use case `adicionar_atividade` — T-OS-048 (Fase 5).
+"""Use case `adicionar_atividade` — T-OS-048 (Fase 5) + T-OSME-031 (Fatia 2).
 
-Cobre AC-OS-002-1, 2, 4 do PRD. AC-OS-002-3 (predicate
-`tenant_tem_rt_ativo_competencia`) eh do CALLER: consumer/view chama
-`src.infrastructure.ordens_servico.predicates_os.rt_competencia_cobre`
+Cobre AC-OS-002-1, 2, 4 do PRD e AC-OSME-003-1 (spec os-multi-equipamento §2).
+AC-OS-002-3 (predicate `tenant_tem_rt_ativo_competencia`) eh do CALLER: consumer/view
+chama `src.infrastructure.ordens_servico.predicates_os.rt_competencia_cobre`
 ANTES de invocar este use case.
 
 Validacoes binarias:
 - AC-OS-002-2: OS em CONCLUIDA/FATURADA/PAGA/CANCELADA -> 412
   `OSEmEstadoTerminal`.
-- AC-OS-002-4: `sequencia` ≤ menor `sequencia` de atividade CONCLUIDA -> 412
+- AC-OS-002-4: `sequencia` <= menor `sequencia` de atividade CONCLUIDA -> 412
   `SequenciaInvalidaPosTerminal` (linearidade — gate sequencia pos-terminal).
+- AC-OSME-003-1 (INV-OS-EQP-001 enforcement novo — TL-OSME-03):
+  `equipamento_id` no input; se o equipamento estiver BAIXADO/DESCARTADO -> 422
+  `EquipamentoBaixadoEmOS`. O caller (view/consumer) valida antes de chamar
+  este use case usando a mesma logica do consumer de orcamento (pre-check via
+  query Equipamento). Este use case aceita o equipamento_id no input e o
+  repassa para o snapshot — enforcement de estado do equipamento fica no CALLER
+  (mesmo padrao de abrir_os via consumer de orcamento).
 
-Apos validacoes, persiste `AtividadeDaOS` em PENDENTE + grava
-`EventoDeOS(tipo='atividade_adicionada')` na timeline.
+Apos validacoes, persiste `AtividadeDaOS` em PENDENTE com o `equipamento_id`
+informado + grava `EventoDeOS(tipo='atividade_adicionada')` na timeline.
 
 Camada APPLICATION pura: recebe `OSRepository` Protocol via DI.
 """
@@ -48,6 +55,14 @@ class AdicionarAtividadeInput:
     correlation_id: UUID
     solicitada_em: datetime
     solicitada_por_user_id: UUID | None
+    equipamento_id: UUID | None = None
+    """Equipamento proprio da atividade (AC-OSME-003-1 / ADR-0082).
+
+    None em atividade comercial ou em OS single-equip legada (trigger COALESCE
+    copia de OS.equipamento_id nesse caso). O caller e responsavel por validar
+    INV-OS-EQP-001 (equipamento BAIXADO/DESCARTADO -> 422) antes de invocar
+    este use case (TL-OSME-03 — mesmo padrao do consumer de orcamento).
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +120,10 @@ def adicionar_atividade(
         )
 
     # Persiste atividade nova.
+    # AC-OSME-003-1: equipamento_id proprio da atividade (ADR-0082 / INV-OS-ATIV-002).
+    # None => trigger COALESCE copia de OS.equipamento_id (compat single-equip legada).
+    # Nota: enforcement INV-OS-EQP-001 fica no CALLER (view/consumer) — mesmo padrao
+    # do consumer de orcamento que pre-valida antes de chamar o use case.
     atividade_id = uuid4()
     atividade_snapshot = AtividadeSnapshot(
         id=atividade_id,
@@ -122,7 +141,10 @@ def adicionar_atividade(
         geo_lat=None,
         geo_long=None,
         geo_municipio_hash="",
-        equipamento_id=None,  # trigger preenche (ADR-0082 / INV-OS-CONC-001)
+        # equipamento_id proprio da atividade (passado pelo caller).
+        # Se None: trigger BEFORE INSERT copia de OS.equipamento_id (compat legado).
+        # Se UUID: adapter passa no INSERT; trigger preserva (nao sobrescreve).
+        equipamento_id=payload.equipamento_id,
         tipo_bloqueia_concorrencia=False,  # trigger preenche
     )
     repository.salvar_atividade(atividade_snapshot)
