@@ -10,7 +10,11 @@
 - Revisão do plan: `tech-lead` + `consultor-rbc` **APROVA COM CORREÇÕES** — todas incorporadas (CRIT-1
   `ACOES_ORCAMENTOS` lowercase no bus; ALTO-1/2 casamento `handle_os_aberta`+reuso resolver anti-N+1;
   análise crítica cl.7.1: `itens_avaliados` ricos C1 + confirmação de ressalva cl.7.1.1-d C2/C3).
-- **PRÓXIMO = implementação Fatia 1a** (domínio puro `src/domain/comercial/orcamentos/`) → 1b schema →
+- **Fatia 1a DONE (2026-06-14):** domínio puro `src/domain/comercial/orcamentos/` (8 arquivos: enums,
+  value_objects c/ Desconto+CondicoesPagamento, entities, erros, repository Protocols, transicoes c/ máquina
+  de estados + tradução enum D-ORC-16 + `montar_envelope` casando com consumer OS). Dinheiro VO em todos os
+  valores (corrigi desvio do subagente: era int/Decimal misto). 45 testes verdes; ruff/mypy limpos.
+- **PRÓXIMO = Fatia 1b** (schema PG: 7 models + RLS + WORM + ACOES_ORCAMENTOS/migration CHECK) →
   2 use cases/REST → 3 INVs → P8/P9. Detalhe: `docs/faseamento/orcamentos/{spec,plan,tasks}.md`.
 
 ## Última frente FECHADA — `os-multi-equipamento` (2026-06-14)

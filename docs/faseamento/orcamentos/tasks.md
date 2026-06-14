@@ -19,7 +19,7 @@ relacionados:
 > Refs: D-ORC-* (spec §3), INV-ORC-* (spec §5), seams (spec §11), TL-ORC-* / ADV-ORC-* (reviews).
 > **Greenfield** — a ponta da OS já existe (envelope por item, ADR-0082).
 
-## Fatia 1a — domínio puro (`src/domain/comercial/orcamentos/`)
+## Fatia 1a — domínio puro (`src/domain/comercial/orcamentos/`) — ✅ DONE 2026-06-14 (45 testes; Dinheiro VO)
 
 - [ ] **T-ORC-010** `enums.py` — `EstadoOrcamento` (8 estados D-ORC-3), `TipoAtividadeAlvo`
       (calibracao/manutencao/instalacao/verificacao/vistoria — SEM `outro`, D-ORC-16),
