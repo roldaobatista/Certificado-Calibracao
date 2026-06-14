@@ -76,7 +76,10 @@ def _abrir_atribuir(tenant, cliente, equipamento, executor_id, tipo):
         cliente_id=cliente.id,
         cliente_referencia_hash="a" * 64,
         cliente_key_id="kms",
-        equipamento_id=equipamento.id,
+        # Retrofit os-multi-equipamento (ADR-0082): equipamento_id do header e
+        # apenas fallback legado. O item tecnico DEVE trazer o equipamento_id
+        # proprio para virar AtividadeSnapshot (nao ItemComercialOS).
+        equipamento_id=None,
         equipamento_recebimento_id=None,
         analise_critica_id=uuid4(),
         analise_critica_snapshot_hash="b" * 64,
@@ -88,6 +91,8 @@ def _abrir_atribuir(tenant, cliente, equipamento, executor_id, tipo):
                 sequencia=1,
                 valor_unitario=Decimal("100.00"),
                 requer_recebimento=False,
+                # Novo contrato (ADR-0082): equipamento_id por item -> atividade tecnica.
+                equipamento_id=equipamento.id,
             ),
         ),
         correlation_id=uuid4(),

@@ -65,7 +65,10 @@ def _abrir(tenant, cliente, equipamento):
                 cliente_id=cliente.id,
                 cliente_referencia_hash="a" * 64,
                 cliente_key_id="kms",
-                equipamento_id=equipamento.id,
+                # Retrofit os-multi-equipamento (ADR-0082): equipamento_id do header e
+                # fallback legado. Item tecnico DEVE trazer o equipamento_id proprio para
+                # virar AtividadeSnapshot (INV-OS-ATIV-002 emendado).
+                equipamento_id=None,
                 equipamento_recebimento_id=None,
                 analise_critica_id=uuid4(),
                 analise_critica_snapshot_hash="b" * 64,
@@ -77,6 +80,8 @@ def _abrir(tenant, cliente, equipamento):
                         sequencia=1,
                         valor_unitario=Decimal("100.00"),
                         requer_recebimento=False,
+                        # Novo contrato (ADR-0082): equipamento_id por item -> atividade tecnica.
+                        equipamento_id=equipamento.id,
                     ),
                 ),
                 correlation_id=uuid4(),
@@ -95,7 +100,11 @@ def test_inv_os_ativ_002_happy_atividade_herda_tenant_da_os(db):
     res = _abrir(tenant, cliente, equipamento)
     with run_in_tenant_context(tenant.id):
         os_obj = OS.objects.get(id=res.os_id)
-        for ativ in os_obj.atividades.all():
+        atividades = list(os_obj.atividades.all())
+        # INV-OS-ATIV-002 (emendado retrofit ADR-0082): item tecnico com equipamento_id
+        # proprio gera AtividadeSnapshot — lista nunca vazia para OS tecnica.
+        assert len(atividades) >= 1, "OS tecnica deve ter ao menos 1 atividade (item com equipamento_id)"
+        for ativ in atividades:
             assert ativ.tenant_id == os_obj.tenant_id
 
 

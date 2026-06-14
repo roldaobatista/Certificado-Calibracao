@@ -215,6 +215,7 @@ Stack ativa: Python 3.12 + Django 5.0 + DRF + PostgreSQL 16 + Poetry. Docker Com
 | 0079 | Licenca fonte rica + cache Tenant unidirecional | licencas / tenant |
 | 0080 | Numeração SerieDocumento 2 regimes | configuracoes-sistema |
 | 0081 | Duas fontes de preço lista×venda fail-closed | produtos-pecas-servicos |
+| 0082 | OS multi-equipamento (equipamento por atividade) | ordens_servico |
 
 ---
 

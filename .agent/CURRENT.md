@@ -15,13 +15,16 @@
   add `AtividadeDaOS.equipamento_recebimento_id`). Trigger forward = COALESCE (fallback OS, compat single-equip).
 - **Fatia 1c DONE:** `OS.equipamento` null=True + índice parcial (migration **0019**) + `OSSnapshot.equipamento_id`
   UUID|None + entidade **`ItemComercialOS`** model+repo+migration **0020** (RLS v2 + INV-OSME-ITEMCOM-001).
-- **Fatia 2 DONE:** envelope header→item (`equipamento_id` por item no consumer); `abrir_os_via_orcamento` bifurca
-  (item c/ equip→atividade própria; sem→`ItemComercialOS`); OS multi-equip → `OS.equipamento`=NULL (1 equip mantém);
-  pré-check baixado itera todos equip. em 1 query; 3 call-sites (adicionar/reabrir/avulsa); detecção baixado por
-  `AtividadeDaOS.equipamento_id` (Risco #1). **mypy 0 + 5 testes (multi-equip + UNHAPPY baixado) + regressão 21 verdes.**
-- **PRÓXIMO:** Fatia 3 (emenda INV-OS-ATIV-002/EQP-001 + INV-OSME-RCB-001/ITEMCOM-001 em REGRAS + atualizar testes
-  regressão p/ multi-equip + teste de CARGA concorrência cross-equipamento) · P8 (ADR-0082 + emenda ADR-0023 +
-  matriz-feature-perfil + STATUS-GERADO) · P9 auditores. GATE-OSME-RECEBIMENTO-7.5. Débito pré-existente: DJ001 `perfil_no_evento`.
+- **Fatia 2 DONE:** envelope header→item; `abrir_os_via_orcamento` bifurca (item c/ equip→atividade; sem→`ItemComercialOS`);
+  OS multi-equip → `OS.equipamento`=NULL; pré-check baixado em 1 query; 3 call-sites; detecção por `AtividadeDaOS.equipamento_id`.
+  **mypy 0 + 5 testes + regressão 21 verdes.**
+- **Fatia 3 (INVs) + P8 docs DONE:** REGRAS emendado (INV-OS-ATIV-002/EQP-001 + INV-OSME-RCB-001/ITEMCOM-001, INV-checker OK) +
+  **ADR-0082** nova + emenda ADR-0023 + INDICE + AGENTS §11 + matriz-feature-perfil (recebimento perfil-aware). denylist OK (ADRs=83).
+- ⚠️ **Testes Fatia 3 COMMITADOS mas VERIFICAÇÃO FUNCIONAL PENDENTE** (subagente parado ANTES de rodar pytest; sintaxe OK):
+  `tests/regressao/test_inv_os_{ativ_002,conc_001,eqp_001}` (atualizados p/ multi-equip) + `tests/carga/test_concorrencia_cross_equipamento.py`.
+- **PRÓXIMO (retomar):** (1) RODAR os testes Fatia 3 e consertar o que falhar; (2) **P9 auditores** roteados (qualidade·segurança·
+  llm·idempotência·produto + performance OBRIGATÓRIO + observabilidade) com 2ª passada escopada + adversarial; depois FECHAR.
+  GATE-OSME-RECEBIMENTO-7.5 (seam app equipamentos). Débito pré-existente: DJ001 `perfil_no_evento` (SAN-PERFIL).
 - ✅ Descoberta T-OSME-000: `os.aberta` JÁ cruza o bus (INT-01) — TL-ORC-03 estava desatualizado (corrige escopo).
 
 ## Frente #5 `orcamentos` — P0/P1/P2 feitos, **PAUSADA** (retomar após os-multi-equipamento)

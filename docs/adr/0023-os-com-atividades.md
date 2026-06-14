@@ -1,4 +1,6 @@
 ---
+owner: agente-ia
+revisado-em: 2026-06-14
 adr: 0023
 titulo: OS com Atividades (1 OS contém N atividades de tipos distintos)
 status: aceito
@@ -152,3 +154,8 @@ Com o modelo atual, atendente é forçado a:
 - 2026-05-23: **aceito** pelo Roldão via AskUserQuestion. Marco 3
   arranca já com este modelo; nenhum código a refatorar (Marco 3 é
   greenfield).
+- 2026-06-14: **emendada pela ADR-0082** (`os-multi-equipamento`). O "1 instrumento"
+  do container (Caminho B, §47-49) evolui para **N instrumentos por OS** — 1 por
+  atividade técnica, mais itens comerciais sem equipamento (`ItemComercialOS`).
+  Equipamento deixa de ser herdado da OS e passa a ser PRÓPRIO da atividade
+  (emenda INV-OS-ATIV-002). A relação OS↔Cliente permanece 1:1 (non-goal preservado).

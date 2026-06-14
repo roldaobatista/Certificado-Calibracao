@@ -74,6 +74,7 @@ relacionados:
 | **PII cliente / titular** (ADR-0021 zonas) | 25a (ISO 8.4 obrigação legal) | 25a (recomendado — preparação para A) | 25a (mesmo) | **5a (Receita)** + anonimização agressiva |
 | **Eventos WORM hash-chain** (INV-HMAC-001..005) | 25a INVARIANTE | 25a INVARIANTE | 25a INVARIANTE | **25a INVARIANTE** |
 | **Job `geo_truncamento_calibracao_5a`** | NUNCA trunca | 5a (trunca preservando hash-chain) | 5a | 5a + anonimização agressiva |
+| **Recebimento do item calibrando POR INSTRUMENTO** (ordens_servico — INV-OSME-RCB-001 / ADR-0082 / cl. 7.4.3) | ✅ registro de condição de recebimento por instrumento obrigatório (anormalidade por item — cl. 7.4.3); ausência = NC maior CGCRE | ⚠️ recomendado por instrumento; 1-por-OS tolerado fora de bancada | ⚠️ recomendado (em preparação) | ➖ não exigido (sem cadeia de custódia metrológica) |
 | **Backup B2 WORM** (ADR-0064) | 25a | 25a | 25a | 25a (hash-chain) + 5a (PII) |
 | **Escopo CMC / capacidade** (M6 — sustenta o certificado emitido; WORM Padrão B INV-ECMC-003) | 25a (lastreia cert RBC — ISO 8.4) | 25a (capacidade declarada) | 25a | 25a (nunca apaga; sem PII de cliente) |
 | **Procedimento de calibração** (M7 — documento controlado que lastreia a calibração; WORM Padrão B INV-PROC-003; snapshot na calibração INV-PROC-005) | 25a (lastreia cert RBC — ISO 8.4 + cl. 7.2.1) | 25a (método declarado) | 25a | 25a (nunca apaga; sem PII de cliente) |
