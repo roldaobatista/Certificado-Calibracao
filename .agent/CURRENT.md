@@ -10,25 +10,23 @@
 - Revisão do plan: `tech-lead` + `consultor-rbc` **APROVA COM CORREÇÕES** — todas incorporadas (CRIT-1
   `ACOES_ORCAMENTOS` lowercase no bus; ALTO-1/2 casamento `handle_os_aberta`+reuso resolver anti-N+1;
   análise crítica cl.7.1: `itens_avaliados` ricos C1 + confirmação de ressalva cl.7.1.1-d C2/C3).
-- **Fatia 1a DONE (2026-06-14):** domínio puro `src/domain/comercial/orcamentos/` (8 arquivos: enums,
-  value_objects c/ Desconto+CondicoesPagamento, entities, erros, repository Protocols, transicoes c/ máquina
-  de estados + tradução enum D-ORC-16 + `montar_envelope` casando com consumer OS). Dinheiro VO em todos os
-  valores (corrigi desvio do subagente: era int/Decimal misto). 45 testes verdes; ruff/mypy limpos.
-- **PRÓXIMO = Fatia 1b** (schema PG: 7 models + RLS + WORM + ACOES_ORCAMENTOS/migration CHECK) →
-  2 use cases/REST → 3 INVs → P8/P9. Detalhe: `docs/faseamento/orcamentos/{spec,plan,tasks}.md`.
+- **Fatia 1a+1b DONE (2026-06-14):** domínio puro (45 testes) + schema PG `src/infrastructure/orcamentos/`
+  (7 models + RLS v2 + WORM + 6 migrations + repos/mappers + `ACOES_ORCAMENTOS`). **Drill PG-real 20/20**
+  (RLS UNHAPPY cross-tenant + WORM UPDATE/DELETE + constraints). Decisões: `item.versao` FK NOT NULL (sem
+  `orcamento_id` — espelha entidade); `versao` congelamento one-shot; CHECK do outbox é SINTÁTICO →
+  migration de CHECK desnecessária (não criada — REGRA #0). `get_link_por_token`/numeração SerieDocumento
+  diferidos p/ Fatia 2.
+- **PRÓXIMO = Fatia 2** (use cases + consumers + REST: criar/adicionar-item/enviar/aprovar c/ análise crítica
+  cl.7.1 perfil-aware/recusar/cancelar + `handle_os_aberta` + REST público token). Detalhe:
+  `docs/faseamento/orcamentos/{spec,plan,tasks}.md`.
 
 ## Última frente FECHADA — `os-multi-equipamento` (2026-06-14)
 
-- Retrofit cirúrgico OS 1→N equipamentos (equipamento por ATIVIDADE) + `ItemComercialOS` (deslocamento/taxa) +
-  recebimento por instrumento (estrutura). Aditivo/reversível. ADR-0082.
-- Ritual P0→P9. Fatias 1a/1b/1c/2/2-leitura(T-OSME-035)/3 DONE. **P9:** 7 auditores → 4 c/ MÉDIO+ →
-  consertos causa-raiz → 2ª passada 4/4 PASS (INV-RITUAL-001 ok, zero C/A/M).
-- **GATE VERMELHO** da regressão (use case `abrir_os_via_orcamento` documentava fallback header→item mas não
-  implementava — só o consumer) RESOLVIDO (fallback movido p/ use case). Regressão módulo OS: **96 verdes**.
-- Débitos rastreados: **GATE-OSME-RECEBIMENTO-7.5** (enforcement recebimento por atividade — app `equipamentos`);
-  **GATE-OS-AUTHZ-ACTION-MAP** (`os.atualizar` nunca seedado em reagendar/transferir/cancelar/dispensa/reabrir —
-  bug pré-existente fora do escopo; `criar` já corrigido p/ `os.adicionar_atividade`). BAIXOs lote (R10):
-  try/finally migration 0021, `correlation_id` ad-hoc em eventos OS. Detalhe: `matriz-reconciliacao.md` (ata P9).
+- Retrofit OS 1→N equipamentos (equip. por atividade) + `ItemComercialOS`. Aditivo/reversível. ADR-0082.
+  Ritual P0→P9 (P9: 7 auditores → 2ª passada 4/4 PASS). Regressão OS **96 verdes**.
+- Débitos: **GATE-OSME-RECEBIMENTO-7.5** (enforcement recebimento por atividade) · **GATE-OS-AUTHZ-ACTION-MAP**
+  (`os.atualizar` não seedado em reagendar/transferir/cancelar/dispensa/reabrir — bug pré-existente).
+  Detalhe: `matriz-reconciliacao.md` (ata P9) + `docs/faseamento/diario/`.
 
 ## Pendência de produto aberta
 

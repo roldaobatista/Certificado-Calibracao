@@ -287,6 +287,12 @@ LOCAL_APPS = [
     # Tabela global CatalogoHabilidade (sem tenant_id, sem RLS — D-COL-5/TL-COL-10).
     # Advisory lock namespace 880_405 (troca de DONO — ADR-0065/D-COL-4).
     "src.infrastructure.colaboradores.apps.ColaboradoresConfig",
+    # Wave A frente comercial/orcamentos — 1a ponta de receita (Passo 1 da Saga 1,
+    # ADR-0034). Documento comercial que vira OS via envelope por item (ADR-0082):
+    # carrinho -> calculo (precificacao) -> envio com link -> aprovacao -> analise
+    # critica cl. 7.1 perfil-aware -> publica `orcamento.aprovado` (lowercase outbox)
+    # -> a OS cria 1 OS com N atividades. 7 tabelas (RLS v2 + WORM aprovacao/analise).
+    "src.infrastructure.orcamentos.apps.OrcamentosConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

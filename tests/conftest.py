@@ -138,6 +138,7 @@ _SEED_MIGRATIONS: list[tuple[str, str]] = [
     ("precificacao", "0009_seed_authz_precificacao_acoes_faltantes"),
     ("colaboradores", "0005_seed_authz_colaboradores"),
     ("colaboradores", "0006_seed_catalogo_habilidade"),
+    ("orcamentos", "0006_seed_authz"),
 ]
 
 

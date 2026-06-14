@@ -414,6 +414,29 @@ ACOES_COLABORADORES: Final[frozenset[str]] = frozenset(
 )
 
 
+# Wave A frente comercial/orcamentos (T-ORC-025b / CRIT-1 tech-lead) — 1a ponta de
+# receita. Eventos cross-modulo via outbox=True: `orcamento.aprovado` carrega o
+# envelope EXATO (equip. por item — ADR-0082) consumido pela OS (cria OS),
+# financeiro e crm. Slug LOWERCASE (exigencia do CHECK bus_outbox_acao_enum_semantico,
+# molde `os.aberta`) — o CHECK e PURAMENTE SINTATICO (formato slug), nao enumera
+# valores, logo NAO exige migration de CHECK nova (igual a todos os modulos pos-0011).
+# PII via apontador (cliente_referencia_hash no payload; nome do aprovador nunca em
+# claro — D-ORC-17). `convertido` fecha a saga quando o consumer `handle_os_aberta`
+# casa `orcamento_id` (D-ORC-14).
+ACOES_ORCAMENTOS: Final[frozenset[str]] = frozenset(
+    {
+        "orcamento.enviado",
+        "orcamento.aprovado",
+        "orcamento.recusado",
+        "orcamento.expirado",
+        "orcamento.convertido",
+        # Analise critica cl. 7.1 perfil-aware (D-ORC-5/15) — qualidade/dashboard consomem.
+        "orcamento.analise_critica_reprovada",
+        "orcamento.analise_critica_com_ressalva",
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -432,6 +455,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_CATALOGO
     | ACOES_PRECIFICACAO
     | ACOES_COLABORADORES
+    | ACOES_ORCAMENTOS
 )
 
 

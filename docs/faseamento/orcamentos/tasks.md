@@ -38,29 +38,43 @@ relacionados:
       bifurcação item calibração(equip)→atividade × comercial(sem equip)→linha; envelope montado correto;
       preço sem margem. ruff/mypy limpos.
 
-## Fatia 1b — schema PG (`src/infrastructure/orcamentos/`)
+## Fatia 1b — schema PG (`src/infrastructure/orcamentos/`) — ✅ DONE 2026-06-14 (drill 20/20; ruff/mypy limpos)
 
-- [ ] **T-ORC-020** `apps.py` (label `orcamentos`) + `models.py` — 7 tabelas, `tenant_id` NOT NULL, índices;
-      par ReferenciaPIIAnonimizavel (orçamento cliente + aprovação aprovador). Ref: spec §4; D-ORC-2/4.
-- [ ] **T-ORC-021** Migration `0001_initial` (7 models). Ref: spec §4.
-- [ ] **T-ORC-022** Migration `0002_rls_policies` — RLS v2 (FORCE + 4 policies tenant/tabela) + grants `app_user`.
-      Ref: INV-TENANT-001/002/003.
-- [ ] **T-ORC-023** Migration `0003_triggers_worm` — anti-mutação (`aprovacao`, `analise_critica_orcamento`,
-      `versao_orcamento` Padrão B) + `reverse_sql`. Ref: INV-ORC-APROVACAO-WORM / ANALISE-WORM / D-ORC-8.
-- [ ] **T-ORC-024** Migration `0004_constraints` — partial unique `link_publico` (1 ativo WHERE revogado IS NULL)
-      + CHECK convertido terminal + unique `numero` por tenant. Ref: INV-ORC-LINK-TOKEN / CONVERTIDO-TERMINAL.
-- [ ] **T-ORC-025** Migration `0006_seed_authz` — ações `orcamento.{criar,editar,enviar,aprovar,recusar,cancelar,
-      ver,gerir_template,ver_margem}` × perfis (matriz molde 0013 OS; `ver_margem` restrito). Ref: D-ORC-12.
-- [ ] **T-ORC-025b** (TL-ORC CRIT-1) `audit/acoes_canonicas.py` — bloco `ACOES_ORCAMENTOS` (eventos lowercase
-      `orcamento.enviado/aprovado/recusado/expirado/convertido/analise_critica_reprovada/analise_critica_com_ressalva`)
-      + incluir na union `ACOES_CANONICAS` + migration `0007_acoes_orcamentos_check` (emenda CHECK
-      `bus_outbox_acao_enum_semantico`). Teste: `assert_acao_canonica("orcamento.aprovado")` não levanta.
-      **Pré-requisito da Fatia 2** (senão `publicar_evento(outbox=True)` quebra no CHECK). Ref: spec §6.
-- [ ] **T-ORC-026** `repositories.py` + `mappers.py` — adapters dos Protocols; numeração densa via
-      `SerieDocumento` (`reservar_numero`/`confirmar_numero`, D-ORC-18); WORM append; CRUD. Ref: spec §11.
-- [ ] **T-ORC-027** **Drill em banco COM dados** — `migrate` + `makemigrations --check`; RLS UNHAPPY
-      cross-tenant por tabela; trigger WORM bloqueia UPDATE/DELETE; numeração concorrente gap-less; partial
-      unique link. `tests/test_orcamentos_schema.py` (PG-real). `auditor-seguranca` PASS.
+> **Decisões de schema (Opus — reconciliação P8):**
+> - **`item_orcamento.versao` FK NOT NULL, SEM `orcamento_id`** — espelha a entidade `ItemOrcamento.versao_id`
+>   (que não tem `orcamento_id`). A versão corrente nasce na criação do orçamento (snapshot={}) e CONGELA ao
+>   enviar (one-shot). O orçamento deriva via `versao.orcamento`. (Decisão inicial item↔orcamento revertida.)
+> - **`versao_orcamento` = WORM congelamento one-shot** (não Padrão B puro): trigger permite preencher snapshot
+>   vazio→cheio 1×, setar `revogado_em`; bloqueia re-edição do snapshot, mudança de núcleo e DELETE.
+>   `aprovacao`/`analise_critica_orcamento` continuam INSERT-only puro.
+> - **Monetário** persistido como `*_centavos` + `moeda`; `preco_resolvido`/`itens_avaliados`/`snapshot` em jsonb.
+> - **Tabelas:** `orcamento_link_publico`/`orcamento_aprovacao` prefixados (evita colisão no schema global).
+
+- [x] **T-ORC-020** `apps.py` (label `orcamentos`) + `models.py` — 7 tabelas, `tenant` FK NOT NULL, índices;
+      ReferenciaPIIAnonimizavel no orçamento (cliente) + aprovação (aprovador, HMAC). Ref: spec §4; D-ORC-2/4.
+- [x] **T-ORC-021** Migration `0001_initial` (7 models). `makemigrations --check` limpo.
+- [x] **T-ORC-022** Migration `0002_rls_policies` — RLS v2 (ENABLE+FORCE + 4 policies) nas 7 tabelas +
+      `0005_grants_app_user` (GRANT separado, molde precificacao). Ref: INV-TENANT-001/002/003.
+- [x] **T-ORC-023** Migration `0003_triggers_worm` — `aprovacao`+`analise` INSERT-only puro; `versao` congelamento
+      one-shot (ver decisão acima). `reverse_sql` completo. Ref: INV-ORC-APROVACAO-WORM / ANALISE-WORM / D-ORC-8.
+- [x] **T-ORC-024** Migration `0004_constraints` — partial unique `orcamento_link_publico` (1 ativo WHERE
+      revogado_em IS NULL) + trigger estado terminal (não CHECK — transição exige OLD vs NEW) + unique `numero`
+      por tenant + CHECK bifurcação item. Ref: INV-ORC-LINK-TOKEN / CONVERTIDO-TERMINAL / EQUIP-ITEM.
+- [x] **T-ORC-025** Migration `0006_seed_authz` — 9 ações `orcamento.*` × 5 perfis (27 linhas; `ver_margem`
+      restrito a admin/gerente). + conftest `_SEED_MIGRATIONS` (re-seed após TRUNCATE transacional). Ref: D-ORC-12.
+- [x] **T-ORC-025b** (TL-ORC CRIT-1) `audit/acoes_canonicas.py` — bloco `ACOES_ORCAMENTOS` (7 eventos lowercase)
+      + union `ACOES_CANONICAS`. **CORREÇÃO (REGRA #0): a migration `0007_acoes_orcamentos_check` era
+      DESNECESSÁRIA** — o CHECK `bus_outbox_acao_enum_semantico` é puramente SINTÁTICO (regex de formato slug,
+      só na `audit/0011`), não enumera valores; nenhum dos ~14 módulos pós-0011 criou migration de CHECK ao
+      adicionar ações. Os slugs `orcamento.*` já passam no CHECK existente. Ref: spec §6.
+- [x] **T-ORC-026** `repositories.py` + `mappers.py` — adapters dos Protocols (CRUD + WORM INSERT; round-trip
+      Dinheiro/JanelaVigencia/PrecoResolvido/CondicoesPagamento). **`get_link_por_token` (lookup SEM RLS,
+      D-ORC-19) DIFERIDO para Fatia 2** (endpoint público; exige SECURITY DEFINER/tabela-índice). **Numeração
+      via `SerieDocumento` é orquestração do use case `criar_orcamento` (Fatia 2)** — a 1b crava a constraint
+      `uq_orcamento_numero_tenant` (defesa de banco). Ref: spec §11; D-ORC-18.
+- [x] **T-ORC-027** **Drill em banco COM dados** (`tests/test_orcamentos_schema.py`, PG-real, **20 testes**):
+      RLS FORCE+UNHAPPY cross-tenant nas 7 tabelas; WORM UPDATE/DELETE RAISE; versão congelamento one-shot;
+      partial unique link; unique numero/tenant; CHECK bifurcação; estado terminal; seed authz. `auditor-seguranca`.
 
 ## Fatia 2 — use cases + consumers + REST
 
