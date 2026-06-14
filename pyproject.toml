@@ -36,7 +36,7 @@ weasyprint = "^62.3"
 # pydyf < 0.11 obrigatorio com WeasyPrint 62.x (incompatibilidade com
 # 0.11+ — AttributeError em pydyf.Stream.transform). Pin via
 # constraint direta (poetry escolheria 0.12+ que quebra import).
-pydyf = "<0.11"
+pydyf = "<0.13"
 qrcode = {version = "^7.4.2", extras = ["pil"]}
 # Marco 2 — SLA em dias uteis BR (T-EQP-019 / AC-EQP-002b-2). workalendar
 # fornece calendarios completos com feriados nacionais + estaduais ja
