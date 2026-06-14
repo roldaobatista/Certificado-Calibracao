@@ -56,7 +56,12 @@ from src.domain.operacao.os.value_objects import (
 
 @dataclass(frozen=True, slots=True)
 class ItemOrcamento:
-    """Item do orcamento aprovado (1 -> 1 atividade)."""
+    """Item do orcamento aprovado (1 -> 1 atividade ou 1 item comercial).
+
+    Quando `equipamento_id` for None o item nao corresponde a uma atividade
+    tecnica — vira `ItemComercialOSSnapshot` (D-OSME-3). Quando for UUID,
+    vira `AtividadeSnapshot` com aquele equipamento (AC-OSME-002-2).
+    """
 
     tipo: TipoAtividade
     sequencia: int
@@ -64,6 +69,8 @@ class ItemOrcamento:
     requer_recebimento: bool
     """True quando o TipoAtividadeConfig do tenant tem `executa_em_campo=false`
     (i.e., OS de bancada — AC-OS-001-8 exige `equipamento_recebimento_id`)."""
+    equipamento_id: UUID | None = None
+    """None => item comercial (D-OSME-3); UUID => atividade tecnica daquele equipamento."""
 
 
 @dataclass(frozen=True, slots=True)

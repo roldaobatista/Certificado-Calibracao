@@ -4,7 +4,12 @@
 
 **Modo:** AUTÔNOMO. **Fase:** Wave A em curso.
 
-## Frente ATIVA — `os-multi-equipamento` (P0..P3 feitos — PRÓXIMO = impl Fatia 1a domínio) (2026-06-13)
+## Frente ATIVA — `os-multi-equipamento` (P0..P3 + Fatia 1a — PRÓXIMO = Fatia 1b schema/migration) (2026-06-13)
+
+- **Impl Fatia 1a DONE** (T-OSME-010/011/013-parte): enum `TipoItemComercial` + `ItemComercialOSSnapshot` +
+  `ItemOrcamento.equipamento_id` (aditivo, 12 testes/mypy/ruff verdes). PRÓXIMO = Fatia 1b: rename
+  `equipamento_id_desnormalizado`→`equipamento_id` (ATÔMICO cross-layer) + migration 0018 (CREATE OR REPLACE
+  2 triggers + reverse) + OS/recebimento nullable + ItemComercialOS model+RLS + **drill banco COM dados** (TL-01).
 
 - Retrofit cirúrgico da OS (fechada): 1→N equipamentos (equipamento por ATIVIDADE) + entidade
   `ItemComercialOS` (deslocamento/taxa) + recebimento por instrumento (cl. 7.5). Aditivo/reversível, esforço L.

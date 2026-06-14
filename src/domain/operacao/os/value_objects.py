@@ -12,6 +12,7 @@ Imutaveis (frozen=True). Sem Django. Cobrem:
 - `PrioridadeSLA`: 4 niveis.
 - `NumeroOSFormatado`: VO pra exibicao 'OS-YYYY-NNNNNN'.
 - `MotivoCancelamento`: ≥30 chars + anti-PII (INV-OS-TXT-001).
+- `TipoItemComercial`: enum 3 valores de item comercial sem equipamento (D-OSME-3).
 """
 
 from __future__ import annotations
@@ -71,6 +72,18 @@ class TipoAtividade(str, Enum):
     INSTALACAO = "instalacao"
     VERIFICACAO_INMETRO = "verificacao_inmetro"
     VISTORIA = "vistoria"
+
+
+class TipoItemComercial(str, Enum):
+    """Tipo de item comercial sem equipamento (D-OSME-3 / spec os-multi-equipamento §3).
+
+    Linha propria na OS (nao AtividadeDaOS). Nunca entra no indice de concorrencia
+    (INV-OSME-ITEMCOM-001). Soma em OS.valor_total.
+    """
+
+    DESLOCAMENTO = "deslocamento"
+    TAXA_VISITA = "taxa_visita"
+    OUTRO = "outro"
 
 
 class PrecedenteDispensa(str, Enum):

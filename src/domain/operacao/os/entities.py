@@ -20,6 +20,7 @@ from .value_objects import (
     TipoAtividade,
     TipoEventoDeOS,
     TipoFotoEvidencia,
+    TipoItemComercial,
 )
 
 
@@ -77,6 +78,25 @@ class AtividadeSnapshot:
     # (M4) propagar; quando populada, o predicate `rt_competencia_cobre` passa a
     # bloquear transferências de técnico (ADR-0063 ponto 3 — drop-in).
     grandeza: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ItemComercialOSSnapshot:
+    """Snapshot de item comercial sem equipamento (D-OSME-3 / spec os-multi-equipamento §4).
+
+    Linha propria na OS — deslocamento, taxa de visita ou outro custo comercial.
+    Nunca possui equipamento_id nem entra no indice de concorrencia
+    (INV-OSME-ITEMCOM-001). Soma em OS.valor_total.
+    """
+
+    id: UUID
+    tenant_id: UUID
+    os_id: UUID
+    tipo: TipoItemComercial
+    descricao_publica: str
+    valor: Decimal
+    quantidade: int
+    origem_item_id: UUID | None  # rastreio do item de orcamento de origem
 
 
 @dataclass(frozen=True, slots=True)
