@@ -65,7 +65,7 @@ workalendar = "^17.0.0"
 httpx = "^0.28.1"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.4.10"
+ruff = ">=0.4.10,<0.16.0"
 mypy = "^1.10.0"
 django-stubs = {version = "^5.0.2", extras = ["compatible-mypy"]}
 djangorestframework-stubs = {version = "^3.15.0", extras = ["compatible-mypy"]}
