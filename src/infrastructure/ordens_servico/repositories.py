@@ -106,7 +106,7 @@ def _atividade_to_snapshot(a: AtividadeDaOS) -> AtividadeSnapshot:
         geo_lat=a.geo_lat,
         geo_long=a.geo_long,
         geo_municipio_hash=a.geo_municipio_hash,
-        equipamento_id_desnormalizado=a.equipamento_id_desnormalizado,
+        equipamento_id=a.equipamento_id,
         tipo_bloqueia_concorrencia=a.tipo_bloqueia_concorrencia,
         grandeza=a.grandeza,
     )
@@ -400,7 +400,7 @@ class DjangoOSRepository:
             _atividade_to_snapshot(a)
             for a in AtividadeDaOS.objects.filter(
                 tenant_id=tenant_id,
-                equipamento_id_desnormalizado=equipamento_id,
+                equipamento_id=equipamento_id,
                 estado=EstadoAtividade.EM_EXECUCAO.value,
             )
         ]
@@ -436,9 +436,9 @@ class DjangoOSRepository:
                 geo_lat=snapshot.geo_lat,
                 geo_long=snapshot.geo_long,
                 geo_municipio_hash=snapshot.geo_municipio_hash,
-                # equipamento_id_desnormalizado + tipo_bloqueia_concorrencia
-                # sao desnormalizados via trigger BEFORE INSERT — adapter NUNCA
-                # passa esses campos no INSERT.
+                # equipamento_id + tipo_bloqueia_concorrencia sao preenchidos
+                # via trigger BEFORE INSERT (ADR-0082 / INV-OS-CONC-001) —
+                # adapter NUNCA passa esses campos no INSERT.
             )
         return _atividade_to_snapshot(obj)
 

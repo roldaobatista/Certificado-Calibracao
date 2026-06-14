@@ -210,8 +210,8 @@ def abrir_os_via_orcamento(
             geo_lat=None,
             geo_long=None,
             geo_municipio_hash="",
-            # Desnormalizados via trigger BEFORE INSERT (INV-OS-CONC-001):
-            equipamento_id_desnormalizado=None,
+            # Desnormalizados via trigger BEFORE INSERT (INV-OS-CONC-001 / ADR-0082):
+            equipamento_id=None,
             tipo_bloqueia_concorrencia=False,
         )
         repository.salvar_atividade(atividade_snapshot)

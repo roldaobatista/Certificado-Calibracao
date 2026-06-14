@@ -217,7 +217,7 @@ def test_ac_os_002_4_unhappy_sequencia_invalida_pos_terminal_412(db):
             geo_lat=original.geo_lat,
             geo_long=original.geo_long,
             geo_municipio_hash=original.geo_municipio_hash,
-            equipamento_id_desnormalizado=original.equipamento_id_desnormalizado,
+            equipamento_id=original.equipamento_id,
             tipo_bloqueia_concorrencia=original.tipo_bloqueia_concorrencia,
         )
         repo.salvar_atividade(concluida)

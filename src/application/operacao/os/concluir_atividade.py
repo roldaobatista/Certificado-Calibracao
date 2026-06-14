@@ -148,7 +148,7 @@ def concluir_atividade(
         geo_lat=atividade.geo_lat,
         geo_long=atividade.geo_long,
         geo_municipio_hash=atividade.geo_municipio_hash,
-        equipamento_id_desnormalizado=atividade.equipamento_id_desnormalizado,
+        equipamento_id=atividade.equipamento_id,
         tipo_bloqueia_concorrencia=atividade.tipo_bloqueia_concorrencia,
     )
     repository.salvar_atividade(atualizada)

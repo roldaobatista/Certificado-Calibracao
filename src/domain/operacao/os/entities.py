@@ -71,8 +71,8 @@ class AtividadeSnapshot:
     geo_lat: float | None
     geo_long: float | None
     geo_municipio_hash: str
-    # Desnormalizado por trigger (INV-OS-CONC-001)
-    equipamento_id_desnormalizado: UUID | None
+    # Proprio da atividade; fallback via trigger COALESCE p/ OS.equipamento_id (ADR-0082 / INV-OS-CONC-001)
+    equipamento_id: UUID | None
     tipo_bloqueia_concorrencia: bool
     # Grandeza metrológica da atividade (ADR-0063). Vazio até `configurar_calibracao`
     # (M4) propagar; quando populada, o predicate `rt_competencia_cobre` passa a

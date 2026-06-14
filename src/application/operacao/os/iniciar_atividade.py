@@ -160,7 +160,7 @@ def iniciar_atividade(
         geo_lat=payload.geo_lat,
         geo_long=payload.geo_long,
         geo_municipio_hash=payload.geo_municipio_hash,
-        equipamento_id_desnormalizado=atividade.equipamento_id_desnormalizado,
+        equipamento_id=atividade.equipamento_id,
         tipo_bloqueia_concorrencia=atividade.tipo_bloqueia_concorrencia,
     )
     repository.salvar_atividade(atualizada)

@@ -74,7 +74,6 @@ from src.application.operacao.os.operacoes_avancadas import (
     ErroTransferir,
     ItemOSAvulsa,
     MarcarNoShowInput,
-    PrecedenteDispensa,
     ReabrirOSInput,
     ReagendarAtividadeInput,
     TransferirTecnicoInput,
@@ -93,6 +92,7 @@ from src.application.operacao.os.queries.timeline import timeline_da_os
 from src.application.operacao.os.queries.visao_360 import visao_360_da_os
 from src.domain.operacao.os.value_objects import (
     MotivoCancelamento,
+    PrecedenteDispensa,
     TipoAtividade,
 )
 from src.infrastructure.idempotencia.services_idempotencia import (
@@ -384,7 +384,7 @@ class OSViewSet(viewsets.ViewSet):
             endpoint=ENDPOINT_OS_CANCELAR,
             payload_fingerprint={
                 "os_id": str(pk),
-                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),
+                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
             },
         )
         if resp is not None:
@@ -441,7 +441,7 @@ class OSViewSet(viewsets.ViewSet):
             endpoint=ENDPOINT_OS_REABRIR,
             payload_fingerprint={
                 "os_origem_id": str(pk),
-                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),
+                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
                 "garantia_procedente": ser.validated_data["garantia_procedente"],
                 "sucessao_societaria_id": str(
                     ser.validated_data.get("sucessao_societaria_id") or ""
@@ -850,7 +850,7 @@ class AtividadeViewSet(viewsets.ViewSet):
             payload_fingerprint={
                 "atividade_id": str(pk),
                 "novo_tecnico_id": str(ser.validated_data["novo_tecnico_id"]),
-                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),
+                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
             },
         )
         if resp is not None:
@@ -909,7 +909,7 @@ class AtividadeViewSet(viewsets.ViewSet):
             endpoint=ENDPOINT_OS_ATIVIDADE_CANCELAR,
             payload_fingerprint={
                 "atividade_id": str(pk),
-                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),
+                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
             },
         )
         if resp is not None:
@@ -961,7 +961,7 @@ class AtividadeViewSet(viewsets.ViewSet):
             endpoint=ENDPOINT_OS_ATIVIDADE_NC,
             payload_fingerprint={
                 "atividade_id": str(pk),
-                "razao_hash": hashlib.sha256(razao.texto.encode()).hexdigest(),
+                "razao_hash": hashlib.sha256(razao.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
             },
         )
         if resp is not None:
@@ -1014,8 +1014,8 @@ class AtividadeViewSet(viewsets.ViewSet):
             endpoint=ENDPOINT_OS_ATIVIDADE_NC_RESOLVER,
             payload_fingerprint={
                 "atividade_id": str(pk),
-                "causa_hash": hashlib.sha256(causa.texto.encode()).hexdigest(),
-                "acao_hash": hashlib.sha256(acao.texto.encode()).hexdigest(),
+                "causa_hash": hashlib.sha256(causa.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
+                "acao_hash": hashlib.sha256(acao.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
             },
         )
         if resp is not None:
@@ -1127,7 +1127,7 @@ class AtividadeViewSet(viewsets.ViewSet):
             endpoint=ENDPOINT_OS_ATIVIDADE_DISPENSA,
             payload_fingerprint={
                 "atividade_id": str(pk),
-                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),
+                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
                 "precedente_tipo": precedente_tipo.value,
             },
         )

@@ -122,7 +122,7 @@ def adicionar_atividade(
         geo_lat=None,
         geo_long=None,
         geo_municipio_hash="",
-        equipamento_id_desnormalizado=None,  # trigger preenche
+        equipamento_id=None,  # trigger preenche (ADR-0082 / INV-OS-CONC-001)
         tipo_bloqueia_concorrencia=False,  # trigger preenche
     )
     repository.salvar_atividade(atividade_snapshot)

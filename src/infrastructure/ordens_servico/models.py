@@ -209,6 +209,10 @@ class AtividadeDaOS(models.Model):
         help_text="FK user.id (db_constraint=False). Executor designado eh unico autorizado (INV-OS-ATIV-005).",
     )
     agendada_para = models.DateTimeField(null=True, blank=True)
+    # vigencia-canonica: skip -- iniciada_em/concluida_em sao timestamps de transicao de
+    # estado da atividade (ADR-0023: PENDENTE->EM_EXECUCAO->CONCLUIDA), NAO janela de
+    # vigencia regulatoria (ADR-0030 JanelaVigencia). Campos legados do Marco 3; o hook
+    # so os reavalia agora porque o retrofit os-multi-equipamento (ADR-0082) tocou models.py.
     iniciada_em = models.DateTimeField(null=True, blank=True)
     concluida_em = models.DateTimeField(null=True, blank=True)
     valor_unitario_snapshot = models.DecimalField(
@@ -237,17 +241,31 @@ class AtividadeDaOS(models.Model):
         default="",
         help_text="Hash do municipio (preservado mesmo pos-TTL — INV-OS-GEO-001 item d).",
     )
-    # ===== INV-OS-CONC-001 (ADR-0041) - desnormalizacao pra unique partial index =====
-    # Copiados via trigger BEFORE INSERT a partir de OS.equipamento_id e
-    # TipoAtividadeConfig.tipo_bloqueia_concorrencia. NUNCA editar manualmente -
-    # sao snapshot imutavel pos-INSERT.
-    equipamento_id_desnormalizado = models.UUIDField(
+    # ===== equipamento PROPRIO da atividade (retrofit os-multi-equipamento, ADR-0082) =====
+    # Antes era `equipamento_id_desnormalizado` (copia de OS.equipamento_id). Com a OS
+    # multi-equipamento (1 equipamento por atividade), este campo virou a FONTE: cada
+    # atividade tecnica aponta para o SEU equipamento. INV-OS-ATIV-002 (emenda): equipamento
+    # e proprio da atividade, nao herdado da OS. O unique partial index INV-OS-CONC-001 ja
+    # chaveava por esta coluna (atividade), por isso o retrofit e cirurgico. Trigger forward
+    # BEFORE INSERT faz fallback (COALESCE) p/ OS.equipamento_id em OS single-equip legada;
+    # trigger imutavel bloqueia UPDATE pos-INSERT (snapshot).
+    equipamento_id = models.UUIDField(
         null=True,
         blank=True,
         help_text=(
-            "Desnormalizado de OS.equipamento_id via trigger BEFORE INSERT. "
-            "Existe em atividade_da_os porque o unique partial index "
-            "INV-OS-CONC-001 exige todas as colunas na mesma tabela."
+            "Equipamento PROPRIO da atividade (ADR-0082 / retrofit os-multi-equipamento). "
+            "Fonte de verdade da concorrencia metrologica INV-OS-CONC-001. Fallback p/ "
+            "OS.equipamento_id via trigger quando NULL (compat OS single-equip legada)."
+        ),
+    )
+    equipamento_recebimento_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text=(
+            "FK EquipamentoRecebimento POR INSTRUMENTO (ADR-0082 / cl. 7.4.3 + 7.8.2.1 ISO 17025). "
+            "Move de OS.equipamento_recebimento_id (1-por-OS, depreciado) para a atividade. "
+            "INV-OSME-RCB-001: requer_recebimento => NOT NULL e equip. recebido == calibrado. "
+            "Preenchimento completo do vinculo = GATE-OSME-RECEBIMENTO-7.5 (app equipamentos)."
         ),
     )
     tipo_bloqueia_concorrencia = models.BooleanField(
@@ -286,6 +304,13 @@ class AtividadeDaOS(models.Model):
             models.Index(
                 fields=["tenant", "tecnico_executor_id", "estado"],
                 name="atv_tenant_tec_est_idx",
+            ),
+            # ADR-0082 / TL-OSME-02: cobre a deteccao de equipamento baixado por atividade
+            # (consumers/equipamento.py migra de OS.equipamento_id p/ AtividadeDaOS.equipamento_id).
+            # Sem este indice a query vira seq scan na tabela de atividades.
+            models.Index(
+                fields=["tenant", "equipamento_id", "estado"],
+                name="atv_tenant_equip_est_idx",
             ),
         ]
 
