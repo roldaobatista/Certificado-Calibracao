@@ -4,29 +4,27 @@
 
 **Modo:** AUTÔNOMO. **Fase:** Wave A em curso.
 
+## Frente ATIVA — `os-multi-equipamento` (P0/P1/P2 feitos — PRÓXIMO = P3 plan/tasks) (2026-06-13)
+
+- Retrofit cirúrgico da OS (fechada): 1→N equipamentos (equipamento por ATIVIDADE) + entidade
+  `ItemComercialOS` (deslocamento/taxa) + recebimento por instrumento (cl. 7.5). Aditivo/reversível, esforço L.
+- P0 (T-OSME-000) + spec **v2** + P2 (tech-lead + consultor-rbc, ambos APROVA C/ CORREÇÕES) prontos.
+  Detalhe: `docs/faseamento/os-multi-equipamento/reviews-consolidado.md`.
+- Decisões: **Roldão D-OSME-3** = item comercial como LINHA na OS (não diferir). D-OSME-1 renomear
+  `equipamento_id_desnormalizado`→`equipamento_id`. D-OSME-5/RBC = recebimento migra OS→atividade.
+- 3 CRÍTICOS p/ P3: TL-01 RenameField quebra triggers PL/pgSQL (CREATE OR REPLACE ambas + reverse) ·
+  TL-02 índice novo `atv_tenant_equip_estado_idx` (detecção baixado) · TL-03 3 call-sites a mais
+  (adicionar_atividade/reabertura/OS avulsa). GATE-OSME-RECEBIMENTO-7.5 (seam preenchimento, app equipamentos).
+- ✅ Descoberta T-OSME-000: `os.aberta` JÁ cruza o bus (INT-01) — TL-ORC-03 estava desatualizado.
+
+## Frente #5 `orcamentos` — P0/P1/P2 feitos, **PAUSADA** (retomar após os-multi-equipamento)
+
+- Depende de `os-multi-equipamento` (envelope header→item). Spec sobe a v2 consumindo o envelope por item +
+  correções TL/ADV. Detalhe: `docs/faseamento/orcamentos/reviews-consolidado.md`.
+
 ## Última frente FECHADA — #4 `colaboradores` (2026-06-13)
 
-- Ritual P0→P9. P9: 8 auditores → **8/8 PASS zero C/A/M após 2 passadas** (1ª pegou documentos[] vazando por
-  papel + teste placebo + storage_port:object + audit comissão; conserto causa-raiz). BAIXOs → R10. Detalhe: matriz §8.
-- Entregue: CRUD + papéis (signatário↔RT por usuario_id · DONO único · motorista pendência) + matriz habilidades
-  (catálogo seed global) + comissão + documentos + desligamento (cascade+outbox) + mascaramento PII + /elegiveis DTO.
-  Roldão: R-COL-1 motorista pendência / R-COL-2 ASO fora. (#3 precificacao FECHADA — diário.)
-
-## Frente #5 `orcamentos` — P0/P1/P2 feitos, **PAUSADA por dependência** (2026-06-13)
-
-- P0 (T-ORC-000) + spec v1 + P2 (tech-lead+advogado APROVA C/ CORREÇÕES) prontos. Decisões Roldão:
-  R-ORC-1 equipamento no orçamento · R-ORC-2 aprovação lógica-agora/PDF-depois · **R-ORC-3 N equipamentos
-  por orçamento E OS + itens compartilhados**. Detalhe: `docs/faseamento/orcamentos/reviews-consolidado.md`.
-- ⛔ R-ORC-3 exige retrofit OS (1→N equip.). Envelope `Orcamento.Aprovado` muda (equip. por item).
-
-## PRÓXIMA frente — `os-multi-equipamento` (PRÉ-REQUISITO de orcamentos)
-
-- Retrofit CIRÚRGICO da OS (módulo fechado): `OS.equipamento` → nullable; equipamento por ATIVIDADE
-  (coluna `equipamento_id_desnormalizado` JÁ existe; índice INV-OS-CONC-001 já chaveia por ela — não move).
-  Migration RELAXANTE (não destrutiva) + ADR nova + emenda ADR-0023/INV-OS-ATIV-002/INV-OS-EQP-001 +
-  envelope header→item + OS publica `OS.Aberta` de volta. Esforço M, aditivo/reversível.
-- Acionar `consultor-rbc-iso17025`: recebimento por instrumento (cl. 7.5) — `equipamento_recebimento_id` por OS hoje.
-- Depois: orcamentos v2 (envelope por item + correções TL/ADV) → P3 → impl → P9.
+- Ritual P0→P9, 8/8 auditores PASS após 2 passadas. Detalhe: diário. (#3 precificacao FECHADA — diário.)
 
 ## Pendência de produto aberta
 
@@ -34,6 +32,6 @@ Terminologia B/C/D do M6 — veto item-a-item do Roldão pendente (cl. 8.1.3 "ca
 
 ## Ponteiros
 
-- Contagens: `docs/governanca/STATUS-GERADO.md` · ADRs: `docs/adr/INDICE.md`
+- Contagens: `docs/governanca/STATUS-GERADO.md` · ADRs: `docs/adr/INDICE.md` (ADR nova OS multi-equip. no P3/impl)
 - Histórico M5→PPS: `docs/faseamento/diario/2026-06-12-consolidado-m5-a-pps.md`
 - Proibido commit isolado de CURRENT.md — handoff entra no commit da fatia (R16).
