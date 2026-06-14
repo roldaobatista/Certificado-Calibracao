@@ -81,6 +81,7 @@ def _abrir_os_basica(tenant, cliente, equipamento) -> AbrirOSInput:
                 sequencia=1,
                 valor_unitario=Decimal("100.00"),
                 requer_recebimento=False,
+                equipamento_id=equipamento.id,
             ),
         ),
         correlation_id=uuid4(),

@@ -16,7 +16,6 @@ from uuid import UUID, uuid4
 
 import pytest
 from django.db import transaction
-
 from src.application.operacao.os.abrir_os_via_orcamento import (
     AbrirOSInput,
     ErroAbrirOS,
@@ -84,6 +83,7 @@ def _input_basico(
                 sequencia=1,
                 valor_unitario=Decimal("150.00"),
                 requer_recebimento=False,
+                equipamento_id=equipamento_id,
             ),
         )
     return AbrirOSInput(
@@ -121,12 +121,14 @@ def test_ac_os_001_1_happy_abre_os_rascunho_n_atividades_pendentes(db):
                 sequencia=1,
                 valor_unitario=Decimal("100.00"),
                 requer_recebimento=False,
+                equipamento_id=equipamento.id,
             ),
             ItemOrcamento(
                 tipo=TipoAtividade.VISTORIA,
                 sequencia=2,
                 valor_unitario=Decimal("50.00"),
                 requer_recebimento=False,
+                equipamento_id=equipamento.id,
             ),
         ),
     )

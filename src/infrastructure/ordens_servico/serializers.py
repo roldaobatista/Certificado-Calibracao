@@ -23,6 +23,12 @@ class AdicionarAtividadeRequestSerializer(serializers.Serializer):
     )
     sequencia = serializers.IntegerField(min_value=1)
     valor_unitario = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=0)
+    # ADR-0082 / AC-OSME-003-1: equipamento proprio da atividade adicionada.
+    # None => trigger COALESCE copia de OS.equipamento_id (compat single-equip).
+    # Em OS multi-equipamento (OS.equipamento_id=NULL) DEVE vir preenchido.
+    equipamento_id = serializers.UUIDField(
+        required=False, allow_null=True, default=None
+    )
 
 
 class IniciarAtividadeRequestSerializer(serializers.Serializer):

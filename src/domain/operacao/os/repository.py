@@ -150,6 +150,31 @@ class OSRepository(Protocol):
         self, snapshot: NaoConformidadeAtividadeSnapshot, /
     ) -> NaoConformidadeAtividadeSnapshot: ...
 
+    # ---- Leituras agregadas por OS (anti-N+1 visao_360 — ADR-0082 P9) ----
+    def mapa_aceites_por_os(
+        self, os_id: UUID, /
+    ) -> dict[UUID, AceiteAtividadeSnapshot]:
+        """Aceites de todas as atividades da OS, keyed por atividade_id. 1 query."""
+        ...
+
+    def mapa_dispensas_por_os(
+        self, os_id: UUID, /
+    ) -> dict[UUID, DispensaAceiteAtividadeSnapshot]:
+        """Dispensas de todas as atividades da OS, keyed por atividade_id. 1 query."""
+        ...
+
+    def mapa_ncs_ativas_por_os(
+        self, os_id: UUID, /
+    ) -> dict[UUID, NaoConformidadeAtividadeSnapshot]:
+        """NCs ativas de todas as atividades da OS, keyed por atividade_id. 1 query."""
+        ...
+
+    def mapa_evidencias_foto_por_os(
+        self, os_id: UUID, /
+    ) -> dict[UUID, list[EvidenciaFotoAtividadeSnapshot]]:
+        """Fotos de todas as atividades da OS, keyed por atividade_id. 1 query."""
+        ...
+
     # ---- SLAContrato ----
     def get_sla_vigente(
         self, tenant_id: UUID, cliente_id: UUID, /
@@ -175,4 +200,48 @@ class OSRepository(Protocol):
         self, os_id: UUID, /
     ) -> list[ItemComercialOSSnapshot]:
         """Retorna itens comerciais ativos (nao deletados) da OS, por ordem de criacao."""
+        ...
+
+    def remover_item_comercial(
+        self,
+        item_id: UUID,
+        /,
+        *,
+        removido_por_usuario_id: UUID | None,
+        motivo: str,
+    ) -> ItemComercialOSSnapshot:
+        """Soft-delete Padrao A: seta deletado_em + metadados. Retorna snapshot."""
+        ...
+
+    def listar_os_por_equipamento_atividade(
+        self,
+        tenant_id: UUID,
+        equipamento_id: UUID,
+        /,
+        *,
+        estado: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[OSSnapshot]:
+        """Lista OSs cujas ATIVIDADES contenham o equipamento (ADR-0082 filtro REST).
+
+        Substitui a busca antiga por OS.equipamento_id (agora nullable).
+        Filtra via AtividadeDaOS.equipamento_id para cobrir OS multi-equipamento.
+        """
+        ...
+
+    def listar_os_por_tecnico_atividade(
+        self,
+        tenant_id: UUID,
+        tecnico_user_id: UUID,
+        /,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[OSSnapshot]:
+        """Lista OSs cujas atividades tenham o tecnico como executor (T-OS-087).
+
+        JOIN unico via AtividadeDaOS.tecnico_executor_id — 1 query (anti-N+1,
+        ADR-0082 P9).
+        """
         ...

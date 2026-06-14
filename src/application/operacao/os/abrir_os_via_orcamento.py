@@ -17,10 +17,11 @@ e AC-OSME-002/006 (spec os-multi-equipamento §2):
   OrcamentoSemAnaliseCritica.
 - AC-OS-001-8 (P-OS-R4): OS de bancada exige equipamento_recebimento_id;
   ausente -> 412 EquipamentoSemRecebimentoRegistrado.
-- AC-OSME-002 (US-OSME-002): item com equipamento_id -> AtividadeSnapshot com
-  equipamento proprio; item sem equipamento_id -> ItemComercialOSSnapshot (D-OSME-3).
-- AC-OSME-006-3: itens sem equipamento_id no envelope viram ItemComercialOS;
-  itens com equipamento_id viram atividade tecnica (AC-006-3).
+- AC-OSME-002 (US-OSME-002): item com equipamento_id (proprio OU herdado do header
+  legado) -> AtividadeSnapshot; item sem equipamento em nenhum dos dois ->
+  ItemComercialOSSnapshot (D-OSME-3).
+- AC-OSME-006-3: itens sem equipamento (proprio nem header) viram ItemComercialOS;
+  itens com equipamento viram atividade tecnica (AC-006-3).
 
 Camada APPLICATION pura: recebe `OSRepository` Protocol via DI. NUNCA importa
 Django / PG. Consumer (Fase 4 placeholder) eh quem orquestra:
@@ -32,8 +33,10 @@ Django / PG. Consumer (Fase 4 placeholder) eh quem orquestra:
     acao='OS.Aberta', ...)` pra atravessar o bus.
 
 Decisao de design (T-OSME-013):
-- Itens com equipamento_id viram `AtividadeSnapshot` com equipamento_id proprio.
-- Itens sem equipamento_id viram `ItemComercialOSSnapshot` (tipo OUTRO por default —
+- Itens com equipamento_id proprio viram `AtividadeSnapshot` com aquele equipamento.
+- Itens sem equipamento_id proprio herdam `payload.equipamento_id` (header legado v1)
+  quando presente — viram `AtividadeSnapshot` com o equipamento do header.
+- Itens sem equipamento proprio NEM header viram `ItemComercialOSSnapshot` (tipo OUTRO por default —
   o orcamento nao envia tipo comercial fino em Wave A; descricao_publica vem do tipo
   da atividade ou "Item comercial"). Esses itens sao persistidos via
   `repository.salvar_item_comercial(...)` e NAO aparecem em `atividades_planejadas`.
@@ -181,29 +184,52 @@ def abrir_os_via_orcamento(
         any(item.requer_recebimento for item in payload.itens)
         and payload.equipamento_recebimento_id is None
     ):
-        # AC-OS-001-8 (P-OS-R4)
+        # AC-OS-001-8 (P-OS-R4) — DEGENERACAO OS-level de INV-OSME-RCB-001 (ADR-0082).
+        # Esta validacao é por OS (1 recebimento p/ a OS), válida enquanto a OS for
+        # single-instrumento (cl. 7.4.3 — degenera: OS.equipamento_recebimento_id ≡ recebimento
+        # da única atividade). O enforcement POR ATIVIDADE (recebimento NOT NULL por atividade +
+        # `EquipamentoRecebimento.equipamento_id == AtividadeDaOS.equipamento_id` + NC parcial,
+        # AC-007-2b/007-3) depende do seam de preenchimento = GATE-OSME-RECEBIMENTO-7.5: o produtor
+        # `criar_recebimento` ainda não publica `atividade_id`, logo validar por atividade hoje
+        # seria validar contra coluna vazia (parecer consultor-rbc 2026-06-14).
         raise ErroAbrirOS("EquipamentoSemRecebimentoRegistrado", 412)
 
     # ---- Construcao do agregado ----
     numero_os = repository.proximo_numero_os()
     os_id = uuid4()
 
-    # Determina se a OS e multi-equipamento: tem atividades com equipamentos distintos
-    # ou tem items comerciais (sem equipamento). Em ambos os casos, OS.equipamento_id
-    # fica NULL (D-OSME-2). Em OS single-equip legada (1 item com equipamento), mantemos
-    # o equipamento_id no header da OS para compatibilidade.
+    # Fallback header->item (contrato AbrirOSInput.equipamento_id): um item SEM
+    # equipamento proprio herda o `payload.equipamento_id` do header (envelope v1
+    # legado — 1 equipamento, N itens). Item COM equipamento proprio usa o seu
+    # (envelope v2 multi-equipamento). Item sem equipamento em nenhum dos dois ->
+    # ItemComercialOS (D-OSME-3 / AC-OSME-006-3). Esta regra mora no use case
+    # (camada APPLICATION, spec-as-source) — o consumer apenas a espelha no
+    # pre-check de equipamento baixado (INV-OS-EQP-001).
+    def _equip_efetivo(item: ItemOrcamento) -> UUID | None:
+        return (
+            item.equipamento_id
+            if item.equipamento_id is not None
+            else payload.equipamento_id
+        )
+
+    # Determina se a OS e multi-equipamento. OS.equipamento_id fica NULL quando ha
+    # >1 equipamento distinto entre as atividades (D-OSME-2); em single-equip
+    # mantemos o equipamento no header da OS para compatibilidade.
     equip_ids_das_atividades = {
-        item.equipamento_id for item in payload.itens if item.equipamento_id is not None
+        _equip_efetivo(item)
+        for item in payload.itens
+        if _equip_efetivo(item) is not None
     }
+    os_equipamento_id: UUID | None
     if len(equip_ids_das_atividades) > 1:
         # Multi-equipamento: OS.equipamento_id = NULL (D-OSME-2).
-        os_equipamento_id: UUID | None = None
+        os_equipamento_id = None
     elif len(equip_ids_das_atividades) == 1:
         # Single-equip via atividade: mantemos compatibilidade (OS.equipamento_id = equip).
         os_equipamento_id = next(iter(equip_ids_das_atividades))
     else:
-        # Todos itens sao comerciais (sem equipamento) ou vem do header (legado).
-        os_equipamento_id = payload.equipamento_id  # pode ser None em OS 100% comercial
+        # Todos itens sao comerciais (sem equipamento proprio nem header).
+        os_equipamento_id = None
 
     os_snapshot = OSSnapshot(
         id=os_id,
@@ -235,8 +261,10 @@ def abrir_os_via_orcamento(
     itens_comerciais_criados = 0
 
     for item in payload.itens:
-        if item.equipamento_id is not None:
-            # AC-OSME-002-2: item com equipamento -> atividade tecnica com equipamento proprio.
+        equip_item = _equip_efetivo(item)
+        if equip_item is not None:
+            # AC-OSME-002-2: item com equipamento (proprio ou herdado do header) ->
+            # atividade tecnica com equipamento proprio.
             atividade_id = uuid4()
             atividade_snapshot = AtividadeSnapshot(
                 id=atividade_id,
@@ -254,13 +282,14 @@ def abrir_os_via_orcamento(
                 geo_lat=None,
                 geo_long=None,
                 geo_municipio_hash="",
-                # equipamento_id PROPRIO da atividade (ADR-0082 / INV-OS-ATIV-002).
-                # O adapter `repositories.salvar_atividade` inclui este valor no INSERT
-                # (quando != None); o trigger BEFORE INSERT usa COALESCE(NEW.equipamento_id,
-                # OS.equipamento_id) — preserva o valor do item e so cai no fallback da OS
+                # equipamento_id EFETIVO da atividade (proprio do item ou herdado do
+                # header legado — ADR-0082 / INV-OS-ATIV-002). O adapter
+                # `repositories.salvar_atividade` inclui este valor no INSERT (quando
+                # != None); o trigger BEFORE INSERT usa COALESCE(NEW.equipamento_id,
+                # OS.equipamento_id) — preserva o valor e so cai no fallback da OS
                 # quando a atividade vem sem equipamento (OS single-equip legada). Em OS
-                # multi-equip OS.equipamento_id e NULL, por isso o item DEVE trazer o seu.
-                equipamento_id=item.equipamento_id,
+                # multi-equip OS.equipamento_id e NULL, por isso o item traz o seu.
+                equipamento_id=equip_item,
                 tipo_bloqueia_concorrencia=False,
             )
             repository.salvar_atividade(atividade_snapshot)
@@ -269,7 +298,7 @@ def abrir_os_via_orcamento(
                     atividade_id=atividade_id,
                     tipo=item.tipo.value,
                     sequencia=item.sequencia,
-                    equipamento_id=item.equipamento_id,
+                    equipamento_id=equip_item,
                 )
             )
         else:

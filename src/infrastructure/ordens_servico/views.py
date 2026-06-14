@@ -107,6 +107,10 @@ from src.infrastructure.multitenant.context import (
     active_tenant_context,
     usuario_id_context,
 )
+from src.infrastructure.ordens_servico.consumers.orcamento import (
+    EquipamentoBaixadoEmOSError,
+    precheck_equipamentos_nao_baixados,
+)
 from src.infrastructure.ordens_servico.repositories import DjangoOSRepository
 from src.infrastructure.ordens_servico.serializers import (
     AdicionarAtividadeRequestSerializer,
@@ -136,6 +140,8 @@ ENDPOINT_OS_ATIVIDADE_ACEITE = "os.atividade.aceite"
 ENDPOINT_OS_ATIVIDADE_DISPENSA = "os.atividade.dispensa"
 ENDPOINT_OS_ATIVIDADE_NO_SHOW = "os.atividade.no_show"
 ENDPOINT_OS_AVULSA = "os.avulsa"
+# T-OSME-035 / ADR-0082: o CRUD de item comercial (ItemComercialOSViewSet) vive em
+# `views_item_comercial.py` (extraído no P9 — hook arquivo-tamanho).
 
 
 def _active_tenant_ou_403() -> UUID:
@@ -286,12 +292,16 @@ class OSViewSet(viewsets.ViewSet):
                 "valor_total_atualizado": str(visao.valor_total_atualizado),
                 "criada_em": visao.criada_em.isoformat(),
                 "atualizada_em": visao.atualizada_em.isoformat(),
+                # ADR-0082 / AC-OSME-006-1: equipamentos_distintos agrega equipamentos
+                # de todas as atividades tecnicas (D-OSME-2 — OS.equipamento_id nullable).
+                "equipamentos_distintos": [str(e) for e in visao.equipamentos_distintos],
                 "atividades": [
                     {
                         "atividade_id": str(a.atividade_id),
                         "tipo": a.tipo,
                         "sequencia": a.sequencia,
                         "estado": a.estado,
+                        "equipamento_id": str(a.equipamento_id) if a.equipamento_id else None,
                         "tecnico_executor_id": str(a.tecnico_executor_id)
                         if a.tecnico_executor_id
                         else None,
@@ -302,6 +312,19 @@ class OSViewSet(viewsets.ViewSet):
                         "qtd_fotos": a.qtd_fotos,
                     }
                     for a in visao.atividades
+                ],
+                # AC-OSME-006-1: itens comerciais como linhas proprias na OS (D-OSME-3).
+                # Nao embutidos no total — aparecem explicitamente.
+                "itens_comerciais": [
+                    {
+                        "item_id": str(ic.id),
+                        "tipo": ic.tipo.value,
+                        "descricao_publica": ic.descricao_publica,
+                        "valor": str(ic.valor),
+                        "quantidade": ic.quantidade,
+                        "origem_item_id": str(ic.origem_item_id) if ic.origem_item_id else None,
+                    }
+                    for ic in visao.itens_comerciais
                 ],
             }
         )
@@ -384,7 +407,9 @@ class OSViewSet(viewsets.ViewSet):
             endpoint=ENDPOINT_OS_CANCELAR,
             payload_fingerprint={
                 "os_id": str(pk),
-                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
+                "motivo_hash": hashlib.sha256(
+                    motivo.texto.encode()
+                ).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
             },
         )
         if resp is not None:
@@ -441,7 +466,9 @@ class OSViewSet(viewsets.ViewSet):
             endpoint=ENDPOINT_OS_REABRIR,
             payload_fingerprint={
                 "os_origem_id": str(pk),
-                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
+                "motivo_hash": hashlib.sha256(
+                    motivo.texto.encode()
+                ).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
                 "garantia_procedente": ser.validated_data["garantia_procedente"],
                 "sucessao_societaria_id": str(
                     ser.validated_data.get("sucessao_societaria_id") or ""
@@ -460,9 +487,7 @@ class OSViewSet(viewsets.ViewSet):
                         motivo=motivo,
                         garantia_procedente=ser.validated_data["garantia_procedente"],
                         chamado_origem_id=ser.validated_data.get("chamado_origem_id"),
-                        sucessao_societaria_id=ser.validated_data.get(
-                            "sucessao_societaria_id"
-                        ),
+                        sucessao_societaria_id=ser.validated_data.get("sucessao_societaria_id"),
                         correlation_id=uuid4(),
                         reaberta_em=datetime.now(UTC),
                         reaberta_por_user_id=user_id,
@@ -508,9 +533,7 @@ class OSViewSet(viewsets.ViewSet):
                 requer_recebimento=bool(item.get("requer_recebimento", False)),
                 # D-OSME-4 / AC-OSME-003-3: equipamento_id por item.
                 equipamento_id=(
-                    UUID(str(item["equipamento_id"]))
-                    if item.get("equipamento_id")
-                    else None
+                    UUID(str(item["equipamento_id"])) if item.get("equipamento_id") else None
                 ),
             )
             for item in itens_raw
@@ -547,9 +570,7 @@ class OSViewSet(viewsets.ViewSet):
                         cliente_referencia_hash=str(d.get("cliente_referencia_hash", "")),
                         cliente_key_id=str(d.get("cliente_key_id", "")),
                         equipamento_id=(
-                            UUID(d["equipamento_id"])
-                            if d.get("equipamento_id")
-                            else None
+                            UUID(d["equipamento_id"]) if d.get("equipamento_id") else None
                         ),
                         equipamento_recebimento_id=(
                             UUID(d["equipamento_recebimento_id"])
@@ -599,7 +620,13 @@ class AtividadeViewSet(viewsets.ViewSet):
 
     authz_purpose = "execucao_contrato"
     ACTION_MAP = {
-        "criar": "os.atualizar",
+        # AC-OSME-003-1: adicionar atividade usa a acao canonica `os.adicionar_atividade`
+        # (seed 0013 — admin/gerente/atendente/metrologista). O valor anterior
+        # `os.atualizar` NUNCA foi seedado -> deny-by-default 403 (bug pre-existente,
+        # nunca pego por falta de teste de API neste endpoint). Demais entradas
+        # `os.atualizar` deste ACTION_MAP seguem com o mesmo bug pre-existente fora
+        # do escopo desta frente -> GATE-OS-AUTHZ-ACTION-MAP (matriz-reconciliacao).
+        "criar": "os.adicionar_atividade",
         "iniciar": "atividade.executar",
         "concluir": "atividade.executar",
         "reagendar": "os.atualizar",
@@ -627,6 +654,7 @@ class AtividadeViewSet(viewsets.ViewSet):
         user_id = usuario_id_context.get() or uuid4()
         ser = AdicionarAtividadeRequestSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
+        equipamento_id_ativ: UUID | None = ser.validated_data.get("equipamento_id")
         novo, resp = _aplicar_idempotencia(
             request,
             tenant_id=tid,
@@ -637,6 +665,7 @@ class AtividadeViewSet(viewsets.ViewSet):
                 "tipo": str(ser.validated_data["tipo"]),
                 "sequencia": ser.validated_data["sequencia"],
                 "valor_unitario": str(ser.validated_data["valor_unitario"]),
+                "equipamento_id": str(equipamento_id_ativ) if equipamento_id_ativ else None,
             },
         )
         if resp is not None:
@@ -645,20 +674,33 @@ class AtividadeViewSet(viewsets.ViewSet):
         repo = DjangoOSRepository()
         try:
             with transaction.atomic():
+                # AC-OSME-003-1 (INV-OS-EQP-001): equipamento BAIXADO/DESCARTADO
+                # bloqueia adicionar atividade — mesmo enforcement do consumer de
+                # orcamento (helper compartilhado). 422 EquipamentoBaixadoEmOS.
+                precheck_equipamentos_nao_baixados([equipamento_id_ativ])
                 res = adicionar_atividade(
                     payload=AdicionarAtividadeInput(
                         os_id=UUID(os_id),
                         tipo=TipoAtividade(ser.validated_data["tipo"]),
                         sequencia=ser.validated_data["sequencia"],
-                        valor_unitario=Decimal(
-                            str(ser.validated_data["valor_unitario"])
-                        ),
+                        valor_unitario=Decimal(str(ser.validated_data["valor_unitario"])),
                         correlation_id=uuid4(),
                         solicitada_em=datetime.now(UTC),
                         solicitada_por_user_id=user_id,
+                        equipamento_id=equipamento_id_ativ,
                     ),
                     repository=repo,
                 )
+        except EquipamentoBaixadoEmOSError as exc:
+            falhar_chave(
+                chave_id=novo.chave_id,  # type: ignore[arg-type]
+                tenant_id=tid,
+                response_status=exc.http_status,
+            )
+            return Response(
+                {"codigo": exc.codigo, "detalhe": str(exc)},
+                status=exc.http_status,
+            )
         except ErroAdicionarAtividade as exc:
             falhar_chave(
                 chave_id=novo.chave_id,  # type: ignore[arg-type]
@@ -714,9 +756,7 @@ class AtividadeViewSet(viewsets.ViewSet):
                         iniciada_em=datetime.now(UTC),
                         geo_lat=ser.validated_data.get("geo_lat"),
                         geo_long=ser.validated_data.get("geo_long"),
-                        geo_municipio_hash=ser.validated_data.get(
-                            "geo_municipio_hash", ""
-                        ),
+                        geo_municipio_hash=ser.validated_data.get("geo_municipio_hash", ""),
                     ),
                     repository=repo,
                 )
@@ -867,7 +907,9 @@ class AtividadeViewSet(viewsets.ViewSet):
             payload_fingerprint={
                 "atividade_id": str(pk),
                 "novo_tecnico_id": str(ser.validated_data["novo_tecnico_id"]),
-                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
+                "motivo_hash": hashlib.sha256(
+                    motivo.texto.encode()
+                ).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
             },
         )
         if resp is not None:
@@ -926,7 +968,9 @@ class AtividadeViewSet(viewsets.ViewSet):
             endpoint=ENDPOINT_OS_ATIVIDADE_CANCELAR,
             payload_fingerprint={
                 "atividade_id": str(pk),
-                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
+                "motivo_hash": hashlib.sha256(
+                    motivo.texto.encode()
+                ).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
             },
         )
         if resp is not None:
@@ -978,7 +1022,9 @@ class AtividadeViewSet(viewsets.ViewSet):
             endpoint=ENDPOINT_OS_ATIVIDADE_NC,
             payload_fingerprint={
                 "atividade_id": str(pk),
-                "razao_hash": hashlib.sha256(razao.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
+                "razao_hash": hashlib.sha256(
+                    razao.texto.encode()
+                ).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
             },
         )
         if resp is not None:
@@ -1031,8 +1077,12 @@ class AtividadeViewSet(viewsets.ViewSet):
             endpoint=ENDPOINT_OS_ATIVIDADE_NC_RESOLVER,
             payload_fingerprint={
                 "atividade_id": str(pk),
-                "causa_hash": hashlib.sha256(causa.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
-                "acao_hash": hashlib.sha256(acao.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
+                "causa_hash": hashlib.sha256(
+                    causa.texto.encode()
+                ).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
+                "acao_hash": hashlib.sha256(
+                    acao.texto.encode()
+                ).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
             },
         )
         if resp is not None:
@@ -1113,9 +1163,7 @@ class AtividadeViewSet(viewsets.ViewSet):
         body = {
             "aceite_id": str(res.aceite_id),
             "atividade_id": str(res.atividade_id),
-            "consentimento_id": (
-                str(res.consentimento_id) if res.consentimento_id else None
-            ),
+            "consentimento_id": (str(res.consentimento_id) if res.consentimento_id else None),
         }
         concluir_chave(
             chave_id=novo.chave_id,  # type: ignore[arg-type]
@@ -1134,9 +1182,7 @@ class AtividadeViewSet(viewsets.ViewSet):
             motivo = MotivoCancelamento(d.get("motivo", ""))
             precedente_tipo = PrecedenteDispensa(d.get("precedente_tipo", ""))
         except (ValueError, TypeError) as exc:
-            return Response(
-                {"codigo": "PayloadInvalido", "detalhe": str(exc)}, status=400
-            )
+            return Response({"codigo": "PayloadInvalido", "detalhe": str(exc)}, status=400)
         novo, resp = _aplicar_idempotencia(
             request,
             tenant_id=tid,
@@ -1144,7 +1190,9 @@ class AtividadeViewSet(viewsets.ViewSet):
             endpoint=ENDPOINT_OS_ATIVIDADE_DISPENSA,
             payload_fingerprint={
                 "atividade_id": str(pk),
-                "motivo_hash": hashlib.sha256(motivo.texto.encode()).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
+                "motivo_hash": hashlib.sha256(
+                    motivo.texto.encode()
+                ).hexdigest(),  # audit-pii-salt: skip -- VO MotivoCancelamento anti-PII; fingerprint de idempotencia
                 "precedente_tipo": precedente_tipo.value,
             },
         )
@@ -1160,9 +1208,7 @@ class AtividadeViewSet(viewsets.ViewSet):
                         motivo=motivo,
                         autorizado_por_gerente_id=UUID(d["autorizado_por_gerente_id"]),
                         a3_assinatura_hash=str(d.get("a3_assinatura_hash", "")),
-                        a3_certificado_emissor_hash=str(
-                            d.get("a3_certificado_emissor_hash", "")
-                        ),
+                        a3_certificado_emissor_hash=str(d.get("a3_certificado_emissor_hash", "")),
                         a3_assinada_em=datetime.fromisoformat(d["a3_assinada_em"]),
                         termo_pdf_b2_uri=str(d.get("termo_pdf_b2_uri", "")),
                         termo_pdf_sha256=str(d.get("termo_pdf_sha256", "")),

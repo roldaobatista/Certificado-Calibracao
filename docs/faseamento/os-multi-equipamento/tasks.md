@@ -81,10 +81,13 @@ relacionados:
 - [ ] **T-OSME-033** `consumers/equipamento.py` — detecção de baixado por `AtividadeDaOS.equipamento_id`
       → OSs pai distintas (usa `atv_tenant_equip_estado_idx`). Recebimento: popula
       `AtividadeDaOS.equipamento_recebimento_id` (estrutura; seam completo = GATE). Ref: AC-OSME-004; RBC-OSME-2.
-- [ ] **T-OSME-034** Use case `abrir_os_via_orcamento` — validação recebimento por atividade
-      (INV-OSME-RCB-001: `requer_recebimento` ⟹ recebimento NOT NULL + equip. recebido == calibrado) +
-      NC parcial (atividade c/ recebimento `nao_conformidade_recebimento` não inicia; demais seguem —
-      RBC-OSME-5). Ajustar AC-OS-001-8 de OS-level p/ atividade-level. Ref: AC-OSME-007; RBC-OSME-3/5.
+- [~] **T-OSME-034 (PARCIAL-POR-DESIGN — parecer consultor-rbc 2026-06-14)** Use case `abrir_os_via_orcamento`.
+      **FEITO nesta frente:** estrutura de domínio (`AtividadeSnapshot.equipamento_recebimento_id`) +
+      INV-OSME-RCB-001 DECLARADO (REGRAS/ADR-0082) + validação OS-level como ponte/degeneração documentada
+      no use case (`AC-OS-001-8`). **DIFERIDO ao GATE-OSME-RECEBIMENTO-7.5:** enforcement por atividade
+      (recebimento NOT NULL por atividade + `equip. recebido == calibrado` + NC parcial RBC-OSME-5) — depende
+      do seam de preenchimento (produtor publica `atividade_id`); validar por atividade hoje = validar contra
+      coluna vazia. Ver emenda da spec §2 (US-OSME-007). Ref: AC-OSME-007; RBC-OSME-3/5.
 - [ ] **T-OSME-035** `views.py` + `queries/` — CRUD `ItemComercialOS` (ação authz `os.gerir_item_comercial`,
       OS não-terminal); `GET /os/?equipamento_id=` filtra por atividade; `visao_360`/`listagem` agregam
       equip. das atividades + listam itens comerciais. ~7 call-sites `OSSnapshot.equipamento_id` → aceitar

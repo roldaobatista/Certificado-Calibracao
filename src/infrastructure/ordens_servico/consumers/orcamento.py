@@ -66,6 +66,7 @@ continuem gerando atividades tecnicas sem mudanca de contrato.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -112,6 +113,35 @@ class EquipamentoBaixadoEmOSError(Exception):
 logger = logging.getLogger(__name__)
 
 CONSUMER_ID = "os.consumer.orcamento_aprovado"
+
+
+def precheck_equipamentos_nao_baixados(
+    equipamento_ids: Iterable[UUID | None],
+) -> None:
+    """INV-OS-EQP-001 / AC-OSME-004-2: enforcement de equipamento baixado.
+
+    Levanta `EquipamentoBaixadoEmOSError` (422) se QUALQUER equipamento dos
+    `equipamento_ids` estiver SUCATA/EXTRAVIADO. Faz 1 query (filter id__in —
+    sem N+1). Helper compartilhado pelo consumer de orcamento (abertura) e pela
+    view `AtividadeViewSet.criar` (adicionar atividade) — INV-OS-EQP-001 num
+    unico lugar (TL-OSME-03 / AC-OSME-003-1). Ids None sao ignorados.
+    """
+    ids = {e for e in equipamento_ids if e is not None}
+    if not ids:
+        return
+    bloqueados = list(
+        Equipamento.all_objects.filter(
+            id__in=ids,
+            status__in=_ESTADOS_EQUIPAMENTO_BLOQUEIAM_OS,
+        ).values_list("id", "status")
+    )
+    if bloqueados:
+        # Reporta o primeiro bloqueado encontrado.
+        equip_id_bloq, status_bloq = bloqueados[0]
+        raise EquipamentoBaixadoEmOSError(
+            equipamento_id=equip_id_bloq,
+            status=status_bloq,
+        )
 
 
 def _parse_input(envelope: dict[str, Any]) -> AbrirOSInput:
@@ -206,27 +236,11 @@ def handle_orcamento_aprovado(envelope: dict[str, Any]) -> None:
     try:
         with run_in_tenant_context(os_input.tenant_id), transaction.atomic():
             # T-OSME-030 / AC-OSME-004-2 (INV-OS-EQP-001): pre-check itera TODOS os
-            # equipamentos distintos dos itens. 1 query (sem N+1). Rejeita 422 se QUALQUER
-            # estiver SUCATA/EXTRAVIADO.
-            equip_ids_itens = {
-                item.equipamento_id
-                for item in os_input.itens
-                if item.equipamento_id is not None
-            }
-            if equip_ids_itens:
-                bloqueados = list(
-                    Equipamento.all_objects.filter(
-                        id__in=equip_ids_itens,
-                        status__in=_ESTADOS_EQUIPAMENTO_BLOQUEIAM_OS,
-                    ).values_list("id", "status")
-                )
-                if bloqueados:
-                    # Reporta o primeiro bloqueado encontrado.
-                    equip_id_bloq, status_bloq = bloqueados[0]
-                    raise EquipamentoBaixadoEmOSError(
-                        equipamento_id=equip_id_bloq,
-                        status=status_bloq,
-                    )
+            # equipamentos distintos dos itens (header ja propagado em _parse_input).
+            # 1 query (sem N+1). Rejeita 422 se QUALQUER estiver SUCATA/EXTRAVIADO.
+            precheck_equipamentos_nao_baixados(
+                item.equipamento_id for item in os_input.itens
+            )
 
             resultado = abrir_os_via_orcamento(
                 payload=os_input,

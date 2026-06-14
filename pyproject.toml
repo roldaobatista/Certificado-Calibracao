@@ -123,6 +123,7 @@ allowed-confusables = ["×"]
 "**/models.py" = ["RUF012"]
 "**/serializers.py" = ["RUF012"]
 "**/views.py" = ["RUF012"]
+"**/views_*.py" = ["RUF012"]  # views fatiadas por agregado (ex: views_item_comercial.py)
 
 [tool.ruff.format]
 quote-style = "double"
@@ -175,6 +176,7 @@ module = [
     "src.infrastructure.responsavel_tecnico.views",
     "src.infrastructure.responsavel_tecnico.serializers",
     "src.infrastructure.ordens_servico.views",
+    "src.infrastructure.ordens_servico.views_item_comercial",
     "src.infrastructure.ordens_servico.serializers",
     "src.infrastructure.ordens_servico.management.commands.*",
     "src.infrastructure.authz.views",

@@ -120,6 +120,7 @@ _SEED_MIGRATIONS: list[tuple[str, str]] = [
     ("equipamentos", "0027_seed_authz_versionar"),
     ("ordens_servico", "0004_seed_tipo_atividade_config"),
     ("ordens_servico", "0013_seed_authz_os"),
+    ("ordens_servico", "0021_seed_authz_gerir_item_comercial"),
     ("responsavel_tecnico", "0002_seed_authz_acoes"),
     ("calibracao", "0013_seed_authz_calibracao"),
     ("calibracao", "0021_seed_authz_registrar_recebimento"),

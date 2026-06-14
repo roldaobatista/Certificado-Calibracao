@@ -62,6 +62,12 @@ relacionados:
   consumer popula por atividade) vira **GATE-OSME-RECEBIMENTO-7.5**, porque (a) é dívida de outro módulo,
   (b) recepção de bancada não está em operação real (dogfooding), (c) expandir agora estoura o cirúrgico.
   Não é mascaramento — é fronteira de módulo: a estrutura fica pronta; o seam fecha quando recepção ativar.
+  - **Emenda 2026-06-14 (P9 — parecer `consultor-rbc-iso17025`):** "estrutura conforme + validação" acima
+    lê-se como: a frente entrega a **estrutura de domínio** (`AtividadeSnapshot.equipamento_recebimento_id`)
+    + **invariante INV-OSME-RCB-001 declarado** + **validação OS-level como ponte** (degeneração single-
+    instrumento). O **enforcement POR ATIVIDADE** (item recebido == calibrado + NC parcial) depende do dado
+    por-atividade do seam, logo **integra o GATE-OSME-RECEBIMENTO-7.5** — não é entregue agora (validaria
+    contra coluna vazia). Ver emenda da spec §2 (US-OSME-007) + `tasks.md` T-OSME-034.
 
 ## Achados que entram na spec v2
 

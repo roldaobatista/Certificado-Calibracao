@@ -1,6 +1,7 @@
 """Listagem + filtros OS — T-OS-086..087 (P-OS-T4 p95 ≤500ms).
 
 - `listar_os`: filtros estado + cliente_id + equipamento_id + paginacao.
+  T-OSME-035 (ADR-0082): filtro equipamento_id usa AtividadeDaOS — spec §7.
 - `os_do_tecnico`: lista OSs cujo tecnico_executor_id de qualquer atividade
   bate com o user_id passado.
 """
@@ -23,7 +24,9 @@ class OSItemListagem:
     estado: str
     tipo_predominante: str
     cliente_id: UUID | None
-    equipamento_id: UUID | None  # NULL em OS multi-equipamento (ADR-0082 / D-OSME-2)
+    # ADR-0082 / D-OSME-2: NULL em OS multi-equipamento.
+    # Use equipamentos_distintos para obter os equipamentos reais da OS.
+    equipamento_id: UUID | None
     valor_total_atualizado: Decimal
     nao_conformidade_global: bool
     criada_em: datetime
@@ -79,20 +82,14 @@ def os_do_tecnico(
 ) -> list[OSItemListagem]:
     """Lista OSs do tecnico (qualquer atividade dele) — T-OS-087.
 
-    Implementacao baseada em listar_atividades_por_os por OS — otimizacao
-    futura via JOIN raw SQL deferida pra Wave A.
+    JOIN unico via repository (ADR-0082 P9 — anti-N+1): 1 query, independente
+    do numero de OSs do tenant. Substitui o loop antigo que fazia 1 query de
+    atividades por OS.
     """
-    # Busca todas OSs do tenant (ate limit*2 pra ter margem).
-    base = repository.listar_os_por_tenant(
+    snaps = repository.listar_os_por_tecnico_atividade(
         tenant_id,
-        limit=limit * 4,
+        tecnico_user_id,
+        limit=limit,
         offset=offset,
     )
-    resultados: list[OSItemListagem] = []
-    for os_snap in base:
-        atividades = repository.listar_atividades_por_os(os_snap.id)
-        if any(a.tecnico_executor_id == tecnico_user_id for a in atividades):
-            resultados.append(_to_item(os_snap))
-            if len(resultados) >= limit:
-                break
-    return resultados
+    return [_to_item(s) for s in snaps]

@@ -1,8 +1,8 @@
 ---
 owner: agente-ia
-revisado-em: 2026-06-13
-proximo-review: 2026-09-13
-status: draft
+revisado-em: 2026-06-14
+proximo-review: 2026-09-14
+status: stable
 diataxis: reference
 audiencia: [agente, auditor]
 frente: os-multi-equipamento
@@ -104,6 +104,18 @@ para **por atividade** (por instrumento — cl. 7.4.3/7.8.2.1, D-OSME-5).
   atividade, não por OS).
 - AC-007-4: o conserto do seam de preenchimento (produtor publica `atividade_id`;
   `EquipamentoRecebimento.atividade_os_id`) = **GATE-OSME-RECEBIMENTO-7.5** (RBC-OSME-4) — fora desta frente.
+
+> **Fronteira de entrega de US-OSME-007 (emenda 2026-06-14 — parecer `consultor-rbc-iso17025` no P9).**
+> Esta frente entrega: (a) a **estrutura de domínio** — `AtividadeSnapshot.equipamento_recebimento_id`
+> (ponteiro por instrumento); (b) o **invariante INV-OSME-RCB-001 DECLARADO** em REGRAS/ADR-0082; (c) a
+> **validação OS-level como ponte/degeneração** (`AC-OS-001-8` — `EquipamentoSemRecebimentoRegistrado`),
+> válida em OS single-instrumento (cl. 7.4.3 degenera: `OS.equipamento_recebimento_id` ≡ recebimento da
+> única atividade). O **enforcement POR ATIVIDADE** — AC-007-2 parte `EquipamentoRecebimento.equipamento_id
+> == AtividadeDaOS.equipamento_id` (item recebido = calibrado) **e** AC-007-3 (NC parcial bloqueia só a
+> atividade) — depende do dado por-atividade que só passa a existir com o seam (AC-007-4), portanto
+> **integra o GATE-OSME-RECEBIMENTO-7.5**. Validar por atividade agora seria validar contra coluna vazia
+> ("teatro de conformidade"). **Sem NC CGCRE real** enquanto o tenant for single-instrumento e perfil ≠ A
+> (matriz-feature-perfil); perfil A multi-instrumento torna o GATE bloqueante de produção (RBC-OSME-3).
 
 ## 3. Decisões cravadas (D-OSME-1..5)
 

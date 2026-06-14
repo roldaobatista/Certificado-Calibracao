@@ -111,6 +111,8 @@ def _atividade_to_snapshot(a: AtividadeDaOS) -> AtividadeSnapshot:
         geo_municipio_hash=a.geo_municipio_hash,
         equipamento_id=a.equipamento_id,
         tipo_bloqueia_concorrencia=a.tipo_bloqueia_concorrencia,
+        # Recebimento por instrumento (cl. 7.4.3 — ADR-0082). NULL até GATE-OSME-RECEBIMENTO-7.5.
+        equipamento_recebimento_id=a.equipamento_recebimento_id,
         grandeza=a.grandeza,
     )
 
@@ -334,13 +336,22 @@ class DjangoOSRepository:
         limit: int = 50,
         offset: int = 0,
     ) -> list[OSSnapshot]:
+        # ADR-0082 / D-OSME-2: OS multi-equipamento tem OS.equipamento_id=NULL.
+        # O filtro por equipamento deve usar AtividadeDaOS.equipamento_id (spec §7).
+        # Delegamos para listar_os_por_equipamento_atividade quando filtro presente.
+        if equipamento_id is not None:
+            return self.listar_os_por_equipamento_atividade(
+                tenant_id,
+                equipamento_id,
+                estado=estado,
+                limit=limit,
+                offset=offset,
+            )
         qs = OS.objects.filter(tenant_id=tenant_id)
         if estado is not None:
             qs = qs.filter(estado=estado)
         if cliente_id is not None:
             qs = qs.filter(cliente_id=cliente_id)
-        if equipamento_id is not None:
-            qs = qs.filter(equipamento_id=equipamento_id)
         qs = qs.order_by("-criada_em")[offset : offset + limit]
         return [_os_to_snapshot(o) for o in qs]
 
@@ -467,6 +478,10 @@ class DjangoOSRepository:
                 # Passa equipamento_id para que o trigger preserve (nao substitua pelo da OS).
                 # Trigger usa IF NEW.equipamento_id IS NULL THEN copia OS, senao preserva.
                 create_kwargs["equipamento_id"] = snapshot.equipamento_id
+            if snapshot.equipamento_recebimento_id is not None:
+                # Recebimento por instrumento (cl. 7.4.3 — ADR-0082). So presente quando o
+                # seam GATE-OSME-RECEBIMENTO-7.5 estiver ativo; hoje fica None (degeneracao OS-level).
+                create_kwargs["equipamento_recebimento_id"] = snapshot.equipamento_recebimento_id
             obj = AtividadeDaOS.objects.create(**create_kwargs)
         return _atividade_to_snapshot(obj)
 
@@ -723,6 +738,47 @@ class DjangoOSRepository:
         except NaoConformidadeAtividade.DoesNotExist:
             return None
 
+    # ---- Leituras agregadas por OS (anti-N+1 da visao_360 — ADR-0082 P9) ----
+    # Substituem as 4 queries-por-atividade do loop de `visao_360_da_os`: cada
+    # mapa abaixo resolve em 1 query (filter por atividade__os_id), tornando a
+    # visao 360 O(1) em queries independente do numero de atividades da OS.
+
+    def mapa_aceites_por_os(
+        self, os_id: UUID, /
+    ) -> dict[UUID, AceiteAtividadeSnapshot]:
+        return {
+            a.atividade_id: _aceite_to_snapshot(a)
+            for a in AceiteAtividade.objects.filter(atividade__os_id=os_id)
+        }
+
+    def mapa_dispensas_por_os(
+        self, os_id: UUID, /
+    ) -> dict[UUID, DispensaAceiteAtividadeSnapshot]:
+        return {
+            d.atividade_id: _dispensa_to_snapshot(d)
+            for d in DispensaAceiteAtividade.objects.filter(atividade__os_id=os_id)
+        }
+
+    def mapa_ncs_ativas_por_os(
+        self, os_id: UUID, /
+    ) -> dict[UUID, NaoConformidadeAtividadeSnapshot]:
+        return {
+            n.atividade_id: _nc_to_snapshot(n)
+            for n in NaoConformidadeAtividade.objects.filter(
+                atividade__os_id=os_id, revogado_em__isnull=True
+            )
+        }
+
+    def mapa_evidencias_foto_por_os(
+        self, os_id: UUID, /
+    ) -> dict[UUID, list[EvidenciaFotoAtividadeSnapshot]]:
+        resultado: dict[UUID, list[EvidenciaFotoAtividadeSnapshot]] = {}
+        for e in EvidenciaFotoAtividade.objects.filter(atividade__os_id=os_id):
+            resultado.setdefault(e.atividade_id, []).append(
+                _evidencia_to_snapshot(e)
+            )
+        return resultado
+
     def salvar_nc(
         self, snapshot: NaoConformidadeAtividadeSnapshot, /
     ) -> NaoConformidadeAtividadeSnapshot:
@@ -837,6 +893,80 @@ class DjangoOSRepository:
             _item_comercial_to_snapshot(i)
             for i in ItemComercialOS.objects.filter(os_id=os_id).order_by("criado_em")
         ]
+
+    def remover_item_comercial(
+        self,
+        item_id: UUID,
+        /,
+        *,
+        removido_por_usuario_id: UUID | None,
+        motivo: str,
+    ) -> ItemComercialOSSnapshot:
+        """Soft-delete Padrao A (ADR-0031): seta deletado_em + metadados.
+
+        INV-OSME-ITEMCOM-001: item comercial pode ser removido antes do
+        faturamento. Use case valida estado da OS antes de chamar.
+        """
+        from django.utils import timezone
+
+        obj = ItemComercialOS.all_objects.get(id=item_id)
+        obj.deletado_em = timezone.now()
+        obj.deletado_por_usuario_id = removido_por_usuario_id
+        obj.deletado_motivo = motivo[:200]
+        obj.save(update_fields=["deletado_em", "deletado_por_usuario_id", "deletado_motivo"])
+        return _item_comercial_to_snapshot(obj)
+
+    def listar_os_por_equipamento_atividade(
+        self,
+        tenant_id: UUID,
+        equipamento_id: UUID,
+        /,
+        *,
+        estado: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[OSSnapshot]:
+        """Lista OSs cujas ATIVIDADES contenham o equipamento (ADR-0082 filtro REST).
+
+        Usa AtividadeDaOS.equipamento_id — cobre OS multi-equipamento onde
+        OS.equipamento_id pode ser NULL (D-OSME-2). Sem N+1: JOIN via ORM
+        com atv_tenant_equip_est_idx (TL-OSME-02; nome real da migration 0018,
+        abreviado de `atv_tenant_equip_estado_idx` citado na spec/plan).
+        """
+        qs = OS.objects.filter(
+            tenant_id=tenant_id,
+            atividades__tenant_id=tenant_id,
+            atividades__equipamento_id=equipamento_id,
+        )
+        if estado is not None:
+            qs = qs.filter(estado=estado)
+        qs = qs.distinct().order_by("-criada_em")[offset : offset + limit]
+        return [_os_to_snapshot(o) for o in qs]
+
+    def listar_os_por_tecnico_atividade(
+        self,
+        tenant_id: UUID,
+        tecnico_user_id: UUID,
+        /,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[OSSnapshot]:
+        """Lista OSs cujas ATIVIDADES tenham o tecnico como executor (T-OS-087).
+
+        JOIN via ORM com DISTINCT (1 query) — substitui o loop anterior que fazia
+        1 query de atividades POR OS do tenant (ADR-0082 P9 — anti-N+1).
+        """
+        qs = (
+            OS.objects.filter(
+                tenant_id=tenant_id,
+                atividades__tenant_id=tenant_id,
+                atividades__tecnico_executor_id=tecnico_user_id,
+            )
+            .distinct()
+            .order_by("-criada_em")[offset : offset + limit]
+        )
+        return [_os_to_snapshot(o) for o in qs]
 
 
 def models_Q_vigencia_aberta_ou_futura(now: datetime) -> Q:

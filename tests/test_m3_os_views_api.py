@@ -121,6 +121,7 @@ def _abrir_os(cenario):
                 sequencia=1,
                 valor_unitario=Decimal("100.00"),
                 requer_recebimento=False,
+                equipamento_id=cenario["equipamento"].id,
             ),
         ),
         correlation_id=uuid4(),

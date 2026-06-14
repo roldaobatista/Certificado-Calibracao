@@ -74,6 +74,13 @@ class AtividadeSnapshot:
     # Proprio da atividade; fallback via trigger COALESCE p/ OS.equipamento_id (ADR-0082 / INV-OS-CONC-001)
     equipamento_id: UUID | None
     tipo_bloqueia_concorrencia: bool
+    # Recebimento POR INSTRUMENTO (cl. 7.4.3/7.8.2.1 — D-OSME-5 / ADR-0082). Ponteiro do
+    # item calibrando recebido, no nível da atividade (estrutura conforme INV-OSME-RCB-001).
+    # NULL até o seam de preenchimento ser ativado (GATE-OSME-RECEBIMENTO-7.5): hoje o
+    # recebimento é populado em OS.equipamento_recebimento_id (degeneração OS-level, válida
+    # em OS single-instrumento — AC-OS-001-8). Quando o produtor `criar_recebimento` publicar
+    # `atividade_id`, o consumer popula este campo por instrumento.
+    equipamento_recebimento_id: UUID | None = None
     # Grandeza metrológica da atividade (ADR-0063). Vazio até `configurar_calibracao`
     # (M4) propagar; quando populada, o predicate `rt_competencia_cobre` passa a
     # bloquear transferências de técnico (ADR-0063 ponto 3 — drop-in).
@@ -86,7 +93,8 @@ class ItemComercialOSSnapshot:
 
     Linha propria na OS — deslocamento, taxa de visita ou outro custo comercial.
     Nunca possui equipamento_id nem entra no indice de concorrencia
-    (INV-OSME-ITEMCOM-001). Soma em OS.valor_total.
+    (INV-OSME-ITEMCOM-001). Soma em OS.valor_total_atualizado (valor corrente;
+    OS.valor_total e o original imutavel do orcamento).
     """
 
     id: UUID
