@@ -71,8 +71,11 @@ fi
 # a matriz precisa cobrir.
 TEMAS_MATRIZ="regra de decisao|2a conferencia|2ª conferencia|segunda conferencia|validacao software|validação de software|TSA-ITI|ILAC-MRA|A3 ICP-Brasil|GUM|Monte Carlo|snapshot RT|template certificado|selo CGCRE|selo RBC|subcontratacao|reclamacao CDC|retencao 25a|verificacao periodica vigencia"
 
-# Verifica se o conteudo declara feature crítica
-if ! printf '%s' "$content" | grep -qiE "$TEMAS_MATRIZ"; then
+# Verifica se o conteudo declara feature crítica.
+# `-w` (word-match): termos so casam como palavra inteira — evita
+# falso-positivo "GUM" dentro de "alGUMa"/"alGUM" (palavra comum em PT-BR)
+# e siglas curtas (A3) coladas a outras letras.
+if ! printf '%s' "$content" | grep -qiwE "$TEMAS_MATRIZ"; then
     # Diff nao toca tema da matriz — passa.
     exit 0
 fi
@@ -89,7 +92,7 @@ fi
 echo "feature-perfil-matriz-validator: $file_path declara feature de tema sensivel sem referenciar perfil regulatorio." >&2
 echo "" >&2
 echo "Tema(s) detectado(s) na declaracao:" >&2
-printf '%s' "$content" | grep -inE "$TEMAS_MATRIZ" | head -3 >&2
+printf '%s' "$content" | grep -inwE "$TEMAS_MATRIZ" | head -3 >&2
 echo "" >&2
 echo "Toda feature critica tem comportamento condicional por perfil (ADR-0067 §4)." >&2
 echo "Acoes possiveis:" >&2
