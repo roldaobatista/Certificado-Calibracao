@@ -13,22 +13,19 @@
   **`os.concluida` ENRIQUECIDO no OUTBOX** (não no WORM da OS — TL-CR-03); `Certificado.Emitido` reconciliado (não é
   unidade de cobrança); `fiscal.nfse_emitida` secundário. CRITs do P2: `clientes` tem bloqueio **PULL** existente (CR
   faz adapter, não PUSH); OS já consome `os.faturada`/`os.paga` dangling (CR publica). Gateway = **Mock** (Asaas=GATE).
-- **Fatias 1a+1b DONE.** 1a: domínio puro `src/domain/contas_receber/` (12 arq + 81 testes). 1b: schema PG
-  `src/infrastructure/contas_receber/` — 4 models + 5 migrations (RLS v2 ENABLE+FORCE+4 policies, WORM block-delete/
-  worm-check/INSERT-only Pagamento+Override, trigger perfil COALESCE), `ACOES_CONTAS_RECEBER` (8 slugs) +
-  `os.faturada`/`os.paga` em ACOES_OS; drill 41/41 + 22 testes PG (cross-tenant + WORM + UNIQUE os_id + CHECK pix);
-  ruff+mypy limpos; revisão Opus (testes genuínos; corrigi 1 flake temporal). Achado p/ Fatia 2: desconto-pontualidade
-  pré-vencimento sem fórmula na spec. **PRÓXIMO = Fatia 2** (use cases + REST + webhook — núcleo manual+mock+webhook,
-  NÃO toca módulo fechado; T-CR-030..037) → 3 (auto-fatura OS + inadimplência + desbloqueio, toca fechados) → P8/P9.
+- **Fatias 1a+1b+2a DONE.** 1a domínio puro (12 arq, 81 testes). 1b schema PG (4 models + 5 migrations RLS v2/WORM/
+  INSERT-only/trigger perfil COALESCE; `ACOES_CONTAS_RECEBER` + `os.faturada`/`os.paga`; drill 41/41 + 22 testes PG).
+  **2a (núcleo manual):** use cases criar/baixar/cancelar + `ContasReceberViewSet` (criar/baixar-manual/cancelar/
+  retrieve/list) + serializers + urls; idempotência REST, advisory lock, perfil server-side, eventos titulo_emitido/
+  pago/titulo_cancelado; 13 testes API. Revisão Opus reconciliou Protocol↔adapter + tirou DRF dos use cases
+  (`TituloNaoEncontrado`). **PRÓXIMO = Fatia 2b** (gateway Mock: emitir-boleto/pix-recorrente + webhook público HMAC
+  + override; T-CR-031/033/034-override/036) → Fatia 3 (auto-fatura OS + inadimplência + desbloqueio, toca fechados) → P8/P9.
+  Achado p/ 2b: desconto-pontualidade pré-vencimento sem fórmula na spec (cravar no use case).
 
 ## Última frente FECHADA — `orcamentos` MÓDULO 100% Wave A (2026-06-15)
 
-- Núcleo (Fatia 2 Ondas 2a–2f): criar/itens/enviar/recusar/cancelar/expirar + análise crítica cl. 7.1 perfil-
-  aware (fail-closed A) + link público 1-clique (SECURITY DEFINER) + conversão em OS (envelope por item ADR-0082).
-  **P8:** ADR-0083 (`PrecoResolvido` reconcilia VO `Preco`; emenda PRD). **P9:** 8 auditores → 1 MÉDIO
-  (INV-ORC-PRECO-001 sem teste) consertado + 2ª passada PASS → 8/8 PASS. **T-ORC-039:** `TemplateViewSet` CRUD +
-  gate selo RBC perfil A (INV-ORC-SELO-RBC + hook); produto MÉDIO (CHANGELOG) consertado. US Wave B: 003/006/010.
-  Commits `b002dae`(2f)·`cf12bc8`(P8)·`24404ca`(P9). GATEs/débitos: `matriz-reconciliacao.md` §8. Detalhe: diário.
+- Detalhe no diário + `[[estado-do-projeto-wave-a-em-curso]]`. ADR-0083 (`PrecoResolvido`). Commits
+  `b002dae`/`cf12bc8`/`24404ca`/`4f8b326`. US Wave B: 003/006/010. Matriz: `orcamentos/matriz-reconciliacao.md` §8.
 
 ## Pendência de produto aberta
 

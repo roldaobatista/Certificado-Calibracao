@@ -52,6 +52,17 @@ class ConvenioPixAusente(ContasReceberDomainError):
     reason = "CONVENIO_PIX_AUSENTE"
 
 
+# --- Não encontrado (404) ---
+
+
+class TituloNaoEncontrado(ContasReceberDomainError):
+    """Título inexistente para o `(tenant_id, titulo_id)` informado (cross-tenant via RLS).
+    Aplicação mapeia para 404 anti-oráculo. Erro de domínio — a camada application NÃO
+    importa o framework web (DRF); a view traduz para HTTP."""
+
+    reason = "TITULO_NAO_ENCONTRADO"
+
+
 # --- Máquina de estados (409) ---
 
 

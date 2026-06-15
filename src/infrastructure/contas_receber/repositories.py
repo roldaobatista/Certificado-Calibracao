@@ -9,6 +9,7 @@ NÃO é singleton.
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from django.db import models
@@ -140,6 +141,37 @@ class DjangoTituloRepository:
             usuario_id=override.usuario_id,
             perfil_no_evento=override.perfil_no_evento,
         )
+
+    def atualizar_titulo_cancelado(
+        self,
+        *,
+        tenant_id: UUID,
+        titulo: Titulo,
+        cancelado_em: datetime,
+    ) -> None:
+        """Cancela título: estado=cancelado + cancelado_em one-shot (trigger 0003 permite).
+
+        `cancelado_em` é gravado via SQL pois a entidade `Titulo` não carrega esse campo
+        (é só-banco, one-shot). O trigger impede sobrescrita se já setado.
+        """
+        from django.db import connection
+
+        atualizadas = TituloModel.objects.filter(tenant_id=tenant_id, id=titulo.titulo_id).update(
+            estado=titulo.estado.value,
+            revision=models.F("revision") + 1,
+        )
+        if atualizadas != 1:
+            raise RuntimeError(
+                f"atualizar_titulo_cancelado: esperava 1 linha, afetou {atualizadas} "
+                f"(titulo {titulo.titulo_id})."
+            )
+        # Grava cancelado_em via SQL direto (campo one-shot, não na entidade)
+        with connection.cursor() as cur:
+            cur.execute(
+                "UPDATE titulo_receber SET cancelado_em = %s "
+                "WHERE id = %s AND tenant_id = %s AND cancelado_em IS NULL",
+                [cancelado_em, str(titulo.titulo_id), str(tenant_id)],
+            )
 
     def contar_overrides_no_mes(self, *, tenant_id: UUID, ano: int, mes: int) -> int:
         """Conta overrides do tenant no mês para verificar limite 5%/mês (R-CR-NOVO-4)."""

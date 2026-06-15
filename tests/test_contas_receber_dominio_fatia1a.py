@@ -537,24 +537,43 @@ def test_objeto_sem_metodos_nao_satisfaz_payment_gateway() -> None:
 
 
 def test_titulo_repository_e_runtime_checkable() -> None:
-    """TituloRepository é @runtime_checkable."""
-    from collections.abc import Iterator
+    """TituloRepository é @runtime_checkable (contrato reconciliado na Fatia 2a)."""
 
     class DummyRepo:
-        def obter_por_id(self, titulo_id: UUID, tenant_id: UUID) -> Titulo:
-            raise NotImplementedError
-
-        def salvar(self, titulo: Titulo) -> None:
-            pass
-
-        def listar_pagamentos(self, titulo_id: UUID) -> list[Pagamento]:
-            return []
-
-        def obter_por_gateway_id(self, gateway_id: str, tenant_id: UUID) -> Titulo | None:
+        def obter_por_id(self, *, tenant_id: UUID, titulo_id: UUID) -> Titulo | None:
             return None
 
-        def iter_vencidos_por_tenant(self, tenant_id: UUID) -> Iterator[Titulo]:
-            return iter([])
+        def salvar_novo_titulo(self, titulo: Titulo) -> None:
+            pass
+
+        def atualizar_titulo(self, *, tenant_id: UUID, titulo: Titulo) -> None:
+            pass
+
+        def atualizar_titulo_cancelado(
+            self, *, tenant_id: UUID, titulo: Titulo, cancelado_em: datetime
+        ) -> None:
+            pass
+
+        def existe_titulo_ativo_para_os(self, *, tenant_id: UUID, os_id: UUID) -> bool:
+            return False
+
+        def listar_por_tenant(
+            self,
+            *,
+            tenant_id: UUID,
+            estado: str | None = None,
+            cliente_atual_id: UUID | None = None,
+        ) -> list[Titulo]:
+            return []
+
+        def salvar_pagamento(self, *, tenant_id: UUID, pagamento: Pagamento) -> None:
+            pass
+
+        def listar_pagamentos(self, *, tenant_id: UUID, titulo_id: UUID) -> list[Pagamento]:
+            return []
+
+        def existe_gateway_event(self, *, tenant_id: UUID, gateway_event_id: str) -> bool:
+            return False
 
     assert isinstance(DummyRepo(), TituloRepository)
 

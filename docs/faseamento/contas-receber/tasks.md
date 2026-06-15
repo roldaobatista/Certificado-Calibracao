@@ -46,12 +46,17 @@ relacionados:
 
 ## Fatia 2 — use cases + REST (núcleo autossuficiente; NÃO toca módulo fechado)
 
-- [ ] **T-CR-030** `criar_titulo_manual.py` — cliente+valor+vencimento+categoria perfil-aware (validação no use case — ADR-0073); perfil síncrono. Ref: D-CR-5/6/13; AC-CR-001 (manual); INV-FIN-PERFIL-001.
-- [ ] **T-CR-031** `emitir_boleto.py` + `emitir_pix_recorrente.py` — `provider.criar_cobranca`/`criar_recorrencia`; valida convenio (recorrente); 503+`gateway_indisponivel`; recorrente só 1º título. Ref: D-CR-7; AC-CR-002; TL-CR-09; INV-FIN-GW-002.
-- [ ] **T-CR-032** `baixar_titulo_manual.py` — `Pagamento` + snapshot M-FIN-002 + transição + `contas_receber.pago`. Ref: D-CR-3/4; AC-CR-003/009.
-- [ ] **T-CR-033** `processar_webhook_pagamento.py` — HMAC + idempotência dupla (`gateway_event_id` + estado); baixa ≤60s; tudo em 1 `transaction.atomic` (R10). Ref: D-CR-8; AC-CR-003; INV-FIN-GW-001.
-- [ ] **T-CR-034** `cancelar_titulo.py` (409 se parcial) + `override_bloqueio.py` (papel gerente; justificativa≥100 anti-PII — R13; contador 5%/mês; WORM). Ref: D-CR-3/10; AC-CR-010-5; INV-CR-OVERRIDE-*.
-- [ ] **T-CR-035** `serializers.py` + `views.py` (`ContasReceberViewSet`) — idempotência REST, advisory lock, ACTION_MAP `contas_receber.*`, perfil/categoria server-side. Ref: D-CR-13.
+> **Fatiada em 2a (manual) + 2b (gateway/webhook/override).** **2a ✅ DONE 2026-06-15** — 13 testes API +
+> 81 domínio; ruff+mypy limpos. Revisão crítica Opus: reconciliou Protocol `TituloRepository` ↔ adapter real,
+> removeu DRF dos use cases (erro de domínio `TituloNaoEncontrado`), reverteu toque desnecessário em
+> `authz/perfil_tenant_helper` (dívida mypy lá é pré-existente de SAN-PERFIL-TENANT). **2b PENDENTE.**
+
+- [x] **T-CR-030** ✅ (2a) `criar_titulo_manual.py` — cliente+valor+vencimento+categoria perfil-aware (validação no use case — ADR-0073); perfil síncrono. Ref: D-CR-5/6/13; AC-CR-001 (manual); INV-FIN-PERFIL-001.
+- [ ] **T-CR-031** (2b) `emitir_boleto.py` + `emitir_pix_recorrente.py` — `provider.criar_cobranca`/`criar_recorrencia`; valida convenio (recorrente); 503+`gateway_indisponivel`; recorrente só 1º título. Ref: D-CR-7; AC-CR-002; TL-CR-09; INV-FIN-GW-002.
+- [x] **T-CR-032** ✅ (2a) `baixar_titulo_manual.py` — `Pagamento` + snapshot M-FIN-002 + transição + `contas_receber.pago`. Ref: D-CR-3/4; AC-CR-003/009.
+- [ ] **T-CR-033** (2b) `processar_webhook_pagamento.py` — HMAC + idempotência dupla (`gateway_event_id` + estado); baixa ≤60s; tudo em 1 `transaction.atomic` (R10). Ref: D-CR-8; AC-CR-003; INV-FIN-GW-001.
+- [~] **T-CR-034** `cancelar_titulo.py` ✅ (2a, 409 se parcial) + `override_bloqueio.py` (2b — papel gerente; justificativa≥100 anti-PII — R13; contador 5%/mês; WORM). Ref: D-CR-3/10; AC-CR-010-5; INV-CR-OVERRIDE-*.
+- [~] **T-CR-035** `serializers.py` + `views.py` (`ContasReceberViewSet`) — ✅ (2a) actions criar/baixar-manual/cancelar/retrieve/list (idempotência REST, advisory lock, ACTION_MAP, perfil server-side); 2b adiciona emitir/override/webhook. Ref: D-CR-13.
 - [ ] **T-CR-036** `views.py` (`ContasReceberWebhookView` público) + `urls.py` — tenant via `SECURITY DEFINER`/índice + anti-oráculo (R7); molde D-ORC-19. Ref: D-CR-8; R-CR-NOVO-1.
 - [ ] **T-CR-037** `tests/test_contas_receber_api_fatia2.py` — criar A+RBC(201)/B+RBC(403)/atendente(403); Idempotency-Key; emitir boleto mock; pix sem convenio(422); timeout(503); webhook HMAC ok/inválido(401)/replay(200 sem 2º Pagamento); cancelar parcial(409); override sem papel(403)/curto(422); cross-tenant(404). **Verificação 2**.
 

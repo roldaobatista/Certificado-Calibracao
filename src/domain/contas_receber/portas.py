@@ -10,8 +10,7 @@ Import de SDK confinado a `infrastructure/contas_receber/` (hook
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from datetime import date
+from datetime import date, datetime
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
@@ -82,28 +81,56 @@ class PaymentGatewayProvider(Protocol):
 
 @runtime_checkable
 class TituloRepository(Protocol):
-    """Repositório de `Titulo` — porta de persistência (implementado na Fatia 1b).
+    """Repositório de `Titulo` — porta de persistência (contrato consumido pelos use cases).
 
-    Retorna entidades de domínio puras (`Titulo`, `Pagamento`). A implementação
-    concreta `DjangoTituloRepository` vive em `infrastructure/contas_receber/`.
+    Retorna entidades de domínio puras (`Titulo`/`Pagamento`). A implementação concreta
+    `DjangoTituloRepository` vive em `infrastructure/contas_receber/`. As assinaturas abaixo
+    são o contrato real reconciliado na Fatia 2a (keyword-only `tenant_id` — RLS por escopo).
+    Métodos de 2b/3 (override, recorrência, vencidos) entram quando suas fatias forem codadas.
     """
 
-    def obter_por_id(self, titulo_id: UUID, tenant_id: UUID) -> Titulo:
-        """Levanta `KeyError` se não encontrado (cross-tenant 404 via RLS)."""
+    # --- Titulo ---
+    def obter_por_id(self, *, tenant_id: UUID, titulo_id: UUID) -> Titulo | None:
+        """Retorna o título ou `None` (cross-tenant → None via RLS → 404 anti-oráculo)."""
         ...
 
-    def salvar(self, titulo: Titulo) -> None:
-        """Persiste ou atualiza o título (OCC via `revision`)."""
+    def salvar_novo_titulo(self, titulo: Titulo) -> None:
+        """Persiste um título novo (INSERT)."""
         ...
 
-    def listar_pagamentos(self, titulo_id: UUID) -> list[Pagamento]:
+    def atualizar_titulo(self, *, tenant_id: UUID, titulo: Titulo) -> None:
+        """Transição de estado + campos mutáveis (bump de `revision`; trigger WORM enforça)."""
+        ...
+
+    def atualizar_titulo_cancelado(
+        self, *, tenant_id: UUID, titulo: Titulo, cancelado_em: datetime
+    ) -> None:
+        """Cancela: estado=cancelado + `cancelado_em` one-shot (trigger 0003 enforça)."""
+        ...
+
+    def existe_titulo_ativo_para_os(self, *, tenant_id: UUID, os_id: UUID) -> bool:
+        """Título ativo (não cancelado) para a OS — INV-CR-OS-TITULO-UNICO (auto-fatura, Fatia 3)."""
+        ...
+
+    def listar_por_tenant(
+        self,
+        *,
+        tenant_id: UUID,
+        estado: str | None = None,
+        cliente_atual_id: UUID | None = None,
+    ) -> list[Titulo]:
+        """Lista títulos do tenant com filtros opcionais (REST list)."""
+        ...
+
+    # --- Pagamento ---
+    def salvar_pagamento(self, *, tenant_id: UUID, pagamento: Pagamento) -> None:
+        """Persiste um pagamento (INSERT-only — WORM)."""
+        ...
+
+    def listar_pagamentos(self, *, tenant_id: UUID, titulo_id: UUID) -> list[Pagamento]:
         """Lista pagamentos do título (INSERT-only — nunca retorna deletados)."""
         ...
 
-    def obter_por_gateway_id(self, gateway_id: str, tenant_id: UUID) -> Titulo | None:
-        """Lookup por `gateway_externo_id` (webhook — D-CR-8). Retorna None se não encontrado."""
-        ...
-
-    def iter_vencidos_por_tenant(self, tenant_id: UUID) -> Iterator[Titulo]:
-        """Itera títulos vencidos para o adapter de inadimplência (D-CR-9)."""
+    def existe_gateway_event(self, *, tenant_id: UUID, gateway_event_id: str) -> bool:
+        """Idempotência de webhook por `gateway_event_id` (INV-FIN-GW-001 — Fatia 2b)."""
         ...
