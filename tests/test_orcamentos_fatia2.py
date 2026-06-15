@@ -947,3 +947,187 @@ def test_aprovar_rascunho_409_transicao_proibida() -> None:
     r = _post(client, f"/api/v1/orcamentos/{orc['id']}/aprovar/", {})
     assert r.status_code == 409, r.content
     assert r.json()["codigo"] == "transicao_proibida"
+
+
+# ===========================================================================
+# Onda 2d — consumer os.aberta fecha a saga (T-ORC-035 / D-ORC-14)
+# ===========================================================================
+
+
+def _aprovar_para_pendente_os(perfil: str = "D") -> tuple[dict, dict]:
+    """Cria→item→envia→aprova (perfil D) -> orçamento em aprovado_pendente_os."""
+    c, client, orc = _criar_enviar_com_calib(perfil)
+    r = _post(client, f"/api/v1/orcamentos/{orc['id']}/aprovar/", {})
+    assert r.status_code == 200, r.content
+    assert r.json()["orcamento"]["estado"] == "aprovado_pendente_os"
+    return c, orc
+
+
+def _envelope_os_aberta(tenant_id, orcamento_id: str | None, *, numero_os: str = "OS-2026-000123"):
+    payload: dict = {"numero_os": numero_os, "atividades_planejadas": [], "itens_comerciais_count": 0}
+    if orcamento_id is not None:
+        payload["orcamento_id"] = orcamento_id
+    return {
+        "event_id": str(uuid4()),
+        "correlation_id": str(uuid4()),
+        "tenant_id": str(tenant_id),
+        "acao": "os.aberta",
+        "payload": payload,
+    }
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_consumer_os_aberta_converte_orcamento() -> None:
+    """os.aberta com orcamento_id -> aprovado_pendente_os→convertido + evento."""
+    from src.infrastructure.audit.models import BusOutbox
+    from src.infrastructure.orcamentos.consumers.os_aberta import handle_os_aberta
+    from src.infrastructure.orcamentos.models import Orcamento as OModel
+
+    c, orc = _aprovar_para_pendente_os()
+    with run_in_tenant_context(c["tenant"].id):
+        handle_os_aberta(_envelope_os_aberta(c["tenant"].id, orc["id"]))
+        assert OModel.objects.get(id=orc["id"]).estado == "convertido"
+        eventos = BusOutbox.objects.filter(
+            acao="orcamento.convertido", causation_id=UUID(orc["id"])
+        )
+        assert eventos.count() == 1
+        assert eventos.first().envelope_jsonb["payload"]["numero_os"] == "OS-2026-000123"
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_consumer_os_aberta_avulsa_sem_orcamento_id_noop() -> None:
+    """OS avulsa publica os.aberta SEM orcamento_id -> no-op (TL-ORC ALTO-1)."""
+    from src.infrastructure.audit.models import BusOutbox
+    from src.infrastructure.orcamentos.consumers.os_aberta import handle_os_aberta
+
+    c = _cenario_perfil("D")
+    with run_in_tenant_context(c["tenant"].id):
+        # Não deve levantar nem publicar nada.
+        handle_os_aberta(_envelope_os_aberta(c["tenant"].id, None))
+        assert not BusOutbox.objects.filter(acao="orcamento.convertido").exists()
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_consumer_os_aberta_replay_idempotente() -> None:
+    """Replay do MESMO event_id -> 1 conversão, 1 evento (consumer_idempotente)."""
+    from src.infrastructure.audit.models import BusOutbox
+    from src.infrastructure.orcamentos.consumers.os_aberta import handle_os_aberta
+    from src.infrastructure.orcamentos.models import Orcamento as OModel
+
+    c, orc = _aprovar_para_pendente_os()
+    envelope = _envelope_os_aberta(c["tenant"].id, orc["id"])
+    with run_in_tenant_context(c["tenant"].id):
+        handle_os_aberta(envelope)
+        handle_os_aberta(envelope)  # replay mesmo event_id
+        assert OModel.objects.get(id=orc["id"]).estado == "convertido"
+        assert (
+            BusOutbox.objects.filter(
+                acao="orcamento.convertido", causation_id=UUID(orc["id"])
+            ).count()
+            == 1
+        )
+
+
+def _envelope_anonimizacao(tenant_id, cliente_id):
+    return {
+        "event_id": str(uuid4()),
+        "correlation_id": str(uuid4()),
+        "tenant_id": str(tenant_id),
+        "acao": "cliente.dados_anonimizados",
+        "payload": {"cliente_id": str(cliente_id), "tenant_id": str(tenant_id)},
+    }
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_consumer_cliente_anonimizado_cancela_rascunho_expira_enviado() -> None:
+    """Anonimização: rascunho→cancelado; enviado→expirado + link revogado (Roldão 2026-06-15)."""
+    from src.infrastructure.orcamentos.consumers.cliente_anonimizado import (
+        handle_cliente_anonimizado,
+    )
+    from src.infrastructure.orcamentos.models import LinkPublico as LinkModel
+    from src.infrastructure.orcamentos.models import Orcamento as OModel
+
+    c = _cenario_perfil("D")
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    item = _setup_catalogo(client)
+
+    orc_rascunho = _criar_orcamento(client, cliente.id).json()
+    assert _adicionar_item_calib(client, orc_rascunho["id"], item["id"]).status_code == 201
+
+    orc_enviado = _criar_orcamento(client, cliente.id).json()
+    assert _adicionar_item_calib(client, orc_enviado["id"], item["id"]).status_code == 201
+    assert _post(client, f"/api/v1/orcamentos/{orc_enviado['id']}/enviar/", {}).status_code == 200
+
+    with run_in_tenant_context(c["tenant"].id):
+        handle_cliente_anonimizado(_envelope_anonimizacao(c["tenant"].id, cliente.id))
+        assert OModel.objects.get(id=orc_rascunho["id"]).estado == "cancelado"
+        assert OModel.objects.get(id=orc_enviado["id"]).estado == "expirado"
+        # Link público do enviado foi revogado (corta exposição de PII — LGPD).
+        link = LinkModel.objects.get(orcamento_id=orc_enviado["id"])
+        assert link.revogado_em is not None
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_consumer_cliente_anonimizado_preserva_aprovado_pendente_os() -> None:
+    """Anonimização preserva orçamento já aprovado (documento consolidado)."""
+    from src.infrastructure.orcamentos.consumers.cliente_anonimizado import (
+        handle_cliente_anonimizado,
+    )
+    from src.infrastructure.orcamentos.models import Orcamento as OModel
+
+    c = _cenario_perfil("D")
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    item = _setup_catalogo(client)
+    orc = _criar_orcamento(client, cliente.id).json()
+    assert _adicionar_item_calib(client, orc["id"], item["id"]).status_code == 201
+    assert _post(client, f"/api/v1/orcamentos/{orc['id']}/enviar/", {}).status_code == 200
+    assert _post(client, f"/api/v1/orcamentos/{orc['id']}/aprovar/", {}).status_code == 200
+
+    with run_in_tenant_context(c["tenant"].id):
+        handle_cliente_anonimizado(_envelope_anonimizacao(c["tenant"].id, cliente.id))
+        assert OModel.objects.get(id=orc["id"]).estado == "aprovado_pendente_os"
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_consumer_cliente_anonimizado_replay_idempotente() -> None:
+    """Replay do mesmo event_id não reprocessa (consumer_idempotente)."""
+    from src.infrastructure.orcamentos.consumers.cliente_anonimizado import (
+        handle_cliente_anonimizado,
+    )
+    from src.infrastructure.orcamentos.models import Orcamento as OModel
+
+    c = _cenario_perfil("D")
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    item = _setup_catalogo(client)
+    orc_rascunho = _criar_orcamento(client, cliente.id).json()
+    assert _adicionar_item_calib(client, orc_rascunho["id"], item["id"]).status_code == 201
+
+    envelope = _envelope_anonimizacao(c["tenant"].id, cliente.id)
+    with run_in_tenant_context(c["tenant"].id):
+        handle_cliente_anonimizado(envelope)
+        handle_cliente_anonimizado(envelope)  # replay
+        assert OModel.objects.get(id=orc_rascunho["id"]).estado == "cancelado"
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_consumer_os_aberta_ja_convertido_event_id_novo_noop() -> None:
+    """2º os.aberta (event_id novo) p/ orçamento já convertido -> não republica."""
+    from src.infrastructure.audit.models import BusOutbox
+    from src.infrastructure.orcamentos.consumers.os_aberta import handle_os_aberta
+    from src.infrastructure.orcamentos.models import Orcamento as OModel
+
+    c, orc = _aprovar_para_pendente_os()
+    with run_in_tenant_context(c["tenant"].id):
+        handle_os_aberta(_envelope_os_aberta(c["tenant"].id, orc["id"]))
+        # 2º evento distinto (event_id novo), mesmo orçamento já convertido.
+        handle_os_aberta(_envelope_os_aberta(c["tenant"].id, orc["id"]))
+        assert OModel.objects.get(id=orc["id"]).estado == "convertido"
+        assert (
+            BusOutbox.objects.filter(
+                acao="orcamento.convertido", causation_id=UUID(orc["id"])
+            ).count()
+            == 1
+        )

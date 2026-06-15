@@ -16,3 +16,27 @@ class OrcamentosConfig(AppConfig):
     name = "src.infrastructure.orcamentos"
     label = "orcamentos"
     verbose_name = "Orcamentos (comercial)"
+
+    def ready(self) -> None:
+        """Registra consumers do bus (Onda 2d). Worker entra em run_in_tenant_context.
+
+        - ``os.aberta`` -> ``handle_os_aberta`` fecha a saga (aprovado_pendente_os→
+          convertido), publicando ``orcamento.convertido`` (T-ORC-035 / D-ORC-14).
+        - ``cliente.dados_anonimizados`` -> ``handle_cliente_anonimizado`` cancela
+          rascunhos / expira enviados do cliente (LGPD — T-ORC-036 / ADV-ORC-06).
+        """
+        from src.infrastructure.audit.outbox_worker import registrar_consumer
+
+        from .consumers.cliente_anonimizado import handle_cliente_anonimizado
+        from .consumers.os_aberta import handle_os_aberta
+
+        _MAPA_CONSUMERS = {
+            "os.aberta": handle_os_aberta,
+            "cliente.dados_anonimizados": handle_cliente_anonimizado,
+        }
+        for acao, fn in _MAPA_CONSUMERS.items():
+            try:
+                registrar_consumer(acao, fn)
+            except ValueError:
+                # Já registrado (re-entry em test runner). Idempotente.
+                pass

@@ -217,6 +217,56 @@ class OrcamentoExpirado:
     cliente_key_id: str
 
 
+# =====================================================================
+# converter_orcamento (T-ORC-035 — saga orcamento->OS, D-ORC-14)
+# =====================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class ConverterOrcamentoInput:
+    tenant_id: UUID
+    orcamento_id: UUID
+    agora: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ConverterOrcamentoOutput:
+    orcamento: Orcamento
+    convertido: bool  # False = no-op idempotente (já convertido / estado inesperado)
+
+
+def converter_orcamento(
+    inp: ConverterOrcamentoInput, *, repo: OrcamentoRepository
+) -> ConverterOrcamentoOutput | None:
+    """Fecha a saga: aprovado_pendente_os -> convertido ao abrir a OS (D-ORC-14).
+
+    Idempotente e defensivo (consumer de `os.aberta`):
+      - orçamento inexistente no tenant -> ``None`` (no-op).
+      - já ``convertido`` -> ``convertido=False`` (replay / 2º evento).
+      - estado != ``aprovado_pendente_os`` -> ``convertido=False`` (no-op; ex.: OS
+        avulsa cujo orcamento_id aponta p/ orçamento ainda não aprovado).
+      - ``aprovado_pendente_os`` -> transiciona p/ ``convertido`` (convertido=True).
+    """
+    orcamento = repo.get_by_id(inp.orcamento_id, tenant_id=inp.tenant_id)
+    if orcamento is None:
+        return None
+    if orcamento.estado in (EstadoOrcamento.CONVERTIDO, EstadoOrcamento.APROVADO_PENDENTE_OS):
+        if orcamento.estado == EstadoOrcamento.CONVERTIDO:
+            return ConverterOrcamentoOutput(orcamento=orcamento, convertido=False)
+        validar_transicao(orcamento.estado, EstadoOrcamento.CONVERTIDO)
+        convertido = repo.atualizar_estado(
+            inp.orcamento_id, tenant_id=inp.tenant_id, novo_estado=EstadoOrcamento.CONVERTIDO
+        )
+        return ConverterOrcamentoOutput(orcamento=convertido, convertido=True)
+    # Estado inesperado (rascunho/enviado/recusado/...) — no-op defensivo.
+    return ConverterOrcamentoOutput(orcamento=orcamento, convertido=False)
+
+
+# =====================================================================
+# expirar_orcamentos (T-ORC-034 — job idempotente)
+# =====================================================================
+
+
 def expirar_orcamentos(
     inp: ExpirarOrcamentosInput, *, repo: OrcamentoRepository
 ) -> list[OrcamentoExpirado]:
@@ -247,3 +297,73 @@ def expirar_orcamentos(
             )
         )
     return expirados
+
+
+# =====================================================================
+# anonimizar_cliente_em_orcamentos (T-ORC-036 — LGPD, ADV-ORC-06 / D-ORC-4)
+# =====================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class AnonimizarClienteInput:
+    tenant_id: UUID
+    cliente_id: UUID
+    agora: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class AnonimizarClienteResultado:
+    cancelados: list[UUID]  # rascunhos cancelados
+    expirados: list[UUID]  # enviados expirados (decisão Roldão 2026-06-15)
+
+
+def anonimizar_cliente_em_orcamentos(
+    inp: AnonimizarClienteInput, *, repo: OrcamentoRepository
+) -> AnonimizarClienteResultado:
+    """Propaga anonimização do cliente nos orçamentos (ADV-ORC-06 / D-ORC-4).
+
+    Por estado (decisão Roldão 2026-06-15):
+      - **rascunho** → cancelar + revogar link (proposta nem chegou ao cliente).
+      - **enviado**  → EXPIRAR + revogar link. A máquina D-ORC-3 proíbe
+        enviado→cancelado (decisão Onda 2b: o botão manual não cancela enviado);
+        ``expirado`` é o estado terminal disponível que encerra a proposta e o
+        cliente escolheu este caminho em vez de abrir exceção na máquina.
+      - **aprovado_pendente_os / convertido / terminais** → PRESERVAR (já são
+        documentos consolidados; ``cliente_referencia_hash`` mantém a trilha).
+
+    O link público é sempre revogado (corta exposição de PII — LGPD). Idempotente:
+    re-execução só encontra rascunho/enviado restantes (já processados saíram do filtro).
+    Não publica eventos de bus (limpeza interna; análogo a ``cancelar_orcamento``).
+    """
+    cancelados: list[UUID] = []
+    expirados: list[UUID] = []
+
+    rascunhos = repo.listar(
+        tenant_id=inp.tenant_id,
+        estado=EstadoOrcamento.RASCUNHO,
+        cliente_id=inp.cliente_id,
+        limit=_LIMITE_EXPIRACAO_LOTE,
+    )
+    for o in rascunhos:
+        validar_transicao(o.estado, EstadoOrcamento.CANCELADO)
+        _revogar_link_ativo(
+            o.id, inp.tenant_id, repo=repo, agora=inp.agora, motivo="cliente anonimizado (LGPD)"
+        )
+        repo.atualizar_estado(o.id, tenant_id=inp.tenant_id, novo_estado=EstadoOrcamento.CANCELADO)
+        cancelados.append(o.id)
+
+    enviados = repo.listar(
+        tenant_id=inp.tenant_id,
+        estado=EstadoOrcamento.ENVIADO,
+        cliente_id=inp.cliente_id,
+        limit=_LIMITE_EXPIRACAO_LOTE,
+    )
+    for o in enviados:
+        validar_transicao(o.estado, EstadoOrcamento.EXPIRADO)
+        _revogar_link_ativo(
+            o.id, inp.tenant_id, repo=repo, agora=inp.agora, motivo="cliente anonimizado (LGPD)"
+        )
+        repo.atualizar_estado(o.id, tenant_id=inp.tenant_id, novo_estado=EstadoOrcamento.EXPIRADO)
+        expirados.append(o.id)
+
+    return AnonimizarClienteResultado(cancelados=cancelados, expirados=expirados)

@@ -125,11 +125,16 @@ relacionados:
 - [ ] **T-ORC-034** `recusar_orcamento` / `cancelar_orcamento` (409 se convertido) + `expirar_orcamentos`
       (job idempotente por orcamento_id + timezone tenant). Ref: D-ORC-3; INV-ORC-CONVERTIDO-TERMINAL / EXP-001;
       AC-ORC-008.
-- [ ] **T-ORC-035** Consumer `handle_os_aberta` — lê `envelope["payload"]["orcamento_id"]`; **se ausente/None
+- [x] **T-ORC-035** ✅ DONE 2026-06-15 (Onda 2d) Consumer `handle_os_aberta` — lê `envelope["payload"]["orcamento_id"]`; **se ausente/None
       → no-op (OS avulsa também publica `os.aberta` — TL-ORC ALTO-1)**; senão `aprovado_pendente_os→convertido`
       + publica `orcamento.convertido`. `@consumer_idempotente`. Ref: D-ORC-14; AC-ORC-007.
-- [ ] **T-ORC-036** Consumer `handle_cliente_anonimizado` — por estado (rascunho/enviado cancela+revoga link;
-      aprovado+ preserva). Ref: ADV-ORC-06; D-ORC-4.
+- [x] **T-ORC-036** ✅ DONE 2026-06-15 (Onda 2d) Consumer `handle_cliente_anonimizado` — por estado (rascunho
+      **cancela**; **enviado EXPIRA** — decisão Roldão 2026-06-15, máquina D-ORC-3 proíbe enviado→cancelado;
+      ambos revogam link; aprovado+ preserva). Escuta `cliente.dados_anonimizados` (canônico). Ref: ADV-ORC-06;
+      D-ORC-4. GATEs: **GATE-ANON-EVENTO-RECONCILIAR** (`clientes` ainda não publica anonimização — consumer
+      dormente; `ordens_servico` escuta `cliente.anonimizado` divergente, alinhar quando `clientes` publicar) ·
+      **GATE-ORC-ANON-BULK** (loop N×`atualizar_estado` 2-query — `transicionar_estado_bulk` pós-instrumentação;
+      BAIXO, worker batch + cardinalidade baixa + dormente).
 - [ ] **T-ORC-037** REST `OrcamentoViewSet` (criar/adicionar-item/enviar/aprovar/recusar/cancelar/retrieve/list;
       ACTION_MAP `orcamento.*`; idempotência helper reusável; margem só `ver_margem`). Ref: D-ORC-12; spec §7.
 - [ ] **T-ORC-038** REST `OrcamentoPublicoView` — GET `{token}` (allowlist ADV-ORC-09; **devolve ressalvas

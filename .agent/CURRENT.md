@@ -8,26 +8,24 @@
 
 - Fatias 1a (domínio) + 1b (schema PG) DONE. Dep `os-multi-equipamento` FECHADA (envelope por item).
   Decisões Fatia 2 em `tasks.md`: D-FATIA2-A numeração BURACOS_ACEITOS · B série LAZY · C deps na view.
-- **Ondas 2a+2b+2c-1 DONE:** criar+itens+`OrcamentoViewSet` · enviar/recusar/cancelar/expirar (eventos
-  outbox, LinkPublico token 256b) · item de calibração DECLARA mensurando (migration 0008 + CHECK + fail-fast).
-- **Onda 2c-2 DONE (2026-06-15):** motor análise crítica cl. 7.1 + `aprovar_orcamento`. Função PURA
-  `decidir_analise_critica` (matriz A/B/C/D + indeterminado fail-closed) + `aprovacao.py` (use case) +
-  `analise_critica_ports.py` (portas CMC/proc + perfil/suspensão server-side) + action REST `aprovar`
-  (200 aprova → `aprovado_pendente_os` / 422 reprova+WORM). snapshot_hash ADR-0029; eventos
-  reprovada/com_ressalva/aprovado. Camada A: 7 auditores PASS + `consultor-rbc` CONFIRMA-COM-AJUSTES
-  (ACH-3 MÉDIO redação suspensão CORRIGIDO; ACH-1+fingerprint BAIXO corrigidos; ACH-2/4 + GATE-ORC-PERF-APROVAR
-  + GATE-OBS-ORC-METRICA-APROVACAO em `tasks.md`). **121 testes verdes** no módulo.
-- **PRÓXIMO = Onda 2d** (consumers `handle_os_aberta` T-ORC-035 + `handle_cliente_anonimizado` T-ORC-036)
-  → 2e REST público (`OrcamentoPublicoView` T-ORC-038: GET ressalvas + POST aprovar 1-clique, Aprovacao WORM,
-  `ressalvas_confirmadas` quando `com_ressalva`) → 2f testes contrato/INV (T-ORC-050..054) → P8/P9.
+- **Ondas 2a/2b/2c-1 DONE:** criar+itens+`OrcamentoViewSet` · enviar/recusar/cancelar/expirar (outbox,
+  LinkPublico 256b) · item de calibração DECLARA mensurando (migration 0008 + CHECK + fail-fast).
+- **Onda 2c-2 DONE (`243ce69`):** motor análise crítica cl. 7.1 + `aprovar_orcamento` — função PURA
+  `decidir_analise_critica` (matriz A/B/C/D + indeterminado fail-closed) + portas CMC/proc + perfil
+  server-side + action REST (200→`aprovado_pendente_os` / 422 reprova+WORM) + snapshot_hash ADR-0029.
+  Camada A 7 PASS + `consultor-rbc` CONFIRMA-COM-AJUSTES (ACH-3 MÉDIO corrigido).
+- **Onda 2d DONE (2026-06-15):** consumers `handle_os_aberta` (T-ORC-035: fecha saga →convertido + publica
+  `orcamento.convertido`; OS avulsa=no-op) + `handle_cliente_anonimizado` (T-ORC-036/LGPD: rascunho cancela,
+  **enviado EXPIRA** [decisão Roldão], aprovado+ preserva; revoga link; `cliente.dados_anonimizados` dormente
+  =GATE-ANON-EVENTO-RECONCILIAR). Camada A 7 PASS zero MÉDIO+. **128 testes verdes**.
+- **PRÓXIMO = Onda 2e** REST público (`OrcamentoPublicoView` T-ORC-038: GET `{token}` ressalvas + POST aprovar
+  1-clique, token resolve tenant D-ORC-19, Aprovacao WORM aceite rico, `ressalvas_confirmadas` se `com_ressalva`)
+  → 2f testes contrato/INV (T-ORC-050..054) → P8/P9. GATEs Onda 2d: PERF-APROVAR · OBS-METRICA · ANON-BULK.
 
-## Última frente FECHADA — `os-multi-equipamento` (2026-06-14)
+## Última frente FECHADA — `os-multi-equipamento` (2026-06-14, ADR-0082)
 
-- Retrofit OS 1→N equipamentos (equip. por atividade) + `ItemComercialOS`. Aditivo/reversível. ADR-0082.
-  Ritual P0→P9 (P9: 7 auditores → 2ª passada 4/4 PASS). Regressão OS **96 verdes**.
-- Débitos: **GATE-OSME-RECEBIMENTO-7.5** (enforcement recebimento por atividade) · **GATE-OS-AUTHZ-ACTION-MAP**
-  (`os.atualizar` não seedado em reagendar/transferir/cancelar/dispensa/reabrir — bug pré-existente).
-  Detalhe: `matriz-reconciliacao.md` (ata P9) + `docs/faseamento/diario/`.
+- Retrofit OS 1→N equipamentos + `ItemComercialOS`. P0→P9 (7 auditores, 2ª passada 4/4 PASS). 96 verdes.
+  Débitos: **GATE-OSME-RECEBIMENTO-7.5** · **GATE-OS-AUTHZ-ACTION-MAP** (pré-existente). Detalhe: diário.
 
 ## Pendência de produto aberta
 
