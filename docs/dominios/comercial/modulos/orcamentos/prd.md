@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado-em: 2026-05-27
-proximo-review: 2026-08-27
+revisado-em: 2026-06-15
+proximo-review: 2026-09-15
 status: stable
 modulo: orcamentos
 dominio: comercial
@@ -20,11 +20,17 @@ relacionados:
   - docs/adr/0051-propagacao-adr0023-modulos-wave-a.md
   - docs/adr/0066-cmc-procedimento-predicate-fail-open-lazy.md
   - docs/adr/0067-perfil-regulatorio-tenant-entidade-temporal.md
+  - docs/adr/0081-duas-fontes-preco-lista-versus-tabela-venda.md
+  - docs/adr/0082-os-multi-equipamento-equipamento-por-atividade.md
+  - docs/adr/0083-orcamento-preco-resolvido-reconcilia-vo-preco-prd.md
   - docs/conformidade/comum/matriz-feature-perfil.md
   - REGRAS-INEGOCIAVEIS.md
 historico:
   - 2026-05-27 — saneamento Onda 3 Batch B4 pré-Wave A: declara perfil ADR-0067, US-ORC-009 análise crítica cl. 7.1 ISO 17025, VO `Preco` canônico substitui snapshot vago (INV-026 retrofit), AC binários GIVEN-WHEN-THEN com ID `AC-ORC-NNN-N`, deps ADR 0007/0023/0024/0030/0031/0032/0033/0034/0050/0051/0066/0067, persona inline, vocabulário Wave A, matriz feature × perfil, métricas inline, status `draft` → `stable`.
+  - 2026-06-15 — emenda pontual P8 (Onda 2f): reconcilia VO `Preco` → `PrecoResolvido` (ADR-0083); não toca UX/telas.
 ---
+
+<!-- prd-ux-states: skip -- emenda pontual P8 (ADR-0083) reconcilia o snapshot de preco; a secao 'UX dos estados nao-felizes' e debito proprio do modulo (telas diferidas em Wave A — orcamentos ainda nao tem telas) rastreado a parte em GATE-ORC-PRD-UX-STATES, nao introduzido por esta emenda -->
 
 # PRD — Módulo Orçamentos
 
@@ -53,7 +59,7 @@ Detalhe operacional em `personas.md` deste módulo + `../../personas.md` (domín
 - **Análise crítica de pedido cl. 7.1 ISO 17025** quando há item `tipo_atividade_alvo=calibracao` (US-ORC-009).
 - Conversão em **1 OS com N `AtividadeDaOS`** (ADR-0023 + ADR-0051) ao aprovar.
 - PDF exportável + link público com aprovação 1-clique.
-- VO canônico `Preco(valor_centavos, moeda, vigencia_inicio, vigencia_fim, fonte_tabela_id)` (substitui INV-026 vago).
+- Snapshot de preço do item = `PrecoResolvido` (reuso `produtos-pecas-servicos`) + valor em `Dinheiro`; vigência comercial no agregado `Orcamento.validade` (`JanelaVigencia`). **O VO `Preco` proposto foi reconciliado para `PrecoResolvido` — ver ADR-0083** (substitui INV-026 vago).
 
 **Wave B (expansão):**
 - Versionamento + comparação V1/V2/V3.
@@ -71,7 +77,7 @@ Detalhe operacional em `personas.md` deste módulo + `../../personas.md` (domín
 - **Tabela de preço por cliente** — GATE Wave A A-ORC-002: depende do módulo `comercial/precificacao` (Wave A); orçamento consome via `tabela_preco_id`.
 - **Orçamento internacional / multi-moeda** — fora do MVP (ADR-0039 cliente exterior só atinge cadastro).
 - **Geração de NFS-e** — pertence ao `financeiro` (após OS concluída).
-- **Re-precificação retroativa após aprovação** — proibido pelo VO `Preco` (snapshot).
+- **Re-precificação retroativa após aprovação** — proibida pela imutabilidade do `PrecoResolvido` carimbado + `VersaoOrcamento` WORM (ADR-0083 / INV-ORC-PRECO-001).
 - **Portal cliente full** (M-ORC-003) — pertence ao módulo `comercial/portal-cliente` (Wave A); orçamento publica link.
 - **Cobrança recorrente do orçamento** — quem cobra é `contas-receber` via porta `PaymentGatewayProvider` (ADR-0050).
 
@@ -93,10 +99,10 @@ Predicate canônico invocado: `tenant_perfil_e(["A", "B", "C"])` para ligar US-O
 
 **Como** vendedor, **quero** abrir tela tipo carrinho, escolher cliente, adicionar serviços do catálogo, **para** mandar proposta antes do cliente esquecer.
 
-- **AC-ORC-001-1**: GIVEN cliente selecionado e item do catálogo escolhido com `tabela_preco_id` vigente, WHEN o vendedor adiciona o item, THEN o sistema instancia VO `Preco(valor_centavos, moeda='BRL', vigencia_inicio, vigencia_fim, fonte_tabela_id)` no orçamento + preenche alíquota fiscal + comissão prevista, e o `Preco` instanciado fica imutável na linha (não retroage).
+- **AC-ORC-001-1**: GIVEN cliente selecionado e item do catálogo escolhido com `tabela_preco_id` vigente, WHEN o vendedor adiciona o item, THEN o sistema carimba `PrecoResolvido` (via `calcular_precos`/`preco_para_os`) + valor em `Dinheiro` no item + preenche alíquota fiscal + comissão prevista, e o `PrecoResolvido` carimbado fica imutável na linha (não retroage — ADR-0083).
 - **AC-ORC-001-2**: GIVEN orçamento com ao menos 1 item e total > 0, WHEN o vendedor clica "enviar", THEN o sistema gera PDF + link público com token expirável e envia por WhatsApp/e-mail conforme `canal_preferido` do cliente (ADR-0032 `ReferenciaPIIAnonimizavel` aplica em e-mail/telefone).
-- **AC-ORC-001-3**: GIVEN tentativa de salvar orçamento com `Preco.vigencia_fim < now()`, WHEN salva, THEN sistema rejeita com mensagem "tabela de preço expirada — atualize antes de salvar" (ADR-0030 vigência canônica).
-- **INV:** INV-ORC-PRECO-001 (VO `Preco` imutável após criação), INV-TENANT-001.
+- **AC-ORC-001-3**: GIVEN tentativa de salvar orçamento com tabela de preço expirada na `data_referencia` (`PrecoResolvido` sem linha vigente), WHEN salva, THEN sistema rejeita com mensagem "tabela de preço expirada — atualize antes de salvar" (ADR-0030 vigência canônica; ADR-0081 fail-closed).
+- **INV:** INV-ORC-PRECO-001 (`PrecoResolvido` imutável após criação — ADR-0083), INV-TENANT-001.
 
 ### US-ORC-002 — Cliente aprova orçamento em 1 clique
 
@@ -184,12 +190,12 @@ Detalhe completo em `metricas.md`.
 - **Performance:** criação salva p95 < 1s; geração PDF < 3s; análise crítica US-ORC-009 com 4 predicates p95 < 500ms.
 - **Disponibilidade:** 99,5%.
 - **LGPD:** aprovação digital registra consentimento (RAT-06). E-mail/telefone do cliente trafegam via `ReferenciaPIIAnonimizavel` (ADR-0032).
-- **Imutabilidade:** versão aprovada é snapshot via VO `Preco` (INV-ORC-PRECO-001 substitui INV-026).
+- **Imutabilidade:** versão aprovada é snapshot via `PrecoResolvido` carimbado + `VersaoOrcamento` WORM (INV-ORC-PRECO-001 substitui INV-026; reconciliação ADR-0083).
 - **Acessibilidade:** WCAG 2.1 AA na tela pública de aprovação (link cliente).
 
 ## 10. Glossário
 
-- **VO `Preco`** — value object imutável `(valor_centavos: int, moeda: str, vigencia_inicio, vigencia_fim, fonte_tabela_id: UUID)`. Snapshot canônico no item do orçamento.
+- **`PrecoResolvido`** — snapshot de preço canônico no item do orçamento (reuso `produtos-pecas-servicos`): `(item_id, item_versao_n, linha_tabela_id, tabela_id, preco, data_referencia, origem_preco)`. Imutável (item frozen + `VersaoOrcamento` WORM). **Reconcilia o VO `Preco` originalmente proposto neste PRD — ver ADR-0083** (o `Preco` não foi criado). Valor monetário usa o VO `Dinheiro`; vigência comercial = `Orcamento.validade` (`JanelaVigencia`, ADR-0030).
 - **`tipo_atividade_alvo`** — enum em `ItemOrcamento`: `calibracao | manutencao | instalacao | verificacao_inmetro | vistoria | OUTRO`. Itens com este campo viram `AtividadeDaOS` (ADR-0051).
 - **Análise crítica cl. 7.1** — avaliação ISO 17025 antes de aceitar contrato/orçamento de calibração: lab tem CMC declarado? procedimento vigente? RT competente? padrão disponível no prazo?
 - **`perfil_no_evento`** — snapshot do perfil regulatório do tenant no momento do evento WORM (ADR-0067 §3).

@@ -58,6 +58,7 @@ status: stable
 | ADR-0080 | Numeração SerieDocumento 2 regimes (gap-less vs buracos) | configuracoes-sistema | `SerieDocumento`, motor M8, reset anual |
 | ADR-0081 | Duas fontes de preço lista×venda fail-closed | produtos-pecas-servicos | `LinhaTabelaPreco`, `PrecoResolvido`, 422 |
 | ADR-0082 | OS multi-equipamento (equipamento por atividade) | ordens_servico | `AtividadeDaOS.equipamento_id`, `ItemComercialOS`, migrations 0018-0020, COALESCE trigger |
+| ADR-0083 | Snapshot de preço do orçamento = `PrecoResolvido` (reconcilia VO `Preco` do PRD) | orcamentos | reuso pps, emenda PRD, `Dinheiro`+`JanelaVigencia`, INV-ORC-PRECO-001 |
 
 ---
 
