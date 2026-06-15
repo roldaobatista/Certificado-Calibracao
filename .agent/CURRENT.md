@@ -4,13 +4,18 @@
 
 **Modo:** AUTÔNOMO. **Fase:** Wave A em curso.
 
-## Frente PRÓXIMA — `contas-receber` (Nível 5 — fecha a receita ponta a ponta)
+## Frente ATIVA — `contas-receber` (Nível 5 — fecha a receita ponta a ponta) — RITUAL P0–P3 FECHADO
 
-- A cadeia de preço (config→pps→precificacao→colaboradores→orcamentos) está **COMPLETA**. Próxima peça do
-  `plano-dependencia-sistema.md`: **`contas-receber`** — consome `OS.Concluida`/`Certificado.Emitido`/
-  `Fiscal.NFSeEmitida` → `TituloEmitido` (fatura pelo valor JÁ carimbado no evento, não reconsulta preço);
-  baixa via `PaymentGatewayProvider` (Asaas ADR-0050) — núcleo com **stub** (cost-plus/gateway real diferidos).
-  Iniciar pelo ritual P0 (discovery/spec → revisões tech-lead/advogado → plan → tasks).
+- **P0–P3 prontos** (2026-06-15): `T-CR-000` re-rastreado pós-orçamentos · `spec.md` v2 · `reviews-consolidado.md`
+  (P2: tech-lead Opus + advogado + consultor-rbc, todos APROVAM C/ CORREÇÕES) · `plan.md` + `tasks.md` (T-CR-010..061)
+  revisados (PLAN-CR-01..03). Em `docs/faseamento/contas-receber/`.
+- **Decisão de gatilho (regra #0):** nenhum gatilho do PRD carrega hoje `cliente_id`+`valor` no outbox. Canônico =
+  **`os.concluida` ENRIQUECIDO no OUTBOX** (não no WORM da OS — TL-CR-03); `Certificado.Emitido` reconciliado (não é
+  unidade de cobrança); `fiscal.nfse_emitida` secundário. CRITs do P2: `clientes` tem bloqueio **PULL** existente (CR
+  faz adapter, não PUSH); OS já consome `os.faturada`/`os.paga` dangling (CR publica). Gateway = **Mock** (Asaas=GATE).
+- **PRÓXIMO = P4: codar Fatia 1a** (domínio puro `src/domain/contas_receber/`, T-CR-010..016; sem Docker/PG) →
+  1b (schema/RLS/WORM) → 2 (núcleo: manual+mock+webhook) → 3 (auto-fatura OS + inadimplência + desbloqueio — toca
+  módulos fechados) → P8/P9. Família INV-FIN-* volta ao mestre na fatia dos hooks (3d).
 
 ## Última frente FECHADA — `orcamentos` MÓDULO 100% Wave A (2026-06-15)
 

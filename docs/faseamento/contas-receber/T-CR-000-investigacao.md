@@ -1,7 +1,7 @@
 ---
 owner: agente-ia
-revisado-em: 2026-06-09
-proximo-review: 2026-09-09
+revisado-em: 2026-06-15
+proximo-review: 2026-09-15
 status: stable
 diataxis: reference
 frente: contas-receber
@@ -85,3 +85,55 @@ diferir o que depende de inexistente", a precificação deveria preceder o consu
 
 Investigação por workflow de 1 leitor "very thorough" + rastreio direto do código
 (acoes_canonicas, ordens_servico, fiscal/models). Sem alteração de código nesta etapa.
+
+---
+
+## 7. ATUALIZAÇÃO 2026-06-15 — re-rastreamento pós-`orcamentos` (regra #0, antes do P1)
+
+> `orcamentos` FECHOU 100% Wave A em 2026-06-15 (commits b002dae/cf12bc8/24404ca/4f8b326).
+> A §6 desta investigação dava 3 forks de sequenciamento; o fork #1 ("orçamentos primeiro")
+> foi o adotado e está cumprido. Antes de escrever a spec, re-rastreei o CÓDIGO REAL de hoje
+> (não as docs) para ver se o bloqueio de §3 mudou. Mudou **em parte** — abaixo.
+
+### O que mudou desde 2026-06-09
+
+| Gatilho | É outbox cross-módulo? | `cliente_id`? | `valor`? | Fonte (arquivo:linha) |
+|---|---|---|---|---|
+| `os.concluida` | **SIM** (bus via INT-01) | **NÃO** (payload = `os_id`, `tipo_predominante`, `nao_conformidade_global`) | **NÃO no evento** (mas `OSSnapshot.valor_total` AGORA existe no banco — vindo do orçamento, ADR-0082) | `value_objects.py:143`; `concluir_atividade.py:219-225`; `repositories.py:660-666`/`85-86` |
+| `Certificados.CertificadoReconciliado` | **NÃO** (`outbox=False` — só cadeia hash interna) | **NÃO** | **NÃO** (certificado não tem preço) | `acoes_canonicas.py:296-300`; `certificados/views.py:161-166` |
+| `fiscal.nfse_emitida` | **SIM** | **NÃO** — só `cliente_referencia_hash` (pseudônimo INV-FIS-009) | **SIM** — `valor_centavos` (int) | `fiscal/views.py:268-281`; `acoes_canonicas.py:321-326` |
+| `orcamento.aprovado` (**NOVO** — não existia em jun/09) | **SIM** | **SIM** — `cliente_id` (pode ser `None` se anonimizado) | **SIM** — `valor_total` (string decimal `"1234.56"`, não centavos) | `transicoes.py:293-318`; `acoes_canonicas.py:426-437` |
+
+### Achado central (atualizado)
+
+1. **`Certificado.Emitido` continua INEXISTENTE.** O PRD (US-CR-001 AC-2) e a ADR-0043 / INV-CAL-FIN-001
+   mandam CR reagir a `Certificado.Emitido` com `Certificado.valor_servico_snapshot`. No código: (a) o evento
+   não existe (certificados publica só `CertificadoReconciliado`, `outbox=False`, reservando `CertificadoEmitido`
+   para a assinatura A3 — Wave A futura); (b) o certificado **não tem campo de valor**; (c) não tem cliente.
+   → **Conflito de fonte de verdade ADR-0043 × código.** Resolver no P2 (tech-lead) + ADR de reconciliação no P8
+   (molde ADR-0083 de orçamentos). Faturar certificado E a OS que o gerou = **dupla cobrança** — a evitar.
+
+2. **A OS é o único gatilho que JÁ tem cliente + valor carimbados** (`OSSnapshot.cliente_id` + `valor_total`
+   via ADR-0082; por atividade: `AtividadeSnapshot.valor_unitario_snapshot`). **Mas não os publica** — o payload
+   de `os.concluida` é minimalista e o sanitizador `sanitizar_payload_evento_os` proíbe `cliente_id` raw
+   (`event_helpers.py:44-46`). Enriquecer o evento da OS (seguindo o padrão do orçamento, que já publica
+   `cliente_id`+`cliente_referencia_hash`+`cliente_key_id`) é o caminho mais alinhado a "fatura pelo valor JÁ
+   carimbado" + INV-026. **Toca módulo fechado (OS)** — decidir no P2.
+
+3. **`fiscal.nfse_emitida` tem o valor mas não o `cliente_id`** (só hash). INV-FIS-CR-001 espera esse gatilho
+   (`Fiscal.NFSeEmitida → ContasReceber.TituloEmitido ≤5s`). Viável se CR resolver `cliente_referencia_hash→id`
+   internamente, OU se a NF-e carregar a referência PII anonimizável completa (hash+key_id+id) como o orçamento.
+
+4. **Núcleo SEM auto-faturamento continua 100% construível agora** (T-CR-000 §5): domínio
+   `Fatura`/`Titulo`/`Parcela`/`Pagamento` + máquina de estados + juros/multa-na-leitura + categoria perfil-aware
+   + WORM/RLS + cobrança MANUAL + porta `PaymentGatewayProvider` com **Mock** (molde fiscal) + webhook baixa
+   (HMAC+idempotência) + job inadimplência dura perfil-aware (grace 45/20/30/7) + override A3 + consumer
+   desbloqueio (`ContasReceber.Pago → Cliente.Desbloqueado`, GATE-CLI-6).
+
+### Decisão de gatilho LEVADA AO P2 (não decidida aqui)
+
+A spec v1 propõe: **gatilho canônico de auto-faturamento = `os.concluida` enriquecido** (cliente+valor que a OS
+já tem), porque (a) evita dupla cobrança certificado×OS, (b) respeita "fatura pelo valor carimbado"+INV-026,
+(c) a calibração já nasce dentro de uma OS. `fiscal.nfse_emitida` vira gatilho secundário (anexa NF à fatura,
+INV-FIS-CR-001). `Certificado.Emitido` é **reconciliado** (ADR no P8) — certificado não é unidade de cobrança
+independente. Validação final = `tech-lead-saas-regulado` no P2.
