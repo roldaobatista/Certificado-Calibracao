@@ -1,8 +1,8 @@
 ---
 owner: agente-ia
-revisado-em: 2026-06-14
-proximo-review: 2026-09-14
-status: draft
+revisado-em: 2026-06-15
+proximo-review: 2026-09-15
+status: stable
 diataxis: reference
 audiencia: [agente, auditor]
 frente: orcamentos

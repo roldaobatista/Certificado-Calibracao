@@ -4,27 +4,20 @@
 
 **Modo:** AUTÔNOMO. **Fase:** Wave A em curso.
 
-## Frente ATIVA — `orcamentos` (Fatia 2 em curso) (2026-06-15)
+## Frente ATIVA — `orcamentos` Templates (T-ORC-039) — fecha o módulo 100% (2026-06-15)
 
-- Fatias 1a (domínio) + 1b (schema PG) DONE. Dep `os-multi-equipamento` FECHADA (envelope por item).
-  Decisões Fatia 2 em `tasks.md`: D-FATIA2-A numeração BURACOS_ACEITOS · B série LAZY · C deps na view.
-- **Ondas 2a–2d DONE:** criar+itens+`OrcamentoViewSet` · enviar/recusar/cancelar/expirar · mensurando
-  declarado (mig 0008) · motor análise crítica cl. 7.1 + `aprovar_orcamento` (matriz A/B/C/D fail-closed;
-  snapshot_hash ADR-0029) · consumers `os.aberta`(saga→convertido)+`cliente_anonimizado` (LGPD). Detalhe: diário.
-- **Onda 2e DONE (`dc15f10`):** REST PÚBLICO `OrcamentoPublicoView` — GET allowlist + POST aprovar 1-clique;
-  token resolve tenant SEM RLS (SECURITY DEFINER mig 0009); rate-limit; Aprovacao WORM HMAC; reprova A→422; one-shot.
-- **Onda 2f DONE (2026-06-15):** família INV-ORC-* cravada em REGRAS (+EXP-001 movida de invariantes-futuras) ·
-  3 hooks pré-commit (margem-off/envelope-contrato/analise-perfil) no manifest · 3 testes regressão (contrato
-  envelope produtor→consumidor / UNHAPPY por perfil 422+WORM / anti-vazamento allowlist) verdes. Runner de hooks
-  0 falhas; camada A (seguranca/qualidade/llm-correctness) PASS zero MÉDIO+.
-- **PRÓXIMO = P8** (T-ORC-060: ADR reconciliação `PrecoResolvido`×`Preco` + matriz-reconciliacao + STATUS-GERADO +
-  GATEs rastreados) → **P9** (T-ORC-061: mutirão auditores roteados + 2ª passada escopada → FECHA orcamentos).
-  Pendentes: T-ORC-039 TemplateViewSet · GATEs 2e (RATELIMIT/LGPD-RETENCAO/PUB-PERF/PUB-FORENSE) + EXPIRY-JOB.
+- Núcleo de orçamentos FECHADO (ver abaixo). Resta **T-ORC-039**: REST `TemplateViewSet` (CRUD + gate
+  selo RBC por perfil via hook — D-ORC-13 / AC-ORC-005). Entidade `Template` + tabela já existem; falta a
+  camada REST + gate. Em seguida, varrer os GATEs rastreados na `matriz-reconciliacao.md` §8 por prioridade.
 
-## Última frente FECHADA — `os-multi-equipamento` (2026-06-14, ADR-0082)
+## Última frente FECHADA — `orcamentos` núcleo (Fatia 2 Ondas 2a–2f + P8/P9, 2026-06-15)
 
-- Retrofit OS 1→N equipamentos + `ItemComercialOS`. P0→P9 (7 auditores, 2ª passada 4/4 PASS). 96 verdes.
-  Débitos: **GATE-OSME-RECEBIMENTO-7.5** · **GATE-OS-AUTHZ-ACTION-MAP** (pré-existente). Detalhe: diário.
+- Criar/itens/enviar/recusar/cancelar/expirar + análise crítica cl. 7.1 perfil-aware (fail-closed A) + link
+  público 1-clique (SECURITY DEFINER) + conversão em OS (envelope por item ADR-0082). **Onda 2f:** família
+  INV-ORC-* cravada em REGRAS + 3 hooks pré-commit + 4 testes regressão. **P8:** ADR-0083 (`PrecoResolvido`
+  reconcilia VO `Preco`; emenda PRD) + `matriz-reconciliacao.md`. **P9:** 8 auditores roteados → 1 MÉDIO
+  (INV-ORC-PRECO-001 sem teste) consertado causa-raiz + 2ª passada PASS → **8/8 PASS zero C/A/M** (INV-RITUAL-001).
+  Commits `b002dae`(2f) · `cf12bc8`(P8). GATEs/débitos: ver `matriz-reconciliacao.md` §8. Detalhe: diário.
 
 ## Pendência de produto aberta
 
@@ -32,5 +25,5 @@ Terminologia B/C/D do M6 — veto item-a-item do Roldão pendente (cl. 8.1.3 "ca
 
 ## Ponteiros
 
-- Contagens: `docs/governanca/STATUS-GERADO.md` · ADRs: `docs/adr/INDICE.md`
+- Contagens: `docs/governanca/STATUS-GERADO.md` · ADRs: `docs/adr/INDICE.md` · matriz: `docs/faseamento/orcamentos/matriz-reconciliacao.md`
 - Proibido commit isolado de CURRENT.md — handoff entra no commit da fatia (R16).

@@ -87,7 +87,7 @@ Este módulo participa da matriz feature × perfil (`docs/conformidade/comum/mat
 
 | Comportamento | A — Acreditado RBC | B — Rastreável | C — Em preparação | D — Comercial puro |
 |---|---|---|---|---|
-| **Análise crítica cl. 7.1** (US-ORC-009) quando item `tipo=calibracao` | ✅ OBRIGATÓRIO (predicates `cmc_cobre` + `procedimento_vigente_para` + `rt_competencia_cobre` + `padrao_disponivel` — fail-closed) | ✅ OBRIGATÓRIO (mesmos predicates, com aviso quando CMC não declarada — fail-open por ADR-0066 lazy) | 🟡 OBRIGATÓRIO_PARCIAL (predicates rodam em modo warning — gate trilha D→A) | ❌ DESABILITADO (orçamento de calibração comercial pura não passa por cl. 7.1) |
+| **Análise crítica cl. 7.1** (US-ORC-009) quando item `tipo=calibracao` | ✅ OBRIGATÓRIO (portas `escopos_cmc.cobre` + `procedimentos.cobre_procedimento` — fail-closed; `padrao_disponivel`→ressalva GATE-ORC-PADRAO; `rt_competencia` reconciliado fora — ver AC-ORC-009-1) | ✅ OBRIGATÓRIO (mesmos predicates, com aviso quando CMC não declarada — fail-open por ADR-0066 lazy) | 🟡 OBRIGATÓRIO_PARCIAL (predicates rodam em modo warning — gate trilha D→A) | ❌ DESABILITADO (orçamento de calibração comercial pura não passa por cl. 7.1) |
 | **Selo RBC / referência ILAC-MRA no orçamento** | ✅ permitido | ❌ proibido (hook bloqueia template com selo CGCRE) | ❌ proibido | ❌ proibido |
 | **Análise crítica registrada como evento WORM** com `perfil_no_evento` snapshot | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO (registro mesmo em warning) | ⚪ OPCIONAL |
 
@@ -160,7 +160,8 @@ Predicate canônico invocado: `tenant_perfil_e(["A", "B", "C"])` para ligar US-O
 
 **Como** sistema (perfil A/B/C), **quero** rodar análise crítica formal antes de aprovar orçamento com item `tipo_atividade_alvo=calibracao`, **para** atender ISO 17025 cl. 7.1 + evitar NC CGCRE + evitar gerar OS impossível de executar.
 
-- **AC-ORC-009-1**: GIVEN orçamento com `>=1` item `tipo_atividade_alvo=calibracao` e tenant com `tenant_perfil_e(["A","B","C"])`, WHEN comando `aprovar_orcamento` é disparado, THEN sistema executa análise crítica avaliando 4 predicates por item: `cmc_cobre(tenant_id, grandeza, faixa)` + `procedimento_vigente_para(tenant_id, grandeza, equipamento)` + `rt_competencia_cobre(tenant_id, grandeza)` + `padrao_disponivel(tenant_id, grandeza, faixa, prazo)`.
+- **AC-ORC-009-1**: GIVEN orçamento com `>=1` item `tipo_atividade_alvo=calibracao` e tenant com `tenant_perfil_e(["A","B","C"])`, WHEN comando `aprovar_orcamento` é disparado, THEN sistema executa análise crítica avaliando por item: `escopos_cmc.cobre(tenant_id, grandeza, faixa)` + `procedimentos.cobre_procedimento(tenant_id, grandeza, equipamento)`.
+  - **[Reconciliado P8 — D-ORC-5 / TL-ORC-02 / spec §"análise-critica-matriz":** os predicates `rt_competencia_cobre` (sem executor na fase comercial) e `padrao_disponivel` saíram da avaliação automática; `padrao_disponivel` virou **GATE-ORC-PADRAO** — em perfil A o sistema registra ressalva-média forte (`TEXTO_RESSALVA_PADRAO_INDISPONIVEL`), nunca silêncio. Onde os AC-ORC-009-* abaixo dizem "4 predicates" / "veredito_4_predicates", leia "os predicates avaliados" (hoje 2). Nomes ABAC `cmc_cobre`/`procedimento_vigente_para` são as portas `escopos_cmc.cobre`/`procedimentos.cobre_procedimento`.]**
 - **AC-ORC-009-2**: GIVEN perfil A, WHEN qualquer um dos 4 predicates retorna `False`, THEN sistema rejeita aprovação com 422 + lista os predicates reprovados + grava evento `Orcamento.AnaliseCriticaReprovada` (WORM, `perfil_no_evento='A'`).
 - **AC-ORC-009-3**: GIVEN perfil B, WHEN `cmc_cobre` retorna `unknown` (ADR-0066 fail-open lazy — escopos-cmc ainda não plugado), THEN sistema aprova com warning + grava evento `Orcamento.AnaliseCriticaComRessalva` (fica visível em dashboard).
 - **AC-ORC-009-4**: GIVEN perfil C, WHEN qualquer predicate reprova, THEN sistema aprova com warning + grava ressalva (modo gate trilha D→A — Wave A bloqueia em promoção C→B).
@@ -196,7 +197,7 @@ Detalhe completo em `metricas.md`.
 ## 10. Glossário
 
 - **`PrecoResolvido`** — snapshot de preço canônico no item do orçamento (reuso `produtos-pecas-servicos`): `(item_id, item_versao_n, linha_tabela_id, tabela_id, preco, data_referencia, origem_preco)`. Imutável (item frozen + `VersaoOrcamento` WORM). **Reconcilia o VO `Preco` originalmente proposto neste PRD — ver ADR-0083** (o `Preco` não foi criado). Valor monetário usa o VO `Dinheiro`; vigência comercial = `Orcamento.validade` (`JanelaVigencia`, ADR-0030).
-- **`tipo_atividade_alvo`** — enum em `ItemOrcamento`: `calibracao | manutencao | instalacao | verificacao_inmetro | vistoria | OUTRO`. Itens com este campo viram `AtividadeDaOS` (ADR-0051).
+- **`tipo_atividade_alvo`** — enum em `ItemOrcamento`: `calibracao | manutencao | instalacao | verificacao | vistoria` (D-ORC-16; **sem `OUTRO`** — item sem `tipo_atividade_alvo` é comercial, vira `ItemComercialOS`). Itens com este campo viram `AtividadeDaOS` (ADR-0051); a tradução para a OS mapeia `verificacao`→`verificacao_inmetro` e `manutencao`→`manutencao_corretiva`.
 - **Análise crítica cl. 7.1** — avaliação ISO 17025 antes de aceitar contrato/orçamento de calibração: lab tem CMC declarado? procedimento vigente? RT competente? padrão disponível no prazo?
 - **`perfil_no_evento`** — snapshot do perfil regulatório do tenant no momento do evento WORM (ADR-0067 §3).
 

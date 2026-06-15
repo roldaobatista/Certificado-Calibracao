@@ -1,9 +1,9 @@
 ---
 owner: agente-ia
-revisado-em: 2026-06-14
-proximo-review: 2026-09-14
-status: draft
-proximo-passo: review-plan -> ready-for-implement
+revisado-em: 2026-06-15
+proximo-review: 2026-09-15
+status: stable
+proximo-passo: Fatia 2 (Ondas 2a-2f) + P8/P9 FECHADAS; pendente T-ORC-039 (Templates)
 diataxis: reference
 audiencia: [agente, auditor]
 frente: orcamentos
@@ -154,24 +154,24 @@ relacionados:
 
 ## Fatia 3 — INVs + testes contrato/regressão + perfil-aware
 
-- [ ] **T-ORC-050** REGRAS-INEGOCIAVEIS.md — cravar INV-ORC-PRECO-001 · CL71-001 · CONVERTIDO-TERMINAL ·
+- [x] **T-ORC-050** ✅ DONE 2026-06-15 (Onda 2f) REGRAS-INEGOCIAVEIS.md — cravar INV-ORC-PRECO-001 · CL71-001 · CONVERTIDO-TERMINAL ·
       APROVACAO-WORM · LINK-TOKEN · APROVADO-ENVELOPE · ANALISE-WORM · EQUIP-ITEM · MARGEM-OFF (mover
       INV-ORC-EXP-001 de invariantes-futuras). INV-checker OK. Ref: spec §5.
-- [ ] **T-ORC-051** Hooks proporcionais: envelope-contrato (payload exato), margem-off (snapshot sem margem),
+- [x] **T-ORC-051** ✅ DONE 2026-06-15 (Onda 2f; runner 637 ok 0 falhas) Hooks proporcionais: envelope-contrato (payload exato), margem-off (snapshot sem margem),
       analise-perfil (A fail-closed). `bash .claude/hooks/_test-runner.sh` verde.
-- [ ] **T-ORC-052** **Teste de contrato E2E** (`tests/regressao/test_inv_orc_envelope.py`): monta
+- [x] **T-ORC-052** ✅ DONE 2026-06-15 (Onda 2f; 3 testes verdes) **Teste de contrato E2E** (`tests/regressao/test_inv_orc_envelope.py`): monta
       `orcamento.aprovado` real → `handle_orcamento_aprovado` → OS com N atividades (equip. certo) +
       `ItemComercialOS` (comerciais, **`tipo=OUTRO`+descricao derivada — MÉDIO-2**) + replay → 1 OS (confirmar
       dedup via `consumer_idempotencia`). **+ UNHAPPY: OS avulsa publica `os.aberta` sem `orcamento_id` →
       `handle_os_aberta` no-op (ALTO-1).** Ref: INV-ORC-APROVADO-ENVELOPE; R3.
-- [ ] **T-ORC-053** Testes UNHAPPY por perfil (`tests/regressao/test_inv_orc_cl71.py`): A reprova→422+WORM;
+- [x] **T-ORC-053** ✅ DONE 2026-06-15 (Onda 2f; 4 testes verdes) Testes UNHAPPY por perfil (`tests/regressao/test_inv_orc_cl71.py`): A reprova→422+WORM;
       B unknown→aprova+ressalva; D off; perfil indeterminado→fail-closed. Ref: INV-ORC-CL71-001; R1.
-- [ ] **T-ORC-054** Testes anti-vazamento (`test_inv_orc_margem_off` + público allowlist): snapshot sem margem;
+- [x] **T-ORC-054** ✅ DONE 2026-06-15 (Onda 2f; 3 testes verdes) Testes anti-vazamento (`test_inv_orc_margem_off` + público allowlist): snapshot sem margem;
       serializer público nunca devolve margem/comissão/custo/observacoes. Ref: INV-ORC-MARGEM-OFF; ADV-ORC-09; R2/R4.
 
 ## P8/P9 — fechamento
 
-- [ ] **T-ORC-060** P8: ADR reconciliação `PrecoResolvido`×`Preco` (D-ORC-1; emenda PRD/modelo) +
+- [x] **T-ORC-060** ✅ DONE 2026-06-15 (P8; ADR-0083 + emenda PRD + matriz-reconciliacao + STATUS-GERADO + frontmatters stable) P8: ADR reconciliação `PrecoResolvido`×`Preco` (D-ORC-1; emenda PRD/modelo) +
       matriz-reconciliacao (AC↔código↔teste, INV↔teste, ata P9) + STATUS-GERADO + GATEs rastreados
       (PDF/TELA-PUBLICA/PADRAO/SAGA-DLQ/ORIGEM-ITEM/KMS-APROVADOR/US010/LGPD-RAT + **EXPIRY-JOB** [sweep
       manual→procrastinate por tenant] + **TRILHA-CANCELAMENTO** [cancelar não emite evento/auditoria — BAIXO,
@@ -181,7 +181,7 @@ relacionados:
       [Onda 2c-2: counter `orcamento_analise_critica_total{perfil,veredito}` em `_publicar_eventos_analise` —
       BAIXO até F-C]) + frontmatters draft→stable.
       `status-projeto.sh --check`. Ref: plan §6.
-- [ ] **T-ORC-061** P9 auditores roteados (INV-RITUAL-003): essenciais + **performance** (N+1) +
+- [x] **T-ORC-061** ✅ DONE 2026-06-15 (P9; 8 auditores roteados → 1 MÉDIO QUAL [INV-ORC-PRECO-001 sem teste] consertado causa-raiz + 2ª passada PASS; 8/8 PASS zero C/A/M — INV-RITUAL-001 OK) P9 auditores roteados (INV-RITUAL-003): essenciais + **performance** (N+1) +
       **observabilidade** (WORM/outbox/correlation_id) + **conformidade-lgpd OBRIGATÓRIO** (PII aprovador +
       ReferenciaPIIAnonimizavel + endpoint público) ; supplychain só se dep nova. Verificação adversarial de
       MÉDIO+ (R6); 2ª passada escopada (R5). Conserto causa-raiz → zero C/A/M (INV-RITUAL-001) → FECHADA + CURRENT.md.

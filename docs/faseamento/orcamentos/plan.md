@@ -1,9 +1,9 @@
 ---
 owner: agente-ia
-revisado-em: 2026-06-14
-proximo-review: 2026-09-14
-status: draft
-proximo-passo: review-plan (tech-lead + consultor-rbc) -> tasks
+revisado-em: 2026-06-15
+proximo-review: 2026-09-15
+status: stable
+proximo-passo: Fatia 2 (Ondas 2a-2f) + P8/P9 FECHADAS; pendente T-ORC-039 (Templates)
 diataxis: explanation
 audiencia: [agente, auditor]
 frente: orcamentos
