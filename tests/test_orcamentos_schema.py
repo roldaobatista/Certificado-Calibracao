@@ -18,6 +18,7 @@ Cada RAISE/IntegrityError aborta a transacao PG -> cenarios isolados (TST-004).
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -84,6 +85,8 @@ def _cria_versao(tenant, orcamento, *, numero_versao=1, snapshot=None) -> m.Vers
 def _cria_item(
     tenant, versao, *, sequencia=1, equipamento_id=None, tipo_alvo=""
 ) -> m.ItemOrcamento:
+    # Mensurando obrigatorio p/ calibracao (D-ORC-5 / CHECK ck_orc_item_mensurando_calibracao).
+    eh_calib = tipo_alvo == "calibracao"
     with run_in_tenant_context(tenant.id):
         return m.ItemOrcamento.objects.create(
             versao=versao,
@@ -97,6 +100,10 @@ def _cria_item(
             descricao_snapshot="Item de teste",
             equipamento_id=equipamento_id,
             tipo_atividade_alvo=tipo_alvo,
+            grandeza_solicitada="massa" if eh_calib else "",
+            faixa_solicitada_min=Decimal("0") if eh_calib else None,
+            faixa_solicitada_max=Decimal("500") if eh_calib else None,
+            unidade_solicitada="kg" if eh_calib else "",
         )
 
 

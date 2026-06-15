@@ -81,6 +81,10 @@ def montar_item_orcamento(
     equipamento_id: UUID | None = None,
     tipo_atividade_alvo: TipoAtividadeAlvo | None = None,
     tipo_item_comercial: TipoItemComercial | None = None,
+    grandeza_solicitada: str | None = None,
+    faixa_solicitada_min: Decimal | None = None,
+    faixa_solicitada_max: Decimal | None = None,
+    unidade_solicitada: str | None = None,
 ) -> ItemOrcamento:
     """Monta um ``ItemOrcamento`` a partir do preco calculado pelo motor.
 
@@ -131,6 +135,10 @@ def montar_item_orcamento(
         equipamento_id=equipamento_id,
         tipo_atividade_alvo=tipo_atividade_alvo,
         tipo_item_comercial=tipo_item_comercial,
+        grandeza_solicitada=grandeza_solicitada,
+        faixa_solicitada_min=faixa_solicitada_min,
+        faixa_solicitada_max=faixa_solicitada_max,
+        unidade_solicitada=unidade_solicitada,
     )
 
 
@@ -239,6 +247,14 @@ def montar_snapshot_versao(orcamento: Orcamento, itens: Sequence[ItemOrcamento])
                 "tipo_item_comercial": (
                     it.tipo_item_comercial.value if it.tipo_item_comercial else None
                 ),
+                "grandeza_solicitada": it.grandeza_solicitada,
+                "faixa_solicitada_min": (
+                    str(it.faixa_solicitada_min) if it.faixa_solicitada_min is not None else None
+                ),
+                "faixa_solicitada_max": (
+                    str(it.faixa_solicitada_max) if it.faixa_solicitada_max is not None else None
+                ),
+                "unidade_solicitada": it.unidade_solicitada,
             }
             for it in itens
         ],

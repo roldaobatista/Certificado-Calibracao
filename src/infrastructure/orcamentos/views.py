@@ -584,9 +584,7 @@ class OrcamentoViewSet(_OrcamentoViewSetBase):
         # na cadeia imutavel (molde precificacao derivar_hash_texto_canonicalizado).
         from src.infrastructure.calibracao.lgpd import derivar_hash_texto_canonicalizado
 
-        motivo_hash = derivar_hash_texto_canonicalizado(
-            texto=dados["motivo"], tenant_id=tenant_id
-        )
+        motivo_hash = derivar_hash_texto_canonicalizado(texto=dados["motivo"], tenant_id=tenant_id)
 
         try:
             with transaction.atomic():
@@ -781,6 +779,11 @@ class OrcamentoViewSet(_OrcamentoViewSetBase):
             if dados.get("tipo_item_comercial")
             else None
         )
+        # Mensurando solicitado (D-ORC-5) — '' / None normalizados para None.
+        grandeza_solicitada = dados.get("grandeza_solicitada") or None
+        unidade_solicitada = dados.get("unidade_solicitada") or None
+        faixa_solicitada_min = dados.get("faixa_solicitada_min")
+        faixa_solicitada_max = dados.get("faixa_solicitada_max")
 
         if item_id is None:
             return uc_itens.adicionar_item(
@@ -795,6 +798,10 @@ class OrcamentoViewSet(_OrcamentoViewSetBase):
                     equipamento_id=equipamento_id,
                     tipo_atividade_alvo=tipo_atividade,
                     tipo_item_comercial=tipo_comercial,
+                    grandeza_solicitada=grandeza_solicitada,
+                    faixa_solicitada_min=faixa_solicitada_min,
+                    faixa_solicitada_max=faixa_solicitada_max,
+                    unidade_solicitada=unidade_solicitada,
                 ),
                 repo=repo,
             )
@@ -811,6 +818,10 @@ class OrcamentoViewSet(_OrcamentoViewSetBase):
                 equipamento_id=equipamento_id,
                 tipo_atividade_alvo=tipo_atividade,
                 tipo_item_comercial=tipo_comercial,
+                grandeza_solicitada=grandeza_solicitada,
+                faixa_solicitada_min=faixa_solicitada_min,
+                faixa_solicitada_max=faixa_solicitada_max,
+                unidade_solicitada=unidade_solicitada,
             ),
             repo=repo,
         )

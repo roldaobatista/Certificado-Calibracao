@@ -272,6 +272,36 @@ class ItemOrcamento(models.Model):
         help_text="Tipo do item comercial (deslocamento/taxa/outro) quando equipamento_id is NULL.",
     )
 
+    # Mensurando SOLICITADO (D-ORC-5 / consultor-rbc C1-ORC-MENSURANDO-1): o cliente
+    # DECLARA grandeza/faixa/unidade a calibrar (espelha ADR-0076 da Calibracao — RT
+    # declara, nao herda do equipamento, que so tem `faixa` string livre). Obrigatorio
+    # quando tipo_atividade_alvo='calibracao'; ausente caso contrario (CHECK migration 0008).
+    # NAO confundir com faixa_calibrada (Calibracao) — aqui e intencao comercial, nao travada.
+    grandeza_solicitada = models.CharField(
+        max_length=30,
+        blank=True,
+        help_text="VO Grandeza (massa/temperatura/...). '' se nao-calibracao.",
+    )
+    faixa_solicitada_min = models.DecimalField(
+        max_digits=30,
+        decimal_places=12,
+        null=True,
+        blank=True,
+        help_text="Limite inferior a calibrar.",
+    )
+    faixa_solicitada_max = models.DecimalField(
+        max_digits=30,
+        decimal_places=12,
+        null=True,
+        blank=True,
+        help_text="Limite superior a calibrar.",
+    )
+    unidade_solicitada = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Unidade SI/RBC (whitelist FaixaMedicao). '' se nao-calibracao.",
+    )
+
     criado_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:

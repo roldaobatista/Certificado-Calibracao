@@ -54,6 +54,10 @@ class AdicionarItemInput:
     equipamento_id: UUID | None = None
     tipo_atividade_alvo: TipoAtividadeAlvo | None = None
     tipo_item_comercial: TipoItemComercial | None = None
+    grandeza_solicitada: str | None = None
+    faixa_solicitada_min: Decimal | None = None
+    faixa_solicitada_max: Decimal | None = None
+    unidade_solicitada: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +73,10 @@ class EditarItemInput:
     equipamento_id: UUID | None = None
     tipo_atividade_alvo: TipoAtividadeAlvo | None = None
     tipo_item_comercial: TipoItemComercial | None = None
+    grandeza_solicitada: str | None = None
+    faixa_solicitada_min: Decimal | None = None
+    faixa_solicitada_max: Decimal | None = None
+    unidade_solicitada: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +128,10 @@ def _montar(
     equipamento_id: UUID | None,
     tipo_atividade_alvo: TipoAtividadeAlvo | None,
     tipo_item_comercial: TipoItemComercial | None,
+    grandeza_solicitada: str | None,
+    faixa_solicitada_min: Decimal | None,
+    faixa_solicitada_max: Decimal | None,
+    unidade_solicitada: str | None,
 ) -> ItemOrcamento:
     """Extrai os primitivos do `ItemCalculado` e delega ao dominio puro."""
     return calculo.montar_item_orcamento(
@@ -139,6 +151,10 @@ def _montar(
         equipamento_id=equipamento_id,
         tipo_atividade_alvo=tipo_atividade_alvo,
         tipo_item_comercial=tipo_item_comercial,
+        grandeza_solicitada=grandeza_solicitada,
+        faixa_solicitada_min=faixa_solicitada_min,
+        faixa_solicitada_max=faixa_solicitada_max,
+        unidade_solicitada=unidade_solicitada,
     )
 
 
@@ -188,6 +204,10 @@ def adicionar_item(inp: AdicionarItemInput, *, repo: OrcamentoRepository) -> Ite
         equipamento_id=inp.equipamento_id,
         tipo_atividade_alvo=inp.tipo_atividade_alvo,
         tipo_item_comercial=inp.tipo_item_comercial,
+        grandeza_solicitada=inp.grandeza_solicitada,
+        faixa_solicitada_min=inp.faixa_solicitada_min,
+        faixa_solicitada_max=inp.faixa_solicitada_max,
+        unidade_solicitada=inp.unidade_solicitada,
     )
     novo = repo.salvar_item(novo)
 
@@ -225,6 +245,10 @@ def editar_item(inp: EditarItemInput, *, repo: OrcamentoRepository) -> ItemOrcam
         equipamento_id=inp.equipamento_id,
         tipo_atividade_alvo=inp.tipo_atividade_alvo,
         tipo_item_comercial=inp.tipo_item_comercial,
+        grandeza_solicitada=inp.grandeza_solicitada,
+        faixa_solicitada_min=inp.faixa_solicitada_min,
+        faixa_solicitada_max=inp.faixa_solicitada_max,
+        unidade_solicitada=inp.unidade_solicitada,
     )
     editado = repo.salvar_item(editado)
 

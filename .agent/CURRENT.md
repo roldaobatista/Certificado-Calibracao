@@ -9,16 +9,17 @@
 - Fatias 1a (domínio, 45 testes) + 1b (schema PG, drill 20/20) DONE. Dep `os-multi-equipamento` FECHADA
   (envelope por item). P3 aprovado (`tech-lead`+`consultor-rbc`). Decisões Fatia 2 em `tasks.md`:
   D-FATIA2-A numeração BURACOS_ACEITOS (Roldão pode pedir gap-less) · B série LAZY · C deps `calcular_precos` na view.
-- **Onda 2a DONE (2026-06-14):** `criar_orcamento` + `adicionar_item`/`editar_item` + `OrcamentoViewSet`
-  (criar/itens/editar/retrieve/list). Conserto REGRA #0: campo `semaforo` 10→15 (migration 0007 — `indisponivel`
-  estourava o INSERT). 6 auditores camada A PASS (2 MÉDIO de cobertura consertados + 2ª passada). **20 testes
-  verdes** (7 puros `calculo` + 13 E2E). Totais: imposto por dentro, `liquido == total_bruto - descontos`.
-- **Onda 2b DONE (2026-06-14):** `enviar` (congela V1 + LinkPublico token 256b + evento `orcamento.enviado`) +
-  `recusar`/`cancelar`/`expirar-vencidos` (eventos outbox; motivo hasheado; sweep idempotente). 6 auditores
-  camada A PASS. **+7 testes E2E** (72 verdes no módulo). GATEs novos: EXPIRY-JOB · TRILHA-CANCELAMENTO (BAIXO).
-- **PRÓXIMO = Onda 2c** (`aprovar_orcamento` interno: análise crítica cl.7.1 perfil-aware A/B/C/D +
-  `AnaliseCriticaOrcamento` WORM + envelope `orcamento.aprovado` por item) → 2d consumers → 2e REST público →
-  2f testes + P8/P9. Detalhe: `docs/faseamento/orcamentos/{spec,plan,tasks}.md`.
+- **Ondas 2a+2b DONE (2026-06-14):** criar+itens+`OrcamentoViewSet` (2a; conserto REGRA #0 `semaforo` 10→15,
+  migration 0007) + enviar/recusar/cancelar/expirar (2b; eventos outbox, LinkPublico token 256b, motivo hasheado).
+  Camada A 6 auditores PASS em cada. GATEs: EXPIRY-JOB · TRILHA-CANCELAMENTO (BAIXO). Totais: imposto por dentro.
+- **Onda 2c-1 DONE (2026-06-14):** parecer `consultor-rbc` CONFIRMA D-ORC-5 (+6 ajustes). GAP REGRA #0:
+  `Equipamento` não tem grandeza/faixa → o **item de calibração DECLARA o mensurando** (migration 0008:
+  `grandeza_solicitada`/`faixa_solicitada_min/max`/`unidade_solicitada` + CHECK + validação fail-fast `Grandeza`/
+  `FaixaMedicao`). **95 testes verdes** no módulo. Matriz validada A/B/C/D em `analise-critica-matriz.md`.
+- **PRÓXIMO = Onda 2c-2** (motor análise crítica + `aprovar_orcamento`): implementar a matriz de
+  `docs/faseamento/orcamentos/analise-critica-matriz.md` (AJUSTE-3 perfil A suspenso = fail-closed; itens_avaliados
+  ricos; snapshot_hash ADR-0029; envelope `orcamento.aprovado`) → 2d consumers → 2e REST público → 2f + P8/P9.
+  **Camada A de auditores + 2ª revisão consultor-rbc PENDENTE (rodar no fechamento da 2c).**
 
 ## Última frente FECHADA — `os-multi-equipamento` (2026-06-14)
 

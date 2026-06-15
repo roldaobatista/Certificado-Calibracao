@@ -190,6 +190,10 @@ def to_item(i: m.ItemOrcamento) -> ItemOrcamento:
         tipo_item_comercial=(
             TipoItemComercial(i.tipo_item_comercial) if i.tipo_item_comercial else None
         ),
+        grandeza_solicitada=i.grandeza_solicitada or None,
+        faixa_solicitada_min=i.faixa_solicitada_min,
+        faixa_solicitada_max=i.faixa_solicitada_max,
+        unidade_solicitada=i.unidade_solicitada or None,
     )
 
 

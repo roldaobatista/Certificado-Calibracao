@@ -259,6 +259,7 @@ def test_adicionar_item_calibracao_semaforo_indisponivel() -> None:
             "desconto_pct": "0",
             "equipamento_id": equipamento_id,
             "tipo_atividade_alvo": "calibracao",
+            **_MENSURANDO,
         },
     )
     assert r.status_code == 201, r.content
@@ -323,6 +324,7 @@ def test_totais_coerentes_com_desconto() -> None:
             "desconto_pct": "10",
             "equipamento_id": str(uuid4()),
             "tipo_atividade_alvo": "calibracao",
+            **_MENSURANDO,
         },
     )
     assert r.status_code == 201, r.content
@@ -442,6 +444,7 @@ def test_editar_item_reprecifica_e_recompoe_totais() -> None:
             "desconto_pct": "0",
             "equipamento_id": str(uuid4()),
             "tipo_atividade_alvo": "calibracao",
+            **_MENSURANDO,
         },
     )
     assert r_add.status_code == 201, r_add.content
@@ -458,6 +461,7 @@ def test_editar_item_reprecifica_e_recompoe_totais() -> None:
             "desconto_pct": "10",
             "equipamento_id": str(uuid4()),
             "tipo_atividade_alvo": "calibracao",
+            **_MENSURANDO,
         },
     )
     assert r_ed.status_code == 200, r_ed.content
@@ -532,6 +536,14 @@ def test_replay_mesma_chave_nao_reincrementa_numero() -> None:
 # ===========================================================================
 
 
+_MENSURANDO = {
+    "grandeza_solicitada": "massa",
+    "faixa_solicitada_min": "0",
+    "faixa_solicitada_max": "30",
+    "unidade_solicitada": "kg",
+}
+
+
 def _adicionar_item_calib(client, orc_id, item_id, *, desconto="0", qty="1"):
     return _post(
         client,
@@ -543,6 +555,7 @@ def _adicionar_item_calib(client, orc_id, item_id, *, desconto="0", qty="1"):
             "desconto_pct": desconto,
             "equipamento_id": str(uuid4()),
             "tipo_atividade_alvo": "calibracao",
+            **_MENSURANDO,
         },
     )
 
@@ -709,3 +722,86 @@ def test_expirar_vencidos_idempotente() -> None:
             tenant_id=c["tenant"].id, acao="orcamento.expirado", causation_id=UUID(orc["id"])
         ).count()
         assert n_evt == 1, "expirar deve publicar exatamente 1 evento orcamento.expirado"
+
+
+# ===========================================================================
+# Onda 2c-1 — item de calibracao declara o mensurando (D-ORC-5 / consultor-rbc)
+# ===========================================================================
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_adicionar_item_calibracao_sem_mensurando_422() -> None:
+    c = _cenario()
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    item = _setup_catalogo(client)
+    orc = _criar_orcamento(client, cliente.id).json()
+
+    r = _post(
+        client,
+        f"/api/v1/orcamentos/{orc['id']}/itens/",
+        {
+            "catalogo_item_id": item["id"],
+            "descricao": "Calibracao sem mensurando",
+            "quantidade": "1",
+            "equipamento_id": str(uuid4()),
+            "tipo_atividade_alvo": "calibracao",
+            # SEM grandeza/faixa/unidade — deve ser rejeitado
+        },
+    )
+    assert r.status_code == 422, r.content
+    assert "mensurando" in str(r.json())
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_adicionar_item_calibracao_grandeza_invalida_422() -> None:
+    c = _cenario()
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    item = _setup_catalogo(client)
+    orc = _criar_orcamento(client, cliente.id).json()
+
+    r = _post(
+        client,
+        f"/api/v1/orcamentos/{orc['id']}/itens/",
+        {
+            "catalogo_item_id": item["id"],
+            "descricao": "Calibracao grandeza invalida",
+            "quantidade": "1",
+            "equipamento_id": str(uuid4()),
+            "tipo_atividade_alvo": "calibracao",
+            "grandeza_solicitada": "banana",  # nao e Grandeza valida (fail-fast C3)
+            "faixa_solicitada_min": "0",
+            "faixa_solicitada_max": "30",
+            "unidade_solicitada": "kg",
+        },
+    )
+    assert r.status_code == 422, r.content
+    assert "grandeza_solicitada" in str(r.json())
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_item_comercial_com_mensurando_422() -> None:
+    """Mensurando so e valido em item de calibracao (consultor-rbc C2)."""
+    c = _cenario()
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    item = _setup_catalogo(client)
+    orc = _criar_orcamento(client, cliente.id).json()
+
+    r = _post(
+        client,
+        f"/api/v1/orcamentos/{orc['id']}/itens/",
+        {
+            "catalogo_item_id": item["id"],
+            "descricao": "Deslocamento com mensurando indevido",
+            "quantidade": "1",
+            "tipo_item_comercial": "deslocamento",
+            "grandeza_solicitada": "massa",
+            "faixa_solicitada_min": "0",
+            "faixa_solicitada_max": "30",
+            "unidade_solicitada": "kg",
+        },
+    )
+    assert r.status_code == 422, r.content
+    assert "mensurando" in str(r.json())

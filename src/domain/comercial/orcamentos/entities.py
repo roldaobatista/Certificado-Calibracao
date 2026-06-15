@@ -69,14 +69,14 @@ class Orcamento:
     tenant_id: UUID
 
     # Cliente via ReferenciaPIIAnonimizavel (D-ORC-4 / ADR-0032)
-    cliente_atual_id: UUID | None          # FK SET_NULL quando cliente for anonimizado
-    cliente_referencia_hash: str           # HMAC NOT NULL — referência permanente pós-anonimização
-    cliente_key_id: str                    # versão da chave KMS (rotação)
+    cliente_atual_id: UUID | None  # FK SET_NULL quando cliente for anonimizado
+    cliente_referencia_hash: str  # HMAC NOT NULL — referência permanente pós-anonimização
+    cliente_key_id: str  # versão da chave KMS (rotação)
 
-    numero: int                            # sequencial gap-less por tenant (D-ORC-18)
+    numero: int  # sequencial gap-less por tenant (D-ORC-18)
     estado: EstadoOrcamento
 
-    validade: JanelaVigencia               # ``vigente_em`` determina expiração (ADR-0030)
+    validade: JanelaVigencia  # ``vigente_em`` determina expiração (ADR-0030)
 
     # Totais como ``Dinheiro`` VO (D-ORC-1) — compostos por ``calcular_precos`` (D-ORC-10)
     total_bruto: Dinheiro
@@ -84,12 +84,12 @@ class Orcamento:
     impostos: Dinheiro
     liquido: Dinheiro
 
-    comissao_prevista: Dinheiro            # só visível com ``orcamento.ver_margem``
+    comissao_prevista: Dinheiro  # só visível com ``orcamento.ver_margem``
 
     condicoes_pagamento: CondicoesPagamento
 
     criado_em: datetime
-    criado_por: UUID                       # user_id
+    criado_por: UUID  # user_id
 
     # Opcionais
     template_id: UUID | None = None
@@ -117,8 +117,8 @@ class VersaoOrcamento:
     id: UUID
     orcamento_id: UUID
     tenant_id: UUID
-    numero_versao: int                     # começa em 1
-    snapshot: dict[str, Any]              # jsonb imutável após INSERT (trigger WORM D-ORC-8)
+    numero_versao: int  # começa em 1
+    snapshot: dict[str, Any]  # jsonb imutável após INSERT (trigger WORM D-ORC-8)
     criada_em: datetime
     criada_por: UUID
 
@@ -150,20 +150,20 @@ class ItemOrcamento:
     id: UUID
     versao_id: UUID
     tenant_id: UUID
-    catalogo_item_id: UUID                 # FK ao catálogo (pps)
-    sequencia: int                         # 1-based; rastro item↔atividade (D-ORC-11)
+    catalogo_item_id: UUID  # FK ao catálogo (pps)
+    sequencia: int  # 1-based; rastro item↔atividade (D-ORC-11)
 
     # Carimbo de preço IMUTÁVEL (INV-ORC-PRECO-001 / D-ORC-1)
-    preco_resolvido: PrecoResolvido        # snapshot probatório completo
+    preco_resolvido: PrecoResolvido  # snapshot probatório completo
 
-    preco_final: Dinheiro                  # preço unitário final após desconto (Dinheiro VO)
-    desconto_pct: Decimal                  # percentual de desconto (0..100) — não é dinheiro
-    desconto_valor: Dinheiro               # valor de desconto (Dinheiro VO)
-    quantidade: Decimal                    # quantidade (pode ser fracionária) — não é dinheiro
-    total: Dinheiro                        # preco_final * quantidade (Dinheiro VO)
+    preco_final: Dinheiro  # preço unitário final após desconto (Dinheiro VO)
+    desconto_pct: Decimal  # percentual de desconto (0..100) — não é dinheiro
+    desconto_valor: Dinheiro  # valor de desconto (Dinheiro VO)
+    quantidade: Decimal  # quantidade (pode ser fracionária) — não é dinheiro
+    total: Dinheiro  # preco_final * quantidade (Dinheiro VO)
 
-    semaforo: str                          # 'verde'|'amarelo'|'vermelho'|'indisponivel' (Semaforo.value)
-    descricao_snapshot: str               # descrição do item congelada no momento
+    semaforo: str  # 'verde'|'amarelo'|'vermelho'|'indisponivel' (Semaforo.value)
+    descricao_snapshot: str  # descrição do item congelada no momento
 
     # Bifurcação técnico × comercial (INV-ORC-EQUIP-ITEM / D-ORC-16)
     equipamento_id: UUID | None = None
@@ -175,6 +175,14 @@ class ItemOrcamento:
 
     tipo_item_comercial: TipoItemComercial | None = None
     """Preenchido apenas para itens comerciais (quando equipamento_id is None)."""
+
+    # Mensurando SOLICITADO (D-ORC-5 / consultor-rbc C1-ORC-MENSURANDO): obrigatório
+    # quando tipo_atividade_alvo == CALIBRACAO; None caso contrário. Alimenta a análise
+    # crítica cl. 7.1.1 (escopos_cmc.cobre + procedimentos.cobre_procedimento).
+    grandeza_solicitada: str | None = None
+    faixa_solicitada_min: Decimal | None = None
+    faixa_solicitada_max: Decimal | None = None
+    unidade_solicitada: str | None = None
 
     def __post_init__(self) -> None:
         # Consistência interna: item técnico tem equipamento; comercial não
@@ -188,6 +196,30 @@ class ItemOrcamento:
                 "ItemOrcamento: tipo_atividade_alvo só é válido quando equipamento_id "
                 "está preenchido (INV-ORC-EQUIP-ITEM)."
             )
+        # Mensurando: obrigatório p/ calibração, ausente p/ os demais (consultor-rbc C2)
+        _mensurando = (
+            self.grandeza_solicitada,
+            self.faixa_solicitada_min,
+            self.faixa_solicitada_max,
+            self.unidade_solicitada,
+        )
+        eh_calibracao = self.tipo_atividade_alvo == TipoAtividadeAlvo.CALIBRACAO
+        if eh_calibracao and any(v is None for v in _mensurando):
+            raise ValueError(
+                "ItemOrcamento: item de calibração exige grandeza/faixa_min/faixa_max/"
+                "unidade solicitadas (D-ORC-5 / consultor-rbc C2)."
+            )
+        if not eh_calibracao and any(v is not None for v in _mensurando):
+            raise ValueError(
+                "ItemOrcamento: mensurando solicitado só é válido em item de calibração "
+                "(D-ORC-5 / consultor-rbc C2)."
+            )
+        if (
+            self.faixa_solicitada_min is not None
+            and self.faixa_solicitada_max is not None
+            and self.faixa_solicitada_min >= self.faixa_solicitada_max
+        ):
+            raise ValueError("ItemOrcamento: faixa_solicitada_min deve ser < faixa_solicitada_max.")
 
 
 # =====================================================================
@@ -207,7 +239,7 @@ class LinkPublico:
     id: UUID
     orcamento_id: UUID
     tenant_id: UUID
-    token: str                             # opaco, ≥128 bits
+    token: str  # opaco, ≥128 bits
     expira_em: datetime
     criado_em: datetime
 
@@ -250,15 +282,15 @@ class Aprovacao:
     canal: CanalAprovacao
 
     # Identificação do aprovador (HMAC — D-ORC-17)
-    nome_aprovador_hash: str               # HMAC(nome, chave_tenant)
-    email_aprovador_hash: str             # HMAC(email, chave_tenant)
+    nome_aprovador_hash: str  # HMAC(nome, chave_tenant)
+    email_aprovador_hash: str  # HMAC(email, chave_tenant)
 
     # Aceite LGPD rico (ADV-ORC-04)
-    lgpd_aceite_versao_termo: str         # ex.: "v2026-01"
-    lgpd_aceite_texto_hash: str           # hash do texto exibido (prova do consentido)
+    lgpd_aceite_versao_termo: str  # ex.: "v2026-01"
+    lgpd_aceite_texto_hash: str  # hash do texto exibido (prova do consentido)
 
     # Forense
-    ip_hash: str                           # HMAC(ip_real, chave_servidor)
+    ip_hash: str  # HMAC(ip_real, chave_servidor)
     user_agent: str
 
     # Confirmação de ressalvas (cl. 7.1.1-d / D-ORC-7)
@@ -311,15 +343,15 @@ class AnaliseCriticaOrcamento:
     versao_id: UUID
     tenant_id: UUID
 
-    perfil_no_evento: str                 # snapshot do perfil no momento: "A"|"B"|"C"|"D"
+    perfil_no_evento: str  # snapshot do perfil no momento: "A"|"B"|"C"|"D"
     veredito: VeredictoAnaliseCritica
-    norma_referencia: str                 # "ISO/IEC 17025:2017 cl. 7.1.1" (C6)
+    norma_referencia: str  # "ISO/IEC 17025:2017 cl. 7.1.1" (C6)
 
     itens_avaliados: tuple[dict[str, Any], ...]  # registro probatório por item (C1)
 
-    snapshot_hash: str                    # canonicalização ADR-0029
-    avaliada_em: datetime                 # server-side (nunca client-supplied)
-    avaliada_por: str                     # user_id str OU "SISTEMA/AUTO:<aprovacao_id>"
+    snapshot_hash: str  # canonicalização ADR-0029
+    avaliada_em: datetime  # server-side (nunca client-supplied)
+    avaliada_por: str  # user_id str OU "SISTEMA/AUTO:<aprovacao_id>"
 
 
 # =====================================================================
@@ -343,9 +375,9 @@ class Template:
     id: UUID
     tenant_id: UUID
     nome: str
-    tipo: str                              # ex.: "calibracao_balanca", "manutencao_preventiva"
-    itens_default: list[dict[str, Any]]   # [{catalogo_item_id, quantidade, ...}]
-    condicoes_default: dict[str, Any]     # serialização de CondicoesPagamento
+    tipo: str  # ex.: "calibracao_balanca", "manutencao_preventiva"
+    itens_default: list[dict[str, Any]]  # [{catalogo_item_id, quantidade, ...}]
+    condicoes_default: dict[str, Any]  # serialização de CondicoesPagamento
     selo_rbc: bool
     criado_em: datetime
     criado_por: UUID

@@ -116,6 +116,10 @@ def _item_tecnico(sequencia: int = 1) -> ItemOrcamento:
         equipamento_id=uuid4(),
         tipo_atividade_alvo=TipoAtividadeAlvo.CALIBRACAO,
         tipo_item_comercial=None,
+        grandeza_solicitada="massa",
+        faixa_solicitada_min=Decimal("0"),
+        faixa_solicitada_max=Decimal("500"),
+        unidade_solicitada="kg",
     )
 
 
@@ -311,6 +315,10 @@ class TestMontagemEnvelope:
             descricao_snapshot="Calibração balança",
             equipamento_id=equip_id,
             tipo_atividade_alvo=TipoAtividadeAlvo.CALIBRACAO,
+            grandeza_solicitada="massa",
+            faixa_solicitada_min=Decimal("0"),
+            faixa_solicitada_max=Decimal("500"),
+            unidade_solicitada="kg",
         )
 
         envelope = montar_envelope_orcamento_aprovado(

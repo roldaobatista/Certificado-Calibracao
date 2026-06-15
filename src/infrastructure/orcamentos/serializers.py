@@ -86,6 +86,19 @@ class _ItemBaseSerializer(serializers.Serializer):
     tipo_item_comercial = serializers.ChoiceField(
         choices=_TIPO_ITEM_COMERCIAL_CHOICES, required=False, allow_null=True, default=None
     )
+    # Mensurando solicitado (D-ORC-5 / consultor-rbc C1-C3): obrigatorio p/ calibracao.
+    grandeza_solicitada = serializers.CharField(
+        max_length=30, required=False, allow_blank=True, allow_null=True, default=None
+    )
+    faixa_solicitada_min = serializers.DecimalField(
+        max_digits=30, decimal_places=12, required=False, allow_null=True, default=None
+    )
+    faixa_solicitada_max = serializers.DecimalField(
+        max_digits=30, decimal_places=12, required=False, allow_null=True, default=None
+    )
+    unidade_solicitada = serializers.CharField(
+        max_length=20, required=False, allow_blank=True, allow_null=True, default=None
+    )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         equipamento_id = attrs.get("equipamento_id")
@@ -117,7 +130,50 @@ class _ItemBaseSerializer(serializers.Serializer):
                         "tipo_atividade_alvo": "item comercial (sem equipamento) nao tem tipo de atividade."
                     }
                 )
+        self._validar_mensurando(attrs, tipo_atividade)
         return attrs
+
+    @staticmethod
+    def _validar_mensurando(attrs: dict[str, Any], tipo_atividade: str | None) -> None:
+        """Mensurando obrigatorio+valido p/ calibracao; ausente caso contrario (C2/C3)."""
+        from src.domain.metrologia.value_objects import FaixaMedicao, Grandeza
+
+        grandeza = attrs.get("grandeza_solicitada")
+        fmin = attrs.get("faixa_solicitada_min")
+        fmax = attrs.get("faixa_solicitada_max")
+        unidade = attrs.get("unidade_solicitada")
+        presentes = (
+            grandeza not in (None, ""),
+            fmin is not None,
+            fmax is not None,
+            unidade not in (None, ""),
+        )
+
+        if tipo_atividade == "calibracao":
+            if not all(presentes):
+                raise serializers.ValidationError(
+                    {"mensurando": "item de calibracao exige grandeza/faixa_min/faixa_max/unidade."}
+                )
+            # Fail-fast (C3): valida grandeza + faixa + unidade contra os VOs do dominio.
+            try:
+                Grandeza(grandeza)
+            except ValueError:
+                raise serializers.ValidationError(
+                    {"grandeza_solicitada": f"grandeza invalida: {grandeza!r}."}
+                ) from None
+            try:
+                # presentes ja garantiu nao-None; conversao explicita p/ tipagem.
+                FaixaMedicao(
+                    inferior=Decimal(str(fmin)),
+                    superior=Decimal(str(fmax)),
+                    unidade=str(unidade),
+                )
+            except ValueError as exc:
+                raise serializers.ValidationError({"faixa_solicitada": str(exc)}) from exc
+        elif any(presentes):
+            raise serializers.ValidationError(
+                {"mensurando": "grandeza/faixa/unidade so sao validos em item de calibracao."}
+            )
 
 
 class AdicionarItemSerializer(_ItemBaseSerializer):
@@ -186,6 +242,14 @@ def serializar_item(item: ItemOrcamento) -> dict[str, Any]:
         "tipo_item_comercial": (
             item.tipo_item_comercial.value if item.tipo_item_comercial else None
         ),
+        "grandeza_solicitada": item.grandeza_solicitada,
+        "faixa_solicitada_min": (
+            str(item.faixa_solicitada_min) if item.faixa_solicitada_min is not None else None
+        ),
+        "faixa_solicitada_max": (
+            str(item.faixa_solicitada_max) if item.faixa_solicitada_max is not None else None
+        ),
+        "unidade_solicitada": item.unidade_solicitada,
     }
 
 

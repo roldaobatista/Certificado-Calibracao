@@ -162,6 +162,10 @@ class DjangoOrcamentoRepository:
                 "tipo_item_comercial": (
                     item.tipo_item_comercial.value if item.tipo_item_comercial else ""
                 ),
+                "grandeza_solicitada": item.grandeza_solicitada or "",
+                "faixa_solicitada_min": item.faixa_solicitada_min,
+                "faixa_solicitada_max": item.faixa_solicitada_max,
+                "unidade_solicitada": item.unidade_solicitada or "",
             },
         )
         return mappers.to_item(obj)

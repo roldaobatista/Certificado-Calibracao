@@ -106,9 +106,7 @@ class OrcamentoRepository(Protocol):
         """INSERT de Aprovacao (WORM — trigger bloqueia UPDATE/DELETE)."""
         ...
 
-    def salvar_analise_critica(
-        self, analise: AnaliseCriticaOrcamento
-    ) -> AnaliseCriticaOrcamento:
+    def salvar_analise_critica(self, analise: AnaliseCriticaOrcamento) -> AnaliseCriticaOrcamento:
         """INSERT de AnaliseCriticaOrcamento (WORM — trigger anti-mutação)."""
         ...
 
