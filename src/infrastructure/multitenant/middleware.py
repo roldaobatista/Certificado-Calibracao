@@ -60,6 +60,10 @@ PUBLIC_PATHS_PREFIX = (
     # T-ORC-038 (D-ORC-19): aprovacao publica de orcamento. Token opaco resolve
     # tenant via SECURITY DEFINER `resolver_orc_publico_token`; view PublicEndpoint.
     "/api/v1/public/orcamentos/",
+    # T-CR-036 (D-CR-8): webhook publico de baixa de cobranca (contas-receber).
+    # gateway_externo_id resolve tenant via SECURITY DEFINER `resolver_cr_titulo_por_gateway`;
+    # view PublicEndpoint com HMAC + rate-limit + anti-oraculo.
+    "/api/v1/public/contas-receber/",
 )
 
 # /admin/ tem casos especiais: login/logout sao publicos, resto exige usuario logado

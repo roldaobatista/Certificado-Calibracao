@@ -114,6 +114,22 @@ class DjangoTituloRepository:
             gateway_event_id=gateway_event_id,
         ).exists()
 
+    def obter_titulo_por_gateway_id(
+        self, *, tenant_id: UUID, gateway_externo_id: str
+    ) -> Titulo | None:
+        """Retorna título pelo gateway_externo_id (lookup no webhook — D-CR-8 / R7).
+
+        Filtra por tenant_id (RLS + defesa em profundidade). gateway_externo_id vazio
+        nunca encontra nada (campo obrigatório não-vazio nos gateways reais).
+        """
+        if not gateway_externo_id:
+            return None
+        m = TituloModel.objects.filter(
+            tenant_id=tenant_id,
+            gateway_externo_id=gateway_externo_id,
+        ).first()
+        return mappers.model_para_titulo(m) if m is not None else None
+
     # --- Parcela ---
 
     def salvar_parcela(self, *, tenant_id: UUID, parcela: Parcela) -> None:

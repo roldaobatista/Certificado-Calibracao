@@ -176,6 +176,21 @@ QR_IP_RATELIMIT_SALT: str = env(
     default="dev-only-do-NOT-use-in-prod-rotate-monthly",
 )
 
+# T-CR-036 (D-CR-7 / Fatia 2b): modo do MockPaymentGatewayProvider para Wave A.
+# Adapter Asaas real = GATE-CR-ASAAS (pré-produção). Modos disponíveis (ModoMock):
+#   always_confirm | pending_then_confirm | always_reject | network_timeout
+CR_GATEWAY_PROVIDER_MOCK_MODO: str = env(
+    "CR_GATEWAY_PROVIDER_MOCK_MODO",
+    default="always_confirm",
+)
+
+# Salt do HMAC de IP para o webhook público de contas-receber (cross-tenant,
+# mesmo padrão de QR_IP_RATELIMIT_SALT). Gate em prod.py exige >=32 chars.
+CR_WEBHOOK_IP_RATELIMIT_SALT: str = env(
+    "CR_WEBHOOK_IP_RATELIMIT_SALT",
+    default="dev-only-cr-webhook-do-NOT-use-in-prod",
+)
+
 # =============================================================
 # Apps
 # =============================================================

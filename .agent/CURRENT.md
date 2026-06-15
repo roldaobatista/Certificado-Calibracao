@@ -17,10 +17,13 @@
   INSERT-only/trigger perfil COALESCE; `ACOES_CONTAS_RECEBER` + `os.faturada`/`os.paga`; drill 41/41 + 22 testes PG).
   **2a (núcleo manual):** use cases criar/baixar/cancelar + `ContasReceberViewSet` (criar/baixar-manual/cancelar/
   retrieve/list) + serializers + urls; idempotência REST, advisory lock, perfil server-side, eventos titulo_emitido/
-  pago/titulo_cancelado; 13 testes API. Revisão Opus reconciliou Protocol↔adapter + tirou DRF dos use cases
-  (`TituloNaoEncontrado`). **PRÓXIMO = Fatia 2b** (gateway Mock: emitir-boleto/pix-recorrente + webhook público HMAC
-  + override; T-CR-031/033/034-override/036) → Fatia 3 (auto-fatura OS + inadimplência + desbloqueio, toca fechados) → P8/P9.
-  Achado p/ 2b: desconto-pontualidade pré-vencimento sem fórmula na spec (cravar no use case).
+  pago/titulo_cancelado; 13 testes. **2b (gateway/webhook/override):** emitir-boleto/pix-recorrente (Mock) +
+  webhook público (SECURITY DEFINER `resolver_cr_titulo_por_gateway` migration 0006 + HMAC + idempotência dupla
+  + anti-oráculo 401) + override (anti-PII 4 regex, 5/mês, WORM); 15 testes. Revisão Opus: reconciliou
+  Protocol↔adapter + tirou DRF dos use cases; corrigiu slug não-canônico do incidente HMAC. **Módulo CR: núcleo
+  REST completo (manual + gateway Mock + webhook).** **PRÓXIMO = Fatia 3** (auto-fatura OS + inadimplência +
+  desbloqueio — toca OS/clientes FECHADOS; T-CR-040..048) → P8/P9. Débitos p/ P9: snapshot webhook=valor_original
+  (sem juros); desconto-pontualidade pré-vencimento sem fórmula; INV-FIN-* voltam ao mestre na fatia 3d.
 
 ## Última frente FECHADA — `orcamentos` MÓDULO 100% Wave A (2026-06-15)
 

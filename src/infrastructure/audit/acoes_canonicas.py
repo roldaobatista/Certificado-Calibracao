@@ -448,7 +448,7 @@ ACOES_ORCAMENTOS: Final[frozenset[str]] = frozenset(
 # `os.faturada`/`os.paga` vivem em ACOES_OS (namespace do agregado dono do estado — TL-CR-02).
 ACOES_CONTAS_RECEBER: Final[frozenset[str]] = frozenset(
     {
-        # T-CR-025b — 8 slugs lowercase (D-CR-14)
+        # T-CR-025b — slugs lowercase (D-CR-14); +webhook_hmac_rejeitado (T-CR-036/2b)
         "contas_receber.titulo_emitido",  # criar título (manual ou consumer os.concluida)
         "contas_receber.boleto_emitido",  # emitir cobrança boleto/PIX
         "contas_receber.pago",  # baixa confirmada (manual ou webhook)
@@ -457,6 +457,7 @@ ACOES_CONTAS_RECEBER: Final[frozenset[str]] = frozenset(
         "contas_receber.inadimplencia_dura_atingida",  # adapter/job — grace esgotado
         "contas_receber.categoria_receita_bloqueada",  # CALIBRACAO_RBC sem perfil A → 403
         "contas_receber.gateway_indisponivel",  # provider down → 503 + retry_em_segundos
+        "contas_receber.webhook_hmac_rejeitado",  # webhook HMAC inválido → 401 + incidente WORM (D-CR-8)
     }
 )
 

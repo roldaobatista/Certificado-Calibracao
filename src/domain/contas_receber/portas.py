@@ -16,7 +16,7 @@ from uuid import UUID
 
 from src.domain.shared.value_objects import Dinheiro
 
-from .entities import Pagamento, Titulo
+from .entities import OverrideBloqueio, Pagamento, Titulo
 from .value_objects import (
     CobrancaCancelada,
     CobrancaCriada,
@@ -133,4 +133,22 @@ class TituloRepository(Protocol):
 
     def existe_gateway_event(self, *, tenant_id: UUID, gateway_event_id: str) -> bool:
         """Idempotência de webhook por `gateway_event_id` (INV-FIN-GW-001 — Fatia 2b)."""
+        ...
+
+    def obter_titulo_por_gateway_id(
+        self, *, tenant_id: UUID, gateway_externo_id: str
+    ) -> Titulo | None:
+        """Retorna o título cujo `gateway_externo_id` corresponde ao id do gateway.
+
+        Usado no webhook para resolver o título a partir do evento do gateway.
+        Anti-oráculo: resultado `None` é tratado como 401 pela VIEW (D-CR-8 / R7).
+        """
+        ...
+
+    def contar_overrides_no_mes(self, *, tenant_id: UUID, ano: int, mes: int) -> int:
+        """Conta OverrideBloqueio do tenant no mês (limite 5%/mês — R-CR-NOVO-4)."""
+        ...
+
+    def salvar_override(self, *, tenant_id: UUID, override: OverrideBloqueio) -> None:
+        """Grava OverrideBloqueio WORM (INSERT-only — INV-CR-OVERRIDE-WORM)."""
         ...

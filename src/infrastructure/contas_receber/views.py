@@ -1,14 +1,17 @@
-"""ContasReceberViewSet — REST da frente contas-receber (T-CR-035).
+"""ContasReceberViewSet — REST da frente contas-receber (T-CR-035 / T-CR-036).
 
-Actions Fatia 2a (núcleo manual — SEM gateway/webhook):
-  GET  /api/v1/contas-receber/{id}/        retrieve
-  GET  /api/v1/contas-receber/             list
-  POST /api/v1/contas-receber/criar/       criar    (US-CR-001 manual)
-  POST /api/v1/contas-receber/{id}/baixar-manual/   baixar-manual (US-CR-003)
-  POST /api/v1/contas-receber/{id}/cancelar/        cancelar (T-CR-034)
+Actions autenticadas (ContasReceberViewSet):
+  GET  /api/v1/contas-receber/{id}/                  retrieve
+  GET  /api/v1/contas-receber/                       list
+  POST /api/v1/contas-receber/criar/                 criar    (US-CR-001 manual)
+  POST /api/v1/contas-receber/{id}/baixar-manual/    baixar-manual (US-CR-003)
+  POST /api/v1/contas-receber/{id}/cancelar/         cancelar (T-CR-034)
+  POST /api/v1/contas-receber/{id}/emitir-boleto/    emitir-boleto (T-CR-031)
+  POST /api/v1/contas-receber/{id}/emitir-pix/       emitir-pix-recorrente (T-CR-031)
+  POST /api/v1/contas-receber/override-bloqueio/     override-bloqueio (T-CR-034)
 
-Actions Fatia 2b (gateway/webhook — diferidas):
-  emitir-boleto / emitir-pix-recorrente / override-bloqueio / webhook
+Endpoint público (ContasReceberWebhookView):
+  POST /api/v1/public/contas-receber/webhook/        webhook gateway (T-CR-036)
 
 Autorização: RequireAuthz (DEFAULT_PERMISSION_CLASSES) + ACTION_MAP.
 Idempotency-Key obrigatória em POST de escrita (IDEMP-001).
@@ -36,6 +39,10 @@ from src.application.contas_receber import (
     baixar_titulo_manual,
     cancelar_titulo,
     criar_titulo_manual,
+    emitir_cobranca,
+)
+from src.application.contas_receber import (
+    override_bloqueio as uc_override,
 )
 from src.domain.contas_receber.enums import (
     CategoriaReceita,
@@ -44,17 +51,25 @@ from src.domain.contas_receber.enums import (
 from src.domain.contas_receber.erros import (
     CategoriaReceitaExigePerfilA,
     ClienteObrigatorio,
+    ConvenioPixAusente,
+    GatewayIndisponivel,
+    JustificativaInsuficiente,
+    OverrideForaDeAlcada,
     PerfilIndeterminado,
     TituloComPagamentoParcial,
     TituloNaoEncontrado,
     TransicaoProibida,
 )
+from src.domain.contas_receber.portas import PaymentGatewayProvider
 from src.infrastructure.authz.perfil_tenant_helper import obter_perfil_tenant_corrente
 from src.infrastructure.contas_receber.repositories import DjangoTituloRepository
 from src.infrastructure.contas_receber.serializers import (
     BaixarTituloSerializer,
     CancelarTituloSerializer,
     CriarTituloSerializer,
+    EmitirBoletoSerializer,
+    EmitirPixRecorrenteSerializer,
+    OverrideBloqueioSerializer,
 )
 from src.infrastructure.idempotencia.services_idempotencia import (
     ErroValidacao,
@@ -74,6 +89,30 @@ logger = logging.getLogger(__name__)
 ENDPOINT_CRIAR = "contas_receber.criar"
 ENDPOINT_BAIXAR = "contas_receber.baixar_manual"
 ENDPOINT_CANCELAR = "contas_receber.cancelar"
+ENDPOINT_EMITIR_BOLETO = "contas_receber.emitir_boleto"
+ENDPOINT_EMITIR_PIX = "contas_receber.emitir_pix_recorrente"
+ENDPOINT_OVERRIDE = "contas_receber.override_bloqueio"
+
+
+def _obter_provider() -> PaymentGatewayProvider:
+    """Instancia o MockPaymentGatewayProvider com o modo configurado em settings.
+
+    Molde: `FISCAL_PROVIDER_MOCK_MODO` em fiscal/views.py.
+    Adapter Asaas real = GATE-CR-ASAAS (pré-produção).
+    """
+    from django.conf import settings
+
+    from src.domain.contas_receber.mock_provider import MockPaymentGatewayProvider, ModoMock
+
+    modo_str = getattr(settings, "CR_GATEWAY_PROVIDER_MOCK_MODO", "always_confirm")
+    try:
+        modo = ModoMock(modo_str)
+    except ValueError:
+        logger.warning(
+            "CR_GATEWAY_PROVIDER_MOCK_MODO inválido (%r) — usando always_confirm", modo_str
+        )
+        modo = ModoMock.ALWAYS_CONFIRM
+    return MockPaymentGatewayProvider(modo=modo)
 
 
 def _tenant_ou_none() -> UUID | None:
@@ -180,6 +219,10 @@ class ContasReceberViewSet(viewsets.ViewSet):
         "criar": "contas_receber.criar",
         "baixar_manual": "contas_receber.baixar",
         "cancelar": "contas_receber.cancelar",
+        # Fatia 2b
+        "emitir_boleto": "contas_receber.emitir",
+        "emitir_pix_recorrente": "contas_receber.emitir",
+        "override_bloqueio": "contas_receber.override_bloqueio",
     }
 
     def get_authz_action(self, request: Request) -> str | None:
@@ -494,6 +537,274 @@ class ContasReceberViewSet(viewsets.ViewSet):
             response_body_resumo=body,
         )
         return Response(body, status=status.HTTP_200_OK)
+
+    # ---------------------------------------------------------------- POST emitir-boleto (Fatia 2b)
+    @action(detail=True, methods=["post"], url_path="emitir-boleto")
+    def emitir_boleto(self, request: Request, pk: str | None = None) -> Response:
+        """POST — US-CR-002 emitir boleto. # idempotency-key: required"""
+        s = EmitirBoletoSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+
+        tenant_id = _tenant_ou_none()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+
+        titulo_id = self._uuid_ou_404(pk)
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_EMITIR_BOLETO,
+            payload_fingerprint={"titulo_id": str(titulo_id)},
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None and novo.chave_id is not None
+        chave_id = novo.chave_id
+
+        repo = DjangoTituloRepository()
+        provider = _obter_provider()
+        try:
+            inp = emitir_cobranca.EmitirBoletoInput(
+                tenant_id=tenant_id,
+                titulo_id=titulo_id,
+                vencimento_override=d.get("vencimento_override"),
+            )
+            with transaction.atomic():
+                self._advisory_lock(f"cr:emitir_boleto:{tenant_id}:{titulo_id}")
+                out = emitir_cobranca.emitir_boleto(inp, repo=repo, provider=provider)
+                _publicar_evento_cr(
+                    acao="contas_receber.boleto_emitido",
+                    payload={
+                        "titulo_id": str(titulo_id),
+                        "gateway_externo_id": out.titulo.gateway_externo_id,
+                        "linha_digitavel": out.titulo.linha_digitavel,
+                        "qr_code": out.titulo.qr_code,
+                        "perfil_no_evento": out.titulo.perfil_no_evento,
+                    },
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"titulo_receber {titulo_id} boleto emitido",
+                )
+        except TituloNaoEncontrado as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_404_NOT_FOUND)
+        except TransicaoProibida as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
+        except GatewayIndisponivel as exc:
+            # 503 + publica evento gateway_indisponivel (D-CR-7).
+            try:
+                with transaction.atomic():
+                    _publicar_evento_cr(
+                        acao="contas_receber.gateway_indisponivel",
+                        payload={
+                            "titulo_id": str(titulo_id),
+                            "retry_em_segundos": 60,
+                            "detalhe": str(exc),
+                        },
+                        causation_id=chave_id,
+                        tenant_id=tenant_id,
+                        usuario_id=usuario_id,
+                        resource_summary=f"gateway_indisponivel boleto {titulo_id}",
+                    )
+            except Exception:
+                logger.warning("falha ao publicar gateway_indisponivel", exc_info=True)
+            return self._falha(
+                chave_id, tenant_id, exc, status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except ValueError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
+
+        body = _serializar_titulo(out.titulo)
+        body["gateway_externo_id"] = out.cobranca.gateway_id
+        body["linha_digitavel"] = out.cobranca.linha_digitavel
+        body["qr_code"] = out.cobranca.qr_code
+        concluir_chave(
+            chave_id=chave_id,
+            tenant_id=tenant_id,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
+
+    # ---------------------------------------------------------------- POST emitir-pix (Fatia 2b)
+    @action(detail=True, methods=["post"], url_path="emitir-pix")
+    def emitir_pix_recorrente(self, request: Request, pk: str | None = None) -> Response:
+        """POST — US-CR-002 emitir PIX recorrente. # idempotency-key: required"""
+        s = EmitirPixRecorrenteSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+
+        tenant_id = _tenant_ou_none()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+
+        titulo_id = self._uuid_ou_404(pk)
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_EMITIR_PIX,
+            payload_fingerprint={
+                "titulo_id": str(titulo_id),
+                "convenio_pix_id": d.get("convenio_pix_id", ""),
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None and novo.chave_id is not None
+        chave_id = novo.chave_id
+
+        repo = DjangoTituloRepository()
+        provider = _obter_provider()
+        try:
+            inp = emitir_cobranca.EmitirPixRecorrenteInput(
+                tenant_id=tenant_id,
+                titulo_id=titulo_id,
+                convenio_pix_id=d.get("convenio_pix_id", ""),
+            )
+            with transaction.atomic():
+                self._advisory_lock(f"cr:emitir_pix:{tenant_id}:{titulo_id}")
+                out = emitir_cobranca.emitir_pix_recorrente(inp, repo=repo, provider=provider)
+                _publicar_evento_cr(
+                    acao="contas_receber.boleto_emitido",
+                    payload={
+                        "titulo_id": str(titulo_id),
+                        "gateway_externo_id": out.titulo.gateway_externo_id,
+                        "convenio_pix_id": out.titulo.convenio_pix_id,
+                        "meio": "pix_recorrente",
+                        "perfil_no_evento": out.titulo.perfil_no_evento,
+                    },
+                    causation_id=chave_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"titulo_receber {titulo_id} pix_recorrente emitido",
+                )
+        except TituloNaoEncontrado as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_404_NOT_FOUND)
+        except ConvenioPixAusente as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except TransicaoProibida as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
+        except GatewayIndisponivel as exc:
+            try:
+                with transaction.atomic():
+                    _publicar_evento_cr(
+                        acao="contas_receber.gateway_indisponivel",
+                        payload={
+                            "titulo_id": str(titulo_id),
+                            "retry_em_segundos": 60,
+                            "detalhe": str(exc),
+                        },
+                        causation_id=chave_id,
+                        tenant_id=tenant_id,
+                        usuario_id=usuario_id,
+                        resource_summary=f"gateway_indisponivel pix {titulo_id}",
+                    )
+            except Exception:
+                logger.warning("falha ao publicar gateway_indisponivel pix", exc_info=True)
+            return self._falha(
+                chave_id, tenant_id, exc, status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except ValueError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
+
+        body = _serializar_titulo(out.titulo)
+        body["gateway_externo_id"] = out.recorrencia.gateway_id
+        body["convenio_pix_id"] = out.recorrencia.convenio_id
+        concluir_chave(
+            chave_id=chave_id,
+            tenant_id=tenant_id,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
+
+    # ---------------------------------------------------------------- POST override-bloqueio (Fatia 2b)
+    @action(detail=False, methods=["post"], url_path="override-bloqueio")
+    def override_bloqueio(self, request: Request) -> Response:
+        """POST — D-CR-10 override de bloqueio de inadimplência (papel gerente).
+        # idempotency-key: required
+        """
+        s = OverrideBloqueioSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+
+        tenant_id = _tenant_ou_none()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+
+        perfil_str = _obter_perfil_ou_fail()
+        if not perfil_str:
+            return Response(
+                {"erro": "perfil regulatório indisponível (fail-closed ADR-0067)"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        usuario_id = usuario_id_context.get() or UUID(int=0)
+
+        novo, resp = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint=ENDPOINT_OVERRIDE,
+            payload_fingerprint={
+                "titulo_id": str(d["titulo_id"]),
+                "cliente_id": str(d["cliente_id"]),
+                "novo_prazo_max_dias": d["novo_prazo_max_dias"],
+            },
+        )
+        if resp is not None:
+            return resp
+        assert novo is not None and novo.chave_id is not None
+        chave_id = novo.chave_id
+
+        repo = DjangoTituloRepository()
+        try:
+            inp = uc_override.OverrideBloqueioInput(
+                tenant_id=tenant_id,
+                titulo_id=d["titulo_id"],
+                cliente_id=d["cliente_id"],
+                novo_prazo_max_dias=d["novo_prazo_max_dias"],
+                justificativa=d["justificativa"],
+                a3_signature_id=d.get("a3_signature_id", "wave-a-stub"),
+                usuario_id=usuario_id,
+                perfil_no_evento=perfil_str,
+            )
+            with transaction.atomic():
+                self._advisory_lock(
+                    f"cr:override:{tenant_id}:{d['titulo_id']}:{d['cliente_id']}"
+                )
+                out = uc_override.executar(inp, repo=repo)
+        except TituloNaoEncontrado as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_404_NOT_FOUND)
+        except JustificativaInsuficiente as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except OverrideForaDeAlcada as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except ValueError as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
+
+        body = {
+            "override_id": str(out.override.override_id),
+            "titulo_id": str(out.override.titulo_id),
+            "cliente_id": str(out.override.cliente_id),
+            "novo_prazo_max_dias": out.override.novo_prazo_max_dias,
+            "criado_em": out.override.criado_em.isoformat(),
+            "perfil_no_evento": out.override.perfil_no_evento,
+        }
+        concluir_chave(
+            chave_id=chave_id,
+            tenant_id=tenant_id,
+            response_status=status.HTTP_201_CREATED,
+            response_body_resumo=body,
+        )
+        return Response(body, status=status.HTTP_201_CREATED)
 
     # ---------------------------------------------------------------- helpers
     @staticmethod
