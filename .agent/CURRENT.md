@@ -8,19 +8,20 @@
 
 - Fatias 1a (domínio) + 1b (schema PG) DONE. Dep `os-multi-equipamento` FECHADA (envelope por item).
   Decisões Fatia 2 em `tasks.md`: D-FATIA2-A numeração BURACOS_ACEITOS · B série LAZY · C deps na view.
-- **Ondas 2a/2b/2c-1 DONE:** criar+itens+`OrcamentoViewSet` · enviar/recusar/cancelar/expirar (outbox,
-  LinkPublico 256b) · item de calibração DECLARA mensurando (migration 0008 + CHECK + fail-fast).
-- **Onda 2c-2 DONE (`243ce69`):** motor análise crítica cl. 7.1 + `aprovar_orcamento` — função PURA
-  `decidir_analise_critica` (matriz A/B/C/D + indeterminado fail-closed) + portas CMC/proc + perfil
-  server-side + action REST (200→`aprovado_pendente_os` / 422 reprova+WORM) + snapshot_hash ADR-0029.
-  Camada A 7 PASS + `consultor-rbc` CONFIRMA-COM-AJUSTES (ACH-3 MÉDIO corrigido).
-- **Onda 2d DONE (2026-06-15):** consumers `handle_os_aberta` (T-ORC-035: fecha saga →convertido + publica
-  `orcamento.convertido`; OS avulsa=no-op) + `handle_cliente_anonimizado` (T-ORC-036/LGPD: rascunho cancela,
-  **enviado EXPIRA** [decisão Roldão], aprovado+ preserva; revoga link; `cliente.dados_anonimizados` dormente
-  =GATE-ANON-EVENTO-RECONCILIAR). Camada A 7 PASS zero MÉDIO+. **128 testes verdes**.
-- **PRÓXIMO = Onda 2e** REST público (`OrcamentoPublicoView` T-ORC-038: GET `{token}` ressalvas + POST aprovar
-  1-clique, token resolve tenant D-ORC-19, Aprovacao WORM aceite rico, `ressalvas_confirmadas` se `com_ressalva`)
-  → 2f testes contrato/INV (T-ORC-050..054) → P8/P9. GATEs Onda 2d: PERF-APROVAR · OBS-METRICA · ANON-BULK.
+- **Ondas 2a/2b/2c-1 DONE:** criar+itens+`OrcamentoViewSet` · enviar/recusar/cancelar/expirar · item de
+  calibração DECLARA mensurando (migration 0008).
+- **Onda 2c-2 DONE (`243ce69`):** motor análise crítica cl. 7.1 + `aprovar_orcamento` (matriz A/B/C/D
+  fail-closed; portas server-side; snapshot_hash ADR-0029). 7 auditores + `consultor-rbc` PASS (ACH-3 corrigido).
+- **Onda 2d DONE (`b6aeadd`):** consumers `handle_os_aberta` (fecha saga→convertido) +
+  `handle_cliente_anonimizado` (LGPD: rascunho cancela / enviado EXPIRA[Roldão] / aprovado+ preserva; dormente
+  =GATE-ANON-EVENTO-RECONCILIAR). 7 auditores PASS.
+- **Onda 2e DONE (2026-06-15):** REST PÚBLICO `OrcamentoPublicoView` (T-ORC-038) — GET allowlist anti-vazamento +
+  POST aprovar 1-clique; token resolve tenant SEM RLS (SECURITY DEFINER migration 0009); rate-limit 30/min/IP;
+  Aprovacao WORM aceite rico HMAC; `ressalvas_confirmadas` se `com_ressalva`; reprova A→422 sem Aprovacao; link
+  one-shot. 7 auditores PASS zero MÉDIO+. **135 testes verdes** (1 flake transitório de ambiente descartado).
+- **PRÓXIMO = Onda 2f** (T-ORC-050..054: cravar INV-ORC-* em REGRAS + hooks + contrato E2E envelope + UNHAPPY
+  por perfil + anti-vazamento) → P8/P9. Pendentes: T-ORC-039 TemplateViewSet · GATEs 2e RATELIMIT-PUBLICO /
+  LGPD-RETENCAO-APROVACAO / PUB-PERF / PUB-FORENSE.
 
 ## Última frente FECHADA — `os-multi-equipamento` (2026-06-14, ADR-0082)
 

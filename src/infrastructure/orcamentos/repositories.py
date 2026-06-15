@@ -246,18 +246,35 @@ class DjangoOrcamentoRepository:
         return mappers.to_link(obj) if obj is not None else None
 
     def get_link_por_token(self, token: str) -> LinkPublico | None:
-        """Lookup por token SEM RLS (token resolve tenant — D-ORC-19).
+        """Lookup por token SEM RLS via função SECURITY DEFINER (D-ORC-19 — T-ORC-038).
 
-        DIFERIDO para a Fatia 2: o endpoint publico precisa resolver o tenant a
-        partir do token ANTES de entrar no `run_in_tenant_context` (galinha-ovo).
-        Como `orcamento_link_publico` tem RLS FORCE, este lookup exige um mecanismo
-        SEM RLS (funcao SECURITY DEFINER escopada ou tabela-indice de token), que
-        sera criado junto com `OrcamentoPublicoView` (T-ORC-038). Implementar aqui
-        agora seria codigo nao-exercitado. Ver spec D-ORC-19.
+        `resolver_orc_publico_token` (migration 0009) resolve o token para
+        (tenant_id, orcamento_id, link_id, expira_em, revogado_em, criado_em) com
+        bypass controlado de RLS (GUC `app.scope`). Usado pelo endpoint público
+        ANTES de entrar em `run_in_tenant_context` (galinha-ovo). `motivo_revogacao`
+        não é resolvido aqui (a view só usa `revogado_em`/`expira_em`).
         """
-        raise NotImplementedError(
-            "get_link_por_token: lookup SEM RLS (D-ORC-19) implementado na Fatia 2 "
-            "junto do endpoint publico (T-ORC-038)."
+        from django.db import connection
+
+        with connection.cursor() as cur:
+            cur.execute(
+                "SELECT tenant_id, orcamento_id, link_id, expira_em, revogado_em, criado_em "
+                "FROM resolver_orc_publico_token(%s::text)",
+                [token],
+            )
+            row = cur.fetchone()
+        if row is None:
+            return None
+        tenant_id, orcamento_id, link_id, expira_em, revogado_em, criado_em = row
+        return LinkPublico(
+            id=link_id,
+            orcamento_id=orcamento_id,
+            tenant_id=tenant_id,
+            token=token,
+            expira_em=expira_em,
+            criado_em=criado_em,
+            revogado_em=revogado_em,
+            motivo_revogacao=None,
         )
 
     def revogar_link(self, link_id: UUID, *, revogado_em: datetime, motivo: str) -> None:

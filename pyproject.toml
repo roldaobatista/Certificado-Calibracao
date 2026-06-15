@@ -203,7 +203,9 @@ module = [
     "src.infrastructure.colaboradores.views",
     "src.infrastructure.colaboradores.serializers",
     "src.infrastructure.orcamentos.views",
+    "src.infrastructure.orcamentos.views_publicas",
     "src.infrastructure.orcamentos.serializers",
+    "src.infrastructure.orcamentos.serializers_publico",
     "src.infrastructure.orcamentos._views_suporte",
 ]
 disallow_untyped_defs = false

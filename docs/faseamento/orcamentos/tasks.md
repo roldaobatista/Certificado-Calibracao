@@ -135,13 +135,18 @@ relacionados:
       dormente; `ordens_servico` escuta `cliente.anonimizado` divergente, alinhar quando `clientes` publicar) ·
       **GATE-ORC-ANON-BULK** (loop N×`atualizar_estado` 2-query — `transicionar_estado_bulk` pós-instrumentação;
       BAIXO, worker batch + cardinalidade baixa + dormente).
-- [ ] **T-ORC-037** REST `OrcamentoViewSet` (criar/adicionar-item/enviar/aprovar/recusar/cancelar/retrieve/list;
-      ACTION_MAP `orcamento.*`; idempotência helper reusável; margem só `ver_margem`). Ref: D-ORC-12; spec §7.
-- [ ] **T-ORC-038** REST `OrcamentoPublicoView` — GET `{token}` (allowlist ADV-ORC-09; **devolve ressalvas
-      quando houver — C3**) + POST `{token}/aprovar` (token resolve tenant D-ORC-19; rate-limit molde
-      `services_ratelimit`; WORM aprovação; aceite rico; **exige `ressalvas_confirmadas` se análise=`com_ressalva`,
-      senão 422; grava `ressalvas_aceitas` — cl. 7.1.1-d C2**). Ref: D-ORC-7/19; TL-ORC-07; ADV-ORC-04/08a/09;
-      INV-ORC-APROVACAO-WORM.
+- [x] **T-ORC-037** ✅ DONE (ondas 2a/2b/2c-2) REST `OrcamentoViewSet` (criar/adicionar-item/enviar/aprovar/
+      recusar/cancelar/retrieve/list; ACTION_MAP `orcamento.*`; idempotência helper reusável; margem só
+      `ver_margem`). Ref: D-ORC-12; spec §7.
+- [x] **T-ORC-038** ✅ DONE 2026-06-15 (Onda 2e) REST `OrcamentoPublicoView` — GET `{token}` (allowlist ADV-ORC-09;
+      devolve ressalvas + `requer_confirmacao_ressalvas`) + POST `{token}/aprovar/` (token resolve tenant SEM RLS
+      via SECURITY DEFINER `resolver_orc_publico_token` migration 0009 D-ORC-19; rate-limit 30/min/IP; Aprovacao
+      WORM aceite rico LGPD HMAC; exige `ressalvas_confirmadas` se `com_ressalva`→422; reprova A→422+análise WORM
+      sem Aprovacao; link revogado one-shot ao aprovar). Camada A: 7 auditores PASS zero MÉDIO+. **7 testes E2E**.
+      GATEs: **GATE-ORC-RATELIMIT-PUBLICO** (alerta `aprovacao-suspeita`+lockout, pré-prod) · **GATE-LGPD-RETENCAO-
+      APROVACAO** (linha `orcamento_aprovacao` na matriz de retenção — congelado até GATE-LGPD-RAT-CONSOLIDACAO) ·
+      **GATE-ORC-PUB-PERF** (versao/itens lidos 2× no POST) · **GATE-ORC-PUB-FORENSE** (correlation_id na Aprovacao
+      WORM) · GATE-ORC-CONVERTIDO-OSID. Ref: D-ORC-7/19; TL-ORC-07; ADV-ORC-04/08a/09; INV-ORC-APROVACAO-WORM.
 - [ ] **T-ORC-039** REST `TemplateViewSet` — CRUD + gate selo RBC por perfil (hook). Ref: D-ORC-13; AC-ORC-005.
 - [ ] **T-ORC-040** Testes (`tests/test_orcamentos_fatia2.py` + `tests/test_orcamentos_api.py`): fluxo criar→
       enviar→aprovar→envelope; público 1-clique; anti-vazamento allowlist; idempotência replay; `assertNumQueries`

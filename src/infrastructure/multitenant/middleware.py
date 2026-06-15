@@ -57,6 +57,9 @@ PUBLIC_PATHS_PREFIX = (
     # (anonimo) resolve em `/api/v1/qr/{hash}/` sem tenant context. View
     # PublicEndpoint + funcao SECURITY DEFINER `resolver_qr_publico`.
     "/api/v1/qr/",
+    # T-ORC-038 (D-ORC-19): aprovacao publica de orcamento. Token opaco resolve
+    # tenant via SECURITY DEFINER `resolver_orc_publico_token`; view PublicEndpoint.
+    "/api/v1/public/orcamentos/",
 )
 
 # /admin/ tem casos especiais: login/logout sao publicos, resto exige usuario logado
@@ -192,7 +195,7 @@ class TenantMiddleware:
                 .first()
             )
             return perfil or ""
-        except Exception:  # noqa: BLE001 — defensivo, predicate decide
+        except Exception:  # defensivo, predicate decide
             return ""
 
     def _extrair_active_tenant(self, request: HttpRequest, tenant_ids: list[UUID]) -> UUID | None:

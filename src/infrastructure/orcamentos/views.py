@@ -971,7 +971,7 @@ def _publicar_eventos_analise(
     *,
     orcamento_id: UUID,
     tenant_id: UUID,
-    usuario_id: UUID,
+    usuario_id: UUID | None,
 ) -> None:
     """Publica eventos de bus conforme o veredito (matriz §"Implementacao" / spec §6).
 
