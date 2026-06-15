@@ -157,6 +157,40 @@ def _falha_404(msg: str) -> Response:
 
 
 # ---------------------------------------------------------------------------
+# Eventos de bus (outbox=True — saga orcamento->OS/CRM, D-ORC-6/14)
+# ---------------------------------------------------------------------------
+
+
+def _publicar_evento_orcamento(
+    *,
+    acao: str,
+    payload: dict[str, Any],
+    causation_id: UUID,
+    tenant_id: UUID,
+    usuario_id: UUID | None,
+    resource_summary: str,
+) -> None:
+    """Publica evento `orcamento.*` no bus_outbox transacional (D-ORC-6 / TL-ORC CRIT-1).
+
+    `outbox=True`: dedup por (causation_id, acao); consumer da OS/CRM deduplica por
+    event_id. Import local (molde fiscal/precificacao). Payload é sanitizado em
+    escrita por `publicar_evento` (sanitizar_payload_audit) — não pré-sanitizar.
+    Deve rodar DENTRO do `transaction.atomic` do caller (transactional outbox).
+    """
+    from src.infrastructure.audit.event_helpers import publicar_evento
+
+    publicar_evento(
+        acao=acao,
+        payload=payload,
+        causation_id=causation_id,
+        tenant_id=tenant_id,
+        usuario_id=usuario_id,
+        resource_summary=resource_summary,
+        outbox=True,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Base ViewSet
 # ---------------------------------------------------------------------------
 

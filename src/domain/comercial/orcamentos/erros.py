@@ -83,6 +83,16 @@ class PerfilIndeterminado(ErroOrcamento):
     http_status = 422
 
 
+class OrcamentoSemItens(ErroOrcamento):
+    """Orçamento sem itens não pode ser enviado ao cliente (AC-ORC-002).
+
+    O envio congela o snapshot da versão; um orçamento vazio não tem proposta.
+    """
+
+    codigo = "orcamento_sem_itens"
+    http_status = 422
+
+
 # =====================================================================
 # 409 — Conflict (estado atual impede a transição)
 # =====================================================================

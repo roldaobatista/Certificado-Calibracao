@@ -33,9 +33,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import ROUND_HALF_EVEN, Decimal
+from typing import Any
 from uuid import UUID
 
-from src.domain.comercial.orcamentos.entities import ItemOrcamento
+from src.domain.comercial.orcamentos.entities import ItemOrcamento, Orcamento
 from src.domain.comercial.orcamentos.enums import TipoAtividadeAlvo
 from src.domain.operacao.os.value_objects import TipoItemComercial
 from src.domain.produtos_pecas_servicos.entities import PrecoResolvido
@@ -189,3 +190,56 @@ def compor_totais(
         liquido=Dinheiro(liquido_c, moeda),
         comissao_prevista=Dinheiro(comissao_c, moeda),
     )
+
+
+def _dinheiro_dict(d: Dinheiro) -> dict[str, Any]:
+    return {"centavos": d.centavos, "moeda": d.moeda}
+
+
+def montar_snapshot_versao(orcamento: Orcamento, itens: Sequence[ItemOrcamento]) -> dict[str, Any]:
+    """Foto JSON-safe da versão para congelar ao enviar (D-ORC-8 / Padrão B).
+
+    Captura o estado comercial no momento do envio: itens (sem margem/custo —
+    INV-ORC-MARGEM-OFF), condições de pagamento e totais. NÃO embute o
+    `PrecoResolvido` completo (já persistido por item); comparação V2/V3 = Wave B.
+    Resultado é um dict não-vazio (o trigger WORM exige `{}` -> conteúdo one-shot).
+    """
+    return {
+        "numero": orcamento.numero,
+        "validade_inicio": orcamento.validade.inicio.isoformat(),
+        "validade_fim": (orcamento.validade.fim.isoformat() if orcamento.validade.fim else None),
+        "condicoes_pagamento": {
+            "parcelas": orcamento.condicoes_pagamento.parcelas,
+            "forma_pagamento": orcamento.condicoes_pagamento.forma_pagamento,
+            "dias_vencimento_primeira": orcamento.condicoes_pagamento.dias_vencimento_primeira,
+            "intervalo_dias": orcamento.condicoes_pagamento.intervalo_dias,
+            "observacoes": orcamento.condicoes_pagamento.observacoes,
+        },
+        "totais": {
+            "total_bruto": _dinheiro_dict(orcamento.total_bruto),
+            "descontos": _dinheiro_dict(orcamento.descontos),
+            "impostos": _dinheiro_dict(orcamento.impostos),
+            "liquido": _dinheiro_dict(orcamento.liquido),
+        },
+        "itens": [
+            {
+                "sequencia": it.sequencia,
+                "catalogo_item_id": str(it.catalogo_item_id),
+                "descricao": it.descricao_snapshot,
+                "quantidade": str(it.quantidade),
+                "preco_final": _dinheiro_dict(it.preco_final),
+                "desconto_pct": str(it.desconto_pct),
+                "desconto_valor": _dinheiro_dict(it.desconto_valor),
+                "total": _dinheiro_dict(it.total),
+                "semaforo": it.semaforo,
+                "equipamento_id": str(it.equipamento_id) if it.equipamento_id else None,
+                "tipo_atividade_alvo": (
+                    it.tipo_atividade_alvo.value if it.tipo_atividade_alvo else None
+                ),
+                "tipo_item_comercial": (
+                    it.tipo_item_comercial.value if it.tipo_item_comercial else None
+                ),
+            }
+            for it in itens
+        ],
+    }

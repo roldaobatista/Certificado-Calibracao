@@ -32,6 +32,7 @@ from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from src.application.comercial.orcamentos import ciclo_vida as uc_ciclo
 from src.application.comercial.orcamentos import criar_orcamento as uc_criar
 from src.application.comercial.orcamentos import itens as uc_itens
 from src.domain.comercial.orcamentos.enums import TipoAtividadeAlvo
@@ -48,15 +49,19 @@ from src.infrastructure.orcamentos._views_suporte import (
     _falha_erro_orcamento,
     _OrcamentoViewSetBase,
     _pode_ver_margem,
+    _publicar_evento_orcamento,
     _tenant_ou_none,
     _usuario_id_ou_none,
 )
 from src.infrastructure.orcamentos.repositories import DjangoOrcamentoRepository
 from src.infrastructure.orcamentos.serializers import (
     AdicionarItemSerializer,
+    CancelarOrcamentoSerializer,
     CriarOrcamentoSerializer,
     EditarItemSerializer,
+    RecusarOrcamentoSerializer,
     serializar_item,
+    serializar_link,
     serializar_orcamento,
 )
 
@@ -184,6 +189,12 @@ class OrcamentoViewSet(_OrcamentoViewSetBase):
         "retrieve": "orcamento.ver",
         "adicionar_item": "orcamento.editar",
         "editar_item": "orcamento.editar",
+        "enviar": "orcamento.enviar",
+        "recusar": "orcamento.recusar",
+        "cancelar": "orcamento.cancelar",
+        # expirar = job administrativo (GATE-ORC-EXPIRY-JOB: procrastinate em prod);
+        # mapeado a orcamento.cancelar (encerramento). Disparo manual no dogfooding.
+        "expirar_vencidos": "orcamento.cancelar",
     }
 
     # ----- criar (POST /orcamentos/) --------------------------------
@@ -472,6 +483,261 @@ class OrcamentoViewSet(_OrcamentoViewSetBase):
                     "item_id": str(resultado.item.id),
                     "orcamento_id": str(resultado.orcamento.id),
                 },
+            )
+        return Response(corpo, status=status.HTTP_200_OK)
+
+    # ----- enviar (POST /orcamentos/{id}/enviar/) -------------------
+
+    @action(detail=True, methods=["post"], url_path="enviar")
+    def enviar(self, request: Request, pk: str | None = None) -> Response:
+        tenant_id = _tenant_ou_none()
+        usuario_id = _usuario_id_ou_none()
+        if tenant_id is None or usuario_id is None:
+            return Response({"detalhe": "contexto ausente"}, status=status.HTTP_401_UNAUTHORIZED)
+        orcamento_id = self._uuid_ou_404(pk)
+
+        novo, resp_erro = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint="orcamentos:enviar",
+            payload_fingerprint={"orcamento_id": str(orcamento_id)},
+        )
+        if resp_erro is not None:
+            return resp_erro
+
+        try:
+            with transaction.atomic():
+                out = uc_ciclo.enviar_orcamento(
+                    uc_ciclo.EnviarOrcamentoInput(
+                        tenant_id=tenant_id,
+                        orcamento_id=orcamento_id,
+                        agora=datetime.now(UTC),
+                    ),
+                    repo=DjangoOrcamentoRepository(),
+                )
+                _publicar_evento_orcamento(
+                    acao="orcamento.enviado",
+                    payload={
+                        "orcamento_id": str(orcamento_id),
+                        "tenant_id": str(tenant_id),
+                        "cliente_referencia_hash": out.orcamento.cliente_referencia_hash,
+                        "cliente_key_id": out.orcamento.cliente_key_id,
+                        "numero": out.orcamento.numero,
+                        "valor_total_centavos": out.orcamento.liquido.centavos,
+                        "moeda": out.orcamento.liquido.moeda,
+                        "canal": "link_publico",
+                    },
+                    causation_id=orcamento_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"orcamento:{orcamento_id}",
+                )
+        except ErroOrcamento as exc:
+            return _falha_erro_orcamento(exc, tenant_id=tenant_id, chave_idempotencia=novo)
+
+        corpo = {
+            "orcamento": serializar_orcamento(
+                out.orcamento, pode_ver_margem=_pode_ver_margem(request)
+            ),
+            "link": serializar_link(out.link),
+        }
+        if novo is not None and novo.chave_id is not None:
+            concluir_chave(
+                chave_id=novo.chave_id,
+                tenant_id=tenant_id,
+                response_status=status.HTTP_200_OK,
+                response_body_resumo={
+                    "orcamento_id": str(orcamento_id),
+                    "estado": out.orcamento.estado.value,
+                    "link_token": out.link.token,
+                },
+            )
+        return Response(corpo, status=status.HTTP_200_OK)
+
+    # ----- recusar (POST /orcamentos/{id}/recusar/) -----------------
+
+    @action(detail=True, methods=["post"], url_path="recusar")
+    def recusar(self, request: Request, pk: str | None = None) -> Response:
+        tenant_id = _tenant_ou_none()
+        usuario_id = _usuario_id_ou_none()
+        if tenant_id is None or usuario_id is None:
+            return Response({"detalhe": "contexto ausente"}, status=status.HTTP_401_UNAUTHORIZED)
+        orcamento_id = self._uuid_ou_404(pk)
+
+        ser = RecusarOrcamentoSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        dados = ser.validated_data
+
+        novo, resp_erro = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint="orcamentos:recusar",
+            payload_fingerprint={"orcamento_id": str(orcamento_id), "motivo": dados["motivo"]},
+        )
+        if resp_erro is not None:
+            return resp_erro
+
+        # OBS/LGPD: motivo (texto livre) vira HASH no evento — nunca entra em claro
+        # na cadeia imutavel (molde precificacao derivar_hash_texto_canonicalizado).
+        from src.infrastructure.calibracao.lgpd import derivar_hash_texto_canonicalizado
+
+        motivo_hash = derivar_hash_texto_canonicalizado(
+            texto=dados["motivo"], tenant_id=tenant_id
+        )
+
+        try:
+            with transaction.atomic():
+                orcamento = uc_ciclo.recusar_orcamento(
+                    uc_ciclo.RecusarOrcamentoInput(
+                        tenant_id=tenant_id,
+                        orcamento_id=orcamento_id,
+                        motivo=dados["motivo"],
+                        agora=datetime.now(UTC),
+                    ),
+                    repo=DjangoOrcamentoRepository(),
+                )
+                _publicar_evento_orcamento(
+                    acao="orcamento.recusado",
+                    payload={
+                        "orcamento_id": str(orcamento_id),
+                        "tenant_id": str(tenant_id),
+                        "motivo_hash": motivo_hash,
+                    },
+                    causation_id=orcamento_id,
+                    tenant_id=tenant_id,
+                    usuario_id=usuario_id,
+                    resource_summary=f"orcamento:{orcamento_id}",
+                )
+        except ErroOrcamento as exc:
+            return _falha_erro_orcamento(exc, tenant_id=tenant_id, chave_idempotencia=novo)
+
+        corpo = serializar_orcamento(orcamento, pode_ver_margem=_pode_ver_margem(request))
+        if novo is not None and novo.chave_id is not None:
+            concluir_chave(
+                chave_id=novo.chave_id,
+                tenant_id=tenant_id,
+                response_status=status.HTTP_200_OK,
+                response_body_resumo={
+                    "orcamento_id": str(orcamento_id),
+                    "estado": orcamento.estado.value,
+                },
+            )
+        return Response(corpo, status=status.HTTP_200_OK)
+
+    # ----- cancelar (POST /orcamentos/{id}/cancelar/) ---------------
+
+    @action(detail=True, methods=["post"], url_path="cancelar")
+    def cancelar(self, request: Request, pk: str | None = None) -> Response:
+        tenant_id = _tenant_ou_none()
+        usuario_id = _usuario_id_ou_none()
+        if tenant_id is None or usuario_id is None:
+            return Response({"detalhe": "contexto ausente"}, status=status.HTTP_401_UNAUTHORIZED)
+        orcamento_id = self._uuid_ou_404(pk)
+
+        ser = CancelarOrcamentoSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        dados = ser.validated_data
+
+        novo, resp_erro = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint="orcamentos:cancelar",
+            payload_fingerprint={"orcamento_id": str(orcamento_id)},
+        )
+        if resp_erro is not None:
+            return resp_erro
+
+        try:
+            with transaction.atomic():
+                # cancelar NAO publica evento (sem acao canonica orcamento.cancelado — spec §6).
+                orcamento = uc_ciclo.cancelar_orcamento(
+                    uc_ciclo.CancelarOrcamentoInput(
+                        tenant_id=tenant_id,
+                        orcamento_id=orcamento_id,
+                        agora=datetime.now(UTC),
+                        motivo=dados.get("motivo"),
+                    ),
+                    repo=DjangoOrcamentoRepository(),
+                )
+        except ErroOrcamento as exc:
+            return _falha_erro_orcamento(exc, tenant_id=tenant_id, chave_idempotencia=novo)
+
+        corpo = serializar_orcamento(orcamento, pode_ver_margem=_pode_ver_margem(request))
+        if novo is not None and novo.chave_id is not None:
+            concluir_chave(
+                chave_id=novo.chave_id,
+                tenant_id=tenant_id,
+                response_status=status.HTTP_200_OK,
+                response_body_resumo={
+                    "orcamento_id": str(orcamento_id),
+                    "estado": orcamento.estado.value,
+                },
+            )
+        return Response(corpo, status=status.HTTP_200_OK)
+
+    # ----- expirar vencidos (POST /orcamentos/expirar-vencidos/) ----
+
+    @action(detail=False, methods=["post"], url_path="expirar-vencidos")
+    def expirar_vencidos(self, request: Request) -> Response:
+        """Sweep do tenant corrente: ENVIADO vencido -> EXPIRADO (idempotente).
+
+        GATE-ORC-EXPIRY-JOB: em producao vira job procrastinate por tenant. Aqui
+        e disparo manual/cron no dogfooding; a idempotencia de dominio (filtro por
+        estado ENVIADO) garante que reexecucoes nao reprocessam ja-expirados.
+        """
+        tenant_id = _tenant_ou_none()
+        usuario_id = _usuario_id_ou_none()
+        if tenant_id is None or usuario_id is None:
+            return Response({"detalhe": "contexto ausente"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        novo, resp_erro = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint="orcamentos:expirar_vencidos",
+            payload_fingerprint={"tenant_id": str(tenant_id)},
+        )
+        if resp_erro is not None:
+            return resp_erro
+
+        try:
+            with transaction.atomic():
+                expirados = uc_ciclo.expirar_orcamentos(
+                    uc_ciclo.ExpirarOrcamentosInput(tenant_id=tenant_id, agora=datetime.now(UTC)),
+                    repo=DjangoOrcamentoRepository(),
+                )
+                for ex in expirados:
+                    _publicar_evento_orcamento(
+                        acao="orcamento.expirado",
+                        payload={
+                            "orcamento_id": str(ex.orcamento_id),
+                            "tenant_id": str(tenant_id),
+                            "cliente_referencia_hash": ex.cliente_referencia_hash,
+                            "cliente_key_id": ex.cliente_key_id,
+                        },
+                        causation_id=ex.orcamento_id,
+                        tenant_id=tenant_id,
+                        usuario_id=usuario_id,
+                        resource_summary=f"orcamento:{ex.orcamento_id}",
+                    )
+        except ErroOrcamento as exc:
+            return _falha_erro_orcamento(exc, tenant_id=tenant_id, chave_idempotencia=novo)
+
+        corpo = {
+            "total": len(expirados),
+            "expirados": [str(ex.orcamento_id) for ex in expirados],
+        }
+        if novo is not None and novo.chave_id is not None:
+            concluir_chave(
+                chave_id=novo.chave_id,
+                tenant_id=tenant_id,
+                response_status=status.HTTP_200_OK,
+                response_body_resumo=corpo,
             )
         return Response(corpo, status=status.HTTP_200_OK)
 

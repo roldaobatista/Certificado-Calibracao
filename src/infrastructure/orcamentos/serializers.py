@@ -128,6 +128,20 @@ class EditarItemSerializer(_ItemBaseSerializer):
     """Entrada de `editar_item` (AC-ORC-004)."""
 
 
+class RecusarOrcamentoSerializer(serializers.Serializer):
+    """Entrada de `recusar_orcamento` (AC-ORC-008)."""
+
+    motivo = serializers.CharField(max_length=300, min_length=3)
+
+
+class CancelarOrcamentoSerializer(serializers.Serializer):
+    """Entrada de `cancelar_orcamento` (AC-ORC-008)."""
+
+    motivo = serializers.CharField(
+        max_length=300, required=False, allow_blank=True, allow_null=True, default=None
+    )
+
+
 # ---------------------------------------------------------------------------
 # Saida
 # ---------------------------------------------------------------------------
@@ -135,6 +149,20 @@ class EditarItemSerializer(_ItemBaseSerializer):
 
 def _dinheiro(d: Any) -> dict[str, Any]:
     return {"centavos": d.centavos, "moeda": d.moeda}
+
+
+def serializar_link(link: Any) -> dict[str, Any]:
+    """Serializa o LinkPublico para o remetente autenticado (token incluso).
+
+    O token só é devolvido a quem ENVIA (autorizado a compartilhar). O endpoint
+    público (Onda 2e) NUNCA ecoa o token de volta.
+    """
+    return {
+        "orcamento_id": str(link.orcamento_id),
+        "token": link.token,
+        "expira_em": link.expira_em.isoformat(),
+        "criado_em": link.criado_em.isoformat(),
+    }
 
 
 def serializar_item(item: ItemOrcamento) -> dict[str, Any]:

@@ -163,7 +163,9 @@ relacionados:
 
 - [ ] **T-ORC-060** P8: ADR reconciliação `PrecoResolvido`×`Preco` (D-ORC-1; emenda PRD/modelo) +
       matriz-reconciliacao (AC↔código↔teste, INV↔teste, ata P9) + STATUS-GERADO + GATEs rastreados
-      (PDF/TELA-PUBLICA/PADRAO/SAGA-DLQ/ORIGEM-ITEM/KMS-APROVADOR/US010/LGPD-RAT) + frontmatters draft→stable.
+      (PDF/TELA-PUBLICA/PADRAO/SAGA-DLQ/ORIGEM-ITEM/KMS-APROVADOR/US010/LGPD-RAT + **EXPIRY-JOB** [sweep
+      manual→procrastinate por tenant] + **TRILHA-CANCELAMENTO** [cancelar não emite evento/auditoria — BAIXO,
+      aceitável Wave A; avaliar trilha quando F-C entrar]) + frontmatters draft→stable.
       `status-projeto.sh --check`. Ref: plan §6.
 - [ ] **T-ORC-061** P9 auditores roteados (INV-RITUAL-003): essenciais + **performance** (N+1) +
       **observabilidade** (WORM/outbox/correlation_id) + **conformidade-lgpd OBRIGATÓRIO** (PII aprovador +

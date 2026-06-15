@@ -80,6 +80,20 @@ class OrcamentoRepository(Protocol):
         """Retorna a última versão não revogada do orçamento."""
         ...
 
+    def congelar_versao(
+        self,
+        versao_id: UUID,
+        *,
+        tenant_id: UUID,
+        snapshot: dict[str, object],
+    ) -> VersaoOrcamento:
+        """Congela o snapshot da versão corrente (UPDATE one-shot `{}` -> conteúdo).
+
+        O trigger WORM (0003) permite preencher snapshot vazio uma única vez ao
+        enviar (D-ORC-8); re-edição de snapshot já congelado é bloqueada no banco.
+        """
+        ...
+
     def salvar_item(self, item: ItemOrcamento) -> ItemOrcamento:
         """INSERT de ItemOrcamento numa versão."""
         ...

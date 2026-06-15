@@ -14,7 +14,8 @@ Cobre o que os testes puros nao provam (banco COM dados, RLS, RBAC, idempotencia
 
 from __future__ import annotations
 
-from uuid import uuid4
+from datetime import UTC, datetime, timedelta
+from uuid import UUID, uuid4
 
 import pytest
 from rest_framework.test import APIClient
@@ -524,3 +525,187 @@ def test_replay_mesma_chave_nao_reincrementa_numero() -> None:
     with run_in_tenant_context(c["tenant"].id):
         total = OrcModel.objects.filter(tenant_id=c["tenant"].id).count()
     assert total == 2, f"replay nao deve criar orcamento extra (esperado 2, obteve {total})"
+
+
+# ===========================================================================
+# Onda 2b — enviar / recusar / cancelar / expirar
+# ===========================================================================
+
+
+def _adicionar_item_calib(client, orc_id, item_id, *, desconto="0", qty="1"):
+    return _post(
+        client,
+        f"/api/v1/orcamentos/{orc_id}/itens/",
+        {
+            "catalogo_item_id": item_id,
+            "descricao": "Calibracao balanca",
+            "quantidade": qty,
+            "desconto_pct": desconto,
+            "equipamento_id": str(uuid4()),
+            "tipo_atividade_alvo": "calibracao",
+        },
+    )
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_enviar_gera_link_congela_versao_e_evento() -> None:
+    c = _cenario()
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    item = _setup_catalogo(client, preco="150.00")
+    orc = _criar_orcamento(client, cliente.id).json()
+    assert _adicionar_item_calib(client, orc["id"], item["id"]).status_code == 201
+
+    r = _post(client, f"/api/v1/orcamentos/{orc['id']}/enviar/", {})
+    assert r.status_code == 200, r.content
+    body = r.json()
+    assert body["orcamento"]["estado"] == "enviado"
+    assert len(body["link"]["token"]) >= 20  # token urlsafe(32) ~ 43 chars
+    assert body["link"]["orcamento_id"] == orc["id"]
+
+    from src.infrastructure.audit.models import BusOutbox
+    from src.infrastructure.orcamentos.models import VersaoOrcamento as VModel
+
+    with run_in_tenant_context(c["tenant"].id):
+        versao = VModel.objects.get(orcamento_id=orc["id"])
+        assert versao.snapshot != {}, "versao deve congelar o snapshot ao enviar (D-ORC-8)"
+        assert versao.snapshot["itens"], "snapshot deve conter os itens"
+        n_evt = BusOutbox.objects.filter(
+            tenant_id=c["tenant"].id,
+            acao="orcamento.enviado",
+            causation_id=UUID(orc["id"]),
+        ).count()
+        assert n_evt == 1, f"esperado 1 evento orcamento.enviado, achou {n_evt}"
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_enviar_sem_itens_422() -> None:
+    c = _cenario()
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    orc = _criar_orcamento(client, cliente.id).json()
+
+    r = _post(client, f"/api/v1/orcamentos/{orc['id']}/enviar/", {})
+    assert r.status_code == 422, r.content
+    assert r.json()["codigo"] == "orcamento_sem_itens"
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_recusar_revoga_link_e_publica_evento() -> None:
+    c = _cenario()
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    item = _setup_catalogo(client, preco="150.00")
+    orc = _criar_orcamento(client, cliente.id).json()
+    _adicionar_item_calib(client, orc["id"], item["id"])
+    _post(client, f"/api/v1/orcamentos/{orc['id']}/enviar/", {})
+
+    r = _post(
+        client,
+        f"/api/v1/orcamentos/{orc['id']}/recusar/",
+        {"motivo": "Cliente optou por outro fornecedor"},
+    )
+    assert r.status_code == 200, r.content
+    assert r.json()["estado"] == "recusado"
+
+    from src.infrastructure.audit.models import BusOutbox
+    from src.infrastructure.orcamentos.models import LinkPublico as LinkModel
+
+    with run_in_tenant_context(c["tenant"].id):
+        # link revogado (nenhum ativo)
+        ativos = LinkModel.objects.filter(orcamento_id=orc["id"], revogado_em__isnull=True).count()
+        assert ativos == 0, "link deve ser revogado ao recusar"
+        n_evt = BusOutbox.objects.filter(
+            tenant_id=c["tenant"].id, acao="orcamento.recusado", causation_id=UUID(orc["id"])
+        ).count()
+        assert n_evt == 1
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_cancelar_rascunho_200() -> None:
+    c = _cenario()
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    orc = _criar_orcamento(client, cliente.id).json()
+
+    r = _post(client, f"/api/v1/orcamentos/{orc['id']}/cancelar/", {"motivo": "desistencia"})
+    assert r.status_code == 200, r.content
+    assert r.json()["estado"] == "cancelado"
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_cancelar_enviado_409_transicao_proibida() -> None:
+    c = _cenario()
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    item = _setup_catalogo(client, preco="150.00")
+    orc = _criar_orcamento(client, cliente.id).json()
+    _adicionar_item_calib(client, orc["id"], item["id"])
+    _post(client, f"/api/v1/orcamentos/{orc['id']}/enviar/", {})
+
+    # enviado -> cancelado nao e transicao valida (D-ORC-3) -> 409
+    r = _post(client, f"/api/v1/orcamentos/{orc['id']}/cancelar/", {})
+    assert r.status_code == 409, r.content
+    assert r.json()["codigo"] == "transicao_proibida"
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_cancelar_convertido_409() -> None:
+    c = _cenario()
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    orc = _criar_orcamento(client, cliente.id).json()
+
+    # forca estado convertido (saga real = Onda 2c/2d); trigger 0004 permite
+    # transicao DE estado nao-terminal -> convertido.
+    from src.infrastructure.orcamentos.models import Orcamento as OrcModel
+
+    with run_in_tenant_context(c["tenant"].id):
+        OrcModel.objects.filter(id=orc["id"]).update(estado="convertido")
+
+    r = _post(client, f"/api/v1/orcamentos/{orc['id']}/cancelar/", {})
+    assert r.status_code == 409, r.content
+    assert r.json()["codigo"] == "orcamento_convertido"
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_expirar_vencidos_idempotente() -> None:
+    c = _cenario()
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    item = _setup_catalogo(client, preco="150.00")
+    orc = _criar_orcamento(client, cliente.id).json()
+    _adicionar_item_calib(client, orc["id"], item["id"])
+    _post(client, f"/api/v1/orcamentos/{orc['id']}/enviar/", {})
+
+    # move a janela inteira para o passado (criar exige validade futura; simula
+    # vencimento). inicio < fim < agora — respeita INV-VIG-001 (inicio <= fim).
+    from src.infrastructure.orcamentos.models import Orcamento as OrcModel
+
+    agora = datetime.now(UTC)
+    with run_in_tenant_context(c["tenant"].id):
+        OrcModel.objects.filter(id=orc["id"]).update(
+            validade_inicio=agora - timedelta(days=40),
+            validade_fim=agora - timedelta(days=1),
+        )
+
+    r1 = _post(client, "/api/v1/orcamentos/expirar-vencidos/", {})
+    assert r1.status_code == 200, r1.content
+    assert r1.json()["total"] == 1
+    assert orc["id"] in r1.json()["expirados"]
+
+    # idempotente: 2a varredura (nova chave) nao reprocessa ja-expirados
+    r2 = _post(client, "/api/v1/orcamentos/expirar-vencidos/", {})
+    assert r2.status_code == 200, r2.content
+    assert r2.json()["total"] == 0
+
+    r_get = client.get(f"/api/v1/orcamentos/{orc['id']}/")
+    assert r_get.json()["estado"] == "expirado"
+
+    from src.infrastructure.audit.models import BusOutbox
+
+    with run_in_tenant_context(c["tenant"].id):
+        n_evt = BusOutbox.objects.filter(
+            tenant_id=c["tenant"].id, acao="orcamento.expirado", causation_id=UUID(orc["id"])
+        ).count()
+        assert n_evt == 1, "expirar deve publicar exatamente 1 evento orcamento.expirado"

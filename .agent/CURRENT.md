@@ -13,9 +13,12 @@
   (criar/itens/editar/retrieve/list). Conserto REGRA #0: campo `semaforo` 10→15 (migration 0007 — `indisponivel`
   estourava o INSERT). 6 auditores camada A PASS (2 MÉDIO de cobertura consertados + 2ª passada). **20 testes
   verdes** (7 puros `calculo` + 13 E2E). Totais: imposto por dentro, `liquido == total_bruto - descontos`.
-- **PRÓXIMO = Onda 2b** (`enviar_orcamento` V1+LinkPublico+`orcamento.enviado`; recusar/cancelar/expirar) →
-  2c aprovar análise crítica cl.7.1 perfil-aware → 2d consumers → 2e REST público → 2f testes + P8/P9.
-  Detalhe: `docs/faseamento/orcamentos/{spec,plan,tasks}.md`.
+- **Onda 2b DONE (2026-06-14):** `enviar` (congela V1 + LinkPublico token 256b + evento `orcamento.enviado`) +
+  `recusar`/`cancelar`/`expirar-vencidos` (eventos outbox; motivo hasheado; sweep idempotente). 6 auditores
+  camada A PASS. **+7 testes E2E** (72 verdes no módulo). GATEs novos: EXPIRY-JOB · TRILHA-CANCELAMENTO (BAIXO).
+- **PRÓXIMO = Onda 2c** (`aprovar_orcamento` interno: análise crítica cl.7.1 perfil-aware A/B/C/D +
+  `AnaliseCriticaOrcamento` WORM + envelope `orcamento.aprovado` por item) → 2d consumers → 2e REST público →
+  2f testes + P8/P9. Detalhe: `docs/faseamento/orcamentos/{spec,plan,tasks}.md`.
 
 ## Última frente FECHADA — `os-multi-equipamento` (2026-06-14)
 

@@ -126,6 +126,16 @@ class DjangoOrcamentoRepository:
         )
         return mappers.to_versao(obj) if obj is not None else None
 
+    def congelar_versao(
+        self, versao_id: UUID, *, tenant_id: UUID, snapshot: dict[str, object]
+    ) -> VersaoOrcamento:
+        # UPDATE one-shot: trigger 0003 permite snapshot '{}' -> conteudo (D-ORC-8).
+        m.VersaoOrcamento.objects.filter(id=versao_id, tenant_id=tenant_id).update(
+            snapshot=snapshot
+        )
+        obj = m.VersaoOrcamento.objects.get(id=versao_id, tenant_id=tenant_id)
+        return mappers.to_versao(obj)
+
     # ----- Item -----------------------------------------------------
 
     def salvar_item(self, item: ItemOrcamento) -> ItemOrcamento:
