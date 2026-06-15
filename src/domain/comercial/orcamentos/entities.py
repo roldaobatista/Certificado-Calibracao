@@ -162,7 +162,7 @@ class ItemOrcamento:
     quantidade: Decimal                    # quantidade (pode ser fracionária) — não é dinheiro
     total: Dinheiro                        # preco_final * quantidade (Dinheiro VO)
 
-    semaforo: str                          # 'verde' | 'amarelo' | 'vermelho' (precificacao)
+    semaforo: str                          # 'verde'|'amarelo'|'vermelho'|'indisponivel' (Semaforo.value)
     descricao_snapshot: str               # descrição do item congelada no momento
 
     # Bifurcação técnico × comercial (INV-ORC-EQUIP-ITEM / D-ORC-16)

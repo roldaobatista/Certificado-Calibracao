@@ -4,21 +4,17 @@
 
 **Modo:** AUTÔNOMO. **Fase:** Wave A em curso.
 
-## Frente ATIVA — `orcamentos` (P3 DONE → implementação) (2026-06-14)
+## Frente ATIVA — `orcamentos` (Fatia 2 em curso) (2026-06-14)
 
-- Dependência `os-multi-equipamento` FECHADA; envelope por item disponível. **P3 (spec v2+plan+tasks)
-  revisado por `tech-lead`+`consultor-rbc` — APROVA COM CORREÇÕES, todas incorporadas.** Detalhe no plan.
-- **Fatia 1a+1b DONE (2026-06-14):** domínio puro (45 testes) + schema PG `src/infrastructure/orcamentos/`
-  (7 models + RLS v2 + WORM + 6 migrations + repos/mappers + `ACOES_ORCAMENTOS`). **Drill PG-real 20/20**
-  (RLS UNHAPPY cross-tenant + WORM UPDATE/DELETE + constraints). Decisões: `item.versao` FK NOT NULL (sem
-  `orcamento_id` — espelha entidade); `versao` congelamento one-shot; CHECK do outbox é SINTÁTICO →
-  migration de CHECK desnecessária (não criada — REGRA #0). `get_link_por_token`/numeração SerieDocumento
-  diferidos p/ Fatia 2.
-- **Fatia 2 MAPEADA (2026-06-14):** briefing dos 12 seams + 3 decisões REGRA #0 em `tasks.md`
-  (D-FATIA2-A numeração **BURACOS_ACEITOS** — Roldão pode pedir gap-less; D-FATIA2-B série provisionada
-  **LAZY** — `serie_documento` vazia; D-FATIA2-C deps `calcular_precos` na view, use case fino).
-- **PRÓXIMO = implementar Onda 2a** (`criar_orcamento` + `adicionar_item`/`editar_item` + view) → 2b transições
-  → 2c aprovar c/ análise crítica cl.7.1 perfil-aware → 2d consumers → 2e REST público → 2f testes.
+- Fatias 1a (domínio, 45 testes) + 1b (schema PG, drill 20/20) DONE. Dep `os-multi-equipamento` FECHADA
+  (envelope por item). P3 aprovado (`tech-lead`+`consultor-rbc`). Decisões Fatia 2 em `tasks.md`:
+  D-FATIA2-A numeração BURACOS_ACEITOS (Roldão pode pedir gap-less) · B série LAZY · C deps `calcular_precos` na view.
+- **Onda 2a DONE (2026-06-14):** `criar_orcamento` + `adicionar_item`/`editar_item` + `OrcamentoViewSet`
+  (criar/itens/editar/retrieve/list). Conserto REGRA #0: campo `semaforo` 10→15 (migration 0007 — `indisponivel`
+  estourava o INSERT). 6 auditores camada A PASS (2 MÉDIO de cobertura consertados + 2ª passada). **20 testes
+  verdes** (7 puros `calculo` + 13 E2E). Totais: imposto por dentro, `liquido == total_bruto - descontos`.
+- **PRÓXIMO = Onda 2b** (`enviar_orcamento` V1+LinkPublico+`orcamento.enviado`; recusar/cancelar/expirar) →
+  2c aprovar análise crítica cl.7.1 perfil-aware → 2d consumers → 2e REST público → 2f testes + P8/P9.
   Detalhe: `docs/faseamento/orcamentos/{spec,plan,tasks}.md`.
 
 ## Última frente FECHADA — `os-multi-equipamento` (2026-06-14)

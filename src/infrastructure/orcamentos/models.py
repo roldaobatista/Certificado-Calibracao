@@ -248,7 +248,8 @@ class ItemOrcamento(models.Model):
     total_centavos = models.BigIntegerField(help_text="preco_final * quantidade (centavos).")
 
     semaforo = models.CharField(
-        max_length=10, help_text="verde | amarelo | vermelho (precificacao)."
+        max_length=15,
+        help_text="verde | amarelo | vermelho | indisponivel (precificacao Semaforo.value).",
     )
     descricao_snapshot = models.CharField(max_length=300, help_text="Descricao do item congelada.")
 
