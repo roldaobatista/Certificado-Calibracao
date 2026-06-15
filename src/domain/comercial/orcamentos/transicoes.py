@@ -51,6 +51,7 @@ def _dinheiro_str(d: Dinheiro) -> str:
     c = abs(d.centavos)
     return f"{sinal}{c // 100}.{c % 100:02d}"
 
+
 # =====================================================================
 # CONSTANTE DE RESSALVA (D-ORC-5 / consultor-rbc C4)
 # =====================================================================
@@ -73,26 +74,34 @@ Campos da ressalva: severidade='media', acao_obrigatoria='confirmacao_rt_antes_a
 
 TRANSICOES_VALIDAS: dict[EstadoOrcamento, frozenset[EstadoOrcamento]] = {
     # rascunho → pode ser enviado ou cancelado diretamente
-    EstadoOrcamento.RASCUNHO: frozenset({
-        EstadoOrcamento.ENVIADO,
-        EstadoOrcamento.CANCELADO,
-    }),
+    EstadoOrcamento.RASCUNHO: frozenset(
+        {
+            EstadoOrcamento.ENVIADO,
+            EstadoOrcamento.CANCELADO,
+        }
+    ),
     # enviado → aguarda resposta do cliente
-    EstadoOrcamento.ENVIADO: frozenset({
-        EstadoOrcamento.APROVADO,
-        EstadoOrcamento.RECUSADO,
-        EstadoOrcamento.EXPIRADO,
-    }),
+    EstadoOrcamento.ENVIADO: frozenset(
+        {
+            EstadoOrcamento.APROVADO,
+            EstadoOrcamento.RECUSADO,
+            EstadoOrcamento.EXPIRADO,
+        }
+    ),
     # aprovado → entra em estado de pendência de abertura de OS
     # (publicação do evento orcamento.aprovado — D-ORC-6)
-    EstadoOrcamento.APROVADO: frozenset({
-        EstadoOrcamento.APROVADO_PENDENTE_OS,
-    }),
+    EstadoOrcamento.APROVADO: frozenset(
+        {
+            EstadoOrcamento.APROVADO_PENDENTE_OS,
+        }
+    ),
     # aprovado_pendente_os → convertido ao confirmar abertura da OS
     # (consumer handle_os_aberta fecha a saga — D-ORC-14)
-    EstadoOrcamento.APROVADO_PENDENTE_OS: frozenset({
-        EstadoOrcamento.CONVERTIDO,
-    }),
+    EstadoOrcamento.APROVADO_PENDENTE_OS: frozenset(
+        {
+            EstadoOrcamento.CONVERTIDO,
+        }
+    ),
     # Estados terminais — nenhuma transição válida (INV-ORC-CONVERTIDO-TERMINAL)
     EstadoOrcamento.CONVERTIDO: frozenset(),
     EstadoOrcamento.RECUSADO: frozenset(),
@@ -131,11 +140,11 @@ def validar_transicao(de: EstadoOrcamento, para: EstadoOrcamento) -> None:
 # =====================================================================
 
 _MAPA_TIPO_ATIVIDADE: dict[TipoAtividadeAlvo, TipoAtividade] = {
-    TipoAtividadeAlvo.CALIBRACAO:  TipoAtividade.CALIBRACAO,
-    TipoAtividadeAlvo.MANUTENCAO:  TipoAtividade.MANUTENCAO_CORRETIVA,   # default D-ORC-16
-    TipoAtividadeAlvo.INSTALACAO:  TipoAtividade.INSTALACAO,
+    TipoAtividadeAlvo.CALIBRACAO: TipoAtividade.CALIBRACAO,
+    TipoAtividadeAlvo.MANUTENCAO: TipoAtividade.MANUTENCAO_CORRETIVA,  # default D-ORC-16
+    TipoAtividadeAlvo.INSTALACAO: TipoAtividade.INSTALACAO,
     TipoAtividadeAlvo.VERIFICACAO: TipoAtividade.VERIFICACAO_INMETRO,
-    TipoAtividadeAlvo.VISTORIA:    TipoAtividade.VISTORIA,
+    TipoAtividadeAlvo.VISTORIA: TipoAtividade.VISTORIA,
 }
 """Mapa fechado D-ORC-16: enum comercial → enum da OS.
 
@@ -256,26 +265,30 @@ def montar_envelope_orcamento_aprovado(
                 item.tipo_atividade_alvo  # type: ignore[arg-type]
                 # Garantido não-None pela validação do ItemOrcamento.__post_init__
             )
-            itens_payload.append({
-                "tipo": tipo_atividade.value,
-                "sequencia": item.sequencia,
-                "valor_unitario": valor_unitario,
-                "requer_recebimento": False,   # Wave A; GATE-OS-BANCADA controla
-                "equipamento_id": str(item.equipamento_id),
-            })
+            itens_payload.append(
+                {
+                    "tipo": tipo_atividade.value,
+                    "sequencia": item.sequencia,
+                    "valor_unitario": valor_unitario,
+                    "requer_recebimento": False,  # Wave A; GATE-OS-BANCADA controla
+                    "equipamento_id": str(item.equipamento_id),
+                }
+            )
         else:
             # Item comercial — vira ItemComercialOS (tipo=OUTRO) na OS (D-ORC-6)
             # PLACEHOLDER: "tipo" usa "vistoria" porque _parse_input espera TipoAtividade válido.
             # A ausência de equipamento_id é que determina ItemComercialOS (D-OSME-3).
             # O campo "descricao" é ADITIVO — OS ignora hoje (GATE-ORC-ITEMCOMERCIAL-DESCRICAO).
-            itens_payload.append({
-                "tipo": _PLACEHOLDER_TIPO_ITEM_COMERCIAL,
-                "sequencia": item.sequencia,
-                "valor_unitario": valor_unitario,
-                "requer_recebimento": False,
-                "equipamento_id": None,
-                "descricao": item.descricao_snapshot,  # campo aditivo Wave A
-            })
+            itens_payload.append(
+                {
+                    "tipo": _PLACEHOLDER_TIPO_ITEM_COMERCIAL,
+                    "sequencia": item.sequencia,
+                    "valor_unitario": valor_unitario,
+                    "requer_recebimento": False,
+                    "equipamento_id": None,
+                    "descricao": item.descricao_snapshot,  # campo aditivo Wave A
+                }
+            )
 
     payload: dict[str, Any] = {
         # Header
@@ -290,9 +303,7 @@ def montar_envelope_orcamento_aprovado(
         "equipamento_recebimento_id": None,
         # Análise crítica
         "analise_critica_id": str(analise_critica.id) if analise_critica else None,
-        "analise_critica_snapshot_hash": (
-            analise_critica.snapshot_hash if analise_critica else ""
-        ),
+        "analise_critica_snapshot_hash": (analise_critica.snapshot_hash if analise_critica else ""),
         "regra_decisao_acordada": regra_decisao_acordada,
         # Valor total como str decimal (Dinheiro VO — evita float no JSON)
         "valor_total": _dinheiro_str(orcamento.liquido),

@@ -62,9 +62,7 @@ class Desconto:
             )
         # Invariantes de domínio
         if not (Decimal("0") <= self.percentual <= Decimal("100")):
-            raise ValueError(
-                f"Desconto.percentual deve estar em [0, 100]: {self.percentual}"
-            )
+            raise ValueError(f"Desconto.percentual deve estar em [0, 100]: {self.percentual}")
         if self.valor_centavos < 0:
             raise ValueError(
                 f"Desconto.valor_centavos não pode ser negativo: {self.valor_centavos}"
@@ -97,16 +95,18 @@ class Desconto:
 # CONDICOES DE PAGAMENTO
 # =====================================================================
 
-_FORMAS_VALIDAS = frozenset({
-    "dinheiro",
-    "pix",
-    "cartao_credito",
-    "cartao_debito",
-    "boleto",
-    "transferencia",
-    "cheque",
-    "a_prazo",
-})
+_FORMAS_VALIDAS = frozenset(
+    {
+        "dinheiro",
+        "pix",
+        "cartao_credito",
+        "cartao_debito",
+        "boleto",
+        "transferencia",
+        "cheque",
+        "a_prazo",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,9 +144,7 @@ class CondicoesPagamento:
 
     def __post_init__(self) -> None:
         if not isinstance(self.parcelas, int) or self.parcelas < 1:
-            raise ValueError(
-                f"CondicoesPagamento.parcelas deve ser int ≥ 1: {self.parcelas!r}"
-            )
+            raise ValueError(f"CondicoesPagamento.parcelas deve ser int ≥ 1: {self.parcelas!r}")
         forma = (self.forma_pagamento or "").strip().lower()
         if forma not in _FORMAS_VALIDAS:
             raise ValueError(

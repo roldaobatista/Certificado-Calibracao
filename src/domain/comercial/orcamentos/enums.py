@@ -51,9 +51,9 @@ class TipoAtividadeAlvo(str, Enum):
     """
 
     CALIBRACAO = "calibracao"
-    MANUTENCAO = "manutencao"       # → TipoAtividade.MANUTENCAO_CORRETIVA (default D-ORC-16)
+    MANUTENCAO = "manutencao"  # → TipoAtividade.MANUTENCAO_CORRETIVA (default D-ORC-16)
     INSTALACAO = "instalacao"
-    VERIFICACAO = "verificacao"     # → TipoAtividade.VERIFICACAO_INMETRO
+    VERIFICACAO = "verificacao"  # → TipoAtividade.VERIFICACAO_INMETRO
     VISTORIA = "vistoria"
 
 
