@@ -13,9 +13,11 @@
   **`os.concluida` ENRIQUECIDO no OUTBOX** (não no WORM da OS — TL-CR-03); `Certificado.Emitido` reconciliado (não é
   unidade de cobrança); `fiscal.nfse_emitida` secundário. CRITs do P2: `clientes` tem bloqueio **PULL** existente (CR
   faz adapter, não PUSH); OS já consome `os.faturada`/`os.paga` dangling (CR publica). Gateway = **Mock** (Asaas=GATE).
-- **PRÓXIMO = P4: codar Fatia 1a** (domínio puro `src/domain/contas_receber/`, T-CR-010..016; sem Docker/PG) →
-  1b (schema/RLS/WORM) → 2 (núcleo: manual+mock+webhook) → 3 (auto-fatura OS + inadimplência + desbloqueio — toca
-  módulos fechados) → P8/P9. Família INV-FIN-* volta ao mestre na fatia dos hooks (3d).
+- **Fatia 1a DONE** (domínio puro `src/domain/contas_receber/`, T-CR-010..016): 12 arquivos + 81 testes verdes;
+  ruff+mypy limpos; revisão crítica Opus (máquina fiel, sem placebo). Achado p/ Fatia 2: desconto-pontualidade
+  pré-vencimento não foi especificado (cravar fórmula no use case). **PRÓXIMO = Fatia 1b** (schema PG/RLS/WORM +
+  `ACOES_CONTAS_RECEBER`, T-CR-020..027) → 2 (núcleo manual+mock+webhook) → 3 (auto-fatura OS + inadimplência +
+  desbloqueio — toca módulos fechados) → P8/P9. Família INV-FIN-* volta ao mestre na fatia dos hooks (3d).
 
 ## Última frente FECHADA — `orcamentos` MÓDULO 100% Wave A (2026-06-15)
 

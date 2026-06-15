@@ -17,15 +17,20 @@ relacionados:
 > Status em tempo real: `[ ]` pendente · `[x]` feito (com data/onda/testes). Numeração em dezenas por fatia,
 > com saltos para inserir tarefas intermediárias (molde orçamentos). Refs apontam para D-CR-N / INV / AC / R / TL-CR.
 
-## Fatia 1a — domínio puro (`src/domain/contas_receber/`)
+## Fatia 1a — domínio puro (`src/domain/contas_receber/`) — ✅ DONE 2026-06-15 (81 testes; ruff+mypy limpos; revisão crítica Opus)
 
-- [ ] **T-CR-010** `enums.py` — `EstadoTitulo`/`MeioCobranca`/`CategoriaReceita`/`OrigemTitulo`/`OrigemPagamento` (`str,Enum`). Ref: D-CR-3/5.
-- [ ] **T-CR-011** `entities.py` — `Titulo`/`Parcela`/`Pagamento`/`OverrideBloqueio` (`frozen+slots`). Ref: D-CR-2; spec §4.
-- [ ] **T-CR-012** `transicoes.py` — `_TRANSICOES` Mapping + `validar_transicao` + `pode_cancelar(titulo, pagamentos)`. Ref: D-CR-3.
-- [ ] **T-CR-013** `juros.py` — `calcular_valor_atualizado(titulo, pagamentos, data, regra)` sobre **saldo** (`valor_original - sum(pagamentos)`). Ref: D-CR-4; TL-CR-10/R12; INV-026.
-- [ ] **T-CR-014** `grace.py` + `categoria.py` + `conversao.py` — `grace_period_por_perfil` (45/20/30/7); `categoria_por_perfil_evento`/`categoria_permitida` (RBC só A); `valor_decimal_str_para_dinheiro` (conversor único — R9). Ref: D-CR-5/9/23.
-- [ ] **T-CR-015** `portas.py` + `mock_provider.py` + `value_objects.py` + `erros.py` — `PaymentGatewayProvider`/`TituloRepository` Protocols; `MockPaymentGatewayProvider` (4 modos, `gateway_id` determinístico); VOs de resultado; hierarquia de erros. Ref: D-CR-7; spec §4.
-- [ ] **T-CR-016** `tests/test_contas_receber_dominio_fatia1a.py` — máquina estados (happy+unhappy), juros sobre saldo (parcial), grace por perfil, conversão (bordas `"0.10"`/`"100.005"`/zero), categoria mismatch, Mock 4 modos, Protocol runtime_checkable. **Verificação 1a** (`--no-cov`).
+> **Achado da revisão (resolver na Fatia 2):** `calcular_valor_atualizado` NÃO aplica o desconto-pontualidade
+> ANTES do vencimento (AC-CR-004-2) — a fórmula do desconto não foi especificada na spec. O job só REMOVE o
+> desconto após o vencimento; a aplicação do desconto na leitura pré-vencimento fica para o use case da Fatia 2
+> (cravar a fórmula: sobre valor_original? até N dias antes? — decidir com o caso de uso de emissão/leitura).
+
+- [x] **T-CR-010** ✅ `enums.py` — `EstadoTitulo`/`MeioCobranca`/`CategoriaReceita`/`OrigemTitulo`/`OrigemPagamento` (`str,Enum`). Ref: D-CR-3/5.
+- [x] **T-CR-011** `entities.py` — `Titulo`/`Parcela`/`Pagamento`/`OverrideBloqueio` (`frozen+slots`). Ref: D-CR-2; spec §4.
+- [x] **T-CR-012** `transicoes.py` — `_TRANSICOES` Mapping + `validar_transicao` + `pode_cancelar(titulo, pagamentos)`. Ref: D-CR-3.
+- [x] **T-CR-013** `juros.py` — `calcular_valor_atualizado(titulo, pagamentos, data, regra)` sobre **saldo** (`valor_original - sum(pagamentos)`). Ref: D-CR-4; TL-CR-10/R12; INV-026.
+- [x] **T-CR-014** `grace.py` + `categoria.py` + `conversao.py` — `grace_period_por_perfil` (45/20/30/7); `categoria_por_perfil_evento`/`categoria_permitida` (RBC só A); `valor_decimal_str_para_dinheiro` (conversor único — R9). Ref: D-CR-5/9/23.
+- [x] **T-CR-015** `portas.py` + `mock_provider.py` + `value_objects.py` + `erros.py` — `PaymentGatewayProvider`/`TituloRepository` Protocols; `MockPaymentGatewayProvider` (4 modos, `gateway_id` determinístico); VOs de resultado; hierarquia de erros. Ref: D-CR-7; spec §4.
+- [x] **T-CR-016** `tests/test_contas_receber_dominio_fatia1a.py` — máquina estados (happy+unhappy), juros sobre saldo (parcial), grace por perfil, conversão (bordas `"0.10"`/`"100.005"`/zero), categoria mismatch, Mock 4 modos, Protocol runtime_checkable. **Verificação 1a** (`--no-cov`).
 
 ## Fatia 1b — schema PG (`src/infrastructure/contas_receber/`)
 
