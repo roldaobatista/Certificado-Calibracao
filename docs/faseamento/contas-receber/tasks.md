@@ -32,17 +32,17 @@ relacionados:
 - [x] **T-CR-015** `portas.py` + `mock_provider.py` + `value_objects.py` + `erros.py` — `PaymentGatewayProvider`/`TituloRepository` Protocols; `MockPaymentGatewayProvider` (4 modos, `gateway_id` determinístico); VOs de resultado; hierarquia de erros. Ref: D-CR-7; spec §4.
 - [x] **T-CR-016** `tests/test_contas_receber_dominio_fatia1a.py` — máquina estados (happy+unhappy), juros sobre saldo (parcial), grace por perfil, conversão (bordas `"0.10"`/`"100.005"`/zero), categoria mismatch, Mock 4 modos, Protocol runtime_checkable. **Verificação 1a** (`--no-cov`).
 
-## Fatia 1b — schema PG (`src/infrastructure/contas_receber/`)
+## Fatia 1b — schema PG (`src/infrastructure/contas_receber/`) — ✅ DONE 2026-06-15 (22 testes; drill 41/41 PASS; ruff+mypy limpos)
 
-- [ ] **T-CR-020** `apps.py` (`label=contas_receber`; `ready()` com `# TODO Fatia 3: registrar consumers cross-módulo` — PLAN-CR-02) + `models.py` (4 models achatados; `_choices(enum)`; `revision`; `UNIQUE(tenant_id, os_id_origem) WHERE estado != cancelado` — R6; CHECK convenio_pix — INV-FIN-GW-002). Ref: D-CR-1/17; spec §4.
-- [ ] **T-CR-021** `mappers.py` + `repositories.py` (`DjangoTituloRepository` implementa Protocol). Ref: D-CR-1.
-- [ ] **T-CR-022** migration `0001_initial` (CreateModel + constraints + índices). Ref: D-CR-17.
-- [ ] **T-CR-023** migration `0002_rls_policies` (ENABLE+FORCE+4 policies padrão v2). Ref: D-CR-17; INV-TENANT-*.
-- [ ] **T-CR-024** migration `0003_triggers_worm` (block-delete + worm_check; `Pagamento`/`OverrideBloqueio` INSERT-only; `data_baixa`/`cancelado_em` one-shot; trigger `perfil_no_evento` fallback `COALESCE` — R4). Ref: D-CR-6/17; INV-CR-PAGAMENTO-WORM.
-- [ ] **T-CR-025** migration `0004_grants_app_user` + `0005_seed_authz` (ações `contas_receber.*` × papéis). Ref: D-CR-13/17.
-- [ ] **T-CR-025b** `audit/acoes_canonicas.py` — bloco `ACOES_CONTAS_RECEBER` (8 slugs lowercase) + união `ACOES_CANONICAS` + `os.faturada`/`os.paga` em `ACOES_OS` (R2). **Sem migration de CHECK** (sintático). Ref: D-CR-14; TL-CR-02/11.
-- [ ] **T-CR-026** `management/commands/validar_contas_receber.py` — drill estrutural (RLS, policies, UNIQUE, triggers, grants). Ref: plan §3.
-- [ ] **T-CR-027** `tests/test_contas_receber_schema_fatia1b.py` — RLS+FORCE+4 policies, cross-tenant, block-delete, probatório imutável, `Pagamento` INSERT-only, UNIQUE os_id, CHECK convenio. **Verificação 1b** (`--reuse-db transaction=True`).
+- [x] **T-CR-020** ✅ `apps.py` (`label=contas_receber`; `ready()` com `# TODO Fatia 3: registrar consumers cross-módulo` — PLAN-CR-02) + `models.py` (4 models achatados; `_choices(enum)`; `revision`; `UNIQUE(tenant_id, os_id_origem) WHERE estado != cancelado` — R6; CHECK convenio_pix — INV-FIN-GW-002). Ref: D-CR-1/17; spec §4.
+- [x] **T-CR-021** ✅ `mappers.py` + `repositories.py` (`DjangoTituloRepository` implementa Protocol). Ref: D-CR-1.
+- [x] **T-CR-022** ✅ migration `0001_initial` (CreateModel + constraints + índices). Ref: D-CR-17.
+- [x] **T-CR-023** ✅ migration `0002_rls_policies` (ENABLE+FORCE+4 policies padrão v2). Ref: D-CR-17; INV-TENANT-*.
+- [x] **T-CR-024** ✅ migration `0003_triggers_worm` (block-delete + worm_check; `Pagamento`/`OverrideBloqueio` INSERT-only; `data_baixa`/`cancelado_em` one-shot; trigger `perfil_no_evento` fallback `COALESCE` — R4). Ref: D-CR-6/17; INV-CR-PAGAMENTO-WORM.
+- [x] **T-CR-025** ✅ migration `0004_grants_app_user` + `0005_seed_authz` (ações `contas_receber.*` × papéis). Ref: D-CR-13/17.
+- [x] **T-CR-025b** ✅ `audit/acoes_canonicas.py` — bloco `ACOES_CONTAS_RECEBER` (8 slugs lowercase) + união `ACOES_CANONICAS` + `os.faturada`/`os.paga` em `ACOES_OS` (R2). **Sem migration de CHECK** (sintático). Ref: D-CR-14; TL-CR-02/11.
+- [x] **T-CR-026** ✅ `management/commands/validar_contas_receber.py` — drill estrutural 41/41 PASS (RLS, policies, UNIQUE, triggers, grants). Ref: plan §3.
+- [x] **T-CR-027** ✅ `tests/test_contas_receber_schema_fatia1b.py` — 22 testes PASS: RLS+FORCE+4 policies, cross-tenant, block-delete, probatório imutável, `Pagamento` INSERT-only, UNIQUE os_id, CHECK convenio. **Verificação 1b** (`--reuse-db transaction=True`).
 
 ## Fatia 2 — use cases + REST (núcleo autossuficiente; NÃO toca módulo fechado)
 

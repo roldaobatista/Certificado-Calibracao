@@ -210,6 +210,11 @@ ACOES_OS: Final[frozenset[str]] = frozenset(
         "os.no_show_cliente",
         "os.dispensa_aceite_emitida",
         "os.aceite_coletado",
+        # T-CR-025b (TL-CR-02 / R2) — publicados por contas-receber (namespace da OS):
+        # `os.faturada` ao criar título de OS; `os.paga` ao dar baixa do título de OS.
+        # Consumers existentes em `ordens_servico/apps.py:131-132` (dangling, Fatia 3 os conecta).
+        "os.faturada",
+        "os.paga",
     }
 )
 
@@ -437,6 +442,25 @@ ACOES_ORCAMENTOS: Final[frozenset[str]] = frozenset(
 )
 
 
+# Wave A frente contas-receber (T-CR-025b / D-CR-14 / TL-CR-11) — títulos, cobranças,
+# baixas. Slug LOWERCASE (exigência CHECK bus_outbox_acao_enum_semantico — puramente
+# SINTÁTICO, não enumera valores; NÃO exige migration de CHECK nova, igual orcamentos).
+# `os.faturada`/`os.paga` vivem em ACOES_OS (namespace do agregado dono do estado — TL-CR-02).
+ACOES_CONTAS_RECEBER: Final[frozenset[str]] = frozenset(
+    {
+        # T-CR-025b — 8 slugs lowercase (D-CR-14)
+        "contas_receber.titulo_emitido",  # criar título (manual ou consumer os.concluida)
+        "contas_receber.boleto_emitido",  # emitir cobrança boleto/PIX
+        "contas_receber.pago",  # baixa confirmada (manual ou webhook)
+        "contas_receber.titulo_vencido",  # job diário transiciona emitido→vencido
+        "contas_receber.titulo_cancelado",  # cancelar título
+        "contas_receber.inadimplencia_dura_atingida",  # adapter/job — grace esgotado
+        "contas_receber.categoria_receita_bloqueada",  # CALIBRACAO_RBC sem perfil A → 403
+        "contas_receber.gateway_indisponivel",  # provider down → 503 + retry_em_segundos
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -456,6 +480,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_PRECIFICACAO
     | ACOES_COLABORADORES
     | ACOES_ORCAMENTOS
+    | ACOES_CONTAS_RECEBER
 )
 
 

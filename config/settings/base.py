@@ -293,6 +293,12 @@ LOCAL_APPS = [
     # critica cl. 7.1 perfil-aware -> publica `orcamento.aprovado` (lowercase outbox)
     # -> a OS cria 1 OS com N atividades. 7 tabelas (RLS v2 + WORM aprovacao/analise).
     "src.infrastructure.orcamentos.apps.OrcamentosConfig",
+    # Wave A frente contas-receber — nível 5 (FECHA receita ponta a ponta).
+    # Título a receber: lançamento manual + boleto/PIX Mock + webhook HMAC idempotente
+    # (Fatia 2). Auto-faturamento de OS + inadimplência + desbloqueio = Fatia 3.
+    # WORM Padrão B (titulo) + INSERT-only puro (pagamento/override). RLS v2.
+    # perfil_no_evento imutável via trigger COALESCE (R4 / INV-FIN-SNAPSHOT-PERFIL-001).
+    "src.infrastructure.contas_receber.apps.ContasReceberConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
