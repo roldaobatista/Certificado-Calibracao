@@ -27,11 +27,10 @@ relacionados:
 
 ## INV-ORC-* — Invariantes de Orçamentos (Wave A `orcamentos`)
 
-> Criadas em 2026-05-23 (Onda 9 — auditoria Wave A operacional). Zero ocorrências em `src/`/`tests/`/`.claude/hooks/` em 2026-06-12.
-
-| ID | Regra | Hook que valida | Consequência de violar |
-|---|---|---|---|
-| INV-ORC-EXP-001 | **Job de expiração de orçamento é idempotente por `orcamento_id` e respeita timezone do tenant.** Re-execução do job na mesma data não duplica evento `Orcamento.Expirado` nem altera estado se já expirado. Timezone do tenant (configurável; default `America/Sao_Paulo`) define corte D+1 da `validade_ate`. | Auditor `auditor-idempotencia` detecta job `expirar_orcamentos` sem `SELECT ... FOR UPDATE` em `orcamento_id` ou sem comparação contra timezone tenant. | Cliente vê orçamento "expirado" em data errada (timezone server vs tenant); evento duplicado fura régua de cobrança. |
+> **CRAVADA em REGRAS-INEGOCIAVEIS.md (seção `## INV-ORC-*`) em 2026-06-15 (Onda 2f — T-ORC-050).**
+> A família inteira (PRECO-001, CL71-001, CONVERTIDO-TERMINAL, APROVACAO-WORM, LINK-TOKEN,
+> APROVADO-ENVELOPE, ANALISE-WORM, EQUIP-ITEM, MARGEM-OFF) + INV-ORC-EXP-001 vive agora
+> em `REGRAS-INEGOCIAVEIS.md`. Esta entrada fica como ponteiro histórico (não duplicar).
 
 ---
 

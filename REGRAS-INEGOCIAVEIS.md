@@ -506,6 +506,42 @@
 
 ---
 
+## INV-ORC-* — Invariantes da frente orçamentos (Wave A `orcamentos`)
+
+> **Família canônica cravada 2026-06-15 (orcamentos Fatia 3/Onda 2f — T-ORC-050).**
+> Antes em `docs/faseamento/invariantes-futuras.md` (R14). Fonte: spec revisada por
+> `tech-lead` (TL-ORC-01..10) + `advogado` (ADV-ORC-01..09) + `consultor-rbc`
+> (C1..C6) — `docs/faseamento/orcamentos/spec.md` §5 + `analise-critica-matriz.md`.
+> Testes de regressão nomeados em `tests/regressao/test_inv_orc_envelope.py` /
+> `test_inv_orc_cl71.py` / `test_inv_orc_margem_off.py` (TST-004). Frente comercial
+> #5 da cadeia; consome `precificacao`/`produtos_pecas_servicos` e produz o envelope
+> `orcamento.aprovado` consumido por `ordens_servico` (ADR-0082, equipamento por item).
+
+| ID | Regra | Base normativa | Hook que valida | Escopo por perfil | Consequência de violar |
+|---|---|---|---|---|---|
+| INV-ORC-PRECO-001 | **`ItemOrcamento.preco_resolvido` (`PrecoResolvido`) é snapshot imutável carimbado na criação do item — não retroage.** Mudança posterior na tabela de preço/catálogo NÃO altera item já gravado (herda INV-026 da cadeia de preço). `ItemOrcamento` é dataclass frozen; o carimbo é probatório. | D-ORC-1; INV-026; ADR-0078 | `ItemOrcamento` frozen + `PrecoResolvido` autossuficiente + `TestINV_ORC_PRECO_001` (preço do item não muda quando catálogo muda) | Absoluta (todos perfis) | Preço do orçamento aprovado diverge do que o cliente aceitou; reescrita ex-post de valor probatório |
+| INV-ORC-CL71-001 | **Perfil A/B/C com item de calibração obriga análise crítica cl. 7.1 ANTES de aprovar; perfil A é fail-closed (item fora do CMC/sem procedimento OU acreditação suspensa → reprovada 422, não transiciona).** Perfil/suspensão resolvidos server-side, NUNCA do payload (AJUSTE-3). Perfil indeterminado (`""`) → `PerfilIndeterminado` (fail-closed). Perfil D → desabilitada. | D-ORC-5; ISO/IEC 17025 cl. 7.1.1; ADR-0067; NIT-DICLA-021 | Domínio puro `decidir_analise_critica` + hook `orc-analise-perfil-check` (manifest pré-commit) + UNHAPPY por perfil em `tests/regressao/test_inv_orc_cl71.py` | A fail-closed; B/C ressalva; D off | Orçamento de calibração aprovado fora do escopo acreditado → certificado RBC indevido → NC CGCRE / suspensão da acreditação |
+| INV-ORC-CONVERTIDO-TERMINAL | **Estados terminais (`convertido`/`recusado`/`expirado`/`cancelado`) não transicionam.** Dupla barreira: `TRANSICOES_VALIDAS` (frozenset vazio) no domínio + trigger PG `orcamento_estado_terminal_trg`; tentativa de transição → 409 `TransicaoProibida`. | D-ORC-3; ADR-0031 Padrão A | `validar_transicao` (`transicoes.py`) + trigger `orcamento_estado_terminal_trg` (migration 0004) + `TestINV_ORC_CONVERTIDO_TERMINAL` | Absoluta (todos perfis) | Orçamento já convertido em OS reaberto/reeditado → 2 OS para o mesmo orçamento; saga inconsistente |
+| INV-ORC-APROVACAO-WORM | **`Aprovacao` é INSERT-only (WORM Padrão B):** aceite rico LGPD (`lgpd_aceite_versao_termo` + `lgpd_aceite_texto_hash`) + `ip_hash` + `user_agent`; UPDATE/DELETE bloqueados por trigger PG. PII do aprovador via HMAC-tenant (D-ORC-17). | INV-001; D-ORC-7; ADV-ORC-04; ADR-0031 Padrão B | Trigger `aprovacao_anti_mutation_trg` (migration 0003) + `TestINV_ORC_APROVACAO_WORM` | Absoluta (todos perfis) | Prova de consentimento adulterada ex-post; aceite contratual sem rastro probatório íntegro |
+| INV-ORC-LINK-TOKEN | **No máximo 1 link público ativo por orçamento; token opaco ≥128 bits, one-shot (revogado ao aprovar).** Partial unique `WHERE revogado_em IS NULL` no banco; token = `secrets.token_urlsafe(32)`. Token inválido/expirado/revogado → 404 indistinguível (anti-enumeração). | D-ORC-7; D-ORC-19; ADV-ORC-08a | Partial unique `uq_orcamento_link_ativo` (migration 0004) + `secrets.token_urlsafe` na infra + `TestINV_ORC_LINK_TOKEN` | Absoluta (todos perfis) | Link reaprovável (double-spend de aprovação); token previsível/enumerável → aprovação forjada por terceiro |
+| INV-ORC-APROVADO-ENVELOPE | **O evento `orcamento.aprovado` carrega o envelope EXATO esperado pela OS (equipamento POR ITEM — ADR-0082):** item técnico (`equipamento_id` preenchido) → `AtividadeDaOS`; item comercial (`equipamento_id=None`) → `ItemComercialOS`. Produtor (`montar_envelope_orcamento_aprovado`) e consumidor (`handle_orcamento_aprovado._parse_input`) batem por contrato testado. | D-ORC-6; ADR-0082 | Função pura `montar_envelope_orcamento_aprovado` (`transicoes.py`) + hook `orc-envelope-contrato-check` (manifest pré-commit) + teste de contrato `tests/regressao/test_inv_orc_envelope.py` | Absoluta (todos perfis) | Produtor muda o envelope, consumidor da OS quebra silenciosamente em produção (dead-letter ou OS malformada) |
+| INV-ORC-ANALISE-WORM | **`AnaliseCriticaOrcamento` é INSERT-only (WORM Padrão B); o `snapshot_hash` (ADR-0029) carimbado no envelope `orcamento.aprovado` é idêntico ao hash da análise persistida.** Registro probatório por item (cl. 7.1.1-a). | D-ORC-15; ADR-0029; ISO/IEC 17025 cl. 7.1.1 | Trigger `analise_critica_orcamento_anti_mutation_trg` (migration 0003) + `calcular_snapshot_hash_analise` (domínio) + `TestINV_ORC_ANALISE_WORM` | Absoluta (todos perfis) | Veredito da análise crítica reescrito ex-post; hash do envelope não confere → cadeia probatória cl. 7.1 inválida em auditoria |
+| INV-ORC-EQUIP-ITEM | **Item de calibração tem `equipamento_id` + `tipo_atividade_alvo` (vira atividade na OS); item comercial NÃO tem nenhum dos dois (vira `ItemComercialOS`).** Dupla barreira: `ItemOrcamento.__post_init__` no domínio + CHECK `ck_item_orc_bifurcacao` no banco. | D-ORC-16; ADR-0082 | CHECK `ck_item_orc_bifurcacao` (migration 0004) + `ItemOrcamento.__post_init__` + `TestINV_ORC_EQUIP_ITEM` (as duas pontas) | Absoluta (todos perfis) | Item técnico sem equipamento não vira atividade (calibração some da OS); item comercial com equipamento cria atividade fantasma |
+| INV-ORC-MARGEM-OFF | **O snapshot do `ItemOrcamento` NUNCA persiste margem/custo/comissão; o serializer público devolve só allowlist (`descricao`/`quantidade`/`preco_unitario`/`total`).** Margem/custo vivem só em `precificacao` (visível com `orcamento.ver_margem`). Serializer público isolado em `serializers_publico.py`. | TL-ORC-06; ADV-ORC-09; D-ORC-10; LGPD/CDC (segredo comercial) | Hook `orc-margem-off-check` (manifest pré-commit) + allowlist `_ITEM_CAMPOS_PUBLICOS` (`serializers_publico.py`) + teste anti-vazamento `tests/regressao/test_inv_orc_margem_off.py` | Absoluta (todos perfis) | Margem/custo/comissão vazam ao cliente final no link público → segredo comercial exposto; CDC + LGPD art. 6º violados |
+| INV-ORC-EXP-001 | **Job de expiração de orçamento é idempotente por `orcamento_id` e respeita o timezone do tenant.** Re-execução na mesma data não duplica `orcamento.expirado` nem altera estado já expirado. Timezone do tenant (default `America/Sao_Paulo`) define o corte D+1 da `validade_ate`. *(Job `expirar_orcamentos` = GATE-ORC-EXPIRY-JOB: hoje sweep manual; procrastinate por tenant difere — a invariante vale para a implementação.)* | ADR-0030 (timezone); INV-ORC-EXP-001 | Auditor `auditor-idempotencia` exige `SELECT ... FOR UPDATE` em `orcamento_id` + comparação contra timezone tenant; `TestINV_ORC_EXP_001` quando o job existir | Absoluta (todos perfis) | Cliente vê orçamento "expirado" em data errada (timezone server vs tenant); evento duplicado fura régua de cobrança |
+
+> **Reusadas:** INV-TENANT-001..003 (RLS v2 nas tabelas de orçamentos), INV-VIG-001..004
+> (VO `JanelaVigencia` em `validade`), INV-ANON-001..004 (`cliente` via
+> `ReferenciaPIIAnonimizavel` — D-ORC-4), INV-BUS-001 (consumers `os.aberta` /
+> `cliente_anonimizado` replay-safe), IDEMP-001/001a (Idempotency-Key nos POST
+> criar/enviar/aprovar/recusar/cancelar). Hooks novos (T-ORC-051):
+> `orc-envelope-contrato-check`, `orc-margem-off-check`, `orc-analise-perfil-check`.
+> GATEs rastreados: GATE-ORC-RATELIMIT-PUBLICO, GATE-LGPD-RETENCAO-APROVACAO,
+> GATE-ORC-PUB-PERF, GATE-ORC-PUB-FORENSE, GATE-ORC-EXPIRY-JOB,
+> GATE-ORC-ITEMCOMERCIAL-DESCRICAO, GATE-ORC-CMC-PREENCHIDO, GATE-ORC-KMS-APROVADOR.
+
+---
+
 ## INV-DOM-* — Invariantes de modelo de domínio transversal (ADRs 0030/0031/0032)
 
 > Promovidos em 2026-05-23 — Onda 2 saneamento pós-auditoria projeto-inteiro 10 lentes. Fixam convenções cross-fase pra Marco 3 OS, Marco 4 calibração, certificados e demais Wave A nascerem com mesmo molde.
@@ -745,7 +781,7 @@ Família INV-FIS-OCSP-CHAIN-001 (módulo futuro `fiscal` — OCSP chain NF) → 
 
 ---
 
-Família INV-ORC-* (módulo futuro `orcamentos`) → movida para docs/faseamento/invariantes-futuras.md (R14, 2026-06-12)
+Família INV-ORC-* (módulo `orcamentos`) → CRAVADA na seção `## INV-ORC-*` acima (Onda 2f, T-ORC-050, 2026-06-15)
 Família INV-CHM-* (módulo futuro `chamados`) → movida para docs/faseamento/invariantes-futuras.md (R14, 2026-06-12)
 Família INV-AG-* (módulo futuro `agenda`) → movida para docs/faseamento/invariantes-futuras.md (R14, 2026-06-12)
 Família INV-APP-* (módulo futuro `app-tecnico`) → movida para docs/faseamento/invariantes-futuras.md (R14, 2026-06-12)

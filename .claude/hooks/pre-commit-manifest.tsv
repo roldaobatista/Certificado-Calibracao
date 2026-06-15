@@ -70,4 +70,7 @@ prc-evento-pii-hash-check.sh	/precificacao/.*\.py$
 col-pii-mascara-check.sh	/colaboradores/serializers\.py$|/colaboradores/.*serializer.*\.py$
 col-evento-pii-hash-check.sh	/colaboradores/.*\.py$
 col-hard-delete-check.sh	/colaboradores/(views|repositories).*\.py$
+orc-margem-off-check.sh	/orcamentos/serializers_publico\.py$|/domain/comercial/orcamentos/entities\.py$
+orc-envelope-contrato-check.sh	/domain/comercial/orcamentos/transicoes\.py$
+orc-analise-perfil-check.sh	/domain/comercial/orcamentos/analise_critica\.py$
 INV-checker.sh	REGRAS-INEGOCIAVEIS\.md$
