@@ -3,7 +3,7 @@ owner: agente-ia
 revisado-em: 2026-06-15
 proximo-review: 2026-09-15
 status: stable
-proximo-passo: Fatia 2 (Ondas 2a-2f) + P8/P9 FECHADAS; pendente T-ORC-039 (Templates)
+proximo-passo: MÓDULO 100% Wave A FECHADO (Fatia 2 Ondas 2a-2f + P8/P9 + T-ORC-039 Templates). US Wave B: 003/006/010
 diataxis: reference
 audiencia: [agente, auditor]
 frente: orcamentos
@@ -147,7 +147,7 @@ relacionados:
       APROVACAO** (linha `orcamento_aprovacao` na matriz de retenção — congelado até GATE-LGPD-RAT-CONSOLIDACAO) ·
       **GATE-ORC-PUB-PERF** (versao/itens lidos 2× no POST) · **GATE-ORC-PUB-FORENSE** (correlation_id na Aprovacao
       WORM) · GATE-ORC-CONVERTIDO-OSID. Ref: D-ORC-7/19; TL-ORC-07; ADV-ORC-04/08a/09; INV-ORC-APROVACAO-WORM.
-- [ ] **T-ORC-039** REST `TemplateViewSet` — CRUD + gate selo RBC por perfil (hook). Ref: D-ORC-13; AC-ORC-005.
+- [x] **T-ORC-039** ✅ DONE 2026-06-15 (fecha módulo 100%; 15 testes verdes; hook `orc-template-selo-rbc-check` + INV-ORC-SELO-RBC; auditores seg/qual/llm/idemp PASS, produto MÉDIO CHANGELOG consertado) REST `TemplateViewSet` — CRUD + gate selo RBC por perfil (hook). Ref: D-ORC-13; AC-ORC-005.
 - [ ] **T-ORC-040** Testes (`tests/test_orcamentos_fatia2.py` + `tests/test_orcamentos_api.py`): fluxo criar→
       enviar→aprovar→envelope; público 1-clique; anti-vazamento allowlist; idempotência replay; `assertNumQueries`
       (TL-ORC-09). Ref: AC-ORC-001..009.

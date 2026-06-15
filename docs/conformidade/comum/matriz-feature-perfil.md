@@ -1,8 +1,8 @@
 ---
 owner: roldao
 status: stable
-revisado-em: 2026-05-27
-proximo_review: 2026-08-27
+revisado-em: 2026-06-15
+proximo_review: 2026-09-15
 diataxis: reference
 audiencia: agente
 tipo: matriz-feature-perfil
@@ -51,6 +51,7 @@ relacionados:
 | **Monte Carlo BIPM JCGM 101** (2º caminho de cálculo) | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ⚪ OPCIONAL | ❌ DESABILITADO |
 | **Snapshot RT competência por grandeza** (ADR-0022 + ADR-0063) | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ⚪ OPCIONAL |
 | **Template certificado com selo CGCRE + RBC** (Sprint 5 Wave A) | ✅ OBRIGATÓRIO | ❌ DESABILITADO (hook bloqueia) | ❌ DESABILITADO | ❌ DESABILITADO |
+| **Template de orçamento com `selo_rbc`** (orcamentos — US-ORC-005 / T-ORC-039 / D-ORC-13 / INV-ORC-SELO-RBC) | ✅ PERMITIDO (perfil A) | ❌ PROIBIDO (422 `SeloRbcNaoPermitido`; gate server-side + hook `orc-template-selo-rbc-check`) | ❌ PROIBIDO | ❌ PROIBIDO |
 | **Documento "Certificado de Calibração ISO 17025"** | ✅ OBRIGATÓRIO | 🟢 OPCIONAL_RECOMENDADO (com bloco "rastreabilidade declarada") | 🟢 OPCIONAL_RECOMENDADO | ❌ DESABILITADO (renomeado "Relatório de Aferição") |
 | **Subcontratação cl. 6.6 (US-CAL-017)** | ✅ OBRIGATÓRIO (predicate + avaliação periódica) | ⚪ OPCIONAL | ⚪ OPCIONAL | ⚪ OPCIONAL |
 | **Reclamação cliente CDC art. 26 (US-CAL-018)** | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO |
@@ -115,4 +116,5 @@ relacionados:
 - **2026-05-31 (M7 procedimentos P8 — T-PROC-070)** — +2 features-núcleo (procedimento documentado vigente A obrigatório / B-C-D recomendado — 412 `ProcedimentoVigenteAusente`; validação de método cl. 7.2.2 fail-open lazy A) + 1 camada de retenção (procedimento sustenta cert 25a WORM Padrão B). ADR-0073 / INV-PROC-001..010.
 - **2026-06-08 (fiscal/NFS-e Fatia 3 — T-FIS-043)** — +2 features-núcleo (documento metrológico por perfil na emissão de NFS-e — A cert RBC/NAO_RBC, B/C cert simples, D declaração, AC-FIS-001-8 cert RBC em B/C → 403; qualificador acreditado na descrição PROIBIDO em B/C/D, "calibração" simples permitida D-FIS-7) + 1 camada de retenção (NFS-e+XML zona B 5a/prudencial 10a). ADR-0008 emenda / ADR-0073/0075 / INV-FIS-001/007/008/009.
 - **2026-06-13 (colaboradores P8 — T-COL-060)** — +1 feature-núcleo (papel SIGNATARIO por perfil A/B/C/D: A obrigatório hard / B-C configurável/opcional-recomendado / D desabilitado). AC-COL-03 / INV-COL-SIGNATARIO-IDENTIDADE / INV-COL-SIGNATARIO-ESCOPO / D-COL-11. Achado A8 reviews-consolidado.
+- **2026-06-15 (orcamentos T-ORC-039)** — +1 feature-núcleo (template de orçamento com `selo_rbc`: A permitido / B-C-D proibido 422 `SeloRbcNaoPermitido`; gate server-side + hook `orc-template-selo-rbc-check`). US-ORC-005 / D-ORC-13 / INV-ORC-SELO-RBC.
 - Próximas revisões cobrirão features Wave A à medida que módulos `certificados`, `licencas-acreditacoes`, `onboarding`, `direitos-titular` forem entregues.

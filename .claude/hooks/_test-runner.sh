@@ -1291,6 +1291,15 @@ run_case "OAP4 completo PASS"                                PASS  orc-analise-p
 run_case "OAP5 sem funcao decidir PASS"                      PASS  orc-analise-perfil-check.sh '{"tool_input":{"file_path":"src/domain/comercial/orcamentos/analise_critica.py","content":"NORMA_REFERENCIA_CL71 = \"ISO/IEC 17025:2017 cl. 7.1.1\""}}'
 run_case "OAP6 override com razao PASS"                      PASS  orc-analise-perfil-check.sh '{"tool_input":{"file_path":"src/domain/comercial/orcamentos/analise_critica.py","content":"# orc-analise-perfil: skip -- refactor extrai matriz para modulo dedicado, fail-closed preservado la\ndef decidir_analise_critica(perfil):\n    return aprovada"}}'
 
+echo "===== orc-template-selo-rbc (orcamentos T-ORC-039 / INV-ORC-SELO-RBC / D-ORC-13) ====="
+run_case "OTSR1 sem raise SeloRbcNaoPermitido BLOCK"         BLOCK orc-template-selo-rbc-check.sh '{"tool_input":{"file_path":"src/application/comercial/orcamentos/templates.py","content":"def validar_selo_rbc_permitido(perfil, selo_rbc):\n    return ok"}}'
+run_case "OTSR2 sem raise PerfilIndeterminado BLOCK"         BLOCK orc-template-selo-rbc-check.sh '{"tool_input":{"file_path":"src/application/comercial/orcamentos/templates.py","content":"def validar_selo_rbc_permitido(perfil, selo_rbc):\n    if perfil != \"A\": raise SeloRbcNaoPermitido(x)"}}'
+run_case "OTSR3 sem comparacao com A BLOCK"                  BLOCK orc-template-selo-rbc-check.sh '{"tool_input":{"file_path":"src/application/comercial/orcamentos/templates.py","content":"def validar_selo_rbc_permitido(perfil, selo_rbc):\n    raise PerfilIndeterminado(perfil)\n    raise SeloRbcNaoPermitido(x)"}}'
+run_case "OTSR4 completo PASS"                               PASS  orc-template-selo-rbc-check.sh '{"tool_input":{"file_path":"src/application/comercial/orcamentos/templates.py","content":"def validar_selo_rbc_permitido(perfil, selo_rbc):\n    if not selo_rbc: return\n    if perfil not in valid: raise PerfilIndeterminado(perfil)\n    if perfil != \"A\": raise SeloRbcNaoPermitido(x)"}}'
+run_case "OTSR5 sem funcao gate PASS"                        PASS  orc-template-selo-rbc-check.sh '{"tool_input":{"file_path":"src/application/comercial/orcamentos/templates.py","content":"def criar_template(inp, repo):\n    return repo.salvar(t)"}}'
+run_case "OTSR6 outro arquivo PASS"                          PASS  orc-template-selo-rbc-check.sh '{"tool_input":{"file_path":"src/application/comercial/orcamentos/aprovacao.py","content":"def validar_selo_rbc_permitido(): return ok"}}'
+run_case "OTSR7 override com razao PASS"                     PASS  orc-template-selo-rbc-check.sh '{"tool_input":{"file_path":"src/application/comercial/orcamentos/templates.py","content":"# orc-template-selo-rbc: skip -- gate movido para policy ABAC dedicada perfil-aware\ndef validar_selo_rbc_permitido(perfil, selo_rbc):\n    return ok"}}'
+
 # --- Gate anti-drift de contagens (auditoria maquina-dev 2026-05-29) ---
 # So no modo completo (sem filtro). Garante que os numeros a mao nos docs
 # canonicos (README/AGENTS/CLAUDE) batem com a fonte direta. Mata os

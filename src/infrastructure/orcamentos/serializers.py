@@ -322,3 +322,38 @@ def serializar_orcamento(
     if itens is not None:
         corpo["itens"] = [serializar_item(i) for i in itens]
     return corpo
+
+
+# ---------------------------------------------------------------------------
+# Template (T-ORC-039 / US-ORC-005 / D-ORC-13)
+# ---------------------------------------------------------------------------
+
+
+class TemplateSerializer(serializers.Serializer):
+    """Entrada de criar/editar template (gate `selo_rbc` aplicado server-side — D-ORC-13).
+
+    `selo_rbc` é aceito no payload, mas a permissão é decidida server-side pelo perfil
+    do tenant (NUNCA confia no payload pra perfil — só pra intenção do usuário).
+    """
+
+    nome = serializers.CharField(max_length=200, min_length=2)
+    tipo = serializers.CharField(max_length=60, min_length=2)
+    selo_rbc = serializers.BooleanField(default=False)
+    itens_default = serializers.ListField(
+        child=serializers.DictField(), required=False, default=list
+    )
+    condicoes_default = serializers.DictField(required=False, default=dict)
+
+
+def serializar_template(template: Any) -> dict[str, Any]:
+    """Saída de um Template (sem PII; campos de configuração)."""
+    return {
+        "id": str(template.id),
+        "nome": template.nome,
+        "tipo": template.tipo,
+        "selo_rbc": template.selo_rbc,
+        "itens_default": template.itens_default,
+        "condicoes_default": template.condicoes_default,
+        "criado_em": template.criado_em.isoformat(),
+        "deletado_em": template.deletado_em.isoformat() if template.deletado_em else None,
+    }

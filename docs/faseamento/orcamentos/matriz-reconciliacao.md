@@ -22,10 +22,10 @@ relacionados:
 > §2 INV↔teste, §8 ata do P9. Path aninhado comercial `src/{domain,application}/comercial/
 > orcamentos/` + `src/infrastructure/orcamentos/` (D-ORC-2). Frente comercial #5 da cadeia.
 >
-> **Escopo do fechamento:** Fatia 2 (Ondas 2a–2f) — núcleo de orçamentos (criar/itens/
-> enviar/aprovar/recusar/cancelar/expirar + análise crítica cl. 7.1 + link público 1-clique
-> + conversão em OS). **NÃO fecha o módulo inteiro:** `US-ORC-005` (Templates / `TemplateViewSet`
-> — T-ORC-039) fica como pendência aberta rastreada; `US-ORC-003/006/010` são Wave B.
+> **Escopo do fechamento:** **módulo `orcamentos` 100% Wave A** — Fatia 2 (Ondas 2a–2f, núcleo:
+> criar/itens/enviar/aprovar/recusar/cancelar/expirar + análise crítica cl. 7.1 + link público
+> 1-clique + conversão em OS) + P8/P9 + **T-ORC-039 (Templates + gate selo RBC, 2026-06-15)**.
+> `US-ORC-003/006/010` são Wave B (versionar v2 / tracking leitura / cobrança gateway).
 
 ---
 
@@ -42,7 +42,7 @@ relacionados:
 | Snapshot de preço (D-ORC-1 / ADR-0083) | item carimba `PrecoResolvido`, não VO `Preco` novo | **INV-ORC-PRECO-001**, INV-026 | `src/domain/comercial/orcamentos/entities.py` (`ItemOrcamento.preco_resolvido` frozen) · `src/domain/produtos_pecas_servicos/entities.py` (`PrecoResolvido`) | ✅ (ADR-0083 + emenda PRD P8) |
 | Anonimização de cliente (LGPD) | propaga por estado (rascunho cancela / enviado expira / aprovado+ preserva) | **INV-ANON-001..004** | `src/infrastructure/orcamentos/consumers/cliente_anonimizado.py` · `src/application/comercial/orcamentos/ciclo_vida.py` (`anonimizar_cliente_em_orcamentos`) | ✅ (consumer dormente até `clientes` publicar = GATE-ANON-EVENTO-RECONCILIAR) |
 | Expiração de orçamento | sweep idempotente por `orcamento_id` | **INV-ORC-EXP-001** | `src/infrastructure/orcamentos/views.py` (`expirar_vencidos`) | ✅ parcial (corte por timezone-tenant = GATE-ORC-EXPIRY-JOB, job procrastinate diferido) |
-| US-ORC-005 Templates | AC-005-1/2 (CRUD + gate selo RBC) | — | `src/domain/comercial/orcamentos/entities.py` (`Template`) · `models.py` (`Template`) — **REST `TemplateViewSet` NÃO entregue** | 🔲 PENDENTE (T-ORC-039) |
+| US-ORC-005 Templates (T-ORC-039) | AC-005-1 (CRUD reutilizável) + AC-005-2 (gate selo RBC perfil A) | **INV-ORC-SELO-RBC** | `src/infrastructure/orcamentos/views_template.py` (`TemplateViewSet` CRUD+soft-delete) · `src/application/comercial/orcamentos/templates.py` (`validar_selo_rbc_permitido`, criar/editar/remover) · `serializers.py` (`TemplateSerializer`) · `repositories.py` (`DjangoTemplateRepository`) · hook `orc-template-selo-rbc-check` | ✅ |
 | US-ORC-003/006/010 | versionar v2 / tracking leitura / cobrança gateway | — | — | ⏭️ Wave B (fora de escopo) |
 
 ---
@@ -60,6 +60,7 @@ relacionados:
 | INV-ORC-ANALISE-WORM | trigger `analise_critica_orcamento_anti_mutation_trg` + `snapshot_hash` ADR-0029 carimbado | `tests/test_orcamentos_schema.py` (UPDATE/DELETE → raise) + identidade hash em `test_inv_orc_cl71.py`/`test_orcamentos_analise_critica.py` |
 | INV-ORC-EQUIP-ITEM | CHECK `ck_item_orc_bifurcacao` (migration 0004) + `ItemOrcamento.__post_init__` | `tests/test_orcamentos_schema.py` (drill CHECK as duas pontas) + `tests/test_orcamentos_dominio.py` |
 | INV-ORC-MARGEM-OFF | allowlist `_ITEM_CAMPOS_PUBLICOS` + hook `orc-margem-off-check` | `tests/regressao/test_inv_orc_margem_off.py` (snapshot sem margem + allowlist) + `tests/test_orcamentos_publico.py` (E2E) |
+| INV-ORC-SELO-RBC | use case `validar_selo_rbc_permitido` (perfil server-side) + hook `orc-template-selo-rbc-check` | `tests/test_orcamentos_templates.py` (gate puro A/B/C/D/indeterminado + E2E 422 perfil B + edição liga selo → 422) |
 | INV-ORC-EXP-001 | sweep filtra só `ENVIADO`→`EXPIRADO` (idempotente por estado) | `tests/test_orcamentos_fatia2.py` (`test_expirar_vencidos_idempotente`); timezone-tenant = GATE-ORC-EXPIRY-JOB |
 | INV-TENANT-001..003 (transversal) | RLS v2 FORCE nas tabelas (migration 0002) + roles NOBYPASSRLS (0005) | `tests/test_orcamentos_schema.py` (RLS UNHAPPY cross-tenant) |
 | INV-BUS-001 / IDEMP (transversal) | `@consumer_idempotente` (os_aberta/cliente_anonimizado/orcamento_aprovado) + Idempotency-Key nos POST | `tests/test_orcamentos_fatia2.py` (replay consumers + idempotência aprovar) |
@@ -87,7 +88,12 @@ após conserto + 2ª passada escopada — INV-RITUAL-001 satisfeito.**
 - `scripts/checa-tst-mecanico.sh`: regex de famílias cego a IDs INV multi-segmento/sufixo-textual (INV-ORC-*) — não pegou o MÉDIO automaticamente; registrar p/ dono do script.
 - GATEs rastreados: GATE-ORC-RATELIMIT-PUBLICO · GATE-LGPD-RETENCAO-APROVACAO · GATE-ORC-PUB-PERF · GATE-ORC-PUB-FORENSE · GATE-ORC-EXPIRY-JOB · GATE-ORC-PADRAO · GATE-ORC-ITEMCOMERCIAL-DESCRICAO · GATE-ORC-CMC-PREENCHIDO · GATE-ORC-KMS-APROVADOR · GATE-OBS-ORC-METRICA-APROVACAO · GATE-ORC-PERF-APROVAR · GATE-ORC-TERMINOLOGIA-BCD · GATE-ORC-SAGA-DLQ.
 
-**Pendência aberta (não-goal de fatia):** US-ORC-005 Templates (`TemplateViewSet` + gate selo RBC) = T-ORC-039.
+**T-ORC-039 (Templates — fecha o módulo 100%, 2026-06-15):** REST `TemplateViewSet` (CRUD +
+soft-delete Padrão C) + gate selo RBC perfil A (`validar_selo_rbc_permitido` server-side) + hook
+`orc-template-selo-rbc-check` + INV-ORC-SELO-RBC cravada. 15 testes verdes. Auditores: segurança ·
+qualidade · llm-correctness · idempotência PASS; **produto 1 MÉDIO** (faltava entrada no CHANGELOG.md
+— marco de fechamento) **consertado** (CHANGELOG + linha na matriz-feature-perfil canônica) → 2ª passada
+produto PASS. Com isso o módulo `orcamentos` está **100% Wave A** (US-ORC-003/006/010 = Wave B).
 
 **Lição registrada:** o gate mecânico TST-004 (`checa-tst-mecanico.sh`) estava CEGO à
 família INV-ORC (regex não casa ID nomeado multi-segmento). Foi a auditoria humana-

@@ -93,6 +93,17 @@ class OrcamentoSemItens(ErroOrcamento):
     http_status = 422
 
 
+class SeloRbcNaoPermitido(ErroOrcamento):
+    """Template com ``selo_rbc=True`` só pode existir em tenant perfil A (D-ORC-13).
+
+    Perfil B/C/D não pode ostentar referência à acreditação RBC/ILAC-MRA
+    (matriz feature×perfil ADR-0067). Gate server-side (perfil nunca do payload).
+    """
+
+    codigo = "selo_rbc_nao_permitido"
+    http_status = 422
+
+
 # =====================================================================
 # 409 — Conflict (estado atual impede a transição)
 # =====================================================================
