@@ -62,6 +62,19 @@ def _cenario(*, sfx: str | None = None) -> dict:
     return {"tenant": tenant, "admin": admin, "atendente": atendente}
 
 
+def _cenario_perfil(perfil: str, *, sfx: str | None = None) -> dict:
+    """Cenário com perfil regulatório explícito (A/B/C/D) — análise crítica 2c-2."""
+    from src.infrastructure.authz.django_provider import invalidate_user_cache
+
+    sfx = sfx or uuid4().hex[:8]
+    trait = {"A": "perfil_a", "B": "perfil_b", "C": "perfil_c", "D": "perfil_d"}[perfil]
+    tenant = TenantFactory(slug=f"orc-e2e-{sfx}", **{trait: True})
+    admin = UsuarioFactory(email=f"adm-orc-{sfx}@e2e.local")
+    UsuarioPerfilTenantFactory(usuario=admin, tenant=tenant, perfil="admin_tenant")
+    invalidate_user_cache(admin.id, tenant.id)
+    return {"tenant": tenant, "admin": admin}
+
+
 def _client(c: dict, papel: str = "admin") -> APIClient:
     client = APIClient()
     _autenticar(client, c[papel], c["tenant"])
@@ -805,3 +818,132 @@ def test_item_comercial_com_mensurando_422() -> None:
     )
     assert r.status_code == 422, r.content
     assert "mensurando" in str(r.json())
+
+
+# ===========================================================================
+# Onda 2c-2 — aprovacao interna + analise critica cl. 7.1 (T-ORC-033)
+# ===========================================================================
+
+
+def _criar_enviar_com_calib(perfil: str) -> tuple[dict, APIClient, dict]:
+    """Cria orcamento com 1 item de calibracao e envia. Retorna (cenario, client, orc)."""
+    c = _cenario_perfil(perfil)
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    item = _setup_catalogo(client, preco="150.00")
+    orc = _criar_orcamento(client, cliente.id).json()
+    add = _adicionar_item_calib(client, orc["id"], item["id"])
+    assert add.status_code == 201, add.content
+    orc["_equipamento_id"] = add.json()["item"]["equipamento_id"]
+    env = _post(client, f"/api/v1/orcamentos/{orc['id']}/enviar/", {})
+    assert env.status_code == 200, env.content
+    return c, client, orc
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_aprovar_perfil_d_desabilitada_publica_envelope() -> None:
+    """Perfil D: analise desabilitada -> aprova -> envelope orcamento.aprovado (D-ORC-6)."""
+    c, client, orc = _criar_enviar_com_calib("D")
+
+    r = _post(client, f"/api/v1/orcamentos/{orc['id']}/aprovar/", {})
+    assert r.status_code == 200, r.content
+    body = r.json()
+    assert body["orcamento"]["estado"] == "aprovado_pendente_os"
+    assert body["analise_critica"]["veredito"] == "desabilitada"
+    assert body["analise_critica"]["itens_avaliados"] == []
+    assert body["analise_critica"]["snapshot_hash"].startswith("v01$")
+
+    from src.infrastructure.audit.models import BusOutbox
+    from src.infrastructure.orcamentos.models import AnaliseCriticaOrcamento as AModel
+
+    with run_in_tenant_context(c["tenant"].id):
+        assert AModel.objects.filter(orcamento_id=orc["id"]).count() == 1
+        aprovado = BusOutbox.objects.filter(
+            tenant_id=c["tenant"].id,
+            acao="orcamento.aprovado",
+            causation_id=UUID(orc["id"]),
+        )
+        assert aprovado.count() == 1
+        # publicar_evento envolve o payload em envelope_jsonb={..., "payload": {...}}.
+        payload = aprovado.first().envelope_jsonb["payload"]
+        # Equipamento POR ITEM no envelope (item de calibracao vira atividade).
+        assert payload["itens"][0]["equipamento_id"] == orc["_equipamento_id"]
+        assert payload["analise_critica_id"] is not None
+        assert payload["analise_critica_snapshot_hash"].startswith("v01$")
+        # Sem evento de reprovada quando desabilitada.
+        assert not BusOutbox.objects.filter(
+            acao="orcamento.analise_critica_reprovada", causation_id=UUID(orc["id"])
+        ).exists()
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_aprovar_perfil_a_sem_cmc_reprova_422_grava_worm() -> None:
+    """Perfil A fail-closed: item sem CMC/procedimento -> 422 + WORM + evento (INV-ORC-CL71)."""
+    c, client, orc = _criar_enviar_com_calib("A")
+
+    r = _post(client, f"/api/v1/orcamentos/{orc['id']}/aprovar/", {})
+    assert r.status_code == 422, r.content
+    body = r.json()
+    assert body["codigo"] == "analise_critica_reprovada"
+    assert body["analise_critica"]["veredito"] == "reprovada"
+    # NAO transicionou — permanece enviado (fail-closed).
+    assert body["orcamento"]["estado"] == "enviado"
+
+    from src.infrastructure.audit.models import BusOutbox
+    from src.infrastructure.orcamentos.models import AnaliseCriticaOrcamento as AModel
+    from src.infrastructure.orcamentos.models import Orcamento as OModel
+
+    with run_in_tenant_context(c["tenant"].id):
+        # Analise WORM gravada mesmo reprovando (AJUSTE-1) — a transacao COMMITOU.
+        assert AModel.objects.filter(orcamento_id=orc["id"]).count() == 1
+        assert OModel.objects.get(id=orc["id"]).estado == "enviado"
+        assert (
+            BusOutbox.objects.filter(
+                acao="orcamento.analise_critica_reprovada", causation_id=UUID(orc["id"])
+            ).count()
+            == 1
+        )
+        # Reprovada NUNCA publica orcamento.aprovado.
+        assert not BusOutbox.objects.filter(
+            acao="orcamento.aprovado", causation_id=UUID(orc["id"])
+        ).exists()
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_aprovar_idempotente_nao_duplica_analise() -> None:
+    """Replay da mesma Idempotency-Key -> mesma resposta, sem 2a analise WORM."""
+    c, client, orc = _criar_enviar_com_calib("D")
+    key = str(uuid4())
+    url = f"/api/v1/orcamentos/{orc['id']}/aprovar/"
+
+    r1 = client.post(url, {}, format="json", HTTP_IDEMPOTENCY_KEY=key)
+    r2 = client.post(url, {}, format="json", HTTP_IDEMPOTENCY_KEY=key)
+    assert r1.status_code == 200, r1.content
+    assert r2.status_code == 200, r2.content
+
+    from src.infrastructure.audit.models import BusOutbox
+    from src.infrastructure.orcamentos.models import AnaliseCriticaOrcamento as AModel
+
+    with run_in_tenant_context(c["tenant"].id):
+        assert AModel.objects.filter(orcamento_id=orc["id"]).count() == 1
+        assert (
+            BusOutbox.objects.filter(
+                acao="orcamento.aprovado", causation_id=UUID(orc["id"])
+            ).count()
+            == 1
+        )
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_aprovar_rascunho_409_transicao_proibida() -> None:
+    """Aprovar orcamento ainda em rascunho (nao enviado) -> 409 (D-ORC-3)."""
+    c = _cenario_perfil("D")
+    client = _client(c)
+    cliente = _criar_cliente(c["tenant"], c["admin"])
+    item = _setup_catalogo(client)
+    orc = _criar_orcamento(client, cliente.id).json()
+    assert _adicionar_item_calib(client, orc["id"], item["id"]).status_code == 201
+
+    r = _post(client, f"/api/v1/orcamentos/{orc['id']}/aprovar/", {})
+    assert r.status_code == 409, r.content
+    assert r.json()["codigo"] == "transicao_proibida"

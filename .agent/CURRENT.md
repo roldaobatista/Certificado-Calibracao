@@ -4,22 +4,22 @@
 
 **Modo:** AUTÔNOMO. **Fase:** Wave A em curso.
 
-## Frente ATIVA — `orcamentos` (Fatia 2 em curso) (2026-06-14)
+## Frente ATIVA — `orcamentos` (Fatia 2 em curso) (2026-06-15)
 
-- Fatias 1a (domínio, 45 testes) + 1b (schema PG, drill 20/20) DONE. Dep `os-multi-equipamento` FECHADA
-  (envelope por item). P3 aprovado (`tech-lead`+`consultor-rbc`). Decisões Fatia 2 em `tasks.md`:
-  D-FATIA2-A numeração BURACOS_ACEITOS (Roldão pode pedir gap-less) · B série LAZY · C deps `calcular_precos` na view.
-- **Ondas 2a+2b DONE (2026-06-14):** criar+itens+`OrcamentoViewSet` (2a; conserto REGRA #0 `semaforo` 10→15,
-  migration 0007) + enviar/recusar/cancelar/expirar (2b; eventos outbox, LinkPublico token 256b, motivo hasheado).
-  Camada A 6 auditores PASS em cada. GATEs: EXPIRY-JOB · TRILHA-CANCELAMENTO (BAIXO). Totais: imposto por dentro.
-- **Onda 2c-1 DONE (2026-06-14):** parecer `consultor-rbc` CONFIRMA D-ORC-5 (+6 ajustes). GAP REGRA #0:
-  `Equipamento` não tem grandeza/faixa → o **item de calibração DECLARA o mensurando** (migration 0008:
-  `grandeza_solicitada`/`faixa_solicitada_min/max`/`unidade_solicitada` + CHECK + validação fail-fast `Grandeza`/
-  `FaixaMedicao`). **95 testes verdes** no módulo. Matriz validada A/B/C/D em `analise-critica-matriz.md`.
-- **PRÓXIMO = Onda 2c-2** (motor análise crítica + `aprovar_orcamento`): implementar a matriz de
-  `docs/faseamento/orcamentos/analise-critica-matriz.md` (AJUSTE-3 perfil A suspenso = fail-closed; itens_avaliados
-  ricos; snapshot_hash ADR-0029; envelope `orcamento.aprovado`) → 2d consumers → 2e REST público → 2f + P8/P9.
-  **Camada A de auditores + 2ª revisão consultor-rbc PENDENTE (rodar no fechamento da 2c).**
+- Fatias 1a (domínio) + 1b (schema PG) DONE. Dep `os-multi-equipamento` FECHADA (envelope por item).
+  Decisões Fatia 2 em `tasks.md`: D-FATIA2-A numeração BURACOS_ACEITOS · B série LAZY · C deps na view.
+- **Ondas 2a+2b+2c-1 DONE:** criar+itens+`OrcamentoViewSet` · enviar/recusar/cancelar/expirar (eventos
+  outbox, LinkPublico token 256b) · item de calibração DECLARA mensurando (migration 0008 + CHECK + fail-fast).
+- **Onda 2c-2 DONE (2026-06-15):** motor análise crítica cl. 7.1 + `aprovar_orcamento`. Função PURA
+  `decidir_analise_critica` (matriz A/B/C/D + indeterminado fail-closed) + `aprovacao.py` (use case) +
+  `analise_critica_ports.py` (portas CMC/proc + perfil/suspensão server-side) + action REST `aprovar`
+  (200 aprova → `aprovado_pendente_os` / 422 reprova+WORM). snapshot_hash ADR-0029; eventos
+  reprovada/com_ressalva/aprovado. Camada A: 7 auditores PASS + `consultor-rbc` CONFIRMA-COM-AJUSTES
+  (ACH-3 MÉDIO redação suspensão CORRIGIDO; ACH-1+fingerprint BAIXO corrigidos; ACH-2/4 + GATE-ORC-PERF-APROVAR
+  + GATE-OBS-ORC-METRICA-APROVACAO em `tasks.md`). **121 testes verdes** no módulo.
+- **PRÓXIMO = Onda 2d** (consumers `handle_os_aberta` T-ORC-035 + `handle_cliente_anonimizado` T-ORC-036)
+  → 2e REST público (`OrcamentoPublicoView` T-ORC-038: GET ressalvas + POST aprovar 1-clique, Aprovacao WORM,
+  `ressalvas_confirmadas` quando `com_ressalva`) → 2f testes contrato/INV (T-ORC-050..054) → P8/P9.
 
 ## Última frente FECHADA — `os-multi-equipamento` (2026-06-14)
 

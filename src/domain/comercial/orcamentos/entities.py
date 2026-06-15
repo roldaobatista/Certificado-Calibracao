@@ -312,7 +312,7 @@ class AnaliseCriticaOrcamento:
     WORM Padrão B: INSERT-only; trigger PG anti-mutação (INV-ORC-ANALISE-WORM).
 
     ``itens_avaliados``: lista de dicts com registro probatório por item
-    de calibração (cl. 7.1.1-a / C1):
+    de calibração (cl. 7.1.1-a / C1) — montado por ``analise_critica._item_avaliado_dict``:
       {
         equipamento_id: str,
         grandeza: str,
@@ -320,11 +320,14 @@ class AnaliseCriticaOrcamento:
         faixa_max: str,
         unidade: str,
         cobre_cmc: bool,
-        cmc_codigo_ref: str | None,
+        cmc_codigo_ref: str | None,        # None em Wave A (GATE-ORC-CMC-PREENCHIDO)
+        cmc_reason: str,                   # "" se cobre; senão cmc_fora_do_escopo/erro_interno
         procedimento_ok: bool,
         procedimento_id: str | None,
-        procedimento_codigo: str | None,   # ex.: "POP-CAL-0042 rev.3"
+        procedimento_codigo: str | None,   # ex.: "POP-CAL-0042"
         procedimento_versao: str | None,
+        procedimento_revisao: str | None,  # numero_revisao (cl. 8.3.2c) — distinto de versao
+        procedimento_hash_anexo: str | None,  # SHA-256 do PDF do método (cl. 8.3)
         ressalvas: list[str],
       }
 

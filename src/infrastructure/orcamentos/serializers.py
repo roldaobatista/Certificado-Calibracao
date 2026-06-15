@@ -198,6 +198,18 @@ class CancelarOrcamentoSerializer(serializers.Serializer):
     )
 
 
+class AprovarOrcamentoSerializer(serializers.Serializer):
+    """Entrada de `aprovar` (interno) — análise crítica cl. 7.1 (AC-ORC-007).
+
+    `regra_decisao_acordada`: nota livre da regra de decisão acordada (ISO 17025
+    cl. 7.8.6) carimbada no envelope `orcamento.aprovado` (D-ORC-6). Opcional.
+    """
+
+    regra_decisao_acordada = serializers.CharField(
+        max_length=2000, required=False, allow_blank=True, default=""
+    )
+
+
 # ---------------------------------------------------------------------------
 # Saida
 # ---------------------------------------------------------------------------
@@ -250,6 +262,25 @@ def serializar_item(item: ItemOrcamento) -> dict[str, Any]:
             str(item.faixa_solicitada_max) if item.faixa_solicitada_max is not None else None
         ),
         "unidade_solicitada": item.unidade_solicitada,
+    }
+
+
+def serializar_analise(analise: Any, *, severidade: Any | None = None) -> dict[str, Any]:
+    """Serializa a `AnaliseCriticaOrcamento` para a resposta interna (cl. 7.1).
+
+    Devolve o registro probatório (itens_avaliados ricos + snapshot_hash + veredito).
+    Não expõe `avaliada_por` (rastro de autoria fica no WORM, não na UI).
+    `severidade` vem da decisão (None quando aprovada/reprovada/desabilitada).
+    """
+    return {
+        "id": str(analise.id),
+        "veredito": analise.veredito.value,
+        "severidade": severidade.value if severidade is not None else None,
+        "perfil_no_evento": analise.perfil_no_evento,
+        "norma_referencia": analise.norma_referencia,
+        "snapshot_hash": analise.snapshot_hash,
+        "itens_avaliados": list(analise.itens_avaliados),
+        "avaliada_em": analise.avaliada_em.isoformat(),
     }
 
 

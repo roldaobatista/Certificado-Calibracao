@@ -72,3 +72,15 @@ Por item de calibração, com `data = avaliada_em` (um único `now()` server-sid
 ### Pendências humanas (não bloqueiam codar)
 - Texto verbatim da ressalva de padrão + suspensão de acreditação: revisão humana RBC pré-1º
   tenant A externo (GATE-ORC-CMC-PREENCHIDO / `[RBC-PRE-PROD]`). Rastrear **C-ORC-SUSPENSAO**.
+  Onda 2c-2 já aplicou o ajuste de redação ACH-3 (suspensão bloqueia só emissão SOB escopo
+  acreditado / com referência RBC, não emissão total) — confirmar na revisão humana.
+
+### Notas de design diferidas (2ª revisão consultor-rbc — Onda 2c-2)
+- **ACH-4 (Onda 2e — `GATE-ORC-ERRO-INTERNO-2E`):** distinguir `cmc_reason="erro_interno"`
+  (falha transitória de infra) de `"cmc_fora_do_escopo"` (reprovação metrológica legítima). Hoje
+  ambos viram `reprovada` WORM definitiva em perfil A (fail-closed — direção segura). Pós-Wave A,
+  `erro_interno` deveria ser 503/retry, não 422 gravado, p/ não poluir o WORM com reprovações
+  não-metrológicas.
+- **ACH-2 (`GATE-ORC-CMC-PREENCHIDO`):** `cmc_codigo_ref` fica `None` em Wave A (a porta `cobre`
+  só devolve veredito+motivo, não o código do escopo que cobriu). Pré-1º tenant A: porta retorna
+  `codigo_escopo`/`cmc_id` → popular `cmc_codigo_ref` (rastreabilidade ao escopo p/ dossiê CGCRE).

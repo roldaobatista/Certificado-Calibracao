@@ -114,7 +114,7 @@ relacionados:
       1x/request; NÃO instanciar repos no use case. Ref: D-ORC-1/10; TL-ORC-06/09; AC-ORC-001/004.
 - [ ] **T-ORC-032** `enviar_orcamento` — `VersaoOrcamento` V1 (snapshot) + `LinkPublico` (token urlsafe ≥128b,
       ADV-ORC-08a) + publica `Orcamento.Enviado`. Ref: D-ORC-7/8; AC-ORC-002/003.
-- [ ] **T-ORC-033** `aprovar_orcamento` — análise crítica cl. 7.1 perfil-aware (D-ORC-5: portas CMC+procedimento
+- [x] **T-ORC-033** ✅ DONE 2026-06-15 (Onda 2c-2) `aprovar_orcamento` — análise crítica cl. 7.1 perfil-aware (D-ORC-5: portas CMC+procedimento
       por grandeza/faixa do equipamento; A fail-closed / B ressalva-média / C ressalva-baixa / D off; perfil
       indeterminado fail-closed) → grava `AnaliseCriticaOrcamento` WORM com **`itens_avaliados` ricos
       (procedimento_id/codigo/versão + cmc_codigo_ref — C1), `norma_referencia` (C6), `avaliada_por`
@@ -165,7 +165,11 @@ relacionados:
       matriz-reconciliacao (AC↔código↔teste, INV↔teste, ata P9) + STATUS-GERADO + GATEs rastreados
       (PDF/TELA-PUBLICA/PADRAO/SAGA-DLQ/ORIGEM-ITEM/KMS-APROVADOR/US010/LGPD-RAT + **EXPIRY-JOB** [sweep
       manual→procrastinate por tenant] + **TRILHA-CANCELAMENTO** [cancelar não emite evento/auditoria — BAIXO,
-      aceitável Wave A; avaliar trilha quando F-C entrar]) + frontmatters draft→stable.
+      aceitável Wave A; avaliar trilha quando F-C entrar] + **GATE-ORC-PERF-APROVAR** [Onda 2c-2: 2 queries/item
+      nas portas CMC/procedimento + itens carregados 2× (view+use case) — BAIXO aceitável Wave A; batch por
+      grandeza + passar itens da view ao use case pós-instrumentação] + **GATE-OBS-ORC-METRICA-APROVACAO**
+      [Onda 2c-2: counter `orcamento_analise_critica_total{perfil,veredito}` em `_publicar_eventos_analise` —
+      BAIXO até F-C]) + frontmatters draft→stable.
       `status-projeto.sh --check`. Ref: plan §6.
 - [ ] **T-ORC-061** P9 auditores roteados (INV-RITUAL-003): essenciais + **performance** (N+1) +
       **observabilidade** (WORM/outbox/correlation_id) + **conformidade-lgpd OBRIGATÓRIO** (PII aprovador +

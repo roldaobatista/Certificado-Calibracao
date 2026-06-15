@@ -32,11 +32,16 @@ from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from src.application.comercial.orcamentos import aprovacao as uc_aprovar
 from src.application.comercial.orcamentos import ciclo_vida as uc_ciclo
 from src.application.comercial.orcamentos import criar_orcamento as uc_criar
 from src.application.comercial.orcamentos import itens as uc_itens
-from src.domain.comercial.orcamentos.enums import TipoAtividadeAlvo
-from src.domain.comercial.orcamentos.erros import ErroOrcamento, TabelaPrecoExpirada
+from src.domain.comercial.orcamentos.enums import TipoAtividadeAlvo, VeredictoAnaliseCritica
+from src.domain.comercial.orcamentos.erros import (
+    ErroOrcamento,
+    PerfilIndeterminado,
+    TabelaPrecoExpirada,
+)
 from src.domain.comercial.orcamentos.value_objects import CondicoesPagamento
 from src.domain.operacao.os.value_objects import TipoItemComercial
 from src.domain.precificacao.erros import ParametrosInviaveis, PrecoMinimoViolado
@@ -53,19 +58,26 @@ from src.infrastructure.orcamentos._views_suporte import (
     _tenant_ou_none,
     _usuario_id_ou_none,
 )
+from src.infrastructure.orcamentos.analise_critica_ports import (
+    avaliar_itens_calibracao,
+    resolver_perfil_e_suspensao,
+)
 from src.infrastructure.orcamentos.repositories import DjangoOrcamentoRepository
 from src.infrastructure.orcamentos.serializers import (
     AdicionarItemSerializer,
+    AprovarOrcamentoSerializer,
     CancelarOrcamentoSerializer,
     CriarOrcamentoSerializer,
     EditarItemSerializer,
     RecusarOrcamentoSerializer,
+    serializar_analise,
     serializar_item,
     serializar_link,
     serializar_orcamento,
 )
 
 if TYPE_CHECKING:
+    from src.domain.comercial.orcamentos.analise_critica import ResultadoItemMensurando
     from src.domain.comercial.orcamentos.entities import Orcamento
     from src.domain.configuracoes_sistema.repository import SerieDocumentoRepository
     from src.domain.precificacao.value_objects import ItemCalculado
@@ -190,6 +202,7 @@ class OrcamentoViewSet(_OrcamentoViewSetBase):
         "adicionar_item": "orcamento.editar",
         "editar_item": "orcamento.editar",
         "enviar": "orcamento.enviar",
+        "aprovar": "orcamento.aprovar",
         "recusar": "orcamento.recusar",
         "cancelar": "orcamento.cancelar",
         # expirar = job administrativo (GATE-ORC-EXPIRY-JOB: procrastinate em prod);
@@ -555,6 +568,119 @@ class OrcamentoViewSet(_OrcamentoViewSetBase):
             )
         return Response(corpo, status=status.HTTP_200_OK)
 
+    # ----- aprovar (POST /orcamentos/{id}/aprovar/) -----------------
+
+    @action(detail=True, methods=["post"], url_path="aprovar")
+    def aprovar(self, request: Request, pk: str | None = None) -> Response:
+        """Aprovacao INTERNA: analise critica cl. 7.1 perfil-aware (T-ORC-033).
+
+        Perfil + suspensao resolvidos server-side (AJUSTE-3); portas CMC/procedimento
+        avaliadas na infra; decisao da matriz no use case. Reprovada (perfil A
+        fail-closed) grava WORM + publica `analise_critica_reprovada` e retorna 422
+        (transacao COMMITA — o WORM e o evento ficam). Viavel transiciona
+        enviado->aprovado_pendente_os e publica `orcamento.aprovado` (D-ORC-6).
+        """
+        tenant_id = _tenant_ou_none()
+        usuario_id = _usuario_id_ou_none()
+        if tenant_id is None or usuario_id is None:
+            return Response({"detalhe": "contexto ausente"}, status=status.HTTP_401_UNAUTHORIZED)
+        orcamento_id = self._uuid_ou_404(pk)
+
+        ser = AprovarOrcamentoSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        dados = ser.validated_data
+
+        novo, resp_erro = _aplicar_idempotencia(
+            request,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            endpoint="orcamentos:aprovar",
+            payload_fingerprint={
+                "orcamento_id": str(orcamento_id),
+                "regra_decisao_acordada": dados.get("regra_decisao_acordada", ""),
+            },
+        )
+        if resp_erro is not None:
+            return resp_erro
+
+        repo = DjangoOrcamentoRepository()
+        orcamento = repo.get_by_id(orcamento_id, tenant_id=tenant_id)
+        if orcamento is None:
+            return _falha_404(f"orcamento {orcamento_id} nao encontrado")
+
+        # Perfil regulatorio + suspensao server-side (AJUSTE-3 / nunca do payload).
+        perfil, suspensa = resolver_perfil_e_suspensao()
+        if not perfil:
+            return _falha_erro_orcamento(
+                PerfilIndeterminado(
+                    "perfil regulatorio do tenant indeterminado — fail-closed (D-ORC-5/19)."
+                ),
+                tenant_id=tenant_id,
+                chave_idempotencia=novo,
+            )
+
+        agora = datetime.now(UTC)
+        # Portas de analise critica chamadas na infra; perfil D nao avalia (matriz).
+        resultados: list[ResultadoItemMensurando] = []
+        if perfil != "D":
+            versao = repo.get_versao_ativa(orcamento_id, tenant_id=tenant_id)
+            itens = (
+                repo.listar_itens_versao(versao.id, tenant_id=tenant_id)
+                if versao is not None
+                else []
+            )
+            resultados = avaliar_itens_calibracao(itens, tenant_id=tenant_id, data=agora)
+
+        try:
+            with transaction.atomic():
+                out = uc_aprovar.aprovar_orcamento(
+                    uc_aprovar.AprovarOrcamentoInput(
+                        tenant_id=tenant_id,
+                        orcamento_id=orcamento_id,
+                        perfil=perfil,
+                        acreditacao_suspensa=suspensa,
+                        resultados_itens=resultados,
+                        avaliada_por=str(usuario_id),
+                        agora=agora,
+                        regra_decisao_acordada=dados.get("regra_decisao_acordada", ""),
+                        criada_por_user_id=usuario_id,
+                    ),
+                    repo=repo,
+                )
+                _publicar_eventos_analise(
+                    out, orcamento_id=orcamento_id, tenant_id=tenant_id, usuario_id=usuario_id
+                )
+        except ErroOrcamento as exc:
+            return _falha_erro_orcamento(exc, tenant_id=tenant_id, chave_idempotencia=novo)
+
+        http_status = status.HTTP_200_OK if out.aprovado else status.HTTP_422_UNPROCESSABLE_ENTITY
+        corpo: dict[str, Any] = {
+            "orcamento": serializar_orcamento(
+                out.orcamento, pode_ver_margem=_pode_ver_margem(request)
+            ),
+            "analise_critica": serializar_analise(out.analise, severidade=out.severidade),
+        }
+        if not out.aprovado:
+            corpo["codigo"] = "analise_critica_reprovada"
+            corpo["detalhe"] = (
+                "analise critica cl. 7.1 reprovada — orcamento nao aprovado (D-ORC-5)."
+            )
+        # Reprovada NAO e falha de processamento: o WORM + evento COMMITARAM; o
+        # replay deve devolver o mesmo 422 sem reavaliar (concluir, nao falhar).
+        if novo is not None and novo.chave_id is not None:
+            concluir_chave(
+                chave_id=novo.chave_id,
+                tenant_id=tenant_id,
+                response_status=http_status,
+                response_body_resumo={
+                    "orcamento_id": str(orcamento_id),
+                    "estado": out.orcamento.estado.value,
+                    "veredito": out.veredito.value,
+                },
+            )
+        return Response(corpo, status=http_status)
+
     # ----- recusar (POST /orcamentos/{id}/recusar/) -----------------
 
     @action(detail=True, methods=["post"], url_path="recusar")
@@ -838,6 +964,67 @@ def _serie_repo() -> SerieDocumentoRepository:
     )
 
     return DjangoSerieDocumentoRepository()
+
+
+def _publicar_eventos_analise(
+    out: uc_aprovar.AprovarOrcamentoOutput,
+    *,
+    orcamento_id: UUID,
+    tenant_id: UUID,
+    usuario_id: UUID,
+) -> None:
+    """Publica eventos de bus conforme o veredito (matriz §"Implementacao" / spec §6).
+
+    - reprovada     → `orcamento.analise_critica_reprovada` (sem aprovado).
+    - com_ressalva  → `orcamento.analise_critica_com_ressalva` + `orcamento.aprovado`.
+    - aprovada/D    → `orcamento.aprovado`.
+
+    Dentro do `transaction.atomic` do caller (transactional outbox). Dedup do outbox
+    por `(causation_id=orcamento_id, acao)` — acoes distintas nao colidem.
+    """
+    analise = out.analise
+    payload_analise = {
+        "orcamento_id": str(orcamento_id),
+        "tenant_id": str(tenant_id),
+        "analise_critica_id": str(analise.id),
+        "perfil_no_evento": analise.perfil_no_evento,
+        "veredito": out.veredito.value,
+        "severidade": out.severidade.value if out.severidade is not None else None,
+        "snapshot_hash": analise.snapshot_hash,
+        "itens_avaliados": list(analise.itens_avaliados),
+    }
+
+    if out.veredito == VeredictoAnaliseCritica.REPROVADA:
+        _publicar_evento_orcamento(
+            acao="orcamento.analise_critica_reprovada",
+            payload=payload_analise,
+            causation_id=orcamento_id,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            resource_summary=f"orcamento:{orcamento_id}",
+        )
+        return
+
+    if out.veredito == VeredictoAnaliseCritica.COM_RESSALVA:
+        _publicar_evento_orcamento(
+            acao="orcamento.analise_critica_com_ressalva",
+            payload=payload_analise,
+            causation_id=orcamento_id,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            resource_summary=f"orcamento:{orcamento_id}",
+        )
+
+    # aprovada / com_ressalva / desabilitada → envelope orcamento.aprovado (D-ORC-6)
+    if out.envelope is not None:
+        _publicar_evento_orcamento(
+            acao="orcamento.aprovado",
+            payload=out.envelope,
+            causation_id=orcamento_id,
+            tenant_id=tenant_id,
+            usuario_id=usuario_id,
+            resource_summary=f"orcamento:{orcamento_id}",
+        )
 
 
 def _conflito(msg: str) -> ErroOrcamento:
