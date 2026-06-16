@@ -6,34 +6,26 @@
 
 ## Frente ATIVA — `contas-receber` (Nível 5 — fecha a receita ponta a ponta)
 
-- **RITUAL P0–P3 FECHADO** (2026-06-15): T-CR-000 + `spec.md` v2 + reviews P2 + `plan.md`/`tasks.md` (T-CR-010..061).
-  Gatilho canônico = `os.concluida` ENRIQUECIDO no OUTBOX. Gateway = Mock (Asaas=GATE). Em `docs/faseamento/contas-receber/`.
-- **Fatias 1a/1b/2a/2b DONE** — núcleo REST completo: domínio puro + schema PG (RLS v2/WORM) + use cases manual +
-  gateway Mock + webhook HMAC idempotente + override. Detalhe no diário.
-- **Fatia 3a DONE** (2026-06-15): auto-faturamento de OS. T-CR-040 enriquece outbox `os.concluida`
-  (cliente + `valor_total_centavos` int = `valor_total_atualizado`/INV-OS-FAT-001; WORM intacto). T-CR-041
-  `criar_titulo_a_partir_de_os` + consumers `handle_os_concluida`/`handle_os_reaberta`. T-CR-042 baixa → `os.paga`.
-  **Achado: bus virou FAN-OUT** (`os.concluida` já tinha saga de anonimização; `_REGISTRY: dict[str,list]`,
-  tudo-ou-nada por linha; tech-lead Opus aprovou c/ correções) — [[fan-out-bus-consumers-os-concluida]].
-  Verde: 13 (3a) + 4 (fan-out) + 28 (regressão CR Fatia 2) + 13 (fb_reconciliacao).
-- **Fatia 3b-1 DONE** (commit `227c522`): adapter `TituloVencidoInadimplenciaSource` (PULL) lê `Titulo` vencido +
-  grace 45/20/30/7 por perfil; `InadimplenciaItem`+perfil/grace_perfil Optional (toca `clientes` FECHADO); `get_source()`
-  parametrizado `INADIMPLENCIA_SOURCE_IMPL` (default "interim" = INATIVO). 10+15 testes.
-- **Fatia 3b-2 DONE** (commit `853f12c`): notificação D+30/D+45 perfil A — parecer advogado **Caminho C** (e-mail ao
-  cliente, **remetente = tenant**; e-mail nunca no evento; evento `inadimplencia_dura_atingida` = aviso ao admin).
-  Config `EMAIL_*` SMTP via env (test=locmem) + `CANAL_REGULARIZACAO_URL`. Template minuta CONGELADA (GATE-LGPD-RAT). 7 testes.
-- **Fatia 3b-3 DONE** (2026-06-16): model `NotificacaoInadimplencia` (INSERT-only, migration 0007 RLS+WORM) = prova de
-  envio; job grava prova só se e-mail enviado (fail-closed CDC); idempotência por `UNIQUE(tenant,titulo,marco)`; marco por
-  janela. Fail-closed no adapter: perfil A não entra na régua sem prova. 22 testes Fatia 3b verdes. **Módulo CR: Fatia 3b
-  (inadimplência) COMPLETA.**
-- **PRÓXIMO = Fatia 3c** (desbloqueio — GATE-CLI-6): query `tem_outra_vencida_em_aberto` exposta por CR + consumer NOVO em
-  `clientes` de `contas_receber.pago` → encerra `ClienteBloqueio` + publica `cliente.desbloqueado` (idempotente; parcial
-  mantém). Atenção RLS `upt_self_select` / toca `clientes` FECHADO (R14). Depois 3d (INV-FIN-* ao mestre + hooks) → P8
-  (ADR reconcilia, molde 0083) / P9 (mutirão auditores).
-- **Migration test_afere:** router faz DDL só em `migrator` fora de pytest; aplicar nova migration ao test_afere =
-  `migrate --database=default` com `-e PYTEST_CURRENT_TEST=1 -e DATABASE_URL=...@db/test_afere` (NÃO dropar — perde extensões).
-- **Débitos p/ P9:** snapshot webhook=valor_original (sem juros); desconto-pontualidade pré-vencimento sem fórmula;
-  isolamento por-consumer do bus (re-review quando a saga sair do stub).
+- **RITUAL P0–P3 + Fatias 1a/1b/2a/2b DONE** — spec v2/plan/tasks (T-CR-010..061); núcleo REST completo (domínio puro +
+  schema PG RLS v2/WORM + use cases manual + gateway Mock + webhook HMAC idempotente + override). Gatilho canônico =
+  `os.concluida` ENRIQUECIDO no OUTBOX. Detalhe no diário + `docs/faseamento/contas-receber/`.
+- **Fatia 3a DONE** (auto-faturamento de OS): T-CR-040/041/042. Bus virou **FAN-OUT** (`_REGISTRY: dict[str,list]`,
+  tudo-ou-nada por linha) — [[fan-out-bus-consumers-os-concluida]]. `os.concluida`→título, baixa→`os.paga`.
+- **Fatia 3b DONE** (inadimplência, commits `227c522`/`853f12c`/`671194f`): adapter PULL `TituloVencidoInadimplenciaSource`
+  grace 45/20/30/7 por perfil + notificação D+30/D+45 perfil A **Caminho C** (remetente=tenant; e-mail nunca no evento) +
+  `NotificacaoInadimplencia` INSERT-only (migration 0007) = prova; **fail-closed CDC** (perfil A só na régua com prova). 22 testes.
+- **Fatia 3c DONE** (2026-06-16, commit pendente): desbloqueio (GATE-CLI-6). `contas_receber/queries_desbloqueio.py`
+  (`cliente_atual_id_do_titulo` + `tem_outra_vencida_em_aberto` read-only) + `clientes/consumers/contas_receber_eventos.py`
+  (`handle_contas_receber_pago` registrado em `clientes/apps.py:ready()`). Encerra **só** bloqueio automático (manual não
+  cede); parcial/`parcialmente_pago` mantém (AC-CR-006-2); publica `cliente.desbloqueado`; idempotente. 9 testes; ruff+mypy
+  limpos. Toca `clientes` FECHADO (só `apps.py:ready()` + NOVOS — R14).
+- **PRÓXIMO = Fatia 3d** (INV-FIN-* ao mestre + hooks): cravar família `INV-FIN-*` em `REGRAS-INEGOCIAVEIS.md` (T-CR-046) +
+  hooks `policy-tenant-vs-cliente.sh`/`cr-provider-import-fronteira-check.sh`/`cr-perfil-server-side-check.sh` no manifest
+  (T-CR-047). Depois P8 (ADR reconcilia, molde 0083 — T-CR-060) / P9 (mutirão auditores — T-CR-061).
+- **Débitos p/ P9:** desbloqueio SEM grace (assimetria c/ adapter 3b); snapshot webhook=valor_original (sem juros);
+  desconto-pontualidade pré-vencimento sem fórmula; isolamento por-consumer do bus (re-review quando saga sair do stub).
+- **Migration test_afere:** `migrate --database=default` com `-e PYTEST_CURRENT_TEST=1 -e DATABASE_URL=...@db/test_afere`
+  (router faz DDL só em `migrator` fora de pytest; NÃO dropar — perde extensões).
 - **Para o Roldão (quando ativar e-mail real):** criar `.env` com `EMAIL_HOST`/`EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD`/
   `DEFAULT_FROM_EMAIL` (provedor SMTP). Hoje em modo teste (não envia). Disparo a PF real só após GATE-LGPD-RAT.
 
