@@ -47,9 +47,28 @@ class SourceListaInterim:
                 cliente_id=UUID(str(raw["cliente_id"])),
                 dias_vencido=int(raw.get("dias_vencido", 90)),
                 causation_titulo_id=UUID(str(raw["causation_titulo_id"])),
+                perfil=raw.get("perfil"),
+                grace_perfil=raw.get("grace_perfil"),
             )
 
 
 def get_source() -> InadimplenciaSource:
-    """Singleton lazy — Wave A troca o nome configurado em settings."""
+    """Resolve a fonte de inadimplencia por settings (PLAN-CR-01 / TL-CR-01).
+
+    `settings.INADIMPLENCIA_SOURCE_IMPL`:
+      - "contas_receber" → adapter real (le `Titulo` vencido, grace por perfil —
+        Fatia 3b). Import lazy evita ciclo no startup (clientes não depende de CR
+        em tempo de import).
+      - "interim" (default, retrocompat) → `SourceListaInterim` (le settings).
+
+    Wave A em produção configura "contas_receber" via env; testes legados e o
+    interino seguem com o default.
+    """
+    impl = getattr(settings, "INADIMPLENCIA_SOURCE_IMPL", "interim")
+    if impl == "contas_receber":
+        from src.infrastructure.contas_receber.inadimplencia_adapter import (
+            TituloVencidoInadimplenciaSource,
+        )
+
+        return TituloVencidoInadimplenciaSource()
     return SourceListaInterim()

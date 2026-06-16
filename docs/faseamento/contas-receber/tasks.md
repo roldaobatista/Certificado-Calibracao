@@ -92,8 +92,17 @@ relacionados:
 - [x] **T-CR-042** ✅ Baixa manual de título de OS publica `os.paga` (`views.py` baixar_manual, só quando `PAGO`). Webhook já publicava (Fatia 2b). Ref: TL-CR-02.
 
 ### 3b — Inadimplência (GATE-CR-INADIMPLENCIA-RECONCILIA)
-- [ ] **T-CR-043** `inadimplencia_adapter.py` — implementa `InadimplenciaSource` (PULL — R1); aplica `grace_period_inadimplencia_por_perfil`; `InadimplenciaItem`+`perfil`/`grace_perfil` **como Optional com default seguro** (PLAN-CR-01 — extensão do dataclass em `clientes` é toque em módulo fechado; atualizar `SourceListaInterim` para entregar os campos, senão job quebra em deploy parcial). Substitui source interino no wiring `clientes` (`inadimplencia.py:get_source()`, parametrizar via settings) — toca clientes (R14). Ref: D-CR-9; TL-CR-01/PLAN-CR-01; INV-FIN-GRACE-PERFIL-001.
-- [ ] **T-CR-044** `notificar_inadimplencia.py` — `send_mail` D+30/D+45 perfil A (R8); payload rico (`titulos_vencidos[]`+`data_bloqueio_prevista`+`canal_regularizacao_url` — ADV-CR-01); job. **GATE-CR-NOTIF-D30-PERFIL-A** (gate de ativação da flag). Ref: D-CR-9; AC-CR-010-1b; RBC-CR-01.
+
+> **Fatiada em 3b-1 (adapter) + 3b-2 (notificação).** Parecer advogado (Caminho C — APROVA): e-mail D+30/D+45
+> vai ao **cliente final com remetente = TENANT** (Aferê = operador técnico do envio), + **aviso paralelo ao admin**;
+> **fail-closed** (perfil A NÃO entra na régua de bloqueio enquanto a notificação não constar enviada — prova de
+> envio `notificacao_cliente_enviada`+timestamp); e-mail lido de `Cliente.email` só no envio, NUNCA persistido no
+> evento (cliente = `ReferenciaPIIAnonimizavel` no WORM — D-CR-16/19); minimização (só título/valor/venc/canal/o
+> que será×não-será bloqueado — D-CR-21). Texto do e-mail + RAT CONGELADOS até GATE-LGPD-RAT-CONSOLIDACAO — código
+> construído agora, disparo com PF real aguarda o gate. Reusa enquadramento RAT-06 (lembrete WhatsApp).
+
+- [x] **T-CR-043** ✅ (3b-1, 2026-06-16) `inadimplencia_adapter.py` — `TituloVencidoInadimplenciaSource` (PULL — R1) itera `Titulo` vencido por tenant (`processar_em_contexto_tenant`; materializa lista, sem contexto aninhado); `grace_period_inadimplencia_por_perfil(tenant_id)` lê perfil ATUAL do tenant + `grace_period_por_perfil` (45/20/30/7); entra se `data_vencimento+grace<=hoje`; anonimizado (cliente_atual_id NULL) fora. `InadimplenciaItem`+`perfil`/`grace_perfil` Optional default None (PLAN-CR-01 — extensão em `clientes` FECHADO); `SourceListaInterim` atualizado; `get_source()` parametrizado `settings.INADIMPLENCIA_SOURCE_IMPL` (default "interim"). 10 testes (grace fronteira D+44/D+46, perfil D, anonimizado, interim, parametrização) + 15 regressão clientes verdes. **Adapter só ATIVA com `INADIMPLENCIA_SOURCE_IMPL=contas_receber`; NÃO ativar em prod até 3b-2 (fail-closed CDC) + GATE-CR-NOTIF prontos.** Ref: D-CR-9; TL-CR-01/PLAN-CR-01; INV-FIN-GRACE-PERFIL-001.
+- [ ] **T-CR-044** (3b-2) `notificar_inadimplencia.py` — `send_mail` D+30/D+45 perfil A remetente-tenant + aviso admin (Caminho C); prova de envio + **fail-closed** no adapter; payload rico (`titulos_vencidos[]`+`data_bloqueio_prevista`+`canal_regularizacao_url`); evento `contas_receber.inadimplencia_dura_atingida`; config `EMAIL_*` via env (test=locmem) + `CANAL_REGULARIZACAO_URL` global (diferido — decisão Roldão 2026-06-16) + `INADIMPLENCIA_SOURCE_IMPL`; template em `docs/conformidade/` (minuta congelada); `.env.example` documentado. **GATE-CR-NOTIF-D30-PERFIL-A**. Ref: D-CR-9; AC-CR-010-1b; RBC-CR-01; parecer advogado Caminho C.
 
 ### 3c — Desbloqueio (GATE-CLI-6 — toca clientes — R14/R5)
 - [ ] **T-CR-045** Query `tem_outra_vencida_em_aberto(cliente_id)` exposta por CR + consumer novo em `clientes` de `contas_receber.pago` → encerra `ClienteBloqueio` + publica `cliente.desbloqueado` (idempotente; parcial mantém). Ref: D-CR-11; AC-CR-006; TL-CR-05; INV-FIN-REATIV-001.
