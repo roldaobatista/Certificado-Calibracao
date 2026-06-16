@@ -543,6 +543,47 @@
 
 ---
 
+## INV-FIN-* — Invariantes da frente contas-receber (Wave A `contas_receber`)
+
+> **Família canônica cravada 2026-06-16 (contas-receber Fatia 3d — T-CR-046).**
+> Antes em `docs/faseamento/invariantes-futuras.md` (R14, criadas Onda 9 2026-05-23);
+> volta ao mestre na fatia que cria os hooks. Fonte: `docs/faseamento/contas-receber/spec.md`
+> §5 revisada por `tech-lead` (TL-CR-01..12) + `advogado` (ADV-CR-01..04) + `consultor-rbc`
+> (RBC-CR-01..06). Frente financeira nível 5 da cadeia; consome `ordens_servico`
+> (`os.concluida` enriquecido — D-CR-12) e fecha a receita ponta a ponta. Testes de
+> regressão nomeados em `tests/test_contas_receber_*_fatia*.py` (TST-004). Hooks novos
+> (T-CR-047): `cr-perfil-server-side-check`, `cr-provider-import-fronteira-check`,
+> `policy-tenant-vs-cliente`.
+
+| ID | Regra | Base normativa | Hook que valida | Escopo por perfil | Consequência de violar |
+|---|---|---|---|---|---|
+| INV-FIN-GW-001 | **Webhook de gateway exige HMAC válido + idempotência por `gateway_event_id`.** Replay do mesmo `gateway_event_id` → 200 OK sem reprocessar; assinatura inválida → 401 + incidente `contas_receber.webhook_hmac_rejeitado`. Resolução do tenant via `SECURITY DEFINER` antes do RLS, `gateway_id` inexistente ≡ HMAC inválido (anti-oráculo). Baixa + INSERT em `gateway_events` + publish na MESMA `transaction.atomic`. | ADR-0050; SEC-PCI-001; D-CR-8 | `auditor-idempotencia` + `auditor-seguranca` (webhook sem `verify_hmac()`/sem `ON CONFLICT DO NOTHING`) + `cr-provider-import-fronteira-check` (porta agnóstica) + `test_contas_receber_webhook_fatia2b.py` | Absoluta (todos perfis) | Cobrança duplicada (replay); fraude por webhook forjado; vazamento de existência de `gateway_id` por timing |
+| INV-FIN-GW-002 | **`Titulo.meio=pix_recorrente` exige `convenio_pix_id NOT NULL`.** Adapter valida o convênio antes de gerar cobrança recorrente; recorrente emite só o 1º título (agrupador = Wave B). | BCB Resolução 1.071/2024; D-CR-7 | CHECK `convenio_pix` (migration `0001_initial`) + `test_contas_receber_gateway_fatia2b.py` (recorrente sem convênio → 422) | Absoluta (todos perfis) | Cobrança PIX recorrente cai por falta de convênio BCB; receita interrompida |
+| INV-FIN-PERFIL-001 | **`categoria_receita=CALIBRACAO_RBC` só perfil A;** demais perfis → 403/422. Categoria derivada do `perfil_no_evento` server-side; validação no use case (não no DRF — ADR-0073); perfil indeterminado → `PerfilIndeterminado` (fail-closed). | ADR-0067; ISO/IEC 17025 cl. 8.1.3; ADR-0073 | `categoria_permitida`/`categoria_por_perfil_evento` (domínio) + hook `cr-perfil-server-side-check` (manifest) + UNHAPPY por perfil em `test_contas_receber_api_fatia2a.py` | A permite RBC; B/C/D bloqueado | Tenant não-acreditado fatura calibração como RBC → receita classificada indevidamente / fraude documental |
+| INV-FIN-GRACE-PERFIL-001 | **Grace de inadimplência 45/20/30/7 por perfil A/B/C/D** via `grace_period_inadimplencia_por_perfil` (perfil ATUAL do tenant) no adapter `InadimplenciaSource`; só entra na régua de bloqueio se `data_vencimento + grace <= hoje`. Override A3 estende até D+90 (limite 5%/mês). | D-CR-9; ADR-0043; ADR-0067 | `grace_period_por_perfil` (domínio) + adapter `TituloVencidoInadimplenciaSource` + teste de fronteira por perfil (D+44 fora / D+46 dentro) em `test_contas_receber_inadimplencia_fatia3.py` | A=45 · B=20 · C=30 · D=7 | Cliente bloqueado cedo demais (grace errado) → reclamação CDC; ou tarde demais → receita parada |
+| INV-FIN-SNAPSHOT-PERFIL-001 | **`perfil_no_evento` é cravado no INSERT do título e imutável; o consumer lê o perfil do ENVELOPE do evento, NUNCA de `current_setting`/`obter_perfil_tenant_corrente` no worker** (senão o perfil ATUAL contamina um fato gerado sob perfil anterior — fura CGCRE cl. 8.4). `None` → fail-closed. | D-CR-6; ISO/IEC 17025 cl. 8.4; ADR-0014 | Trigger `perfil_no_evento` one-shot (migration `0003_triggers_worm`) + consumer lê `envelope["perfil_no_evento"]` + teste anti-mutação + perfil-mudou em `test_contas_receber_autofatura_fatia3.py` | Absoluta (todos perfis) | Título de OS concluída sob perfil A reclassificado quando tenant vira B → certificado/receita RBC indevidos ex-post |
+| INV-FIN-REATIV-001 | **`contas_receber.pago` da última vencida do cliente bloqueado por inadimplência → `clientes` publica `cliente.desbloqueado` ≤5min; idempotente; pagamento parcial (ou outra vencida em aberto) MANTÉM o bloqueio (AC-CR-006-2).** Só encerra bloqueio `automatico_inadimplencia_90d` — bloqueio manual não cede a pagamento. CR é dono do título e publica o fato; `clientes` é dono do bloqueio e decide o desbloqueio (separação de donos). | D-CR-11; GATE-CLI-6; TL-CR-05 | Queries read-only `cliente_atual_id_do_titulo`/`tem_outra_vencida_em_aberto` (CR) + consumer `handle_contas_receber_pago` (`@consumer_idempotente`, `clientes/`) + GATE-CLI-6 (happy + parcial) em `test_contas_receber_desbloqueio_fatia3.py` | Absoluta (todos perfis) | Cliente paga e continua bloqueado; vendedor não abre orçamento/OS → churn por falha operacional |
+| INV-FIN-INAD-001 | **Inadimplência do CLIENTE do tenant ≠ suspensão do TENANT no SaaS Aferê — nada cruza.** Bloqueio de cliente por atraso vive em `clientes` (`ClienteBloqueio`, `automatico_inadimplencia_90d`, alimentado por CR); suspensão do tenant no SaaS vive em `billing-saas` (`TenantSuspenso`). O gate de "tenant ativo" do auto-faturamento usa `StatusLifecycle` (módulo `tenant`, ADR-0035) — distinto e legítimo. | ADR-0015; INV-INT-009/010 | Hook `policy-tenant-vs-cliente.sh` (operacional cliente importa/referencia `billing-saas`/`TenantSuspenso` → BLOCK) + `auditor-conformidade-lgpd` | Absoluta (todos perfis) | Cliente em dia bloqueado porque o tenant atrasou no SaaS (ou vice-versa) → bloqueio injusto + churn |
+| INV-CR-OS-TITULO-UNICO | **1 OS → no máximo 1 título ativo:** `UNIQUE(tenant_id, os_id_origem) WHERE estado != cancelado` + consumer idempotente por `os_id` (soft-check + advisory lock). `os.reaberta` cancela o título se SEM pagamento; mantém se houver (AC-CR-006-2). | D-CR-12; R6; ADR-0033 | Constraint `UNIQUE` parcial (migration `0001_initial`) + `@consumer_idempotente` + teste replay + os.reaberta em `test_contas_receber_autofatura_fatia3.py` | Absoluta (todos perfis) | Título órfão/duplicado em OS reaberta ou replay tardio de `os.concluida` → cobrança em duplicidade |
+| INV-CR-PAGAMENTO-WORM | **`Pagamento` é INSERT-only (trigger PG block-update/delete);** `valor_atualizado_snapshot_em_pagamento` carimbado na baixa, `data`/origem imutáveis (M-FIN-002). | INV-001; D-CR-6; ADR-0031 Padrão B | Trigger anti-mutação (migration `0003_triggers_worm`) + `test_contas_receber_schema_fatia1b.py` (Pagamento INSERT-only) | Absoluta (todos perfis) | Baixa adulterada ex-post; valor pago reescrito sem rastro probatório |
+| INV-CR-OVERRIDE-WORM | **`OverrideBloqueio` é INSERT-only;** papel `gerente_financeiro`/`admin_tenant`; estende grace até D+90; limite 5%/mês dos bloqueios por tenant (estouro → alerta P1 + bloqueia novos). A3 real (Lacuna) = GATE-CR-A3 (Wave A grava `a3_signature_id` como referência). | D-CR-10; ADR-0043 §3; R-CR-NOVO-4 | Trigger anti-mutação (migration `0003_triggers_worm`) + contador 5%/mês no use case + `test_contas_receber_gateway_fatia2b.py` (override sem papel → 403) | Absoluta (todos perfis) | Override forjado/reescrito; estouro do teto de 5%/mês não barrado → política de crédito furada |
+| INV-CR-OVERRIDE-ANTI-PII | **`justificativa` do override é filtrada anti-PII (INV-CAL-TXT-001) antes do WORM** e exige ≥100 chars; rejeita CPF/CNPJ/e-mail/telefone. | D-CR-20; INV-CAL-TXT-001 | Filtro anti-PII no use case `override_bloqueio` (4 regex) + `test_contas_receber_gateway_fatia2b.py` (justificativa curta → 422) | Absoluta (todos perfis) | PII de terceiro gravada em trilha imutável de 25 anos → incidente LGPD irreversível |
+| INV-CR-WEBHOOK-PAYLOAD-MINIMO | **O handler de webhook não persiste/loga PII do pagador além do que `Pagamento` exige** (minimização — D-CR-19); cliente como `cliente_referencia_hash`, nunca dado cru. | D-CR-19; LGPD art. 6º III | Revisão + teste de minimização (evento não carrega e-mail/PII) — reforço no GATE-CR-ASAAS | Absoluta (todos perfis) | Vazamento de PII do pagador na trilha/logs; superfície LGPD ampliada sem necessidade |
+| INV-FIS-CR-001 (reconciliada) | **Gatilho de faturamento = `os.concluida` enriquecido (não `Fiscal.NFSeEmitida` nem `Certificado.Emitido`);** NF anexa à fatura = GATE Wave B. Reconcilia ADR-0043/INV-CAL-FIN-001 (GATE-CR-CERT-RECONCILIA). | D-CR-12; GATE-CR-CERT-RECONCILIA; ADR-0043 | Consumer `handle_os_concluida` + teste de latência/criação em `test_contas_receber_autofatura_fatia3.py` | Absoluta (todos perfis) | Receita não gerada (gatilho morto) ou gerada em momento errado (cobra antes de entregar) |
+
+> **Reusadas:** INV-026 (título não recalcula por mudança de tabela — valor na leitura sobre
+> saldo, regra persistida), INV-TENANT-001..003 + INV-008 (RLS v2 ENABLE+FORCE nas tabelas de
+> CR; cross-tenant 404/422 anti-oráculo; audit WORM de emissão/baixa), INV-BUS-001 (consumers
+> `os.concluida`/`os.reaberta`/`contas_receber.pago` replay-safe — fan-out independente),
+> INV-ANON-001..004 (`cliente` via `ReferenciaPIIAnonimizavel` — D-CR-16/ADR-0032), IDEMP-001
+> (Idempotency-Key nos POST criar/baixar/emitir/cancelar/override). GATEs rastreados:
+> GATE-CR-ASAAS, GATE-CR-A3, GATE-CR-NOTIF-D30-PERFIL-A, GATE-CR-CERT-RECONCILIA,
+> GATE-CR-REGUA, GATE-LGPD-RAT-CR. Débitos p/ P9: desbloqueio sem grace (assimetria c/ adapter
+> de bloqueio); snapshot webhook = valor_original (sem juros); desconto-pontualidade
+> pré-vencimento sem fórmula; isolamento por-consumer do bus (re-review quando saga sair do stub).
+
+---
+
 ## INV-DOM-* — Invariantes de modelo de domínio transversal (ADRs 0030/0031/0032)
 
 > Promovidos em 2026-05-23 — Onda 2 saneamento pós-auditoria projeto-inteiro 10 lentes. Fixam convenções cross-fase pra Marco 3 OS, Marco 4 calibração, certificados e demais Wave A nascerem com mesmo molde.
@@ -786,7 +827,7 @@ Família INV-ORC-* (módulo `orcamentos`) → CRAVADA na seção `## INV-ORC-*` 
 Família INV-CHM-* (módulo futuro `chamados`) → movida para docs/faseamento/invariantes-futuras.md (R14, 2026-06-12)
 Família INV-AG-* (módulo futuro `agenda`) → movida para docs/faseamento/invariantes-futuras.md (R14, 2026-06-12)
 Família INV-APP-* (módulo futuro `app-tecnico`) → movida para docs/faseamento/invariantes-futuras.md (R14, 2026-06-12)
-Família INV-FIN-* (módulo futuro `contas-receber` / `gateway-pagamento`) → movida para docs/faseamento/invariantes-futuras.md (R14, 2026-06-12)
+Família INV-FIN-* (módulo `contas-receber`) → CRAVADA na seção `## INV-FIN-*` acima (Fatia 3d, T-CR-046, 2026-06-16)
 
 ---
 

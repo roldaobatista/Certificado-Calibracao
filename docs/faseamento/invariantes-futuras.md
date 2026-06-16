@@ -67,16 +67,15 @@ relacionados:
 
 ---
 
-## INV-FIN-* — Invariantes de Financeiro operacional (Wave A `contas-receber` / `gateway`)
+## INV-FIN-* — Invariantes de Financeiro operacional (Wave A `contas-receber`)
 
-> Criadas em 2026-05-23 (Onda 9). Zero ocorrências em `src/`/`tests/`/`.claude/hooks/` em 2026-06-12.
-
-| ID | Regra | Hook que valida | Consequência de violar |
-|---|---|---|---|
-| INV-FIN-REATIV-001 | **`ContasReceber.Pago` da última fatura vencida do cliente bloqueado por inadimplência publica `Cliente.Desbloqueado(motivo=pagamento_quitou)` em ≤5min.** Consumer em `clientes/` reativa cliente, libera novo orçamento + OS. Caso parcial: bloqueio mantém até último título vencido ser quitado. | Auditor `auditor-observabilidade` valida que consumer de `ContasReceber.Pago` existe e publica `Cliente.Desbloqueado` quando última fatura vencida fecha. Teste E2E reproduz GATE-CLI-6. | Cliente paga e continua bloqueado; vendedor não consegue abrir orçamento; churn por falha operacional. Reabre GATE-CLI-6. |
-| INV-FIN-INAD-001 | **Inadimplência do CLIENTE do tenant ≠ inadimplência do TENANT.** Bloqueio de cliente do tenant por atraso (default 90d, configurável por tenant) usa `Cliente.bloqueado=true` (INV-INT-010). Bloqueio do tenant no SaaS Aferê (`billing-saas` ADR-0015) usa `BillingSaas.TenantSuspenso` (INV-INT-009). **Nenhuma policy/code cruza os dois**: cliente bloqueado não afeta plano do tenant; tenant suspenso não bloqueia clientes do tenant. | Hook `policy-tenant-vs-cliente.sh` (a criar) verifica que `Cliente.bloqueado=true` só é setado por job `job_inadimplencia_alertas` (INV-INT-010) e que `TenantSuspenso` só é setado por `billing-saas`. Auditor `auditor-conformidade-lgpd` revisa cross-referências. | Cliente do tenant paga em dia mas é bloqueado porque o tenant está em atraso no SaaS Aferê (e vice-versa) → reclamação injusta + churn. |
-| INV-FIN-GW-001 | **Webhook gateway de pagamento exige HMAC válido + idempotência por `gateway_event_id`** (ADR-0050). Replay do mesmo `gateway_event_id` retorna 200 OK sem reprocessar. Assinatura inválida retorna 401. | Auditor `auditor-idempotencia` + `auditor-seguranca` detectam endpoint de webhook sem `verify_hmac()` ou sem `INSERT ... ON CONFLICT DO NOTHING` em `gateway_events`. Teste E2E reproduz replay + assinatura forjada. | Cobrança duplicada (replay); fraude por webhook forjado; SEC-PCI-001 violada. |
-| INV-FIN-GW-002 | **`Titulo.meio=pix_recorrente` exige `convenio_pix_id` NOT NULL** (BCB Resolução 1.071/2024). Adapter `PaymentGatewayProvider` valida criação do convênio antes de gerar cobranças recorrentes. | Migration linter exige CHECK constraint. Teste E2E reproduz criação de cobrança PIX recorrente sem convênio → rejeitado. | Cobrança PIX recorrente cai por falta de convênio BCB; cliente vê erro genérico do gateway; receita interrompida. |
+> **CRAVADA em REGRAS-INEGOCIAVEIS.md (seção `## INV-FIN-*`) em 2026-06-16 (Fatia 3d — T-CR-046).**
+> A família completa (INV-FIN-GW-001/002, -PERFIL-001, -GRACE-PERFIL-001, -SNAPSHOT-PERFIL-001,
+> -REATIV-001, -INAD-001) + a família nova INV-CR-* (OS-TITULO-UNICO, PAGAMENTO-WORM,
+> OVERRIDE-WORM, OVERRIDE-ANTI-PII, WEBHOOK-PAYLOAD-MINIMO) + INV-FIS-CR-001 (reconciliada)
+> vivem agora no mestre, com enforcement já implementado (migrations/hooks/testes nomeados).
+> Hooks novos (T-CR-047): `cr-perfil-server-side-check`, `cr-provider-import-fronteira-check`,
+> `policy-tenant-vs-cliente`. Esta entrada fica como ponteiro histórico (não duplicar).
 
 ---
 

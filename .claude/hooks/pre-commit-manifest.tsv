@@ -75,3 +75,6 @@ orc-envelope-contrato-check.sh	/domain/comercial/orcamentos/transicoes\.py$
 orc-analise-perfil-check.sh	/domain/comercial/orcamentos/analise_critica\.py$
 orc-template-selo-rbc-check.sh	/application/comercial/orcamentos/templates\.py$
 INV-checker.sh	REGRAS-INEGOCIAVEIS\.md$
+cr-perfil-server-side-check.sh	/contas_receber/.*\.py$|contas_receber.*\.py$
+cr-provider-import-fronteira-check.sh	\.py$
+policy-tenant-vs-cliente.sh	clientes.*\.py$|contas_receber.*\.py$

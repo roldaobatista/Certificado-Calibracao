@@ -1300,6 +1300,35 @@ run_case "OTSR5 sem funcao gate PASS"                        PASS  orc-template-
 run_case "OTSR6 outro arquivo PASS"                          PASS  orc-template-selo-rbc-check.sh '{"tool_input":{"file_path":"src/application/comercial/orcamentos/aprovacao.py","content":"def validar_selo_rbc_permitido(): return ok"}}'
 run_case "OTSR7 override com razao PASS"                     PASS  orc-template-selo-rbc-check.sh '{"tool_input":{"file_path":"src/application/comercial/orcamentos/templates.py","content":"# orc-template-selo-rbc: skip -- gate movido para policy ABAC dedicada perfil-aware\ndef validar_selo_rbc_permitido(perfil, selo_rbc):\n    return ok"}}'
 
+echo "===== cr-perfil-server-side (contas-receber Fatia 3d / INV-FIN-PERFIL-001) ====="
+run_case "CRPS1 perfil de request.data BLOCK"               BLOCK cr-perfil-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/contas_receber/views.py","content":"perfil = request.data[\"perfil\"]"}}'
+run_case "CRPS2 perfil de validated_data BLOCK"             BLOCK cr-perfil-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/contas_receber/views.py","content":"perfil = validated_data[\"perfil\"]"}}'
+run_case "CRPS3 perfil do envelope PASS"                    PASS  cr-perfil-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/contas_receber/consumers/os_eventos.py","content":"perfil = envelope.get(\"perfil_no_evento\")"}}'
+run_case "CRPS4 perfil server-side PASS"                    PASS  cr-perfil-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/contas_receber/views.py","content":"perfil = obter_perfil_tenant_corrente()"}}'
+run_case "CRPS5 override PASS"                               PASS  cr-perfil-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/contas_receber/views.py","content":"# cr-perfil-server-side: skip -- perfil resolvido em camada anterior DR-2026-CR\nperfil = payload[\"perfil\"]"}}'
+run_case "CRPS6 dominio puro PASS"                          PASS  cr-perfil-server-side-check.sh '{"tool_input":{"file_path":"src/domain/contas_receber/categoria.py","content":"def categoria_por_perfil_evento(perfil): return perfil"}}'
+run_case "CRPS7 fora de path CR PASS"                       PASS  cr-perfil-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/fiscal/views.py","content":"perfil = request.data[\"perfil\"]"}}'
+run_case "CRPS8 teste ignora PASS"                          PASS  cr-perfil-server-side-check.sh '{"tool_input":{"file_path":"tests/test_contas_receber.py","content":"perfil = request.data[\"perfil\"]"}}'
+
+echo "===== cr-provider-import-fronteira (contas-receber Fatia 3d / INV-FIN-GW-001) ====="
+run_case "CRPI1 SDK gateway no dominio BLOCK"               BLOCK cr-provider-import-fronteira-check.sh '{"tool_input":{"file_path":"src/domain/contas_receber/x.py","content":"import asaas"}}'
+run_case "CRPI2 SDK no use case BLOCK"                      BLOCK cr-provider-import-fronteira-check.sh '{"tool_input":{"file_path":"src/application/contas_receber/emitir_boleto.py","content":"from mercadopago import SDK"}}'
+run_case "CRPI3 pybreaker fora da infra BLOCK"              BLOCK cr-provider-import-fronteira-check.sh '{"tool_input":{"file_path":"src/application/contas_receber/x.py","content":"import pybreaker"}}'
+run_case "CRPI4 SDK na infra CR PASS"                       PASS  cr-provider-import-fronteira-check.sh '{"tool_input":{"file_path":"src/infrastructure/contas_receber/adapter_asaas.py","content":"import asaas"}}'
+run_case "CRPI5 porta agnostica PASS"                       PASS  cr-provider-import-fronteira-check.sh '{"tool_input":{"file_path":"src/domain/contas_receber/portas.py","content":"class PaymentGatewayProvider(Protocol): ..."}}'
+run_case "CRPI6 override PASS"                               PASS  cr-provider-import-fronteira-check.sh '{"tool_input":{"file_path":"src/domain/contas_receber/x.py","content":"import asaas  # cr-provider-import: skip -- stub local de contrato sera movido p/ infra"}}'
+run_case "CRPI7 teste ignora PASS"                          PASS  cr-provider-import-fronteira-check.sh '{"tool_input":{"file_path":"tests/test_cr_gateway.py","content":"import asaas"}}'
+
+echo "===== policy-tenant-vs-cliente (contas-receber Fatia 3d / INV-FIN-INAD-001) ====="
+run_case "PTVC1 import billing_saas em clientes BLOCK"      BLOCK policy-tenant-vs-cliente.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/bloqueio.py","content":"from src.infrastructure.billing_saas.models import TenantSuspenso"}}'
+run_case "PTVC2 ref BillingSaas em CR BLOCK"                BLOCK policy-tenant-vs-cliente.sh '{"tool_input":{"file_path":"src/infrastructure/contas_receber/inadimplencia_adapter.py","content":"if BillingSaas.objects.suspenso(): pass"}}'
+run_case "PTVC3 StatusLifecycle do tenant PASS"             PASS  policy-tenant-vs-cliente.sh '{"tool_input":{"file_path":"src/infrastructure/contas_receber/consumers/os_eventos.py","content":"if tenant.status_lifecycle in (StatusLifecycle.SUSPENSO,): pass"}}'
+run_case "PTVC4 bloqueio de cliente legit PASS"             PASS  policy-tenant-vs-cliente.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/consumers/contas_receber_eventos.py","content":"ativo = ClienteBloqueio.objects.filter(motivo_categoria=MOTIVO_AUTOMATICO_INADIMPLENCIA_90D)"}}'
+run_case "PTVC5 fora de path PASS"                          PASS  policy-tenant-vs-cliente.sh '{"tool_input":{"file_path":"src/infrastructure/billing_saas/models.py","content":"class TenantSuspenso: pass"}}'
+run_case "PTVC6 comentario explicativo PASS"                PASS  policy-tenant-vs-cliente.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/bloqueio.py","content":"# NB: billing-saas e TenantSuspenso sao do plano SaaS, nao deste modulo"}}'
+run_case "PTVC7 override PASS"                              PASS  policy-tenant-vs-cliente.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/x.py","content":"from x import TenantSuspenso  # policy-tenant-vs-cliente: skip -- leitura read-only para relatorio consolidado"}}'
+run_case "PTVC8 teste ignora PASS"                          PASS  policy-tenant-vs-cliente.sh '{"tool_input":{"file_path":"tests/test_clientes.py","content":"from billing_saas import TenantSuspenso"}}'
+
 # --- Gate anti-drift de contagens (auditoria maquina-dev 2026-05-29) ---
 # So no modo completo (sem filtro). Garante que os numeros a mao nos docs
 # canonicos (README/AGENTS/CLAUDE) batem com a fonte direta. Mata os
