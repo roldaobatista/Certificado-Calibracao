@@ -32,6 +32,10 @@ PASSWORD_HASHERS = [
 # DEBUG False em test pra forcar comportamento de producao em erros.
 DEBUG = False
 
+# E-mail em test: backend em memoria (nao envia; mailbox via django.core.mail.outbox).
+# T-CR-044: notificacao de inadimplencia testada sem SMTP real.
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+
 # =============================================================
 # REVERT 2026-05-24: MIRROR config causou pytest-django a escrever
 # em DEV `afere` em vez de test_afere (733 tenants vazaram). Sem MIRROR

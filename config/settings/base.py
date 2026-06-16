@@ -192,6 +192,33 @@ CR_WEBHOOK_IP_RATELIMIT_SALT: str = env(
 )
 
 # =============================================================
+# E-mail (Fatia 3b-2 — T-CR-044): notificação de inadimplência D+30/D+45.
+# PRIMEIRO uso de e-mail do projeto. SMTP real via env (decisão Roldão 2026-06-16):
+# preencher EMAIL_HOST/USER/PASSWORD no .env (ver .env.example). `test.py` sobrescreve
+# para backend locmem (não envia). DISPARO com PF real aguarda GATE-LGPD-RAT-CONSOLIDACAO
+# (texto do e-mail congelado — parecer advogado Caminho C).
+# =============================================================
+EMAIL_BACKEND: str = env(
+    "EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend"
+)
+EMAIL_HOST: str = env("EMAIL_HOST", default="")
+EMAIL_PORT: int = env.int("EMAIL_PORT", default=587)
+EMAIL_USE_TLS: bool = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_HOST_USER: str = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD: str = env("EMAIL_HOST_PASSWORD", default="")
+DEFAULT_FROM_EMAIL: str = env("DEFAULT_FROM_EMAIL", default="nao-responda@afere.local")
+
+# Canal de regularização padrão (diferido — decisão Roldão 2026-06-16: link global
+# por ora; campo por-tenant entra com as telas). Aparece no e-mail de cobrança.
+CANAL_REGULARIZACAO_URL: str = env(
+    "CANAL_REGULARIZACAO_URL", default="https://afere.local/regularizar"
+)
+
+# Fonte de inadimplência (Fatia 3b): "interim" (default retrocompat) | "contas_receber".
+# NÃO ativar "contas_receber" em produção até o fail-closed CDC (3b-3) + GATE-CR-NOTIF.
+INADIMPLENCIA_SOURCE_IMPL: str = env("INADIMPLENCIA_SOURCE_IMPL", default="interim")
+
+# =============================================================
 # Apps
 # =============================================================
 DJANGO_APPS = [
