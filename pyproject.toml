@@ -113,7 +113,7 @@ ignore = [
 allowed-confusables = ["×"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S105", "S106"]  # senhas/asserts em fixtures sao OK
+"tests/**" = ["S101", "S105", "S106", "S603", "S607"]  # asserts/senhas OK; S603/S607: subprocess em testes de hook (INV-FIN-INAD-001) usa path abspath e input controlado
 "**/migrations/*.py" = ["E501", "RUF012"]
 "config/settings/*.py" = ["F405", "F403"]  # settings usam wildcard import
 # RUF012: Django/DRF declaram atributos de classe mutaveis por design

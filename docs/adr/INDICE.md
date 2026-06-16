@@ -59,6 +59,7 @@ status: stable
 | ADR-0081 | Duas fontes de preço lista×venda fail-closed | produtos-pecas-servicos | `LinhaTabelaPreco`, `PrecoResolvido`, 422 |
 | ADR-0082 | OS multi-equipamento (equipamento por atividade) | ordens_servico | `AtividadeDaOS.equipamento_id`, `ItemComercialOS`, migrations 0018-0020, COALESCE trigger |
 | ADR-0083 | Snapshot de preço do orçamento = `PrecoResolvido` (reconcilia VO `Preco` do PRD) | orcamentos | reuso pps, emenda PRD, `Dinheiro`+`JanelaVigencia`, INV-ORC-PRECO-001 |
+| ADR-0084 | `Titulo` reconcilia "ContasReceber" do PRD; gatilho = `os.concluida` (emenda ADR-0043 §1) | contas-receber | `Titulo`=raiz, `Fatura` Wave B, cert só de OS, padrão interno não-faturável, INV-FIN-*/INV-CR-* |
 
 ---
 

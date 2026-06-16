@@ -16,11 +16,15 @@
 - **Fatia 3d DONE** (2026-06-16, commit pendente): seção `## INV-FIN-*` CRAVADA em `REGRAS-INEGOCIAVEIS.md` (T-CR-046 —
   GW/PERFIL/GRACE/SNAPSHOT/REATIV/INAD + INV-CR-* + INV-FIS-CR-001; `invariantes-futuras.md`→ponteiro) + 3 hooks (T-CR-047:
   `cr-perfil-server-side`/`cr-provider-import-fronteira`/`policy-tenant-vs-cliente`) no manifest, 23 casos verdes. **Todo o
-  CÓDIGO da frente CR está DONE — falta só fechamento P8/P9.**
-- **PRÓXIMO = P8** (T-CR-060): ADR de reconciliação (molde ADR-0083 — `Titulo`×"ContasReceber" do PRD + gatilho
-  `os.concluida`≠`Certificado.Emitido`, emenda ADR-0043/INV-CAL-FIN-001) + `matriz-reconciliacao.md` (AC↔código↔teste) +
-  `STATUS-GERADO` (`status-projeto.sh --check`) + frontmatters `stable` + `plano-dependencia-sistema.md` (nível 5 fecha
-  receita). Depois **P9** (T-CR-061): mutirão auditores roteados; MÉDIO+ bloqueia (INV-RITUAL-001); 2ª passada escopada.
+  CÓDIGO da frente CR está DONE.**
+- **P8 DONE** (2026-06-16, commit pendente, T-CR-060): **ADR-0084** (`Titulo`=ContasReceber PRD; `Fatura` Wave B; gatilho
+  `os.concluida`≠`Certificado.Emitido` → emenda ADR-0043 §1; cert só de OS — parecer consultor-rbc CONFIRMA) + `matriz-
+  reconciliacao.md` + **TST-004 fechado** (`tests/regressao/test_inv_fin_contas_receber.py`, 20 testes-com-ID p/ 13 INVs,
+  20/20) + frontmatters `stable` + `plano-dependencia` (nível 5 CR construído) + `STATUS-GERADO` (ADRs=85).
+- **PRÓXIMO = P9** (T-CR-061): mutirão auditores roteados (segurança/qualidade/llm/performance/observabilidade/idempotência
+  + conformidade-lgpd; produto no merge). MÉDIO+ bloqueia (INV-RITUAL-001); 2ª passada escopada + adversarial. **Fecha o
+  módulo CR.** Preencher ata em `matriz-reconciliacao.md §8`. Débito p/ auditores: pyproject ganhou S603/S607 (subprocess
+  em teste de hook — supplychain trivial).
 - **Débitos p/ P9:** desbloqueio SEM grace (assimetria c/ adapter 3b); snapshot webhook=valor_original (sem juros);
   desconto-pontualidade pré-vencimento sem fórmula; isolamento por-consumer do bus (re-review quando saga sair do stub).
 - **Migration test_afere:** `migrate --database=default` com `-e PYTEST_CURRENT_TEST=1 -e DATABASE_URL=...@db/test_afere`

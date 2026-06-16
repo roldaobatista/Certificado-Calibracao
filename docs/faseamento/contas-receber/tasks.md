@@ -1,8 +1,8 @@
 ---
 owner: agente-ia
-revisado-em: 2026-06-15
+revisado-em: 2026-06-16
 proximo-review: 2026-09-15
-status: draft
+status: stable
 diataxis: reference
 audiencia: [agente, auditor]
 frente: contas-receber
@@ -115,7 +115,7 @@ relacionados:
 
 ## P8/P9 — fechamento
 
-- [ ] **T-CR-060** P8: ADR reconciliação (molde ADR-0083 — Titulo×Fatura + gatilho OS×Certificado.Emitido, emenda ADR-0043/INV-CAL-FIN-001) + `matriz-reconciliacao.md` (AC↔código↔teste; INV↔teste; ata P9) + `STATUS-GERADO` (`status-projeto.sh --check`) + frontmatters `stable` + atualizar `plano-dependencia-sistema.md` (nível 5 CR FECHA receita). Ref: plan §6; GATE-CR-CERT-RECONCILIA.
+- [x] **T-CR-060** ✅ DONE 2026-06-16 — P8: **ADR-0084** (`Titulo`=ContasReceber do PRD; `Fatura` Wave B; gatilho `os.concluida`≠`Certificado.Emitido` → **emenda ADR-0043 §1**; cert só de OS + padrão interno não-faturável — parecer consultor-rbc CONFIRMA+ressalva `os.reaberta`/GATE-CR-REPROVA-PAGA já coberto) registrada no `INDICE.md`. `matriz-reconciliacao.md` (US↔código↔teste + INV↔enforcement↔teste-com-ID + reconciliação PRD + ata P9 placeholder). **TST-004 fechado:** `tests/regressao/test_inv_fin_contas_receber.py` (20 testes nomeados por ID p/ 13 INVs — 20/20 verdes). `STATUS-GERADO` regenerado (ADRs=85). Frontmatters spec/plan/tasks → `stable`. `plano-dependencia-sistema.md` nível 5 atualizado (CR construído + gatilho `os.concluida`). Ref: plan §6; GATE-CR-CERT-RECONCILIA fechado.
 - [ ] **T-CR-061** P9: mutirão auditores roteados (seguranca/qualidade/llm-correctness/performance/observabilidade/idempotencia + conformidade-lgpd; produto no merge). MÉDIO+ bloqueia (INV-RITUAL-001); 2ª passada escopada + adversarial. Ref: plan §6.
 
 ## Pré-condições antes de iniciar T-CR-040+ (Fatia 3 — cross-módulo)

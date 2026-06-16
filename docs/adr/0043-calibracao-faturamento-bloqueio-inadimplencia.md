@@ -1,4 +1,6 @@
 ---
+owner: agente-ia
+revisado-em: 2026-06-16
 adr: 0043
 titulo: Integração Certificado.Emitido → Financeiro + bloqueio de emissão por inadimplência dura
 status: aceito
@@ -11,6 +13,13 @@ depende-de: ADR-0015 (lifecycle tenant — inadimplência), ADR-0023 (OS com ati
 ---
 
 # ADR-0043 — Faturamento de certificado + bloqueio de emissão por inadimplência dura
+
+> **Emenda 2026-06-16 (ADR-0084 — P8 `contas-receber`):** o **§1 (gatilho `Certificado.Emitido`)
+> está SUPERADO**. O gatilho canônico único de auto-faturamento passou a ser **`os.concluida`
+> enriquecido** (D-CR-12 / ADR-0084 decisão 2/3): serviço entregue = OS concluída (cl. 7.1), não
+> emissão do documento; ancorar em `os.concluida` é o que impede o bloqueio por inadimplência de
+> reter certificado de OS já em andamento (cl. 7.8). Os **§2 (bloqueio perfil-aware) e §3 (override
+> A3)** desta ADR PERMANECEM vigentes. Ver ADR-0084 para a reconciliação completa.
 
 > **Emenda 2026-05-27 (Onda PRE-A.2 auditoria 10 lentes pré-Wave A — L10#4):** política de bloqueio dura por inadimplência é **perfil-aware** (ADR-0067):
 > - **Perfil A (RBC acreditado):** grace period D+45 antes do bloqueio (perda de janela CGCRE é catastrófico — risco regulatório > recuperação de R$). Notificação obrigatória D+30 e D+45 antes do bloqueio.
