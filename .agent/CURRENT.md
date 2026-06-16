@@ -4,11 +4,23 @@
 
 **Modo:** AUTÔNOMO. **Fase:** Wave A em curso.
 
-## Frente ATIVA — DECISÃO de próxima frente (nível 5/6 do `plano-dependencia-sistema.md`)
+## FILA DE FRENTES — ordem de dependência CRAVADA (Roldão 2026-06-16: "todos em sequência de dependência, não perguntar")
 
-- **`contas-receber` FECHOU** (módulo 100% Wave A). Próxima frente NÃO cravada — candidatas nível 5: `agenda`,
-  `caixa-tecnico`, `chamados`, `contas-pagar`; nível 6 gatilhado por recebimento: `comissoes`. Seguir ordem por
-  dependência (criar a ordem se faltar); decisão de priorização = uma rodada batch antes de iniciar a frente nova.
+Receita fechada (config→pps→precificacao→colaboradores→orcamentos→contas-receber). Fila dos faltantes Wave A
+(topo-sort do `plano-dependencia-sistema.md`; cada um respeita suas deps já construídas; **seguir em ordem, sem perguntar**):
+
+1. **`agenda`** (N5) ← PRÓXIMA. OS já tem gancho fail-open lazy esperando (atribuição de técnico); valida INV-020 (Lei 13.103). Dep: os(✓)+colaboradores(✓).
+2. **`caixa-tecnico`** (N5) — destrava app-tecnico/despesas/custeio-real.
+3. **`chamados`** (N5) — entrada de demanda → vira OS. Dep: clientes(✓)+os(✓).
+4. **`contas-pagar`** (N5) — par do CR; destrava despesas (precisa cadastro fornecedor mínimo).
+5. **`estoque`** (N3, atrasado) — pré-req de app-tecnico/custeio-real. Dep: pps(✓)+os(✓)+equipamentos(✓).
+6. **`frota`** (N4) · **`treinamentos`** (N3) · **`seguranca-trabalho`** (N3) — suporte; dep colaboradores/equipamentos (✓).
+7. **N6:** `comissoes` (gatilha por recebimento ✓) → `despesas` → `app-tecnico` → `contabilidade-export`.
+8. **N7+:** `fornecedores` → `crm` → `contratos` → `qualidade` → `custeio-real` (fecha stub precificacao) → níveis 8–10.
+
+**DIFERIDOS (bloqueio externo — só quando Roldão liberar credencial/serviço):** `certificados-digitais` (Lacuna Web PKI/A3),
+`comunicacao-omnichannel` (SMS/WhatsApp/e-mail real), `billing-saas` (gateway+fiscal reais), `integracoes-externas` (OAuth).
+
 - **Para o Roldão (quando ativar e-mail real do CR):** criar `.env` com `EMAIL_HOST`/`EMAIL_HOST_USER`/
   `EMAIL_HOST_PASSWORD`/`DEFAULT_FROM_EMAIL` (SMTP). Hoje modo teste (não envia). Disparo a PF real só após GATE-LGPD-RAT.
 
