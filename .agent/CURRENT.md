@@ -16,11 +16,26 @@
   **Achado: bus virou FAN-OUT** (`os.concluida` já tinha saga de anonimização; `_REGISTRY: dict[str,list]`,
   tudo-ou-nada por linha; tech-lead Opus aprovou c/ correções) — [[fan-out-bus-consumers-os-concluida]].
   Verde: 13 (3a) + 4 (fan-out) + 28 (regressão CR Fatia 2) + 13 (fb_reconciliacao).
-- **PRÓXIMO = Fatia 3b** (inadimplência — toca `clientes` FECHADO; T-CR-043/044): adapter `InadimplenciaSource`
-  PULL + grace 45/20/30/7 perfil + notificação D+30/D+45 perfil A (`send_mail`). Depois 3c (desbloqueio — consumer
-  novo em `clientes` de `contas_receber.pago`) → 3d (INV-FIN-* ao mestre + hooks) → P8 (ADR reconcilia) / P9 (auditores).
+- **Fatia 3b-1 DONE** (commit `227c522`): adapter `TituloVencidoInadimplenciaSource` (PULL) lê `Titulo` vencido +
+  grace 45/20/30/7 por perfil; `InadimplenciaItem`+perfil/grace_perfil Optional (toca `clientes` FECHADO); `get_source()`
+  parametrizado `INADIMPLENCIA_SOURCE_IMPL` (default "interim" = INATIVO). 10+15 testes.
+- **Fatia 3b-2 DONE** (commit `853f12c`): notificação D+30/D+45 perfil A — parecer advogado **Caminho C** (e-mail ao
+  cliente, **remetente = tenant**; e-mail nunca no evento; evento `inadimplencia_dura_atingida` = aviso ao admin).
+  Config `EMAIL_*` SMTP via env (test=locmem) + `CANAL_REGULARIZACAO_URL`. Template minuta CONGELADA (GATE-LGPD-RAT). 7 testes.
+- **Fatia 3b-3 DONE** (2026-06-16): model `NotificacaoInadimplencia` (INSERT-only, migration 0007 RLS+WORM) = prova de
+  envio; job grava prova só se e-mail enviado (fail-closed CDC); idempotência por `UNIQUE(tenant,titulo,marco)`; marco por
+  janela. Fail-closed no adapter: perfil A não entra na régua sem prova. 22 testes Fatia 3b verdes. **Módulo CR: Fatia 3b
+  (inadimplência) COMPLETA.**
+- **PRÓXIMO = Fatia 3c** (desbloqueio — GATE-CLI-6): query `tem_outra_vencida_em_aberto` exposta por CR + consumer NOVO em
+  `clientes` de `contas_receber.pago` → encerra `ClienteBloqueio` + publica `cliente.desbloqueado` (idempotente; parcial
+  mantém). Atenção RLS `upt_self_select` / toca `clientes` FECHADO (R14). Depois 3d (INV-FIN-* ao mestre + hooks) → P8
+  (ADR reconcilia, molde 0083) / P9 (mutirão auditores).
+- **Migration test_afere:** router faz DDL só em `migrator` fora de pytest; aplicar nova migration ao test_afere =
+  `migrate --database=default` com `-e PYTEST_CURRENT_TEST=1 -e DATABASE_URL=...@db/test_afere` (NÃO dropar — perde extensões).
 - **Débitos p/ P9:** snapshot webhook=valor_original (sem juros); desconto-pontualidade pré-vencimento sem fórmula;
   isolamento por-consumer do bus (re-review quando a saga sair do stub).
+- **Para o Roldão (quando ativar e-mail real):** criar `.env` com `EMAIL_HOST`/`EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD`/
+  `DEFAULT_FROM_EMAIL` (provedor SMTP). Hoje em modo teste (não envia). Disparo a PF real só após GATE-LGPD-RAT.
 
 ## Última frente FECHADA — `orcamentos` MÓDULO 100% Wave A (2026-06-15)
 

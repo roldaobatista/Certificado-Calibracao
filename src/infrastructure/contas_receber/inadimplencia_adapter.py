@@ -63,7 +63,12 @@ class TituloVencidoInadimplenciaSource:
 
     @staticmethod
     def _coletar_do_tenant(tenant: object) -> list[InadimplenciaItem]:
-        from src.infrastructure.contas_receber.models import Titulo as TituloModel
+        from src.infrastructure.contas_receber.models import (
+            NotificacaoInadimplencia,
+        )
+        from src.infrastructure.contas_receber.models import (
+            Titulo as TituloModel,
+        )
 
         perfil = tenant.perfil_regulatorio  # type: ignore[attr-defined]
         tenant_id = tenant.id  # type: ignore[attr-defined]
@@ -79,15 +84,23 @@ class TituloVencidoInadimplenciaSource:
             if cliente_atual_id is None:  # queryset já filtra; narrowing type-safe + defesa
                 continue
             dias_vencido = (hoje - t.data_vencimento).days
-            if dias_vencido >= grace:
-                coletados.append(
-                    InadimplenciaItem(
-                        tenant_id=tenant_id,
-                        cliente_id=cliente_atual_id,
-                        dias_vencido=dias_vencido,
-                        causation_titulo_id=t.id,
-                        perfil=perfil,
-                        grace_perfil=grace,
-                    )
+            if dias_vencido < grace:
+                continue
+            # FAIL-CLOSED CDC (T-CR-044b / parecer Caminho C): perfil A só entra na régua
+            # de bloqueio se o aviso prévio FOI enviado (prova de notificação). Demais
+            # perfis comunicam via evento (D-CR-22), sem trava aqui.
+            if perfil == "A" and not NotificacaoInadimplencia.objects.filter(
+                tenant_id=tenant_id, titulo_id=t.id
+            ).exists():
+                continue
+            coletados.append(
+                InadimplenciaItem(
+                    tenant_id=tenant_id,
+                    cliente_id=cliente_atual_id,
+                    dias_vencido=dias_vencido,
+                    causation_titulo_id=t.id,
+                    perfil=perfil,
+                    grace_perfil=grace,
                 )
+            )
         return coletados

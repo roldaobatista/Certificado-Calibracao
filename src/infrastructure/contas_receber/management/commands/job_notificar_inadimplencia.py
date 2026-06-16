@@ -16,8 +16,10 @@ Resiliente: falha de SMTP loga e NÃO derruba o job (credenciais ausentes em Wav
 `--dry-run` não envia nem publica. **DISPARO com PF real aguarda GATE-LGPD-RAT-CONSOLIDACAO**
 (texto do e-mail congelado). Backend de e-mail: locmem em test; SMTP via env em dev/prod.
 
-Limitação Wave A (3b-2): idempotência por dia (dias_vencido == 30/45 exato). Prova de
-envio persistida + re-disparo robusto + fail-closed de bloqueio = Fatia 3b-3.
+Idempotência por PROVA persistida (`NotificacaoInadimplencia` UNIQUE tenant+titulo+marco)
++ marco por janela (re-disparo robusto: não perde se o job falhar 1 dia). A prova grava
+SÓ quando o e-mail é enviado com sucesso (fail-closed CDC — T-CR-044b); o adapter de
+bloqueio (3b-1) só inclui perfil A com aviso registrado.
 """
 
 from __future__ import annotations
@@ -67,10 +69,15 @@ class Command(BaseCommand):
             return 0
         grace = grace_period_por_perfil(_PERFIL_NOTIFICAVEL)  # 45
         hoje = date.today()
-        from src.infrastructure.contas_receber.models import Titulo as TituloModel
+        from src.infrastructure.contas_receber.models import (
+            NotificacaoInadimplencia,
+        )
+        from src.infrastructure.contas_receber.models import (
+            Titulo as TituloModel,
+        )
 
         grupos: dict[tuple[UUID, str], list[TituloVencidoInfo]] = defaultdict(list)
-        hashes: dict[UUID, str] = {}
+        titulo_hash: dict[UUID, str] = {}
         qs = TituloModel.objects.filter(
             estado="vencido", cliente_atual_id__isnull=False
         ).only("id", "cliente_atual_id", "cliente_referencia_hash", "valor_original", "data_vencimento")
@@ -82,6 +89,11 @@ class Command(BaseCommand):
             marco = marco_de_dias_vencido(dias)
             if marco is None:
                 continue
+            # Idempotência por prova (UNIQUE tenant+titulo+marco): não reenvia o marco.
+            if NotificacaoInadimplencia.objects.filter(
+                tenant_id=tenant.id, titulo_id=t.id, marco=marco
+            ).exists():
+                continue
             grupos[(cliente_id, marco)].append(
                 TituloVencidoInfo(
                     titulo_id=t.id,
@@ -90,7 +102,7 @@ class Command(BaseCommand):
                     dias_vencido=dias,
                 )
             )
-            hashes[cliente_id] = t.cliente_referencia_hash
+            titulo_hash[t.id] = t.cliente_referencia_hash
         if not grupos:
             return 0
 
@@ -108,16 +120,29 @@ class Command(BaseCommand):
                 enviados += 1
                 continue
             cliente_email = self._email_cliente(cliente_id)
-            if cliente_email:
-                self._enviar(
-                    assunto=aviso.assunto,
-                    corpo=aviso.corpo,
-                    para=[cliente_email],
-                    tenant_nome=tenant_nome,
+            enviado_ok = bool(cliente_email) and self._enviar(
+                assunto=aviso.assunto,
+                corpo=aviso.corpo,
+                para=[cliente_email],
+                tenant_nome=tenant_nome,
+            )
+            if not enviado_ok:
+                # Sem e-mail OU SMTP falhou → NÃO grava prova nem evento (fail-closed CDC:
+                # prova = aviso REAL; bloqueio só libera com aviso enviado). Retenta no próximo run.
+                continue
+            # Prova por título (base do fail-closed do bloqueio perfil A) + evento ao tenant.
+            for info in titulos:
+                NotificacaoInadimplencia.objects.create(
+                    tenant_id=tenant.id,
+                    titulo_id=info.titulo_id,
+                    cliente_referencia_hash=titulo_hash[info.titulo_id],
+                    marco=marco,
+                    dias_vencido=info.dias_vencido,
+                    perfil_no_evento=_PERFIL_NOTIFICAVEL,
                 )
             self._publicar_evento(
                 tenant_id=tenant.id,
-                cliente_referencia_hash=hashes[cliente_id],
+                cliente_referencia_hash=titulo_hash[titulos[0].titulo_id],
                 aviso=aviso,
             )
             enviados += 1
@@ -130,8 +155,12 @@ class Command(BaseCommand):
         c = Cliente.objects.filter(id=cliente_id).only("email").first()
         return (c.email or "") if c is not None else ""
 
-    def _enviar(self, *, assunto: str, corpo: str, para: list[str], tenant_nome: str) -> None:
-        """Envia e-mail. Resiliente: falha de SMTP loga e NÃO derruba o job."""
+    def _enviar(self, *, assunto: str, corpo: str, para: list[str], tenant_nome: str) -> bool:
+        """Envia e-mail. Resiliente: falha de SMTP loga e NÃO derruba o job.
+
+        Retorna True se enviou. A prova de envio (fail-closed) só é gravada quando
+        retorna True — registrar prova sem envio real liberaria bloqueio sem aviso (CDC).
+        """
         msg = EmailMessage(
             subject=assunto,
             body=corpo,
@@ -140,10 +169,12 @@ class Command(BaseCommand):
         )
         try:
             msg.send(fail_silently=False)
+            return True
         except Exception:  # -- SMTP indisponível/credenciais ausentes não param o job
             logger.warning(
                 "job_notificar_inadimplencia: falha ao enviar aviso (SMTP)", exc_info=True
             )
+            return False
 
     @staticmethod
     def _publicar_evento(*, tenant_id: UUID, cliente_referencia_hash: str, aviso: Any) -> None:

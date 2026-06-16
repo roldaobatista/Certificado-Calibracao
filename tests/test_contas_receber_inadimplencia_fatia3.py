@@ -19,7 +19,7 @@ from datetime import UTC, date, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
-from django.db import connection
+from django.db import DatabaseError, connection
 from django.test import override_settings
 from src.domain.comercial.clientes.inadimplencia_source import InadimplenciaItem
 from src.domain.contas_receber.entities import Titulo
@@ -66,15 +66,32 @@ def _criar_titulo_vencido(tenant, *, dias_vencido: int, cliente_id, perfil: str)
     return titulo
 
 
+def _criar_prova(tenant, *, titulo_id, marco: str = "D30", dias_vencido: int = 50) -> None:
+    """Prova de aviso (fail-closed perfil A — T-CR-044b). Dentro de run_in_tenant_context."""
+    from src.infrastructure.contas_receber.models import NotificacaoInadimplencia
+
+    NotificacaoInadimplencia.objects.create(
+        tenant_id=tenant.id,
+        titulo_id=titulo_id,
+        cliente_referencia_hash=_hash_cliente(),
+        marco=marco,
+        dias_vencido=dias_vencido,
+        perfil_no_evento="A",
+    )
+
+
 @pytest.mark.django_db(transaction=True)
 def test_grace_perfil_a_fronteira_d44_fora_d46_dentro():
-    """Perfil A: grace 45 dias. D+44 NÃO entra na régua; D+46 entra (INV-FIN-GRACE-PERFIL-001)."""
+    """Perfil A: grace 45 dias. D+44 NÃO entra na régua; D+46 entra (INV-FIN-GRACE-PERFIL-001).
+    Com prova de aviso (fail-closed) presente em ambos, isola a fronteira do GRACE."""
     tenant = TenantFactory(perfil_a=True)
     cli_44 = uuid4()
     cli_46 = uuid4()
     with run_in_tenant_context(tenant.id):
-        _criar_titulo_vencido(tenant, dias_vencido=44, cliente_id=cli_44, perfil="A")
-        _criar_titulo_vencido(tenant, dias_vencido=46, cliente_id=cli_46, perfil="A")
+        t44 = _criar_titulo_vencido(tenant, dias_vencido=44, cliente_id=cli_44, perfil="A")
+        t46 = _criar_titulo_vencido(tenant, dias_vencido=46, cliente_id=cli_46, perfil="A")
+        _criar_prova(tenant, titulo_id=t44.titulo_id)  # fail-closed: precisa de prova
+        _criar_prova(tenant, titulo_id=t46.titulo_id)
         items = TituloVencidoInadimplenciaSource._coletar_do_tenant(tenant)
     clientes = {i.cliente_id for i in items}
     assert cli_46 in clientes  # 46 > grace 45 → entra
@@ -98,12 +115,41 @@ def test_item_carrega_perfil_e_grace():
     tenant = TenantFactory(perfil_a=True)
     cli = uuid4()
     with run_in_tenant_context(tenant.id):
-        _criar_titulo_vencido(tenant, dias_vencido=50, cliente_id=cli, perfil="A")
+        t = _criar_titulo_vencido(tenant, dias_vencido=50, cliente_id=cli, perfil="A")
+        _criar_prova(tenant, titulo_id=t.titulo_id)  # fail-closed perfil A
         items = TituloVencidoInadimplenciaSource._coletar_do_tenant(tenant)
     item = next(i for i in items if i.cliente_id == cli)
     assert item.perfil == "A"
     assert item.grace_perfil == 45
     assert item.dias_vencido == 50
+
+
+@pytest.mark.django_db(transaction=True)
+def test_fail_closed_perfil_a_sem_aviso_nao_bloqueia():
+    """FAIL-CLOSED CDC (T-CR-044b): perfil A vencido além do grace mas SEM prova de aviso
+    → NÃO entra na régua de bloqueio. Com prova → entra."""
+    tenant = TenantFactory(perfil_a=True)
+    cli_sem = uuid4()
+    cli_com = uuid4()
+    with run_in_tenant_context(tenant.id):
+        _criar_titulo_vencido(tenant, dias_vencido=60, cliente_id=cli_sem, perfil="A")
+        t_com = _criar_titulo_vencido(tenant, dias_vencido=60, cliente_id=cli_com, perfil="A")
+        _criar_prova(tenant, titulo_id=t_com.titulo_id)
+        items = TituloVencidoInadimplenciaSource._coletar_do_tenant(tenant)
+    clientes = {i.cliente_id for i in items}
+    assert cli_sem not in clientes  # sem aviso → fail-closed barra o bloqueio
+    assert cli_com in clientes  # com aviso → entra
+
+
+@pytest.mark.django_db(transaction=True)
+def test_fail_closed_nao_aplica_perfil_d():
+    """Fail-closed é só perfil A; perfil D entra na régua sem prova (D-CR-22)."""
+    tenant = TenantFactory(perfil_d=True)
+    cli = uuid4()
+    with run_in_tenant_context(tenant.id):
+        _criar_titulo_vencido(tenant, dias_vencido=10, cliente_id=cli, perfil="D")
+        items = TituloVencidoInadimplenciaSource._coletar_do_tenant(tenant)
+    assert cli in {i.cliente_id for i in items}
 
 
 @pytest.mark.django_db(transaction=True)
@@ -240,9 +286,11 @@ def test_montar_aviso_puro():
         montar_aviso,
     )
 
+    assert marco_de_dias_vencido(29) is None
     assert marco_de_dias_vencido(30) == "D30"
+    assert marco_de_dias_vencido(44) == "D30"  # janela D30 (re-disparo robusto)
     assert marco_de_dias_vencido(45) == "D45"
-    assert marco_de_dias_vencido(31) is None
+    assert marco_de_dias_vencido(60) == "D45"
 
     aviso = montar_aviso(
         tenant_nome="Lab Exemplo",
@@ -329,7 +377,8 @@ def test_notificacao_dia_fora_marco_nao_envia():
     tenant = TenantFactory(perfil_a=True)
     with run_in_tenant_context(tenant.id):
         cliente = _criar_cliente(tenant, email="x@cliente.local")
-        _criar_titulo_vencido(tenant, dias_vencido=31, cliente_id=cliente.id, perfil="A")
+        # 20 dias < janela D30 → nada a notificar
+        _criar_titulo_vencido(tenant, dias_vencido=20, cliente_id=cliente.id, perfil="A")
     enviados = _rodar_job(tenant)
     assert enviados == 0
 
@@ -365,11 +414,12 @@ def test_notificacao_evento_payload_rico_para_tenant():
 
 @pytest.mark.django_db(transaction=True)
 def test_notificacao_resiliente_a_falha_smtp():
-    """SMTP indisponível (credenciais ausentes Wave A) → job loga e NÃO derruba."""
+    """SMTP indisponível → job loga e NÃO derruba; e (fail-closed) NÃO grava prova."""
     from unittest.mock import patch
 
     from django.core import mail
     from django.core.mail import EmailMessage
+    from src.infrastructure.contas_receber.models import NotificacaoInadimplencia
 
     mail.outbox.clear()
     tenant = TenantFactory(perfil_a=True)
@@ -378,7 +428,75 @@ def test_notificacao_resiliente_a_falha_smtp():
         _criar_titulo_vencido(tenant, dias_vencido=30, cliente_id=cliente.id, perfil="A")
     with patch.object(EmailMessage, "send", side_effect=Exception("smtp down")):
         enviados = _rodar_job(tenant)  # não levanta
-    assert enviados == 1  # processou (evento publicado), só o e-mail falhou (logado)
+    assert enviados == 0  # SMTP falhou → nada confirmado
+    with run_in_tenant_context(tenant.id):
+        # prova = aviso REAL: sem envio, sem prova (não pode bloquear sem avisar)
+        assert not NotificacaoInadimplencia.objects.exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_notificacao_registra_prova_de_envio():
+    from django.core import mail
+    from src.infrastructure.contas_receber.models import NotificacaoInadimplencia
+
+    mail.outbox.clear()
+    tenant = TenantFactory(perfil_a=True)
+    with run_in_tenant_context(tenant.id):
+        cliente = _criar_cliente(tenant, email="prova@cliente.local")
+        t = _criar_titulo_vencido(tenant, dias_vencido=30, cliente_id=cliente.id, perfil="A")
+    _rodar_job(tenant)
+    with run_in_tenant_context(tenant.id):
+        prova = NotificacaoInadimplencia.objects.filter(
+            titulo_id=t.titulo_id, marco="D30"
+        ).first()
+    assert prova is not None
+    assert "prova@cliente.local" not in prova.cliente_referencia_hash  # sem e-mail na prova
+
+
+@pytest.mark.django_db(transaction=True)
+def test_notificacao_idempotente_nao_reenvia_marco():
+    from django.core import mail
+    from src.infrastructure.contas_receber.models import NotificacaoInadimplencia
+
+    mail.outbox.clear()
+    tenant = TenantFactory(perfil_a=True)
+    with run_in_tenant_context(tenant.id):
+        cliente = _criar_cliente(tenant, email="idem@cliente.local")
+        t = _criar_titulo_vencido(tenant, dias_vencido=30, cliente_id=cliente.id, perfil="A")
+    n1 = _rodar_job(tenant)
+    n2 = _rodar_job(tenant)  # prova já existe → não reenvia o marco D30
+    assert n1 == 1
+    assert n2 == 0
+    with run_in_tenant_context(tenant.id):
+        assert (
+            NotificacaoInadimplencia.objects.filter(titulo_id=t.titulo_id, marco="D30").count()
+            == 1
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_notificacao_inadimplencia_insert_only():
+    """INV-CR-NOTIF-WORM: NotificacaoInadimplencia é INSERT-only (block-update/delete)."""
+    from django.db import transaction as _tx
+    from src.infrastructure.contas_receber.models import NotificacaoInadimplencia
+
+    tenant = TenantFactory(perfil_a=True)
+    with run_in_tenant_context(tenant.id):
+        t = _criar_titulo_vencido(tenant, dias_vencido=50, cliente_id=uuid4(), perfil="A")
+        _criar_prova(tenant, titulo_id=t.titulo_id, marco="D45")
+        prova = NotificacaoInadimplencia.objects.filter(titulo_id=t.titulo_id).first()
+        assert prova is not None
+        with pytest.raises(DatabaseError), _tx.atomic():
+            with connection.cursor() as cur:
+                cur.execute(
+                    "UPDATE notificacao_inadimplencia SET marco='D30' WHERE id=%s",
+                    [str(prova.id)],
+                )
+        with pytest.raises(DatabaseError), _tx.atomic():
+            with connection.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM notificacao_inadimplencia WHERE id=%s", [str(prova.id)]
+                )
 
 
 def test_inadimplencia_item_default_none_isinstance():

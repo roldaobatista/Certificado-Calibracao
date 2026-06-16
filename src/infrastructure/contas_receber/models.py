@@ -381,3 +381,67 @@ class OverrideBloqueio(models.Model):
 
     def __str__(self) -> str:
         return f"OverrideBloqueio({self.titulo_id} — {self.novo_prazo_max_dias}d)"
+
+
+class NotificacaoInadimplencia(models.Model):
+    """Prova de envio de aviso de inadimplência D+30/D+45 (Fatia 3b-3 — T-CR-044b).
+
+    INSERT-only (block-update + block-delete — trigger 0007 / ADR-0031 Padrão B).
+    Duas finalidades (parecer advogado Caminho C):
+      1. **Prova de cumprimento CDC** (aviso prévio enviado) — retenção 5a.
+      2. Base do **FAIL-CLOSED** do bloqueio perfil A: o adapter de inadimplência só
+         inclui o título na régua de bloqueio se há registro de aviso aqui (D-CR-9).
+
+    Minimização (D-CR-19): NÃO grava o e-mail do cliente — só `cliente_referencia_hash`.
+    `UNIQUE(tenant, titulo, marco)` = idempotência de envio (não reenvia o mesmo marco).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, serialize=False)
+    titulo = models.ForeignKey(
+        Titulo,
+        on_delete=models.PROTECT,
+        related_name="notificacoes_inadimplencia",
+    )
+    tenant = models.ForeignKey(
+        "tenant.tenant",
+        on_delete=models.PROTECT,
+        related_name="notificacoes_inadimplencia",
+    )
+    cliente_referencia_hash = models.CharField(
+        max_length=80,
+        help_text="HMAC do cliente (pseudônimo — D-CR-16). Sem e-mail/PII direta (D-CR-19).",
+    )
+    marco = models.CharField(
+        max_length=3,
+        help_text="Marco do aviso: 'D30' (prévio) | 'D45' (final). Imutável.",
+    )
+    dias_vencido = models.IntegerField(help_text="Dias em atraso no momento do aviso.")
+    perfil_no_evento = models.CharField(
+        max_length=1,
+        help_text="Snapshot CHAR(1) do perfil do tenant no aviso (D-CR-6). Wave A: só 'A'.",
+    )
+    canal = models.CharField(
+        max_length=20,
+        default="email_cliente",
+        help_text="Canal do aviso (email_cliente). Aviso ao admin = evento, não e-mail.",
+    )
+    enviada_em = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "notificacao_inadimplencia"
+        verbose_name = "Notificação de Inadimplência"
+        verbose_name_plural = "Notificações de Inadimplência"
+        ordering = ["enviada_em"]
+        constraints = [
+            # Idempotência de envio: 1 aviso por título por marco.
+            models.UniqueConstraint(
+                fields=["tenant", "titulo", "marco"],
+                name="uq_cr_notif_inad_titulo_marco",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "titulo"], name="cr_notif_inad_tenant_tit_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"NotificacaoInadimplencia({self.titulo_id} — {self.marco})"

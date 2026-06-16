@@ -21,7 +21,6 @@ from uuid import UUID
 
 MARCO_D30 = "D30"
 MARCO_D45 = "D45"
-_MARCOS: dict[int, str] = {30: MARCO_D30, 45: MARCO_D45}
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,12 +45,16 @@ class AvisoInadimplencia:
 
 
 def marco_de_dias_vencido(dias_vencido: int) -> str | None:
-    """D30/D45 se o dia bate exatamente um marco notificável; senão None.
-
-    Idempotência por dia: o job roda 1×/dia, então cada marco dispara em 1 dia.
-    Robustez contra job perdido (prova de envio + re-disparo) = Fatia 3b-3.
+    """Marco do aviso por JANELA (re-disparo robusto — T-CR-044b): D45 a partir de 45
+    dias (limite do grace A), D30 entre 30 e 44. A idempotência (não reenviar o mesmo
+    marco) é garantida pela prova de envio `UNIQUE(tenant, titulo, marco)`, não pelo dia
+    exato — então o job não perde o marco se falhar 1 dia.
     """
-    return _MARCOS.get(dias_vencido)
+    if dias_vencido >= 45:
+        return MARCO_D45
+    if dias_vencido >= 30:
+        return MARCO_D30
+    return None
 
 
 def _centavos_para_reais_str(centavos: int) -> str:
