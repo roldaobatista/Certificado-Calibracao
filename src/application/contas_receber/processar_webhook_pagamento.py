@@ -128,8 +128,22 @@ def processar_webhook_pagamento(
         gateway_event_id=evento.gateway_event_id,
     )
 
-    # Grava pagamento (INSERT-only WORM).
-    repo.salvar_pagamento(tenant_id=inp.tenant_id, pagamento=pagamento)
+    # Grava pagamento (INSERT-only WORM). Savepoint isola a CORRIDA (P9 MÉDIO-1): se outro
+    # webhook concorrente com o MESMO gateway_event_id já inseriu (UniqueConstraint
+    # `uq_cr_pagamento_gateway_event`), o IntegrityError NÃO aborta a tx da view — vira replay
+    # (no-op, sem 2º Pagamento WORM nem 2º evento publicado). Fecha o TOCTOU do check-then-act.
+    from django.db import IntegrityError, transaction
+
+    try:
+        with transaction.atomic():
+            repo.salvar_pagamento(tenant_id=inp.tenant_id, pagamento=pagamento)
+    except IntegrityError:
+        return ProcessarWebhookOutput(
+            evento=evento,
+            pagamento=None,
+            novo_estado=None,
+            ja_processado=True,
+        )
 
     # Transiciona título → pago.
     from dataclasses import replace

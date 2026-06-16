@@ -95,7 +95,9 @@ relacionados:
 
 | Passada | Resultado |
 |---|---|
-| **1ª** | _(a preencher no mutirão T-CR-061)_ |
+| **1ª** | **7 PASS** (segurança · qualidade · llm-correctness · performance · observabilidade · conformidade-lgpd · supplychain) + **1 MÉDIO** — IDEMPOTÊNCIA: **MÉDIO-1 TOCTOU na idempotência do webhook** (`existe_gateway_event` é check-then-act sob READ COMMITTED; `gateway_event_id` só tinha `Index`, sem `UniqueConstraint`; webhook sem advisory lock → 2 webhooks paralelos com mesmo `gateway_event_id` duplicariam `Pagamento` WORM + `contas_receber.pago` 2×). **Verificação adversarial (R6) confirmou real.** CONCERN BAIXO registrados (não bloqueiam): qualidade — `# type: ignore[attr-defined]` sem razão inline em `inadimplencia_adapter.py:73` (ignore narrado sobre param `object`); observabilidade — OBS-003 métrica pré-F-C + logs de no-op em consumers sem `extra` explícito (mitigado por GUC de contexto); performance — N+1 em jobs batch (adapter inadimplência + job notificação). |
+| **conserto causa-raiz** | `UniqueConstraint(tenant, gateway_event_id)` PARCIAL `WHERE gateway_event_id != ''` (`models.py` + migration `0008`, aplicada dev+test_afere) = defesa de banco; use case `processar_webhook_pagamento` envolve `salvar_pagamento` em savepoint e captura `IntegrityError` → `ja_processado=True` (replay no-op, sem 2º Pagamento/evento). Teste de regressão `test_inv_fin_gw_001_pagamento_gateway_event_unico_resistente_a_corrida` (constraint barra duplicata; parcial não barra manuais). 28 testes verdes (21 regressão-INV + 7 webhook fatia2b). |
+| **2ª (escopada R5 — só IDEMPOTÊNCIA, restrita ao conserto)** | **IDEMPOTÊNCIA RESOLVIDO** (adversarial R6) — janela TOCTOU fechada pela constraint parcial + savepoint; sem mascaramento (`except IntegrityError → replay` é semântica de idempotência legítima; teste exerce a barreira real); nenhum NOVO-ACHADO. **Módulo `contas-receber` FECHADO — Wave A.** |
 
 ## Débitos rastreados para P9 / Wave B
 

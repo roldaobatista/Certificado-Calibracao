@@ -316,6 +316,17 @@ class Pagamento(models.Model):
         verbose_name = "Pagamento de Título"
         verbose_name_plural = "Pagamentos de Título"
         ordering = ["criado_em"]
+        constraints = [
+            # INV-FIN-GW-001 (P9 MÉDIO-1 idempotência): idempotência de webhook RESISTENTE A
+            # CORRIDA — 2 webhooks paralelos com o mesmo gateway_event_id não duplicam o
+            # Pagamento WORM (o check `existe_gateway_event` sozinho é TOCTOU sob READ COMMITTED).
+            # Parcial: pagamentos manuais (gateway_event_id="") ficam de fora.
+            models.UniqueConstraint(
+                fields=["tenant", "gateway_event_id"],
+                condition=~models.Q(gateway_event_id=""),
+                name="uq_cr_pagamento_gateway_event",
+            ),
+        ]
         indexes = [
             models.Index(fields=["tenant", "titulo"], name="cr_pagamento_tenant_titulo_idx"),
             models.Index(fields=["gateway_event_id"], name="cr_pagamento_gw_event_idx"),

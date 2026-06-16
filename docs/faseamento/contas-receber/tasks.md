@@ -116,7 +116,7 @@ relacionados:
 ## P8/P9 — fechamento
 
 - [x] **T-CR-060** ✅ DONE 2026-06-16 — P8: **ADR-0084** (`Titulo`=ContasReceber do PRD; `Fatura` Wave B; gatilho `os.concluida`≠`Certificado.Emitido` → **emenda ADR-0043 §1**; cert só de OS + padrão interno não-faturável — parecer consultor-rbc CONFIRMA+ressalva `os.reaberta`/GATE-CR-REPROVA-PAGA já coberto) registrada no `INDICE.md`. `matriz-reconciliacao.md` (US↔código↔teste + INV↔enforcement↔teste-com-ID + reconciliação PRD + ata P9 placeholder). **TST-004 fechado:** `tests/regressao/test_inv_fin_contas_receber.py` (20 testes nomeados por ID p/ 13 INVs — 20/20 verdes). `STATUS-GERADO` regenerado (ADRs=85). Frontmatters spec/plan/tasks → `stable`. `plano-dependencia-sistema.md` nível 5 atualizado (CR construído + gatilho `os.concluida`). Ref: plan §6; GATE-CR-CERT-RECONCILIA fechado.
-- [ ] **T-CR-061** P9: mutirão auditores roteados (seguranca/qualidade/llm-correctness/performance/observabilidade/idempotencia + conformidade-lgpd; produto no merge). MÉDIO+ bloqueia (INV-RITUAL-001); 2ª passada escopada + adversarial. Ref: plan §6.
+- [x] **T-CR-061** ✅ DONE 2026-06-16 — P9: mutirão auditores roteados. **1ª passada: 7 PASS + 1 MÉDIO** (idempotência — TOCTOU webhook: `gateway_event_id` sem `UniqueConstraint`). **Conserto causa-raiz:** `UniqueConstraint` parcial `uq_cr_pagamento_gateway_event` (migration 0008, dev+test_afere) + savepoint/`IntegrityError`→replay no use case + teste-com-ID da corrida. **2ª passada escopada (R5) + adversarial (R6): RESOLVIDO** (sem mascaramento, sem novo achado). CONCERN BAIXO não-bloqueantes registrados na matriz §8. **Módulo `contas-receber` FECHADO — Wave A.** Ref: plan §6; matriz §8.
 
 ## Pré-condições antes de iniciar T-CR-040+ (Fatia 3 — cross-módulo)
 

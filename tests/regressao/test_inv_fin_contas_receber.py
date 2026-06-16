@@ -226,6 +226,48 @@ def test_inv_fin_gw_001_webhook_replay_nao_cria_pagamento_duplicado():
     )
 
 
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_inv_fin_gw_001_pagamento_gateway_event_unico_resistente_a_corrida():
+    """INV-FIN-GW-001 (P9 MÉDIO-1): UniqueConstraint parcial `uq_cr_pagamento_gateway_event`
+    é a defesa de BANCO contra o TOCTOU do check-then-act sob concorrência — 2 Pagamentos
+    com o MESMO gateway_event_id (não-vazio) são barrados. A constraint é PARCIAL: pagamentos
+    manuais (gateway_event_id="") NÃO colidem entre si.
+    """
+    from django.db import transaction as _tx
+    from src.infrastructure.contas_receber.models import Pagamento
+    from src.infrastructure.multitenant.connection import run_in_tenant_context
+
+    tenant = TenantFactory(perfil_a=True)
+    with run_in_tenant_context(tenant.id):
+        titulo = _cria_titulo_db(tenant)
+        ev = f"evt-corrida-{uuid4().hex[:10]}"
+        Pagamento.objects.create(
+            tenant=tenant,
+            titulo=titulo,
+            valor=8000,
+            data=_DATA_HOJE,
+            origem="webhook_gateway",
+            valor_atualizado_snapshot_em_pagamento=8000,
+            gateway_event_id=ev,
+        )
+        # 2º Pagamento com o MESMO gateway_event_id → barrado pela constraint
+        with pytest.raises(IntegrityError), _tx.atomic():
+            Pagamento.objects.create(
+                tenant=tenant,
+                titulo=titulo,
+                valor=8000,
+                data=_DATA_HOJE,
+                origem="webhook_gateway",
+                valor_atualizado_snapshot_em_pagamento=8000,
+                gateway_event_id=ev,
+            )
+        # Parcial: 2 pagamentos manuais (gateway_event_id="" default) NÃO colidem
+        _cria_pagamento_db(tenant, titulo)
+        _cria_pagamento_db(tenant, titulo)
+        manuais = Pagamento.objects.filter(titulo=titulo, gateway_event_id="").count()
+    assert manuais == 2, f"constraint parcial barrou pagamentos manuais (got {manuais}, esperava 2)"
+
+
 # ===========================================================================
 # INV-FIN-GW-002 — pix_recorrente exige convenio_pix_id
 # ===========================================================================

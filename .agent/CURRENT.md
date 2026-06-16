@@ -4,38 +4,24 @@
 
 **Modo:** AUTÔNOMO. **Fase:** Wave A em curso.
 
-## Frente ATIVA — `contas-receber` (Nível 5 — fecha a receita ponta a ponta)
+## Frente ATIVA — DECISÃO de próxima frente (nível 5/6 do `plano-dependencia-sistema.md`)
 
-- **RITUAL P0–P3 + Fatias 1a/1b/2a/2b DONE** — spec v2/plan/tasks (T-CR-010..061); núcleo REST completo (domínio puro +
-  schema PG RLS v2/WORM + use cases manual + gateway Mock + webhook HMAC idempotente + override). Gatilho canônico =
-  `os.concluida` ENRIQUECIDO no OUTBOX. Detalhe no diário + `docs/faseamento/contas-receber/`.
-- **Fatia 3a/3b/3c DONE** (commits `79bf494`/`227c522`/`853f12c`/`671194f`/`aae7f08`): auto-faturamento de OS (bus FAN-OUT
-  [[fan-out-bus-consumers-os-concluida]]) + inadimplência (adapter PULL grace 45/20/30/7 + notificação D+30/D+45 perfil A
-  Caminho C + prova `NotificacaoInadimplencia` fail-closed CDC) + desbloqueio GATE-CLI-6 (`queries_desbloqueio` + consumer
-  `handle_contas_receber_pago`, só bloqueio automático, parcial mantém AC-CR-006-2). Detalhe no diário.
-- **Fatia 3d DONE** (2026-06-16, commit pendente): seção `## INV-FIN-*` CRAVADA em `REGRAS-INEGOCIAVEIS.md` (T-CR-046 —
-  GW/PERFIL/GRACE/SNAPSHOT/REATIV/INAD + INV-CR-* + INV-FIS-CR-001; `invariantes-futuras.md`→ponteiro) + 3 hooks (T-CR-047:
-  `cr-perfil-server-side`/`cr-provider-import-fronteira`/`policy-tenant-vs-cliente`) no manifest, 23 casos verdes. **Todo o
-  CÓDIGO da frente CR está DONE.**
-- **P8 DONE** (2026-06-16, commit pendente, T-CR-060): **ADR-0084** (`Titulo`=ContasReceber PRD; `Fatura` Wave B; gatilho
-  `os.concluida`≠`Certificado.Emitido` → emenda ADR-0043 §1; cert só de OS — parecer consultor-rbc CONFIRMA) + `matriz-
-  reconciliacao.md` + **TST-004 fechado** (`tests/regressao/test_inv_fin_contas_receber.py`, 20 testes-com-ID p/ 13 INVs,
-  20/20) + frontmatters `stable` + `plano-dependencia` (nível 5 CR construído) + `STATUS-GERADO` (ADRs=85).
-- **PRÓXIMO = P9** (T-CR-061): mutirão auditores roteados (segurança/qualidade/llm/performance/observabilidade/idempotência
-  + conformidade-lgpd; produto no merge). MÉDIO+ bloqueia (INV-RITUAL-001); 2ª passada escopada + adversarial. **Fecha o
-  módulo CR.** Preencher ata em `matriz-reconciliacao.md §8`. Débito p/ auditores: pyproject ganhou S603/S607 (subprocess
-  em teste de hook — supplychain trivial).
-- **Débitos p/ P9:** desbloqueio SEM grace (assimetria c/ adapter 3b); snapshot webhook=valor_original (sem juros);
-  desconto-pontualidade pré-vencimento sem fórmula; isolamento por-consumer do bus (re-review quando saga sair do stub).
-- **Migration test_afere:** `migrate --database=default` com `-e PYTEST_CURRENT_TEST=1 -e DATABASE_URL=...@db/test_afere`
-  (router faz DDL só em `migrator` fora de pytest; NÃO dropar — perde extensões).
-- **Para o Roldão (quando ativar e-mail real):** criar `.env` com `EMAIL_HOST`/`EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD`/
-  `DEFAULT_FROM_EMAIL` (provedor SMTP). Hoje em modo teste (não envia). Disparo a PF real só após GATE-LGPD-RAT.
+- **`contas-receber` FECHOU** (módulo 100% Wave A). Próxima frente NÃO cravada — candidatas nível 5: `agenda`,
+  `caixa-tecnico`, `chamados`, `contas-pagar`; nível 6 gatilhado por recebimento: `comissoes`. Seguir ordem por
+  dependência (criar a ordem se faltar); decisão de priorização = uma rodada batch antes de iniciar a frente nova.
+- **Para o Roldão (quando ativar e-mail real do CR):** criar `.env` com `EMAIL_HOST`/`EMAIL_HOST_USER`/
+  `EMAIL_HOST_PASSWORD`/`DEFAULT_FROM_EMAIL` (SMTP). Hoje modo teste (não envia). Disparo a PF real só após GATE-LGPD-RAT.
 
-## Última frente FECHADA — `orcamentos` MÓDULO 100% Wave A (2026-06-15)
+## Última frente FECHADA — `contas-receber` MÓDULO 100% Wave A (2026-06-16)
 
-- Detalhe no diário + [[estado-do-projeto-wave-a-em-curso]]. ADR-0083 (`PrecoResolvido`). Commits
-  `b002dae`/`cf12bc8`/`24404ca`/`4f8b326`. US Wave B: 003/006/010. Matriz: `orcamentos/matriz-reconciliacao.md` §8.
+- Fatias 1a..3d + P8 (ADR-0084) + P9 (auditores: 7 PASS + 1 MÉDIO idempotência consertado — `UniqueConstraint`
+  `gateway_event_id`/migration 0008; 2ª passada RESOLVIDO). Commits `79bf494`/`227c522`/`853f12c`/`671194f`/`aae7f08`/
+  `d0eac7d`/`4f0f05f` (+conserto P9). Detalhe: `docs/faseamento/contas-receber/` + matriz §8 + diário. Gatilho =
+  `os.concluida`; bus FAN-OUT [[fan-out-bus-consumers-os-concluida]]; INV-FIN-* no mestre; 3 hooks novos.
+- **Débitos rastreados (Wave B / re-review):** desbloqueio SEM grace (assimetria c/ adapter 3b); snapshot webhook =
+  valor_original (sem juros); desconto-pontualidade pré-venc sem fórmula; isolamento por-consumer do bus; GATE-CR-REPROVA-PAGA
+  + GATE-CR-OBS-OS-SEM-CERT (ADR-0084); A3 real override (GATE-CR-A3); Asaas real (GATE-CR-ASAAS).
+- **`orcamentos`** fechou antes (2026-06-15, ADR-0083). Detalhe no diário + [[estado-do-projeto-wave-a-em-curso]].
 
 ## Pendência de produto aberta
 
