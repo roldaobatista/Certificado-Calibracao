@@ -46,6 +46,7 @@ from src.application.contas_receber import (
 )
 from src.domain.contas_receber.enums import (
     CategoriaReceita,
+    EstadoTitulo,
     MeioCobranca,
 )
 from src.domain.contas_receber.erros import (
@@ -448,6 +449,18 @@ class ContasReceberViewSet(viewsets.ViewSet):
                     usuario_id=usuario_id,
                     resource_summary=f"titulo_receber {titulo_id} baixa {out.novo_estado.value}",
                 )
+                # T-CR-042: baixa de título de OS → publica os.paga (R2 / D-CR-12),
+                # SÓ quando totalmente PAGO (parcial mantém a OS em faturada). Mesmo
+                # atomic. Webhook publica equivalente (views_webhook.py — Fatia 2b).
+                if out.titulo.os_id_origem and out.novo_estado == EstadoTitulo.PAGO:
+                    _publicar_evento_cr(
+                        acao="os.paga",
+                        payload={"os_id": str(out.titulo.os_id_origem)},
+                        causation_id=chave_id,
+                        tenant_id=tenant_id,
+                        usuario_id=usuario_id,
+                        resource_summary=f"os {out.titulo.os_id_origem} paga (baixa manual)",
+                    )
         except TituloNaoEncontrado as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_404_NOT_FOUND)
         except TransicaoProibida as exc:

@@ -34,6 +34,7 @@ consumer Wave A.
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -52,6 +53,8 @@ from src.infrastructure.multitenant.connection import (
     run_in_tenant_context,
 )
 from src.infrastructure.multitenant.context import active_tenant_context
+
+logger = logging.getLogger(__name__)
 
 # =============================================================
 # Sanitização de erro (BLOQ-A4 advogado)
@@ -86,31 +89,66 @@ def sanitizar_erro_para_outbox(exc: BaseException) -> str:
 
 
 # =============================================================
-# Registry de consumers (ponto de extensão)
+# Registry de consumers (ponto de extensão) — FAN-OUT (N consumers/ação)
 # =============================================================
-_REGISTRY: dict[str, Callable[[dict[str, Any]], None]] = {}
+_REGISTRY: dict[str, list[Callable[[dict[str, Any]], None]]] = {}
 
 
 def registrar_consumer(acao: str, fn: Callable[[dict[str, Any]], None]) -> None:
-    """Registra consumer para `acao`. Lança ValueError se já houver."""
-    if acao in _REGISTRY:
+    """Registra consumer para `acao`. Suporta FAN-OUT (N consumers por ação).
+
+    Uma mesma ação pode ter vários consumers de módulos distintos — ex.:
+    `os.concluida` → saga de anonimização (`ordens_servico`) + auto-faturamento
+    (`contas_receber`). Funções DIFERENTES são acumuladas; o re-registro do MESMO
+    `fn` (re-entry do test runner / `AppConfig.ready()` chamado 2x) levanta
+    `ValueError`, preservando o `try/except ValueError: pass` idempotente dos
+    `apps.py` (não vira código morto) e detectando registro acidental duplicado.
+
+    Ordem de dispatch = ordem de registro (= ordem de `INSTALLED_APPS`). Consumers
+    da mesma ação DEVEM ser independentes entre si (ver `dispatch_event`).
+    """
+    consumers = _REGISTRY.setdefault(acao, [])
+    if fn in consumers:
         raise ValueError(
-            f"consumer ja registrado para acao={acao} — desregistre primeiro "
-            "via `_REGISTRY.pop` (uso interno) ou use fixture de teste "
-            "`clear_outbox_registry`."
+            f"consumer {getattr(fn, '__name__', fn)!r} ja registrado para "
+            f"acao={acao} — re-registro do mesmo handler (re-entry de teste é "
+            "idempotente via try/except ValueError nos apps.py)."
         )
-    _REGISTRY[acao] = fn
-
-
-def _noop(envelope: dict[str, Any]) -> None:
-    """Default quando nenhum consumer está registrado para a acao."""
+    if consumers:
+        # Fan-out novo: registra em log pra um acoplamento não-intencional aparecer
+        # (TL M1) em vez de virar fantasma silencioso.
+        logger.warning(
+            "fan-out: acao=%s ganhou consumer adicional %r (total=%d) — consumers "
+            "da mesma acao devem ser independentes e idempotentes.",
+            acao,
+            getattr(fn, "__name__", fn),
+            len(consumers) + 1,
+        )
+    consumers.append(fn)
 
 
 def dispatch_event(envelope: dict[str, Any]) -> None:
-    """Invoca consumer registrado pra `envelope['acao']`. Default = noop."""
+    """Invoca TODOS os consumers registrados pra `envelope['acao']` (FAN-OUT).
+
+    Ordem NÃO-garantida (= ordem de registro). Consumers da mesma ação DEVEM ser
+    independentes e idempotentes (`@consumer_idempotente`) — nenhum pode assumir
+    que outro já rodou no mesmo dispatch.
+
+    **Atomicidade (Wave A — TUDO-OU-NADA por linha):** todos os consumers rodam
+    na MESMA transação do worker — `run_in_tenant_context` abre `transaction.atomic`
+    (connection.py:158) e cada `@consumer_idempotente` é um savepoint aninhado.
+    Logo, se um consumer levanta, a exceção propaga → rollback da linha INTEIRA →
+    `processar_outbox_em_contexto_tenant` re-drena (tentativas++) e TODOS re-rodam
+    (idempotentes no replay). É seguro porque nenhum consumer atual de `os.concluida`
+    tem efeito externo não-transacional (saga de anonimização = stub/log; auto-fatura
+    = escrita transacional). **Isolamento por-consumer (tx independente, um poison
+    não bloqueia o outro) é trabalho futuro** — disparado quando a saga sair do stub
+    OU surgir consumer com efeito externo (HTTP/e-mail). Ver re-review tech-lead
+    (Fatia 3a / T-CR-041).
+    """
     acao = envelope.get("acao", "")
-    fn = _REGISTRY.get(acao, _noop)
-    fn(envelope)
+    for fn in _REGISTRY.get(acao, ()):
+        fn(envelope)
 
 
 # =============================================================

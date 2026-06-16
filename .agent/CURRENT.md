@@ -4,30 +4,27 @@
 
 **Modo:** AUTÔNOMO. **Fase:** Wave A em curso.
 
-## Frente ATIVA — `contas-receber` (Nível 5 — fecha a receita ponta a ponta) — RITUAL P0–P3 FECHADO
+## Frente ATIVA — `contas-receber` (Nível 5 — fecha a receita ponta a ponta)
 
-- **P0–P3 prontos** (2026-06-15): `T-CR-000` re-rastreado pós-orçamentos · `spec.md` v2 · `reviews-consolidado.md`
-  (P2: tech-lead Opus + advogado + consultor-rbc, todos APROVAM C/ CORREÇÕES) · `plan.md` + `tasks.md` (T-CR-010..061)
-  revisados (PLAN-CR-01..03). Em `docs/faseamento/contas-receber/`.
-- **Decisão de gatilho (regra #0):** nenhum gatilho do PRD carrega hoje `cliente_id`+`valor` no outbox. Canônico =
-  **`os.concluida` ENRIQUECIDO no OUTBOX** (não no WORM da OS — TL-CR-03); `Certificado.Emitido` reconciliado (não é
-  unidade de cobrança); `fiscal.nfse_emitida` secundário. CRITs do P2: `clientes` tem bloqueio **PULL** existente (CR
-  faz adapter, não PUSH); OS já consome `os.faturada`/`os.paga` dangling (CR publica). Gateway = **Mock** (Asaas=GATE).
-- **Fatias 1a+1b+2a DONE.** 1a domínio puro (12 arq, 81 testes). 1b schema PG (4 models + 5 migrations RLS v2/WORM/
-  INSERT-only/trigger perfil COALESCE; `ACOES_CONTAS_RECEBER` + `os.faturada`/`os.paga`; drill 41/41 + 22 testes PG).
-  **2a (núcleo manual):** use cases criar/baixar/cancelar + `ContasReceberViewSet` (criar/baixar-manual/cancelar/
-  retrieve/list) + serializers + urls; idempotência REST, advisory lock, perfil server-side, eventos titulo_emitido/
-  pago/titulo_cancelado; 13 testes. **2b (gateway/webhook/override):** emitir-boleto/pix-recorrente (Mock) +
-  webhook público (SECURITY DEFINER `resolver_cr_titulo_por_gateway` migration 0006 + HMAC + idempotência dupla
-  + anti-oráculo 401) + override (anti-PII 4 regex, 5/mês, WORM); 15 testes. Revisão Opus: reconciliou
-  Protocol↔adapter + tirou DRF dos use cases; corrigiu slug não-canônico do incidente HMAC. **Módulo CR: núcleo
-  REST completo (manual + gateway Mock + webhook).** **PRÓXIMO = Fatia 3** (auto-fatura OS + inadimplência +
-  desbloqueio — toca OS/clientes FECHADOS; T-CR-040..048) → P8/P9. Débitos p/ P9: snapshot webhook=valor_original
-  (sem juros); desconto-pontualidade pré-vencimento sem fórmula; INV-FIN-* voltam ao mestre na fatia 3d.
+- **RITUAL P0–P3 FECHADO** (2026-06-15): T-CR-000 + `spec.md` v2 + reviews P2 + `plan.md`/`tasks.md` (T-CR-010..061).
+  Gatilho canônico = `os.concluida` ENRIQUECIDO no OUTBOX. Gateway = Mock (Asaas=GATE). Em `docs/faseamento/contas-receber/`.
+- **Fatias 1a/1b/2a/2b DONE** — núcleo REST completo: domínio puro + schema PG (RLS v2/WORM) + use cases manual +
+  gateway Mock + webhook HMAC idempotente + override. Detalhe no diário.
+- **Fatia 3a DONE** (2026-06-15): auto-faturamento de OS. T-CR-040 enriquece outbox `os.concluida`
+  (cliente + `valor_total_centavos` int = `valor_total_atualizado`/INV-OS-FAT-001; WORM intacto). T-CR-041
+  `criar_titulo_a_partir_de_os` + consumers `handle_os_concluida`/`handle_os_reaberta`. T-CR-042 baixa → `os.paga`.
+  **Achado: bus virou FAN-OUT** (`os.concluida` já tinha saga de anonimização; `_REGISTRY: dict[str,list]`,
+  tudo-ou-nada por linha; tech-lead Opus aprovou c/ correções) — [[fan-out-bus-consumers-os-concluida]].
+  Verde: 13 (3a) + 4 (fan-out) + 28 (regressão CR Fatia 2) + 13 (fb_reconciliacao).
+- **PRÓXIMO = Fatia 3b** (inadimplência — toca `clientes` FECHADO; T-CR-043/044): adapter `InadimplenciaSource`
+  PULL + grace 45/20/30/7 perfil + notificação D+30/D+45 perfil A (`send_mail`). Depois 3c (desbloqueio — consumer
+  novo em `clientes` de `contas_receber.pago`) → 3d (INV-FIN-* ao mestre + hooks) → P8 (ADR reconcilia) / P9 (auditores).
+- **Débitos p/ P9:** snapshot webhook=valor_original (sem juros); desconto-pontualidade pré-vencimento sem fórmula;
+  isolamento por-consumer do bus (re-review quando a saga sair do stub).
 
 ## Última frente FECHADA — `orcamentos` MÓDULO 100% Wave A (2026-06-15)
 
-- Detalhe no diário + `[[estado-do-projeto-wave-a-em-curso]]`. ADR-0083 (`PrecoResolvido`). Commits
+- Detalhe no diário + [[estado-do-projeto-wave-a-em-curso]]. ADR-0083 (`PrecoResolvido`). Commits
   `b002dae`/`cf12bc8`/`24404ca`/`4f8b326`. US Wave B: 003/006/010. Matriz: `orcamentos/matriz-reconciliacao.md` §8.
 
 ## Pendência de produto aberta

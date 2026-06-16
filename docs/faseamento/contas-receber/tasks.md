@@ -64,10 +64,32 @@ relacionados:
 
 ## Fatia 3 — integrações cross-módulo (toca OS/clientes FECHADOS — R14) + auto-faturamento + INVs
 
-### 3a — Auto-faturamento de OS (GATE-CR-OS-EVENTO)
-- [ ] **T-CR-040** Enriquecer payload do **outbox** de `os.concluida` (`ordens_servico/repositories.py:660`) com cliente (`ReferenciaPIIAnonimizavel`)+`valor_total`; `payload_data` WORM intacto (R3). Skip hook legado justificado. Ref: D-CR-12; TL-CR-03.
-- [ ] **T-CR-041** `criar_titulo_a_partir_de_os.py` + consumer `@consumer_idempotente` — perfil do envelope (R4); conversão valor (R9); tenant suspenso não cria (R11); idempotente por `os_id` (R6); publica `titulo_emitido`+`os.faturada` (R2). Consumer `os.reaberta` cancela título sem pagamento. Ref: D-CR-12; AC-CR-001-1; INV-CR-OS-TITULO-UNICO/FIS-CR-001.
-- [ ] **T-CR-042** Baixa de título de OS publica `os.paga` (R2). Ref: TL-CR-02.
+### 3a — Auto-faturamento de OS (GATE-CR-OS-EVENTO) — ✅ DONE 2026-06-15 (13 testes autofatura + 4 fan-out; ruff+mypy limpos)
+
+> **Achado bloqueante resolvido (FAN-OUT do bus):** o registry de consumers era **1-por-ação**
+> (`outbox_worker.py` `_REGISTRY: dict[str, Callable]`), mas `os.concluida` JÁ tinha consumer
+> (`ordens_servico` saga de anonimização `handle_os_em_estado_terminal`). Registrar o consumer de CR
+> seria engolido pelo `try/except ValueError: pass` → auto-fatura nunca rodaria. **Tech-lead Opus
+> validou (APROVA C/ CORREÇÕES).** Solução: `_REGISTRY: dict[str, list]` com fan-out; `registrar_consumer`
+> ainda levanta `ValueError` p/ MESMO `fn` (preserva os `try/except` dos `apps.py`, não toca módulos
+> fechados) e acumula fns DIFERENTES; `dispatch_event` itera todos. **Atomicidade = TUDO-OU-NADA por
+> linha** (A1 resolvido por leitura: `run_in_tenant_context` abre `transaction.atomic`, logo cada
+> `@consumer_idempotente` é savepoint da MESMA tx). Seguro hoje (saga = stub/log; auto-fatura =
+> escrita transacional). **Dívida rastreável:** isolamento por-consumer (tx independente) é re-review
+> quando a saga sair do stub OU surgir consumer com efeito externo (HTTP/e-mail) — doc no docstring de
+> `dispatch_event`. Ver [[fan-out-bus-consumers-os-concluida]].
+>
+> **Decisão técnica (valor):** o outbox carrega `valor_total_centavos` (**int**), não string decimal —
+> imune ao sanitizador de auditoria (string ≥8 dígitos casaria regex telefone → `[REDACTED]`) e
+> consistente com `titulo_emitido` que já publica `valor_centavos` int. Conversor `valor_decimal_str_para_dinheiro`
+> permanece p/ a fronteira de gateway/webhook (string externa). **Valor = `valor_total_atualizado`**
+> (INV-OS-FAT-001 / CDC art. 39 — não cobra atividade cancelada), NÃO `valor_total` (a menção da spec
+> D-CR-12 a `valor_total` é genérica; o invariante absoluto vence). Vencimento = emissão + **30** (ADR-0043;
+> `cliente.prazo_dias` não existe no model → diferido).
+
+- [x] **T-CR-040** ✅ Enriquecer payload do **outbox** de `os.concluida` (`ordens_servico/repositories.py:660`, `if acao_bus == "os.concluida"`) com `cliente_atual_id`+`cliente_referencia_hash`+`cliente_key_id`+`valor_total_centavos`; `payload_data` WORM intacto (R3). Skip hook legado justificado no commit. Ref: D-CR-12; TL-CR-03.
+- [x] **T-CR-041** ✅ `criar_titulo_a_partir_de_os.py` + `consumers/os_eventos.py` (`handle_os_concluida`/`handle_os_reaberta` `@consumer_idempotente`) — perfil do envelope (R4); valor centavos int (R9); tenant suspenso → `TenantSuspensoEmissaoBloqueada` dead-letter (R11); idempotente por `os_id` soft+UNIQUE+advisory lock (R6); publica `titulo_emitido`+`os.faturada` (R2). `os.reaberta` cancela sem pagamento / mantém com pagamento (AC-CR-006-2). Registrado em `apps.py:ready()`. Ref: D-CR-12; AC-CR-001-1; INV-CR-OS-TITULO-UNICO/FIS-CR-001.
+- [x] **T-CR-042** ✅ Baixa manual de título de OS publica `os.paga` (`views.py` baixar_manual, só quando `PAGO`). Webhook já publicava (Fatia 2b). Ref: TL-CR-02.
 
 ### 3b — Inadimplência (GATE-CR-INADIMPLENCIA-RECONCILIA)
 - [ ] **T-CR-043** `inadimplencia_adapter.py` — implementa `InadimplenciaSource` (PULL — R1); aplica `grace_period_inadimplencia_por_perfil`; `InadimplenciaItem`+`perfil`/`grace_perfil` **como Optional com default seguro** (PLAN-CR-01 — extensão do dataclass em `clientes` é toque em módulo fechado; atualizar `SourceListaInterim` para entregar os campos, senão job quebra em deploy parcial). Substitui source interino no wiring `clientes` (`inadimplencia.py:get_source()`, parametrizar via settings) — toca clientes (R14). Ref: D-CR-9; TL-CR-01/PLAN-CR-01; INV-FIN-GRACE-PERFIL-001.
@@ -79,7 +101,7 @@ relacionados:
 ### 3d — INVs + hooks (família INV-FIN-* volta ao mestre)
 - [ ] **T-CR-046** Cravar em `REGRAS-INEGOCIAVEIS.md` (seção `## INV-FIN-*`): GW-001/002, PERFIL-001, GRACE-PERFIL-001, SNAPSHOT-PERFIL-001, REATIV-001, INAD-001 + INV-CR-OS-TITULO-UNICO/PAGAMENTO-WORM/OVERRIDE-WORM/OVERRIDE-ANTI-PII/WEBHOOK-PAYLOAD-MINIMO; reconciliar INV-FIS-CR-001/INV-CAL-FIN-001. Atualizar `invariantes-futuras.md` (ponteiro histórico). Ref: spec §5; R14.
 - [ ] **T-CR-047** Hooks: `policy-tenant-vs-cliente.sh` (INV-FIN-INAD-001), `cr-provider-import-fronteira-check.sh`, `cr-perfil-server-side-check.sh` (molde fiscal). Registrar em `pre-commit-manifest.tsv`. Ref: spec §5; INV-FIN-INAD-001.
-- [ ] **T-CR-048** `tests/test_contas_receber_autofatura_fatia3.py` + `tests/test_contas_receber_inadimplencia_fatia3.py` — auto-fatura `os.concluida` enriquecida (perfil do envelope; perfil-mudou→snapshot do evento — R4); replay+os.reaberta (R6); tenant suspenso (R11); grace por perfil; notificação; desbloqueio happy+parcial (R5); hooks verdes. **Verificação 3** + `_test-runner.sh`.
+- [~] **T-CR-048** PARCIAL — `tests/test_contas_receber_autofatura_fatia3.py` ✅ (13 testes: `os.concluida` cria título A/B, idempotência por `os_id`, tenant suspenso dead-letter, perfil None fail-closed, valor 0 no-op, publica `titulo_emitido`+`os.faturada`, `os.reaberta` cancela/mantém, enriquecimento outbox + INV-OS-FAT-001 valor atualizado, `os.paga` na baixa) + fan-out no `tests/test_outbox_worker_t_cli_110.py` ✅ (4 testes). **Falta** `tests/test_contas_receber_inadimplencia_fatia3.py` (3b): grace por perfil na fronteira (D+44 não entra / D+46 entra); notificação D+30/D+45; desbloqueio happy+parcial (R5); hooks novos. **Verificação 3** completa + `_test-runner.sh` no fim da Fatia 3.
 
 ## P8/P9 — fechamento
 

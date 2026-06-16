@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -663,6 +663,36 @@ class DjangoOSRepository:
                 "tipo_evento_os": snapshot.tipo.value,
                 **(snapshot.payload_data or {}),
             }
+            # T-CR-040 (D-CR-12 / GATE-CR-OS-EVENTO): enriquece SÓ o payload do
+            # OUTBOX de os.concluida com cliente (ReferenciaPIIAnonimizavel) + valor
+            # faturável, p/ o consumer de contas_receber criar o título. O WORM
+            # (payload_data, acima) segue minimalista — proibido injetar PII/valor
+            # na cadeia 25a (R3). Valor = valor_total_atualizado (INV-OS-FAT-001 —
+            # não cobra atividade cancelada, CDC art. 39), em CENTAVOS int (imune ao
+            # sanitizador de auditoria; cliente_referencia_hash é HMAC contíguo sem
+            # hífens, também seguro). Cliente como hash+key_id, nunca id raw.
+            if acao_bus == "os.concluida":
+                _os = OS.objects.only(
+                    "cliente_id",
+                    "cliente_referencia_hash",
+                    "cliente_key_id",
+                    "valor_total_atualizado",
+                ).get(id=snapshot.os_id)
+                _centavos = int(
+                    (Decimal(_os.valor_total_atualizado) * Decimal("100")).quantize(
+                        Decimal("1"), rounding=ROUND_HALF_UP
+                    )
+                )
+                payload_bus.update(
+                    {
+                        "cliente_atual_id": (
+                            str(_os.cliente_id) if _os.cliente_id else None
+                        ),
+                        "cliente_referencia_hash": _os.cliente_referencia_hash,
+                        "cliente_key_id": _os.cliente_key_id,
+                        "valor_total_centavos": _centavos,
+                    }
+                )
             resource_summary = f"OS#{snapshot.os_id} {snapshot.tipo.value}"
             publicar_evento(
                 acao=acao_bus,

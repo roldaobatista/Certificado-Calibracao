@@ -293,6 +293,83 @@ def test_worker_registry_isolado_entre_testes():
     assert "cliente.atualizado" in _REGISTRY
 
 
+# =============================================================
+# Fan-out (Fatia 3a / T-CR-041) — N consumers por ação
+# =============================================================
+@pytest.mark.django_db(transaction=True)
+def test_fanout_dois_consumers_ambos_rodam_em_ordem():
+    tenant = TenantFactory()
+    vistos: list[str] = []
+
+    def consumer_a(envelope):
+        vistos.append("a")
+
+    def consumer_b(envelope):
+        vistos.append("b")
+
+    registrar_consumer("os.concluida", consumer_a)
+    registrar_consumer("os.concluida", consumer_b)
+    cid = _publicar_em_tenant(tenant.id, "os.concluida", {"os_id": "x"})
+    linha_id = _id_da_linha(cid)
+    r = processar_outbox_em_contexto_tenant(linha_id)
+    assert r.status == "processada"
+    assert vistos == ["a", "b"]  # ordem de registro preservada
+    assert _estado_linha(linha_id)["processado_em"] is not None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_fanout_um_consumer_falha_linha_inteira_rollback():
+    """Tudo-ou-nada por linha (TL C1/A1): run_in_tenant_context abre transaction.atomic,
+    então se um consumer da mesma ação levanta, a exceção propaga → rollback da linha
+    INTEIRA → re-drena (tentativas++) e todos re-rodam (idempotentes no replay).
+    Isolamento por-consumer (tx independente) é trabalho futuro.
+    """
+    tenant = TenantFactory()
+    vistos: list[str] = []
+
+    def consumer_ok(envelope):
+        vistos.append("ok")
+
+    def consumer_falha(envelope):
+        vistos.append("falha")
+        raise RuntimeError("bug no consumer 2")
+
+    registrar_consumer("os.concluida", consumer_ok)
+    registrar_consumer("os.concluida", consumer_falha)
+    cid = _publicar_em_tenant(tenant.id, "os.concluida", {"os_id": "x"})
+    linha_id = _id_da_linha(cid)
+    r = processar_outbox_em_contexto_tenant(linha_id)
+    assert r.status == "falhou"
+    estado = _estado_linha(linha_id)
+    assert estado["processado_em"] is None  # rollback total
+    assert estado["tentativas"] == 1
+    assert estado["ultimo_erro"] is not None
+    assert "bug no consumer 2" in estado["ultimo_erro"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_registrar_consumer_mesmo_fn_duas_vezes_levanta():
+    """Re-registro do MESMO fn levanta ValueError (preserva try/except dos apps.py)."""
+
+    def consumer(envelope):
+        pass
+
+    registrar_consumer("os.concluida", consumer)
+    with pytest.raises(ValueError, match="ja registrado"):
+        registrar_consumer("os.concluida", consumer)
+
+
+def test_dispatch_event_fanout_chama_todos_em_ordem():
+    """Unidade: dispatch_event itera todos os consumers na ordem de registro."""
+    from src.infrastructure.audit.outbox_worker import dispatch_event
+
+    chamados: list[str] = []
+    registrar_consumer("evt.x", lambda e: chamados.append("a"))
+    registrar_consumer("evt.x", lambda e: chamados.append("b"))
+    dispatch_event({"acao": "evt.x", "payload": {}})
+    assert chamados == ["a", "b"]
+
+
 def test_sanitizar_erro_para_outbox_unidade():
     """Unidade pura — sem DB. Cobre o helper isoladamente."""
     erro = sanitizar_erro_para_outbox(

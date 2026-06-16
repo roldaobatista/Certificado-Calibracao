@@ -49,6 +49,20 @@ class DjangoTituloRepository:
             .exists()
         )
 
+    def obter_titulo_ativo_por_os(self, *, tenant_id: UUID, os_id: UUID) -> Titulo | None:
+        """Retorna o título ativo (não cancelado) da OS, se houver (T-CR-041 — os.reaberta).
+
+        Mesmo predicado do `UNIQUE(tenant_id, os_id_origem) WHERE estado != cancelado`,
+        logo no máximo 1 linha. Consumer de `os.reaberta` usa para decidir cancelar
+        (só sem pagamento — `pode_cancelar`) ou manter (pagamento parcial — AC-CR-006-2).
+        """
+        m = (
+            TituloModel.objects.filter(tenant_id=tenant_id, os_id_origem=os_id)
+            .exclude(estado="cancelado")
+            .first()
+        )
+        return mappers.model_para_titulo(m) if m is not None else None
+
     def salvar_novo_titulo(self, titulo: Titulo) -> None:
         campos = mappers.titulo_para_campos(titulo)
         TituloModel.objects.create(
