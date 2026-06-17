@@ -24,7 +24,7 @@ structlog = "^24.1.0"
 # padrão de fato, mantida pela Prometheus community, Apache-2.0, sem CVE aberto.
 # Multiprocess (gunicorn) via PROMETHEUS_MULTIPROC_DIR — wiring no runbook
 # gates-externos-pre-producao.md (deploy-deferred).
-prometheus-client = "^0.21.0"
+prometheus-client = ">=0.21,<0.26"
 argon2-cffi = "^23.1.0"
 django-otp = "^1.4.0"
 # Marco 2 — etiqueta PDF de equipamento (T-EQP-002 / AC-EQP-001-2 / TL1
