@@ -8,6 +8,7 @@ Fluxo:
   4.5. Valida RT competente projetado à data do slot (US-AG-014 / INV-AG-PERFIL-001):
        perfil A determinístico→412 SemRTNoSlot; B/C→aviso; D→off; grandeza vazia→fail-open.
   5. Tenta gravar EventoAgenda — IntegrityError do EXCLUDE GIST → ConflitoAgenda 409.
+  5.5. tipo=os: escreve na OS via `os_port.atribuir_tecnico` (PENDENTE→AGENDADA — D-AGE-5/US-AG-013).
   6. Grava EventoAuditoriaAgenda(criado) WORM.
   7. Se regime indeterminado: audit adicional.
 
@@ -231,6 +232,19 @@ def executar(
             f"Conflito de agenda para técnico {inp.tecnico_id} "
             f"no slot {inp.janela.inicia_at}-{inp.janela.termina_at}."
         ) from exc
+
+    # 6.5. Escreve na OS via porta: atividade PENDENTE→AGENDADA (D-AGE-5 / US-AG-013).
+    # A agenda é o caller que valida (jornada/RT) ANTES de transitar a OS. O slot já está
+    # garantido pelo EXCLUDE GIST acima; agora o seam com a OS efetiva a atribuição. Falha
+    # (estado incompatível etc.) → ConflitoAgenda (ACL no OSSchedulingAdapter) → rollback do atomic.
+    if inp.tipo == TipoEvento.OS and inp.atividade_id is not None:
+        os_port.atribuir_tecnico(
+            tenant_id=inp.tenant_id,
+            atividade_id=inp.atividade_id,
+            tecnico_id=inp.tecnico_id,
+            agendada_para=inp.janela.inicia_at,
+            actor_usuario_id=inp.criado_por_usuario_id,
+        )
 
     # 7. Auditoria WORM (payload_resumo como JSON string)
     payload_resumo = json.dumps(

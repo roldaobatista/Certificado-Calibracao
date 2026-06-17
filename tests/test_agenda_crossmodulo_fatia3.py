@@ -222,6 +222,72 @@ class TestOSSchedulingAdapter:
         )
         assert resultado is None
 
+    def test_criar_evento_os_transita_atividade_para_agendada(self, db):
+        """GATE-AGE-OS-WIRING: criar_evento tipo=os chama atribuir_tecnico real → OS→AGENDADA.
+
+        Prova end-to-end (D-AGE-5/US-AG-013): ao criar um evento de agenda para uma
+        atividade de OS, a atividade transita PENDENTE→AGENDADA e a OS (1 atividade)
+        RASCUNHO→AGENDADA. Antes do wiring (2026-06-17), criar_evento NÃO tocava a OS.
+        """
+        from datetime import UTC, datetime, timedelta
+
+        from src.application.operacao.agenda import criar_evento
+        from src.domain.operacao.agenda.enums import TipoEvento
+        from src.domain.operacao.agenda.value_objects import Janela
+        from src.infrastructure.agenda.adapters import RTSubstitutoAdapter
+        from src.infrastructure.agenda.repositories import DjangoEventoAgendaRepository
+        from src.infrastructure.ordens_servico.models import OS, AtividadeDaOS
+
+        from tests.fakes.agenda_fakes import FakeColaboradorAgendaPort
+
+        tenant = TenantFactory()
+        tecnico_id = uuid.uuid4()
+        chash = uuid.uuid4().hex + uuid.uuid4().hex
+        with run_in_tenant_context(tenant.id):
+            os_obj = OS.objects.create(
+                tenant_id=tenant.id,
+                numero_os=42,
+                cliente_id=uuid.uuid4(),
+                cliente_referencia_hash=chash,
+                cliente_key_id="v1",
+                estado="rascunho",
+                tipo_predominante="calibracao",
+                valor_total=Decimal("0"),
+                valor_total_atualizado=Decimal("0"),
+            )
+            atv = AtividadeDaOS.objects.create(
+                tenant_id=tenant.id,
+                os_id=os_obj.id,
+                tipo="calibracao",
+                sequencia=1,
+                estado="pendente",
+            )
+            inicia = datetime.now(UTC) + timedelta(days=3)
+            inp = criar_evento.CriarEventoInput(
+                tenant_id=tenant.id,
+                tecnico_id=tecnico_id,
+                janela=Janela(inicia_at=inicia, termina_at=inicia + timedelta(hours=2)),
+                aloca_em_umc=False,
+                perfil_tenant="A",
+                criado_por_usuario_id=uuid.uuid4(),
+                tipo=TipoEvento.OS,
+                atividade_id=atv.id,
+                os_id=os_obj.id,
+            )
+            criar_evento.executar(
+                inp,
+                repo=DjangoEventoAgendaRepository(),
+                colaborador_port=FakeColaboradorAgendaPort(),
+                os_port=OSSchedulingAdapter(),
+                rt_port=RTSubstitutoAdapter(),
+            )
+            atv.refresh_from_db()
+            os_obj.refresh_from_db()
+
+        assert atv.estado == "agendada", "atividade da OS não transitou para AGENDADA"
+        assert atv.tecnico_executor_id == tecnico_id
+        assert os_obj.estado == "agendada", "OS (1 atividade) não transitou para AGENDADA"
+
 
 # =============================================================
 # T-AGE-041 -- ColaboradorAgendaAdapter

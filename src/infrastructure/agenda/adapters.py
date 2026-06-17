@@ -69,8 +69,10 @@ class OSSchedulingAdapter:
         from src.application.operacao.os.atribuir_tecnico import (
             AtribuicaoAtividade,
             AtribuirTecnicoInput,
+            ErroAtribuirTecnico,
             atribuir_tecnico,
         )
+        from src.domain.operacao.agenda.erros import ConflitoAgenda
         from src.infrastructure.ordens_servico.repositories import DjangoOSRepository
 
         repo = DjangoOSRepository()
@@ -89,7 +91,16 @@ class OSSchedulingAdapter:
             solicitada_em=datetime.now(UTC),
             solicitada_por_user_id=actor_usuario_id,
         )
-        atribuir_tecnico(payload=payload, repository=repo)
+        # ACL: traduz o erro de domínio da OS (estado incompatível, atividade não-PENDENTE,
+        # executor sem competência) para ConflitoAgenda — a porta nunca vaza exceção da OS
+        # ao domínio da agenda. O caller (criar_evento) já roda no atomic → rollback total.
+        try:
+            atribuir_tecnico(payload=payload, repository=repo)
+        except ErroAtribuirTecnico as exc:
+            raise ConflitoAgenda(
+                f"Não foi possível agendar a atividade {atividade_id} na OS "
+                f"({exc.codigo}): {exc.detalhe}".strip()
+            ) from exc
         logger.info(
             "OSSchedulingAdapter.atribuir_tecnico: atividade=%s tecnico=%s",
             atividade_id,
