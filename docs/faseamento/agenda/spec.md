@@ -124,8 +124,10 @@ gravar; materializa recorrências; registra no-show.
   incerteza (titular sem bloqueio formal no período) → **warning `RTPendenteConfirmacaoNoSlot`** (planejar é
   permitido). B/C: warning + confirma; D: desabilitado. **O gate DURO de NC (cl. 6.2.5/7.8 — não emitir RBC sem
   signatário competente) vive na EMISSÃO (`certificados`/papel SIGNATARIO), já existente — a agenda alerta, não é
-  o guardião primário.** INV-AG-PERFIL-001. **Pendência P3:** confirmar que a porta RT aceita consulta projetada
-  a data futura (`rt_competencia_cobre(grandeza, instante=slot.inicia_at)`).
+  o guardião primário.** INV-AG-PERFIL-001. **Pendência P3 RESOLVIDA (revisão do plan):** a porta RT aceita data
+  injetável → projetar à `data=slot.inicia_at.date()` (granularidade DATA, não datetime — PLAN-AGE-01), **atravessando
+  `RTSubstituicao` vigente na data do slot ANTES do titular** (ADR-0068 §2.2 — RBC-AGE-04). Limitação conhecida: não
+  projeta o vínculo do titular (`encerrado_em` futuro) — aceitável, a agenda é consultiva (PLAN-AGE-02/R15).
 - **D-AGE-7 — Motorista sem CNH não aloca em UMC (R-COL-1).** Antes de alocar `MOTORISTA_UMC` em evento
   `aloca_em_umc`, agenda checa `pendencia_cnh` + validade da CNH → bloqueia (422). [TL-AGE-03: `pendencia_cnh`
   JÁ é legível via `PapelColaboradorOutputSerializer` (não está só no `/elegiveis`) — **zero extensão de
@@ -183,7 +185,7 @@ gravar; materializa recorrências; registra no-show.
 | INV-AG-REGIME-001 | `regime_jornada` resolvido **server-side** via `ColaboradorAgendaPort` (override humano vigente→deriva papel→indeterminado=`nao_aplica`); **IA nunca grava override** (só humano RH/advogado); `RegimeJornadaColaborador` INSERT-com-vigência (RLS v2, mora na agenda); papéis de campo conflitantes sem override → audit `regime_indeterminado` + pendência; testes: override-vence-derivação, vigência projetada à `na_data`, fail-safe-indeterminado, não-ruído (papel não-campo = `nao_aplica` sem warning) |
 | INV-AG-OVERLAP-001 | EXCLUDE GIST **`(tenant_id, tecnico_id, tstzrange '[)')`** (exceto cancelado); 2 sobrepostos → 409; **drill PG de concorrência** (TL honestidade) |
 | INV-AG-ATIVIDADE-001 | `atividade_id` NOT NULL quando `tipo=os` (CHECK + domínio `__post_init__`); ADR-0023/0051 |
-| INV-AG-PERFIL-001 | perfil server-side (nunca payload); RT substituto **projetado ao instante do slot** — A determinístico=412/A incerto=warning/B-C warning/D off; gate duro de NC na emissão (não na agenda); UNHAPPY por perfil |
+| INV-AG-PERFIL-001 | perfil server-side (nunca payload); RT substituto **projetado à `data=slot` atravessando `RTSubstituicao`** (ADR-0068) — A determinístico=412/A incerto=warning/B-C warning/D off; gate duro de NC na emissão (não na agenda); UNHAPPY por perfil |
 | INV-AG-RECORRENCIA-001 | materialização idempotente por `(recorrencia_id, ocorrencia_dt)` UNIQUE; job re-roda sem duplicar |
 | INV-AG-CNH-001 | `MOTORISTA_UMC` com `pendencia_cnh`/CNH vencida não aloca em `aloca_em_umc`; teste 422 |
 | INV-AG-AUDIT-WORM-001 | `EventoAuditoriaAgenda` + `RegistroNoShow` INSERT-only (trigger); teste anti-mutação |
@@ -224,4 +226,5 @@ pelo tech-lead → **opção (c) híbrida, SEM ADR nova**: override mora na AGEN
 `colaboradores` intacto; D-AGE-15 emendado + porta `ColaboradorAgendaPort.regime_jornada(...)` + INV-AG-REGIME-001;
 (4) ✅ **GATE-AGE-JORNADA-TRABALHISTA** registrado em `gates-wave-a-consolidado.md` (🔴 advogado OAB humano
 pré-produção) + 6 GATE-AGE-* feature-diferida.
-**PRÓXIMO: P3 plan/tasks → fatias** (núcleo autossuficiente 1a/1b/2 com portas-stub; 3 cross-módulo por contrato público).
+**P3 plan/tasks CONCLUÍDO** (`plan.md` + `tasks.md` criados; revisão tech-lead APROVA C/ CORREÇÕES PLAN-AGE-01..08 +
+consultor-rbc CONFIRMA c/ RBC-AGE-04..06 — incorporados). **PRÓXIMO: P4 — codar Fatia 1a** (domínio puro, T-AGE-010..017).

@@ -9,7 +9,7 @@
 Receita fechada (config→pps→precificacao→colaboradores→orcamentos→contas-receber). Fila dos faltantes Wave A
 (topo-sort do `plano-dependencia-sistema.md`; cada um respeita suas deps já construídas; **seguir em ordem, sem perguntar**):
 
-1. **`agenda`** (N5) ← PRÓXIMA. OS já tem gancho fail-open lazy esperando (atribuição de técnico); valida INV-020 (Lei 13.103). Dep: os(✓)+colaboradores(✓).
+1. **`agenda`** (N5) ← EM CURSO. P0–P3 prontos (spec+reviews+plan+tasks; revisão tech-lead/RBC incorporada). **PRÓXIMO = P4 Fatia 1a** (domínio puro, T-AGE-010..017). OS tem gancho fail-open lazy esperando; valida INV-020 (perfil-AGNÓSTICO; regime_jornada override-na-agenda, sem ADR). Dep: os(✓)+colaboradores(✓).
 2. **`caixa-tecnico`** (N5) — destrava app-tecnico/despesas/custeio-real.
 3. **`chamados`** (N5) — entrada de demanda → vira OS. Dep: clientes(✓)+os(✓).
 4. **`contas-pagar`** (N5) — par do CR; destrava despesas (precisa cadastro fornecedor mínimo).
@@ -26,14 +26,9 @@ Receita fechada (config→pps→precificacao→colaboradores→orcamentos→cont
 
 ## Última frente FECHADA — `contas-receber` MÓDULO 100% Wave A (2026-06-16)
 
-- Fatias 1a..3d + P8 (ADR-0084) + P9 (auditores: 7 PASS + 1 MÉDIO idempotência consertado — `UniqueConstraint`
-  `gateway_event_id`/migration 0008; 2ª passada RESOLVIDO). Commits `79bf494`/`227c522`/`853f12c`/`671194f`/`aae7f08`/
-  `d0eac7d`/`4f0f05f` (+conserto P9). Detalhe: `docs/faseamento/contas-receber/` + matriz §8 + diário. Gatilho =
-  `os.concluida`; bus FAN-OUT [[fan-out-bus-consumers-os-concluida]]; INV-FIN-* no mestre; 3 hooks novos.
-- **Débitos rastreados (Wave B / re-review):** desbloqueio SEM grace (assimetria c/ adapter 3b); snapshot webhook =
-  valor_original (sem juros); desconto-pontualidade pré-venc sem fórmula; isolamento por-consumer do bus; GATE-CR-REPROVA-PAGA
-  + GATE-CR-OBS-OS-SEM-CERT (ADR-0084); A3 real override (GATE-CR-A3); Asaas real (GATE-CR-ASAAS).
-- **`orcamentos`** fechou antes (2026-06-15, ADR-0083). Detalhe no diário + [[estado-do-projeto-wave-a-em-curso]].
+- Fatias 1a..3d + P8 (ADR-0084) + P9 (7 PASS + 1 MÉDIO idempotência consertado). Gatilho `os.concluida`; bus FAN-OUT
+  [[fan-out-bus-consumers-os-concluida]]. Detalhe completo + débitos Wave B: `docs/faseamento/contas-receber/` (matriz §8) + diário.
+- **`orcamentos`** fechou antes (2026-06-15, ADR-0083). [[estado-do-projeto-wave-a-em-curso]].
 
 ## Pendência de produto aberta
 
