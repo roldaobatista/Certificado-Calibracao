@@ -8,7 +8,7 @@
 
 Receita fechada (config→pps→precificacao→colaboradores→orcamentos→contas-receber). Faltantes Wave A (topo-sort do `plano-dependencia-sistema.md`; deps já construídas; **seguir em ordem, sem perguntar**):
 
-1. **`caixa-tecnico`** (N5) ← EM CURSO/PRÓXIMO — destrava app-tecnico/despesas/custeio-real.
+1. **`caixa-tecnico`** (N5) ← EM CURSO. **P0 DONE** (`T-CT-000-investigacao.md`; greenfield; deps base ✓). **Decisões Roldão 2026-06-17:** reembolso = fail-open lazy (prestação fecha + registra saldo + publica `prestacao.fechada`; execução difere p/ contas-pagar); devolução técnico = só registra saldo (execução Wave B); foto = storage local (B2 = GATE pré-prod). **PRÓXIMO = P1 spec** → P2 (tech-lead+advogado LGPD) → P3 → fatias. Destrava app-tecnico/despesas/custeio-real.
 2. **`chamados`** (N5) — entrada de demanda → vira OS. Dep: clientes(✓)+os(✓).
 3. **`contas-pagar`** (N5) — par do CR; destrava despesas (precisa cadastro fornecedor mínimo).
 4. **`estoque`** (N3, atrasado) — pré-req de app-tecnico/custeio-real. Dep: pps(✓)+os(✓)+equipamentos(✓).
