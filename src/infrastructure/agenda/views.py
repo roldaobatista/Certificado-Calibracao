@@ -68,6 +68,7 @@ from src.domain.operacao.agenda.erros import (
     JornadaUMCViolada,
     JustificativaConflitoCurta,
     MotoristaSemCNH,
+    SemRTNoSlot,
     TransicaoEventoProibida,
 )
 from src.domain.operacao.agenda.value_objects import Janela
@@ -399,7 +400,6 @@ class AgendaViewSet(viewsets.ViewSet):
             inp,
             repo=repo,
             colaborador_port=ColaboradorAgendaAdapter(),
-            rt_port=RTSubstitutoAdapter(),
         )
         body = {"ok": out.ok, "violacoes": out.violacoes}
         concluir_chave(
@@ -523,10 +523,13 @@ class AgendaViewSet(viewsets.ViewSet):
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
         except MotoristaSemCNH as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except SemRTNoSlot as exc:
+            return self._falha(chave_id, tenant_id, exc, status.HTTP_412_PRECONDITION_FAILED)
         except ValueError as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_400_BAD_REQUEST)
 
         body = _serializar_evento(out.evento)
+        body["avisos"] = list(out.avisos)  # avisos não-bloqueantes (ex: RT B/C — US-AG-014)
         concluir_chave(
             chave_id=chave_id,
             tenant_id=tenant_id,

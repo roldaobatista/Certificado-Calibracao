@@ -297,7 +297,6 @@ class TestValidarEventoUseCase:
         """POST /validar: nenhum evento criado mesmo sem violações."""
         repo = FakeEventoAgendaRepository()
         colaborador = FakeColaboradorAgendaPort(regime=RegimeJornada.NAO_APLICA)
-        rt = FakeRTSubstitutoPort()
         inp = validar_evento.ValidarEventoInput(
             tenant_id=_TENANT_A,
             tecnico_id=_TECNICO_1,
@@ -306,7 +305,7 @@ class TestValidarEventoUseCase:
             perfil_tenant="A",
         )
         antes = repo.contar_eventos()
-        out = validar_evento.executar(inp, repo=repo, colaborador_port=colaborador, rt_port=rt)
+        out = validar_evento.executar(inp, repo=repo, colaborador_port=colaborador)
         assert out.ok is True
         assert repo.contar_eventos() == antes  # DRY-RUN NÃO GRAVA
 
@@ -328,7 +327,7 @@ class TestValidarEventoUseCase:
             aloca_em_umc=True,
             perfil_tenant="A",
         )
-        out = validar_evento.executar(inp, repo=repo, colaborador_port=colaborador, rt_port=rt_port)
+        out = validar_evento.executar(inp, repo=repo, colaborador_port=colaborador)
         assert out.ok is False
         codigos = [v["codigo"] for v in out.violacoes]
         assert "CONFLITO_AGENDA" in codigos
@@ -341,7 +340,6 @@ class TestValidarEventoUseCase:
         """
         repo = FakeEventoAgendaRepository()
         colaborador = FakeColaboradorAgendaPort(regime=RegimeJornada.MOTORISTA_PROFISSIONAL)
-        rt = FakeRTSubstitutoPort()
         # Dry-run de 6h (08:00-14:00) — viola R2 logo no primeiro
         inp = validar_evento.ValidarEventoInput(
             tenant_id=_TENANT_A,
@@ -353,7 +351,7 @@ class TestValidarEventoUseCase:
             aloca_em_umc=True,
             perfil_tenant="A",
         )
-        out = validar_evento.executar(inp, repo=repo, colaborador_port=colaborador, rt_port=rt)
+        out = validar_evento.executar(inp, repo=repo, colaborador_port=colaborador)
         assert out.ok is False
         dimensoes = [v["dimensao"] for v in out.violacoes]
         assert "jornada_umc" in dimensoes

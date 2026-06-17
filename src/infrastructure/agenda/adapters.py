@@ -124,6 +124,8 @@ class OSSchedulingAdapter:
             if atv.tecnico_executor_id
             else None,
             "agendada_para": atv.agendada_para.isoformat() if atv.agendada_para else None,
+            # ADR-0063: grandeza calibrada (vazia = fail-open na competência de RT — AC-OS-002-3).
+            "grandeza": atv.grandeza or "",
         }
 
     @staticmethod

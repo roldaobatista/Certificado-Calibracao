@@ -26,8 +26,8 @@ Receita fechada (config→pps→precificacao→colaboradores→orcamentos→cont
 
 - Fatias 1a..3d + P8 (matriz) + P9 (lgpd PASS + 6 MÉDIO consertados na causa-raiz; 2ª passada 6 PASS, sem novo MÉDIO+).
   **179 testes** (era 173). Sem ADR nova (D-AGE-15 já em P3). Detalhe + GATEs: `docs/faseamento/agenda/matriz-reconciliacao.md` §5/§8.
-- **GATE-AGE-RT-WIRING aberto** — US-AG-014 saiu **predicado-only** (`rt_port` não invocado; 412 `SemRTNoSlot` nunca disparado;
-  advisory por D-AGE-6). **DECISÃO ROLDÃO PENDENTE:** wirar 412 fail-closed perfil A no Wave A ou diferir. +GATEs: NO-SHOW-AGENDA, RTSUBSTITUICAO-FORMAL, COLABORADOR-REFERENCIADO.
+- **GATE-AGE-RT-WIRING FECHADO** (Roldão 2026-06-17 — wirado): `criar_evento` passo 4.5 dispara 412 `SemRTNoSlot` perfil A determinístico (B/C aviso; D off; grandeza vazia fail-open).
+  **NOVO GATE-AGE-OS-WIRING aberto** (descoberto no wiring): `atribuir_tecnico` OS→AGENDADA também não está conectado no criar_evento — decisão Roldão pendente. +GATEs: NO-SHOW-AGENDA, RTSUBSTITUICAO-FORMAL, COLABORADOR-REFERENCIADO.
 - **`contas-receber`** fechou antes (2026-06-16, ADR-0084; bus FAN-OUT [[fan-out-bus-consumers-os-concluida]]). [[estado-do-projeto-wave-a-em-curso]].
 
 ## Pendência de produto aberta

@@ -5,6 +5,8 @@ Fluxo:
   2. Valida CNH se motorista_profissional + aloca_em_umc (INV-AG-CNH-001).
   3. Valida feriado (D-AGE-10).
   4. Valida jornada UMC perfil-agnóstico (INV-AG-JORNADA-UMC-001).
+  4.5. Valida RT competente projetado à data do slot (US-AG-014 / INV-AG-PERFIL-001):
+       perfil A determinístico→412 SemRTNoSlot; B/C→aviso; D→off; grandeza vazia→fail-open.
   5. Tenta gravar EventoAgenda — IntegrityError do EXCLUDE GIST → ConflitoAgenda 409.
   6. Grava EventoAuditoriaAgenda(criado) WORM.
   7. Se regime indeterminado: audit adicional.
@@ -36,6 +38,7 @@ from src.domain.operacao.agenda.erros import (
     FeriadoNaoConfirmado,
     JornadaUMCViolada,
     MotoristaSemCNH,
+    SemRTNoSlot,
 )
 from src.domain.operacao.agenda.jornada import EventoSimples, validar_jornada_umc
 from src.domain.operacao.agenda.portas import (
@@ -85,6 +88,7 @@ class CriarEventoInput:
 class CriarEventoOutput:
     evento: EventoAgenda
     regime_era_indeterminado: bool = False
+    avisos: tuple[str, ...] = ()  # avisos não-bloqueantes (ex: RT B/C sem competência)
 
 
 def executar(
@@ -162,6 +166,40 @@ def executar(
                     else ""
                 )
             )
+
+    # 4.5. RT competente projetado à DATA do slot (US-AG-014 / INV-AG-PERFIL-001 / D-AGE-6).
+    # Só para atividade de OS com grandeza calibrada conhecida (grandeza vazia = fail-open,
+    # AC-OS-002-3). Perfil A: ausência determinística → 412 SemRTNoSlot (fail-closed); B/C:
+    # aviso não-bloqueante (planejar é permitido); D: desabilitado. O gate DURO de NC
+    # (cl. 6.2.5/7.8) continua vivendo na EMISSÃO (certificados) — a agenda é a 1ª barreira.
+    # agenda-jornada-perfil-agnostica: skip -- o `perfil` aqui condiciona o check de RT
+    # (US-AG-014/INV-AG-PERFIL-001), NÃO a jornada: validar_jornada_umc (passo 4 acima)
+    # roda SEM perfil, perfil-AGNÓSTICA por INV-AG-JORNADA-UMC-001 (ordem pública trabalhista).
+    avisos: list[str] = []
+    if inp.tipo == TipoEvento.OS and inp.atividade_id is not None:
+        atividade = os_port.obter_atividade(
+            tenant_id=inp.tenant_id, atividade_id=inp.atividade_id
+        )
+        grandeza = str((atividade or {}).get("grandeza") or "").strip()
+        if grandeza:
+            perfil = inp.perfil_tenant.strip().upper()
+            if perfil == "A":
+                if rt_port.eh_deterministica_ausencia(
+                    tenant_id=inp.tenant_id, grandeza=grandeza, data_slot=data_slot
+                ):
+                    raise SemRTNoSlot(
+                        f"Sem RT competente na grandeza {grandeza!r} para a data "
+                        f"{data_slot.isoformat()} (perfil A — fail-closed; INV-AG-PERFIL-001)."
+                    )
+            elif perfil in ("B", "C"):
+                if not rt_port.tem_rt_competente_no_slot(
+                    tenant_id=inp.tenant_id, grandeza=grandeza, data_slot=data_slot
+                ):
+                    avisos.append(
+                        f"RT sem competência confirmada na grandeza {grandeza!r} para "
+                        f"{data_slot.isoformat()} (perfil {perfil} — agendamento permitido com aviso)."
+                    )
+            # perfil D: verificação de RT desabilitada (D-AGE-6)
 
     # 5. Monta entidade (inicia_at / termina_at, não janela)
     evento = EventoAgenda(
@@ -247,4 +285,8 @@ def executar(
         )
         repo.salvar_auditoria(auditoria_regime)
 
-    return CriarEventoOutput(evento=evento, regime_era_indeterminado=regime_era_indeterminado)
+    return CriarEventoOutput(
+        evento=evento,
+        regime_era_indeterminado=regime_era_indeterminado,
+        avisos=tuple(avisos),
+    )

@@ -19,7 +19,6 @@ from src.domain.operacao.agenda.jornada import EventoSimples, validar_jornada_um
 from src.domain.operacao.agenda.portas import (
     ColaboradorAgendaPort,
     EventoAgendaRepository,
-    RTSubstitutoPort,
 )
 from src.domain.operacao.agenda.value_objects import Janela, TecnicoJornada
 
@@ -59,7 +58,6 @@ def executar(
     *,
     repo: EventoAgendaRepository,
     colaborador_port: ColaboradorAgendaPort,
-    rt_port: RTSubstitutoPort,
 ) -> ValidarEventoOutput:
     """Dry-run: valida sem gravar. Retorna todas as violações encontradas (R9).
 
@@ -67,6 +65,9 @@ def executar(
     1. Overlap com eventos existentes do técnico no dia.
     2. Jornada UMC (regime via porta — perfil-agnóstico, D-AGE-4).
     3. CNH do motorista (quando ``aloca_em_umc=True`` e regime motorista).
+
+    RT competente NÃO é dimensão do dry-run (escopo US-AG-002 = overlap+jornada+CNH);
+    o gate de RT (412) vive em ``criar_evento`` (US-AG-014 / INV-AG-PERFIL-001).
     """
     violacoes: list[dict[str, object]] = []
 

@@ -565,6 +565,106 @@ def test_inv_ag_perfil_001_auditoria_agenda_worm_update_raise():
         EventoAuditoriaAgenda.objects.filter(id=audit.id).update(payload_resumo="alterado")
 
 
+# --- INV-AG-PERFIL-001: RT competente projetado à data do slot (US-AG-014 / D-AGE-6) ---
+# Gate 412 fail-closed em criar_evento — perfil A determinístico sem RT competente.
+
+
+def _input_criar_os(*, perfil, atividade_id, tenant_id, tecnico_id):
+    """Monta CriarEventoInput tipo=os (aloca_em_umc=False isola o check de RT da jornada)."""
+    from src.application.operacao.agenda.criar_evento import CriarEventoInput
+    from src.domain.operacao.agenda.enums import TipoEvento
+    from src.domain.operacao.agenda.value_objects import Janela
+
+    inicia, termina = _slot_futuro()
+    return CriarEventoInput(
+        tenant_id=tenant_id,
+        tecnico_id=tecnico_id,
+        janela=Janela(inicia_at=inicia, termina_at=termina),
+        aloca_em_umc=False,
+        perfil_tenant=perfil,
+        criado_por_usuario_id=uuid.uuid4(),
+        tipo=TipoEvento.OS,
+        atividade_id=atividade_id,
+    )
+
+
+def _portas_rt(*, tem_rt, grandeza, atividade_id):
+    from src.domain.operacao.agenda.enums import RegimeJornada
+
+    from tests.fakes.agenda_fakes import (
+        FakeColaboradorAgendaPort,
+        FakeEventoAgendaRepository,
+        FakeOSSchedulingPort,
+        FakeRTSubstitutoPort,
+    )
+
+    repo = FakeEventoAgendaRepository()
+    colaborador = FakeColaboradorAgendaPort(regime=RegimeJornada.NAO_APLICA)
+    os_port = FakeOSSchedulingPort()
+    if grandeza is not None:
+        os_port.atividades[atividade_id] = {"grandeza": grandeza}
+    rt_port = FakeRTSubstitutoPort(tem_rt=tem_rt, ausencia_deterministica=not tem_rt)
+    return repo, colaborador, os_port, rt_port
+
+
+class TestINVAGPerfil001RTSlot:
+    """INV-AG-PERFIL-001 / US-AG-014: RT competente projetado à data do slot (gate 412)."""
+
+    def _executar(self, inp, portas):
+        from src.application.operacao.agenda import criar_evento
+
+        repo, colaborador, os_port, rt_port = portas
+        return criar_evento.executar(
+            inp, repo=repo, colaborador_port=colaborador, os_port=os_port, rt_port=rt_port
+        )
+
+    def test_inv_ag_perfil_001_perfil_a_sem_rt_competente_412(self):
+        """Perfil A + ausência determinística de RT na grandeza → SemRTNoSlot (fail-closed)."""
+        from src.domain.operacao.agenda.erros import SemRTNoSlot
+
+        atividade_id, tenant_id = uuid.uuid4(), uuid.uuid4()
+        portas = _portas_rt(tem_rt=False, grandeza="massa", atividade_id=atividade_id)
+        inp = _input_criar_os(
+            perfil="A", atividade_id=atividade_id, tenant_id=tenant_id, tecnico_id=uuid.uuid4()
+        )
+        with pytest.raises(SemRTNoSlot):
+            self._executar(inp, portas)
+        assert portas[0].contar_eventos() == 0  # nada gravado (fail-closed antes do INSERT)
+
+    def test_inv_ag_perfil_001_perfil_a_com_rt_competente_cria(self):
+        """Perfil A + RT competente na data → cria normalmente (sem 412)."""
+        atividade_id, tenant_id = uuid.uuid4(), uuid.uuid4()
+        portas = _portas_rt(tem_rt=True, grandeza="massa", atividade_id=atividade_id)
+        inp = _input_criar_os(
+            perfil="A", atividade_id=atividade_id, tenant_id=tenant_id, tecnico_id=uuid.uuid4()
+        )
+        out = self._executar(inp, portas)
+        assert portas[0].contar_eventos() == 1
+        assert out.avisos == ()
+
+    def test_inv_ag_perfil_001_grandeza_vazia_fail_open(self):
+        """Perfil A SEM grandeza conhecida → fail-open (não bloqueia — AC-OS-002-3)."""
+        atividade_id, tenant_id = uuid.uuid4(), uuid.uuid4()
+        portas = _portas_rt(tem_rt=False, grandeza="", atividade_id=atividade_id)
+        inp = _input_criar_os(
+            perfil="A", atividade_id=atividade_id, tenant_id=tenant_id, tecnico_id=uuid.uuid4()
+        )
+        out = self._executar(inp, portas)  # NÃO levanta SemRTNoSlot
+        assert portas[0].contar_eventos() == 1
+        assert out.avisos == ()
+
+    def test_inv_ag_perfil_001_perfil_c_sem_rt_aviso_nao_bloqueia(self):
+        """Perfil C + sem RT → cria com AVISO não-bloqueante (planejar é permitido — D-AGE-6)."""
+        atividade_id, tenant_id = uuid.uuid4(), uuid.uuid4()
+        portas = _portas_rt(tem_rt=False, grandeza="massa", atividade_id=atividade_id)
+        inp = _input_criar_os(
+            perfil="C", atividade_id=atividade_id, tenant_id=tenant_id, tecnico_id=uuid.uuid4()
+        )
+        out = self._executar(inp, portas)
+        assert portas[0].contar_eventos() == 1
+        assert len(out.avisos) == 1 and "RT" in out.avisos[0]
+
+
 # ===========================================================================
 # INV-AG-RECORRENCIA-001 — RegraRecorrencia exige rrule_str (RRULE RFC 5545)
 # ===========================================================================
