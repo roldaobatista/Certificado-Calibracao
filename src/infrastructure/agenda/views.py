@@ -18,13 +18,13 @@ Grade multi-técnico em 1 query agregada (O(1) em técnicos — PLAN-AGE-04).
 Unicidade de overlap garantida pelo EXCLUDE GIST (sem advisory lock — PLAN-AGE-06).
 ``publicar_evento(outbox=True)`` dentro do mesmo ``transaction.atomic``.
 
-Portas injetadas com STUBS seguros (# TODO Fatia 3: substituir por adapter real):
-  - ColaboradorAgenda: regime=nao_aplica/fonte=derivado_papel + sem pendência CNH.
-  - OSScheduling: no-op.
-  - RTSubstituto: sem restrição (tem_rt=True).
-  - AReceber: no-op (GATE-AGE-AR).
-  - Notificacao: enfileira em log (GATE-AGE-OMNICHANNEL).
-  - Maps: None (GATE-AGE-MAPS).
+Portas injetadas (Fatia 3a — T-AGE-040..043):
+  - ColaboradorAgenda: ColaboradorAgendaAdapter (papel + CNH + regime fail-safe).
+  - OSScheduling: OSSchedulingAdapter (atribuir_tecnico real — OS→AGENDADA).
+  - RTSubstituto: RTSubstitutoAdapter (competência projetada à data do slot).
+  - AReceber: AReceberAdapter (criar_titulo_manual real em contas_receber).
+  - Notificacao: stub (GATE-AGE-OMNICHANNEL — Wave B).
+  - Maps: None (GATE-AGE-MAPS — Wave B).
 
 # authz-check: skip -- RequireAuthz global resolve via ACTION_MAP (header)
 """
@@ -53,7 +53,7 @@ from src.application.operacao.agenda import (
     resolver_conflito,
     validar_evento,
 )
-from src.domain.operacao.agenda.enums import FonteRegime, MotivoBloqueio, RegimeJornada, TipoEvento
+from src.domain.operacao.agenda.enums import MotivoBloqueio, RegimeJornada, TipoEvento
 from src.domain.operacao.agenda.erros import (
     ConflitoAgenda,
     EventoNaoEncontrado,
@@ -63,7 +63,13 @@ from src.domain.operacao.agenda.erros import (
     MotoristaSemCNH,
     TransicaoEventoProibida,
 )
-from src.domain.operacao.agenda.value_objects import Janela, RegimeJornadaResolvido
+from src.domain.operacao.agenda.value_objects import Janela
+from src.infrastructure.agenda.adapters import (
+    AReceberAdapter,
+    ColaboradorAgendaAdapter,
+    OSSchedulingAdapter,
+    RTSubstitutoAdapter,
+)
 from src.infrastructure.agenda.repositories import DjangoEventoAgendaRepository
 from src.infrastructure.agenda.serializers import (
     CriarBloqueioSerializer,
@@ -102,102 +108,8 @@ ENDPOINT_VALIDAR = "agenda.validar"
 
 
 # ---------------------------------------------------------------------------
-# Stubs seguros das portas (# TODO Fatia 3: substituir por adapters reais)
+# Stubs de portas que permanecem em Wave A (Wave B os substitui)
 # ---------------------------------------------------------------------------
-
-
-class _ColaboradorAgendaStub:
-    """Stub seguro de ColaboradorAgendaPort.
-
-    # TODO Fatia 3: substituir por ColaboradorAgendaAdapter.
-    Retorna regime=nao_aplica/fonte=indeterminado → jornada UMC não valida.
-    Sem pendência de CNH. is_tecnico_campo=True (conservador).
-    """
-
-    def is_tecnico_campo(self, *, tenant_id: UUID, colaborador_id: UUID) -> bool:
-        return True  # conservador
-
-    def pendencia_cnh(self, *, tenant_id: UUID, colaborador_id: UUID) -> bool:
-        return False  # sem restrição no stub
-
-    def regime_jornada(
-        self,
-        *,
-        tenant_id: UUID,
-        colaborador_id: UUID,
-        na_data: object,
-    ) -> RegimeJornadaResolvido:
-        # nao_aplica = não valida jornada UMC (safe default Wave A)
-        return RegimeJornadaResolvido(
-            regime=RegimeJornada.NAO_APLICA,
-            fonte=FonteRegime.INDETERMINADO,
-        )
-
-
-class _OSSchedulingStub:
-    """Stub de OSSchedulingPort — no-op seguro.
-
-    # TODO Fatia 3: substituir por OSSchedulingAdapter.
-    """
-
-    def atribuir_tecnico(
-        self,
-        *,
-        tenant_id: UUID,
-        atividade_id: UUID,
-        tecnico_id: UUID,
-        agendada_para: datetime,
-        actor_usuario_id: UUID,
-    ) -> None:
-        logger.debug(
-            "OSSchedulingStub.atribuir_tecnico: atividade=%s tecnico=%s (no-op Fatia 2)",
-            atividade_id,
-            tecnico_id,
-        )
-
-    def obter_atividade(self, *, tenant_id: UUID, atividade_id: UUID) -> dict[str, object] | None:
-        return None
-
-
-class _RTSubstitutoStub:
-    """Stub de RTSubstitutoPort — sem restrição (tem_rt=True).
-
-    # TODO Fatia 3: substituir por RTSubstitutoAdapter.
-    """
-
-    def tem_rt_competente_no_slot(
-        self, *, tenant_id: UUID, grandeza: str, data_slot: object
-    ) -> bool:
-        return True  # sem restrição no stub Wave A
-
-    def eh_deterministica_ausencia(
-        self, *, tenant_id: UUID, grandeza: str, data_slot: object
-    ) -> bool:
-        return False
-
-
-class _AReceberStub:
-    """Stub de AReceberPort — no-op seguro (GATE-AGE-AR).
-
-    # TODO Fatia 3: substituir por AReceberAdapter que chama criar_titulo_manual.
-    """
-
-    def criar_titulo_manual(
-        self,
-        *,
-        tenant_id: UUID,
-        cliente_id: UUID,
-        valor: object,
-        descricao: str,
-        perfil_no_evento: str,
-        referencia_evento_id: UUID,
-    ) -> UUID:
-        logger.info(
-            "AReceberStub.criar_titulo_manual: evento=%s (no-op GATE-AGE-AR)",
-            referencia_evento_id,
-        )
-        from uuid import uuid4
-        return uuid4()  # UUID fictício — adapter real na Fatia 3
 
 
 class _NotificacaoStub:
@@ -386,7 +298,9 @@ class AgendaViewSet(viewsets.ViewSet):
             if inicia_antes_str:
                 inicia_antes = datetime.fromisoformat(inicia_antes_str)
         except ValueError:
-            return Response({"erro": "formato de data inválido"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"erro": "formato de data inválido"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         repo = DjangoEventoAgendaRepository()
         # 1 query agregada — O(1) em técnicos (PLAN-AGE-04)
@@ -450,8 +364,8 @@ class AgendaViewSet(viewsets.ViewSet):
         out = validar_evento.executar(
             inp,
             repo=repo,
-            colaborador_port=_ColaboradorAgendaStub(),  # TODO Fatia 3
-            rt_port=_RTSubstitutoStub(),  # TODO Fatia 3
+            colaborador_port=ColaboradorAgendaAdapter(),
+            rt_port=RTSubstitutoAdapter(),
         )
         body = {"ok": out.ok, "violacoes": out.violacoes}
         concluir_chave(
@@ -523,9 +437,9 @@ class AgendaViewSet(viewsets.ViewSet):
                 out = criar_evento.executar(
                     inp,
                     repo=repo,
-                    colaborador_port=_ColaboradorAgendaStub(),  # TODO Fatia 3
-                    os_port=_OSSchedulingStub(),  # TODO Fatia 3
-                    rt_port=_RTSubstitutoStub(),  # TODO Fatia 3
+                    colaborador_port=ColaboradorAgendaAdapter(),
+                    os_port=OSSchedulingAdapter(),
+                    rt_port=RTSubstitutoAdapter(),
                 )
                 _publicar_evento_agenda(
                     acao="agenda.evento.alocado",
@@ -707,7 +621,7 @@ class AgendaViewSet(viewsets.ViewSet):
                 out = mover_evento.executar(
                     inp,
                     repo=repo,
-                    colaborador_port=_ColaboradorAgendaStub(),  # TODO Fatia 3
+                    colaborador_port=ColaboradorAgendaAdapter(),
                 )
                 _publicar_evento_agenda(
                     acao="agenda.evento.reagendado",
@@ -798,8 +712,8 @@ class AgendaViewSet(viewsets.ViewSet):
                 out = reagendar_evento.executar(
                     inp,
                     repo=repo,
-                    colaborador_port=_ColaboradorAgendaStub(),  # TODO Fatia 3
-                    notificacao_port=_NotificacaoStub(),  # TODO Fatia 3
+                    colaborador_port=ColaboradorAgendaAdapter(),
+                    notificacao_port=_NotificacaoStub(),  # GATE-AGE-OMNICHANNEL Wave B
                 )
                 _publicar_evento_agenda(
                     acao="agenda.evento.reagendado",
@@ -886,7 +800,7 @@ class AgendaViewSet(viewsets.ViewSet):
                 out = registrar_no_show.executar(
                     inp,
                     repo=repo,
-                    areceber_port=_AReceberStub(),  # TODO Fatia 3
+                    areceber_port=AReceberAdapter(),
                 )
                 _publicar_evento_agenda(
                     acao="agenda.no_show.registrado",
@@ -974,7 +888,9 @@ class AgendaViewSet(viewsets.ViewSet):
                     acao="agenda.conflito.resolvido",
                     payload={
                         "evento_mantido_id": str(out.evento_mantido.id),
-                        "evento_cancelado_id": str(out.evento_cancelado.id) if out.evento_cancelado else None,
+                        "evento_cancelado_id": str(out.evento_cancelado.id)
+                        if out.evento_cancelado
+                        else None,
                         "opcao": d["opcao"],
                         "perfil_tenant": perfil_str,
                     },
@@ -1057,7 +973,9 @@ class AgendaViewSet(viewsets.ViewSet):
             "colaborador_id": str(out.override.colaborador_id),
             "regime": out.override.regime.value,
             "vigencia_inicio": out.override.vigencia_inicio.isoformat(),
-            "vigencia_fim": out.override.vigencia_fim.isoformat() if out.override.vigencia_fim else None,
+            "vigencia_fim": out.override.vigencia_fim.isoformat()
+            if out.override.vigencia_fim
+            else None,
             "fonte": out.override.fonte.value,
         }
         concluir_chave(

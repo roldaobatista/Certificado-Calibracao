@@ -46,9 +46,7 @@ class ValidarEventoSerializer(serializers.Serializer):
 
     def validate(self, data: dict) -> dict:
         if data["inicia_at"] >= data["termina_at"]:
-            raise serializers.ValidationError(
-                "inicia_at deve ser anterior a termina_at."
-            )
+            raise serializers.ValidationError("inicia_at deve ser anterior a termina_at.")
         return data
 
 
@@ -151,9 +149,7 @@ class ResolverConflitoSerializer(serializers.Serializer):
 
     evento_novo_id = serializers.UUIDField()
     evento_antigo_id = serializers.UUIDField()
-    opcao = serializers.ChoiceField(
-        choices=["manter_novo", "manter_antigo", "reagendar_ambos"]
-    )
+    opcao = serializers.ChoiceField(choices=["manter_novo", "manter_antigo", "reagendar_ambos"])
     razao = serializers.CharField(min_length=30, max_length=5000)
 
 

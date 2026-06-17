@@ -9,7 +9,7 @@
 Receita fechada (config→pps→precificacao→colaboradores→orcamentos→contas-receber). Fila dos faltantes Wave A
 (topo-sort do `plano-dependencia-sistema.md`; cada um respeita suas deps já construídas; **seguir em ordem, sem perguntar**):
 
-1. **`agenda`** (N5) ← EM CURSO. Fatias 1a (domínio, 69 testes) + 1b (schema PG, 28 testes; EXCLUDE GIST + RLS v2 + WORM + feriados) + 2 (use cases + REST, 23 testes; portas STUB/FAKE; cross-tenant + grade O(1) REAIS) DONE — 120 testes. **PRÓXIMO = Fatia 3** (adapters reais OS/colaboradores/CR/RT + consumers bus fan-out + INVs/hooks, T-AGE-040..048) → P8/P9. Dep: os(✓)+colaboradores(✓).
+1. **`agenda`** (N5) ← EM CURSO. Fatias 1a+1b+2+3a+3b DONE — 144 testes. Adapters reais (OS/colaboradores/RT/CR) + consumers fan-out bus (os.*/colaborador.*/tenant.rt.*) + GATE-RTSUBSTITUICAO-FORMAL documentado. OrigemTitulo.MANUAL p/ no-show (GATE-NO-SHOW-AGENDA até Wave B). **PRÓXIMO = Fatia 3c** (T-AGE-045 ColaboradorReferenciadoPort) + **Fatia 3d** (T-AGE-046/047 INVs+3 hooks) → P8/P9. Dep: os(✓)+colaboradores(✓).
 2. **`caixa-tecnico`** (N5) — destrava app-tecnico/despesas/custeio-real.
 3. **`chamados`** (N5) — entrada de demanda → vira OS. Dep: clientes(✓)+os(✓).
 4. **`contas-pagar`** (N5) — par do CR; destrava despesas (precisa cadastro fornecedor mínimo).
