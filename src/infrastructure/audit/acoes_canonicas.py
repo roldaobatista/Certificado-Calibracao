@@ -462,6 +462,29 @@ ACOES_CONTAS_RECEBER: Final[frozenset[str]] = frozenset(
 )
 
 
+# Wave A frente agenda (T-AGE-026b / D-AGE-5) — calendário multi-técnico, jornada UMC.
+# Slug LOWERCASE (exigência CHECK bus_outbox_acao_enum_semantico — puramente SINTÁTICO,
+# não enumera valores; NÃO exige migration de CHECK nova, igual contas_receber/orcamentos).
+# Eventos publicados via outbox=True (cross-módulo: OS/CR/bus); trilha de auditoria
+# (EventoAuditoriaAgenda) usa INSERT-only WORM local, não o bus.
+ACOES_AGENDA: Final[frozenset[str]] = frozenset(
+    {
+        # Ciclo de vida do evento de agenda (US-AG-001..004/008)
+        "agenda.evento.alocado",      # criação de evento (técnico alocado em slot)
+        "agenda.evento.reagendado",   # reagendamento com novo horário/técnico (PLAN-AGE-08)
+        "agenda.evento.cancelado",    # cancelamento de evento
+        # Bloqueio de agenda (US-AG-004 — férias/treino/atestado/outro)
+        "agenda.bloqueio.criado",
+        # No-show (US-AG-012 / INV-AG-NOSHOW-AR-001)
+        "agenda.no_show.registrado",
+        # Jornada UMC violada (INV-AG-JORNADA-UMC-001 — audit WORM ≥5a)
+        "agenda.jornada_umc.violada",
+        # Conflito de sobreposição resolvido (US-AG-011)
+        "agenda.conflito.resolvido",
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -482,6 +505,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_COLABORADORES
     | ACOES_ORCAMENTOS
     | ACOES_CONTAS_RECEBER
+    | ACOES_AGENDA
 )
 
 

@@ -341,6 +341,12 @@ LOCAL_APPS = [
     # WORM Padrão B (titulo) + INSERT-only puro (pagamento/override). RLS v2.
     # perfil_no_evento imutável via trigger COALESCE (R4 / INV-FIN-SNAPSHOT-PERFIL-001).
     "src.infrastructure.contas_receber.apps.ContasReceberConfig",
+    # Wave A frente agenda — nível 5 (calendário multi-técnico, jornada UMC Lei 13.103).
+    # Aloca atividades de OS em slots de técnico; valida overlap (EXCLUDE GIST) +
+    # jornada UMC perfil-agnóstica (INV-AG-JORNADA-UMC-001) + regime de jornada
+    # (RegimeJornadaColaborador INSERT-only, D-AGE-15). Consumers = Fatia 3.
+    # EXCLUDE GIST (tenant_id, tecnico_id, tstzrange '[)') — R1/R12/INV-AG-OVERLAP-001.
+    "src.infrastructure.agenda.apps.AgendaConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

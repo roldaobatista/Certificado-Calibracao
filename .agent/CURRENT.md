@@ -9,7 +9,7 @@
 Receita fechada (config→pps→precificacao→colaboradores→orcamentos→contas-receber). Fila dos faltantes Wave A
 (topo-sort do `plano-dependencia-sistema.md`; cada um respeita suas deps já construídas; **seguir em ordem, sem perguntar**):
 
-1. **`agenda`** (N5) ← EM CURSO. P0–P3 prontos (spec+reviews+plan+tasks; revisão tech-lead/RBC incorporada). **PRÓXIMO = P4 Fatia 1a** (domínio puro, T-AGE-010..017). OS tem gancho fail-open lazy esperando; valida INV-020 (perfil-AGNÓSTICO; regime_jornada override-na-agenda, sem ADR). Dep: os(✓)+colaboradores(✓).
+1. **`agenda`** (N5) ← EM CURSO. Fatia 1a (domínio, 69 testes) + Fatia 1b (schema PG, 28 testes; 65/65 drill estrutural; 8 migrations; EXCLUDE GIST; WORM triggers; seed feriados) CONCLUÍDAS. **PRÓXIMO = Fatia 2** (use cases + REST, T-AGE-030..038). Dep: os(✓)+colaboradores(✓).
 2. **`caixa-tecnico`** (N5) — destrava app-tecnico/despesas/custeio-real.
 3. **`chamados`** (N5) — entrada de demanda → vira OS. Dep: clientes(✓)+os(✓).
 4. **`contas-pagar`** (N5) — par do CR; destrava despesas (precisa cadastro fornecedor mínimo).

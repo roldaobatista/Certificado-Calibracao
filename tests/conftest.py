@@ -140,6 +140,8 @@ _SEED_MIGRATIONS: list[tuple[str, str]] = [
     ("colaboradores", "0006_seed_catalogo_habilidade"),
     ("orcamentos", "0006_seed_authz"),
     ("contas_receber", "0005_seed_authz"),
+    ("agenda", "0006_seed_authz"),
+    ("agenda", "0007_seed_feriados"),
 ]
 
 
@@ -204,9 +206,7 @@ def _restaura_seeds_apos_truncate(request: FixtureRequest, db) -> None:  # type:
     de migration — nada a fazer.
     """
     marker = request.node.get_closest_marker("django_db")
-    is_transactional = bool(
-        marker and marker.kwargs.get("transaction", False)
-    )
+    is_transactional = bool(marker and marker.kwargs.get("transaction", False))
     if not is_transactional:
         return
     if _seeds_estao_vazios():

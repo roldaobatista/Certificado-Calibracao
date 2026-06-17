@@ -1,6 +1,6 @@
 ---
 owner: agente-ia
-revisado-em: 2026-06-16
+revisado-em: 2026-06-17
 proximo-review: 2026-09-16
 status: draft
 diataxis: reference
@@ -39,17 +39,21 @@ relacionados:
 - [x] **T-AGE-016** `portas.py` (6 Protocols `@runtime_checkable` + `EventoAgendaRepository`; `ColaboradorAgendaPort.regime_jornada(*, tenant_id, colaborador_id, na_data)`) + `erros.py` (hierarquia spec §4). Ref: D-AGE-5/6/7/9/15.
 - [x] **T-AGE-017** `tests/test_agenda_dominio_fatia1a.py` — máquina estados (happy+unhappy); **5 regras de jornada por regime** (motorista_profissional c/ R2 × clt_geral s/ R2; espera 1/1; teto; DSR; refeição); `RegimeJornadaResolvido` fail-safe; `materializar_janela` idempotente; `Janela` half-open; Protocols. **Verificação 1a** (`--no-cov`).
 
-## Fatia 1b — schema PG (`src/infrastructure/agenda/`)
+## Fatia 1b — schema PG (`src/infrastructure/agenda/`) — ✅ DONE 2026-06-17 (28 testes; ruff+mypy limpos; 65/65 drill estrutural PASS; validar_agenda PASS)
 
-- [ ] **T-AGE-020** `apps.py` (`label=agenda`; `ready()` com `# TODO Fatia 3: consumers`) + `models.py` (7 models achatados; `_choices(enum)`; `revision`; CHECK `atividade_id NOT NULL` quando `tipo='os'` — INV-AG-ATIVIDADE-001; UNIQUE `(recorrencia_id, ocorrencia_dt)` — R10). Ref: D-AGE-2/8.
-- [ ] **T-AGE-021** `mappers.py` + `repositories.py` (`DjangoEventoAgendaRepository` implementa Protocol). Ref: D-AGE-1.
-- [ ] **T-AGE-022** migration `0001_initial` (CreateModel + índice `(tenant_id, tecnico_id, inicia_at)` — R14). Ref: D-AGE-1.
-- [ ] **T-AGE-023** migration `0002_rls_policies` (ENABLE+FORCE+4 policies v2, todas as tabelas). Ref: D-AGE-14; INV-TENANT-*.
-- [ ] **T-AGE-024** migration `0003_exclusion_overlap` — **EXCLUDE GIST** `(tenant_id WITH =, tecnico_id WITH =, tstzrange '[)' WITH &&) WHERE estado != 'cancelado'`; `btree_gist`. Molde `0004_exclusion_imposto.py`. Ref: D-AGE-13; TL-AGE-01/R1/R12; INV-AG-OVERLAP-001.
-- [ ] **T-AGE-025** migration `0004_triggers_worm` — `EventoAuditoriaAgenda`/`RegistroNoShow`/`RegimeJornadaColaborador` INSERT-only (block-update/delete); eventos passados imutáveis (D-AGE-3). Ref: INV-AG-AUDIT-WORM-001.
-- [ ] **T-AGE-026** migrations `0005_grants_app_user` + `0006_seed_authz` (ações `agenda.*` × papéis) + `0007_seed_feriados` (catálogo nacional — D-AGE-10). Ref: D-AGE-10/14.
-- [ ] **T-AGE-026b** `audit/acoes_canonicas.py` — bloco `ACOES_AGENDA` (slugs lowercase) + união `ACOES_CANONICAS`. **Sem migration de CHECK** (sintático). Ref: D-AGE-5.
-- [ ] **T-AGE-027** `management/commands/validar_agenda.py` (drill: RLS+FORCE+4 policies, EXCLUDE GIST presente, triggers INSERT-only, UNIQUE recorrência, grants) + `tests/test_agenda_schema_fatia1b.py` (RLS, cross-tenant, **overlap rejeitado mesmo téc + permitido téc≠**, half-open 09–10/10–11, CHECK atividade_id, INSERT-only RAISE, **drill concorrência REAL do EXCLUDE** — 2 conexões disputam o slot, 1 commita/outra 409, molde commit `88483e3` — PLAN-AGE-05). **Verificação 1b** (`--reuse-db transaction=True`).
+> **Verificação 1b concluída 2026-06-17.** 8 migrations aplicadas: 0001_initial + 0002_rls_policies + 0003_exclusion_overlap (EXCLUDE GIST) + 0004_triggers_worm (INSERT-only WORM) + 0005_grants_app_user + 0006_seed_authz + 0007_seed_feriados (54 feriados nacionais 2025-2030) + 0008_alter_* (NO-OP drift cosmético). `validar_agenda` 65/65 PASS. 28 testes: RLS cross-tenant UNHAPPY, CHECK atividade_id, UNIQUE recorrência, INSERT-only WORM, EXCLUDE GIST (overlap/half-open/cross-tenant/cross-técnico/cancelado), concorrência real (deadlock e IntegrityError ambos válidos, invariante `<=1 commit`), seed feriados. Correção: `tests/conftest.py` + catálogo `_SEED_MIGRATIONS` com agenda 0006/0007.
+> **Ajuste pós-commit (ADR-0030 — vigência canônica):** pré-commit da Fatia 1b bloqueado pelo hook `vigencia-canonica-check.sh` — campos `vigente_desde`/`vigente_ate` violavam o padrão canônico. Renomeados para `vigencia_inicio`/`vigencia_fim` em todos os artefatos: `entities.py`, `models.py`, `mappers.py`, `migrations/0001_initial.py`, `migrations/0008_alter_*`, `migrations/0004_triggers_worm.py` (comentários SQL), `tests/test_agenda_dominio_fatia1a.py` e `tests/test_agenda_schema_fatia1b.py`. Banco DEV e `test_afere` re-sincronizados. Verificação: `makemigrations --check` = "No changes detected", `validar_agenda` 65/65 PASS, 97 testes verdes, ruff + mypy limpos.
+> **Revisão crítica Opus (antes do commit):** EXCLUDE `0003` confere (tenant_id 1ª coluna, `tstzrange '[)'`, `WHERE estado != cancelado`, btree_gist sem CREATE EXTENSION); teste de concorrência **não-mascara** (`assert not erros_inesperados` + invariante `≤1 commit` + `≤1 linha` no banco; deadlock e IntegrityError ambos abortam a tx conflitante); drill 65/65 + 28 testes reconfirmados pelo revisor. **Débito cosmético rastreado:** `0008_alter_*` é `AlterField` só de `help_text` (Django não gera DDL — NO-OP no banco) — squash no `0001` fica para housekeeping (greenfield; consolidar exige recriar o banco de teste de forma controlada, não vale o risco agora).
+
+- [x] **T-AGE-020** `apps.py` (`label=agenda`; `ready()` com `# TODO Fatia 3: consumers`) + `models.py` (7 models achatados; `_choices(enum)`; `revision`; CHECK `atividade_id NOT NULL` quando `tipo='os'` — INV-AG-ATIVIDADE-001; UNIQUE `(recorrencia_id, ocorrencia_dt)` — R10). Ref: D-AGE-2/8.
+- [x] **T-AGE-021** `mappers.py` + `repositories.py` (`DjangoEventoAgendaRepository` implementa Protocol). Ref: D-AGE-1.
+- [x] **T-AGE-022** migration `0001_initial` (CreateModel + índice `(tenant_id, tecnico_id, inicia_at)` — R14). Ref: D-AGE-1.
+- [x] **T-AGE-023** migration `0002_rls_policies` (ENABLE+FORCE+4 policies v2, todas as tabelas). Ref: D-AGE-14; INV-TENANT-*.
+- [x] **T-AGE-024** migration `0003_exclusion_overlap` — **EXCLUDE GIST** `(tenant_id WITH =, tecnico_id WITH =, tstzrange '[)' WITH &&) WHERE estado != 'cancelado'`; `btree_gist`. Molde `0004_exclusion_imposto.py`. Ref: D-AGE-13; TL-AGE-01/R1/R12; INV-AG-OVERLAP-001.
+- [x] **T-AGE-025** migration `0004_triggers_worm` — `EventoAuditoriaAgenda`/`RegistroNoShow`/`RegimeJornadaColaborador` INSERT-only (block-update/delete); eventos passados imutáveis (D-AGE-3). Ref: INV-AG-AUDIT-WORM-001.
+- [x] **T-AGE-026** migrations `0005_grants_app_user` + `0006_seed_authz` (ações `agenda.*` × papéis) + `0007_seed_feriados` (catálogo nacional — D-AGE-10). Ref: D-AGE-10/14.
+- [x] **T-AGE-026b** `audit/acoes_canonicas.py` — bloco `ACOES_AGENDA` (slugs lowercase) + união `ACOES_CANONICAS`. **Sem migration de CHECK** (sintático). Ref: D-AGE-5.
+- [x] **T-AGE-027** `management/commands/validar_agenda.py` (drill: RLS+FORCE+4 policies, EXCLUDE GIST presente, triggers INSERT-only, UNIQUE recorrência, grants) + `tests/test_agenda_schema_fatia1b.py` (RLS, cross-tenant, **overlap rejeitado mesmo téc + permitido téc≠**, half-open 09-10/10-11, CHECK atividade_id, INSERT-only RAISE, **drill concorrência REAL do EXCLUDE** — 2 conexões disputam o slot, 1 commita/outra IntegrityError OU deadlock ambos válidos, molde commit `88483e3` — PLAN-AGE-05). **Verificação 1b** (`--reuse-db transaction=True`).
 
 ## Fatia 2 — use cases + REST (núcleo autossuficiente; portas FAKE; NÃO toca módulo fechado)
 

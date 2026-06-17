@@ -148,11 +148,11 @@ class CapacidadeTecnico:
     dias_trabalho: frozenset[int]  # 0=seg .. 6=dom
     hora_inicio: int  # 0-23
     hora_fim: int  # 0-23
-    vigente_desde: date
+    vigencia_inicio: date
     criado_por_usuario_id: UUID
     criado_em: datetime
     atualizado_em: datetime
-    vigente_ate: date | None = None  # None = vigente indefinidamente
+    vigencia_fim: date | None = None  # None = vigente indefinidamente
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,7 +198,7 @@ class RegimeJornadaColaborador:
 
     Mora na agenda (não em colaboradores — colaboradores permanece FECHADO).
     INSERT-com-vigência: cada alteração insere nova linha; a vigente é a
-    com maior ``vigente_desde`` ≤ ``na_data``.
+    com maior ``vigencia_inicio`` ≤ ``na_data``.
 
     IA NUNCA grava nesta tabela — só humano (RH/advogado) via
     ``enquadrar_regime`` (T-AGE-036).
@@ -211,11 +211,11 @@ class RegimeJornadaColaborador:
     tenant_id: UUID
     colaborador_id: UUID
     regime: RegimeJornada
-    vigente_desde: date
+    vigencia_inicio: date
     definido_por_usuario_id: UUID
     fonte: FonteRegime
     criado_em: datetime
-    vigente_ate: date | None = None  # None = vigente indefinidamente
+    vigencia_fim: date | None = None  # None = vigente indefinidamente
     justificativa: str = ""
 
     def __post_init__(self) -> None:
