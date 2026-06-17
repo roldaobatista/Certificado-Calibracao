@@ -19,16 +19,25 @@ relacionados:
 > **Pré-condição de início (T-AGE-010+):** revisão do plan (plan §7) — tech-lead confirma sequenciamento + EXCLUDE
 > com tenant_id + RT projetado; consultor-rbc re-confirma jornada/RT.
 
-## Fatia 1a — domínio puro (`src/domain/operacao/agenda/`)
+## Fatia 1a — domínio puro (`src/domain/operacao/agenda/`) — ✅ DONE 2026-06-16 (69 testes; ruff+mypy limpos; revisão crítica Opus)
 
-- [ ] **T-AGE-010** `enums.py` — `TipoEvento`/`EstadoEvento`/`MotivoBloqueio`/`AcaoAuditoria`(+`reagendado`/`bloqueado`/`regime_indeterminado` — PLAN-AGE-08)/`RegimeJornada`/`FonteRegime` (`str,Enum`). Ref: D-AGE-3/15; spec §4.
-- [ ] **T-AGE-011** `entities.py` — `EventoAgenda`(raiz)/`Recorrencia`/`RegistroNoShow`/`CapacidadeTecnico`/`Feriado`/`EventoAuditoriaAgenda`/`RegimeJornadaColaborador` (`frozen+slots`). Ref: D-AGE-2/3/15; spec §4.
-- [ ] **T-AGE-012** `value_objects.py` — `Janela` (half-open, `inicia<termina`), `RegraRecorrencia` (RRULE), `ResultadoJornada`, `RegimeJornadaResolvido` (`fonte=indeterminado⇒nao_aplica`). Ref: D-AGE-13/15.
-- [ ] **T-AGE-013** `transicoes.py` — `_TRANSICOES` Mapping (Padrão A) + `validar_transicao`. Ref: D-AGE-3.
-- [ ] **T-AGE-014** `jornada.py` — `validar_jornada_umc(...)` puro, **perfil-agnóstico**, 5 regras R1–R5 + espera 1/1 + R7 noturno advisory (R2 só motorista_profissional; R6 non-goal) + `proximo_slot_valido`. Ref: D-AGE-4; INV-020/INV-AG-JORNADA-UMC-001; R4.
-- [ ] **T-AGE-015** `recorrencia.py` — `materializar_janela(regra, inicio, dias=90)` puro/determinístico/idempotente. Ref: D-AGE-8; R10.
-- [ ] **T-AGE-016** `portas.py` (6 Protocols `@runtime_checkable` + `EventoAgendaRepository`; `ColaboradorAgendaPort.regime_jornada(*, tenant_id, colaborador_id, na_data)`) + `erros.py` (hierarquia spec §4). Ref: D-AGE-5/6/7/9/15.
-- [ ] **T-AGE-017** `tests/test_agenda_dominio_fatia1a.py` — máquina estados (happy+unhappy); **5 regras de jornada por regime** (motorista_profissional c/ R2 × clt_geral s/ R2; espera 1/1; teto; DSR; refeição); `RegimeJornadaResolvido` fail-safe; `materializar_janela` idempotente; `Janela` half-open; Protocols. **Verificação 1a** (`--no-cov`).
+> **Revisão crítica Opus (antes do commit) — 2 bugs encontrados e consertados na CAUSA-RAIZ + 3 testes de regressão:**
+> (1) `_cruza_noturno` marcava QUALQUER evento >2h como noturno (heurística de duração errada — ex: 09:00-13:00 virava "noturno") → reescrito como **interseção real** com a janela `[22h,05h)`; (2) `materializar_janela` `WEEKLY;INTERVAL>1` quebrava a paridade na **virada de ano** (`ano*53+semana ISO`) → alinhado à semana calendário (`_segunda_da_semana`, WKST default). Testes que passavam por motivo errado (R5 bloqueava antes do R7; só checavam `ok`) agora têm caso explícito que CHEGA ao R7.
+> **Débitos rastreados (refinamento / Fatia 2 / Wave B — NÃO bloqueiam; gate real = GATE-AGE-JORNADA-TRABALHISTA, advogado OAB humano):**
+> - **R4 (DSR):** valida total de horas livres ≥35h em 6 dias, NÃO o BLOCO contínuo de 35h (simplificação mais permissiva). Refinar quando o enquadramento for validado por OAB.
+> - **R1 (inter-jornada):** mede entre dias-calendário distintos — turnos cruzando meia-noite são aproximação (documentado no docstring).
+> - **`proximo_slot_valido`:** usa `datetime.now()` como default — a Fatia 2 (use case) deve SEMPRE injetar `a_partir_de` (determinismo no domínio).
+> - **`validar_jornada_umc` retorna a PRIMEIRA violação;** o `POST /agenda/validar` da Fatia 2 (lista `violacoes[]`) chama por etapas ou evolui a função.
+> - Decisão de impl.: `EventoSimples` (não-frozen) interno em `jornada.py` evita import circular com `entities`; VO `TecnicoJornada` encapsula `is_tecnico_campo`+`aloca_em_umc`; recorrência sem `dateutil` (não está nas deps).
+
+- [x] **T-AGE-010** `enums.py` — `TipoEvento`/`EstadoEvento`/`MotivoBloqueio`/`AcaoAuditoria`(+`reagendado`/`bloqueado`/`regime_indeterminado` — PLAN-AGE-08)/`RegimeJornada`/`FonteRegime` (`str,Enum`). Ref: D-AGE-3/15; spec §4.
+- [x] **T-AGE-011** `entities.py` — `EventoAgenda`(raiz)/`Recorrencia`/`RegistroNoShow`/`CapacidadeTecnico`/`Feriado`/`EventoAuditoriaAgenda`/`RegimeJornadaColaborador` (`frozen+slots`). Ref: D-AGE-2/3/15; spec §4.
+- [x] **T-AGE-012** `value_objects.py` — `Janela` (half-open, `inicia<termina`), `RegraRecorrencia` (RRULE), `ResultadoJornada`, `RegimeJornadaResolvido` (`fonte=indeterminado⇒nao_aplica`). Ref: D-AGE-13/15.
+- [x] **T-AGE-013** `transicoes.py` — `_TRANSICOES` Mapping (Padrão A) + `validar_transicao`. Ref: D-AGE-3.
+- [x] **T-AGE-014** `jornada.py` — `validar_jornada_umc(...)` puro, **perfil-agnóstico**, 5 regras R1–R5 + espera 1/1 + R7 noturno advisory (R2 só motorista_profissional; R6 non-goal) + `proximo_slot_valido`. Ref: D-AGE-4; INV-020/INV-AG-JORNADA-UMC-001; R4.
+- [x] **T-AGE-015** `recorrencia.py` — `materializar_janela(regra, inicio, dias=90)` puro/determinístico/idempotente. Ref: D-AGE-8; R10.
+- [x] **T-AGE-016** `portas.py` (6 Protocols `@runtime_checkable` + `EventoAgendaRepository`; `ColaboradorAgendaPort.regime_jornada(*, tenant_id, colaborador_id, na_data)`) + `erros.py` (hierarquia spec §4). Ref: D-AGE-5/6/7/9/15.
+- [x] **T-AGE-017** `tests/test_agenda_dominio_fatia1a.py` — máquina estados (happy+unhappy); **5 regras de jornada por regime** (motorista_profissional c/ R2 × clt_geral s/ R2; espera 1/1; teto; DSR; refeição); `RegimeJornadaResolvido` fail-safe; `materializar_janela` idempotente; `Janela` half-open; Protocols. **Verificação 1a** (`--no-cov`).
 
 ## Fatia 1b — schema PG (`src/infrastructure/agenda/`)
 
