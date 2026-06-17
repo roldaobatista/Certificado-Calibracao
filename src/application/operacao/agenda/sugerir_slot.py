@@ -1,7 +1,10 @@
-"""Use case `sugerir_slot` — US-AG-006: RT substituto → competência → livre 7d.
+"""Use case `sugerir_slot` — US-AG-006: próximo slot livre jornada-aware (horizonte 7d).
 
-Lógica interna (horizonte fixo 7d). RT substituto via STUB na Fatia 2;
-adapter real na Fatia 3 (PLAN-AGE-01/RBC-AGE-04).
+Encontra o próximo slot livre do técnico nos 7 dias seguintes respeitando a
+jornada UMC (perfil-agnóstica, via ``proximo_slot_valido``). **Competência de RT
+NÃO é critério de sugestão** (D-AGE-6 / RBC-AGE-06): agendar é planejar; o gate
+duro de competência/independência vive na EMISSÃO (`certificados`), nunca aqui —
+no máximo seria um aviso advisory (Wave B — GATE-AGE-RTSUBSTITUICAO-FORMAL).
 """
 
 from __future__ import annotations
@@ -15,7 +18,6 @@ from src.domain.operacao.agenda.jornada import EventoSimples, proximo_slot_valid
 from src.domain.operacao.agenda.portas import (
     ColaboradorAgendaPort,
     EventoAgendaRepository,
-    RTSubstitutoPort,
 )
 from src.domain.operacao.agenda.value_objects import Janela, RegimeJornadaResolvido
 
@@ -51,9 +53,11 @@ def executar(
     *,
     repo: EventoAgendaRepository,
     colaborador_port: ColaboradorAgendaPort,
-    rt_port: RTSubstitutoPort,
 ) -> SugerirSlotOutput:
-    """Sugere próximo slot livre nos 7 dias seguintes."""
+    """Sugere próximo slot livre jornada-aware nos 7 dias seguintes.
+
+    Competência de RT NÃO é critério (D-AGE-6/RBC-AGE-06) — ver docstring do módulo.
+    """
     agora = inp.a_partir_de or datetime.now(UTC)
     horizonte_fim = (agora + timedelta(days=_HORIZONTE_DIAS)).date()
 

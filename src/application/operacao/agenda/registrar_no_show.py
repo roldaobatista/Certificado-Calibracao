@@ -1,25 +1,28 @@
 """Use case `registrar_no_show` — RegistroNoShow INSERT-only WORM (T-AGE-033 / US-AG-012).
 
-Se ``cobrar_cliente=True``, chama ``AReceberPort.criar_titulo_manual`` (FAKE em testes,
-adapter real na Fatia 3 — GATE-AGE-AR). Publica ``agenda.no_show.registrado`` (via view).
-INV-AG-NOSHOW-AR-001: cobrável → sempre chama AReceber.
+INV-AG-NOSHOW-AR-001 (atomicidade): se ``cobrar_cliente=True``, o no-show exige
+``cliente_id`` + ``custo_estimado_centavos > 0`` e chama
+``AReceberPort.criar_titulo_manual`` DENTRO da transação do caller. Se a criação do
+título falhar, a exceção PROPAGA — o no-show inteiro é revertido (nunca commitar
+no-show cobrável sem título). Publica ``agenda.no_show.registrado`` (via view).
+Unicidade por evento garantida por ``UniqueConstraint(tenant, evento_id)`` (migration
+0009) → 2º no-show concorrente do mesmo evento vira ``TransicaoEventoProibida``.
 """
 
 from __future__ import annotations
 
 import json
-import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
+from django.db import IntegrityError
+
 from src.domain.operacao.agenda.entities import EventoAuditoriaAgenda, RegistroNoShow
 from src.domain.operacao.agenda.enums import AcaoAuditoria, EstadoEvento
 from src.domain.operacao.agenda.erros import EventoNaoEncontrado, TransicaoEventoProibida
 from src.domain.operacao.agenda.portas import AReceberPort, EventoAgendaRepository
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +64,22 @@ def executar(
             "não pode registrar no-show."
         )
 
+    # Cobrança fail-loud: valida ANTES de gravar (A3 / INV-AG-NOSHOW-AR-001).
+    # cobrar_cliente exige cliente_id + custo > 0 — sem ramo silencioso.
+    cliente_cobranca: UUID | None = None
+    if inp.cobrar_cliente:
+        if inp.cliente_id is None:
+            raise ValueError(
+                "No-show cobrável (cobrar_cliente=True) exige cliente_id "
+                "(INV-AG-NOSHOW-AR-001)."
+            )
+        if inp.custo_estimado_centavos <= 0:
+            raise ValueError(
+                "No-show cobrável exige custo_estimado_centavos > 0 "
+                "(INV-AG-NOSHOW-AR-001)."
+            )
+        cliente_cobranca = inp.cliente_id
+
     no_show = RegistroNoShow(
         id=uuid4(),
         tenant_id=inp.tenant_id,
@@ -73,7 +92,15 @@ def executar(
         criado_em=agora,
         observacao=inp.observacao,
     )
-    repo.salvar_no_show(no_show)
+    # UniqueConstraint(tenant, evento_id) (migration 0009) → 2º no-show concorrente
+    # do mesmo evento falha no banco; vira 409 (fecha o TOCTOU — INV-AG-NOSHOW-AR-001).
+    try:
+        repo.salvar_no_show(no_show)
+    except IntegrityError as exc:
+        raise TransicaoEventoProibida(
+            f"No-show já registrado para evento {inp.evento_id} "
+            "(unicidade INV-AG-NOSHOW-AR-001)."
+        ) from exc
 
     # Auditoria WORM
     payload_resumo = json.dumps(
@@ -96,27 +123,21 @@ def executar(
     )
     repo.salvar_auditoria(auditoria)
 
-    # Cobrança via AReceberPort (FAKE Fatia 2; adapter real Fatia 3 — GATE-AGE-AR)
+    # Cobrança via AReceberPort DENTRO da transação do caller — a falha PROPAGA
+    # (A1 / atomicidade INV-AG-NOSHOW-AR-001): nunca commitar no-show cobrável sem
+    # título. Adapter real na Fatia 3 (GATE-AGE-AR / GATE-AGE-NO-SHOW-AGENDA).
     titulo_criado = False
-    if inp.cobrar_cliente and inp.custo_estimado_centavos > 0:
-        try:
-            from src.domain.shared.value_objects import Dinheiro
+    if cliente_cobranca is not None:
+        from src.domain.shared.value_objects import Dinheiro
 
-            areceber_port.criar_titulo_manual(
-                tenant_id=inp.tenant_id,
-                cliente_id=inp.cliente_id or UUID(int=0),
-                valor=Dinheiro(centavos=inp.custo_estimado_centavos, moeda="BRL"),
-                descricao=f"No-show evento {inp.evento_id}",
-                perfil_no_evento=inp.perfil_tenant,
-                referencia_evento_id=inp.evento_id,
-            )
-            titulo_criado = True
-        except Exception:
-            logger.error(
-                "registrar_no_show: falha ao criar título em AReceber para evento %s",
-                inp.evento_id,
-                exc_info=True,
-                extra={"tenant_id": str(inp.tenant_id)},
-            )
+        areceber_port.criar_titulo_manual(
+            tenant_id=inp.tenant_id,
+            cliente_id=cliente_cobranca,
+            valor=Dinheiro(centavos=inp.custo_estimado_centavos, moeda="BRL"),
+            descricao=f"No-show evento {inp.evento_id}",
+            perfil_no_evento=inp.perfil_tenant,
+            referencia_evento_id=inp.evento_id,
+        )
+        titulo_criado = True
 
     return RegistrarNoShowOutput(no_show=no_show, titulo_criado=titulo_criado)

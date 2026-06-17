@@ -6,17 +6,15 @@
 
 ## FILA DE FRENTES — ordem de dependência CRAVADA (Roldão 2026-06-16: "todos em sequência de dependência, não perguntar")
 
-Receita fechada (config→pps→precificacao→colaboradores→orcamentos→contas-receber). Fila dos faltantes Wave A
-(topo-sort do `plano-dependencia-sistema.md`; cada um respeita suas deps já construídas; **seguir em ordem, sem perguntar**):
+Receita fechada (config→pps→precificacao→colaboradores→orcamentos→contas-receber). Faltantes Wave A (topo-sort do `plano-dependencia-sistema.md`; deps já construídas; **seguir em ordem, sem perguntar**):
 
-1. **`agenda`** (N5) ← EM CURSO. Fatias 1a+1b+2+3a+3b+3c+3d DONE — 144+29=173 testes. T-AGE-045: `AgendaColaboradorReferenciadoAdapter` + wiring `ready()`. T-AGE-046: INV-AG-* cravada (9 INVs). T-AGE-047: 3 hooks (overlap+jornada+regime). T-AGE-048: `test_inv_ag_agenda.py` (29 casos). **GATE-AGE-NO-SHOW-AGENDA** aberto (Wave B). Dep: os(✓)+colaboradores(✓). **PENDENTE: auditores Família 5 + commit da fatia** (orquestrador revisa).
-2. **`caixa-tecnico`** (N5) — destrava app-tecnico/despesas/custeio-real.
-3. **`chamados`** (N5) — entrada de demanda → vira OS. Dep: clientes(✓)+os(✓).
-4. **`contas-pagar`** (N5) — par do CR; destrava despesas (precisa cadastro fornecedor mínimo).
-5. **`estoque`** (N3, atrasado) — pré-req de app-tecnico/custeio-real. Dep: pps(✓)+os(✓)+equipamentos(✓).
-6. **`frota`** (N4) · **`treinamentos`** (N3) · **`seguranca-trabalho`** (N3) — suporte; dep colaboradores/equipamentos (✓).
-7. **N6:** `comissoes` (gatilha por recebimento ✓) → `despesas` → `app-tecnico` → `contabilidade-export`.
-8. **N7+:** `fornecedores` → `crm` → `contratos` → `qualidade` → `custeio-real` (fecha stub precificacao) → níveis 8–10.
+1. **`caixa-tecnico`** (N5) ← EM CURSO/PRÓXIMO — destrava app-tecnico/despesas/custeio-real.
+2. **`chamados`** (N5) — entrada de demanda → vira OS. Dep: clientes(✓)+os(✓).
+3. **`contas-pagar`** (N5) — par do CR; destrava despesas (precisa cadastro fornecedor mínimo).
+4. **`estoque`** (N3, atrasado) — pré-req de app-tecnico/custeio-real. Dep: pps(✓)+os(✓)+equipamentos(✓).
+5. **`frota`** (N4) · **`treinamentos`** (N3) · **`seguranca-trabalho`** (N3) — suporte; dep colaboradores/equipamentos (✓).
+6. **N6:** `comissoes` (gatilha por recebimento ✓) → `despesas` → `app-tecnico` → `contabilidade-export`.
+7. **N7+:** `fornecedores` → `crm` → `contratos` → `qualidade` → `custeio-real` (fecha stub precificacao) → níveis 8–10.
 
 **DIFERIDOS (bloqueio externo — só quando Roldão liberar credencial/serviço):** `certificados-digitais` (Lacuna Web PKI/A3),
 `comunicacao-omnichannel` (SMS/WhatsApp/e-mail real), `billing-saas` (gateway+fiscal reais), `integracoes-externas` (OAuth).
@@ -24,11 +22,13 @@ Receita fechada (config→pps→precificacao→colaboradores→orcamentos→cont
 - **Para o Roldão (quando ativar e-mail real do CR):** criar `.env` com `EMAIL_HOST`/`EMAIL_HOST_USER`/
   `EMAIL_HOST_PASSWORD`/`DEFAULT_FROM_EMAIL` (SMTP). Hoje modo teste (não envia). Disparo a PF real só após GATE-LGPD-RAT.
 
-## Última frente FECHADA — `contas-receber` MÓDULO 100% Wave A (2026-06-16)
+## Última frente FECHADA — `agenda` MÓDULO 100% Wave A (2026-06-17)
 
-- Fatias 1a..3d + P8 (ADR-0084) + P9 (7 PASS + 1 MÉDIO idempotência consertado). Gatilho `os.concluida`; bus FAN-OUT
-  [[fan-out-bus-consumers-os-concluida]]. Detalhe completo + débitos Wave B: `docs/faseamento/contas-receber/` (matriz §8) + diário.
-- **`orcamentos`** fechou antes (2026-06-15, ADR-0083). [[estado-do-projeto-wave-a-em-curso]].
+- Fatias 1a..3d + P8 (matriz) + P9 (lgpd PASS + 6 MÉDIO consertados na causa-raiz; 2ª passada 6 PASS, sem novo MÉDIO+).
+  **179 testes** (era 173). Sem ADR nova (D-AGE-15 já em P3). Detalhe + GATEs: `docs/faseamento/agenda/matriz-reconciliacao.md` §5/§8.
+- **GATE-AGE-RT-WIRING aberto** — US-AG-014 saiu **predicado-only** (`rt_port` não invocado; 412 `SemRTNoSlot` nunca disparado;
+  advisory por D-AGE-6). **DECISÃO ROLDÃO PENDENTE:** wirar 412 fail-closed perfil A no Wave A ou diferir. +GATEs: NO-SHOW-AGENDA, RTSUBSTITUICAO-FORMAL, COLABORADOR-REFERENCIADO.
+- **`contas-receber`** fechou antes (2026-06-16, ADR-0084; bus FAN-OUT [[fan-out-bus-consumers-os-concluida]]). [[estado-do-projeto-wave-a-em-curso]].
 
 ## Pendência de produto aberta
 

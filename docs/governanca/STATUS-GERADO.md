@@ -1,6 +1,6 @@
 ---
 owner: roldao
-revisado-em: 2026-06-16
+revisado-em: 2026-06-17
 status: stable
 diataxis: reference
 audiencia: agente+roldao
@@ -18,7 +18,7 @@ relacionados:
 
 | Métrica | Valor | Fonte direta |
 |---|---|---|
-| Hooks ativos | **87** | `.claude/hooks/*.sh` (excl. _test-runner) |
-| Casos no _test-runner | **667** | `grep -c run_case .claude/hooks/_test-runner.sh` |
+| Hooks ativos | **90** | `.claude/hooks/*.sh` (excl. _test-runner) |
+| Casos no _test-runner | **690** | `grep -c run_case .claude/hooks/_test-runner.sh` |
 | ADRs | **85** | `docs/adr/*.md` |
 | Invariantes (IDs INV-*) | **143** | `REGRAS-INEGOCIAVEIS.md` |

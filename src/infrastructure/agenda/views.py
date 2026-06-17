@@ -31,10 +31,11 @@ Portas injetadas (Fatia 3a — T-AGE-040..043):
 
 from __future__ import annotations
 
+import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from django.db import transaction
 from rest_framework import status, viewsets
@@ -53,7 +54,13 @@ from src.application.operacao.agenda import (
     resolver_conflito,
     validar_evento,
 )
-from src.domain.operacao.agenda.enums import MotivoBloqueio, RegimeJornada, TipoEvento
+from src.domain.operacao.agenda.entities import EventoAuditoriaAgenda
+from src.domain.operacao.agenda.enums import (
+    AcaoAuditoria,
+    MotivoBloqueio,
+    RegimeJornada,
+    TipoEvento,
+)
 from src.domain.operacao.agenda.erros import (
     ConflitoAgenda,
     EventoNaoEncontrado,
@@ -105,6 +112,10 @@ ENDPOINT_NO_SHOW = "agenda.no_show"
 ENDPOINT_RESOLVER = "agenda.resolver_conflito"
 ENDPOINT_REGIME = "agenda.enquadrar_regime"
 ENDPOINT_VALIDAR = "agenda.validar"
+
+# Teto anti-unbounded da grade (F-C3) + janela default quando o cliente não delimita.
+_LIMITE_GRADE_MAX = 2000
+_JANELA_GRADE_DEFAULT_DIAS = 31
 
 
 # ---------------------------------------------------------------------------
@@ -274,6 +285,9 @@ class AgendaViewSet(viewsets.ViewSet):
         """GET /agenda/ — grade multi-técnico em 1 query (O(1) em técnicos — PLAN-AGE-04).
 
         Filtros opcionais: ``tecnico_id``, ``inicia_apos``, ``inicia_antes``.
+        Anti-unbounded (F-C3): a grade é sempre por período — sem janela explícita,
+        aplica a janela default ``_JANELA_GRADE_DEFAULT_DIAS`` a partir de ontem; e um
+        teto duro de ``_LIMITE_GRADE_MAX`` linhas (campo ``truncado`` sinaliza corte).
         """
         tenant_id = _tenant_ou_none()
         if tenant_id is None:
@@ -302,15 +316,35 @@ class AgendaViewSet(viewsets.ViewSet):
                 {"erro": "formato de data inválido"}, status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Janela default quando o cliente não delimita período (anti-varredura total).
+        if inicia_apos is None and inicia_antes is None:
+            agora = datetime.now(UTC)
+            inicia_apos = agora - timedelta(days=1)
+            inicia_antes = agora + timedelta(days=_JANELA_GRADE_DEFAULT_DIAS)
+
         repo = DjangoEventoAgendaRepository()
-        # 1 query agregada — O(1) em técnicos (PLAN-AGE-04)
+        # 1 query agregada — O(1) em técnicos (PLAN-AGE-04) + teto duro (F-C3)
         eventos = repo.listar_por_tenant(
             tenant_id=tenant_id,
             tecnico_id=tecnico_id,
             inicia_apos=inicia_apos,
             inicia_antes=inicia_antes,
+            limite=_LIMITE_GRADE_MAX,
         )
-        return Response([_serializar_evento(ev) for ev in eventos])
+        truncado = len(eventos) >= _LIMITE_GRADE_MAX
+        if truncado:
+            logger.warning(
+                "agenda.list: resultado truncado no teto de %s eventos — cliente deve "
+                "estreitar a janela (GATE-AGE-PAGINACAO-GRADE)",
+                _LIMITE_GRADE_MAX,
+                extra={"tenant_id": str(tenant_id)},
+            )
+        return Response(
+            {
+                "resultados": [_serializar_evento(ev) for ev in eventos],
+                "truncado": truncado,
+            }
+        )
 
     # --- Dry-run ---
 
@@ -474,6 +508,16 @@ class AgendaViewSet(viewsets.ViewSet):
         except ConflitoAgenda as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
         except JornadaUMCViolada as exc:
+            self._auditar_jornada_bloqueada(
+                tenant_id=tenant_id,
+                evento_id=uuid4(),  # tentativa — evento não foi criado
+                tecnico_id=d["tecnico_id"],
+                janela_inicia=d["inicia_at"],
+                janela_termina=d["termina_at"],
+                usuario_id=usuario_id,
+                perfil_tenant=perfil_str,
+                detalhe=str(exc),
+            )
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
         except FeriadoNaoConfirmado as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -643,6 +687,16 @@ class AgendaViewSet(viewsets.ViewSet):
         except ConflitoAgenda as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
         except JornadaUMCViolada as exc:
+            self._auditar_jornada_bloqueada(
+                tenant_id=tenant_id,
+                evento_id=evento_id,
+                tecnico_id=None,
+                janela_inicia=nova_janela.inicia_at,
+                janela_termina=nova_janela.termina_at,
+                usuario_id=usuario_id,
+                perfil_tenant=perfil_str,
+                detalhe=str(exc),
+            )
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
         except FeriadoNaoConfirmado as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -736,6 +790,16 @@ class AgendaViewSet(viewsets.ViewSet):
         except ConflitoAgenda as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_409_CONFLICT)
         except JornadaUMCViolada as exc:
+            self._auditar_jornada_bloqueada(
+                tenant_id=tenant_id,
+                evento_id=evento_id,
+                tecnico_id=None,
+                janela_inicia=nova_janela.inicia_at,
+                janela_termina=nova_janela.termina_at,
+                usuario_id=usuario_id,
+                perfil_tenant=perfil_str,
+                detalhe=str(exc),
+            )
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
         except FeriadoNaoConfirmado as exc:
             return self._falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -999,3 +1063,47 @@ class AgendaViewSet(viewsets.ViewSet):
     def _falha(chave_id: UUID, tenant_id: UUID, exc: Exception, http_status_code: int) -> Response:
         falhar_chave(chave_id=chave_id, tenant_id=tenant_id, response_status=http_status_code)
         return Response({"erro": str(exc)}, status=http_status_code)
+
+    @staticmethod
+    def _auditar_jornada_bloqueada(
+        *,
+        tenant_id: UUID,
+        evento_id: UUID,
+        tecnico_id: UUID | None,
+        janela_inicia: datetime,
+        janela_termina: datetime,
+        usuario_id: UUID,
+        perfil_tenant: str,
+        detalhe: str,
+    ) -> None:
+        """Grava trilha WORM da tentativa de jornada bloqueada (INV-AG-JORNADA-UMC-001).
+
+        Chamada no ``except JornadaUMCViolada`` — FORA do savepoint revertido, ainda
+        dentro da transação do request (ATOMIC_REQUESTS), que COMMITA ao retornar 422.
+        A tentativa bloqueada precisa deixar rastro probatório (≥5a) mesmo sem evento
+        criado. Fail-loud (sem engolir): se a trilha não puder ser gravada, é um problema
+        de integridade que deve aparecer — nunca mascarar (Causa raiz, nunca sintoma).
+        """
+        agora = datetime.now(UTC)
+        DjangoEventoAgendaRepository().salvar_auditoria(
+            EventoAuditoriaAgenda(
+                id=uuid4(),
+                evento_id=evento_id,
+                tenant_id=tenant_id,
+                acao=AcaoAuditoria.BLOQUEADO,
+                actor_usuario_id=usuario_id,
+                occurred_at=agora,
+                criado_em=agora,
+                payload_resumo=json.dumps(
+                    {
+                        "motivo": "jornada_umc_violada",
+                        "tecnico_id": str(tecnico_id) if tecnico_id else None,
+                        "janela_inicia": janela_inicia.isoformat(),
+                        "janela_termina": janela_termina.isoformat(),
+                        "perfil_tenant": perfil_tenant,
+                        "detalhe": detalhe[:500],
+                    },
+                    ensure_ascii=False,
+                ),
+            )
+        )

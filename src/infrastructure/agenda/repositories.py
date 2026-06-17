@@ -99,19 +99,24 @@ class DjangoEventoAgendaRepository:
         tecnico_id: UUID | None = None,
         inicia_apos: datetime | None = None,
         inicia_antes: datetime | None = None,
+        limite: int | None = None,
     ) -> list[EventoAgenda]:
         """Lista eventos com filtros opcionais (grade multi-técnico — 1 query agregada, O(1) em técnicos).
 
         PLAN-AGE-04: nunca 1 query/técnico. O filtro por ``tecnico_id`` é opcional para
         a grade; se omitido, retorna todos os técnicos do tenant num único queryset.
+        ``limite`` aplica um teto de linhas (LIMIT no SQL) — anti-unbounded/DoS (F-C3); a
+        view sempre passa um teto. ``None`` = sem limite (uso interno controlado).
         """
-        qs = EventoAgendaModel.objects.filter(tenant_id=tenant_id)
+        qs = EventoAgendaModel.objects.filter(tenant_id=tenant_id).order_by("inicia_at")
         if tecnico_id is not None:
             qs = qs.filter(tecnico_id=tecnico_id)
         if inicia_apos is not None:
             qs = qs.filter(inicia_at__gte=inicia_apos)
         if inicia_antes is not None:
             qs = qs.filter(inicia_at__lt=inicia_antes)
+        if limite is not None:
+            qs = qs[:limite]
         return [mappers.model_para_evento(m) for m in qs]
 
     def salvar_auditoria(self, registro: EventoAuditoriaAgenda) -> None:

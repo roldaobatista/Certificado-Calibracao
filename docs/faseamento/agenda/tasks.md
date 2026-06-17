@@ -2,7 +2,7 @@
 owner: agente-ia
 revisado-em: 2026-06-17
 proximo-review: 2026-09-16
-status: draft
+status: stable
 diataxis: reference
 audiencia: [agente, auditor]
 frente: agenda
@@ -96,8 +96,8 @@ relacionados:
 
 ## P8/P9 — fechamento
 
-- [ ] **T-AGE-060** P8: `matriz-reconciliacao.md` (US↔código↔teste; INV↔enforcement↔teste-com-ID; **reconciliação PRD↔spec**: `BloqueioAgenda`=`EventoAgenda(tipo=bloqueio)`; "12 ocorrências"=janela 90d; `AReceber.criar`=`criar_titulo_manual` via porta). TST-004: `tests/regressao/test_inv_ag_agenda.py` (testes nomeados por ID). `STATUS-GERADO` regenerado. Frontmatters→`stable`. `plano-dependencia-sistema.md` N5 (agenda destrava atribuição fail-open lazy da OS). **ADR só se a revisão indicar** (D-AGE-15 já sem ADR). Ref: plan §6.
-- [ ] **T-AGE-061** P9: mutirão auditores roteados (sempre: seguranca/qualidade/llm-correctness/performance/observabilidade/idempotencia; +conformidade-lgpd PII; produto no merge). MÉDIO+ bloqueia (INV-RITUAL-001); 2ª passada escopada + adversarial. **Fecha módulo agenda — Wave A.** Ref: plan §6.
+- [x] **T-AGE-060** P8: `matriz-reconciliacao.md` criada (US↔código↔teste; INV↔enforcement↔teste-com-ID TST-004; reconciliação PRD↔spec: `BloqueioAgenda`=`EventoAgenda(tipo=bloqueio)`; "12 ocorrências"=janela 90d; `AReceber.criar`=`criar_titulo_manual` via porta). Fonte = varredura do código real 2026-06-17. Frontmatters spec/plan/tasks→`stable`. **Sem ADR nova** (D-AGE-15 já resolvido em P3). Ref: plan §6.
+- [x] **T-AGE-061** P9: mutirão de 7 auditores roteados (sempre 6 + conformidade-lgpd PII; supplychain N/A). **1ª passada: lgpd PASS + 6 MÉDIO** (segurança/qualidade/llm/performance/observabilidade/idempotência) — todos confirmados adversarialmente (R6). **Conserto causa-raiz** (6 grupos A–F; migration `0009` unique no-show; helper audit jornada bloqueada; teto grade; recorrência WEEKLY; sentinela→barreira real). **179 testes verdes** (era 173). **2ª passada escopada (R5) + adversarial (R6): 6 PASS, sem novo MÉDIO+.** Qualidade provou por mutação. **Módulo `agenda` FECHADO — Wave A.** Ressalva: **GATE-AGE-RT-WIRING** (US-AG-014 predicado-only — decisão Roldão pendente). Ref: plan §6; matriz §8.
 
 ## Pré-condições antes de iniciar T-AGE-040+ (Fatia 3 — cross-módulo)
 

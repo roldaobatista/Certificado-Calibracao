@@ -13,8 +13,8 @@ INVs cobertas (família INV-AG-* — cravadas em REGRAS-INEGOCIAVEIS.md, T-AGE-0
   INV-AG-CNH-001          — motorista_umc com pendencia_cnh bloqueado via adapter
   INV-AG-AUDIT-WORM-001   — wiring adapter registrado no boot (AgendaConfig.ready)
                              + esta_referenciado (happy + sem-agenda + cancelado)
-  INV-AG-NOSHOW-AR001     — consumer de no-show registrado para evento agenda.noshow
-                             (GATE-AGE-NO-SHOW-AGENDA aberto em Wave A — sentinela)
+  INV-AG-NOSHOW-AR001     — no-show cobrável chama AReceberPort no use case de forma
+                             atômica: 1 chamada; falha propaga (A1); sem cliente_id → erro (A3)
 
 Referências: plan §5 Fatia 3d, T-AGE-046, T-AGE-047, T-AGE-048.
 """
@@ -217,6 +217,42 @@ def test_inv_ag_jornada_umc_001_dominio_puro_clt_geral_sem_r2():
         "INV-AG-JORNADA-UMC-001: R2 (direção contínua) aplicada para clt_geral — "
         "viola a invariante de perfil-AGNÓSTICO (R2 é exclusiva de motorista_profissional)"
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_inv_ag_jornada_umc_001_tentativa_bloqueada_grava_audit_worm():
+    """INV-AG-JORNADA-UMC-001: tentativa bloqueada deixa trilha WORM (audit ≥5a).
+
+    Barreira: `AgendaViewSet._auditar_jornada_bloqueada` grava um EventoAuditoriaAgenda
+    com acao=BLOQUEADO. Antes do conserto, a tentativa violada não deixava rastro
+    (o use case levantava antes do salvar_auditoria e o rollback do savepoint apagava).
+    """
+    from src.infrastructure.agenda.models import EventoAuditoriaAgenda
+    from src.infrastructure.agenda.views import AgendaViewSet
+    from src.infrastructure.multitenant.connection import run_in_tenant_context
+
+    tenant = TenantFactory()
+    tecnico_id = uuid.uuid4()
+    usuario_id = UsuarioFactory().id
+    inicia, termina = _slot_futuro()
+    with run_in_tenant_context(tenant.id):
+        AgendaViewSet._auditar_jornada_bloqueada(
+            tenant_id=tenant.id,
+            evento_id=uuid.uuid4(),
+            tecnico_id=tecnico_id,
+            janela_inicia=inicia,
+            janela_termina=termina,
+            usuario_id=usuario_id,
+            perfil_tenant="A",
+            detalhe="Jornada UMC violada: R3_TETO_DIARIO.",
+        )
+        registros = list(
+            EventoAuditoriaAgenda.objects.filter(tenant_id=tenant.id, acao="bloqueado")
+        )
+    assert len(registros) == 1, (
+        "INV-AG-JORNADA-UMC-001: tentativa bloqueada não gerou trilha WORM (acao=bloqueado)"
+    )
+    assert "jornada_umc_violada" in registros[0].payload_resumo
 
 
 # ===========================================================================
@@ -802,37 +838,103 @@ def test_inv_ag_audit_worm_001_esta_referenciado_evento_cancelado_nao_bloqueia()
 
 
 # ===========================================================================
-# INV-AG-NOSHOW-AR001 — consumer de no-show registrado para evento agenda.noshow
+# INV-AG-NOSHOW-AR001 — no-show cobrável chama AReceberPort DENTRO do use case,
+# de forma atômica (falha propaga). Barreira REAL = registrar_no_show.executar.
 # ===========================================================================
 
 
-def test_inv_ag_noshow_ar001_consumer_sentinela_gate_aberto():
-    """INV-AG-NOSHOW-AR001: sentinela documenta GATE-AGE-NO-SHOW-AGENDA (Wave A).
+def _evento_agendado_no_fake(repo, *, tenant_id, tecnico_id):
+    """Cria e salva um EventoAgenda AGENDADO no fake repo (alvo do no-show)."""
+    from src.domain.operacao.agenda.entities import EventoAgenda
+    from src.domain.operacao.agenda.enums import EstadoEvento, TipoEvento
 
-    Estado atual: `agenda.noshow` NÃO tem consumer registrado em Wave A
-    (D-AGE-9 / AReceberAdapter não implementado ainda).
-
-    Quando o GATE fechar (AReceberAdapter implementado + consumer registrado):
-    1. Este teste começará a detectar 1+ consumers para 'agenda.noshow'.
-    2. O assert final validará a existência da barreira.
-    3. Remover a verificação de GATE e deixar só o assert final.
-    """
-    from django.apps import apps
-
-    apps.get_app_config("agenda")
-
-    from src.infrastructure.audit.outbox_worker import _REGISTRY
-
-    consumers = _REGISTRY.get("agenda.noshow", [])
-
-    if len(consumers) == 0:
-        # GATE ainda aberto: documenta estado esperado sem falhar.
-        # Remover este bloco quando AReceberAdapter for implementado.
-        return
-
-    # GATE fechado: valida que o consumer está registrado (barreira real)
-    assert len(consumers) >= 1, (
-        "INV-AG-NOSHOW-AR001 violado: nenhum consumer registrado para 'agenda.noshow'. "
-        "O consumer que cria título de no-show em contas_receber deve estar registrado "
-        "(D-AGE-9 / GATE-AGE-NO-SHOW-AGENDA)."
+    agora = datetime.now(UTC)
+    evento = EventoAgenda(
+        id=uuid.uuid4(),
+        tenant_id=tenant_id,
+        tecnico_id=tecnico_id,
+        tipo=TipoEvento.OS,
+        estado=EstadoEvento.AGENDADO,
+        inicia_at=agora + timedelta(days=1),
+        termina_at=agora + timedelta(days=1, hours=2),
+        aloca_em_umc=False,
+        criado_por_usuario_id=uuid.uuid4(),
+        criado_em=agora,
+        atualizado_em=agora,
+        revision=0,
+        atividade_id=uuid.uuid4(),
     )
+    repo.salvar_novo(evento)
+    return evento
+
+
+class TestINVAGNoShowAR001:
+    """INV-AG-NOSHOW-AR-001: no-show cobrável exige cliente_id+custo>0 e chama AReceber
+    DENTRO da transação; a falha PROPAGA (atomicidade — nunca no-show cobrável sem título)."""
+
+    def _portas(self):
+        from tests.fakes.agenda_fakes import FakeAReceberPort, FakeEventoAgendaRepository
+
+        return FakeEventoAgendaRepository(), FakeAReceberPort()
+
+    def test_inv_ag_noshow_ar001_cobravel_chama_areceber_uma_vez(self):
+        """Barreira real: cobrável (cliente+custo) → AReceberPort chamado exatamente 1x."""
+        from src.application.operacao.agenda import registrar_no_show
+
+        repo, areceber = self._portas()
+        tenant_id, tecnico_id = uuid.uuid4(), uuid.uuid4()
+        evento = _evento_agendado_no_fake(repo, tenant_id=tenant_id, tecnico_id=tecnico_id)
+        inp = registrar_no_show.RegistrarNoShowInput(
+            tenant_id=tenant_id,
+            evento_id=evento.id,
+            registrado_por_usuario_id=uuid.uuid4(),
+            perfil_tenant="A",
+            cobrar_cliente=True,
+            custo_estimado_centavos=5000,
+            cliente_id=uuid.uuid4(),
+        )
+        out = registrar_no_show.executar(inp, repo=repo, areceber_port=areceber)
+        assert out.titulo_criado is True
+        assert len(areceber.chamadas) == 1
+
+    def test_inv_ag_noshow_ar001_falha_cobranca_propaga_nao_engole(self):
+        """A1: se criar_titulo_manual falha, a exceção PROPAGA (não é engolida)."""
+        from src.application.operacao.agenda import registrar_no_show
+
+        from tests.fakes.agenda_fakes import FakeAReceberPort, FakeEventoAgendaRepository
+
+        repo = FakeEventoAgendaRepository()
+        areceber = FakeAReceberPort(deve_falhar=True)
+        tenant_id, tecnico_id = uuid.uuid4(), uuid.uuid4()
+        evento = _evento_agendado_no_fake(repo, tenant_id=tenant_id, tecnico_id=tecnico_id)
+        inp = registrar_no_show.RegistrarNoShowInput(
+            tenant_id=tenant_id,
+            evento_id=evento.id,
+            registrado_por_usuario_id=uuid.uuid4(),
+            perfil_tenant="A",
+            cobrar_cliente=True,
+            custo_estimado_centavos=5000,
+            cliente_id=uuid.uuid4(),
+        )
+        with pytest.raises(RuntimeError):
+            registrar_no_show.executar(inp, repo=repo, areceber_port=areceber)
+
+    def test_inv_ag_noshow_ar001_cobravel_sem_cliente_id_raise(self):
+        """A3: cobrar_cliente=True sem cliente_id → ValueError (nunca cliente-fantasma)."""
+        from src.application.operacao.agenda import registrar_no_show
+
+        repo, areceber = self._portas()
+        tenant_id, tecnico_id = uuid.uuid4(), uuid.uuid4()
+        evento = _evento_agendado_no_fake(repo, tenant_id=tenant_id, tecnico_id=tecnico_id)
+        inp = registrar_no_show.RegistrarNoShowInput(
+            tenant_id=tenant_id,
+            evento_id=evento.id,
+            registrado_por_usuario_id=uuid.uuid4(),
+            perfil_tenant="A",
+            cobrar_cliente=True,
+            custo_estimado_centavos=5000,
+            cliente_id=None,
+        )
+        with pytest.raises(ValueError, match="cliente_id"):
+            registrar_no_show.executar(inp, repo=repo, areceber_port=areceber)
+        assert len(areceber.chamadas) == 0

@@ -2,7 +2,7 @@
 owner: agente-ia
 revisado-em: 2026-06-16
 proximo-review: 2026-09-16
-status: draft
+status: stable
 diataxis: reference
 audiencia: [agente, auditor]
 frente: agenda

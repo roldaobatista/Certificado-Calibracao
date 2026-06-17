@@ -345,6 +345,19 @@ def test_noshow_delete_raise() -> None:
         RegistroNoShow.objects.filter(id=noshow.id).delete()
 
 
+@pytest.mark.django_db(transaction=True)
+def test_noshow_unico_por_evento_raise() -> None:
+    """2º no-show do mesmo evento → IntegrityError (uq_no_show_evento — INV-AG-NOSHOW-AR-001).
+
+    Fecha o TOCTOU de cobrança dupla sob concorrência: a unicidade vive no banco.
+    """
+    tenant = TenantFactory()
+    evento = _cria_evento(tenant)
+    _cria_noshow(tenant, evento)
+    with run_in_tenant_context(tenant.id), pytest.raises(IntegrityError):
+        _cria_noshow(tenant, evento)
+
+
 # ---------------------------------------------------------------------------
 # 7. RegimeJornadaColaborador INSERT-only (block-update + block-delete)
 # ---------------------------------------------------------------------------

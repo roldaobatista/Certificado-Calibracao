@@ -24,9 +24,19 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime, timedelta
-from typing import Final
+from typing import Final, TypedDict
 
 from .value_objects import RegraRecorrencia
+
+
+class _RRuleParams(TypedDict):
+    """Parâmetros extraídos de uma RRULE (sempre todas as chaves presentes)."""
+
+    freq: str
+    interval: int
+    count: int | None
+    byday: list[int] | None
+    bymonthday: int | None
 
 # Mapeamento de dia da semana RRULE → índice Python (0=segunda .. 6=domingo)
 _DIA_SEMANA: Final[dict[str, int]] = {
@@ -47,10 +57,10 @@ _RE_COUNT = re.compile(r"COUNT=(\d+)", re.IGNORECASE)
 _RE_INTERVAL = re.compile(r"INTERVAL=(\d+)", re.IGNORECASE)
 
 
-def _parse_rrule(rrule_str: str) -> dict[str, object]:
+def _parse_rrule(rrule_str: str) -> _RRuleParams:
     """Extrai os parâmetros relevantes de uma string RRULE.
 
-    Retorna um dicionário com as chaves presentes.
+    Retorna um ``_RRuleParams`` com todas as chaves preenchidas.
     Levanta ``ValueError`` para FREQ não suportada ou string malformada.
     """
     freq_m = _RE_FREQ.search(rrule_str)
@@ -64,18 +74,17 @@ def _parse_rrule(rrule_str: str) -> dict[str, object]:
             f"Suportadas: {sorted(suportadas)}. RRULE: {rrule_str!r}"
         )
 
-    params: dict[str, object] = {"freq": freq}
-
     # INTERVAL (default 1)
     interval_m = _RE_INTERVAL.search(rrule_str)
-    params["interval"] = int(interval_m.group(1)) if interval_m else 1
+    interval = int(interval_m.group(1)) if interval_m else 1
 
     # COUNT (limitador explícito de ocorrências)
     count_m = _RE_COUNT.search(rrule_str)
-    params["count"] = int(count_m.group(1)) if count_m else None
+    count = int(count_m.group(1)) if count_m else None
 
     # BYDAY (para WEEKLY)
     byday_m = _RE_BYDAY.search(rrule_str)
+    byday: list[int] | None
     if byday_m:
         raw_dias = [d.strip().upper() for d in byday_m.group(1).split(",")]
         dias_invalidos = [d for d in raw_dias if d not in _DIA_SEMANA]
@@ -84,18 +93,21 @@ def _parse_rrule(rrule_str: str) -> dict[str, object]:
                 f"BYDAY contém dias inválidos: {dias_invalidos!r}. "
                 f"Válidos: {sorted(_DIA_SEMANA)}. RRULE: {rrule_str!r}"
             )
-        params["byday"] = [_DIA_SEMANA[d] for d in raw_dias]
+        byday = [_DIA_SEMANA[d] for d in raw_dias]
     else:
-        params["byday"] = None
+        byday = None
 
     # BYMONTHDAY (para MONTHLY)
     bymonthday_m = _RE_BYMONTHDAY.search(rrule_str)
-    if bymonthday_m:
-        params["bymonthday"] = int(bymonthday_m.group(1))
-    else:
-        params["bymonthday"] = None
+    bymonthday = int(bymonthday_m.group(1)) if bymonthday_m else None
 
-    return params
+    return _RRuleParams(
+        freq=freq,
+        interval=interval,
+        count=count,
+        byday=byday,
+        bymonthday=bymonthday,
+    )
 
 
 def materializar_janela(
@@ -132,11 +144,11 @@ def materializar_janela(
         ``FREQ=WEEKLY;BYDAY=TU;COUNT=4``       — 4 terças-feiras.
     """
     params = _parse_rrule(regra.rrule_str)
-    freq: str = params["freq"]  # type: ignore[assignment]
-    interval: int = params["interval"]  # type: ignore[assignment]
-    count: int | None = params["count"]  # type: ignore[assignment]
-    byday: list[int] | None = params["byday"]  # type: ignore[assignment]
-    bymonthday: int | None = params["bymonthday"]  # type: ignore[assignment]
+    freq = params["freq"]
+    interval = params["interval"]
+    count = params["count"]
+    byday = params["byday"]
+    bymonthday = params["bymonthday"]
 
     limite = inicio + timedelta(days=dias)
     ocorrencias: list[datetime] = []
@@ -151,22 +163,16 @@ def materializar_janela(
 
     elif freq == "WEEKLY":
         dias_alvo: list[int] = byday if byday is not None else [inicio.weekday()]
-        # Começa pelo início da semana que contém ``inicio``
-        # Para determinismo, iteramos dia a dia e filtramos pelos dias-alvo
+        # Itera dia a dia no horizonte e coleta os dias-alvo (sem truncar por COUNT
+        # ainda — o COUNT só pode ser aplicado DEPOIS do filtro de INTERVAL, senão
+        # contaríamos ocorrências que o filtro de semana vai descartar).
         candidato = inicio
-        # Alinha candidato ao primeiro dia-alvo na semana de início
         while candidato < limite:
-            if count is not None and len(ocorrencias) >= count:
-                break
-            if candidato.weekday() in dias_alvo:
-                if candidato >= inicio:
-                    ocorrencias.append(candidato)
+            if candidato.weekday() in dias_alvo and candidato >= inicio:
+                ocorrencias.append(candidato)
             candidato += timedelta(days=1)
-            # Se interval > 1, pular semanas: após completar uma semana, avançar (interval-1) semanas
-            # Implementação simplificada: agrupamos por semana
-            # Para exatidão com interval > 1, usamos o número de semana
-        # Para INTERVAL > 1: filtrar apenas as semanas corretas. Alinha ao início
-        # da semana (segunda — WKST default RFC 5545) e conta semanas decorridas:
+        # INTERVAL > 1: mantém só as semanas corretas. Alinha ao início da semana
+        # (segunda — WKST default RFC 5545) e conta semanas decorridas:
         # determinístico e robusto à virada de ano (o cálculo por nº de semana ISO
         # ano*53+semana quebrava a paridade quando o ano tinha 52 semanas).
         if interval > 1 and ocorrencias:
@@ -176,6 +182,10 @@ def materializar_janela(
                 for dt in ocorrencias
                 if ((_segunda_da_semana(dt.date()) - seg_inicio).days // 7) % interval == 0
             ]
+        # COUNT trunca por último (RFC 5545: COUNT conta ocorrências REAIS, ou seja,
+        # já filtradas por INTERVAL). Aplicar antes do filtro retornaria menos que COUNT.
+        if count is not None:
+            ocorrencias = ocorrencias[:count]
 
     elif freq == "MONTHLY":
         dia_mes = bymonthday if bymonthday is not None else inicio.day

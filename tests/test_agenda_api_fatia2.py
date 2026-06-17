@@ -708,6 +708,22 @@ class TestAgendaGradeMultiTecnico:
             "ao passar de 5 para 20 técnicos — viola PLAN-AGE-04 (deve ser O(1))."
         )
 
+    def test_listar_por_tenant_respeita_teto(self) -> None:
+        """``limite`` impõe teto duro de linhas (anti-unbounded/DoS — F-C3)."""
+        from src.infrastructure.agenda.repositories import DjangoEventoAgendaRepository
+        from src.infrastructure.multitenant.connection import run_in_tenant_context
+
+        tenant_id = self._obter_tenant_id()
+        base = datetime(2026, 9, 1, 8, 0, tzinfo=UTC)
+        # 5 técnicos × 2 eventos = 10 eventos no tenant.
+        self._salvar_eventos_banco(tenant_id, [uuid4() for _ in range(5)], base)
+        repo = DjangoEventoAgendaRepository()
+        with run_in_tenant_context(tenant_id):
+            limitado = repo.listar_por_tenant(tenant_id=tenant_id, limite=4)
+            sem_limite = repo.listar_por_tenant(tenant_id=tenant_id)
+        assert len(limitado) == 4, "teto não aplicado"
+        assert len(sem_limite) == 10, "sem limite deve retornar todos"
+
 
 @pytest.mark.django_db(transaction=True)
 class TestAgendaCrossTenant:

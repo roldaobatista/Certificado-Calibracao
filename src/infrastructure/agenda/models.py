@@ -295,11 +295,16 @@ class RegistroNoShow(models.Model):
         verbose_name = "Registro de No-Show"
         verbose_name_plural = "Registros de No-Show"
         ordering = ["-criado_em"]
-        indexes = [
-            models.Index(
+        constraints = [
+            # 1 no-show por evento por tenant — fecha o TOCTOU de cobrança dupla
+            # sob concorrência (INV-AG-NOSHOW-AR-001). O use case captura o
+            # IntegrityError e devolve 409 TransicaoEventoProibida.
+            models.UniqueConstraint(
                 fields=["tenant", "evento_id"],
-                name="ag_nsh_tenant_evento_idx",
+                name="uq_no_show_evento",
             ),
+        ]
+        indexes = [
             models.Index(
                 fields=["tenant", "tecnico_id"],
                 name="ag_nsh_tenant_tec_idx",

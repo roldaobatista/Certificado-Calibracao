@@ -645,7 +645,7 @@ class TestRegimeJornadaColaborador:
 class TestMaterializarJanela:
     """materializar_janela: determinística, idempotente, conta ocorrências em 90d."""
 
-    _INICIO = datetime(2026, 6, 16, 8, 0, tzinfo=UTC)  # segunda-feira
+    _INICIO = datetime(2026, 6, 16, 8, 0, tzinfo=UTC)  # terça-feira
 
     def test_diario_90_dias(self) -> None:
         """FREQ=DAILY em 90 dias → 90 ocorrências (D0..D89)."""
@@ -691,6 +691,18 @@ class TestMaterializarJanela:
         regra = RegraRecorrencia(rrule_str="FREQ=WEEKLY;BYDAY=MO;COUNT=4")
         r = materializar_janela(regra, self._INICIO, dias=90)
         assert len(r) == 4
+
+    def test_semanal_count_com_interval_2_conta_apos_filtro(self) -> None:
+        """Regressão C1: COUNT conta ocorrências REAIS (já filtradas por INTERVAL).
+
+        FREQ=WEEKLY;BYDAY=MO;INTERVAL=2;COUNT=4 deve dar 4 segundas espaçadas 14 dias.
+        O bug anterior aplicava o COUNT antes do filtro de INTERVAL → retornava só 2.
+        """
+        regra = RegraRecorrencia(rrule_str="FREQ=WEEKLY;BYDAY=MO;INTERVAL=2;COUNT=4")
+        r = materializar_janela(regra, self._INICIO, dias=90)
+        assert len(r) == 4, f"esperava 4 ocorrências, veio {len(r)}"
+        difs = {(r[i + 1] - r[i]).days for i in range(len(r) - 1)}
+        assert difs == {14}, f"intervalos inesperados: {difs}"
 
     def test_freq_invalida_levanta(self) -> None:
         """FREQ não suportada → ValueError."""
