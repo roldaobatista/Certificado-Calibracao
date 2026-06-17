@@ -29,8 +29,8 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | Operação / Drill (OPS-*) | 6 | 6 | 0 | 0 |
 | Precificacao (PRC-* + WIREIN) | 8 | 8 | 0 | 0 |
 | **Colaboradores (COL-*)** | **4** | **4** | **0** | **0** |
-| **Agenda (AGE-*)** | **10** | **10** | **0** | **0** |
-| **TOTAL** | **108** | **98** | **7** | **3** |
+| **Agenda (AGE-*)** | **11** | **11** | **0** | **0** |
+| **TOTAL** | **109** | **99** | **7** | **3** |
 
 > Adicionados em 2026-06-12 (auditoria de cerimônia R17/R18): GATE-LGPD-RAT-CONSOLIDACAO + GATE-CGCRE-DOSSIE-PROSA.
 > Adicionados em 2026-06-13 (P8 precificacao): GATE-PRC-CUSTEIO-REAL + GATE-PRC-HISTORICO-ORCAMENTOS + GATE-PRC-ALERTA-GESTOR + GATE-PRC-NOTIFICACAO + GATE-PRC-COMISSAO-REAL + GATE-PRC-TABELA-CONTRATO + GATE-PPS-WIREIN-OS (movido da seção PPS para cá, onde o contexto do consumidor `precificacao` está completo).
@@ -242,6 +242,7 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | GATE-AGE-PRD-UX-STATES | 🟡 | Seção "UX dos estados não-felizes" por tela do PRD (empty/loading/403/401/duplo-submit); diferida com a frente de telas (Wave A da agenda é backend; estados de API já nas US/spec §4). Espelha GATE-ORC-PRD-UX-STATES | Tech-lead + frente de telas | Frente de telas Wave A |
 | GATE-AGE-RTSUBSTITUICAO-FORMAL | 🟡 | Projeção COMPLETA do RT substituto (perfil A): o modelo `RTSubstituicao` (ADR-0068 §2.2) NÃO existe em Wave A — `RTSubstitutoAdapter` projeta só competência do RT vigente (`encerrado_em IS NULL`) à data do slot. Quando `responsavel_tecnico` implementar a substituição formal, o adapter deve consultar o substituto ANTES do titular. Agenda hoje alerta consultivamente (gate DURO de NC vive na emissão — RBC-AGE-02/04/PLAN-AGE-02) | Tech-lead + Consultor RBC | Quando RTSubstituicao (ADR-0068) for construída |
 | GATE-AGE-NO-SHOW-AGENDA | 🟡 | Categorização fina da receita de no-show: `OrigemTitulo` (CR fechado) não tem `NO_SHOW_AGENDA` — `AReceberAdapter` usa `OrigemTitulo.MANUAL` + `metadata.origem_real="no_show_agenda"`. Quando CR adicionar o valor ao enum (+ migration CHECK), trocar | Tech-lead | Wave B / quando CR reabrir o enum |
+| GATE-AGE-COLABORADOR-REFERENCIADO | 🟡 | Proteção end-to-end contra hard-delete físico de técnico com agenda futura: `AgendaColaboradorReferenciadoAdapter` PRONTO e registrado em `ColaboradorViewSet._referenciado_agenda_port` (fail-open lazy ADR-0066), MAS o `destroy` de colaboradores é DESLIGAMENTO lógico (não hard-delete físico) e nenhum fluxo consulta o `ColaboradorReferenciadoPort` hoje. Quando colaboradores implementar hard-delete físico (ex.: anonimização LGPD que apaga), conectar à consulta dos ReferenciadoPort registrados | Tech-lead | Quando colaboradores tiver hard-delete físico |
 
 > **GATE-LGPD-RAT-CONSOLIDACAO** (já listado na seção LGPD): agenda adiciona ao escopo a tentativa-bloqueada de jornada em audit WORM (`EventoAuditoriaAgenda`, ≥5a) e o enquadramento `regime_jornada` (override humano = quem definiu + quando), insumo da defesa trabalhista.
 

@@ -46,11 +46,12 @@ relacionados:
 
 ## INV-AG-* — Invariantes de Agenda (Wave A `agenda`)
 
-> Criadas em 2026-05-23 (Onda 9). Zero ocorrências em `src/`/`tests/`/`.claude/hooks/` em 2026-06-12.
-
-| ID | Regra | Hook que valida | Consequência de violar |
-|---|---|---|---|
-| INV-AG-ADR0023-001 | **`EventoAgenda` com `tipo=os` exige `atividade_id NOT NULL` (FK para `AtividadeDaOS`).** Campo `os_id` é derivado (`= atividade.os_id`). Migration garante. Detecção de conflito (overlap por técnico) continua valendo. | Migration linter verifica que `evento_agenda.atividade_id` é NOT NULL quando `tipo=os` (CHECK constraint). Teste E2E cria 2 atividades da mesma OS em técnicos diferentes em janelas diferentes → sucesso. | Caso combinado (calibração em lab + manutenção em campo, mesma OS) impossível de agendar; ADR-0023 quebrada. |
+> **CRAVADA em REGRAS-INEGOCIAVEIS.md (seção `## INV-AG-*`) em 2026-06-17 (Fatia 3d — T-AGE-046).**
+> A família completa (INV-AG-JORNADA-UMC-001, -REGIME-001, -OVERLAP-001, -ATIVIDADE-001,
+> -PERFIL-001, -RECORRENCIA-001, -CNH-001, -AUDIT-WORM-001, -NOSHOW-AR-001) vive agora
+> no mestre com enforcement implementado (migrations/hooks/testes nomeados).
+> INV-AG-ADR0023-001 foi absorvida por INV-AG-ATIVIDADE-001 (enforcement completo).
+> Esta entrada fica como ponteiro histórico (não duplicar).
 
 ---
 

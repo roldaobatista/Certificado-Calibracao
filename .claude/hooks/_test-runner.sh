@@ -1329,6 +1329,84 @@ run_case "PTVC6 comentario explicativo PASS"                PASS  policy-tenant-
 run_case "PTVC7 override PASS"                              PASS  policy-tenant-vs-cliente.sh '{"tool_input":{"file_path":"src/infrastructure/clientes/x.py","content":"from x import TenantSuspenso  # policy-tenant-vs-cliente: skip -- leitura read-only para relatorio consolidado"}}'
 run_case "PTVC8 teste ignora PASS"                          PASS  policy-tenant-vs-cliente.sh '{"tool_input":{"file_path":"tests/test_clientes.py","content":"from billing_saas import TenantSuspenso"}}'
 
+echo ""
+echo "===== agenda-overlap-tenant-check (agenda Fatia 3d / INV-AG-OVERLAP-001) ====="
+
+# BLOCK: migration com ExclusionConstraint sem tenant_id
+run_case "AOT1 ExclConstr sem tenant_id BLOCK"              BLOCK agenda-overlap-tenant-check.sh '{"tool_input":{"file_path":"src/infrastructure/agenda/migrations/0003_exclusion_overlap.py","content":"from django.contrib.postgres.constraints import ExclusionConstraint\noperations = [migrations.AddConstraint(model_name=\"EventoAgenda\",constraint=ExclusionConstraint(fields=[(\"tecnico_id\",\"=\")]))]"}}'
+
+# BLOCK: EXCLUDE USING sem tenant_id
+run_case "AOT2 EXCLUDE USING sem tenant_id BLOCK"           BLOCK agenda-overlap-tenant-check.sh '{"tool_input":{"file_path":"src/infrastructure/agenda/migrations/0003.py","content":"migrations.RunSQL(\"ALTER TABLE evento_agenda ADD EXCLUDE USING gist (tecnico_id WITH =, tstzrange(inicia_at,termina_at) WITH &&)\")"}}'
+
+# PASS: ExclusionConstraint COM tenant_id
+run_case "AOT3 ExclConstr com tenant_id PASS"               PASS  agenda-overlap-tenant-check.sh '{"tool_input":{"file_path":"src/infrastructure/agenda/migrations/0003_exclusion_overlap.py","content":"ExclusionConstraint(fields=[(\"tenant_id\",\"=\"),(\"tecnico_id\",\"=\")])\n# tenant_id presente"}}'
+
+# PASS: migration sem ExclusionConstraint nem EXCLUDE USING
+run_case "AOT4 migration sem excl PASS"                     PASS  agenda-overlap-tenant-check.sh '{"tool_input":{"file_path":"src/infrastructure/agenda/migrations/0001_initial.py","content":"class Migration:\n    operations = [migrations.CreateModel(name=\"EventoAgenda\", fields=[])]"}}'
+
+# PASS: arquivo fora de agenda/migrations
+run_case "AOT5 arquivo fora de migrations PASS"             PASS  agenda-overlap-tenant-check.sh '{"tool_input":{"file_path":"src/infrastructure/ordens_servico/migrations/0004.py","content":"ExclusionConstraint(fields=[(\"tecnico_id\",\"=\")])"}}'
+
+# PASS: override com razao
+run_case "AOT6 override com razao PASS"                     PASS  agenda-overlap-tenant-check.sh '{"tool_input":{"file_path":"src/infrastructure/agenda/migrations/0003.py","content":"# agenda-overlap-tenant: skip -- constraint legada pre-ADR-0002 sem tenant_id, retrofit agendado\nExclusionConstraint(fields=[(\"tecnico_id\",\"=\")])"}}'
+
+# PASS: arquivo de teste ignora
+run_case "AOT7 arquivo de teste ignora PASS"                PASS  agenda-overlap-tenant-check.sh '{"tool_input":{"file_path":"tests/test_agenda_schema.py","content":"ExclusionConstraint(fields=[(\"tecnico_id\",\"=\")])"}}'
+
+echo ""
+echo "===== agenda-jornada-perfil-agnostica-check (agenda Fatia 3d / INV-AG-JORNADA-UMC-001) ====="
+
+# BLOCK: validar_jornada_umc gateada por perfil A
+run_case "AJP1 jornada gateada perfil A BLOCK"              BLOCK agenda-jornada-perfil-agnostica-check.sh '{"tool_input":{"file_path":"src/application/operacao/agenda/criar_evento.py","content":"if perfil == \"A\":\n    resultado = validar_jornada_umc(tecnico, regime, janela, eventos, cap)"}}'
+
+# BLOCK: validar_jornada dentro de if perfil == D
+run_case "AJP2 jornada gateada perfil D BLOCK"              BLOCK agenda-jornada-perfil-agnostica-check.sh '{"tool_input":{"file_path":"src/application/operacao/agenda/criar_evento.py","content":"if perfil != \"D\":\n    validar_jornada_umc(t, r, j, e, c)\nresult = ok"}}'
+
+# PASS: validar_jornada_umc sem gate de perfil
+run_case "AJP3 jornada sem gate perfil PASS"                PASS  agenda-jornada-perfil-agnostica-check.sh '{"tool_input":{"file_path":"src/application/operacao/agenda/criar_evento.py","content":"resultado = validar_jornada_umc(tecnico, regime, janela, eventos, capacidade)\nif not resultado.ok:\n    raise JornadaUMCViolada(resultado.violacao)"}}'
+
+# PASS: arquivo sem validar_jornada
+run_case "AJP4 arquivo sem validar_jornada PASS"            PASS  agenda-jornada-perfil-agnostica-check.sh '{"tool_input":{"file_path":"src/application/operacao/agenda/criar_evento.py","content":"if perfil == \"A\":\n    verificar_rt(slot)\ngrava_evento(evento)"}}'
+
+# PASS: domínio (implementa a função — permitido)
+run_case "AJP5 dominio agenda jornada.py PASS"              PASS  agenda-jornada-perfil-agnostica-check.sh '{"tool_input":{"file_path":"src/domain/operacao/agenda/jornada.py","content":"def validar_jornada_umc(tecnico, regime, janela, eventos, cap):\n    if perfil == \"A\":\n        pass"}}'
+
+# PASS: arquivo fora de agenda
+run_case "AJP6 arquivo fora de agenda PASS"                 PASS  agenda-jornada-perfil-agnostica-check.sh '{"tool_input":{"file_path":"src/application/operacao/os/criar_os.py","content":"if perfil == \"A\":\n    validar_jornada_umc(t, r, j, e, c)"}}'
+
+# PASS: override com razao
+run_case "AJP7 override com razao PASS"                     PASS  agenda-jornada-perfil-agnostica-check.sh '{"tool_input":{"file_path":"src/application/operacao/agenda/criar_evento.py","content":"# agenda-jornada-perfil-agnostica: skip -- condicional de perfil para outra lógica, jornada sempre valida\nif perfil == \"A\":\n    verificar_rt()\nresultado = validar_jornada_umc(t, r, j, e, c)"}}'
+
+echo ""
+echo "===== agenda-regime-server-side-check (agenda Fatia 3d / INV-AG-REGIME-001) ====="
+
+# BLOCK: regime do payload em serializer
+run_case "ARS1 regime do payload serializer BLOCK"          BLOCK agenda-regime-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/agenda/serializers.py","content":"regime = request.data[\"regime\"]\nresultado = criar_evento(regime=regime)"}}'
+
+# BLOCK: regime do validated_data
+run_case "ARS2 regime do validated_data BLOCK"              BLOCK agenda-regime-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/agenda/views.py","content":"regime = ser.validated_data[\"regime\"]\nresultado = criar_evento(regime=regime)"}}'
+
+# BLOCK: RegimeJornadaColaborador.objects.create fora de enquadrar_regime
+run_case "ARS3 RegimeJornadaColaborador create IA BLOCK"    BLOCK agenda-regime-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/agenda/consumers/colaborador_eventos.py","content":"RegimeJornadaColaborador.objects.create(tenant_id=t, colaborador_id=c, regime=\"clt_geral\")"}}'
+
+# PASS: regime derivado server-side (adapter)
+run_case "ARS4 regime server-side PASS"                     PASS  agenda-regime-server-side-check.sh '{"tool_input":{"file_path":"src/application/operacao/agenda/criar_evento.py","content":"regime_resolvido = adapter.regime_jornada(tenant_id=t, colaborador_id=c, na_data=slot.date())\nresultado = criar_evento(regime=regime_resolvido)"}}'
+
+# PASS: use case enquadrar_regime pode criar override (humano)
+run_case "ARS5 enquadrar_regime legitimo PASS"              PASS  agenda-regime-server-side-check.sh '{"tool_input":{"file_path":"src/application/operacao/agenda/enquadrar_regime.py","content":"RegimeJornadaColaborador.objects.create(tenant_id=t, colaborador_id=c, regime=cmd.regime)"}}'
+
+# PASS: arquivo fora de agenda
+run_case "ARS6 arquivo fora de agenda PASS"                 PASS  agenda-regime-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/colaboradores/views.py","content":"regime = request.data[\"regime\"]\ngravar(regime=regime)"}}'
+
+# PASS: domínio (recebe regime por parâmetro — permitido)
+run_case "ARS7 dominio agenda PASS"                         PASS  agenda-regime-server-side-check.sh '{"tool_input":{"file_path":"src/domain/operacao/agenda/jornada.py","content":"def validar_jornada_umc(tecnico, regime, janela, eventos, cap):\n    regime_payload = regime\n    return ResultadoJornada(ok=True, violacao=None)"}}'
+
+# PASS: migration ignora
+run_case "ARS8 migration ignora PASS"                       PASS  agenda-regime-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/agenda/migrations/0001_initial.py","content":"RegimeJornadaColaborador.objects.create(regime=\"clt_geral\")"}}'
+
+# PASS: override com razao
+run_case "ARS9 override com razao PASS"                     PASS  agenda-regime-server-side-check.sh '{"tool_input":{"file_path":"src/infrastructure/agenda/consumers/rt_eventos.py","content":"# agenda-regime-server-side: skip -- consumer de RT lê regime do envelope server-side (R7)\nRegimeJornadaColaborador.objects.create(tenant_id=t, colaborador_id=c, regime=env[\"regime\"])"}}'
+
 # --- Gate anti-drift de contagens (auditoria maquina-dev 2026-05-29) ---
 # So no modo completo (sem filtro). Garante que os numeros a mao nos docs
 # canonicos (README/AGENTS/CLAUDE) batem com a fonte direta. Mata os

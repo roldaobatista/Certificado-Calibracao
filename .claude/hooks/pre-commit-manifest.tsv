@@ -78,3 +78,6 @@ INV-checker.sh	REGRAS-INEGOCIAVEIS\.md$
 cr-perfil-server-side-check.sh	/contas_receber/.*\.py$|contas_receber.*\.py$
 cr-provider-import-fronteira-check.sh	\.py$
 policy-tenant-vs-cliente.sh	clientes.*\.py$|contas_receber.*\.py$
+agenda-overlap-tenant-check.sh	/agenda/migrations/.*\.py$
+agenda-jornada-perfil-agnostica-check.sh	/agenda/.*\.py$
+agenda-regime-server-side-check.sh	/agenda/.*\.py$

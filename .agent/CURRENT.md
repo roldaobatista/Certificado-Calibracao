@@ -9,7 +9,7 @@
 Receita fechada (config→pps→precificacao→colaboradores→orcamentos→contas-receber). Fila dos faltantes Wave A
 (topo-sort do `plano-dependencia-sistema.md`; cada um respeita suas deps já construídas; **seguir em ordem, sem perguntar**):
 
-1. **`agenda`** (N5) ← EM CURSO. Fatias 1a+1b+2+3a+3b DONE — 144 testes. Adapters reais (OS/colaboradores/RT/CR) + consumers fan-out bus (os.*/colaborador.*/tenant.rt.*) + GATE-RTSUBSTITUICAO-FORMAL documentado. OrigemTitulo.MANUAL p/ no-show (GATE-NO-SHOW-AGENDA até Wave B). **PRÓXIMO = Fatia 3c** (T-AGE-045 ColaboradorReferenciadoPort) + **Fatia 3d** (T-AGE-046/047 INVs+3 hooks) → P8/P9. Dep: os(✓)+colaboradores(✓).
+1. **`agenda`** (N5) ← EM CURSO. Fatias 1a+1b+2+3a+3b+3c+3d DONE — 144+29=173 testes. T-AGE-045: `AgendaColaboradorReferenciadoAdapter` + wiring `ready()`. T-AGE-046: INV-AG-* cravada (9 INVs). T-AGE-047: 3 hooks (overlap+jornada+regime). T-AGE-048: `test_inv_ag_agenda.py` (29 casos). **GATE-AGE-NO-SHOW-AGENDA** aberto (Wave B). Dep: os(✓)+colaboradores(✓). **PENDENTE: auditores Família 5 + commit da fatia** (orquestrador revisa).
 2. **`caixa-tecnico`** (N5) — destrava app-tecnico/despesas/custeio-real.
 3. **`chamados`** (N5) — entrada de demanda → vira OS. Dep: clientes(✓)+os(✓).
 4. **`contas-pagar`** (N5) — par do CR; destrava despesas (precisa cadastro fornecedor mínimo).
