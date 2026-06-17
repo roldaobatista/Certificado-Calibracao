@@ -30,12 +30,14 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | Precificacao (PRC-* + WIREIN) | 8 | 8 | 0 | 0 |
 | **Colaboradores (COL-*)** | **4** | **4** | **0** | **0** |
 | **Agenda (AGE-*)** | **11** | **11** | **0** | **0** |
-| **TOTAL** | **109** | **99** | **7** | **3** |
+| **Caixa-técnico (CT-*)** | **8** | **8** | **0** | **0** |
+| **TOTAL** | **117** | **107** | **7** | **3** |
 
 > Adicionados em 2026-06-12 (auditoria de cerimônia R17/R18): GATE-LGPD-RAT-CONSOLIDACAO + GATE-CGCRE-DOSSIE-PROSA.
 > Adicionados em 2026-06-13 (P8 precificacao): GATE-PRC-CUSTEIO-REAL + GATE-PRC-HISTORICO-ORCAMENTOS + GATE-PRC-ALERTA-GESTOR + GATE-PRC-NOTIFICACAO + GATE-PRC-COMISSAO-REAL + GATE-PRC-TABELA-CONTRATO + GATE-PPS-WIREIN-OS (movido da seção PPS para cá, onde o contexto do consumidor `precificacao` está completo).
 > Adicionados em 2026-06-13 (P8 colaboradores — T-COL-060): GATE-COL-ANEXO-B2 + GATE-COL-COMISSAO-COUNT + GATE-COL-CONSUMERS + GATE-COL-PERFIL-MATRIZ. GATE-LGPD-RAT-CONSOLIDACAO já existia — colaboradores adiciona insumos A3/A4/A6/A7/OAB-PRE-PROD ao seu escopo (ver nota na seção COL).
 > Adicionados em 2026-06-16 (P3 agenda — reviews): GATE-AGE-JORNADA-TRABALHISTA (🔴 OAB humano, frente de maior risco) + AGE-MAPS/OMNICHANNEL/PORTAL/CAPACITY/AR/FERIADO-API (🟡 feature-diferida Wave B).
+> Adicionados em 2026-06-17 (P2/P3 caixa-tecnico — reviews): GATE-CT-GPS-LGPD-OAB (🔴 OAB humano, geolocalização de empregado pré-produção) + CT-CONTAS-PAGAR/DEVOLUCAO-EXEC/PIX/OCR/B2/STORAGE-PORT/PRD-UX-STATES (🟡 feature-diferida/fail-open lazy).
 
 ---
 
@@ -245,6 +247,23 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | GATE-AGE-COLABORADOR-REFERENCIADO | 🟡 | Proteção end-to-end contra hard-delete físico de técnico com agenda futura: `AgendaColaboradorReferenciadoAdapter` PRONTO e registrado em `ColaboradorViewSet._referenciado_agenda_port` (fail-open lazy ADR-0066), MAS o `destroy` de colaboradores é DESLIGAMENTO lógico (não hard-delete físico) e nenhum fluxo consulta o `ColaboradorReferenciadoPort` hoje. Quando colaboradores implementar hard-delete físico (ex.: anonimização LGPD que apaga), conectar à consulta dos ReferenciadoPort registrados | Tech-lead | Quando colaboradores tiver hard-delete físico |
 
 > **GATE-LGPD-RAT-CONSOLIDACAO** (já listado na seção LGPD): agenda adiciona ao escopo a tentativa-bloqueada de jornada em audit WORM (`EventoAuditoriaAgenda`, ≥5a) e o enquadramento `regime_jornada` (override humano = quem definiu + quando), insumo da defesa trabalhista.
+
+### Frente `caixa-tecnico` (#1 da fila pós-receita — N5)
+
+> Adicionados em 2026-06-17 (P2/P3 caixa-tecnico — reviews tech-lead/advogado LGPD). **GATE-CT-GPS-LGPD-OAB** é bloqueante de produção (geolocalização de empregado = LGPD + Direito do Trabalho combinados); os demais são feature-diferida/fail-open lazy, nenhum bloqueia o fechamento do núcleo Wave A.
+
+| GATE | Severidade | Bloqueia | Owner | Prazo |
+|---|---|---|---|---|
+| **GATE-CT-GPS-LGPD-OAB** | 🔴 | **1º técnico de campo real com GPS coletado** — exige (a) LIA assinada (base legítimo interesse sobre empregado, art. 7º IX), (b) termo de admissão / aviso de privacidade do colaborador com cláusula de geolocalização, (c) DPIA-02 aprovada. A arquitetura (opt-in server-side, nunca do payload nem do EXIF; retenção própria curta) reduz o risco; a TESE jurídica e o termo assinado são do advogado | Advogado OAB humano + RH + DPO | Pré-produção (antes do 1º técnico real com GPS) |
+| GATE-CT-CONTAS-PAGAR | 🟡 | Execução do reembolso `tenant-deve` (PIX/transferência); Wave A registra saldo + publica `caixa_tecnico.prestacao.fechada` (fail-open lazy) — contas-pagar consome o evento + faz **backfill por query** das prestações não-reembolsadas ao nascer | Tech-lead | Quando `contas-pagar` (N5) existir |
+| GATE-CT-DEVOLUCAO-EXEC | 🟡 | Execução da devolução `tecnico-deve` (dinheiro/PIX/desconto-folha); Wave A **só registra** o saldo devedor (G5/Roldão) | Tech-lead | Wave B |
+| GATE-CT-PIX | 🟡 | Liberação PIX automática do adiantamento (ADR-0050); Wave A = manual | Tech-lead | Wave B |
+| GATE-CT-OCR | 🟡 | OCR do recibo + cartão corporativo (Pluggy); Wave A = foto-comprovante + categoria manual | Tech-lead | Wave B |
+| GATE-CT-B2 | 🟡 | Foto de recibo em B2 WORM real (hoje `FotoComprovanteStorageLocal`); G3/Roldão = local Wave A | Tech-lead | Antes do 1º dado real em produção (junto GATE-LGPD-RAT-CONSOLIDACAO / GATE-COL-ANEXO-B2) |
+| GATE-CT-STORAGE-PORT | 🟡 | Consolidar os 2 `AnexoStoragePort` duplicados (colaboradores+metrologia) + `FotoComprovanteStoragePort` em `shared` via ADR (R1/drift); Wave A = port próprio de foto | Tech-lead | Wave B / ADR de consolidação |
+| GATE-CT-PRD-UX-STATES | 🟡 | Seção "UX dos estados não-felizes" por tela do PRD (empty/loading/403/401/duplo-submit); diferida com a frente de telas (Wave A do caixa-tecnico é backend; estados de API já nas US/spec §4 erros.py). Espelha GATE-AGE-PRD-UX-STATES | Tech-lead + frente de telas | Frente de telas Wave A |
+
+> **GATE-LGPD-RAT-CONSOLIDACAO** (já listado na seção LGPD): caixa-tecnico adiciona ao escopo a linha própria do **GPS da despesa** (finalidade anti-fraude financeira, base art. 7º IX+V, retenção própria curta ≠ 5a fiscais da foto) — distinta da geolocalização de OS/jornada. Entrada RAT completa só na consolidação (R17).
 
 ---
 

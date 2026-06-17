@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado-em: 2026-05-27
-proximo-review: 2026-08-27
+revisado-em: 2026-06-17
+proximo-review: 2026-09-17
 status: stable
 modulo: caixa-tecnico
 dominio: financeiro
@@ -10,6 +10,7 @@ audiencia: agente
 historico:
   - 2026-05-17 — versão inicial draft (caixa do técnico Wave A robusto)
   - 2026-05-27 — Onda 3 saneamento BATCH B2 — frontmatter canônico completo (owner lowercase + hífen + diataxis + audiencia + proximo-review), perfil ADR-0067 declarado, US-CT-001..007 reescritas em BDD GIVEN-WHEN-THEN, AC LGPD GPS opcional matriz base legal (idêntico app-tecnico), AC trigger PG `caixa_tecnico_anti_mutacao` (US-CT-005), AC IDEMP-001 client_offline_id (US-CT-002), Glossário §11, vocabulário Wave A/Wave B, status STABLE.
+  - 2026-06-17 — correções P2 da spec (revisão tech-lead + advogado LGPD): AC-CT-005-3 trigger na tabela `despesa` (não na raiz) + block-delete fiscal [TL-CT-05]; AC-CT-002-5 base legal GPS = art. 7º IX (legítimo interesse + LIA) + V de apoio, não consentimento [ADV-CT-01]; AC-CT-002-7 retenção GPS própria curta (fechamento+90d) desacoplada dos 5a fiscais [ADV-CT-02]. Detalhe: `docs/faseamento/caixa-tecnico/reviews-consolidado.md`.
 relacionados:
   - docs/adr/0023-os-com-atividades.md
   - docs/adr/0033-bus-idempotencia-consumer.md
@@ -69,6 +70,8 @@ Predicate canônico: `tenant_perfil_e([...])` lê `Tenant.perfil_regulatorio` no
 - Múltiplas moedas / técnico em viagem internacional
 - Adiantamento via folha de pagamento
 
+<!-- prd-ux-states: skip -- caixa-tecnico Wave A entrega BACKEND (endpoints idempotentes offline-first + validacao de foto/prestacao + triggers WORM); a captura de foto, o swipe de validacao e a fila por-tela sao da FRENTE DE TELAS (app Flutter diferido ADR-0009 + telas web — spec §1/§2), nao desta frente. Estados de API nao-felizes JA estao especificados nas US-CT e na spec §4 erros.py (412 FotoComprovanteObrigatoria, 409 DespesaValidadaImutavel/FotoDuplicada, 403 GpsConsentimentoAusente, 422 AdiantamentoNaoCancelavel/PeriodoPrestacaoFechado/TransicaoInvalida). Debito da secao por-tela rastreado em GATE-CT-PRD-UX-STATES no catalogo central (espelha GATE-AGE-PRD-UX-STATES). -->
+
 ## 7. User Stories (BDD)
 
 ### US-CT-001 — Técnico solicita adiantamento
@@ -91,9 +94,9 @@ Predicate canônico: `tenant_perfil_e([...])` lê `Tenant.perfil_regulatorio` no
 - **AC-CT-002-2 (offline-first)**: GIVEN técnico sem sinal, WHEN lança despesa, THEN salva localmente em `OperacaoSyncPendente` + sincroniza quando sinal retorna.
 - **AC-CT-002-3 (IDEMP-001 — ADR-0033)**: GIVEN despesa enviada com `client_offline_id` UUID4 + `Idempotency-Key`, WHEN servidor processa, THEN replay retorna mesmo registro (não duplica). ADR-0033 IDEMP-001 obrigatório.
 - **AC-CT-002-4 (categorização)**: GIVEN técnico salva, WHEN escolhe categoria, THEN enum: `combustivel`, `alimentacao`, `pedagio`, `hospedagem`, `peca`, `deslocamento`. INV-AGENT-001: enum tipado, jamais texto livre.
-- **AC-CT-002-5 (LGPD GPS opcional)**: GIVEN `Colaborador.consente_gps_em IS NOT NULL` + técnico optou GPS na configuração, WHEN salva despesa, THEN captura GPS pra evidenciar local. Base legal: **Execução de contrato (art. 7º V) LGPD** (RAT-13). GPS NUNCA é lido do payload — sempre do banco (idêntico ADR-APP-003-3).
+- **AC-CT-002-5 (LGPD GPS opcional)**: GIVEN opt-in de GPS vigente do colaborador (server-side, `ConsentimentoGpsColaborador` NOT NULL) + política do tenant, WHEN salva despesa, THEN captura GPS pra evidenciar local. Base legal: **legítimo interesse (art. 7º IX) com LIA (DPIA-02) + execução de contrato (art. 7º V de apoio)** — o opt-in/oposição é salvaguarda de transparência/controle (art. 8º §5º / art. 18 §2º), **NÃO** a base autônoma (consentimento de empregado é frágil pela assimetria, art. 8º §1º) (RAT-13). GPS NUNCA é lido do payload **nem do EXIF da foto** (sempre stripada) — sempre do opt-in server-side (idêntico app-tecnico US-APP-003; INV-LGPD-CONSENT-001 compartilhada). [corrigido P2/ADV-CT-01]
 - **AC-CT-002-6 (revogação consentimento)**: GIVEN técnico revogou consentimento (`consente_gps_em.revogado_em IS NOT NULL`), WHEN tenta lançar despesa com GPS, THEN servidor bloqueia coleta GPS + permite lançamento sem GPS (não bloqueia despesa).
-- **AC-CT-002-7 (retenção)**: GIVEN despesa salva com GPS, WHEN período de retenção (5 anos — `retencao-matriz.md` linha "Despesa GPS técnico") expira, THEN job purga GPS via crypto-shredding; foto + valor preservados (auditoria fiscal Receita 5a).
+- **AC-CT-002-7 (retenção — minimização art. 6º III)**: GIVEN despesa salva com GPS, WHEN o período de retenção **próprio do GPS** expira (**fechamento da prestação + 90 dias; máx. 6–12 meses** — NÃO os 5a fiscais; GPS não é dado fiscal), THEN job purga GPS via crypto-shredding; **foto + valor preservados pelos 5a fiscais** (auditoria Receita). Retenção do GPS desacoplada da foto/valor. [corrigido P2/ADV-CT-02]
 
 **Invariantes:** `INV-CT-FOTO-001` (foto obrigatória), `IDEMP-001`, `INV-LGPD-CONSENT-001` (consentimento server-side).
 
@@ -122,7 +125,7 @@ Predicate canônico: `tenant_perfil_e([...])` lê `Tenant.perfil_regulatorio` no
 
 - **AC-CT-005-1**: GIVEN tentativa de lançamento sem foto, WHEN salva, THEN bloqueia com `412 FOTO_OBRIGATORIA` (idem AC-CT-002-1).
 - **AC-CT-005-2 (trigger PG `caixa_tecnico_anti_mutacao`)**: GIVEN despesa em estado `validada`, WHEN qualquer UPDATE/DELETE direto no banco tenta mutar, THEN trigger PG `caixa_tecnico_anti_mutacao` (análogo ao trigger `auditoria_anti_*` de Foundation F-A) bloqueia com erro `cannot modify validated expense` + audit. Correção exige nova despesa estornadora (`tipo=estorno`).
-- **AC-CT-005-3 (migration)**: GIVEN nova tabela `caixa_tecnico` é criada, WHEN migration roda, THEN inclui na mesma migration: `CREATE TRIGGER caixa_tecnico_anti_mutacao BEFORE UPDATE OR DELETE ON caixa_tecnico FOR EACH ROW WHEN (OLD.status='validada') EXECUTE FUNCTION raise_validated_immutability()`. Hook `audit-immutability-check.sh` valida.
+- **AC-CT-005-3 (migration)**: GIVEN a tabela **`despesa`** é criada (o sujeito imutável é a DESPESA validada, não a raiz `CaixaTecnico`), WHEN migration roda, THEN inclui na mesma migration: `CREATE TRIGGER caixa_tecnico_despesa_anti_mutacao BEFORE UPDATE OR DELETE ON despesa FOR EACH ROW WHEN (OLD.status='validada') EXECUTE FUNCTION ...` **+ block-delete sempre** (toda despesa é documento fiscal, retenção Receita 5a — nunca DELETE físico; cancelar = `status=cancelada`). Reapresentação `rejeitada→pendente` **NÃO** dispara (só `WHEN status='validada'`). Hook `audit-immutability-check.sh` valida. [corrigido P2/TL-CT-05]
 
 **Invariantes:** `INV-CT-IMUT-001` (despesa validada imutável — análogo INV-001 audit).
 
