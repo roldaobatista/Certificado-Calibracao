@@ -1,7 +1,7 @@
 ---
 owner: roldao
-revisado-em: 2026-05-27
-proximo-review: 2026-08-27
+revisado-em: 2026-06-16
+proximo-review: 2026-09-16
 status: stable
 modulo: agenda
 dominio: operacao
@@ -10,6 +10,7 @@ audiencia: agente
 historico:
   - 2026-05-23 — versão inicial draft (calendário multi-técnico)
   - 2026-05-27 — Onda 3 saneamento BATCH B2 — frontmatter canônico, perfil ADR-0067 declarado (INV-020 Lei 13.103 só perfis A/B/C com técnico de campo), US-AG-001..013 reescritas em BDD GIVEN-WHEN-THEN, US-AG-014 nova (agenda considera RT substituto — ADR-0068), INV-AGENT-001 em texto livre, vocabulário Wave A/Wave B, status STABLE.
+  - 2026-06-16 — Correção P2 (frente agenda): INV-020 (jornada Lei 13.103/CLT) reclassificado como **perfil-AGNÓSTICO** (RBC-AGE-01/ADV-AGE-04 — supera a entrada de 2026-05-27) — removido gating `tenant_perfil_e(['A','B','C'])` de §4/§5/AC-AG-002-2; jornada é eixo trabalhista (ordem pública), não metrológico → fica FORA da `matriz-feature-perfil.md`; discriminada por `regime_jornada` (D-AGE-15); tempo-espera = 1/1 (ADI 5322, ex nunc 12/07/2023), não 1/3. Gating por perfil mantido SÓ na US-AG-014 (RT substituto — eixo metrológico).
 relacionados:
   - docs/adr/0023-os-com-atividades.md
   - docs/adr/0022-rt-tenant.md
@@ -24,6 +25,8 @@ relacionados:
 ---
 
 # PRD — Módulo Agenda
+
+<!-- prd-ux-states: skip -- agenda Wave A entrega backend/validacao (endpoints + jornada UMC + overlap + recorrencia); o render do calendario, drag-drop e estados-por-tela (empty/loading/403/401/duplo-submit) sao da FRENTE DE TELAS (spec §2 — diferido por GATE de telas), nao desta frente. Estados de API nao-felizes JA estao especificados nas US e na spec §4 erros.py (422 JornadaUMCViolada, 412 SemRTNoSlot, 409 ConflitoAgenda, 422 FeriadoNaoConfirmado/MotoristaSemCNH). Debito da secao por-tela rastreado em GATE-AGE-PRD-UX-STATES no catalogo central. -->
 
 ## 1. O que este módulo é
 
@@ -42,17 +45,19 @@ JTBD-009 (gerente não sabe onde técnico está hoje) + JTBD-010 (reagendar vira
 | Feature | A — Acreditado RBC | B — Rastreável | C — Em preparação D→A | D — Comercial puro |
 |---|---|---|---|---|
 | **Agenda multi-técnico básica** (US-AG-001..010) | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO |
-| **Validação INV-020 jornada UMC (Lei 13.103)** — só técnico de campo em veículo UMC | ✅ OBRIGATÓRIO se `tenant_perfil_e(['A','B','C']) AND colaborador.is_tecnico_campo AND aloca_em_UMC` | ✅ OBRIGATÓRIO sob mesma condição | ✅ OBRIGATÓRIO sob mesma condição | ⚪ OPCIONAL (perfil D pode dispensar se sem técnico de campo) |
+| **Validação INV-020 jornada (Lei 13.103/CLT)** — perfil-AGNÓSTICA (ordem pública trabalhista; ver nota ▼) | ⬛ aplica se `is_tecnico_campo AND aloca_em_UMC` | ⬛ mesma condição | ⬛ mesma condição | ⬛ mesma condição |
 | **Agenda considera RT substituto** (US-AG-014 — ADR-0068) — em calibração perfil A | ✅ OBRIGATÓRIO (RT principal indisponível → sistema sugere RT substituto cadastrado) | 🟢 OPCIONAL_RECOMENDADO | 🟢 OPCIONAL_RECOMENDADO | ❌ DESABILITADO (perfil D não faz calibração regulada) |
 | **Sugestão por competência (RTCompetencia por método — ADR-0022 v2)** | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ✅ OBRIGATÓRIO | ⚪ OPCIONAL |
 
 Predicate canônico: `tenant_perfil_e([...])` lê `Tenant.perfil_regulatorio` no banco — NUNCA do payload.
 
+> **Nota de correção (P2 — RBC-AGE-01/ADV-AGE-04):** a validação de jornada (INV-020) **NÃO é gated por perfil A/B/C/D** — é eixo **trabalhista** (CLT/Lei 13.103, ordem pública), não metrológico. Aplica a **qualquer** tenant que aloque técnico de campo em veículo UMC, discriminada por `regime_jornada` ∈ {motorista_profissional, clt_geral, nao_aplica} (D-AGE-15), não pelo perfil. Por isso fica **fora** da `matriz-feature-perfil.md` canônica. As demais linhas desta tabela (RT substituto, competência) seguem gated por perfil — eixo metrológico.
+
 ## 5. Escopo Wave A
 
 - Calendário multi-técnico (visão dia/semana, colunas por técnico)
 - Slots de tempo com eventos (OS, bloqueio, descanso, deslocamento, almoço, manutenção interna)
-- **Validação INV-020** (Lei 13.103): hook bloqueia agendamento que viola jornada UMC — gated por perfil + tipo colaborador
+- **Validação INV-020** (Lei 13.103/CLT): valida ANTES de salvar e bloqueia (422) agendamento que viola jornada de técnico de campo alocado em UMC — **perfil-agnóstico** (eixo trabalhista), discriminado por `regime_jornada` (D-AGE-15)
 - Detecção de conflito ao arrastar/criar (não permite 2 eventos no mesmo slot do mesmo técnico)
 - Tempo de deslocamento estimado entre OS (geo/distância — fallback manual)
 - Bloqueios (férias, treinamento, atestado)
@@ -89,11 +94,11 @@ Predicate canônico: `tenant_perfil_e([...])` lê `Tenant.perfil_regulatorio` no
 
 **Como** gerente (P-OP-04), **quero** arrastar OS pra outro técnico/horário com validação automática, **para** não criar conflito de jornada UMC.
 
-- **AC-AG-002-1**: GIVEN gerente arrasta OS, WHEN solta no novo slot, THEN servidor valida ANTES de salvar: (a) sem conflito no técnico destino; (b) se aplicável INV-020 (perfil + técnico de campo + UMC), valida jornada.
-- **AC-AG-002-2 (INV-020 gated por perfil — fecha L6)**: GIVEN `tenant_perfil_e(['A','B','C']) AND colaborador.is_tecnico_campo=true AND evento.aloca_em_UMC=true`, WHEN agenda salva, THEN executa validação Lei 13.103 (jornada + descanso); se viola → 422 `JornadaUMCViolada` + razão. Perfil D sem técnico de campo dispensa.
-- **AC-AG-002-3 (read perfil)**: GIVEN sistema lê perfil pra gating, WHEN avalia, THEN lê `Tenant.perfil_regulatorio` do banco — NUNCA do payload.
+- **AC-AG-002-1**: GIVEN gerente arrasta OS, WHEN solta no novo slot, THEN servidor valida ANTES de salvar: (a) sem conflito no técnico destino; (b) se aplicável INV-020 (técnico de campo + UMC — **perfil-agnóstico**), valida jornada conforme `regime_jornada`.
+- **AC-AG-002-2 (INV-020 perfil-AGNÓSTICO — corrigido P2)**: GIVEN `colaborador.is_tecnico_campo=true AND evento.aloca_em_UMC=true AND regime_jornada≠nao_aplica` (independe do perfil A/B/C/D — jornada é eixo trabalhista, não metrológico), WHEN agenda salva, THEN executa validação Lei 13.103/CLT (jornada + descanso inter/intra + espera 1/1) conforme `regime_jornada`; se viola → 422 `JornadaUMCViolada` + razão + audit WORM.
+- **AC-AG-002-3 (regime server-side)**: GIVEN sistema resolve `regime_jornada` pra validar, WHEN avalia, THEN lê via `ColaboradorAgendaPort.regime_jornada(...)` (override humano vigente → senão deriva do papel → ambíguo = `nao_aplica`) — NUNCA do payload.
 
-**Invariantes:** `INV-020`, `INV-TENANT-PERFIL-002`.
+**Invariantes:** `INV-020` (perfil-agnóstico — ver §4 nota).
 
 ---
 

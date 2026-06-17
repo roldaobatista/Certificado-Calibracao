@@ -29,11 +29,13 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | Operação / Drill (OPS-*) | 6 | 6 | 0 | 0 |
 | Precificacao (PRC-* + WIREIN) | 8 | 8 | 0 | 0 |
 | **Colaboradores (COL-*)** | **4** | **4** | **0** | **0** |
-| **TOTAL** | **98** | **88** | **7** | **3** |
+| **Agenda (AGE-*)** | **8** | **8** | **0** | **0** |
+| **TOTAL** | **106** | **96** | **7** | **3** |
 
 > Adicionados em 2026-06-12 (auditoria de cerimônia R17/R18): GATE-LGPD-RAT-CONSOLIDACAO + GATE-CGCRE-DOSSIE-PROSA.
 > Adicionados em 2026-06-13 (P8 precificacao): GATE-PRC-CUSTEIO-REAL + GATE-PRC-HISTORICO-ORCAMENTOS + GATE-PRC-ALERTA-GESTOR + GATE-PRC-NOTIFICACAO + GATE-PRC-COMISSAO-REAL + GATE-PRC-TABELA-CONTRATO + GATE-PPS-WIREIN-OS (movido da seção PPS para cá, onde o contexto do consumidor `precificacao` está completo).
 > Adicionados em 2026-06-13 (P8 colaboradores — T-COL-060): GATE-COL-ANEXO-B2 + GATE-COL-COMISSAO-COUNT + GATE-COL-CONSUMERS + GATE-COL-PERFIL-MATRIZ. GATE-LGPD-RAT-CONSOLIDACAO já existia — colaboradores adiciona insumos A3/A4/A6/A7/OAB-PRE-PROD ao seu escopo (ver nota na seção COL).
+> Adicionados em 2026-06-16 (P3 agenda — reviews): GATE-AGE-JORNADA-TRABALHISTA (🔴 OAB humano, frente de maior risco) + AGE-MAPS/OMNICHANNEL/PORTAL/CAPACITY/AR/FERIADO-API (🟡 feature-diferida Wave B).
 
 ---
 
@@ -221,6 +223,25 @@ fonte: auditoria projeto-inteiro 10 lentes 2026-05-23 (lente 9 — Foundation ga
 | GATE-COL-PERFIL-MATRIZ | 🟡 | Predicate `can_assign_signatario` perfil-aware em produção (linha adicionada à `matriz-feature-perfil.md` — T-COL-060) | Tech-lead | Wave A / junto das demais features perfil-aware (ADR-0067) |
 
 > **GATE-LGPD-RAT-CONSOLIDACAO** (já listado na seção LGPD acima): colaboradores adiciona ao escopo desse GATE os insumos A3 (RAT CTPS/CNH/foto/cert), A4 (retenção por campo), A6 (zona ADR-0021 por campo), A7 (DPIA cadastro) e `[OAB-PRE-PROD]` listados na `docs/faseamento/colaboradores/matriz-reconciliacao.md`. A constante `BASE_LEGAL_POR_VINCULO_E_CATEGORIA` (`src/domain/rh_frota_qualidade/colaboradores/base_legal.py`) é o insumo de domínio que o RAT irá fotografar.
+
+---
+
+### Frente `agenda` (#1 da fila pós-receita — N5)
+
+> Adicionados em 2026-06-16 (P3 agenda — reviews tech-lead/consultor-rbc/advogado). **GATE-AGE-JORNADA-TRABALHISTA é a frente de maior risco do projeto** (passivo trabalhista + Roldão solidário R-058) — exige advogado OAB humano antes do 1º técnico de campo real. Os demais são feature-diferida (Wave B), nenhum bloqueia o fechamento do núcleo Wave A.
+
+| GATE | Severidade | Bloqueia | Owner | Prazo |
+|---|---|---|---|---|
+| **GATE-AGE-JORNADA-TRABALHISTA** | 🔴 | **1º técnico de campo real alocado em veículo UMC** — enquadramento individual via CTPS + tabela final 235-C × 58/71 + convenção coletiva do sindicato de MT (a arquitetura `regime_jornada`/override-humano garante que a IA NÃO decide o enquadramento; a TABELA final é do advogado) | Advogado OAB humano + RH | Pré-produção (antes do 1º técnico de campo real) |
+| GATE-AGE-MAPS | 🟡 | Tempo de deslocamento/rota real (`MapsProvider`); Wave A = input manual do gerente | Tech-lead | Wave B |
+| GATE-AGE-OMNICHANNEL | 🟡 | Envio real do aviso de reagendamento ao cliente (depende `comunicacao-omnichannel`); Wave A grava + enfileira | Tech-lead | Quando `comunicacao-omnichannel` existir |
+| GATE-AGE-PORTAL | 🟡 | Portal do cliente — aprovação/contraproposta de janela | Tech-lead | Wave B |
+| GATE-AGE-CAPACITY | 🟡 | Capacity-planning (sugestão de distribuição em lote); Wave A usa só lógica interna (RT subst→competência→livre 7d) | Tech-lead | Wave B |
+| GATE-AGE-AR | 🟡 | Régua de cobrança rica do no-show cobrável; Wave A só CHAMA `criar_titulo_manual` de CR via porta (D-AGE-9) | Tech-lead | Wave B |
+| GATE-AGE-FERIADO-API | 🟡 | Feriado por API externa; Wave A = seed nacional interno + CRUD custom por tenant (D-AGE-10) | Tech-lead | Wave B |
+| GATE-AGE-PRD-UX-STATES | 🟡 | Seção "UX dos estados não-felizes" por tela do PRD (empty/loading/403/401/duplo-submit); diferida com a frente de telas (Wave A da agenda é backend; estados de API já nas US/spec §4). Espelha GATE-ORC-PRD-UX-STATES | Tech-lead + frente de telas | Frente de telas Wave A |
+
+> **GATE-LGPD-RAT-CONSOLIDACAO** (já listado na seção LGPD): agenda adiciona ao escopo a tentativa-bloqueada de jornada em audit WORM (`EventoAuditoriaAgenda`, ≥5a) e o enquadramento `regime_jornada` (override humano = quem definiu + quando), insumo da defesa trabalhista.
 
 ---
 

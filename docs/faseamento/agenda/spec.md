@@ -7,7 +7,7 @@ diataxis: reference
 audiencia: [agente, auditor]
 frente: agenda
 tipo: spec
-proximo-passo: P2 — revisão tech-lead + consultor-rbc (Lei 13.103 / ADR-0068)
+proximo-passo: P3 plan/tasks → fatias (ações P3 executadas 2026-06-16 — ver §8)
 relacionados:
   - docs/faseamento/agenda/T-AGE-000-investigacao.md
   - docs/dominios/operacao/modulos/agenda/prd.md
@@ -88,12 +88,31 @@ gravar; materializa recorrências; registra no-show.
   evento que cruza **22h–5h** como jornada noturna (folha calcula adicional). Aplica SE `is_tecnico_campo AND
   aloca_em_umc`. Tentativa bloqueada → audit WORM (≥5a). **GATE-AGE-JORNADA-TRABALHISTA:** advogado humano OAB
   pré-produção (enquadramento individual + tabela final + convenção coletiva sindicato MT).
-- **D-AGE-15 — Discriminador de REGIME de jornada** [ADV-AGE-02 — `is_tecnico_campo` mistura 2 regimes jurídicos].
+- **D-AGE-15 — Discriminador de REGIME de jornada, com override morando na AGENDA** [ADV-AGE-02 — `is_tecnico_campo`
+  mistura 2 regimes jurídicos. **Resolvido P3 pelo tech-lead: opção híbrida (c), SEM ADR nova** — emenda de spec +
+  1 método na porta].
   `regime_jornada ∈ {motorista_profissional (235-C: R1–R5 + espera 1/1), clt_geral (art. 58/71: R1/R3/R4/R5 sem R2 e
   sem espera-específica), nao_aplica}`. Enquadramento depende da CTPS real (análise trabalhista individual — RH/
-  advogado humano, NÃO a IA). `colaboradores` está FECHADO → adicionar `regime_jornada` é nova flag/ADR [🔷 rotear
-  ao tech-lead no P3]. Wave A: agenda lê o regime via porta; default conservador `nao_aplica` (não valida sem
-  enquadramento explícito — evita falso-bloqueio E falso-negativo).
+  advogado humano, NÃO a IA decide o valor).
+  **Decisão (tech-lead P3):** `colaboradores` fica **INTACTO** (fechamento respeitado — zero migration, zero campo
+  novo na entidade `Colaborador`). O override de regime mora numa entidade **da própria agenda** —
+  `RegimeJornadaColaborador` (tabela `agenda_regime_jornada_colaborador`), INSERT-com-vigência, RLS v2 (molde
+  `ordens_servico`/`contas_receber`, D-AGE-14), guardando `(tenant_id, colaborador_id, regime, vigente_desde,
+  definido_por_usuario_id, fonte)`. Mesmo padrão de D-AGE-9 (no-show é da agenda) e D-AGE-12 (`is_tecnico_campo`
+  derivado, não persistido em colaboradores). **Não exige ADR** (ADR-0085 fica livre): é refinamento de decisão de
+  spec + porta, não decisão arquitetural transversal nem reabertura de fundação.
+  **Resolução fail-safe** (na porta `ColaboradorAgendaPort.regime_jornada(...)`, ver §4): (1) override humano vigente
+  para `(tenant_id, colaborador_id, na_data)` → vence; (2) senão deriva do papel — `MOTORISTA_UMC→motorista_profissional`,
+  `TECNICO→clt_geral`, qualquer outro/sem papel de campo → `nao_aplica`; (3) papéis de campo conflitantes simultâneos
+  (`TECNICO`+`MOTORISTA_UMC`) **sem** override → `nao_aplica` + audit `regime_indeterminado` (a IA NÃO escolhe às
+  cegas — força o enquadramento humano). **IA NUNCA grava o override — só humano (RH/advogado) escreve nessa tabela.**
+  **Default `nao_aplica` evita os dois erros, mudando o GUARDIÃO (não relaxando a regra):** sem enquadramento, NÃO
+  inventa motorista_profissional (evita falso-bloqueio por R2 que talvez não se aplique) MAS — quando o papel É de campo
+  e não há regime — aloca com **warning visível + audit WORM + pendência** (evita falso-negativo encoberto). Distinguir
+  `nao_aplica` **legítimo** (papel não-campo: ATENDENTE/QUALIDADE/DONO — sem ruído) de `nao_aplica` **por indeterminação**
+  (papel de campo sem enquadramento → pendência) via o campo `fonte`. **Non-goals da emenda:** (i) não é controle de
+  ponto (R6); (ii) não é cadastro de RH (é enquadramento jurídico pontual humano); (iii) não calcula adicional
+  noturno/DSR em dinheiro (folha Wave C); (iv) IA não grava override automaticamente.
 - **D-AGE-5 — A agenda ESCREVE na OS via `atribuir_tecnico`; LÊ via query; publica `agenda.*` própria.**
   Não promove `os_atribuida`/`atividade_reagendada` (continuam locais na OS). Eventos novos lowercase
   `agenda.evento.alocado`/`agenda.evento.reagendado`/`agenda.evento.cancelado`/`agenda.no_show.registrado`/
@@ -137,17 +156,22 @@ gravar; materializa recorrências; registra no-show.
 
 - **enums:** `TipoEvento`(os|bloqueio|descanso_legal|deslocamento|almoco|manutencao_interna|feriado),
   `EstadoEvento`(agendado|em_execucao|concluido|cancelado|no_show), `MotivoBloqueio`(ferias|treinamento|
-  atestado|outro), `AcaoAuditoria`(criado|movido|cancelado|aprovado|no_show).
+  atestado|outro), `AcaoAuditoria`(criado|movido|cancelado|aprovado|no_show|regime_indeterminado),
+  `RegimeJornada`(motorista_profissional|clt_geral|nao_aplica), `FonteRegime`(override_humano|derivado_papel|indeterminado).
 - **entities (`frozen+slots`):** `EventoAgenda` (raiz), `Recorrencia`, `RegistroNoShow`, `CapacidadeTecnico`,
-  `Feriado`, `EventoAuditoriaAgenda`.
+  `Feriado`, `EventoAuditoriaAgenda`, `RegimeJornadaColaborador` (override humano de regime de jornada,
+  INSERT-com-vigência, RLS v2 — D-AGE-15; mora na agenda, não em colaboradores).
 - **value_objects:** `Janela(inicia_at, termina_at)` (imutável, valida `inicia<termina`), `RegraRecorrencia`
-  (RRULE RFC 5545), `ResultadoJornada(ok, violacao, faltante_min, proximo_slot)`.
+  (RRULE RFC 5545), `ResultadoJornada(ok, violacao, faltante_min, proximo_slot)`, `RegimeJornadaResolvido(regime,
+  fonte)` (`fonte=indeterminado ⇒ regime SEMPRE nao_aplica` — fail-safe, D-AGE-15).
 - **transicoes.py:** `_TRANSICOES: Mapping[EstadoEvento, frozenset]` + `validar_transicao`.
 - **jornada.py:** `validar_jornada_umc(...)` (puro — 3 regras Lei 13.103) + `proximo_slot_valido`.
 - **recorrencia.py:** `materializar_janela(regra, inicio, dias=90) -> list[datetime]` (puro, determinístico).
 - **portas.py (Protocols):** `OSSchedulingPort` (atribuir/ler atividade), `ColaboradorAgendaPort`
-  (elegíveis + `pendencia_cnh`), `RTSubstitutoPort` (competência/substituto por grandeza), `MapsProvider`
-  (stub Wave A), `NotificacaoClientePort` (stub/omnichannel), `AReceberPort` (no-show cobrável).
+  (elegíveis + `pendencia_cnh` + `regime_jornada(*, tenant_id, colaborador_id, na_data) -> RegimeJornadaResolvido`
+  — override-vigente→deriva-papel→indeterminado, projetada à `na_data` do slot, D-AGE-15/D-AGE-6), `RTSubstitutoPort`
+  (competência/substituto por grandeza), `MapsProvider` (stub Wave A), `NotificacaoClientePort` (stub/omnichannel),
+  `AReceberPort` (no-show cobrável).
 - **erros.py:** `JornadaUMCViolada`(422), `SemRTNoSlot`(412), `ConflitoAgenda`(409), `MotoristaSemCNH`(422),
   `FeriadoNaoConfirmado`(422), `PerfilIndeterminado`(fail-closed).
 
@@ -156,6 +180,7 @@ gravar; materializa recorrências; registra no-show.
 | INV candidata | Enforcement |
 |---------------|-------------|
 | INV-AG-JORNADA-UMC-001 | jornada Lei 13.103 **perfil-AGNÓSTICA** (`is_tecnico_campo AND aloca_em_umc`); **5 regras** + espera=1/1 (ADI 5322); tentativa bloqueada → audit WORM; teste das 5 regras |
+| INV-AG-REGIME-001 | `regime_jornada` resolvido **server-side** via `ColaboradorAgendaPort` (override humano vigente→deriva papel→indeterminado=`nao_aplica`); **IA nunca grava override** (só humano RH/advogado); `RegimeJornadaColaborador` INSERT-com-vigência (RLS v2, mora na agenda); papéis de campo conflitantes sem override → audit `regime_indeterminado` + pendência; testes: override-vence-derivação, vigência projetada à `na_data`, fail-safe-indeterminado, não-ruído (papel não-campo = `nao_aplica` sem warning) |
 | INV-AG-OVERLAP-001 | EXCLUDE GIST **`(tenant_id, tecnico_id, tstzrange '[)')`** (exceto cancelado); 2 sobrepostos → 409; **drill PG de concorrência** (TL honestidade) |
 | INV-AG-ATIVIDADE-001 | `atividade_id` NOT NULL quando `tipo=os` (CHECK + domínio `__post_init__`); ADR-0023/0051 |
 | INV-AG-PERFIL-001 | perfil server-side (nunca payload); RT substituto **projetado ao instante do slot** — A determinístico=412/A incerto=warning/B-C warning/D off; gate duro de NC na emissão (não na agenda); UNHAPPY por perfil |
@@ -192,8 +217,11 @@ WhatsApp. GATEs: AGE-MAPS/OMNICHANNEL/PORTAL/CAPACITY/AR/FERIADO-API.
 - ✅ **`advogado` — minuta APROVA COM CORREÇÕES** (incorporada): citações R2=§5º/R5=art.71§5º; +R6 (ñ é ponto)
   +R7 (noturno); +D-AGE-15 discriminador `regime_jornada`; nota modulação ADI 5322 ex nunc 12/07/2023.
 
-**Ações P3 derivadas (antes de plan/tasks):** (1) corrigir PRD §4/AC-AG-002-2 (remover gating por perfil do
-INV-020 — perfil-agnóstico); (2) reescrever **INV-020 em `REGRAS-INEGOCIAVEIS.md`** (hoje desatualizado:
-"espera 1/3 §9" → "1/1 ADI 5322" + R4/R5/R6/R7); (3) rotear `regime_jornada` ao tech-lead (flag/ADR em
-`colaboradores` fechado — D-AGE-15). **GATE-AGE-JORNADA-TRABALHISTA** = advogado humano OAB pré-produção.
-Depois: P3 plan/tasks → fatias (núcleo autossuficiente 1a/1b/2 com portas-stub; 3 cross-módulo por contrato público).
+**Ações P3 — EXECUTADAS (2026-06-16):** (1) ✅ PRD `agenda/prd.md` §4/§5/AC-AG-002 corrigido — INV-020
+perfil-AGNÓSTICO (gating por perfil mantido só na US-AG-014 RT); (2) ✅ **INV-020 reescrito em
+`REGRAS-INEGOCIAVEIS.md`** — espera 1/1 (ADI 5322 ex nunc 12/07/2023) + R1–R7; (3) ✅ `regime_jornada` resolvido
+pelo tech-lead → **opção (c) híbrida, SEM ADR nova**: override mora na AGENDA (`RegimeJornadaColaborador`),
+`colaboradores` intacto; D-AGE-15 emendado + porta `ColaboradorAgendaPort.regime_jornada(...)` + INV-AG-REGIME-001;
+(4) ✅ **GATE-AGE-JORNADA-TRABALHISTA** registrado em `gates-wave-a-consolidado.md` (🔴 advogado OAB humano
+pré-produção) + 6 GATE-AGE-* feature-diferida.
+**PRÓXIMO: P3 plan/tasks → fatias** (núcleo autossuficiente 1a/1b/2 com portas-stub; 3 cross-módulo por contrato público).
