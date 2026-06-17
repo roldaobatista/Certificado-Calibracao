@@ -37,4 +37,5 @@ urlpatterns = [
     path("api/v1/", include("src.infrastructure.colaboradores.urls")),
     path("api/v1/", include("src.infrastructure.orcamentos.urls")),
     path("api/v1/", include("src.infrastructure.contas_receber.urls")),
+    path("api/v1/", include("src.infrastructure.agenda.urls")),
 ]

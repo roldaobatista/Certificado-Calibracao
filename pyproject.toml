@@ -207,6 +207,8 @@ module = [
     "src.infrastructure.orcamentos.serializers",
     "src.infrastructure.orcamentos.serializers_publico",
     "src.infrastructure.orcamentos._views_suporte",
+    "src.infrastructure.agenda.views",
+    "src.infrastructure.agenda.serializers",
 ]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false

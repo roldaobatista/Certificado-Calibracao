@@ -18,6 +18,7 @@ from src.domain.operacao.agenda.entities import (
     EventoAgenda,
     EventoAuditoriaAgenda,
     Feriado,
+    RegimeJornadaColaborador,
     RegistroNoShow,
 )
 from src.infrastructure.agenda import mappers
@@ -26,6 +27,9 @@ from src.infrastructure.agenda.models import (
     EventoAuditoriaAgenda as EventoAuditoriaAgendaModel,
 )
 from src.infrastructure.agenda.models import Feriado as FeriadoModel
+from src.infrastructure.agenda.models import (
+    RegimeJornadaColaborador as RegimeJornadaColaboradorModel,
+)
 from src.infrastructure.agenda.models import RegistroNoShow as RegistroNoShowModel
 
 
@@ -170,3 +174,28 @@ class DjangoEventoAgendaRepository:
             dj_models.Q(tenant__isnull=True) | dj_models.Q(tenant_id=tenant_id)
         )
         return [mappers.model_para_feriado(m) for m in qs]
+
+    def salvar_feriado(self, feriado: Feriado) -> None:
+        """Persiste feriado custom do tenant (INSERT)."""
+        FeriadoModel.objects.create(
+            id=feriado.id,
+            tenant_id=feriado.tenant_id,
+            data=feriado.data,
+            descricao=feriado.descricao,
+            nacional=feriado.nacional,
+            ativo=feriado.ativo,
+        )
+
+    def salvar_regime_override(self, override: RegimeJornadaColaborador) -> None:
+        """Persiste override de regime de jornada (INSERT-com-vigência WORM)."""
+        RegimeJornadaColaboradorModel.objects.create(
+            id=override.id,
+            tenant_id=override.tenant_id,
+            colaborador_id=override.colaborador_id,
+            regime=override.regime.value,
+            vigencia_inicio=override.vigencia_inicio,
+            vigencia_fim=override.vigencia_fim,
+            definido_por_usuario_id=override.definido_por_usuario_id,
+            fonte=override.fonte.value,
+            justificativa=override.justificativa,
+        )

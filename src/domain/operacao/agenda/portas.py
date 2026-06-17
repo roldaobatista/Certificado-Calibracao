@@ -21,7 +21,13 @@ from datetime import date, datetime
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
-from .entities import EventoAgenda, EventoAuditoriaAgenda, Feriado, RegistroNoShow
+from .entities import (
+    EventoAgenda,
+    EventoAuditoriaAgenda,
+    Feriado,
+    RegimeJornadaColaborador,
+    RegistroNoShow,
+)
 from .value_objects import RegimeJornadaResolvido
 
 
@@ -87,6 +93,14 @@ class EventoAgendaRepository(Protocol):
         data_fim: date,
     ) -> list[Feriado]:
         """Lista feriados (nacionais + custom do tenant) no intervalo."""
+        ...
+
+    def salvar_feriado(self, feriado: Feriado) -> None:
+        """Persiste feriado custom do tenant (INSERT)."""
+        ...
+
+    def salvar_regime_override(self, override: RegimeJornadaColaborador) -> None:
+        """Persiste override de regime de jornada (INSERT-com-vigência — WORM)."""
         ...
 
 
