@@ -20,13 +20,15 @@ relacionados:
 
 ## Fatia 1a — domínio puro (`src/domain/caixa_tecnico/`)
 
-- [ ] **T-CT-010** `enums.py` — `CategoriaDespesa`(6 valores) / `TipoDespesa`(normal|estorno) / `EstadoDespesa`(4) /
+> ✅ **DONE (2026-06-17)** — 11 arquivos de domínio + teste; **79 testes verdes**, `ruff check`/`format`/`mypy` limpos.
+
+- [x] **T-CT-010** `enums.py` — `CategoriaDespesa`(6 valores) / `TipoDespesa`(normal|estorno) / `EstadoDespesa`(4) /
   `EstadoAdiantamento`(5) / `MeioEntrega`(3) / `DirecaoPrestacao`(3). Todos `str, Enum`.
   **Criar:** `src/domain/caixa_tecnico/enums.py`.
   **AC:** `from src.domain.caixa_tecnico.enums import EstadoDespesa; EstadoDespesa('validada')` funciona.
   Ref: D-CT-2/3/7/8; spec §4.
 
-- [ ] **T-CT-011** `entities.py` — `CaixaTecnico`(raiz por técnico; campo `desligado_em: datetime|None` —
+- [x] **T-CT-011** `entities.py` — `CaixaTecnico`(raiz por técnico; campo `desligado_em: datetime|None` —
   fail-closed do consumer `colaborador.desligado`, D-CT-11/T-CT-050) / `Adiantamento` / `Despesa`(raiz) /
   `PrestacaoContas`(WORM) / `Politica`(por tenant) / `ConsentimentoGpsColaborador`(opt-in GPS colaborador-scoped,
   INSERT-com-vigência). Todos `@dataclass(frozen=True, slots=True)`. `Despesa.__post_init__`: `foto_hash is None`
@@ -35,21 +37,21 @@ relacionados:
   **AC:** instanciar `Despesa` sem `foto_hash` → `FotoComprovanteObrigatoria`; com `foto_hash` → OK.
   Ref: D-CT-2/3/4/6/7/8; INV-CT-FOTO-001; spec §4.
 
-- [ ] **T-CT-012** `value_objects.py` — `Periodo(de, ate)` (valida `de<ate`); `Coordenada(lat, lng)` (opcional, valida
+- [x] **T-CT-012** `value_objects.py` — `Periodo(de, ate)` (valida `de<ate`); `Coordenada(lat, lng)` (opcional, valida
   limites geográficos); `ResultadoSaldo(total_adiantado, total_despesas, saldo_final, direcao)`. Reusa `Dinheiro`
   e `ReferenciaPIIAnonimizavel` de `src/domain/shared/value_objects.py`.
   **Criar:** `src/domain/caixa_tecnico/value_objects.py`.
   **AC:** `Periodo(ate=d1, de=d2)` com `d1 < d2` → `ValueError`; `Coordenada` com lat >90 → `ValueError`.
   Ref: D-CT-2/6; spec §4.
 
-- [ ] **T-CT-013** `regras/calcular_saldo.py` — `calcular_saldo(adiantamentos, despesas) -> ResultadoSaldo`
+- [x] **T-CT-013** `regras/calcular_saldo.py` — `calcular_saldo(adiantamentos, despesas) -> ResultadoSaldo`
   (determinístico; Σ `entregues` − Σ `validadas`; `direcao` derivada automaticamente). `regras/deslocamento.py` —
   `valor_deslocamento(km_percorridos, tarifa_km) -> Dinheiro`.
   **Criar:** `src/domain/caixa_tecnico/regras/calcular_saldo.py` e `src/domain/caixa_tecnico/regras/deslocamento.py`.
   **AC:** `calcular_saldo([adiant_500], [despesa_300]) -> saldo=200, direcao=tenant_deve`; `valor_deslocamento(10, Dinheiro(150)) -> Dinheiro(1500)`.
   Ref: D-CT-2/9; INV-CT-SALDO-001; AC-CT-006-1.
 
-- [ ] **T-CT-014** `transicoes_despesa.py` — `_TRANSICOES: Mapping[EstadoDespesa, frozenset]` + `validar_transicao`
+- [x] **T-CT-014** `transicoes_despesa.py` — `_TRANSICOES: Mapping[EstadoDespesa, frozenset]` + `validar_transicao`
   (`pendente→validada`, `pendente→rejeitada`, `rejeitada→pendente`, `pendente→cancelada`; `validada` e
   `cancelada` são terminais). `transicoes_adiantamento.py` — idem para `EstadoAdiantamento` (`entregue`,
   `recusado`, `cancelado` são terminais; `entregue` levanta `AdiantamentoNaoCancelavel` se tentativa de cancelar
@@ -59,7 +61,7 @@ relacionados:
   `rejeitada→pendente` → OK (reapresentação permitida); `entregue→cancelado` → `AdiantamentoNaoCancelavel`.
   Ref: D-CT-3/7; INV-CT-ADIAN-001; AC-CT-007-2.
 
-- [ ] **T-CT-015** `portas.py` — 5 Protocols `@runtime_checkable`: `FotoComprovanteStoragePort`,
+- [x] **T-CT-015** `portas.py` — 5 Protocols `@runtime_checkable`: `FotoComprovanteStoragePort`,
   `OSReferenciaPort`, `ConsentimentoGpsPort`, `ColaboradorCaixaPort`, `ColaboradorReferenciadoPort`. `erros.py` —
   hierarquia completa (7 erros com HTTP status; ver plan §2).
   **Criar:** `src/domain/caixa_tecnico/portas.py` e `src/domain/caixa_tecnico/erros.py`.
@@ -67,7 +69,7 @@ relacionados:
   erros têm `http_status` correto.
   Ref: D-CT-4/5/6/12; spec §4.
 
-- [ ] **T-CT-016** `tests/test_caixa_tecnico_dominio_fatia1a.py` — cobre:
+- [x] **T-CT-016** `tests/test_caixa_tecnico_dominio_fatia1a.py` — cobre:
   (a) máquina estados despesa: happy `pendente→validada`; unhappy `validada→rejeitada` → `TransicaoInvalida`;
   reapresentação `rejeitada→pendente` → OK; `pendente→cancelada` → OK; todas transições proibidas parametrize;
   (b) máquina estados adiantamento: happy `solicitado→aprovado→entregue`; unhappy `entregue→cancelado` →
