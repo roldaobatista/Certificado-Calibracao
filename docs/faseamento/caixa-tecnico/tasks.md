@@ -86,7 +86,9 @@ relacionados:
 
 ## Fatia 1b — schema PG (`src/infrastructure/caixa_tecnico/`)
 
-- [ ] **T-CT-020** `apps.py` (`app_label="caixa_tecnico"`; `ready()` com `# TODO Fatia 3b: registrar consumers`) +
+> ✅ **DONE (2026-06-17)** — 6 models + 7 migrations (RLS v2 + WORM triggers + constraints) + repos + drill + `ACOES_CAIXA_TECNICO` na união. **16 testes verdes**; ruff/format/mypy + hooks de invariante (vigência/soft-delete/fk-pii/migration-rls) limpos. Tabelas: `caixa_tecnico`, `adiantamento_caixa`, `despesa_caixa`, `prestacao_contas_caixa`, `politica_caixa`, `consentimento_gps_colaborador`. **Débito menor (P9):** `0007_alter` só com help_text/blank — consolidar no `0001` numa limpeza futura.
+
+- [x] **T-CT-020** `apps.py` (`app_label="caixa_tecnico"`; `ready()` com `# TODO Fatia 3b: registrar consumers`) +
   `models.py` (6 models achatados; `_choices(enum)`; `revision`; `foto_hash` NOT NULL em `Despesa`; `gps_lat`/
   `gps_lng` `DecimalField(null=True)` em `Despesa`; `desligado_em DateTimeField(null=True)` em `CaixaTecnico`
   (fail-closed do consumer — T-CT-050); `UNIQUE(tenant_id, tecnico_id)` em `CaixaTecnico`).
@@ -94,14 +96,14 @@ relacionados:
   **AC:** `python manage.py check caixa_tecnico` sem erros; `foto_hash` NOT NULL no model.
   Ref: D-CT-1/2/3/6; spec §4.
 
-- [ ] **T-CT-021** `mappers.py` + `repositories.py` — `DjangoCaixaTecnicoRepository` + `DjangoDespesaRepository`
+- [x] **T-CT-021** `mappers.py` + `repositories.py` — `DjangoCaixaTecnicoRepository` + `DjangoDespesaRepository`
   + `DjangoAdiantamentoRepository` + `DjangoPrestacaoContasRepository` implementam Protocols de domínio.
   **Criar:** `src/infrastructure/caixa_tecnico/mappers.py` e `src/infrastructure/caixa_tecnico/repositories.py`.
   **AC:** instanciar `DjangoDespesaRepository()` sem erro; `isinstance(r, TituloRepository)` não aplicável — verificar
   que Protocol de domínio está implementado corretamente (duck-typing, sem falha de import).
   Ref: D-CT-1.
 
-- [ ] **T-CT-022** Migration `0001_initial` — CreateModel para as 6 tabelas + índices `(tenant_id, tecnico_id)` em
+- [x] **T-CT-022** Migration `0001_initial` — CreateModel para as 6 tabelas + índices `(tenant_id, tecnico_id)` em
   `CaixaTecnico`, `(tenant_id, data)` em `Despesa`, `(tenant_id, colaborador_id, vigencia_inicio)` em
   `ConsentimentoGpsColaborador`. `UNIQUE(tenant_id, tecnico_id)` em `CaixaTecnico`.
   **Criar:** `src/infrastructure/caixa_tecnico/migrations/0001_initial.py`.
@@ -109,13 +111,13 @@ relacionados:
   tabela `despesa` tem coluna `foto_hash NOT NULL`.
   Ref: D-CT-1/2; plan §3.
 
-- [ ] **T-CT-023** Migration `0002_rls_policies` — ENABLE ROW LEVEL SECURITY + FORCE ROW LEVEL SECURITY + 4 policies
+- [x] **T-CT-023** Migration `0002_rls_policies` — ENABLE ROW LEVEL SECURITY + FORCE ROW LEVEL SECURITY + 4 policies
   (`app.tenant_ids`/`app.active_tenant_id`) em **todas** as 6 tabelas (molde `contas_receber/migrations/0002_rls_policies.py`).
   **Criar:** `src/infrastructure/caixa_tecnico/migrations/0002_rls_policies.py`.
   **AC:** migration aplica; drill `validar_caixa_tecnico` confirma FORCE em todas as tabelas.
   Ref: D-CT-10; INV-TENANT-*.
 
-- [ ] **T-CT-024** Migration `0003_triggers_worm` — (a) trigger `caixa_tecnico_despesa_anti_mutacao` `BEFORE UPDATE OR
+- [x] **T-CT-024** Migration `0003_triggers_worm` — (a) trigger `caixa_tecnico_despesa_anti_mutacao` `BEFORE UPDATE OR
   DELETE ON caixa_tecnico_despesa FOR EACH ROW WHEN (OLD.status = 'validada')` → RAISE (molde
   `orcamentos/migrations/0003_triggers_worm.py`); (b) block-delete `despesa` **sempre** (nunca DELETE físico — molde
   `contas_receber titulo_receber_block_delete`); (c) `PrestacaoContas` WORM: INSERT-only nos campos financeiros
@@ -126,7 +128,7 @@ relacionados:
   `total_adiantado` em `prestacao_contas` → RAISE.
   Ref: D-CT-3; INV-CT-IMUT-001; AC-CT-005-3.
 
-- [ ] **T-CT-025** Migration `0004_constraints` — (a) `UNIQUE(tenant_id, foto_hash) WHERE status NOT IN ('rejeitada',
+- [x] **T-CT-025** Migration `0004_constraints` — (a) `UNIQUE(tenant_id, foto_hash) WHERE status NOT IN ('rejeitada',
   'cancelada')` — `tenant_id` **primeira coluna** (R1); (b) `UNIQUE(tenant_id, client_offline_id)` em `Despesa`
   (dedup batch per-item — D-CT-5).
   **Criar:** `src/infrastructure/caixa_tecnico/migrations/0004_constraints.py`.
@@ -134,7 +136,7 @@ relacionados:
   de mesma `foto_hash` em tenant diferente → OK (R12); INSERT de `client_offline_id` repetido no mesmo tenant → IntegrityError.
   Ref: D-CT-4/5; INV-CT-FOTO-DEDUP-001 / INV-CT-IDEMP-001.
 
-- [ ] **T-CT-026** Migrations `0005_grants_app_user` + `0006_seed_authz` (ações `caixa_tecnico.*` × papéis) +
+- [x] **T-CT-026** Migrations `0005_grants_app_user` + `0006_seed_authz` (ações `caixa_tecnico.*` × papéis) +
   bloco `ACOES_CAIXA_TECNICO` em `src/infrastructure/audit/acoes_canonicas.py` + **união em `ACOES_CANONICAS`**
   (9 slugs lowercase `caixa_tecnico.*`). **Editar arquivo existente** — não criar novo.
   **Editar:** `src/infrastructure/audit/acoes_canonicas.py`.
@@ -142,7 +144,7 @@ relacionados:
   **AC:** `from src.infrastructure.audit.acoes_canonicas import assert_acao_canonica; assert_acao_canonica('caixa_tecnico.despesa.lancada')` não levanta; `assert_acao_canonica('caixa_tecnico.prestacao.fechada')` não levanta (R4).
   Ref: D-CT-11; TL-CT-11; INV-008.
 
-- [ ] **T-CT-027** `management/commands/validar_caixa_tecnico.py` — drill estrutural: RLS enabled/force em todas as
+- [x] **T-CT-027** `management/commands/validar_caixa_tecnico.py` — drill estrutural: RLS enabled/force em todas as
   6 tabelas; ≥4 policies por tabela; trigger `caixa_tecnico_despesa_anti_mutacao` presente; block-delete `despesa`
   presente; WORM campos financeiros `prestacao_contas` presente; UNIQUE `foto_hash` com `tenant_id` primeiro;
   UNIQUE `client_offline_id`; grants `app_user`. + `tests/test_caixa_tecnico_schema_fatia1b.py` —

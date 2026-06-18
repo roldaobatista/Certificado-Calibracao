@@ -485,6 +485,29 @@ ACOES_AGENDA: Final[frozenset[str]] = frozenset(
 )
 
 
+# Wave A frente caixa_tecnico (T-CT-026 / D-CT-11) — caixa operacional do técnico
+# de campo. 9 slugs canônicos: adiantamento (5 estados), despesa (3 estados),
+# prestação (fechamento). Slug LOWERCASE (exigência CHECK bus_outbox_acao_enum_semantico).
+# Eventos publicados via outbox=True; trilha WORM via despesa_caixa block-delete
+# (D-CT-3/5a). Consumer colaborador.desligado → caixa_tecnico em Fatia 3b.
+ACOES_CAIXA_TECNICO: Final[frozenset[str]] = frozenset(
+    {
+        # Adiantamento — máquina de estados (D-CT-7 / US-CT-001..003)
+        "caixa_tecnico.adiantamento.solicitado",
+        "caixa_tecnico.adiantamento.aprovado",
+        "caixa_tecnico.adiantamento.entregue",
+        "caixa_tecnico.adiantamento.recusado",
+        "caixa_tecnico.adiantamento.cancelado",
+        # Despesa — máquina de estados (D-CT-3 / US-CT-005..008)
+        "caixa_tecnico.despesa.lancada",
+        "caixa_tecnico.despesa.validada",
+        "caixa_tecnico.despesa.rejeitada",
+        # Prestação de contas — fechamento WORM (D-CT-8 / US-CT-010)
+        "caixa_tecnico.prestacao.fechada",
+    }
+)
+
+
 ACOES_CANONICAS: Final[frozenset[str]] = (
     ACOES_CLIENTES
     | ACOES_SISTEMA
@@ -506,6 +529,7 @@ ACOES_CANONICAS: Final[frozenset[str]] = (
     | ACOES_ORCAMENTOS
     | ACOES_CONTAS_RECEBER
     | ACOES_AGENDA
+    | ACOES_CAIXA_TECNICO
 )
 
 
