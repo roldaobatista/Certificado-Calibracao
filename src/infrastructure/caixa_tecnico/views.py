@@ -41,6 +41,7 @@ from typing import Any
 from uuid import UUID
 
 from django.db import IntegrityError, connection, transaction
+from django.http import HttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
@@ -86,7 +87,13 @@ from src.application.caixa_tecnico.validar_despesa import (
     ValidarDespesaInput,
     ValidarDespesaUseCase,
 )
-from src.domain.caixa_tecnico.enums import CategoriaDespesa, MeioEntrega, TipoDespesa
+from src.domain.caixa_tecnico.enums import (
+    CategoriaDespesa,
+    EstadoAdiantamento,
+    EstadoDespesa,
+    MeioEntrega,
+    TipoDespesa,
+)
 from src.domain.caixa_tecnico.erros import (
     AdiantamentoNaoCancelavel,
     CaixaTecnicoDesligado,
@@ -97,12 +104,17 @@ from src.domain.caixa_tecnico.erros import (
     PeriodoPrestacaoFechado,
     TransicaoInvalida,
 )
+from src.infrastructure.audit.services import hashear_pii_com_salt_tenant
 from src.infrastructure.authz.perfil_tenant_helper import obter_perfil_tenant_corrente
+from src.infrastructure.caixa_tecnico.colaborador_caixa_adapter import (
+    ColaboradorCaixaAdapter,
+)
 from src.infrastructure.caixa_tecnico.consentimento_gps_adapter import (
     ConsentimentoGpsAdapter,
 )
 from src.infrastructure.caixa_tecnico.foto_storage import FotoComprovanteStorageLocal
 from src.infrastructure.caixa_tecnico.os_referencia_adapter import OSReferenciaAdapter
+from src.infrastructure.caixa_tecnico.pdf_prestacao import gerar_pdf_prestacao
 from src.infrastructure.caixa_tecnico.repositories import (
     AdiantamentoRepository,
     CaixaTecnicoRepository,
@@ -338,6 +350,52 @@ def _uuid_ou_404(raw: str | None) -> UUID:
         return UUID(str(raw))
     except (ValueError, TypeError) as exc:
         raise NotFound(f"id inválido: {exc}") from exc
+
+
+def _resolver_colaborador(tenant_id: UUID, usuario_id: UUID) -> UUID | None:
+    """Resolve o ``colaborador_id`` vinculado ao usuário corrente (``Colaborador.usuario_id``).
+
+    Leitura pura sobre ``colaboradores`` (seam, não estende módulo fechado). Retorna
+    ``None`` quando o usuário não tem colaborador vinculado (ex.: ``admin_tenant``).
+    """
+    from src.infrastructure.colaboradores.models import Colaborador
+
+    return (
+        Colaborador.objects.filter(tenant_id=tenant_id, usuario_id=usuario_id)
+        .values_list("id", flat=True)
+        .first()
+    )
+
+
+def _pode_ver_prestacao(tenant_id: UUID, prestacao: Any) -> bool:
+    """Autorização de leitura da prestação: técnico-próprio OU financeiro (não-técnico).
+
+    Regra (TL-CT-03 / plan §7):
+      - técnico-próprio (hash do colaborador == hash do caixa da prestação) → True;
+      - usuário não-vinculado a colaborador (financeiro/gestor/admin) → True (vê tudo);
+      - colaborador é TÉCNICO mas de OUTRO caixa → False (403).
+
+    Fail-closed: sem usuário no contexto → False.
+    """
+    usuario_id = usuario_id_context.get()
+    if usuario_id is None:
+        return False
+    colaborador_id = _resolver_colaborador(tenant_id, usuario_id)
+    if colaborador_id is None:
+        # Sem colaborador vinculado → não é técnico (financeiro/gestor/admin) → vê tudo.
+        return True
+    tecnico_hash = hashear_pii_com_salt_tenant(str(colaborador_id), tenant_id).split(":", 1)[1]
+    if tecnico_hash == prestacao.tecnico_referencia.hash_original:
+        return True  # técnico-próprio
+    # Não é o dono do caixa: só permitido se NÃO for técnico (financeiro/gestor).
+    return not ColaboradorCaixaAdapter().e_tecnico(tenant_id, colaborador_id)
+
+
+def _tenant_nome(tenant_id: UUID) -> str:
+    """Nome-fantasia do emitente (equivalente ao logo no PDF). Defensivo: ``''`` se ausente."""
+    from src.infrastructure.tenant.models import Tenant
+
+    return Tenant.objects.filter(id=tenant_id).values_list("nome_fantasia", flat=True).first() or ""
 
 
 def _falha(chave_id: UUID, tenant_id: UUID, exc: Exception, http_status_code: int) -> Response:
@@ -1244,6 +1302,7 @@ class PrestacaoContasViewSet(viewsets.ViewSet):
         "list": "caixa_tecnico.ver",
         "retrieve": "caixa_tecnico.ver",
         "fechar": "caixa_tecnico.fechar_prestacao",
+        "pdf": "caixa_tecnico.ver",
     }
 
     def get_authz_action(self, request: Request) -> str | None:
@@ -1268,6 +1327,61 @@ class PrestacaoContasViewSet(viewsets.ViewSet):
         repo = PrestacaoRepository()
         prestacoes = repo.listar_por_caixa(tenant_id=tenant_id, caixa_id=caixa_id)
         return Response([_serializar_prestacao(p) for p in prestacoes])
+
+    # ---------------------------------------------------------------- GET pdf
+    @action(detail=True, methods=["get"], url_path="pdf")
+    def pdf(self, request: Request, pk: str | None = None) -> Response | HttpResponse:
+        """GET ``/prestacoes/{id}/pdf/`` — PDF da prestação (projeção on-demand — T-CT-055).
+
+        Permissão: técnico-próprio OU financeiro/gestor (não-técnico). Outro técnico → 403.
+        Cross-tenant → 404 (RLS + repo escopado). GPS AUSENTE no PDF (AC-CT-002-7);
+        só dados fiscais (valor, categoria, data, OS vinculada). O dado WORM é a fonte;
+        o PDF é regenerável (não persistido como fonte — TL-CT-03 / D-CT-8).
+        """
+        tenant_id = _tenant_ou_none()
+        if tenant_id is None:
+            return Response({"erro": "tenant ausente"}, status=status.HTTP_403_FORBIDDEN)
+
+        prestacao_id = _uuid_ou_404(pk)
+        prestacao = PrestacaoRepository().obter_por_id(
+            tenant_id=tenant_id, prestacao_id=prestacao_id
+        )
+        if prestacao is None:
+            # Cross-tenant cai aqui (RLS escopa o repo) → 404, não 403.
+            raise NotFound(f"Prestação {pk} não encontrada.")
+
+        if not _pode_ver_prestacao(tenant_id, prestacao):
+            return Response(
+                {"erro": "prestação pertence a outro técnico"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        periodo = prestacao.periodo
+        despesas = [
+            d
+            for d in DespesaRepository().listar_por_caixa(
+                tenant_id, prestacao.caixa_id, estado=EstadoDespesa.VALIDADA.value
+            )
+            if periodo.contem(d.data)
+        ]
+        adiantamentos = [
+            a
+            for a in AdiantamentoRepository().listar_por_caixa(
+                tenant_id, prestacao.caixa_id, estado=EstadoAdiantamento.ENTREGUE.value
+            )
+            if a.entregue_em is not None and periodo.contem(a.entregue_em.date())
+        ]
+
+        pdf_bytes = gerar_pdf_prestacao(
+            prestacao, despesas, adiantamentos, tenant_nome=_tenant_nome(tenant_id)
+        )
+        response = HttpResponse(
+            pdf_bytes, content_type="application/pdf", status=status.HTTP_200_OK
+        )
+        response["Content-Disposition"] = f'inline; filename="prestacao-{prestacao_id}.pdf"'
+        # Cache PRIVATE: contém nome-fantasia do tenant e é por-prestação.
+        response["Cache-Control"] = "private, max-age=60"
+        return response
 
     # ---------------------------------------------------------------- GET retrieve
     def retrieve(self, request: Request, pk: str | None = None) -> Response:

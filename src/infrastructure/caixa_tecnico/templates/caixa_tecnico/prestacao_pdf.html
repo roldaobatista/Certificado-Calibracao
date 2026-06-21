@@ -1,0 +1,101 @@
+{% comment %}
+Prestação de contas do técnico — PDF leve (Fatia 3c / T-CT-055).
+HTML+CSS 100% INLINE: sem imagem/fonte/recurso externo (url_fetcher recusa
+não-data: — CVE-2025-68616). GPS AUSENTE no corpo (AC-CT-002-7) — só dados
+fiscais. Sem PII de cliente; emitente = nome-fantasia do tenant.
+{% endcomment %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { font-family: "DejaVu Sans", sans-serif; }
+  body { color: #1a1a1a; font-size: 10pt; }
+  h1 { font-size: 15pt; margin: 0 0 2mm 0; }
+  .emitente { font-size: 11pt; font-weight: bold; color: #333; margin-bottom: 1mm; }
+  .meta { color: #555; font-size: 8.5pt; margin-bottom: 4mm; }
+  .resumo { width: 100%; border-collapse: collapse; margin: 3mm 0 5mm 0; }
+  .resumo td { padding: 1.6mm 2mm; border: 0.3pt solid #ccc; }
+  .resumo td.rotulo { background: #f2f2f2; font-weight: bold; width: 45%; }
+  .saldo { font-size: 12pt; font-weight: bold; }
+  h2 { font-size: 11pt; margin: 4mm 0 1.5mm 0; border-bottom: 0.6pt solid #888; padding-bottom: 1mm; }
+  table.itens { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  table.itens th { background: #eaeaea; text-align: left; padding: 1.4mm 2mm; border: 0.3pt solid #ccc; }
+  table.itens td { padding: 1.2mm 2mm; border: 0.3pt solid #ddd; vertical-align: top; }
+  td.categoria { text-transform: capitalize; }
+  td.valor { text-align: right; white-space: nowrap; }
+  .vazio { color: #777; font-style: italic; padding: 2mm; }
+  .rodape { margin-top: 6mm; font-size: 7.5pt; color: #777; border-top: 0.3pt solid #ccc; padding-top: 2mm; }
+</style>
+</head>
+<body>
+  {% if tenant_nome %}<div class="emitente">{{ tenant_nome }}</div>{% endif %}
+  <h1>Prestação de Contas — Caixa do Técnico</h1>
+  <div class="meta">
+    Período: <strong>{{ periodo_de }}</strong> a <strong>{{ periodo_ate }}</strong>
+    &nbsp;·&nbsp; Técnico (ref.): {{ tecnico_referencia }}…
+    &nbsp;·&nbsp; Fechada em: {{ fechada_em }}
+  </div>
+
+  <table class="resumo">
+    <tr><td class="rotulo">Total adiantado (entregue)</td><td class="valor">{{ total_adiantado }}</td></tr>
+    <tr><td class="rotulo">Total despesas validadas</td><td class="valor">{{ total_despesas }}</td></tr>
+    <tr><td class="rotulo">Saldo final</td><td class="valor saldo">{{ saldo_final }}</td></tr>
+    <tr><td class="rotulo">Direção do saldo</td><td>{{ direcao }}</td></tr>
+  </table>
+
+  <h2>Despesas validadas</h2>
+  {% if despesas %}
+  <table class="itens">
+    <thead>
+      <tr><th>Data</th><th>Categoria</th><th>OS vinculada</th><th>Descrição</th><th style="text-align:right">Valor</th></tr>
+    </thead>
+    <tbody>
+      {% for d in despesas %}
+      <tr>
+        <td>{{ d.data }}</td>
+        <td class="categoria">{{ d.categoria }}</td>
+        <td>{{ d.os_id }}</td>
+        <td>{{ d.descricao }}</td>
+        <td class="valor">{{ d.valor }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="vazio">Nenhuma despesa validada no período.</div>
+  {% endif %}
+
+  <h2>Adiantamentos entregues</h2>
+  {% if adiantamentos %}
+  <table class="itens">
+    <thead>
+      <tr><th>Data de entrega</th><th>Meio</th><th style="text-align:right">Valor</th></tr>
+    </thead>
+    <tbody>
+      {% for a in adiantamentos %}
+      <tr>
+        <td>{{ a.data }}</td>
+        <td class="categoria">{{ a.meio }}</td>
+        <td class="valor">{{ a.valor }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="vazio">Nenhum adiantamento entregue no período.</div>
+  {% endif %}
+
+  {% if observacoes %}
+  <h2>Observações</h2>
+  <div>{{ observacoes }}</div>
+  {% endif %}
+
+  <div class="rodape">
+    Documento gerado sob demanda a partir do registro imutável (WORM) da prestação
+    {{ prestacao_id }} · caixa {{ caixa_id }}. Sem dados de localização do técnico
+    (minimização — LGPD art. 6º III). Foto-comprovante e valores preservados pela retenção fiscal.
+  </div>
+</body>
+</html>
