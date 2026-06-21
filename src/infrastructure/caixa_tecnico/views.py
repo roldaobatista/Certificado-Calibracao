@@ -40,7 +40,7 @@ import logging
 from typing import Any
 from uuid import UUID
 
-from django.db import connection, transaction
+from django.db import IntegrityError, connection, transaction
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
@@ -92,15 +92,17 @@ from src.domain.caixa_tecnico.erros import (
     CaixaTecnicoDesligado,
     CaixaTecnicoDomainError,
     FotoComprovanteObrigatoria,
+    FotoDuplicada,
     LoteExcedido,
     PeriodoPrestacaoFechado,
     TransicaoInvalida,
 )
 from src.infrastructure.authz.perfil_tenant_helper import obter_perfil_tenant_corrente
-from src.infrastructure.caixa_tecnico.ports_stub import (
-    ConsentimentoGpsFake,
-    FotoComprovanteStorageFake,
+from src.infrastructure.caixa_tecnico.consentimento_gps_adapter import (
+    ConsentimentoGpsAdapter,
 )
+from src.infrastructure.caixa_tecnico.foto_storage import FotoComprovanteStorageLocal
+from src.infrastructure.caixa_tecnico.os_referencia_adapter import OSReferenciaAdapter
 from src.infrastructure.caixa_tecnico.repositories import (
     AdiantamentoRepository,
     CaixaTecnicoRepository,
@@ -280,18 +282,23 @@ def _serializar_prestacao(p: Any) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Fábricas de use cases (portas FAKE em Wave A — Fatia 3a substitui)
+# Fábricas de use cases (adapters reais cross-módulo — Fatia 3a / T-CT-040..042)
 # ---------------------------------------------------------------------------
 
 
-def _make_foto_storage() -> FotoComprovanteStorageFake:
-    """Porta FAKE de storage de foto (Fatia 3a substitui por real)."""
-    return FotoComprovanteStorageFake()
+def _make_foto_storage() -> FotoComprovanteStorageLocal:
+    """Adapter real de storage de foto (EXIF strip + HMAC-tenant — T-CT-040)."""
+    return FotoComprovanteStorageLocal()
 
 
-def _make_consentimento_port() -> ConsentimentoGpsFake:
-    """Porta FAKE de consentimento GPS (Fatia 3a substitui por real)."""
-    return ConsentimentoGpsFake(opt_in_ativo=False)  # fail-safe: sem opt-in por padrão
+def _make_consentimento_port() -> ConsentimentoGpsAdapter:
+    """Adapter real de consentimento GPS server-side (T-CT-041)."""
+    return ConsentimentoGpsAdapter()
+
+
+def _make_os_referencia() -> OSReferenciaAdapter:
+    """Adapter real de referência de OS (leitura pura sobre ordens_servico — T-CT-042)."""
+    return OSReferenciaAdapter()
 
 
 def _make_lancar_uc() -> LancarDespesaUseCase:
@@ -302,6 +309,7 @@ def _make_lancar_uc() -> LancarDespesaUseCase:
         prestacao_repo=PrestacaoRepository(),
         foto_storage=_make_foto_storage(),
         consentimento_port=_make_consentimento_port(),
+        os_referencia_port=_make_os_referencia(),
     )
 
 
@@ -335,6 +343,41 @@ def _uuid_ou_404(raw: str | None) -> UUID:
 def _falha(chave_id: UUID, tenant_id: UUID, exc: Exception, http_status_code: int) -> Response:
     falhar_chave(chave_id=chave_id, tenant_id=tenant_id, response_status=http_status_code)
     return Response({"erro": str(exc)}, status=http_status_code)
+
+
+def _integrity_para_resposta(
+    chave_id: UUID,
+    tenant_id: UUID,
+    exc: IntegrityError,
+    *,
+    permite_replay_offline: bool = True,
+) -> Response:
+    """Traduz ``IntegrityError`` dos UNIQUE parciais do caixa_tecnico em resposta REST.
+
+    - ``uq_ct_despesa_foto_hash_ativa`` → 409 FOTO_DUPLICADA (INV-CT-FOTO-DEDUP-001): com
+      adapters reais (Fatia 3a) o ``foto_hash`` é determinístico, então a mesma foto
+      relançada no tenant viola o índice — o backstop do banco vira **409, não 500**.
+    - ``uq_ct_despesa_offline_id`` → replay idempotente 200 (corrida de ``client_offline_id``
+      vencendo o check-then-act/TOCTOU do use case — o índice fecha a janela).
+    Outro ``IntegrityError`` → re-levanta (erro real; não mascarar).
+    """
+    msg = str(exc).lower()
+    if "foto_hash" in msg:
+        return _falha(
+            chave_id,
+            tenant_id,
+            FotoDuplicada("foto-comprovante já lançada neste tenant (INV-CT-FOTO-DEDUP-001)"),
+            status.HTTP_409_CONFLICT,
+        )
+    if permite_replay_offline and "offline_id" in msg:
+        concluir_chave(
+            chave_id=chave_id,
+            tenant_id=tenant_id,
+            response_status=200,
+            response_body_resumo={"replay": True},
+        )
+        return Response({"replay": True}, status=status.HTTP_200_OK)
+    raise exc
 
 
 # ---------------------------------------------------------------------------
@@ -482,6 +525,9 @@ class DespesaCaixaViewSet(viewsets.ViewSet):
             return _falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
         except CaixaTecnicoDomainError as exc:
             return _falha(chave_id, tenant_id, exc, exc.http_status)
+        except IntegrityError as exc:
+            # dedup foto (409 INV-CT-FOTO-DEDUP-001) ou corrida client_offline_id (replay 200).
+            return _integrity_para_resposta(chave_id, tenant_id, exc)
         except ValueError as exc:
             # client_offline_id duplicado → trata como replay idempotente (200)
             if "client_offline_id já existe" in str(exc):
@@ -675,6 +721,9 @@ class DespesaCaixaViewSet(viewsets.ViewSet):
             return _falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
         except CaixaTecnicoDomainError as exc:
             return _falha(chave_id, tenant_id, exc, exc.http_status)
+        except IntegrityError as exc:
+            # nova foto da reapresentação colide com foto ativa do tenant → 409.
+            return _integrity_para_resposta(chave_id, tenant_id, exc, permite_replay_offline=False)
         except ValueError as exc:
             return _falha(chave_id, tenant_id, exc, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
@@ -817,6 +866,33 @@ class DespesaCaixaViewSet(viewsets.ViewSet):
                                 "codigo_http": exc.http_status,
                             }
                         )
+                    except IntegrityError as exc:
+                        dj_transaction.savepoint_rollback(sp)
+                        msg = str(exc).lower()
+                        if "foto_hash" in msg:
+                            # foto duplicada no tenant (INV-CT-FOTO-DEDUP-001) → 409.
+                            resultados.append(
+                                {
+                                    "indice": i,
+                                    "sucesso": False,
+                                    "despesa_id": None,
+                                    "erro": "foto duplicada (INV-CT-FOTO-DEDUP-001)",
+                                    "codigo_http": 409,
+                                }
+                            )
+                        elif "offline_id" in msg:
+                            # corrida de client_offline_id venceu o pre-check → replay idempotente.
+                            resultados.append(
+                                {
+                                    "indice": i,
+                                    "sucesso": True,
+                                    "despesa_id": None,
+                                    "erro": "replay idempotente",
+                                    "codigo_http": 200,
+                                }
+                            )
+                        else:
+                            raise
                     except Exception as exc:
                         dj_transaction.savepoint_rollback(sp)
                         resultados.append(

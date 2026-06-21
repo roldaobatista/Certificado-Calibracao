@@ -28,14 +28,18 @@ class FotoComprovanteStorageFake:
 
     def validar_e_processar(
         self,
+        tenant_id: UUID,
         bytes_foto: bytes,
         mime_type: str,
     ) -> tuple[bytes, str]:
         """Calcula SHA-256 dos bytes como foto_hash (sem EXIF strip — fake).
 
-        Determinístico: mesmos bytes → mesmo hash.
+        Assinatura ``(tenant_id, bytes, mime)`` acompanha ``FotoComprovanteStoragePort``
+        (Fatia 3a). Determinístico: mesmos bytes → mesmo hash (tenant_id ignorado no fake).
         """
-        foto_hash = hashlib.sha256(bytes_foto).hexdigest()  # audit-pii-salt: skip -- SHA-256 de bytes de imagem (binario, nao PII textual) em FAKE de teste; hash deterministico p/ isolamento; molde equipamentos/services_foto_storage.py
+        foto_hash = hashlib.sha256(
+            bytes_foto
+        ).hexdigest()  # audit-pii-salt: skip -- SHA-256 de bytes de imagem (binario, nao PII textual) em FAKE de teste; hash deterministico p/ isolamento; molde equipamentos/services_foto_storage.py
         return bytes_foto, foto_hash
 
     def salvar(
@@ -111,5 +115,5 @@ class ColaboradorReferenciadoFake:
     def __init__(self, esta_referenciado: bool = False) -> None:
         self._esta_referenciado = esta_referenciado
 
-    def esta_referenciado(self, tenant_id: UUID, colaborador_id: UUID) -> bool:
+    def esta_referenciado(self, colaborador_id: UUID, tenant_id: UUID) -> bool:
         return self._esta_referenciado

@@ -22,11 +22,13 @@ from src.domain.caixa_tecnico.enums import (
 )
 from src.domain.caixa_tecnico.erros import (
     CaixaTecnicoDesligado,
+    OSInexistente,
     PeriodoPrestacaoFechado,
 )
 from src.domain.caixa_tecnico.portas import (
     ConsentimentoGpsPort,
     FotoComprovanteStoragePort,
+    OSReferenciaPort,
 )
 from src.domain.caixa_tecnico.regras.deslocamento import valor_deslocamento
 from src.domain.shared.value_objects import Dinheiro
@@ -90,6 +92,7 @@ class LancarDespesaUseCase:
         prestacao_repo: PrestacaoRepository,
         foto_storage: FotoComprovanteStoragePort,
         consentimento_port: ConsentimentoGpsPort,
+        os_referencia_port: OSReferenciaPort,
     ) -> None:
         self._caixa_repo = caixa_repo
         self._despesa_repo = despesa_repo
@@ -97,6 +100,7 @@ class LancarDespesaUseCase:
         self._prestacao_repo = prestacao_repo
         self._foto_storage = foto_storage
         self._consentimento_port = consentimento_port
+        self._os_referencia_port = os_referencia_port
 
     def executar(self, inp: LancarDespesaInput) -> LancarDespesaOutput:
         """Executa o lançamento de despesa.
@@ -116,7 +120,9 @@ class LancarDespesaUseCase:
                         ou client_offline_id duplicado.
             CaixaTecnicoDesligado: caixa desligado (409).
             PeriodoPrestacaoFechado: período já encerrado por prestação (422).
-            FotoComprovanteObrigatoria: foto inválida ou ausente (412).
+            FotoComprovanteObrigatoria: foto ausente / bytes vazios (412).
+            FotoTipoInvalido: MIME fora da allowlist, >5MB ou imagem corrompida (422).
+            OSInexistente: os_id informado não existe no tenant (422).
         """
         # 1. Carrega caixa
         caixa = self._caixa_repo.obter_por_id(inp.tenant_id, inp.caixa_id)
@@ -127,9 +133,19 @@ class LancarDespesaUseCase:
                 f"CaixaTecnico {inp.caixa_id} está desligado — novos lançamentos bloqueados"
             )
 
+        # 1.5. Valida vínculo de OS (D-CT-11 / US-CT-003 / spec §6) — quando informado,
+        # a OS precisa existir no tenant (cross-tenant → inexistente). Checagem barata
+        # antes do processamento da foto.
+        if inp.os_id is not None and not self._os_referencia_port.existe_os(
+            inp.os_id, inp.tenant_id
+        ):
+            raise OSInexistente(
+                f"OS {inp.os_id} não existe no tenant {inp.tenant_id} (vínculo inválido)"
+            )
+
         # 2. Processa foto
         bytes_limpos, foto_hash = self._foto_storage.validar_e_processar(
-            inp.foto_bytes, inp.foto_mime
+            inp.tenant_id, inp.foto_bytes, inp.foto_mime
         )
 
         # 3. Calcula valor

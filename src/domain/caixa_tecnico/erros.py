@@ -54,6 +54,18 @@ class FotoDuplicada(CaixaTecnicoDomainError):
     reason = "FOTO_DUPLICADA"
 
 
+class FotoTipoInvalido(CaixaTecnicoDomainError):
+    """Foto-comprovante PRESENTE mas inválida: MIME fora da allowlist (≠ JPG/PNG),
+    binário >5MB ou imagem corrompida/não decodificável (D-CT-4 / TL-CT-01).
+
+    Distinta de ``FotoComprovanteObrigatoria`` (foto AUSENTE → 412): aqui a foto
+    veio mas o adapter de storage rejeita no pipeline de validação → 422.
+    """
+
+    http_status = 422
+    reason = "FOTO_TIPO_INVALIDO"
+
+
 # --- GPS / consentimento (403) ---
 
 
@@ -118,6 +130,21 @@ class LoteExcedido(CaixaTecnicoDomainError):
 
     http_status = 413
     reason = "LOTE_EXCEDIDO"
+
+
+# --- OS referenciada (422) ---
+
+
+class OSInexistente(CaixaTecnicoDomainError):
+    """Despesa lançada com ``os_id`` que não existe ou não pertence ao tenant (D-CT-11).
+
+    O vínculo OS↔despesa é opcional, mas quando informado a OS precisa existir no
+    tenant (seam de leitura ``OSReferenciaPort``). Cross-tenant → tratado como
+    inexistente (anti-oráculo). Levantada no ``LancarDespesaUseCase``.
+    """
+
+    http_status = 422
+    reason = "OS_INEXISTENTE"
 
 
 # --- Caixa desligado (409) ---

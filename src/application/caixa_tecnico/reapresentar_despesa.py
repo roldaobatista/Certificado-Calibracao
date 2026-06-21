@@ -79,7 +79,7 @@ class ReapresentarDespesaUseCase:
 
         # 3. Processa nova foto
         bytes_limpos, novo_foto_hash = self._foto_storage.validar_e_processar(
-            inp.foto_bytes, inp.foto_mime
+            inp.tenant_id, inp.foto_bytes, inp.foto_mime
         )
 
         # 4. Salva nova foto

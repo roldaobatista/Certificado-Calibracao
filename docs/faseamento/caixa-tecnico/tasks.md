@@ -238,7 +238,9 @@ relacionados:
 
 ## Fatia 3a — adapters reais (cross-módulo; R8 — skip hook + justificativa)
 
-- [ ] **T-CT-040** `FotoComprovanteStorageLocal` (`src/infrastructure/caixa_tecnico/foto_storage.py`) — implementa
+> ✅ **DONE (2026-06-21)** — 4 adapters reais (`foto_storage.py` EXIF strip + HMAC-tenant pós-strip; `consentimento_gps_adapter.py`; `colaborador_caixa_adapter.py` e_tecnico + esta_referenciado; `os_referencia_adapter.py`) substituíram `ports_stub.py` (removido). Wiring fail-open de `esta_referenciado` no `ColaboradorViewSet` (`apps.py` — débito **GATE-CT-COLABORADOR-REFERENCIADO**, ninguém consome hoje). `LancarDespesaUseCase` ganhou `OSReferenciaPort` + validação de `os_id`. **Reconciliação de erro:** tipo de foto inválido (MIME/tamanho/corrompida) → novo `FotoTipoInvalido` **422** (não `FotoComprovanteObrigatoria` 412, que fica só p/ foto AUSENTE) — alinha T-CT-043 (linha "tipo inválido → 422") e a spec §4. **43 testes verdes** (19 adapters Fatia 3a + 24 regressão Fatia 2 com JPEG real). ruff/format/mypy limpos.
+
+- [x] **T-CT-040** `FotoComprovanteStorageLocal` (`src/infrastructure/caixa_tecnico/foto_storage.py`) — implementa
   `FotoComprovanteStoragePort`; pipeline: (1) valida JPG/PNG + MIME allowlist + ≤5MB; (2) Pillow EXIF strip;
   (3) `foto_hash = HMAC-SHA256(bytes_pós-strip, chave_tenant)` via helper `hashear_pii_com_salt_tenant`
   (ADR-0064); (4) content-address `media/caixa_tecnico/<tenant>/<hmac[:2]>/<hmac>`; (5) `if not exists` (idempotente).
@@ -249,7 +251,7 @@ relacionados:
   tipo TIFF → `FotoComprovanteObrigatoria`; >5MB → erro.
   Ref: D-CT-4; TL-CT-01/02/14; INV-CT-FOTO-001 / INV-CT-FOTO-DEDUP-001 / INV-LGPD-CONSENT-001.
 
-- [ ] **T-CT-041** `ConsentimentoGpsAdapter` (`src/infrastructure/caixa_tecnico/consentimento_gps_adapter.py`) —
+- [x] **T-CT-041** `ConsentimentoGpsAdapter` (`src/infrastructure/caixa_tecnico/consentimento_gps_adapter.py`) —
   implementa `ConsentimentoGpsPort`; lê `ConsentimentoGpsColaborador` (entidade no próprio `caixa_tecnico`);
   `opt_in_vigente(tenant, colaborador, na_data)` → verifica `vigencia_inicio ≤ na_data` + ausência de revogação.
   `ColaboradorCaixaAdapter` (`colaborador_caixa_adapter.py`) — implementa `ColaboradorCaixaPort` +
@@ -260,14 +262,14 @@ relacionados:
   **AC:** `opt_in_vigente` com vigência ativa → True; revogado → False; `esta_referenciado` com despesa aberta → True; sem vínculos → False.
   Ref: D-CT-6/12; INV-LGPD-CONSENT-001 / INV-CT-REF-001; ADV-CT-06.
 
-- [ ] **T-CT-042** `OSReferenciaAdapter` (`src/infrastructure/caixa_tecnico/os_referencia_adapter.py`) —
+- [x] **T-CT-042** `OSReferenciaAdapter` (`src/infrastructure/caixa_tecnico/os_referencia_adapter.py`) —
   implementa `OSReferenciaPort`; query `OrdemServico.objects.filter(tenant_id=..., id=os_id).exists()` (seam OS,
   leitura pura). Substituir stubs da view pelos 3 adapters reais em `apps.py:ready()`.
   **Criar:** `src/infrastructure/caixa_tecnico/os_referencia_adapter.py`. **Editar:** `apps.py`.
   **AC:** `existe_os` com OS real → True; UUID inexistente → False; OS de tenant diferente → False.
   Ref: D-CT-11; AC-CT-003-1.
 
-- [ ] **T-CT-043** `tests/test_caixa_tecnico_adapters_fatia3a.py` — cobre:
+- [x] **T-CT-043** `tests/test_caixa_tecnico_adapters_fatia3a.py` — cobre:
   (a) `FotoComprovanteStorageLocal`: EXIF GPS stripado (foto com metadado GPS → pós-strip sem GPS — payload-spoof
   e EXIF-spoof rejeitados); `foto_hash` calculado sobre bytes pós-strip (não pré); foto idêntica cross-tenant →
   ambas aceitas (R12); foto idêntica mesmo tenant (status=pendente) → 409 (INV-CT-FOTO-DEDUP-001); tipo inválido → 422;

@@ -10,6 +10,7 @@ Refs: D-CT-4/5/6/12; plan §2; spec §4/§6.
 
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
@@ -27,6 +28,7 @@ class FotoComprovanteStoragePort(Protocol):
 
     def validar_e_processar(
         self,
+        tenant_id: UUID,
         bytes_foto: bytes,
         mime_type: str,
     ) -> tuple[bytes, str]:
@@ -35,17 +37,20 @@ class FotoComprovanteStoragePort(Protocol):
         Pipeline:
           1. Valida tipo: JPG/PNG + MIME allowlist + ≤5MB.
           2. EXIF strip obrigatório via Pillow (NUNCA canal de GPS — D-CT-6).
-          3. ``foto_hash = HMAC-SHA256(bytes_pós-strip, chave_tenant)`` (ADR-0064).
+          3. ``foto_hash = HMAC-tenant(sha256(bytes_pós-strip))`` (ADR-0064) — o
+             ``tenant_id`` entra no HMAC (anti-correlação cross-tenant — ADV-CT-04).
 
         Args:
+            tenant_id:  UUID do tenant (entra no HMAC do ``foto_hash``).
             bytes_foto: bytes brutos recebidos do cliente.
             mime_type:  MIME type declarado (``image/jpeg`` ou ``image/png``).
 
         Returns:
-            ``(bytes_limpos, foto_hash)`` — bytes sem EXIF + HMAC hex.
+            ``(bytes_limpos, foto_hash)`` — bytes sem EXIF + HMAC-tenant hex.
 
         Raises:
-            FotoComprovanteObrigatoria: tipo inválido, >5MB ou EXIF comprometido.
+            FotoComprovanteObrigatoria: foto ausente / bytes vazios (412).
+            FotoTipoInvalido: MIME fora da allowlist, >5MB ou imagem corrompida (422).
         """
         ...
 
@@ -115,7 +120,7 @@ class ConsentimentoGpsPort(Protocol):
         self,
         tenant_id: UUID,
         colaborador_id: UUID,
-        na_data: object,  # date ou datetime
+        na_data: date | datetime,
     ) -> bool:
         """Verifica se o colaborador tem opt-in GPS ativo na data.
 
@@ -167,8 +172,12 @@ class ColaboradorReferenciadoPort(Protocol):
     Implementação real: ``ColaboradorCaixaAdapter`` (mesmo adapter — Fatia 3a).
     """
 
-    def esta_referenciado(self, tenant_id: UUID, colaborador_id: UUID) -> bool:
+    def esta_referenciado(self, colaborador_id: UUID, tenant_id: UUID) -> bool:
         """Verifica se o colaborador está referenciado no caixa_tecnico.
+
+        Assinatura ``(colaborador_id, tenant_id)`` alinhada à porta COMPARTILHADA
+        ``domain/rh_frota_qualidade/colaboradores/portas.py`` — é essa que o
+        ``ColaboradorViewSet`` consome ao decidir hard-delete físico.
 
         Verifica existência de:
           - ``CaixaTecnico`` ativo (sem ``desligado_em``).
@@ -176,8 +185,8 @@ class ColaboradorReferenciadoPort(Protocol):
           - ``Adiantamento`` com estado ``solicitado``, ``aprovado`` ou ``entregue``.
 
         Args:
-            tenant_id:      UUID do tenant.
             colaborador_id: UUID do colaborador.
+            tenant_id:      UUID do tenant.
 
         Returns:
             True se existe qualquer vínculo ativo; False se pode ser hard-deletado.

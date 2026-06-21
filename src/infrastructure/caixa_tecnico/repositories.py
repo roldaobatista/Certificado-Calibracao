@@ -330,7 +330,7 @@ class ConsentimentoRepository:
         self,
         tenant_id: UUID,
         colaborador_referencia_hash: str,
-        na_data: datetime,
+        na_data: date | datetime,
     ) -> bool:
         """Verifica se o colaborador tem opt-in GPS ativo na data (D-CT-6).
 

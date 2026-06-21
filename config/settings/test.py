@@ -9,7 +9,10 @@ Decisao 2026-05-18 noite, pos-review tech-lead US-EQP-003 (Redis no dev/prod;
 LocMem em test pra nao acoplar CI a container externo).
 """
 
-from .base import *  # noqa: F403 -- overlay de settings com star import canonico
+import tempfile
+from pathlib import Path
+
+from .base import *  # -- overlay de settings com star import canonico
 
 # Sobrescreve cache Redis -> LocMem em testes.
 # Memoria `feedback_nao_declarar_pronto_sem_rodar`: testes precisam rodar isolados.
@@ -35,6 +38,11 @@ DEBUG = False
 # E-mail em test: backend em memoria (nao envia; mailbox via django.core.mail.outbox).
 # T-CR-044: notificacao de inadimplencia testada sem SMTP real.
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+
+# Media em test: diretorio temporario por sessao — evita poluir BASE_DIR/mediafiles
+# do repo quando FotoComprovanteStorageLocal.salvar grava foto-comprovante (caixa_tecnico
+# Fatia 3a). Cada execucao usa um tmp isolado, limpo pelo SO.
+MEDIA_ROOT = Path(tempfile.mkdtemp(prefix="afere-test-media-"))
 
 # =============================================================
 # REVERT 2026-05-24: MIRROR config causou pytest-django a escrever

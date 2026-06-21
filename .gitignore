@@ -77,3 +77,11 @@ dumps/
 # Artefatos gerados de teste/relatorio (regeneraveis — nao versionar)
 # =============================================================
 reports/
+
+# =============================================================
+# Media (uploads de usuario — foto-comprovante caixa_tecnico etc.):
+# storage local Wave A (MEDIA_ROOT=BASE_DIR/mediafiles). Dado de usuario,
+# nunca versionar. B2 = GATE pre-prod.
+# =============================================================
+mediafiles/
+media/

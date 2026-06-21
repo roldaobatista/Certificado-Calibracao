@@ -28,11 +28,14 @@ IMPORTANTE: usa ``--reuse-db`` (NUNCA ``--create-db``).
 from __future__ import annotations
 
 import base64
+import hashlib
+import io
 import threading
 from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from PIL import Image
 from rest_framework.test import APIClient
 from src.infrastructure.authz.django_provider import invalidate_user_cache
 from src.infrastructure.caixa_tecnico.models import (
@@ -61,9 +64,23 @@ _HASH_V1 = "v1"
 _FOTO_HASH_BASE = "a" * 64  # 64 chars HMAC hex
 
 
+def _jpeg_de_seed(seed: object) -> bytes:
+    """JPEG real e ÚNICO por ``seed`` (Fatia 3a: adapter real faz Image.open + re-encode).
+
+    Conteúdo derivado do sha256 do seed → bytes distintos por seed → foto_hash distinto
+    (evita colisão no UNIQUE parcial ``(tenant, foto_hash)``). Determinístico por seed.
+    """
+    h = hashlib.sha256(str(seed).encode()).digest()  # 32 bytes
+    img = Image.new("RGB", (4, 3))
+    img.putdata([(h[i % 32], h[(i + 7) % 32], h[(i + 17) % 32]) for i in range(12)])
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=95)
+    return buf.getvalue()
+
+
 def _foto_base64_valida() -> str:
-    """Foto mínima JPEG para os testes (bytes determinísticos → hash determinístico)."""
-    return base64.b64encode(b"foto-fake-jpeg-bytes-para-testes").decode()
+    """Foto JPEG real e ÚNICA por chamada (não colide no UNIQUE foto_hash do tenant)."""
+    return base64.b64encode(_jpeg_de_seed(uuid4().hex)).decode()
 
 
 def _autenticar(client: APIClient, usuario, tenant) -> None:
@@ -249,7 +266,7 @@ def test_lancar_deslocamento_calcula_valor():
 
 @pytest.mark.django_db(transaction=True, databases=_DBS)
 def test_lancar_sem_opt_in_gps_despesa_salva_com_aviso():
-    """GPS ausente (fake = opt_in=False) → despesa salva sem bloquear + gps_aviso."""
+    """GPS ausente (adapter real: sem consentimento → opt_in False) → despesa salva sem bloquear."""
     c = _cenario()
     caixa = _cria_caixa(c["tenant"])
     client = APIClient()
@@ -262,6 +279,31 @@ def test_lancar_sem_opt_in_gps_despesa_salva_com_aviso():
     # gps_aviso pode estar presente no body (GPS sem consentimento)
     # A despesa existe independente do aviso
     assert body["estado"] == "pendente"
+
+
+@pytest.mark.django_db(transaction=True, databases=_DBS)
+def test_lancar_foto_duplicada_409():
+    """Mesma foto, mesmo tenant, 2 lançamentos distintos → 2º = 409 FOTO_DUPLICADA.
+
+    Com adapter real (Fatia 3a) o foto_hash é determinístico (HMAC-tenant), então o
+    UNIQUE parcial (tenant, foto_hash) dispara IntegrityError no 2º insert — a view
+    traduz para 409 (INV-CT-FOTO-DEDUP-001), não 500.
+    """
+    c = _cenario()
+    caixa = _cria_caixa(c["tenant"])
+    client = APIClient()
+    _autenticar(client, c["admin"], c["tenant"])
+
+    foto = _foto_base64_valida()  # foto FIXA reusada nos 2 posts
+    p1 = _payload_lancar(caixa.id)
+    p1["foto_base64"] = foto
+    r1 = _post(client, URL_LANCAR, p1)
+    assert r1.status_code == 201, r1.content
+
+    p2 = _payload_lancar(caixa.id)
+    p2["foto_base64"] = foto  # mesma foto, nova Idempotency-Key (request distinto)
+    r2 = _post(client, URL_LANCAR, p2)
+    assert r2.status_code == 409, r2.content
 
 
 @pytest.mark.django_db(transaction=True, databases=_DBS)
@@ -615,7 +657,7 @@ def test_fechar_prestacao_concorrente_advisory_lock():
 def _item_lote(foto_sufixo: str | None = None, **kw):
     """Gera item de lote com foto única por sufixo (evita uq_ct_despesa_foto_hash_ativa)."""
     sufixo = foto_sufixo or uuid4().hex[:8]
-    foto_bytes = f"foto-fake-jpeg-lote-{sufixo}".encode()
+    foto_bytes = _jpeg_de_seed(f"lote-{sufixo}")
     base = {
         "foto_base64": base64.b64encode(foto_bytes).decode(),
         "foto_mime": "image/jpeg",
