@@ -283,7 +283,9 @@ relacionados:
 
 ## Fatia 3b — eventos e fan-out
 
-- [ ] **T-CT-050** Confirmar `ACOES_CAIXA_TECNICO` + união em `ACOES_CANONICAS` (9 slugs — já feito em T-CT-026;
+> ✅ **DONE (2026-06-21)** — 9 slugs `caixa_tecnico.*` confirmados canônicos (frozenset + união, já em 1b). Consumer `colaborador.desligado` (`consumers.py`, `@consumer_idempotente`) marca `CaixaTecnico` desligado (resolve `colaborador_id`→`tecnico_hash`; `dataclasses.replace`+`atualizar`; **fail-closed** = procede mesmo sem perfil, pois o estado seguro é desligado; perfil lido do envelope, nunca `obter_perfil_tenant_corrente`). Registrado em `apps.py:ready()` (fan-out aditivo, `try/except ValueError`). **8 testes** (assert_acao_canonica 9 slugs; idempotência replay+já-desligado; fan-out não engole agenda; perfil do envelope; fail-closed PROCEDE sem perfil; `prestacao.fechada` no `BusOutbox`). Review (6 auditores+adversarial): 5 PASS; 1 MÉDIO da qualidade (faltava teste do fail-closed-sem-perfil) consertado na causa-raiz. ruff/mypy limpos.
+
+- [x] **T-CT-050** Confirmar `ACOES_CAIXA_TECNICO` + união em `ACOES_CANONICAS` (9 slugs — já feito em T-CT-026;
   verificar que nenhum slug foi omitido). Registrar consumer `colaborador.desligado` em
   `apps.py:ready()` (`try/except ValueError: pass` — molde `agenda/apps.py`) → `@consumer_idempotente` que marca
   `CaixaTecnico` como inativo + bloqueia novas operações; perfil do envelope (nunca do estado atual do tenant).
@@ -292,7 +294,7 @@ relacionados:
   levantar no `ready()`; re-registro do mesmo fn → `ValueError` capturado; fn diferente → acumula (fan-out).
   Ref: D-CT-11; INV-BUS-001; TL-CT-11.
 
-- [ ] **T-CT-051** `tests/test_caixa_tecnico_eventos_fatia3b.py` — cobre:
+- [x] **T-CT-051** `tests/test_caixa_tecnico_eventos_fatia3b.py` — cobre:
   (a) `assert_acao_canonica` não falha para todos os 9 slugs `caixa_tecnico.*` (INV-008);
   (b) consumer `colaborador.desligado` idempotente (replay não duplica; molde ADR-0033);
   (c) fan-out não engole consumers existentes (R8 — verificar que `os.concluida` existente não é perdido);

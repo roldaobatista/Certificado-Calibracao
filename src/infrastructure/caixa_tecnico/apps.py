@@ -20,8 +20,19 @@ class CaixaTecnicoConfig(AppConfig):
     verbose_name = "Caixa do Técnico"
 
     def ready(self) -> None:
-        # TODO Fatia 3b: registrar consumers
-        #   - colaborador.desligado → handle_colaborador_desligado (fail-closed desligado_em)
+        # =============================================================
+        # Fatia 3b — T-CT-050: consumer colaborador.desligado (fail-closed)
+        # Fan-out aditivo (R8): _REGISTRY é dict[str, list] — registrar este consumer
+        # NÃO engole o consumer da agenda para a mesma ação. Re-registro do MESMO fn
+        # (re-entry no test runner / ready() 2x) levanta ValueError → capturado.
+        # =============================================================
+        from src.infrastructure.audit.outbox_worker import registrar_consumer
+        from src.infrastructure.caixa_tecnico.consumers import handle_colaborador_desligado
+
+        try:
+            registrar_consumer("colaborador.desligado", handle_colaborador_desligado)
+        except ValueError:
+            pass  # re-registro do mesmo handler — idempotente
 
         # =============================================================
         # Fatia 3a — T-CT-041: wiring ColaboradorReferenciadoPort
