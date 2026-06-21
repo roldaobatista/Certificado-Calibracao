@@ -163,14 +163,16 @@ relacionados:
 
 ## Fatia 2 — use cases + REST (núcleo autossuficiente; portas FAKE; NÃO toca módulo fechado)
 
-- [ ] **T-CT-030** `tests/fakes/caixa_tecnico_fakes.py` — fakes das 5 portas: `FotoComprovanteStorageFake`
+> ✅ **DONE (2026-06-18)** — 10 use cases + 3 ViewSets + serializers (GPS read_only) + `/sync/despesas-lote` (per-item 207) + advisory lock no fechamento + idempotência REST; portas via `ports_stub.py` (Wave A). **24 testes E2E verdes**; ruff/format/mypy + hooks limpos. **Débito Fatia 3a:** `ports_stub.py` (stubs no infra) substituído por adapters reais (foto/GPS/OS/colaborador). Seed `0008` (ações reapresentar/sync).
+
+- [x] **T-CT-030** `tests/fakes/caixa_tecnico_fakes.py` — fakes das 5 portas: `FotoComprovanteStorageFake`
   (armazena em dict em memória, retorna `foto_hash` determinístico); `OSReferenciaFake`; `ConsentimentoGpsFake`
   (configurável: opt-in on/off); `ColaboradorCaixaFake`; `ColaboradorReferenciadoFake`.
   **Criar:** `tests/fakes/caixa_tecnico_fakes.py`.
   **AC:** `isinstance(FotoComprovanteStorageFake(), FotoComprovanteStoragePort)` → True (runtime_checkable).
   Ref: D-CT-4/6/12; plan §4.
 
-- [ ] **T-CT-031** `lancar_despesa.py` — valida `foto_hash` (FAKE); calcula `valor_deslocamento` se
+- [x] **T-CT-031** `lancar_despesa.py` — valida `foto_hash` (FAKE); calcula `valor_deslocamento` se
   `categoria=deslocamento`; lê opt-in GPS server-side (FAKE); `acima_limite` flag (não bloqueia); grava;
   publica `caixa_tecnico.despesa.lancada` no outbox dentro do `atomic`. + `reapresentar_despesa.py` —
   transição `rejeitada→pendente`; nova foto; audit do ciclo.
@@ -179,14 +181,14 @@ relacionados:
   `valor = km × tarifa`; opt-in GPS ausente → 403 mas despesa salva sem GPS; `reapresentar_despesa` → `pendente`.
   Ref: D-CT-4/5/6/9; INV-CT-FOTO-001 / INV-CT-IDEMP-001; AC-CT-002-1..6 / AC-CT-007-2.
 
-- [ ] **T-CT-032** `validar_despesa.py` (swipe valida; `pendente→validada`; publica `despesa.validada`) +
+- [x] **T-CT-032** `validar_despesa.py` (swipe valida; `pendente→validada`; publica `despesa.validada`) +
   `rejeitar_despesa.py` (swipe rejeita; motivo ≥30; `pendente→rejeitada`; publica `despesa.rejeitada`).
   **Criar:** `src/application/caixa_tecnico/validar_despesa.py` e `src/application/caixa_tecnico/rejeitar_despesa.py`.
   **AC:** `validar_despesa` → status `validada`; `rejeitar_despesa(motivo=curto)` → `TransicaoInvalida` 422
   (motivo inválido); `rejeitar_despesa(motivo_ok)` → `rejeitada`; tentar validar `validada` novamente → `TransicaoInvalida`.
   Ref: D-CT-3; INV-CT-IMUT-001; AC-CT-004-2 / AC-CT-007-1.
 
-- [ ] **T-CT-033** `solicitar_adiantamento.py` + `aprovar_adiantamento.py` + `recusar_adiantamento.py` +
+- [x] **T-CT-033** `solicitar_adiantamento.py` + `aprovar_adiantamento.py` + `recusar_adiantamento.py` +
   `entregar_adiantamento.py` — máquina de estados conforme D-CT-7; alçada `Politica.alcada_aprovacao`
   server-side em `aprovar`; recusar exige motivo; entregar = manual Wave A (PIX Wave B ADR-0050); tentativa de
   cancelar `entregue` → `AdiantamentoNaoCancelavel` 422.
@@ -195,7 +197,7 @@ relacionados:
   alçada incorreta → 403.
   Ref: D-CT-7; INV-CT-ADIAN-001; AC-CT-001-1..3.
 
-- [ ] **T-CT-034** `fechar_prestacao.py` — `pg_advisory_xact_lock(hash(tenant_id, tecnico_id))` (R6); `calcular_saldo`
+- [x] **T-CT-034** `fechar_prestacao.py` — `pg_advisory_xact_lock(hash(tenant_id, tecnico_id))` (R6); `calcular_saldo`
   on-read; bloqueia novas despesas no período (`PERIODO_PRESTACAO_FECHADO` 422); grava `PrestacaoContas` WORM;
   publica `caixa_tecnico.prestacao.fechada` no outbox dentro do `atomic`; `direcao=tenant_deve` = estado
   consultável (sem execução de reembolso — GATE-CT-CONTAS-PAGAR).
@@ -204,7 +206,7 @@ relacionados:
   no período fechado → 422; `caixa_tecnico.prestacao.fechada` no outbox.
   Ref: D-CT-8; INV-CT-PRESTACAO-001; AC-CT-006-1..2.
 
-- [ ] **T-CT-035** `sync_despesas_lote.py` — `POST /v1/caixa-tecnico/sync/despesas-lote`; valida `len ≤ 20` (413
+- [x] **T-CT-035** `sync_despesas_lote.py` — `POST /v1/caixa-tecnico/sync/despesas-lote`; valida `len ≤ 20` (413
   se exceder); `foto_base64` decode → `FotoComprovanteStoragePort` FAKE; atomicidade per-item (207 — 1 falha não
   trava lote); dedup `client_offline_id` (UNIQUE → retorna item existente, não duplica); LWW
   `(client_event_ts, device_id)`.
@@ -213,7 +215,7 @@ relacionados:
   restantes OK; replay do lote → 207 com itens existentes (sem duplicata).
   Ref: D-CT-5; INV-CT-IDEMP-001; AC-CT-002-2..3.
 
-- [ ] **T-CT-036** `serializers.py` — GPS `read_only=True` em serializers de escrita (nunca do payload — R5);
+- [x] **T-CT-036** `serializers.py` — GPS `read_only=True` em serializers de escrita (nunca do payload — R5);
   `client_offline_id` aceito; `foto_base64` no serializer de lote. `views.py` — `DespesaViewSet` +
   `AdiantamentoViewSet` + `PrestacaoContasViewSet` + action `sync-lote`; `_aplicar_idempotencia` (molde
   `agenda/views.py`); `publicar_evento(outbox=True)` no `atomic`. `urls.py`.
@@ -221,7 +223,7 @@ relacionados:
   **AC:** `serializer.fields['gps_lat'].read_only == True`; endpoint `sync-lote` retorna 207.
   Ref: D-CT-5/6; INV-LGPD-CONSENT-001; AC-CT-002-5.
 
-- [ ] **T-CT-037** `tests/test_caixa_tecnico_api_fatia2.py` — cobre (todos `transaction=True`):
+- [x] **T-CT-037** `tests/test_caixa_tecnico_api_fatia2.py` — cobre (todos `transaction=True`):
   lançar OK (201); sem foto → 412 (INV-CT-FOTO-001); `client_offline_id` replay → mesmo registro;
   `deslocamento` calcula valor; opt-in GPS ausente → 403 + despesa salva sem GPS;
   validar → `validada`; rejeitar motivo curto → 422; rejeitar OK → `rejeitada`;

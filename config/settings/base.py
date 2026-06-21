@@ -347,6 +347,11 @@ LOCAL_APPS = [
     # (RegimeJornadaColaborador INSERT-only, D-AGE-15). Consumers = Fatia 3.
     # EXCLUDE GIST (tenant_id, tecnico_id, tstzrange '[)') — R1/R12/INV-AG-OVERLAP-001.
     "src.infrastructure.agenda.apps.AgendaConfig",
+    # Wave A frente caixa_tecnico — nível 5 (caixa operacional do técnico de campo).
+    # Adiantamentos + despesas com foto-comprovante WORM + prestação de contas.
+    # RLS v2 (6 tabelas) + anti-mutação despesa_validada + block-delete (D-CT-3/4/5a).
+    # Consumers = Fatia 3b (colaborador.desligado fail-closed).
+    "src.infrastructure.caixa_tecnico.apps.CaixaTecnicoConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

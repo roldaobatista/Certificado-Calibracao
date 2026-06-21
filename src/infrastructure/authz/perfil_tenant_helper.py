@@ -92,7 +92,7 @@ def _consultar_perfil_no_db(tenant_id: UUID) -> str:
                     tenant_id,
                 )
                 return ""
-            return row[0]
+            return str(row[0])
     except Exception as e:  # noqa: BLE001 -- defensivo helper fail-closed, qualquer erro DB vira "" (predicate trata)
         logger.warning(
             "tenant_perfil_corrente: fallback DB falhou para tenant %s: %s. "

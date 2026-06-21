@@ -209,6 +209,9 @@ module = [
     "src.infrastructure.orcamentos._views_suporte",
     "src.infrastructure.agenda.views",
     "src.infrastructure.agenda.serializers",
+    "src.infrastructure.caixa_tecnico.views",
+    "src.infrastructure.caixa_tecnico.serializers",
+    "src.infrastructure.caixa_tecnico.urls",
 ]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
